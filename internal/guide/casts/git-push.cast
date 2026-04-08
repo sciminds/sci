@@ -1,0 +1,13 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "git push origin main"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "Enumerating objects: 5, done.\r\n"]
+[1.5, "o", "Counting objects: 100% (5/5), done.\r\n"]
+[1.7, "o", "Delta compression using up to 8 threads\r\n"]
+[1.9, "o", "Compressing objects: 100% (3/3), done.\r\n"]
+[2.1, "o", "Writing objects: 100% (3/3), 1.2 KiB, done.\r\n"]
+[2.3, "o", "Total 3 (delta 1), reused 0 (delta 0)\r\n"]
+[2.5, "o", "To https://github.com/user/project.git\r\n"]
+[2.6, "o", "   4a1b2c3..7d8e9f0  main -> main\r\n"]
+[3.1, "o", "$ "]

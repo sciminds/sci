@@ -21,7 +21,7 @@ const (
 
 func startGuideTeatest(t *testing.T) *teatest.TestModel {
 	t.Helper()
-	m := newModel()
+	m := newModel("Terminal Guide", BasicEntries)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("ls"))
@@ -60,8 +60,8 @@ func TestGuideRender(t *testing.T) {
 		t.Error("player should be nil on initial render")
 	}
 	// List should have all entries
-	if len(fm.list.Items()) != len(Entries) {
-		t.Errorf("list has %d items, want %d", len(fm.list.Items()), len(Entries))
+	if len(fm.list.Items()) != len(BasicEntries) {
+		t.Errorf("list has %d items, want %d", len(fm.list.Items()), len(BasicEntries))
 	}
 }
 

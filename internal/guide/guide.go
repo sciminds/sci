@@ -19,15 +19,15 @@ type model struct {
 	quitting bool
 }
 
-func newModel() *model {
-	items := make([]list.Item, len(Entries))
-	for i, e := range Entries {
+func newModel(title string, entries []Entry) *model {
+	items := make([]list.Item, len(entries))
+	for i, e := range entries {
 		items[i] = e
 	}
 
 	d := ui.NewListDelegate()
 	l := list.New(items, d, 0, 0)
-	l.Title = "Terminal Guide"
+	l.Title = title
 	l.Styles.Title = ui.TUI.AccentBold()
 	l.SetFilteringEnabled(true)
 	l.SetShowStatusBar(true)
@@ -173,9 +173,9 @@ func (m *model) renderOverlay() string {
 		Render(b.String())
 }
 
-// Run launches the interactive guide TUI.
-func Run() error {
-	m := newModel()
+// Run launches the interactive guide TUI with the given title and entries.
+func Run(title string, entries []Entry) error {
+	m := newModel(title, entries)
 	p := tea.NewProgram(m)
 	_, err := p.Run()
 	return err

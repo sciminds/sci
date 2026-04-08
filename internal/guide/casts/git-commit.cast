@@ -1,0 +1,12 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "git add analysis.py results.csv"]
+[1.0, "o", "\r\n"]
+[1.5, "o", "$ "]
+[1.8, "o", "git commit -m 'Add initial analysis and results'"]
+[2.0, "o", "\r\n"]
+[2.3, "o", "[main 4a1b2c3] Add initial analysis and results\r\n"]
+[2.5, "o", " 2 files changed, 47 insertions(+)\r\n"]
+[2.7, "o", " create mode 100644 analysis.py\r\n"]
+[2.8, "o", " create mode 100644 results.csv\r\n"]
+[3.3, "o", "$ "]

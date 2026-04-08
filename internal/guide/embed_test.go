@@ -27,7 +27,7 @@ func TestLoadCastNotFound(t *testing.T) {
 }
 
 func TestAllEntriesHaveCasts(t *testing.T) {
-	for _, e := range Entries {
+	for _, e := range append(BasicEntries, GitEntries...) {
 		t.Run(e.Name, func(t *testing.T) {
 			if e.Name == "" || e.Cmd == "" || e.Desc == "" || e.CastFile == "" {
 				t.Error("entry has empty fields")

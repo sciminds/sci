@@ -14,8 +14,8 @@ func (e Entry) Title() string       { return e.Cmd }
 func (e Entry) Description() string { return e.Desc }
 func (e Entry) FilterValue() string { return e.Name + " " + e.Cmd + " " + e.Desc }
 
-// Entries is the full list of guide items.
-var Entries = []Entry{
+// BasicEntries is the full list of basic terminal guide items.
+var BasicEntries = []Entry{
 	{
 		Name:     "ls",
 		Cmd:      "ls — list files",

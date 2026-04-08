@@ -55,6 +55,8 @@ curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh
 | `sci doctor tools` | Install optional developer tools |
 | `sci update` | Update sci to the latest version |
 | `sci view <file>` | Browse any data file interactively (CSV, JSON, SQLite) |
+| `sci guide basic` | Interactive demos of essential terminal commands |
+| `sci guide git` | Interactive demos of essential Git commands |
 
 ### Manage Python projects
 
