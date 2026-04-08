@@ -9,9 +9,12 @@
 plan.md
 /tutorials/
 
-# Allow test fixtures tracked via Git LFS
+# Allow test fixtures and embedded template data
 !internal/db/data/testdata/*.duckdb
 !internal/db/data/testdata/*.db
+!internal/tui/dbtui/test.db
+!internal/proj/new/templates/python/code/bibliography.bib
+!internal/proj/new/templates/python/data/raw/penguins.csv
 *.bak
 .env
 *.DS*
