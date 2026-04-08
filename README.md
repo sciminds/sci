@@ -161,12 +161,13 @@ Binaries are named `{tool}-{os}-{arch}` (e.g. `sci-darwin-arm64`, `dbtui-linux-a
 
 Prerequisites: [Go 1.23+](https://go.dev/dl/) and [just](https://github.com/casey/just) (`brew install just`).
 
+*This is also setup as a git pre-commit hook:*
+
 ```bash
 # Run the full check suite (fmt, vet, lint, test, build)
 just ok
 ```
 
-*Run `just ok` after every change — it's the single gate for the project!*
 
 Launch auto-documentation site:
 
