@@ -511,8 +511,6 @@ func TestTeatestColumnRenameInvalid(t *testing.T) {
 
 // TestTeatestHalfPageWithLargeData verifies half-page up/down with data exceeding viewport.
 func TestTeatestHalfPageWithLargeData(t *testing.T) {
-	skipUnlessSlow(t)
-
 	// Create a model with many rows.
 	m, _ := newTeatestModelWithSchema(t, []string{
 		`CREATE TABLE big (id INTEGER PRIMARY KEY, val TEXT)`,

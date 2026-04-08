@@ -2,7 +2,6 @@ package guide
 
 import (
 	"bytes"
-	"os"
 	"testing"
 	"time"
 
@@ -10,13 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 )
-
-func skipUnlessSlow(t *testing.T) {
-	t.Helper()
-	if os.Getenv("SLOW") == "" {
-		t.Skip("skipping teatest (set SLOW=1 to run)")
-	}
-}
 
 const (
 	testTermW = 100
@@ -29,7 +21,6 @@ const (
 
 func startGuideTeatest(t *testing.T) *teatest.TestModel {
 	t.Helper()
-	skipUnlessSlow(t)
 	m := newModel()
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {

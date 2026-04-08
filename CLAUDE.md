@@ -3,8 +3,8 @@
 ## Build & Test
 
 ```bash
-just ok              # gate: fmt + vet + lint + test + build — run after every change
-just test-slow       # integration tests (~4 min, needs SLOW=1, pixi/uv/quarto/marimo/typst/node)
+just ok              # gate: fmt + vet + lint + test + build — run after every change (includes teatests)
+just test-slow       # proj/new integration tests (~4 min, needs SLOW=1, pixi/uv/quarto/marimo/typst/node)
 ```
 
 ## Design Rules
@@ -31,7 +31,7 @@ just test-slow       # integration tests (~4 min, needs SLOW=1, pixi/uv/quarto/m
 
 ## Gotchas
 
-- Integration tests skip unless `SLOW=1` is set.
+- `proj/new` integration tests skip unless `SLOW=1` is set (need pixi/uv/quarto/etc). Teatests run unconditionally.
 - marimo export exits non-zero for `mo.md()` cells — expected. Assert on produced file, not exit code.
 - `install.sh` must be POSIX sh (runs on bare Macs).
 - CI uses a rolling `latest` release tag (delete + recreate on push to main).

@@ -3,7 +3,6 @@ package app
 import (
 	"bytes"
 	"io"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -12,13 +11,6 @@ import (
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 )
-
-func skipUnlessSlow(t *testing.T) {
-	t.Helper()
-	if os.Getenv("SLOW") == "" {
-		t.Skip("skipping teatest (set SLOW=1 to run)")
-	}
-}
 
 const (
 	testTermW = 100
@@ -30,11 +22,8 @@ const (
 // ── Shared helpers ──────────────────────────────────────────────────────
 
 // setupTeatestDB creates a test database with a few tables and returns a store.
-// All teatest tests are gated behind SLOW=1 because they run a full Bubble Tea
-// message loop and can take several seconds each.
 func setupTeatestDB(t *testing.T) *data.Store {
 	t.Helper()
-	skipUnlessSlow(t)
 	dbPath := filepath.Join(t.TempDir(), "teatest.db")
 	store, err := data.Open(dbPath)
 	if err != nil {
@@ -90,7 +79,6 @@ func newReadOnlyTeatestModel(t *testing.T) *Model {
 // newEmptyTeatestModel creates a model with no tables.
 func newEmptyTeatestModel(t *testing.T) *Model {
 	t.Helper()
-	skipUnlessSlow(t)
 	dbPath := filepath.Join(t.TempDir(), "empty.db")
 	store, err := data.Open(dbPath)
 	if err != nil {
@@ -108,11 +96,8 @@ func newEmptyTeatestModel(t *testing.T) *Model {
 }
 
 // newTeatestModelWithSchema creates a model with custom SQL statements.
-//
-//nolint:unused // test helper documented in TESTING.md, will be used by future tests
 func newTeatestModelWithSchema(t *testing.T, stmts []string) (*Model, *data.Store) {
 	t.Helper()
-	skipUnlessSlow(t)
 	dbPath := filepath.Join(t.TempDir(), "custom.db")
 	store, err := data.Open(dbPath)
 	if err != nil {
