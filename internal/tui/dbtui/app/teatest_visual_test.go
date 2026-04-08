@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/charmbracelet/x/exp/teatest/v2"
@@ -148,19 +149,50 @@ func TestTeatestVisualPasteAfter(t *testing.T) {
 func TestTeatestVisualExport(t *testing.T) {
 	tm, _ := startTeatest(t)
 
+	// Change to a temp directory so the CSV file is written there, not CWD.
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpDir := t.TempDir()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
 	sendKey(tm, "v")
 	sendKey(tm, "e") // export
 
 	fm := finalModel(t, tm)
 	_ = fm
 
-	// Check that the CSV file was created.
-	csvPath := "products_selection.csv"
+	// Check that the CSV file was created in the temp directory.
+	csvPath := filepath.Join(tmpDir, "products_selection.csv")
 	if _, err := os.Stat(csvPath); os.IsNotExist(err) {
 		t.Errorf("expected %s to be created", csvPath)
-	} else {
-		// Clean up.
-		_ = os.Remove(csvPath)
+	}
+}
+
+// TestTeatestVisualPasteEmptyClipboard verifies paste with empty clipboard sets error.
+func TestTeatestVisualPasteEmptyClipboard(t *testing.T) {
+	tm, store := startTeatest(t)
+
+	sendKey(tm, "v")
+	sendKey(tm, "p") // paste with empty clipboard
+
+	fm := finalModel(t, tm)
+
+	// Clipboard should still be empty.
+	if len(fm.clipboard) != 0 {
+		t.Error("clipboard should be empty")
+	}
+	// Row count should be unchanged (no paste happened).
+	count, err := store.TableRowCount("products")
+	if err != nil {
+		t.Fatalf("TableRowCount: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("row count = %d, want 3 (paste should have been rejected)", count)
 	}
 }
 

@@ -108,3 +108,37 @@ func TestTeatestEditModeExit(t *testing.T) {
 		t.Errorf("mode = %d, want modeNormal after Esc", fm.mode)
 	}
 }
+
+// TestTeatestCellEditorSaveEmpty verifies editing a cell to empty writes NULL.
+func TestTeatestCellEditorSaveEmpty(t *testing.T) {
+	tm, store := startTeatest(t)
+
+	// Enter edit mode, open cell editor.
+	sendKey(tm, "i")
+	sendSpecial(tm, tea.KeyEnter)
+
+	// Clear all text (Ctrl+A selects all, Ctrl+K kills to end).
+	tm.Send(tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl})
+	tm.Send(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	// Save with Enter (empty → NULL).
+	sendSpecial(tm, tea.KeyEnter)
+
+	fm := finalModel(t, tm)
+
+	if fm.cellEditor != nil {
+		t.Error("cell editor should be closed after save")
+	}
+
+	// Verify DB: cell should be NULL.
+	_, rows, nullFlags, _, err := store.QueryTable("products")
+	if err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+	if len(rows) == 0 {
+		t.Fatal("no rows returned")
+	}
+	// Row 0, col 1 (title) should be NULL.
+	if !nullFlags[0][1] {
+		t.Errorf("expected NULL flag for row 0 col 1, got value %q", rows[0][1])
+	}
+}

@@ -124,3 +124,79 @@ func TestTeatestSearchReopenPreservesQuery(t *testing.T) {
 		t.Errorf("search.Query = %q, want %q (preserved from before)", fm.search.Query, "Gadget")
 	}
 }
+
+// TestTeatestSearchColumnScoped verifies @col:value filtering via the TUI.
+func TestTeatestSearchColumnScoped(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "/")
+	tm.Type("@title: Widget")
+
+	fm := finalModel(t, tm)
+
+	if fm.search == nil {
+		t.Fatal("search should be open")
+	}
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	// Only "Widget" in the title column should match.
+	if len(tab.CellRows) != 1 {
+		t.Errorf("filtered rows = %d, want 1 for @title: Widget", len(tab.CellRows))
+	}
+}
+
+// TestTeatestSearchNegation verifies -term exclusion via the TUI.
+func TestTeatestSearchNegation(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "/")
+	tm.Type("-Widget")
+
+	fm := finalModel(t, tm)
+
+	if fm.search == nil {
+		t.Fatal("search should be open")
+	}
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	// "Widget" row should be excluded, leaving 2 of 3 products.
+	if len(tab.CellRows) != 2 {
+		t.Errorf("filtered rows = %d, want 2 after excluding Widget", len(tab.CellRows))
+	}
+	for _, row := range tab.CellRows {
+		for _, c := range row {
+			if c.Value == "Widget" {
+				t.Error("Widget row should have been excluded by negation")
+			}
+		}
+	}
+}
+
+// TestTeatestSearchBackspace verifies backspace removes characters from query.
+func TestTeatestSearchBackspace(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "/")
+	tm.Type("Widgetx")
+	sendSpecial(tm, tea.KeyBackspace) // remove the 'x'
+
+	fm := finalModel(t, tm)
+
+	if fm.search == nil {
+		t.Fatal("search should be open")
+	}
+	if fm.search.Query != "Widget" {
+		t.Errorf("search.Query = %q, want %q after backspace", fm.search.Query, "Widget")
+	}
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	if len(tab.CellRows) != 1 {
+		t.Errorf("filtered rows = %d, want 1 for 'Widget'", len(tab.CellRows))
+	}
+}

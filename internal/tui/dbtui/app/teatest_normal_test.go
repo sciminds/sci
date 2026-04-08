@@ -276,26 +276,80 @@ func TestTeatestCellPreview(t *testing.T) {
 
 // ── Navigation Jumps ────────────────────────────────────────────────────
 
-func TestTeatestNavigationJumps(t *testing.T) {
+// TestTeatestGoToBottom verifies G moves cursor to last row.
+func TestTeatestGoToBottom(t *testing.T) {
 	tm, _ := startTeatest(t)
 
-	t.Run("G_goes_to_bottom", func(_ *testing.T) {
-		sendKey(tm, "G")
-	})
+	sendKey(tm, "G")
 
-	t.Run("g_goes_to_top", func(_ *testing.T) {
-		sendKey(tm, "g")
-	})
+	fm := finalModel(t, tm)
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	last := len(tab.CellRows) - 1
+	if got := tab.Table.Cursor(); got != last {
+		t.Errorf("cursor = %d, want %d (last row) after G", got, last)
+	}
+}
 
-	t.Run("dollar_goes_to_last_col", func(_ *testing.T) {
-		sendKey(tm, "$")
-	})
+// TestTeatestGoToTop verifies g moves cursor to first row.
+func TestTeatestGoToTop(t *testing.T) {
+	tm, _ := startTeatest(t)
 
-	t.Run("caret_goes_to_first_col", func(_ *testing.T) {
-		sendKey(tm, "^")
-	})
+	sendKey(tm, "j") // move down first
+	sendKey(tm, "j")
+	sendKey(tm, "g") // go to top
 
-	// Navigate down first so halfPageUp has somewhere to go.
+	fm := finalModel(t, tm)
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	if got := tab.Table.Cursor(); got != 0 {
+		t.Errorf("cursor = %d, want 0 after g", got)
+	}
+}
+
+// TestTeatestDollarGoesToLastCol verifies $ moves to last column.
+func TestTeatestDollarGoesToLastCol(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "$")
+
+	fm := finalModel(t, tm)
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	// Products has cols: id(readonly), title, price. Last selectable = price (index 2).
+	if tab.ColCursor != 2 {
+		t.Errorf("ColCursor = %d, want 2 after $", tab.ColCursor)
+	}
+}
+
+// TestTeatestCaretGoesToFirstCol verifies ^ moves to first selectable column.
+func TestTeatestCaretGoesToFirstCol(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "$") // go to last col first
+	sendKey(tm, "^") // go to first selectable col
+
+	fm := finalModel(t, tm)
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	// First selectable = title (index 1, since id is readonly).
+	if tab.ColCursor != 1 {
+		t.Errorf("ColCursor = %d, want 1 after ^", tab.ColCursor)
+	}
+}
+
+// TestTeatestHalfPageUpDown verifies u/d half-page navigation.
+func TestTeatestHalfPageUpDown(t *testing.T) {
+	tm, _ := startTeatest(t)
+
 	sendKey(tm, "G") // go to bottom
 	sendKey(tm, "u") // half page up
 	sendKey(tm, "d") // half page down (back toward bottom)
@@ -305,7 +359,7 @@ func TestTeatestNavigationJumps(t *testing.T) {
 	if tab == nil {
 		t.Fatal("no active tab")
 	}
-	// After G, u, d sequence on a 3-row table, cursor should be at last row.
+	// On a 3-row table, G→u→d should end at last row.
 	last := len(tab.CellRows) - 1
 	if got := tab.Table.Cursor(); got != last {
 		t.Errorf("cursor = %d, want %d (last row)", got, last)
@@ -323,4 +377,168 @@ func TestTeatestQuitNormal(t *testing.T) {
 	if fm == nil {
 		t.Fatal("expected non-nil final model")
 	}
+}
+
+// ── Column picker overlay ──────────────────────────────────────────────
+
+// TestTeatestColumnPickerOpen verifies C opens the picker when multiple columns are hidden.
+func TestTeatestColumnPickerOpen(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	// Hide two columns: first the current (col 1 = title), then move right and hide next.
+	sendKey(tm, "c") // hide col 1 (title)
+	sendKey(tm, "c") // hide col 2 (price) — cursor auto-moved to next visible
+
+	// Open column picker with shift-C.
+	sendKey(tm, "C")
+
+	fm := finalModel(t, tm)
+
+	if fm.columnPicker == nil {
+		t.Fatal("column picker should be open after C with multiple hidden columns")
+	}
+}
+
+// TestTeatestColumnPickerUnhide verifies selecting a column in the picker unhides it.
+func TestTeatestColumnPickerUnhide(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	// Hide two columns.
+	sendKey(tm, "c") // hide col 1
+	sendKey(tm, "c") // hide col 2
+
+	// Open picker and unhide the first entry.
+	sendKey(tm, "C")
+	sendSpecial(tm, tea.KeyEnter) // unhide first hidden column
+
+	fm := finalModel(t, tm)
+
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	// Count hidden columns — should be 1 (we unhid one of the two).
+	hidden := 0
+	for _, s := range tab.Specs {
+		if s.HideOrder > 0 {
+			hidden++
+		}
+	}
+	if hidden != 1 {
+		t.Errorf("expected 1 hidden column after unhiding one, got %d", hidden)
+	}
+}
+
+// TestTeatestColumnPickerClose verifies Esc closes the picker.
+func TestTeatestColumnPickerClose(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "c")               // hide col 1
+	sendKey(tm, "c")               // hide col 2
+	sendKey(tm, "C")               // open picker
+	sendSpecial(tm, tea.KeyEscape) // close picker
+
+	fm := finalModel(t, tm)
+
+	if fm.columnPicker != nil {
+		t.Error("column picker should be closed after Esc")
+	}
+}
+
+// TestTeatestColumnPickerSingleAutoUnhide verifies C with one hidden column auto-unhides.
+func TestTeatestColumnPickerSingleAutoUnhide(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "c") // hide col 1 (only one hidden)
+	sendKey(tm, "C") // should auto-unhide without opening picker
+
+	fm := finalModel(t, tm)
+
+	if fm.columnPicker != nil {
+		t.Error("column picker should NOT open when only one column is hidden (fast path)")
+	}
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	for _, s := range tab.Specs {
+		if s.HideOrder > 0 {
+			t.Errorf("column %q should be unhidden after fast-path C", s.Title)
+		}
+	}
+}
+
+// ── Column rename with invalid identifier ──────────────────────────────
+
+// TestTeatestColumnRenameInvalid verifies renaming to an invalid name is rejected.
+func TestTeatestColumnRenameInvalid(t *testing.T) {
+	tm, store := startTeatest(t)
+
+	sendKey(tm, "r") // open rename
+	// Clear and type an invalid name.
+	tm.Send(tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl})
+	tm.Send(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	tm.Type("bad;name")
+	sendSpecial(tm, tea.KeyEnter)
+
+	fm := finalModel(t, tm)
+
+	// Rename overlay should be closed (committed but rejected).
+	if fm.columnRename != nil {
+		t.Error("rename overlay should be closed after attempt")
+	}
+
+	// Verify DB was NOT updated — original column name still exists.
+	cols, err := store.TableColumns("products")
+	if err != nil {
+		t.Fatalf("TableColumns: %v", err)
+	}
+	found := false
+	for _, c := range cols {
+		if c.Name == "title" {
+			found = true
+		}
+		if c.Name == "bad;name" {
+			t.Error("invalid column name should not exist in DB")
+		}
+	}
+	if !found {
+		t.Error("original column 'title' should still exist")
+	}
+}
+
+// ── Half-page navigation with larger dataset ───────────────────────────
+
+// TestTeatestHalfPageWithLargeData verifies half-page up/down with data exceeding viewport.
+func TestTeatestHalfPageWithLargeData(t *testing.T) {
+	skipUnlessSlow(t)
+
+	// Create a model with many rows.
+	m, _ := newTeatestModelWithSchema(t, []string{
+		`CREATE TABLE big (id INTEGER PRIMARY KEY, val TEXT)`,
+		`INSERT INTO big (val) VALUES ('a'),('b'),('c'),('d'),('e'),('f'),('g'),('h'),('i'),('j'),
+		('k'),('l'),('m'),('n'),('o'),('p'),('q'),('r'),('s'),('t'),
+		('u'),('v'),('w'),('x'),('y'),('z'),('aa'),('bb'),('cc'),('dd')`,
+	})
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
+	waitForOutput(t, tm, "big")
+
+	// Half-page down should jump roughly half the viewport height.
+	sendKey(tm, "d") // half page down
+	sendKey(tm, "d") // half page down again
+
+	fm := finalModel(t, tm)
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	cursor := tab.Table.Cursor()
+	// With 30 rows and viewport ~24 lines, half page ≈ 12. Two jumps ≈ 24.
+	// Cursor should be well past 10.
+	if cursor < 10 {
+		t.Errorf("cursor = %d after two half-page-downs, expected > 10", cursor)
+	}
+
+	// Half-page up should go back.
+	// Can't send more keys after finalModel, so just verify cursor position.
 }

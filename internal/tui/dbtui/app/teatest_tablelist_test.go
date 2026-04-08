@@ -134,3 +134,90 @@ func TestTeatestTableListClose(t *testing.T) {
 		t.Error("table list should be closed after Esc")
 	}
 }
+
+// ── Derive table/view ──────────────────────────────────────────────────
+
+// TestTeatestTableListDeriveTable verifies creating a derived table via SQL.
+func TestTeatestTableListDeriveTable(t *testing.T) {
+	tm, store := startTeatest(t)
+
+	sendKey(tm, "t") // open table list
+	sendKey(tm, "s") // start derive
+
+	// The SQL textarea is pre-filled with "SELECT ". Type the rest.
+	tm.Type("title, price FROM products WHERE price > 5")
+
+	// Tab to name field.
+	sendSpecial(tm, tea.KeyTab)
+	// Clear default name "derived" and type new name.
+	tm.Send(tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl})
+	tm.Send(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	tm.Type("expensive")
+
+	// Enter = create table (not view).
+	sendSpecial(tm, tea.KeyEnter)
+
+	fm := finalModel(t, tm)
+	_ = fm
+
+	// Verify the derived table exists with correct data.
+	count, err := store.TableRowCount("expensive")
+	if err != nil {
+		t.Fatalf("TableRowCount: %v", err)
+	}
+	// products with price > 5: Widget (9.99), Gadget (24.50) = 2 rows.
+	if count != 2 {
+		t.Errorf("derived table row count = %d, want 2", count)
+	}
+}
+
+// TestTeatestTableListDeriveCancel verifies Esc cancels the derive overlay.
+func TestTeatestTableListDeriveCancel(t *testing.T) {
+	tm, store := startTeatest(t)
+
+	sendKey(tm, "t")
+	sendKey(tm, "s")               // start derive
+	sendSpecial(tm, tea.KeyEscape) // cancel
+
+	fm := finalModel(t, tm)
+
+	if fm.tableList == nil {
+		t.Error("table list should still be open after derive cancel")
+	}
+	if fm.tableList != nil && fm.tableList.Deriving {
+		t.Error("Deriving should be false after Esc")
+	}
+
+	// Verify no "derived" table was created.
+	names, err := store.TableNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range names {
+		if n == "derived" {
+			t.Error("derived table should not exist after cancel")
+		}
+	}
+}
+
+// ── Rapid tab switching ────────────────────────────────────────────────
+
+// TestTeatestRapidTabSwitch verifies rapid tab switching doesn't panic.
+func TestTeatestRapidTabSwitch(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	// Rapidly switch tabs multiple times before any async load completes.
+	sendSpecial(tm, tea.KeyTab)
+	sendSpecial(tm, tea.KeyTab)
+	sendSpecial(tm, tea.KeyTab)
+	sendSpecial(tm, tea.KeyTab)
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+
+	fm := finalModel(t, tm)
+
+	// Just verify we didn't panic and the model is in a consistent state.
+	if fm.active < 0 || fm.active >= len(fm.tabs) {
+		t.Errorf("active tab %d is out of range [0, %d)", fm.active, len(fm.tabs))
+	}
+}
