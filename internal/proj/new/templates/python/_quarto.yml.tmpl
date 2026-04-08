@@ -1,0 +1,36 @@
+{{if eq .DocSystem "quarto"}}
+project:
+  output-dir: pdfs
+  render:
+    - code/report.qmd
+
+date: today
+
+format:
+  typst:
+    columns: 2
+    papersize: us-letter
+    margin:
+      x: 0.75in
+      y: 0.75in
+    fontsize: 10pt
+    bibliographystyle: springer-basic
+    template-partials:
+      - code/templates/typst-template.typ
+      - code/templates/typst-show.typ
+    include-in-header:
+      - text: |
+          #show table: set text(size: 8pt)
+          #show table: set par(justify: false)
+          #set table(inset: 4pt)
+
+execute:
+{{if eq .PkgManager "pixi"}}
+  python: ".pixi/envs/default/bin/python"
+{{else}}
+  python: ".venv/bin/python"
+{{end}}
+  external: true
+  freeze: auto
+  cache: false
+{{end}}

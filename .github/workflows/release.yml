@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: macos-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install tools
+        run: |
+          go install golang.org/x/tools/cmd/goimports@latest
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+      - name: Tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: Format
+        run: |
+          gofmt -l . | tee /tmp/gofmt.out
+          test ! -s /tmp/gofmt.out
+          goimports -l . | tee /tmp/goimports.out
+          test ! -s /tmp/goimports.out
+
+      - name: Vet
+        run: go vet ./internal/... ./cmd/...
+
+      - name: Lint
+        run: golangci-lint run ./internal/... ./cmd/...
+
+      - name: Test
+        run: go test ./... -count=1
+
+  release:
+    needs: check
+    runs-on: macos-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set version env
+        run: echo "SCI_VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          VERSION="${SCI_VERSION}"
+          COMMIT="${GITHUB_SHA}"
+          LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Version=${VERSION} -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
+          LDFLAGS_PLAIN="-s -w"
+
+          mkdir -p dist
+
+          for PAIR in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
+            OS="${PAIR%/*}"
+            ARCH="${PAIR#*/}"
+            SUFFIX="${OS}-${ARCH}"
+
+            echo "==> Building sci-${SUFFIX}"
+            GOOS="${OS}" GOARCH="${ARCH}" go build -ldflags="${LDFLAGS}" -o "dist/sci-${SUFFIX}" ./cmd/sci
+
+            echo "==> Building dbtui-${SUFFIX}"
+            GOOS="${OS}" GOARCH="${ARCH}" go build -ldflags="${LDFLAGS_PLAIN}" -o "dist/dbtui-${SUFFIX}" ./cmd/dbtui
+
+            echo "==> Building markdb-${SUFFIX}"
+            GOOS="${OS}" GOARCH="${ARCH}" go build -ldflags="${LDFLAGS_PLAIN}" -o "dist/markdb-${SUFFIX}" ./cmd/markdb
+          done
+
+          echo "==> Verify native build"
+          ./dist/sci-darwin-arm64 --version || ./dist/sci-darwin-amd64 --version
+
+      - name: Delete existing release
+        run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: sci latest
+          files: dist/*
+          make_latest: true
+          draft: false
+          body: |
+            Latest build from `main` branch.
+
+            **Version:** ${{ env.SCI_VERSION }}
+            **Commit:** ${{ github.sha }}
+            **Date:** ${{ github.event.head_commit.timestamp }}
+
+            **Install:** `curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh`
+

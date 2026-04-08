@@ -1,0 +1,20 @@
+/sci
+/dbtui
+/markdb
+*.duckdb
+*.db
+*.db-*
+*.csv
+*.bib
+plan.md
+/tutorials/
+
+# Allow test fixtures tracked via Git LFS
+!internal/db/data/testdata/*.duckdb
+!internal/db/data/testdata/*.db
+*.bak
+.env
+*.DS*
+paper-extract/
+tutorials/notebooks/my_figure*
+tutorials/my_figure*

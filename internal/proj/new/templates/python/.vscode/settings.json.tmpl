@@ -1,0 +1,166 @@
+{
+  // ============================================
+  // EDITOR DEFAULTS
+  // ============================================
+  "editor.fontSize": 14,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 4,
+  "editor.wordWrap": "bounded",
+  "editor.wordWrapColumn": 200,
+  "editor.rulers": [],
+  "editor.lightbulb.enabled": "off",
+  "editor.minimap.enabled": false,
+  "editor.inlineSuggest.edits.allowCodeShifting": "never",
+
+  // ============================================
+  // PYTHON - Astral stack (Ruff)
+  // ============================================
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true
+  },
+  "python.languageServer": "None",
+{{if eq .PkgManager "pixi"}}
+  "python.defaultInterpreterPath": "${workspaceFolder}/.pixi/envs/default/bin/python",
+{{else}}
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+{{end}}
+  "python.terminal.activateEnvironment": false,
+  "python.terminal.activateEnvInCurrentTerminal": false,
+  "python.createEnvironment.trigger": "off",
+  "python.experiments.enabled": false,
+  "python.locator": "js",
+  "python.useEnvironmentsExtension": false,
+
+  // ============================================
+  // RUFF
+  // ============================================
+{{if eq .PkgManager "pixi"}}
+  "ruff.path": [".pixi/envs/default/bin/ruff"],
+{{else}}
+  "ruff.path": [".venv/bin/ruff"],
+{{end}}
+  "ruff.nativeServer": "auto",
+  "ruff.lint.enable": false,
+
+  // ============================================
+  // JUPYTER NOTEBOOKS
+  // ============================================
+  "notebook.lineNumbers": "on",
+  "notebook.output.wordWrap": true,
+  "notebook.showCellStatusBar": "visibleAfterExecute",
+  "notebook.showFoldingControls": "always",
+  "notebook.scrolling.revealNextCellOnExecute": "firstLine",
+  "notebook.cellToolbarVisibility": "hover",
+  "notebook.consolidatedOutputButton": false,
+  "notebook.stickyScroll.enabled": true,
+  "notebook.variablesView": true,
+  "notebook.markup.fontSize": 15,
+  "notebook.defaultFormatter": "charliermarsh.ruff",
+  "notebook.formatOnSave.enabled": false,
+  "notebook.diff.ignoreMetadata": true,
+  "notebook.diff.ignoreOutputs": true,
+  "jupyter.notebookFileRoot": "${workspaceFolder}",
+  "jupyter.exportWithOutputEnabled": true,
+
+{{if eq .DocSystem "quarto"}}
+  // ============================================
+  // QUARTO
+  // ============================================
+  "[quarto]": {
+    "editor.wordWrap": "on"
+  },
+  "files.associations": {
+    "*.qmd": "quarto"
+  },
+  "quarto.render.previewType": "internal",
+  "quarto.render.renderOnSave": true,
+{{if eq .PkgManager "uv"}}
+  "quarto.usePipQuarto": true,
+{{end}}
+{{else if eq .DocSystem "myst"}}
+  // ============================================
+  // MYST
+  // ============================================
+  "[markdown]": {
+    "editor.wordWrap": "on"
+  },
+{{end}}
+
+  // ============================================
+{{if eq .PkgManager "pixi"}}
+  // MARIMO
+  // ============================================
+  "marimo.marimoPath": ".pixi/envs/default/bin/marimo",
+
+  // ============================================
+{{end}}
+  // FILES
+  // ============================================
+  "files.exclude": {
+{{if eq .PkgManager "pixi"}}
+    ".pixi": true,
+{{else}}
+    ".venv": false,
+{{end}}
+    ".python-version": true,
+{{if eq .DocSystem "quarto"}}
+    ".quarto": true,
+{{else if eq .DocSystem "myst"}}
+    "_build": true,
+{{end}}
+    "**/__marimo__": true,
+    "**/__pycache__": true,
+    "**/.DS_Store": true,
+    "**/.pytest_cache": true,
+    "**/*.pyc": true
+  },
+
+  // ============================================
+  // GIT
+  // ============================================
+  "git.autofetch": false,
+  "git.confirmSync": true,
+  "diffEditor.codeLens": true,
+
+  // ============================================
+  // TERMINAL
+  // ============================================
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.fontSize": 14,
+  "terminal.integrated.hideOnStartup": "always",
+  "terminal.integrated.environmentChangesRelaunch": false,
+
+  // ============================================
+  // WORKSPACE & SECURITY
+  // ============================================
+  "security.workspace.trust.enabled": false,
+  "security.workspace.trust.banner": "never",
+  "security.workspace.trust.startupPrompt": "never",
+  "security.workspace.trust.untrustedFiles": "open",
+
+  // ============================================
+  // UI - Minimal noise
+  // ============================================
+  "workbench.startupEditor": "none",
+  "workbench.tips.enabled": false,
+  "workbench.enableExperiments": false,
+  "workbench.welcomePage.walkthroughs.openOnInstall": false,
+  "workbench.layoutControl.enabled": false,
+  "workbench.activityBar.iconClickBehavior": "toggle",
+  "window.commandCenter": false,
+  "extensions.ignoreRecommendations": false,
+
+  // ============================================
+  // TELEMETRY
+  // ============================================
+  "telemetry.telemetryLevel": "off",
+  "redhat.telemetry.enabled": false,
+
+  // ============================================
+  // UPDATES
+  // ============================================
+  "update.mode": "manual",
+  "update.showReleaseNotes": false,
+  "vsicons.dontShowNewVersionMessage": true
+}

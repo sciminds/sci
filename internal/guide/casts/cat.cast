@@ -1,0 +1,12 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "cat README.md"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "# My Project\r\n"]
+[1.4, "o", "\r\n"]
+[1.5, "o", "A simple example project for learning terminal commands.\r\n"]
+[1.6, "o", "\r\n"]
+[1.7, "o", "## Getting Started\r\n"]
+[1.8, "o", "\r\n"]
+[1.9, "o", "Run `ls` to see the files in this directory.\r\n"]
+[2.4, "o", "$ "]

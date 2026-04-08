@@ -1,0 +1,49 @@
+{
+  "remove_trailing_whitespace_on_save": false,
+  "ensure_final_newline_on_save": false,
+  "extend_comment_on_newline": false,
+  "semantic_tokens": "combined",
+  "preferred_line_length": 100,
+  "soft_wrap": "bounded",
+  "show_wrap_guides": false,
+  "show_whitespaces": "none",
+  "format_on_save": "off",
+{{if and (eq .PkgManager "pixi") (eq .DocSystem "quarto")}}
+  "file_scan_exclusions": [".pixi", ".quarto", ".git", "**/*__marimo__/", ".zed", ".ruff"],
+{{else if and (eq .PkgManager "pixi") (eq .DocSystem "myst")}}
+  "file_scan_exclusions": [".pixi", "_build", ".git", "**/*__marimo__/", ".zed", ".ruff"],
+{{else if eq .DocSystem "quarto"}}
+  "file_scan_exclusions": [".venv", ".quarto", ".git", "**/*__marimo__/", ".zed", ".ruff", ".marimo"],
+{{else if eq .DocSystem "myst"}}
+  "file_scan_exclusions": [".venv", "_build", ".git", "**/*__marimo__/", ".zed", ".ruff", ".marimo"],
+{{else if eq .PkgManager "pixi"}}
+  "file_scan_exclusions": [".pixi", ".git", "**/*__marimo__/", ".zed", ".ruff"],
+{{else}}
+  "file_scan_exclusions": [".venv", ".git", "**/*__marimo__/", ".zed", ".ruff", ".marimo"],
+{{end}}
+  "languages": {
+    "Python": {
+      "format_on_save": "on"
+    },
+    "JSON": {
+      "format_on_save": "on"
+    },
+    "JSONC": {
+      "format_on_save": "on"
+    },
+    "Markdown": {
+      "format_on_save": "on"
+    }
+  },
+  "lsp": {
+    "ruff": {
+      "initialization_options": {
+        "settings": {
+          "lint": {
+            "ignore": ["W292", "E501", "E731", "E741"]
+          }
+        }
+      }
+    }
+  }
+}

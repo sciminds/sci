@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+{{if eq .PkgManager "uv"}}
+.env
+{{end}}
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+{{if eq .PkgManager "pixi"}}
+
+# Pixi
+.pixi
+*.egg-info
+{{end}}
+
+# Jupyter / Marimo
+.ipynb_checkpoints/
+.marimo/
+__marimo__/
+
+{{if eq .DocSystem "quarto"}}
+# Quarto
+.quarto/
+_site/
+_freeze/
+pdfs/
+*.html
+*_files
+{{if eq .PkgManager "pixi"}}
+.jupyter_cache
+{{else}}
+*.quarto_ipynb
+{{end}}
+{{else if eq .DocSystem "myst"}}
+# MyST
+_build/
+.jupyter_cache/
+{{end}}
+
+# OS
+.DS_Store
+Thumbs.db

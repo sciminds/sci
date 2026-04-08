@@ -1,0 +1,90 @@
+package brew
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/sciminds/cli/internal/ui"
+)
+
+// AddResult is returned by Add.
+type AddResult struct {
+	Package string `json:"package"`
+	Type    string `json:"type,omitempty"`
+}
+
+func (r AddResult) JSON() any { return r }
+func (r AddResult) Human() string {
+	if r.Type != "" {
+		return fmt.Sprintf("Added %s (%s)\n", r.Package, r.Type)
+	}
+	return fmt.Sprintf("Added %s\n", r.Package)
+}
+
+// RemoveResult is returned by Remove.
+type RemoveResult struct {
+	Package string `json:"package"`
+	Type    string `json:"type,omitempty"`
+}
+
+func (r RemoveResult) JSON() any { return r }
+func (r RemoveResult) Human() string {
+	if r.Type != "" {
+		return fmt.Sprintf("Removed %s (%s)\n", r.Package, r.Type)
+	}
+	return fmt.Sprintf("Removed %s\n", r.Package)
+}
+
+// InstallResult is returned by Install.
+type InstallResult struct {
+	Output string `json:"output"`
+}
+
+func (r InstallResult) JSON() any { return r }
+func (r InstallResult) Human() string {
+	if r.Output == "" {
+		return "Everything up to date.\n"
+	}
+	return r.Output
+}
+
+// UpdateResult is returned by Update.
+type UpdateResult struct {
+	Outdated      []OutdatedPackage `json:"outdated"`
+	CheckOnly     bool              `json:"check_only"`
+	UpgradeOutput string            `json:"upgrade_output,omitempty"`
+}
+
+func (r UpdateResult) JSON() any { return r }
+func (r UpdateResult) Human() string {
+	if len(r.Outdated) == 0 {
+		return "Everything is up to date.\n"
+	}
+
+	var b strings.Builder
+	if r.CheckOnly {
+		fmt.Fprintf(&b, "%d outdated package(s):\n\n", len(r.Outdated))
+	} else {
+		fmt.Fprintf(&b, "Upgraded %d package(s):\n\n", len(r.Outdated))
+	}
+	for _, pkg := range r.Outdated {
+		arrow := ui.TUI.Muted().Render(" → ")
+		version := ui.TUI.Muted().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+		fmt.Fprintf(&b, "  %s %s\n", pkg.Name, version)
+	}
+	return b.String()
+}
+
+// ListResult is returned by List.
+type ListResult struct {
+	Packages []string `json:"packages"`
+	Type     string   `json:"type,omitempty"`
+}
+
+func (r ListResult) JSON() any { return r }
+func (r ListResult) Human() string {
+	if len(r.Packages) == 0 {
+		return "No packages found.\n"
+	}
+	return strings.Join(r.Packages, "\n") + "\n"
+}

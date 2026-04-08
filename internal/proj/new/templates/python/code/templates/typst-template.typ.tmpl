@@ -1,0 +1,171 @@
+{{if eq .DocSystem "quarto"}}
+#let content-to-string(content) = {
+  if content.has("text") {
+    content.text
+  } else if content.has("children") {
+    content.children.map(content-to-string).join("")
+  } else if content.has("body") {
+    content-to-string(content.body)
+  } else if content == [ ] {
+    " "
+  }
+}
+
+#let article(
+  title: none,
+  subtitle: none,
+  authors: none,
+  date: none,
+  abstract: none,
+  abstract-title: none,
+  keywords: (),
+  cols: 1,
+  lang: "en",
+  region: "US",
+  font: "libertinus serif",
+  fontsize: 11pt,
+  title-size: 1.5em,
+  subtitle-size: 1.25em,
+  heading-family: "libertinus serif",
+  heading-weight: "bold",
+  heading-style: "normal",
+  heading-color: black,
+  heading-line-height: 0.65em,
+  sectionnumbering: none,
+  toc: false,
+  toc_title: none,
+  toc_depth: none,
+  toc_indent: 1.5em,
+  doc,
+) = {
+  set par(justify: true)
+  set text(lang: lang,
+           region: region,
+           font: font,
+           size: fontsize)
+  set heading(numbering: sectionnumbering)
+  if title != none {
+    align(center)[#block(inset: 2em)[
+      #set par(leading: heading-line-height)
+      #if (heading-family != none or heading-weight != "bold" or heading-style != "normal"
+           or heading-color != black) {
+        set text(font: heading-family, weight: heading-weight, style: heading-style, fill: heading-color)
+        text(size: title-size)[#title]
+        if subtitle != none {
+          parbreak()
+          text(size: subtitle-size)[#subtitle]
+        }
+      } else {
+        text(weight: "bold", size: title-size)[#title]
+        if subtitle != none {
+          parbreak()
+          text(weight: "bold", size: subtitle-size)[#subtitle]
+        }
+      }
+    ]]
+  }
+
+  if authors != none {
+    // Collect unique affiliations and map each author to their indices
+    let affil-strings = authors.map(a => content-to-string(a.affiliation))
+    let unique-affils = ()
+    let author-indices = ()
+    for astr in affil-strings {
+      let idx = unique-affils.position(x => x == astr)
+      if idx == none {
+        unique-affils.push(astr)
+        author-indices.push(unique-affils.len())
+      } else {
+        author-indices.push(idx + 1)
+      }
+    }
+
+    // Author names with superscript affiliation numbers
+    align(center)[#block(above: 0.5em, below: 0.5em)[
+      #for (i, author) in authors.enumerate() {
+        if i > 0 [, ]
+        author.name
+        super(str(author-indices.at(i)))
+      }
+    ]]
+
+    // Numbered affiliations
+    align(center)[#block(above: 0em, below: 0.5em)[
+      #set text(size: 0.9em)
+      #for (i, affil) in unique-affils.enumerate() {
+        if i > 0 { linebreak() }
+        super(str(i + 1))
+        affil
+      }
+    ]]
+
+    // Emails
+    let emails = authors.filter(a => content-to-string(a.email).trim() != "").map(a => a.email)
+    if emails.len() > 0 {
+      align(center)[#block(above: 0em, below: 0.5em)[
+        #set text(size: 0.9em)
+        #emails.join(", ")
+      ]]
+    }
+
+    // CRediT Author Contributions
+    let role-authors = authors.filter(a => a.at("roles", default: ()).len() > 0)
+    if role-authors.len() > 0 {
+      align(center)[#block(above: 0.5em, below: 0.5em)[
+        #set text(size: 0.85em)
+        #text(weight: "semibold")[Author Contributions] \
+        #for (i, author) in role-authors.enumerate() {
+          text(weight: "semibold")[#author.name:]
+          [ ]
+          author.roles.join(", ")
+          if i < role-authors.len() - 1 { linebreak() }
+        }
+      ]]
+    }
+  }
+
+  if date != none {
+    align(center)[#block(inset: 0.5em)[
+      #date
+    ]]
+  }
+
+  if abstract != none {
+    block(inset: 2em)[
+    #text(weight: "semibold")[#abstract-title] #h(1em) #abstract
+    ]
+  }
+
+  if keywords != () {
+    align(center)[
+      #text(weight: "semibold")[Keywords:] #keywords.join(", ")
+    ]
+  }
+
+  if toc {
+    let title = if toc_title == none {
+      auto
+    } else {
+      toc_title
+    }
+    block(above: 0em, below: 2em)[
+    #outline(
+      title: toc_title,
+      depth: toc_depth,
+      indent: toc_indent
+    );
+    ]
+  }
+
+  if cols == 1 {
+    doc
+  } else {
+    columns(cols, doc)
+  }
+}
+
+#set table(
+  inset: 6pt,
+  stroke: none
+)
+{{end}}

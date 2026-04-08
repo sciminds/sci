@@ -1,0 +1,144 @@
+[
+  {
+    "label": "Python: Setup",
+{{if eq .PkgManager "pixi"}}
+    "command": "pixi install && pixi run setup",
+{{else}}
+    "command": "uv sync && uv run poe setup",
+{{end}}
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "reveal_target": "center",
+    "hide": "never",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "show_command": false
+  },
+  {
+    "label": "Python: Update Packages",
+{{if eq .PkgManager "pixi"}}
+    "command": "pixi install && echo 'Update complete!'",
+{{else}}
+    "command": "uv sync && uv run poe update && echo 'Update complete!'",
+{{end}}
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "reveal_target": "center",
+    "hide": "never",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "show_command": false,
+    "show_summary": false
+  },
+  {
+    "label": "Python: List Packages",
+{{if eq .PkgManager "pixi"}}
+    "command": "pixi list",
+{{else}}
+    "command": "uv pip list",
+{{end}}
+    "use_new_terminal": true,
+    "reveal_target": "center",
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "hide": "never",
+    "show_command": false,
+    "show_summary": false
+  },
+{{if eq .DocSystem "quarto"}}
+  {
+    "label": "Quarto: Render report to PDF",
+{{if eq .PkgManager "pixi"}}
+    "command": "pixi run render",
+{{else}}
+    "command": "uv run poe render",
+{{end}}
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal_target": "center",
+    "reveal": "always",
+    "hide": "never",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "show_command": false,
+    "show_summary": false
+  },
+{{else if eq .DocSystem "myst"}}
+  {
+    "label": "MyST: Live Preview",
+{{if eq .PkgManager "pixi"}}
+    "command": "pixi run docs-start",
+{{else}}
+    "command": "uv run poe docs-start",
+{{end}}
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal_target": "center",
+    "reveal": "always",
+    "hide": "never",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "show_command": false
+  },
+  {
+    "label": "MyST: Build HTML",
+{{if eq .PkgManager "pixi"}}
+    "command": "pixi run docs-build",
+{{else}}
+    "command": "uv run poe docs-build",
+{{end}}
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal_target": "center",
+    "reveal": "always",
+    "hide": "never",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "show_command": false,
+    "show_summary": false
+  },
+  {
+    "label": "MyST: Export PDF",
+{{if eq .PkgManager "pixi"}}
+    "command": "pixi run docs-pdf",
+{{else}}
+    "command": "uv run poe docs-pdf",
+{{end}}
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal_target": "center",
+    "reveal": "always",
+    "hide": "never",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "show_command": false,
+    "show_summary": false
+  },
+{{end}}
+  {
+    "label": "Marimo: Launch",
+{{if eq .PkgManager "pixi"}}
+    "command": "pixi run -e default marimo edit",
+{{else}}
+    "command": "uv run marimo edit",
+{{end}}
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "no_focus",
+    "reveal_target": "center",
+    "hide": "never",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "show_command": false
+  },
+  {
+    "label": "Marimo: Open current file as notebook",
+{{if eq .PkgManager "pixi"}}
+    "command": "pixi run -e default marimo edit $ZED_RELATIVE_FILE",
+{{else}}
+    "command": "uv run marimo edit $ZED_RELATIVE_FILE",
+{{end}}
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "never",
+    "reveal_target": "center",
+    "hide": "always",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "show_command": false
+  }
+]

@@ -1,0 +1,43 @@
+{{if eq .DocSystem "myst"}}
+version: 1
+
+project:
+  title: "{{.ProjectName}}"
+{{if .Description}}
+  description: "{{.Description}}"
+{{end}}
+  authors:
+    - name: {{.AuthorName}}
+      email: {{.AuthorEmail}}
+      affiliations:
+        - Your Affiliation Here
+  keywords:
+    - keyword-1
+    - keyword-2
+  numbering:
+    figure: true
+    equation: true
+    table: true
+  settings:
+    output_matplotlib_strings: remove
+    output_stderr: remove-error
+  toc:
+    - file: code/report.md
+  bibliography:
+    - code/bibliography.bib
+  exports:
+    - format: typst
+      template: lapreprint-typst
+      output: pdfs/report.pdf
+  exclude:
+    - _build/**
+    - "**/.jupyter_cache/**"
+
+site:
+  template: book-theme
+  title: "{{.ProjectName}}"
+  options:
+    hide_toc: false
+    hide_search: false
+    hide_outline: false
+{{end}}

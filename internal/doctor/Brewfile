@@ -1,0 +1,8 @@
+brew "ffmpeg"
+brew "gh"
+brew "git"
+brew "node"
+brew "oven-sh/bun/bun"
+brew "pixi"
+brew "sqlite"
+brew "uv"

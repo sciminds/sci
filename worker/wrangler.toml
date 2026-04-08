@@ -1,0 +1,9 @@
+name = "sci-auth"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+GITHUB_CLIENT_ID = "Ov23litp5REQ1zoyeNge"
+ORG_NAME = "sciminds"
+PUBLIC_BUCKET_NAME = "sci-public"
+PRIVATE_BUCKET_NAME = "sci-private"

@@ -1,0 +1,2 @@
+internal/db/data/testdata/*.duckdb filter=lfs diff=lfs merge=lfs -text
+internal/db/data/testdata/*.db filter=lfs diff=lfs merge=lfs -text

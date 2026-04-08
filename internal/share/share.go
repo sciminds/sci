@@ -1,0 +1,523 @@
+// Package share implements the public dataset sharing commands (sci share,
+// sci unshare, sci shared) and the authentication flow (sci auth).
+//
+// It bridges the local filesystem with Cloudflare R2 object storage
+// for uploading, downloading, and listing shared files.
+//
+// Key functions:
+//
+//   - [SmartShare] uploads a local file or downloads a dataset by name
+//   - [Unshare] removes a shared file
+//   - [Ls] lists shared files
+//   - [Auth] / [AuthLogout] manage R2 credentials
+//   - [GetTo] downloads a shared file to a specific directory
+package share
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+
+	"github.com/dustin/go-humanize"
+	"github.com/sciminds/cli/internal/cloud"
+	"github.com/sciminds/cli/internal/ui"
+)
+
+// Auth checks if already configured; if so, shows status. Otherwise initiates
+// the GitHub OAuth device flow to authenticate and receive R2 credentials.
+func Auth() (*AuthResult, error) {
+	cfg, err := cloud.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+	if cfg != nil && cfg.Public != nil && cfg.Public.AccessKey != "" {
+		return &AuthResult{
+			OK:       true,
+			Action:   "status",
+			Username: cfg.Username,
+			Message:  fmt.Sprintf("authenticated as @%s", cfg.Username),
+		}, nil
+	}
+
+	// Initiate device flow.
+	ctx := context.Background()
+	dc, err := cloud.RequestDeviceCode(ctx, cloud.DefaultWorkerURL)
+	if err != nil {
+		return nil, fmt.Errorf("starting auth: %w", err)
+	}
+
+	// Show the user code and verification URL.
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintf(os.Stderr, "  Go to:  %s\n", dc.VerificationURI)
+	fmt.Fprintf(os.Stderr, "  Code:   %s\n", ui.TUI.Bold().Render(dc.UserCode))
+	fmt.Fprintln(os.Stderr)
+
+	// Best-effort open browser.
+	if runtime.GOOS == "darwin" {
+		_ = exec.Command("open", dc.VerificationURI).Start()
+	}
+
+	// Poll for approval.
+	var resp *cloud.TokenResponse
+	if err := ui.RunWithSpinner("Waiting for GitHub authorization", func(_, _ func(string)) error {
+		var pollErr error
+		resp, pollErr = cloud.PollForToken(ctx, cloud.DefaultWorkerURL, dc.DeviceCode, dc.Interval)
+		return pollErr
+	}); err != nil {
+		return nil, err
+	}
+
+	// Save credentials.
+	newCfg := &cloud.Config{
+		Username:    resp.Username,
+		GitHubLogin: resp.GitHubLogin,
+		AccountID:   resp.AccountID,
+		Public:      resp.Public,
+		Private:     resp.Private,
+	}
+	if err := cloud.SaveConfig(newCfg); err != nil {
+		return nil, fmt.Errorf("saving credentials: %w", err)
+	}
+
+	return &AuthResult{
+		OK:       true,
+		Action:   "login",
+		Username: resp.Username,
+		Message:  fmt.Sprintf("authenticated as @%s", resp.Username),
+	}, nil
+}
+
+// AuthLogout clears the saved credentials.
+func AuthLogout() (*AuthResult, error) {
+	if err := cloud.ClearConfig(); err != nil {
+		return nil, err
+	}
+	return &AuthResult{OK: true, Action: "logout", Message: "credentials removed"}, nil
+}
+
+// MaxUploadSize is the maximum file size allowed for upload (10 GB).
+const MaxUploadSize int64 = 10 * 1024 * 1024 * 1024
+
+// ShareOpts controls Share behavior.
+type ShareOpts struct {
+	// Name is the object name in R2 (e.g. "my-results.csv").
+	// If empty, defaults to the base filename.
+	Name string
+	// Description is an optional human-readable description of the file.
+	Description string
+	// Force overwrites an existing file without error.
+	Force bool
+	// Private uploads to the private bucket instead of public.
+	Private bool
+}
+
+// DefaultShareName returns the default share name for a file path,
+// preserving the extension. For directories, appends ".zip".
+func DefaultShareName(filePath string) string {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return filepath.Base(filePath)
+	}
+	if info.IsDir() {
+		return nameFromFile(filePath) + ".zip"
+	}
+	return filepath.Base(filePath)
+}
+
+// CheckExists returns true if a file with the given name already exists in R2.
+func CheckExists(name string, private bool) (bool, error) {
+	_, c, err := cloud.SetupBucket(private)
+	if err != nil {
+		return false, err
+	}
+	return c.Exists(context.Background(), name)
+}
+
+// Share uploads a file or directory to R2 under the given name.
+// Directories are automatically zipped.
+func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
+	_, c, err := cloud.SetupBucket(opts.Private)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	name := opts.Name
+	if name == "" {
+		name = filepath.Base(absPath)
+	}
+
+	// If it's a directory, zip it to a temp file.
+	if info.IsDir() {
+		stem := nameFromFile(filePath)
+		tmpZip, err := os.CreateTemp("", stem+"-*.zip")
+		if err != nil {
+			return nil, fmt.Errorf("creating temp file: %w", err)
+		}
+		tmpZipPath := tmpZip.Name()
+		_ = tmpZip.Close() // zipDir will create/overwrite the file
+		if err := ui.RunWithSpinner("Packing "+stem, func(_, _ func(string)) error {
+			return zipDir(absPath, tmpZipPath)
+		}); err != nil {
+			_ = os.Remove(tmpZipPath)
+			return nil, fmt.Errorf("zipping directory: %w", err)
+		}
+		defer func() { _ = os.Remove(tmpZipPath) }()
+		absPath = tmpZipPath
+		if !strings.HasSuffix(name, ".zip") {
+			name += ".zip"
+		}
+	}
+
+	ctx := context.Background()
+
+	// Check if it already exists.
+	if !opts.Force {
+		exists, err := c.Exists(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, fmt.Errorf("file %q already exists (use --force to replace)", name)
+		}
+	}
+
+	// Check file size before uploading.
+	uploadInfo, err := os.Stat(absPath)
+	if err != nil {
+		return nil, err
+	}
+	if uploadInfo.Size() > MaxUploadSize {
+		return nil, fmt.Errorf("file size %s exceeds the 10 GB upload limit",
+			humanize.Bytes(uint64(uploadInfo.Size())))
+	}
+
+	// Build user metadata.
+	var metadata map[string]string
+	if opts.Description != "" {
+		metadata = map[string]string{"description": opts.Description}
+	}
+
+	var result *CloudResult
+	if err := ui.RunWithSpinner("Uploading "+name, func(_, _ func(string)) error {
+		f, openErr := os.Open(absPath)
+		if openErr != nil {
+			return openErr
+		}
+		defer func() { _ = f.Close() }()
+
+		contentType := detectContentType(absPath)
+		if uploadErr := c.Upload(ctx, name, f, contentType, metadata); uploadErr != nil {
+			return uploadErr
+		}
+
+		url := c.PublicObjectURL(name)
+		action := "shared"
+		if opts.Force {
+			action = "updated"
+		}
+		result = &CloudResult{
+			OK:      true,
+			Action:  "share",
+			Message: fmt.Sprintf("%s %q", action, name),
+			URL:     url,
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// Unshare removes a shared file from R2.
+func Unshare(name string, private bool) (*CloudResult, error) {
+	_, c, err := cloud.SetupBucket(private)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+	filename := ensureExtension(name)
+
+	if err := ui.RunWithSpinner("Removing "+filename, func(_, _ func(string)) error {
+		exists, existsErr := c.Exists(ctx, filename)
+		if existsErr != nil {
+			return existsErr
+		}
+		if !exists {
+			return fmt.Errorf("file %q not found", filename)
+		}
+		return c.Delete(ctx, filename)
+	}); err != nil {
+		return nil, err
+	}
+	return &CloudResult{OK: true, Action: "unshare", Message: fmt.Sprintf("removed %q", filename)}, nil
+}
+
+// Shared lists the current user's shared files.
+func Shared(private bool) (*SharedListResult, error) {
+	_, c, err := cloud.SetupBucket(private)
+	if err != nil {
+		return nil, err
+	}
+	return SharedWith(c)
+}
+
+// SharedWith lists shared files using the provided client.
+func SharedWith(c *cloud.Client) (*SharedListResult, error) {
+	return SharedWithOpts(c, false)
+}
+
+// SharedWithOpts lists shared files. When plain is true the spinner is skipped.
+func SharedWithOpts(c *cloud.Client, plain bool) (*SharedListResult, error) {
+	var objects []cloud.ObjectInfo
+	if plain {
+		var err error
+		objects, err = c.List(context.Background())
+		if err != nil {
+			return nil, err
+		}
+	} else if err := ui.RunWithSpinner("Fetching your files", func(_, _ func(string)) error {
+		var listErr error
+		objects, listErr = c.List(context.Background())
+		return listErr
+	}); err != nil {
+		return nil, err
+	}
+
+	prefix := c.Username + "/"
+	entries := make([]SharedEntry, len(objects))
+	for i, obj := range objects {
+		name := strings.TrimPrefix(obj.Key, prefix)
+		entries[i] = SharedEntry{
+			Name:    name,
+			Type:    detectFileType(name),
+			Updated: obj.LastModified,
+			URL:     obj.URL,
+			Size:    obj.Size,
+		}
+	}
+
+	// Fetch descriptions concurrently via HeadObject (max 10 in flight).
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10)
+	for i := range entries {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(idx int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			meta, err := c.HeadObject(context.Background(), entries[idx].Name)
+			if err != nil {
+				return
+			}
+			if desc, ok := meta["description"]; ok {
+				entries[idx].Description = desc
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	return &SharedListResult{Datasets: entries}, nil
+}
+
+// Ls lists all shared files, optionally filtered by a username prefix.
+func Ls(username, fileType string, private bool) (*DatasetListResult, error) {
+	cfg, c, err := cloud.SetupBucket(private)
+	if err != nil {
+		return nil, err
+	}
+
+	prefix := ""
+	if username != "" {
+		prefix = username + "/"
+	}
+
+	var objects []cloud.ObjectInfo
+	if err := ui.RunWithSpinner("Fetching files", func(_, _ func(string)) error {
+		var listErr error
+		objects, listErr = c.ListPrefix(context.Background(), prefix)
+		return listErr
+	}); err != nil {
+		return nil, err
+	}
+
+	result := &DatasetListResult{}
+	for _, obj := range objects {
+		ft := detectFileType(obj.Key)
+		if fileType != "" && ft != fileType {
+			continue
+		}
+		// Extract username and filename from key.
+		parts := strings.SplitN(obj.Key, "/", 2)
+		owner := ""
+		name := obj.Key
+		if len(parts) == 2 {
+			owner = parts[0]
+			name = parts[1]
+		}
+		_ = cfg // available if needed
+		result.Datasets = append(result.Datasets, DatasetListEntry{
+			Name:    name,
+			Owner:   owner,
+			Type:    ft,
+			Updated: obj.LastModified,
+			URL:     obj.URL,
+			Size:    obj.Size,
+		})
+	}
+	return result, nil
+}
+
+// GetTo downloads a shared file to a specific directory.
+// Zip files are automatically extracted and the archive is removed.
+func GetTo(name, destDir string, private bool) (string, error) {
+	_, c, err := cloud.SetupBucket(private)
+	if err != nil {
+		return "", err
+	}
+
+	ctx := context.Background()
+	filename := ensureExtension(name)
+
+	outPath := filepath.Join(destDir, filepath.Base(filename))
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		return "", err
+	}
+
+	if err := ui.RunWithSpinner("Downloading "+filename, func(_, _ func(string)) error {
+		f, createErr := os.Create(outPath)
+		if createErr != nil {
+			return createErr
+		}
+		defer func() { _ = f.Close() }()
+		return c.Download(ctx, filename, f)
+	}); err != nil {
+		return "", err
+	}
+
+	// Auto-extract zip files.
+	if filepath.Ext(outPath) == ".zip" {
+		extractDir := filepath.Join(destDir, nameFromFile(filename))
+		if err := ui.RunWithSpinner("Extracting "+filename, func(_, _ func(string)) error {
+			return unzip(outPath, extractDir)
+		}); err != nil {
+			return "", fmt.Errorf("extracting: %w", err)
+		}
+		_ = os.Remove(outPath)
+		return extractDir, nil
+	}
+	return outPath, nil
+}
+
+// Get downloads a shared file to the current directory.
+func Get(name string, private bool) (*CloudResult, error) {
+	_, c, err := cloud.SetupBucket(private)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+	filename := ensureExtension(name)
+
+	outPath := filepath.Base(filename)
+	if err := ui.RunWithSpinner("Downloading "+filename, func(_, _ func(string)) error {
+		f, createErr := os.Create(outPath)
+		if createErr != nil {
+			return createErr
+		}
+		defer func() { _ = f.Close() }()
+		return c.Download(ctx, filename, f)
+	}); err != nil {
+		return nil, err
+	}
+
+	// Auto-extract zip files.
+	if filepath.Ext(outPath) == ".zip" {
+		extractDir := nameFromFile(filename)
+		if err := ui.RunWithSpinner("Extracting "+filename, func(_, _ func(string)) error {
+			return unzip(outPath, extractDir)
+		}); err != nil {
+			return nil, fmt.Errorf("extracting: %w", err)
+		}
+		_ = os.Remove(outPath)
+		return &CloudResult{OK: true, Action: "get", Message: fmt.Sprintf("downloaded and extracted %s/", extractDir)}, nil
+	}
+	return &CloudResult{OK: true, Action: "get", Message: fmt.Sprintf("downloaded %s", outPath)}, nil
+}
+
+// nameFromFile derives a dataset name from a file path (stem without extension).
+func nameFromFile(path string) string {
+	base := filepath.Base(path)
+	return strings.TrimSuffix(base, filepath.Ext(base))
+}
+
+// ensureExtension returns the name as-is if it has an extension,
+// otherwise it's returned unchanged (the caller may need to search).
+func ensureExtension(name string) string {
+	return name
+}
+
+// detectFileType maps file extensions to type labels.
+func detectFileType(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".csv", ".tsv":
+		return "csv"
+	case ".db", ".duckdb", ".ddb":
+		return "db"
+	case ".png", ".jpg", ".jpeg", ".gif", ".svg":
+		return "media"
+	case ".zip", ".tar", ".gz", ".tgz":
+		return "zip"
+	default:
+		return "other"
+	}
+}
+
+// detectContentType maps file extensions to MIME types.
+func detectContentType(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".csv":
+		return "text/csv"
+	case ".tsv":
+		return "text/tab-separated-values"
+	case ".json":
+		return "application/json"
+	case ".db":
+		return "application/x-sqlite3"
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".svg":
+		return "image/svg+xml"
+	case ".zip":
+		return "application/zip"
+	case ".gz", ".tgz":
+		return "application/gzip"
+	case ".tar":
+		return "application/x-tar"
+	case ".pdf":
+		return "application/pdf"
+	default:
+		return "application/octet-stream"
+	}
+}

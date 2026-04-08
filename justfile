@@ -1,0 +1,60 @@
+version := `cat VERSION`
+commit := `git rev-parse --short HEAD 2>/dev/null || echo unknown`
+ldflags := "-s -w -X github.com/sciminds/cli/internal/version.Version=" + version + " -X github.com/sciminds/cli/internal/version.Commit=" + commit
+
+build:
+    go build -ldflags="{{ldflags}}" -o sci ./cmd/sci
+    go build -ldflags="-s -w" -o dbtui ./cmd/dbtui
+    go build -ldflags="-s -w" -o markdb ./cmd/markdb
+
+tidy:
+    go mod tidy
+
+fmt:
+    gofmt -w .
+    goimports -w .
+
+lint:
+    golangci-lint run ./internal/... ./cmd/...
+
+vet:
+    go vet ./internal/... ./cmd/...
+
+test:
+    go test ./... -count=1
+
+test-slow *ARGS:
+    SLOW=1 go test ./... -v -timeout 10m -count=1 {{ARGS}}
+
+test-all: test test-slow
+
+check: tidy fmt vet lint test build
+
+ok: check
+    @echo "All checks passed."
+
+clean:
+    rm -f sci dbtui markdb
+
+run *ARGS:
+    go run ./cmd/sci {{ARGS}}
+
+# Open package documentation in the browser
+docs:
+    @echo "Starting pkgsite at http://localhost:6060/github.com/sciminds/cli"
+    open "http://localhost:6060/github.com/sciminds/cli"
+    pkgsite -http=localhost:6060
+
+set dotenv-load
+
+# Deploy PocketBase hooks to PocketHost via FTP
+pb-deploy:
+    curl -u "$GOOSE_CLOUD_SUPERUSER_EMAIL:$GOOSE_CLOUD_SUPERUSER_PASS" --ftp-create-dirs \
+        -T pocketbase/pb_hooks/org_guard.pb.js \
+        ftp://ftp.pockethost.io/goose/pb_hooks/org_guard.pb.js
+    @echo "Deployed pb_hooks to PocketHost."
+
+# List deployed PocketBase hooks on PocketHost
+pb-status:
+    curl -u "$GOOSE_CLOUD_SUPERUSER_EMAIL:$GOOSE_CLOUD_SUPERUSER_PASS" --list-only \
+        ftp://ftp.pockethost.io/goose/pb_hooks/

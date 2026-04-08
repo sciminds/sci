@@ -1,0 +1,165 @@
+[project]
+authors = [{name = "{{.AuthorName}}", email = "{{.AuthorEmail}}"}]
+name = "{{.ProjectName}}"
+requires-python = ">= 3.11"
+version = "0.1.0"
+{{if eq .PkgManager "uv"}}
+readme = "README.md"
+{{end}}
+{{if .Description}}
+description = "{{.Description}}"
+{{end}}
+{{if eq .PkgManager "pixi"}}
+
+# ── Pixi workspace ──────────────────────────────────────────────────
+[tool.pixi.workspace]
+channels = ["ejolly", "conda-forge"]
+platforms = ["osx-arm64"]
+
+# ── Dependencies ────────────────────────────────────────────────────
+[tool.pixi.dependencies]
+numpy = ">=2.4.0,<3"
+scipy = ">=1.16.3,<2"
+seaborn = ">=0.13.2,<0.14"
+polars = ">=1.36.1,<2"
+scikit-learn = ">=1.8.0,<2"
+{{if eq .DocSystem "myst"}}
+nodejs = ">=20.0.0"
+{{end}}
+
+[tool.pixi.pypi-dependencies]
+bossanova = ">=0.1.0.dev26"
+
+[tool.pixi.feature.dev.dependencies]
+ipykernel = ">=6.29.0,<7"
+ruff = ">=0.12.0,<0.13"
+jupyter = ">=1.0.0,<2"
+marimo = ">=0.19.2,<0.21"
+
+[tool.pixi.environments]
+default = { features = ["dev"], solve-group = "default" }
+
+# ── Tasks ───────────────────────────────────────────────────────────
+[tool.pixi.tasks]
+setup = { cmd = "python -m ipykernel install --user --name=\"$(basename $(pwd))\" --display-name=\"$(basename $(pwd))\"", description = "Register Jupyter kernel for this project" }
+update = { cmd = "pixi install", description = "Update packages to the latest versions" }
+kernels = { cmd = "jupyter kernelspec list", description = "List registered Jupyter kernels" }
+{{if eq .DocSystem "quarto"}}
+render = { cmd = "quarto render", description = "Render report to PDF" }
+{{else if eq .DocSystem "myst"}}
+docs-start = { cmd = "npx mystmd start", description = "Live-preview MyST site" }
+docs-build = { cmd = "npx mystmd build --html", description = "Build MyST site" }
+docs-pdf = { cmd = "npx mystmd build --pdf", description = "Export report to PDF" }
+docs-clean = { cmd = "npx mystmd clean --yes --all", description = "Clean MyST build artifacts" }
+{{end}}
+
+[tool.pixi.tasks.marimo]
+cmd = "marimo edit code/notebooks/{{"{{"}} name {{"}}"}}"
+description = "Edit a Marimo notebook"
+args = ["name"]
+{{else}}
+
+dependencies = [
+    "ipykernel>=6.29.0",
+    "jupyter>=1.0.0",
+    "marimo>=0.19.2",
+    "numpy>=2.4.0",
+    "polars>=1.36.1",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.16.3",
+    "seaborn>=0.13.2",
+    "bossanova>=0.1.0.dev27",
+    "ruff>=0.12.0",
+    "poethepoet>=0.40.0",
+]
+
+# ── Poe tasks ───────────────────────────────────────────────────────
+# Run with: uv run poe <task>
+
+[tool.poe.tasks.setup]
+help = "Register Jupyter kernel for this project"
+shell = """
+KERNEL_NAME=$(basename "$PWD")
+python -m ipykernel install --user --name "$KERNEL_NAME" --display-name "$KERNEL_NAME"
+echo "Registered kernel: $KERNEL_NAME"
+"""
+
+[tool.poe.tasks.update]
+help = "Update packages to the latest versions"
+shell = "uv sync --refresh-package bossanova"
+
+[tool.poe.tasks.kernels]
+help = "List registered Jupyter kernels"
+cmd = "jupyter kernelspec list"
+
+{{if eq .DocSystem "quarto"}}
+[tool.poe.tasks.render]
+help = "Render report to PDF"
+cmd = "quarto render"
+{{else if eq .DocSystem "myst"}}
+[tool.poe.tasks.docs-start]
+help = "Live-preview MyST site"
+cmd = "npx mystmd start"
+
+[tool.poe.tasks.docs-build]
+help = "Build MyST site"
+cmd = "npx mystmd build --html"
+
+[tool.poe.tasks.docs-pdf]
+help = "Export report to PDF"
+cmd = "npx mystmd build --pdf"
+
+[tool.poe.tasks.docs-clean]
+help = "Clean MyST build artifacts"
+cmd = "npx mystmd clean --yes --all"
+{{end}}
+
+[tool.poe.tasks.marimo]
+help = "Edit a Marimo notebook"
+cmd = "marimo edit code/notebooks/${name}"
+[[tool.poe.tasks.marimo.args]]
+name = "name"
+positional = true
+required = true
+{{end}}
+
+# ── Marimo ──────────────────────────────────────────────────────────
+[tool.marimo.formatting]
+line_length = 100
+
+[tool.marimo.display]
+cell_output = "below"
+default_width = "medium"
+theme = "light"
+code_editor_font_size = 14
+dataframes = "rich"
+default_table_page_size = 10
+
+[tool.marimo.save]
+autosave = "off"
+format_on_save = true
+
+[tool.marimo.runtime]
+auto_instantiate = true
+on_cell_change = "autorun"
+
+[tool.marimo.package_management]
+manager = "{{.PkgManager}}"
+
+[tool.marimo.completion]
+activate_on_typing = true
+
+# ── Ruff ────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+{{if eq .DocSystem "quarto"}}
+extend-include = ["*.ipynb", "*.qmd"]
+{{else}}
+extend-include = ["*.ipynb"]
+{{end}}
+
+[tool.ruff.lint]
+ignore = ["W292", "E501", "E731", "E741", "F401", "E703"]
+
+[tool.ruff.format]
+line-ending = "auto"
