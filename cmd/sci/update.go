@@ -39,8 +39,11 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
+	current := selfupdate.ShortSHA(result.CurrentSHA)
+	latest := selfupdate.ShortSHA(result.LatestSHA)
+
 	if !result.Available {
-		ui.OK("sci is up to date")
+		ui.OK(fmt.Sprintf("sci is up to date (%s)", current))
 		return nil
 	}
 
@@ -48,7 +51,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("update available but no download URL found")
 	}
 
-	fmt.Printf("  %s New version available: %s\n", ui.SymArrow, ui.TUI.Accent().Render(result.LatestVersion))
+	fmt.Printf("  %s New version available: %s → %s\n", ui.SymArrow, current, ui.TUI.Accent().Render(latest))
 
 	err = ui.RunWithSpinner("Downloading…", func(_, _ func(string)) error {
 		_, uerr := selfupdate.Update(result.DownloadURL)
@@ -58,7 +61,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	ui.OK("Updated successfully")
+	ui.OK(fmt.Sprintf("Updated to %s", latest))
 	return nil
 }
 

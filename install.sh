@@ -60,12 +60,32 @@ trap - EXIT
 
 echo "Installed sci to ${INSTALL_DIR}/sci"
 
-# Check if INSTALL_DIR is on PATH
+# Ensure INSTALL_DIR is on PATH
 case ":${PATH}:" in
   *":${INSTALL_DIR}:"*) ;;
   *)
-    echo ""
-    echo "Add ${INSTALL_DIR} to your PATH:"
-    echo "  export PATH=\"${INSTALL_DIR}:\${PATH}\""
+    LINE="export PATH=\"${INSTALL_DIR}:\$PATH\""
+
+    # Pick the right shell rc file
+    case "$(basename "${SHELL:-/bin/sh}")" in
+      zsh)  RC="${HOME}/.zshrc" ;;
+      bash) RC="${HOME}/.bashrc" ;;
+      *)    RC="" ;;
+    esac
+
+    if [ -n "${RC}" ]; then
+      # Append only if the line isn't already there
+      if ! grep -qF "${INSTALL_DIR}" "${RC}" 2>/dev/null; then
+        echo "" >> "${RC}"
+        echo "# Added by sci installer" >> "${RC}"
+        echo "${LINE}" >> "${RC}"
+        echo "Added ${INSTALL_DIR} to PATH in ${RC}"
+        echo "Run 'source ${RC}' or open a new terminal to use sci."
+      fi
+    else
+      echo ""
+      echo "Add ${INSTALL_DIR} to your PATH:"
+      echo "  ${LINE}"
+    fi
     ;;
 esac

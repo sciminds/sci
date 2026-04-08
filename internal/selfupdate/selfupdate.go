@@ -127,6 +127,14 @@ func commitsDiffer(current, latest string) bool {
 	return !strings.HasPrefix(latest, current) && !strings.HasPrefix(current, latest)
 }
 
+// ShortSHA returns the first 7 characters of a SHA, or the full string if shorter.
+func ShortSHA(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
+}
+
 // Download fetches the binary from downloadURL and writes it to dest.
 // progressFn is called with bytes written so far (can be nil).
 func Download(downloadURL string, dest *os.File, progressFn func(int64)) error {
