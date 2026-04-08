@@ -79,7 +79,6 @@ curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh
 | Command | What it does |
 |---------|--------------|
 | `sci db info` | Show database metadata and tables |
-| `sci db view` | Browse a database or CSV/JSON file interactively |
 | `sci db create` | Create a new database |
 | `sci db reset` | Start fresh with an empty database |
 | `sci db add` | Import CSV files into a database |
@@ -87,7 +86,7 @@ curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh
 | `sci db rename` | Rename a table |
 | `sci db sync` | Sync your default database with the cloud |
 
-The interactive database viewer (`sci db view`) is powered by dbtui (`internal/tui/dbtui/`), also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/dbtui@latest`.
+The interactive data viewer (`sci view`) is powered by dbtui (`internal/tui/dbtui/`), also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/dbtui@latest`.
 
 ### Ingest markdown files into SQLite (Experimental)
 

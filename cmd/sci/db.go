@@ -24,34 +24,18 @@ func dbCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "db",
 		Usage:       "Manage SQLite databases and spreadsheets",
-		Description: "$ sci db view mydb.db\n$ sci db add results.csv mydb.db",
+		Description: "$ sci db add results.csv mydb.db\n$ sci db info mydb.db",
 		Category:    "Commands",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &dbDryRun},
 		},
 		Commands: []*cli.Command{
-			dbViewCommand(),
 			dbCreateCommand(),
 			dbResetCommand(),
 			dbInfoCommand(),
 			dbAddCommand(),
 			dbDeleteCommand(),
 			dbRenameCommand(),
-		},
-	}
-}
-
-func dbViewCommand() *cli.Command {
-	return &cli.Command{
-		Name:        "view",
-		Usage:       "Browse a database interactively",
-		Description: "$ sci db view mydb.db\n$ sci db view data.csv",
-		ArgsUsage:   "<file>",
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected a file argument")
-			}
-			return db.RunTUI(cmd.Args().First(), "")
 		},
 	}
 }
@@ -159,7 +143,7 @@ func dbAddCommand() *cli.Command {
 			}
 			cmdutil.Output(cmd, result)
 			if !cmdutil.IsJSON(cmd) {
-				ui.NextStep("sci db view", "Explore your data interactively")
+				ui.NextStep("sci view", "Explore your data interactively")
 			}
 			return nil
 		},

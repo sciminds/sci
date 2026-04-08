@@ -7,7 +7,7 @@ It is written in Go and distributed as a single static binary.
 
 ```
 cmd/sci/       Main CLI — project management, notebooks, databases, sharing, video
-cmd/dbtui/     Standalone database browser (also available as `sci db view`)
+cmd/dbtui/     Standalone database browser (also available as `sci view`)
 cmd/markdb/    Standalone Markdown-to-SQLite tool (also available as `sci markdb`)
 ```
 
