@@ -104,7 +104,12 @@ async function handleDevice(env: Env): Promise<Response> {
 
 // POST /auth/token — exchange device code for credentials.
 async function handleToken(request: Request, env: Env): Promise<Response> {
-	const body = (await request.json()) as { device_code?: string };
+	let body: { device_code?: string };
+	try {
+		body = (await request.json()) as { device_code?: string };
+	} catch {
+		return json({ status: "error", message: "invalid JSON body" }, 400);
+	}
 	if (!body.device_code) {
 		return json({ status: "error", message: "missing device_code" }, 400);
 	}
@@ -188,6 +193,17 @@ async function handleToken(request: Request, env: Env): Promise<Response> {
 			message: `@${user.login} is not a member of the ${env.ORG_NAME} GitHub org`,
 		});
 	}
+
+	// Revoke the GitHub token — we only needed it for the org check.
+	await fetch(`https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`, {
+		method: "DELETE",
+		headers: {
+			Authorization: `Basic ${btoa(env.GITHUB_CLIENT_ID + ":" + env.GITHUB_CLIENT_SECRET)}`,
+			Accept: "application/vnd.github+json",
+			"User-Agent": "sci-auth-worker",
+		},
+		body: JSON.stringify({ access_token: tokenData.access_token }),
+	}).catch(() => {}); // Best-effort — don't block credential delivery.
 
 	// Return R2 credentials for both buckets.
 	return json({

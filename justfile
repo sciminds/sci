@@ -55,6 +55,10 @@ pb-deploy:
         ftp://ftp.pockethost.io/goose/pb_hooks/org_guard.pb.js
     @echo "Deployed pb_hooks to PocketHost."
 
+# Deploy Cloudflare Worker (sci-auth)
+worker-deploy:
+    cd worker && npx wrangler deploy
+
 # List deployed PocketBase hooks on PocketHost
 pb-status:
     curl -u "$GOOSE_CLOUD_SUPERUSER_EMAIL:$GOOSE_CLOUD_SUPERUSER_PASS" --list-only \
