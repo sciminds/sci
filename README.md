@@ -16,99 +16,110 @@ Written in Go because:
 
 ## What can it do?
 
-### Basic Commands
+### Getting started
 
 | Command | What it does |
 |---------|--------------|
-| `sci doctor` | Check that your Mac is set up correctly |
-| `sci doctor tools` | Install optional developer tools |
+| `sci help` | Interactive help TUI with demos for any command |
+| `sci learn` | Interactive guides with terminal demos |
+| `sci doctor check` | Check your environment and install missing tools |
+| `sci doctor reccs` | Pick optional tools to install |
 | `sci update` | Update sci to the latest version |
-| `sci view <file>` | Browse any data file interactively (CSV, JSON, SQLite) |
-| `sci guide basic` | Interactive demos of essential terminal commands |
-| `sci guide git` | Interactive demos of essential Git commands |
+
+### Browse data files
+
+| Command | What it does |
+|---------|--------------|
+| `sci view <file>` | Interactively browse any tabular data file (CSV, JSON, SQLite) |
+
+The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/dbtui@latest`.
 
 ### Manage Python projects
 
 | Command | What it does |
 |---------|--------------|
 | `sci proj new` | Create a new Python project |
-| `sci proj add` | Add packages to your project |
-| `sci proj remove` | Remove packages from your project |
+| `sci proj add` | Add packages to the project |
+| `sci proj remove` | Remove packages from the project |
 | `sci proj config` | Refresh config files in your project |
-| `sci proj preview` | Start a live preview of your documents |
+| `sci proj preview` | Start a live preview server for documents |
 | `sci proj render` | Build documents into HTML or PDF |
 | `sci proj run` | Run a project task |
 | `sci py repl` | Open a Python scratchpad |
 | `sci py marimo` | Open a marimo notebook |
-| `sci py tutorials` | Browse and download tutorial notebooks |
-| `sci py convert` | Convert between notebook formats (.py, .md, .qmd) |
+| `sci py tutorials` | Browse and run tutorial notebooks in marimo |
+| `sci py convert` | Convert between marimo (.py), MyST (.md), and Quarto (.qmd) |
 
-### Manage databases and spreadsheets
+### Manage databases
 
 | Command | What it does |
 |---------|--------------|
+| `sci db create` | Create an empty database |
 | `sci db info` | Show database metadata and tables |
-| `sci db create` | Create a new database |
-| `sci db reset` | Start fresh with an empty database |
 | `sci db add` | Import CSV files into a database |
+| `sci db rename` | Rename a table in a database |
 | `sci db delete` | Delete a table from a database |
-| `sci db rename` | Rename a table |
-| `sci db sync` | Sync your default database with the cloud |
-
-The interactive data viewer (`sci view`) is powered by dbtui (`internal/tui/dbtui/`), also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/dbtui@latest`.
-
-### Ingest markdown files into SQLite (Experimental)
-
-| Command | What it does |
-|---------|--------------|
-| `sci markdb ingest <dir>` | Ingest a directory of `.md` files into SQLite |
-| `sci markdb search --db <db> <query>` | Full-text search across files and frontmatter |
-| `sci markdb info --db <db>` | Show database summary statistics |
-| `sci markdb diff <dir> --db <db>` | Preview what would change on next ingest |
-| `sci markdb export --db <db> --dir <dir>` | Reconstruct original markdown files from the database |
-
-Ingests any folder of markdown files with YAML frontmatter into a single SQLite database. Frontmatter keys become real SQL columns (dynamically discovered), wikilinks and markdown links are tracked in a `links` table, and FTS5 enables full-text search. Export reconstructs byte-identical files from the database.
-
-Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/markdb@latest`.
+| `sci db reset` | Delete and recreate an empty database |
 
 ### Cloud storage
 
 | Command | What it does |
 |---------|--------------|
-| `sci cloud auth` | Authenticate via GitHub (requires sciminds org membership) |
-| `sci cloud auth --logout` | Clear saved credentials |
-| `sci cloud put <file>` | Upload a file to the public bucket |
-| `sci cloud put <file> --private` | Upload a file to the private bucket |
+| `sci cloud auth` | Authenticate with GitHub (requires sciminds org membership) |
+| `sci cloud put <file>` | Upload a file to cloud storage |
 | `sci cloud get <name>` | Download a shared file |
-| `sci cloud list` | Browse your shared files interactively |
-| `sci cloud list --plain` | List your shared files (no TUI) |
+| `sci cloud list` | List shared files (public: all users, private: yours only) |
 | `sci cloud remove <name>` | Remove a shared file |
 
 All commands accept `--private` / `-p` to target the private bucket instead of the default public one.
+
+### Lab storage (SFTP)
+
+| Command | What it does |
+|---------|--------------|
+| `sci lab setup` | Configure SSH access to lab storage |
+| `sci lab ls` | List remote directory contents |
+| `sci lab get` | Download a file or directory from lab storage |
+| `sci lab put` | Upload a file or directory to your lab space |
+| `sci lab browse` | Open an SSH shell in lab storage |
 
 ### Manage Homebrew packages
 
 | Command | What it does |
 |---------|--------------|
-| `sci brew list` | Browse installed packages interactively |
-| `sci brew add` | Add a package to your Brewfile and install it |
-| `sci brew remove` | Remove a package from your Brewfile and uninstall it |
-| `sci brew install` | Install all packages from your Brewfile |
+| `sci brew list` | List packages in the Brewfile |
+| `sci brew install` | Install packages from the Brewfile, or add and install a new package |
+| `sci brew uninstall` | Remove a package from the Brewfile and uninstall it |
+| `sci brew update` | Update the Homebrew registry and upgrade outdated packages |
 
-### Quickly edit video/audio
+### Video/audio editing
 
 | Command | What it does |
 |---------|--------------|
-| `sci vid info` | Show video info (resolution, duration, etc.) |
-| `sci vid cut` | Trim a clip by start and end time |
-| `sci vid compress` | Shrink a video file |
+| `sci vid info` | Show video info (resolution, duration, codec, fps, size) |
+| `sci vid cut` | Trim a segment (e.g. `0:30 1:00`) |
+| `sci vid compress` | Shrink a video file (reduce file size) |
 | `sci vid convert` | Convert to another format (MP4, WebM, etc.) |
-| `sci vid gif` | Turn a video into a GIF |
-| `sci vid resize` | Scale a video (720p, 1080p, etc.) |
-| `sci vid speed` | Speed up or slow down playback |
+| `sci vid gif` | Convert to optimized GIF |
+| `sci vid resize` | Scale video (720p, 1080p, 4k, 50%, W:H) |
+| `sci vid speed` | Change playback speed (e.g. `2` = 2x faster) |
 | `sci vid mute` | Remove audio from a video |
-| `sci vid extract-audio` | Save the audio track to a file |
+| `sci vid extract-audio` | Extract audio track to file |
 | `sci vid strip-subs` | Remove subtitles from a video |
+
+### Ingest markdown into SQLite (Experimental)
+
+| Command | What it does |
+|---------|--------------|
+| `sci markdb ingest <dir>` | Ingest a directory of `.md` files into SQLite |
+| `sci markdb search --db <db> <query>` | Full-text search across files |
+| `sci markdb info --db <db>` | Show database summary statistics |
+| `sci markdb diff <dir> --db <db>` | Show what would change on next ingest |
+| `sci markdb export --db <db> --dir <dir>` | Reconstruct markdown files from the database |
+
+Ingests any folder of markdown files with YAML frontmatter into a single SQLite database. Frontmatter keys become real SQL columns (dynamically discovered), wikilinks and markdown links are tracked in a `links` table, and FTS5 enables full-text search. Export reconstructs byte-identical files from the database.
+
+Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/markdb@latest`.
 
 ---
 
