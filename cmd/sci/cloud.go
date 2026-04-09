@@ -94,6 +94,14 @@ func cloudShareCommand() *cli.Command {
 			desc := shareDesc
 			force := shareForce
 
+			// In JSON mode, require --name (no interactive form).
+			if cmdutil.IsJSON(cmd) {
+				if name == "" {
+					return fmt.Errorf("--name is required in --json mode")
+				}
+				force = true // auto-confirm overwrite in non-interactive mode
+			}
+
 			// Interactive flow when --name is not provided.
 			if name == "" {
 				defaultName := share.DefaultShareName(filePath)

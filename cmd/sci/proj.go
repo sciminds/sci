@@ -184,6 +184,8 @@ func runProjNew(_ context.Context, cmd *cli.Command) error {
 		opts.Name = cmd.Args().First()
 		opts.PkgManager = cmp.Or(opts.PkgManager, "uv")
 		opts.DocSystem = cmp.Or(opts.DocSystem, "myst")
+	} else if cmdutil.IsJSON(cmd) {
+		return fmt.Errorf("project name argument is required in --json mode")
 	} else {
 		if err := projnew.RunWizard(&opts); err != nil {
 			if errors.Is(err, huh.ErrUserAborted) {

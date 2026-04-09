@@ -5,6 +5,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/progress"
@@ -85,8 +86,13 @@ func (m spinnerModel) View() tea.View {
 
 // RunWithSpinner shows a spinner while fn runs. The fn receives two callbacks:
 // setTitle updates the spinner's main label, setStatus updates the dim detail text.
-// Returns fn's error.
+// Returns fn's error. In quiet mode, skips the TUI and prints the title to stderr.
 func RunWithSpinner(title string, fn func(setTitle, setStatus func(string)) error) error {
+	if IsQuiet() {
+		fmt.Fprintf(os.Stderr, "%s\n", title)
+		return fn(func(string) {}, func(string) {})
+	}
+
 	m := newSpinnerModel(title)
 	p := tea.NewProgram(m)
 
@@ -115,7 +121,18 @@ type SpinnerControls struct {
 
 // RunWithInteractiveSpinner is like RunWithSpinner but provides suspend/resume
 // controls for commands that may prompt for user input (e.g. sudo password).
+// In quiet mode, skips the TUI and provides no-op callbacks.
 func RunWithInteractiveSpinner(title string, fn func(SpinnerControls) error) error {
+	if IsQuiet() {
+		fmt.Fprintf(os.Stderr, "%s\n", title)
+		return fn(SpinnerControls{
+			SetTitle:  func(string) {},
+			SetStatus: func(string) {},
+			Suspend:   func() {},
+			Resume:    func() {},
+		})
+	}
+
 	m := newSpinnerModel(title)
 	p := tea.NewProgram(m)
 
@@ -222,7 +239,13 @@ func (m progressModel) View() tea.View {
 
 // RunWithItemProgress shows a progress bar for operations with a known item count.
 // The fn receives a callback to report (current, total) progress as item counts.
+// In quiet mode, skips the TUI and provides a no-op callback.
 func RunWithItemProgress(title string, fn func(update func(current, total int)) error) error {
+	if IsQuiet() {
+		fmt.Fprintf(os.Stderr, "%s\n", title)
+		return fn(func(int, int) {})
+	}
+
 	m := newProgressModel(title)
 	m.formatLabel = func(cur, tot int64) string {
 		return fmt.Sprintf("  %d / %d", cur, tot)
@@ -245,7 +268,13 @@ func RunWithItemProgress(title string, fn func(update func(current, total int)) 
 
 // RunWithItemProgressStatus shows a progress bar with a per-item status line.
 // The fn receives a callback to report (current, total, status) after each item.
+// In quiet mode, skips the TUI and provides a no-op callback.
 func RunWithItemProgressStatus(title string, fn func(update func(current, total int, status string)) error) error {
+	if IsQuiet() {
+		fmt.Fprintf(os.Stderr, "%s\n", title)
+		return fn(func(int, int, string) {})
+	}
+
 	m := newProgressModel(title)
 	m.formatLabel = func(cur, tot int64) string {
 		return fmt.Sprintf("  %d / %d", cur, tot)
@@ -269,7 +298,13 @@ func RunWithItemProgressStatus(title string, fn func(update func(current, total 
 
 // RunWithProgress shows a progress bar for operations with known total bytes.
 // The fn receives a callback to report (current, total) progress.
+// In quiet mode, skips the TUI and provides a no-op callback.
 func RunWithProgress(title string, fn func(update func(current, total int64)) error) error {
+	if IsQuiet() {
+		fmt.Fprintf(os.Stderr, "%s\n", title)
+		return fn(func(int64, int64) {})
+	}
+
 	m := newProgressModel(title)
 	p := tea.NewProgram(m)
 

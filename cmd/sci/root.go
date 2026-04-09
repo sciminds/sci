@@ -26,6 +26,10 @@ func buildRoot() *cli.Command {
 		Flags: []cli.Flag{
 			cmdutil.JSONFlag(&jsonOutput),
 		},
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			ui.SetQuiet(cmdutil.IsJSON(cmd))
+			return ctx, nil
+		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return cli.ShowAppHelp(cmd)
 		},

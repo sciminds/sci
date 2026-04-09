@@ -18,6 +18,7 @@ import (
 
 var (
 	putDryRun bool
+	setupUser string
 )
 
 func labCommand() *cli.Command {
@@ -40,16 +41,26 @@ func labSetupCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "setup",
 		Usage:       "Configure SSH access to lab storage",
-		Description: "$ sci lab setup",
+		Description: "$ sci lab setup\n$ sci lab setup --user myname",
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "user", Aliases: []string{"u"}, Usage: "SSH username (required in --json mode)", Destination: &setupUser, Local: true},
+		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			var user string
-			if err := huh.NewForm(huh.NewGroup(
-				huh.NewInput().
-					Title("SSH username").
-					Description("Your UCSD username for " + lab.Host).
-					Value(&user),
-			)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
-				return err
+			user := setupUser
+
+			if cmdutil.IsJSON(cmd) && user == "" {
+				return fmt.Errorf("--user is required in --json mode")
+			}
+
+			if user == "" {
+				if err := huh.NewForm(huh.NewGroup(
+					huh.NewInput().
+						Title("SSH username").
+						Description("Your UCSD username for " + lab.Host).
+						Value(&user),
+				)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
+					return err
+				}
 			}
 			if err := lab.ValidateUser(user); err != nil {
 				return err

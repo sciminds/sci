@@ -1,0 +1,159 @@
+package ui
+
+import (
+	"bytes"
+	"errors"
+	"io"
+	"os"
+	"strings"
+	"testing"
+)
+
+// captureStderr redirects os.Stderr to a pipe, runs f, then returns what was written.
+func captureStderr(t *testing.T, f func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+
+	f()
+
+	_ = w.Close()
+	os.Stderr = old
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
+}
+
+func TestRunWithSpinner_QuietRunsFn(t *testing.T) {
+	SetQuiet(true)
+	defer SetQuiet(false)
+
+	ran := false
+	err := RunWithSpinner("loading…", func(_, _ func(string)) error {
+		ran = true
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ran {
+		t.Error("fn should have been called")
+	}
+}
+
+func TestRunWithSpinner_QuietReturnsError(t *testing.T) {
+	SetQuiet(true)
+	defer SetQuiet(false)
+
+	want := errors.New("boom")
+	got := RunWithSpinner("loading…", func(_, _ func(string)) error {
+		return want
+	})
+
+	if !errors.Is(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestRunWithSpinner_QuietPrintsTitleToStderr(t *testing.T) {
+	SetQuiet(true)
+	defer SetQuiet(false)
+
+	out := captureStderr(t, func() {
+		_ = RunWithSpinner("Checking updates…", func(_, _ func(string)) error {
+			return nil
+		})
+	})
+
+	if !strings.Contains(out, "Checking updates…") {
+		t.Errorf("stderr should contain title, got %q", out)
+	}
+}
+
+func TestRunWithInteractiveSpinner_QuietRunsFn(t *testing.T) {
+	SetQuiet(true)
+	defer SetQuiet(false)
+
+	ran := false
+	err := RunWithInteractiveSpinner("installing…", func(sc SpinnerControls) error {
+		ran = true
+		// Callbacks should be no-ops, not panics.
+		sc.SetTitle("new title")
+		sc.SetStatus("status")
+		sc.Suspend()
+		sc.Resume()
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ran {
+		t.Error("fn should have been called")
+	}
+}
+
+func TestRunWithItemProgress_QuietRunsFn(t *testing.T) {
+	SetQuiet(true)
+	defer SetQuiet(false)
+
+	ran := false
+	err := RunWithItemProgress("importing…", func(update func(current, total int)) error {
+		update(1, 10)
+		ran = true
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ran {
+		t.Error("fn should have been called")
+	}
+}
+
+func TestRunWithItemProgressStatus_QuietRunsFn(t *testing.T) {
+	SetQuiet(true)
+	defer SetQuiet(false)
+
+	ran := false
+	err := RunWithItemProgressStatus("syncing…", func(update func(current, total int, status string)) error {
+		update(1, 5, "file.csv")
+		ran = true
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ran {
+		t.Error("fn should have been called")
+	}
+}
+
+func TestRunWithProgress_QuietRunsFn(t *testing.T) {
+	SetQuiet(true)
+	defer SetQuiet(false)
+
+	ran := false
+	err := RunWithProgress("downloading…", func(update func(current, total int64)) error {
+		update(512, 1024)
+		ran = true
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ran {
+		t.Error("fn should have been called")
+	}
+}

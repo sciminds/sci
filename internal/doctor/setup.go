@@ -29,6 +29,64 @@ func (r OptionalSetupResult) Human() string {
 	return fmt.Sprintf("Installed %d tools: %s\n", len(r.Installed), strings.Join(r.Installed, ", "))
 }
 
+// OptionalToolInfo describes an optional tool and its install status.
+type OptionalToolInfo struct {
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	Installed bool   `json:"installed"`
+}
+
+// OptionalToolsResult reports optional tools and their install status.
+type OptionalToolsResult struct {
+	Tools []OptionalToolInfo `json:"tools"`
+}
+
+// JSON returns the structured output.
+func (r OptionalToolsResult) JSON() any { return r }
+
+// Human returns the styled terminal output.
+func (r OptionalToolsResult) Human() string {
+	if len(r.Tools) == 0 {
+		return "No optional tools available.\n"
+	}
+	var b strings.Builder
+	for _, t := range r.Tools {
+		status := "missing"
+		if t.Installed {
+			status = "installed"
+		}
+		fmt.Fprintf(&b, "  %s (%s): %s\n", t.Name, t.Type, status)
+	}
+	return b.String()
+}
+
+// ListOptionalTools returns optional tools with their install status,
+// without prompting the user. Used in --json mode.
+func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
+	entries := brew.ParseBrewfileEntries(BrewfileOptional)
+	if len(entries) == 0 {
+		return OptionalToolsResult{}, nil
+	}
+
+	var missing map[string]bool
+	if err := ui.RunWithSpinner("Checking installed tools…", func(_, _ func(string)) error {
+		missing = missingSet(r, BrewfileOptional)
+		return nil
+	}); err != nil {
+		return OptionalToolsResult{}, err
+	}
+
+	tools := make([]OptionalToolInfo, len(entries))
+	for i, e := range entries {
+		tools[i] = OptionalToolInfo{
+			Name:      e.Name,
+			Type:      e.Type,
+			Installed: !missing[e.Name],
+		}
+	}
+	return OptionalToolsResult{Tools: tools}, nil
+}
+
 // RunOptionalSetup presents a multi-select of optional tools and installs the
 // user's selections via brew bundle install.
 func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {

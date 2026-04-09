@@ -215,6 +215,15 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 func runDoctorReccs(_ context.Context, cmd *cli.Command) error {
 	runner := brew.BundleRunner{}
 
+	if cmdutil.IsJSON(cmd) {
+		result, err := doctor.ListOptionalTools(runner)
+		if err != nil {
+			return err
+		}
+		cmdutil.Output(cmd, result)
+		return nil
+	}
+
 	result, err := doctor.RunOptionalSetup(runner)
 	if err != nil {
 		return err

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/py"
 	"github.com/sciminds/cli/internal/py/tutorials"
 	"github.com/urfave/cli/v3"
@@ -113,10 +114,14 @@ func parsePkgs(csv string) []string {
 	return pkgs
 }
 
-func runPyTutorials(_ context.Context, _ *cli.Command) error {
+func runPyTutorials(_ context.Context, cmd *cli.Command) error {
 	dir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("cannot determine working directory: %w", err)
+	}
+
+	if cmdutil.IsJSON(cmd) && !pyTutorialsAll && pyTutorialsName == "" {
+		return fmt.Errorf("--name or --all is required in --json mode")
 	}
 
 	if pyTutorialsAll {
