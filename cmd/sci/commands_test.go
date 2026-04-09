@@ -29,7 +29,7 @@ func TestCommandTree(t *testing.T) {
 		"guide": false,
 		"brew":  false, "doctor": false, "update": false,
 		"proj": false, "py": false, "vid": false,
-		"db": false, "cloud": false, "view": false,
+		"db": false, "cloud": false, "lab": false, "view": false,
 	}
 	for _, cmd := range root.Commands {
 		topLevel[cmd.Name] = true
@@ -46,7 +46,7 @@ func TestCommandTree(t *testing.T) {
 	t.Run("categories", func(t *testing.T) {
 		cats := map[string][]string{
 			"Getting Started": {"guide"},
-			"Commands":        {"cloud", "db", "proj", "py", "vid", "view"},
+			"Commands":        {"cloud", "db", "lab", "proj", "py", "vid", "view"},
 			"Maintenance":     {"brew", "doctor", "update"},
 		}
 		for cat, expected := range cats {
@@ -79,6 +79,7 @@ func TestSubcommandTrees(t *testing.T) {
 		{"vid", []string{"info", "mute", "strip-subs", "speed", "cut", "resize", "extract-audio", "convert", "gif", "compress"}},
 		{"db", []string{"create", "reset", "info", "add", "delete", "rename"}},
 		{"cloud", []string{"auth", "share", "get", "unshare", "list"}},
+		{"lab", []string{"setup", "ls", "get", "put", "browse"}},
 	}
 
 	for _, tt := range tests {

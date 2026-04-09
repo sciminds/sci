@@ -37,6 +37,7 @@ func buildRoot() *cli.Command {
 			// Commands
 			cloudCommand(),
 			dbCommand(),
+			labCommand(),
 			projCommand(),
 			pyCommand(),
 			vidCommand(),

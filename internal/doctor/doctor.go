@@ -21,6 +21,7 @@ import (
 
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cloud"
+	"github.com/sciminds/cli/internal/lab"
 )
 
 //go:embed Brewfile
@@ -201,6 +202,19 @@ func checkIdentity() CheckSection {
 		authCheck.Status = StatusPass
 		authCheck.Message = "configured as @" + cfg.Username
 		checks = append(checks, authCheck)
+	}
+
+	// Lab SSH — only shown if configured.
+	if labCfg, _ := lab.LoadConfig(); labCfg != nil && labCfg.User != "" {
+		labCheck := CheckResult{Label: "Lab SSH"}
+		if err := exec.Command("ssh", "-o", "ConnectTimeout=5", labCfg.SSHAlias(), "echo", "ok").Run(); err == nil {
+			labCheck.Status = StatusPass
+			labCheck.Message = "connected as " + labCfg.User + "@" + lab.Host
+		} else {
+			labCheck.Status = StatusFail
+			labCheck.Message = "cannot connect — run: sci lab setup"
+		}
+		checks = append(checks, labCheck)
 	}
 
 	return CheckSection{Name: "Identity", Checks: checks}
