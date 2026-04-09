@@ -20,7 +20,6 @@ The three binaries (`cmd/sci`, `cmd/dbtui`, `cmd/markdb`) are the only public en
 | `proj/new/tui/` | Bubble Tea wizard for `sci new` |
 | `py/` | Launches Python REPLs and environments |
 | `py/convert/` | Converts notebooks between Marimo, MyST, and Quarto formats |
-| `py/tutorials/` | Downloads tutorial notebooks from SciMinds |
 | `selfupdate/` | Checks GitHub releases and applies binary updates |
 | `share/` | Uploads/downloads datasets to Cloudflare R2 |
 | `tui/dbtui/` | Interactive database browser (see [dbtui CLAUDE.md](tui/dbtui/CLAUDE.md)) |

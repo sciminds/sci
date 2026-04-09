@@ -22,8 +22,7 @@ Written in Go because:
 |---------|--------------|
 | `sci help` | Interactive help TUI with demos for any command |
 | `sci learn` | Interactive guides with terminal demos |
-| `sci doctor check` | Check your environment and install missing tools |
-| `sci doctor reccs` | Pick optional tools to install |
+| `sci doctor` | Check that your Mac is set up correctly |
 | `sci update` | Update sci to the latest version |
 
 ### Browse data files
@@ -47,7 +46,6 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci proj run` | Run a project task |
 | `sci py repl` | Open a Python scratchpad |
 | `sci py marimo` | Open a marimo notebook |
-| `sci py tutorials` | Browse and run tutorial notebooks in marimo |
 | `sci py convert` | Convert between marimo (.py), MyST (.md), and Quarto (.qmd) |
 
 ### Manage databases

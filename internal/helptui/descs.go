@@ -23,8 +23,7 @@ var longDescs = map[string]string{
 		"Smart enough to add/remove/run packages to existing pixi OR uv projects using the same commands.",
 
 	"py": "Create a temporary Python interpreter or notebook with all libraries setup for scratchpad work. " +
-		"You can also browse built-in tutorials, or convert " +
-		"between various notebook file formats. Great for exploratory work, teaching, and " +
+		"You can also convert between various notebook file formats. Great for exploratory work, teaching, and " +
 		"one-off scripts.",
 
 	"vid": "Everyday video editing from the command line — powered by FFmpeg under-the-hood " +

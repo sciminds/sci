@@ -74,7 +74,7 @@ func TestSubcommandTrees(t *testing.T) {
 	}{
 		{"tools", []string{"install", "uninstall", "list", "update", "reccs"}},
 		{"proj", []string{"new", "config", "add", "remove", "run", "render", "preview"}},
-		{"py", []string{"repl", "marimo", "tutorials", "convert"}},
+		{"py", []string{"repl", "marimo", "convert"}},
 		{"vid", []string{"info", "mute", "strip-subs", "speed", "cut", "resize", "extract-audio", "convert", "gif", "compress"}},
 		{"db", []string{"create", "reset", "info", "add", "delete", "rename"}},
 		{"cloud", []string{"setup", "put", "get", "remove", "list"}},
@@ -164,16 +164,6 @@ func TestMutuallyExclusiveFlags(t *testing.T) {
 		}
 	})
 
-	t.Run("py_tutorials_name_all", func(t *testing.T) {
-		py := findCmd(root.Commands, "py")
-		tutorials := findCmd(py.Commands, "tutorials")
-		if tutorials == nil {
-			t.Fatal("py tutorials not found")
-		}
-		if len(tutorials.MutuallyExclusiveFlags) == 0 {
-			t.Error("py tutorials should have mutually exclusive flags (name, all)")
-		}
-	})
 }
 
 // TestDoctorCommand checks the doctor command is registered.

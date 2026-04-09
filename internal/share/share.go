@@ -16,6 +16,7 @@ package share
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -459,6 +460,8 @@ func Ls(username, fileType string) (*DatasetListResult, error) {
 }
 
 // GetTo downloads a shared file to a specific directory.
+// If name contains a "/" it is treated as "owner/filename" for cross-user
+// downloads; otherwise the current user's namespace is used.
 // Zip files are automatically extracted and the archive is removed.
 func GetTo(name, destDir string) (string, error) {
 	_, c, err := cloud.Setup()
@@ -473,7 +476,8 @@ func GetTo(name, destDir string) (string, error) {
 		return "", err
 	}
 
-	if err := ui.RunWithSpinner("Downloading "+filename, func(_, _ func(string)) error {
+	dl := downloadFunc(c, filename)
+	if err := ui.RunWithSpinner("Downloading "+filepath.Base(filename), func(_, _ func(string)) error {
 		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
 		defer dlCancel()
 		f, createErr := os.Create(outPath)
@@ -481,7 +485,7 @@ func GetTo(name, destDir string) (string, error) {
 			return createErr
 		}
 		defer func() { _ = f.Close() }()
-		if dlErr := c.Download(dlCtx, filename, f); dlErr != nil {
+		if dlErr := dl(dlCtx, f); dlErr != nil {
 			return netutil.Wrap("download", dlErr)
 		}
 		return nil
@@ -492,7 +496,7 @@ func GetTo(name, destDir string) (string, error) {
 	// Auto-extract zip files.
 	if filepath.Ext(outPath) == ".zip" {
 		extractDir := filepath.Join(destDir, nameFromFile(filename))
-		if err := ui.RunWithSpinner("Extracting "+filename, func(_, _ func(string)) error {
+		if err := ui.RunWithSpinner("Extracting "+filepath.Base(filename), func(_, _ func(string)) error {
 			return unzip(outPath, extractDir)
 		}); err != nil {
 			return "", fmt.Errorf("extracting: %w", err)
@@ -504,6 +508,8 @@ func GetTo(name, destDir string) (string, error) {
 }
 
 // Get downloads a shared file to the current directory.
+// If name contains a "/" it is treated as "owner/filename" for cross-user
+// downloads; otherwise the current user's namespace is used.
 func Get(name string) (*CloudResult, error) {
 	_, c, err := cloud.Setup()
 	if err != nil {
@@ -513,7 +519,8 @@ func Get(name string) (*CloudResult, error) {
 	filename := ensureExtension(name)
 
 	outPath := filepath.Base(filename)
-	if err := ui.RunWithSpinner("Downloading "+filename, func(_, _ func(string)) error {
+	dl := downloadFunc(c, filename)
+	if err := ui.RunWithSpinner("Downloading "+filepath.Base(filename), func(_, _ func(string)) error {
 		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
 		defer dlCancel()
 		f, createErr := os.Create(outPath)
@@ -521,7 +528,7 @@ func Get(name string) (*CloudResult, error) {
 			return createErr
 		}
 		defer func() { _ = f.Close() }()
-		if dlErr := c.Download(dlCtx, filename, f); dlErr != nil {
+		if dlErr := dl(dlCtx, f); dlErr != nil {
 			return netutil.Wrap("download", dlErr)
 		}
 		return nil
@@ -532,7 +539,7 @@ func Get(name string) (*CloudResult, error) {
 	// Auto-extract zip files.
 	if filepath.Ext(outPath) == ".zip" {
 		extractDir := nameFromFile(filename)
-		if err := ui.RunWithSpinner("Extracting "+filename, func(_, _ func(string)) error {
+		if err := ui.RunWithSpinner("Extracting "+filepath.Base(filename), func(_, _ func(string)) error {
 			return unzip(outPath, extractDir)
 		}); err != nil {
 			return nil, fmt.Errorf("extracting: %w", err)
@@ -541,6 +548,20 @@ func Get(name string) (*CloudResult, error) {
 		return &CloudResult{OK: true, Action: "get", Message: fmt.Sprintf("downloaded and extracted %s/", extractDir)}, nil
 	}
 	return &CloudResult{OK: true, Action: "get", Message: fmt.Sprintf("downloaded %s", outPath)}, nil
+}
+
+// downloadFunc returns a download closure. If filename contains a "/"
+// it is treated as a full key (owner/file) and downloaded via DownloadByKey;
+// otherwise it uses the current user's namespace via Download.
+func downloadFunc(c *cloud.Client, filename string) func(context.Context, io.Writer) error {
+	if strings.Contains(filename, "/") {
+		return func(ctx context.Context, dst io.Writer) error {
+			return c.DownloadByKey(ctx, filename, dst)
+		}
+	}
+	return func(ctx context.Context, dst io.Writer) error {
+		return c.Download(ctx, filename, dst)
+	}
 }
 
 // nameFromFile derives a dataset name from a file path (stem without extension).

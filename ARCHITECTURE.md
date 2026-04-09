@@ -20,7 +20,7 @@ User
 cmd/sci/root.go          CLI entry point (urfave/cli/v3)
  |
  +---> internal/proj/     Python project detection + scaffolding
- +---> internal/py/       Python REPL, notebook conversion, tutorials
+ +---> internal/py/       Python REPL, notebook conversion
  +---> internal/db/       Database create/reset/import/sync/view
  |       |
  |       +---> internal/db/data/         SQLiteStore (pocketbase/dbx)
