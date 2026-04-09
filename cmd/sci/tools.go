@@ -23,14 +23,13 @@ var (
 	toolsCargo   bool
 	toolsFormula bool
 	toolsAll     bool
-	toolsCheck   bool
 )
 
 func toolsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "tools",
 		Usage:       "Manage Homebrew & uv tools via your Brewfile",
-		Description: "$ sci tools install\n$ sci tools install pandoc\n$ sci tools uninstall pandoc\n$ sci tools list\n$ sci tools update\n$ sci tools reccs",
+		Description: "$ sci tools install\n$ sci tools install pandoc\n$ sci tools uninstall pandoc\n$ sci tools list\n$ sci tools update\n$ sci tools outdated\n$ sci tools reccs",
 		Category:    "Maintenance",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -46,6 +45,7 @@ func toolsCommand() *cli.Command {
 			toolsUninstallCommand(),
 			toolsListCommand(),
 			toolsUpdateCommand(),
+			toolsOutdatedCommand(),
 			toolsReccsCommand(),
 		},
 	}
@@ -108,16 +108,17 @@ func toolsUpdateCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "update",
 		Usage:       "Update the Homebrew registry and upgrade outdated packages",
-		Description: "$ sci tools update\n$ sci tools update --check",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:        "check",
-				Usage:       "only show outdated packages without upgrading",
-				Destination: &toolsCheck,
-				Local:       true,
-			},
-		},
-		Action: runToolsUpdate,
+		Description: "$ sci tools update",
+		Action:      runToolsUpdate,
+	}
+}
+
+func toolsOutdatedCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "outdated",
+		Usage:       "List outdated packages without upgrading",
+		Description: "$ sci tools outdated",
+		Action:      runToolsOutdated,
 	}
 }
 
@@ -334,18 +335,36 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 	runner := brew.BundleRunner{}
 
 	if toolsDryRun {
-		if toolsCheck {
-			ui.Hint("would update the registry and list outdated packages")
-		} else {
-			ui.Hint("would update the registry and upgrade outdated packages")
-		}
+		ui.Hint("would update the registry and upgrade outdated packages")
 		return nil
 	}
 
 	var result brew.UpdateResult
 	err := ui.RunWithSpinner("Updating package registry…", func(sc ui.SpinnerControls) error {
 		var updateErr error
-		result, updateErr = brew.Update(runner, toolsCheck, sc.SetTitle, sc.SetStatus, sc.Suspend, sc.Resume)
+		result, updateErr = brew.Update(runner, false, sc.SetTitle, sc.SetStatus, sc.Suspend, sc.Resume)
+		return updateErr
+	})
+	if err != nil {
+		return err
+	}
+
+	cmdutil.Output(cmd, result)
+	return nil
+}
+
+func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
+	runner := brew.BundleRunner{}
+
+	if toolsDryRun {
+		ui.Hint("would update the registry and list outdated packages")
+		return nil
+	}
+
+	var result brew.UpdateResult
+	err := ui.RunWithSpinner("Checking for outdated packages…", func(sc ui.SpinnerControls) error {
+		var updateErr error
+		result, updateErr = brew.Update(runner, true, sc.SetTitle, sc.SetStatus, sc.Suspend, sc.Resume)
 		return updateErr
 	})
 	if err != nil {
