@@ -22,10 +22,18 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/sciminds/cli/internal/cloud"
+	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/ui"
+)
+
+// Network timeouts for cloud operations.
+const (
+	metadataTimeout = 30 * time.Second // list, head, exists, delete
+	transferTimeout = 10 * time.Minute // upload, download
 )
 
 // Auth checks if already configured; if so, shows status. Otherwise initiates
@@ -135,7 +143,13 @@ func CheckExists(name string, private bool) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return c.Exists(context.Background(), name)
+	ctx, cancel := context.WithTimeout(context.Background(), metadataTimeout)
+	defer cancel()
+	ok, err := c.Exists(ctx, name)
+	if err != nil {
+		return false, netutil.Wrap("checking file", err)
+	}
+	return ok, nil
 }
 
 // Share uploads a file or directory to R2 under the given name.
@@ -183,13 +197,13 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		}
 	}
 
-	ctx := context.Background()
-
 	// Check if it already exists.
 	if !opts.Force {
-		exists, err := c.Exists(ctx, name)
+		existsCtx, existsCancel := context.WithTimeout(context.Background(), metadataTimeout)
+		defer existsCancel()
+		exists, err := c.Exists(existsCtx, name)
 		if err != nil {
-			return nil, err
+			return nil, netutil.Wrap("checking file", err)
 		}
 		if exists {
 			return nil, fmt.Errorf("file %q already exists (use --force to replace)", name)
@@ -220,9 +234,11 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		}
 		defer func() { _ = f.Close() }()
 
+		uploadCtx, uploadCancel := context.WithTimeout(context.Background(), transferTimeout)
+		defer uploadCancel()
 		contentType := detectContentType(absPath)
-		if uploadErr := c.Upload(ctx, name, f, contentType, metadata); uploadErr != nil {
-			return uploadErr
+		if uploadErr := c.Upload(uploadCtx, name, f, contentType, metadata); uploadErr != nil {
+			return netutil.Wrap("upload", uploadErr)
 		}
 
 		url := c.PublicObjectURL(name)
@@ -250,18 +266,22 @@ func Unshare(name string, private bool) (*CloudResult, error) {
 		return nil, err
 	}
 
-	ctx := context.Background()
 	filename := ensureExtension(name)
 
 	if err := ui.RunWithSpinner("Removing "+filename, func(_, _ func(string)) error {
+		ctx, cancel := context.WithTimeout(context.Background(), metadataTimeout)
+		defer cancel()
 		exists, existsErr := c.Exists(ctx, filename)
 		if existsErr != nil {
-			return existsErr
+			return netutil.Wrap("checking file", existsErr)
 		}
 		if !exists {
 			return fmt.Errorf("file %q not found", filename)
 		}
-		return c.Delete(ctx, filename)
+		if delErr := c.Delete(ctx, filename); delErr != nil {
+			return netutil.Wrap("removing file", delErr)
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}
@@ -303,19 +323,22 @@ func sharedWithOpts(c *cloud.Client, plain, allUsers bool) (*SharedListResult, e
 		spinnerMsg = "Fetching files"
 	}
 
+	listCtx, listCancel := context.WithTimeout(context.Background(), metadataTimeout)
+	defer listCancel()
+
 	var objects []cloud.ObjectInfo
 	if plain {
 		var err error
-		objects, err = listFn(context.Background())
+		objects, err = listFn(listCtx)
 		if err != nil {
-			return nil, err
+			return nil, netutil.Wrap("listing files", err)
 		}
 	} else if err := ui.RunWithSpinner(spinnerMsg, func(_, _ func(string)) error {
 		var listErr error
-		objects, listErr = listFn(context.Background())
+		objects, listErr = listFn(listCtx)
 		return listErr
 	}); err != nil {
-		return nil, err
+		return nil, netutil.Wrap("listing files", err)
 	}
 
 	entries := buildSharedEntries(objects, c.Username, allUsers)
@@ -333,7 +356,9 @@ func sharedWithOpts(c *cloud.Client, plain, allUsers bool) (*SharedListResult, e
 		go func(idx int) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			meta, err := c.HeadObject(context.Background(), entries[idx].Name)
+			headCtx, headCancel := context.WithTimeout(context.Background(), metadataTimeout)
+			defer headCancel()
+			meta, err := c.HeadObject(headCtx, entries[idx].Name)
 			if err != nil {
 				return
 			}
@@ -397,9 +422,14 @@ func Ls(username, fileType string, private bool) (*DatasetListResult, error) {
 
 	var objects []cloud.ObjectInfo
 	if err := ui.RunWithSpinner("Fetching files", func(_, _ func(string)) error {
+		lsCtx, lsCancel := context.WithTimeout(context.Background(), metadataTimeout)
+		defer lsCancel()
 		var listErr error
-		objects, listErr = c.ListPrefix(context.Background(), prefix)
-		return listErr
+		objects, listErr = c.ListPrefix(lsCtx, prefix)
+		if listErr != nil {
+			return netutil.Wrap("listing files", listErr)
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}
@@ -439,7 +469,6 @@ func GetTo(name, destDir string, private bool) (string, error) {
 		return "", err
 	}
 
-	ctx := context.Background()
 	filename := ensureExtension(name)
 
 	outPath := filepath.Join(destDir, filepath.Base(filename))
@@ -448,12 +477,17 @@ func GetTo(name, destDir string, private bool) (string, error) {
 	}
 
 	if err := ui.RunWithSpinner("Downloading "+filename, func(_, _ func(string)) error {
+		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
+		defer dlCancel()
 		f, createErr := os.Create(outPath)
 		if createErr != nil {
 			return createErr
 		}
 		defer func() { _ = f.Close() }()
-		return c.Download(ctx, filename, f)
+		if dlErr := c.Download(dlCtx, filename, f); dlErr != nil {
+			return netutil.Wrap("download", dlErr)
+		}
+		return nil
 	}); err != nil {
 		return "", err
 	}
@@ -479,17 +513,21 @@ func Get(name string, private bool) (*CloudResult, error) {
 		return nil, err
 	}
 
-	ctx := context.Background()
 	filename := ensureExtension(name)
 
 	outPath := filepath.Base(filename)
 	if err := ui.RunWithSpinner("Downloading "+filename, func(_, _ func(string)) error {
+		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
+		defer dlCancel()
 		f, createErr := os.Create(outPath)
 		if createErr != nil {
 			return createErr
 		}
 		defer func() { _ = f.Close() }()
-		return c.Download(ctx, filename, f)
+		if dlErr := c.Download(dlCtx, filename, f); dlErr != nil {
+			return netutil.Wrap("download", dlErr)
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}

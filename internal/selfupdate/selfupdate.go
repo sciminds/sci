@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/version"
 )
 
@@ -79,7 +80,7 @@ func Check() CheckResult {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		result.Error = err.Error()
+		result.Error = netutil.Wrap("checking for updates", err).Error()
 		return result
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -145,7 +146,7 @@ func Download(downloadURL string, dest *os.File, progressFn func(int64)) error {
 	client := &http.Client{Timeout: 2 * time.Minute}
 	resp, err := client.Get(downloadURL)
 	if err != nil {
-		return fmt.Errorf("download: %w", err)
+		return netutil.Wrap("download", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 

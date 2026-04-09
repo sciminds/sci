@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/sciminds/cli/internal/netutil"
 )
 
 const (
@@ -45,9 +47,10 @@ func RequestDeviceCode(ctx context.Context, workerURL string) (*DeviceCodeRespon
 	}
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("contacting auth server: %w", err)
+		return nil, netutil.Wrap("contacting auth server", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -114,9 +117,10 @@ func pollOnce(ctx context.Context, workerURL, deviceCode string) (*TokenResponse
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("contacting auth server: %w", err)
+		return nil, netutil.Wrap("contacting auth server", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
