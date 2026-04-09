@@ -1,0 +1,9 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci py marimo"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  Detected pixi environment in my-analysis/\r\n"]
+[1.6, "o", "  → launching marimo…\r\n"]
+[2.0, "o", "\r\n"]
+[2.2, "o", "  marimo is running at http://localhost:2718\r\n"]
+[2.7, "o", "$ "]

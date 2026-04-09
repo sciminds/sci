@@ -1,0 +1,7 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci markdb info notes.db"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  files: 42  sources: 1  schema keys: 8\r\n"]
+[1.5, "o", "  links: 18  broken: 2\r\n"]
+[2.0, "o", "$ "]

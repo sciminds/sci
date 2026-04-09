@@ -7,7 +7,6 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/sciminds/cli/internal/guide"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -17,7 +16,7 @@ type level int
 
 const (
 	levelCommands level = iota // top-level command picker
-	levelSubs                  // subcommand list + detail pane
+	levelSubs                  // subcommand list within a command
 	levelOverlay               // cast player overlay
 )
 
@@ -26,10 +25,8 @@ type model struct {
 	groups   []CommandGroup
 	commands list.Model // level 0: command picker
 	subs     list.Model // level 1: subcommand list
-	active   *CommandGroup
 	player   *guide.Player
 	level    level
-	prevIdx  int // track cursor changes for detail refresh
 	width    int
 	height   int
 	quitting bool
@@ -54,15 +51,13 @@ func newModel(groups []CommandGroup) *model {
 		}
 	}
 
-	return &model{groups: groups, commands: l, level: levelCommands, prevIdx: -1}
+	return &model{groups: groups, commands: l, level: levelCommands}
 }
 
 func newModelForGroup(g *CommandGroup) *model {
 	m := &model{
-		groups:  []CommandGroup{*g},
-		active:  g,
-		level:   levelSubs,
-		prevIdx: -1,
+		groups: []CommandGroup{*g},
+		level:  levelSubs,
 	}
 	m.openGroup(*g)
 	return m
@@ -77,9 +72,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.commands.SetSize(msg.Width, msg.Height)
-		if m.level >= levelSubs {
-			m.subs.SetSize(m.listWidth(), msg.Height)
+		switch m.level {
+		case levelCommands:
+			m.commands.SetSize(msg.Width, msg.Height)
+		case levelSubs, levelOverlay:
+			m.subs.SetSize(msg.Width, msg.Height)
 		}
 		if m.player != nil {
 			m.player.SetHeight(ui.OverlayBodyHeight(m.height, 4))
@@ -135,7 +132,6 @@ func (m *model) updateCommands(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if !ok {
 			break
 		}
-		m.active = &g
 		m.openGroup(g)
 		return m, nil
 	}
@@ -151,7 +147,7 @@ func (m *model) openGroup(g CommandGroup) {
 		items[i] = s
 	}
 	d := ui.NewListDelegate()
-	l := list.New(items, d, m.listWidth(), m.height)
+	l := list.New(items, d, m.width, m.height)
 	l.Title = g.Name
 	l.Styles.Title = ui.TUI.AccentBold()
 	l.SetFilteringEnabled(true)
@@ -164,10 +160,9 @@ func (m *model) openGroup(g CommandGroup) {
 	}
 	m.subs = l
 	m.level = levelSubs
-	m.prevIdx = -1
 }
 
-// ── Level 1: subcommand list + detail ──────────────────────────────────────
+// ── Level 1: subcommand list ───────────────────────────────────────────────
 
 func (m *model) updateSubs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -213,13 +208,11 @@ func (m *model) updateSubs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) goBack() (tea.Model, tea.Cmd) {
-	// If launched directly into a group, quit instead of going back.
 	if len(m.groups) == 1 {
 		m.quitting = true
 		return m, tea.Quit
 	}
 	m.level = levelCommands
-	m.active = nil
 	return m, nil
 }
 
@@ -253,7 +246,7 @@ func (m *model) View() tea.View {
 	case levelCommands:
 		bg = m.commands.View()
 	case levelSubs, levelOverlay:
-		bg = m.renderSplitView()
+		bg = m.subs.View()
 	}
 
 	if m.player == nil {
@@ -262,31 +255,13 @@ func (m *model) View() tea.View {
 		return v
 	}
 
-	fg := m.renderCastOverlay()
+	fg := m.renderOverlay()
 	v := tea.NewView(ui.Compose(fg, bg))
 	v.AltScreen = true
 	return v
 }
 
-func (m *model) renderSplitView() string {
-	rightW := m.detailWidth()
-
-	left := m.subs.View()
-
-	var right string
-	if sub, ok := m.subs.SelectedItem().(SubCommand); ok {
-		right = RenderDetail(sub, rightW, m.height)
-	}
-
-	sep := lipgloss.NewStyle().
-		Foreground(ui.TUI.Palette().Border).
-		Render("│")
-
-	// Join panels horizontally
-	return lipgloss.JoinHorizontal(lipgloss.Top, left, sep, right)
-}
-
-func (m *model) renderCastOverlay() string {
+func (m *model) renderOverlay() string {
 	w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW)
 
 	var b strings.Builder
@@ -298,33 +273,16 @@ func (m *model) renderCastOverlay() string {
 	b.WriteString(m.player.View())
 	b.WriteString("\n\n")
 
-	footer := ui.TUI.HeaderHint().Render("space pause/play") + "  " +
-		ui.TUI.HeaderHint().Render("r restart") + "  " +
-		ui.TUI.HeaderHint().Render("esc close")
-	b.WriteString(footer)
+	hints := []string{
+		ui.TUI.HeaderHint().Render("space pause/play"),
+		ui.TUI.HeaderHint().Render("r restart"),
+		ui.TUI.HeaderHint().Render("esc close"),
+	}
+	b.WriteString(strings.Join(hints, "  "))
 
 	return ui.TUI.OverlayBox().
 		Width(w).
 		Render(b.String())
-}
-
-// ── Layout helpers ─────────────────────────────────────────────────────────
-
-func (m *model) listWidth() int {
-	w := m.width * 2 / 5
-	if w < 20 {
-		w = 20
-	}
-	return w
-}
-
-func (m *model) detailWidth() int {
-	// 1 column for separator
-	w := m.width - m.listWidth() - 1
-	if w < 20 {
-		w = 20
-	}
-	return w
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────

@@ -1,0 +1,9 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci proj config"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  ✓ 3 file(s) updated.\r\n"]
+[1.5, "o", "    .gitignore\r\n"]
+[1.6, "o", "    pixi.toml\r\n"]
+[1.7, "o", "    docs/_quarto.yml\r\n"]
+[2.2, "o", "$ "]

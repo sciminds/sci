@@ -1,0 +1,11 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci lab put data/experiment-01/"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "sending incremental file list\r\n"]
+[1.4, "o", "experiment-01/\r\n"]
+[1.5, "o", "experiment-01/trials.csv\r\n"]
+[1.6, "o", "experiment-01/config.json\r\n"]
+[1.8, "o", "\r\n"]
+[1.9, "o", "sent 48,192 bytes  received 96 bytes\r\n"]
+[2.4, "o", "$ "]

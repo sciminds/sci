@@ -1,0 +1,11 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci markdb search notes.db \"neural networks\""]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  research/deep-learning.md\r\n"]
+[1.4, "o", "    ...convolutional neural networks have shown...\r\n"]
+[1.6, "o", "  papers/attention-is-all-you-need.md\r\n"]
+[1.7, "o", "    ...transformer neural networks replace recurrence...\r\n"]
+[1.9, "o", "\r\n"]
+[2.0, "o", "  2 result(s)\r\n"]
+[2.5, "o", "$ "]

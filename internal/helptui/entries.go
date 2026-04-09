@@ -54,7 +54,7 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 			FullName: cmd.FullName(),
 		}
 		for _, sub := range cmd.Commands {
-			if sub.Hidden {
+			if sub.Hidden || sub.Name == "help" {
 				continue
 			}
 			castName := cmd.Name + "-" + sub.Name + ".cast"

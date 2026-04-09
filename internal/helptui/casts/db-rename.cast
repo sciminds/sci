@@ -1,0 +1,6 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci db rename experiment.db trials experiment_trials"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  ✓ renamed trials → experiment_trials\r\n"]
+[1.8, "o", "$ "]

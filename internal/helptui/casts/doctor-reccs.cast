@@ -1,0 +1,12 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci doctor reccs"]
+[1.0, "o", "\r\n"]
+[1.5, "o", "  Select tools to install:\r\n"]
+[1.7, "o", "  ✓ bat        syntax-highlighted cat\r\n"]
+[1.8, "o", "  ✓ fd         faster find\r\n"]
+[1.9, "o", "    htop       process viewer\r\n"]
+[2.0, "o", "    tree       directory tree\r\n"]
+[2.5, "o", "\r\n"]
+[2.7, "o", "  Installed 2 tools: bat, fd\r\n"]
+[3.2, "o", "$ "]

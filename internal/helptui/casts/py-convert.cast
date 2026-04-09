@@ -1,0 +1,6 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci py convert notebook.ipynb"]
+[1.0, "o", "\r\n"]
+[1.5, "o", "  ✓ notebook.ipynb → notebook.py\r\n"]
+[2.0, "o", "$ "]

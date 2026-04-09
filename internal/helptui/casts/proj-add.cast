@@ -1,0 +1,10 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci proj add pandas scikit-learn"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  Resolved 12 packages in 1.2s\r\n"]
+[1.5, "o", "  Installed 12 packages in 0.8s\r\n"]
+[1.6, "o", "   + pandas==2.2.3\r\n"]
+[1.7, "o", "   + scikit-learn==1.5.2\r\n"]
+[1.8, "o", "   + numpy==2.1.3\r\n"]
+[2.3, "o", "$ "]

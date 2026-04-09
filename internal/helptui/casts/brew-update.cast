@@ -1,0 +1,11 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci brew update"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  ==> Updating Homebrew…\r\n"]
+[1.8, "o", "  ==> Outdated packages:\r\n"]
+[2.0, "o", "    ripgrep  14.1.0 → 14.1.1\r\n"]
+[2.1, "o", "    fd       10.1.0 → 10.2.0\r\n"]
+[2.4, "o", "  ==> Upgrading 2 packages…\r\n"]
+[2.8, "o", "  Everything is up to date.\r\n"]
+[3.3, "o", "$ "]

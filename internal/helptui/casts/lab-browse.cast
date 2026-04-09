@@ -1,0 +1,10 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci lab browse"]
+[1.0, "o", "\r\n"]
+[1.5, "o", "  → connecting to discovery.dartmouth.edu…\r\n"]
+[2.0, "o", "ejolly@discovery:~/lab$ "]
+[2.5, "o", "ls"]
+[2.7, "o", "\r\n"]
+[3.0, "o", "data/  models/  results.tar.gz  summary.csv\r\n"]
+[3.5, "o", "ejolly@discovery:~/lab$ "]

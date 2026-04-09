@@ -1,0 +1,11 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci db info experiment.db"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  path  experiment.db\r\n"]
+[1.4, "o", "  size  0.3 MB  ·  2 tables\r\n"]
+[1.5, "o", "\r\n"]
+[1.6, "o", "  table           rows   columns\r\n"]
+[1.7, "o", "  trials          1200   8\r\n"]
+[1.8, "o", "  demographics    48     5\r\n"]
+[2.3, "o", "$ "]
