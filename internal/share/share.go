@@ -232,7 +232,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		}
 		result = &CloudResult{
 			OK:      true,
-			Action:  "share",
+			Action:  "put",
 			Message: fmt.Sprintf("%s %q", action, name),
 			URL:     url,
 		}
@@ -265,7 +265,7 @@ func Unshare(name string, private bool) (*CloudResult, error) {
 	}); err != nil {
 		return nil, err
 	}
-	return &CloudResult{OK: true, Action: "unshare", Message: fmt.Sprintf("removed %q", filename)}, nil
+	return &CloudResult{OK: true, Action: "remove", Message: fmt.Sprintf("removed %q", filename)}, nil
 }
 
 // Shared lists the current user's shared files.

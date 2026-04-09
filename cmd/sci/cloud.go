@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cloud"
@@ -13,16 +14,16 @@ import (
 )
 
 var (
-	shareName    string
-	shareDesc    string
-	shareForce   bool
-	sharePrivate bool
-	unshareYes   bool
-	authLogout   bool
-	listPlain    bool
-	getPrivate   bool
-	unshPrivate  bool
-	listPrivate  bool
+	putName       string
+	putDesc       string
+	putForce      bool
+	putPrivate    bool
+	removeYes     bool
+	authLogout    bool
+	listPlain     bool
+	getPrivate    bool
+	removePrivate bool
+	listPrivate   bool
 )
 
 func cloudCommand() *cli.Command {
@@ -30,13 +31,13 @@ func cloudCommand() *cli.Command {
 		Name:        "cloud",
 		Aliases:     []string{"cl"},
 		Usage:       "Share/download files from SciMinds cloud storage",
-		Description: "$ sci cloud share results.csv\n$ sci cloud list\n$ sci cloud get my-data",
+		Description: "$ sci cloud put results.csv\n$ sci cloud list\n$ sci cloud get my-data",
 		Category:    "Commands",
 		Commands: []*cli.Command{
 			cloudAuthCommand(),
-			cloudShareCommand(),
+			cloudPutCommand(),
 			cloudGetCommand(),
-			cloudUnshareCommand(),
+			cloudRemoveCommand(),
 			cloudListCommand(),
 		},
 	}
@@ -69,30 +70,36 @@ func cloudAuthCommand() *cli.Command {
 	}
 }
 
-func cloudShareCommand() *cli.Command {
+func cloudPutCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "share",
+		Name:        "put",
 		Usage:       "Upload a file to cloud storage",
-		Description: "$ sci cloud share results.csv\n$ sci cloud share results.csv --private\n$ sci cloud share results.csv --name my-results.csv --desc 'Experiment results' --force",
+		Description: "$ sci cloud put results.csv\n$ sci cloud put results.csv --private\n$ sci cloud put results.csv --name my-results.csv --desc 'Experiment results' --force",
 		ArgsUsage:   "<file>",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "share name (default: filename)", Destination: &shareName, Local: true},
-			&cli.StringFlag{Name: "desc", Aliases: []string{"d"}, Usage: "optional description", Destination: &shareDesc, Local: true},
-			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing file without prompting", Destination: &shareForce, Local: true},
-			&cli.BoolFlag{Name: "private", Aliases: []string{"p"}, Usage: "upload to private bucket", Destination: &sharePrivate, Local: true},
+			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "upload name (default: filename)", Destination: &putName, Local: true},
+			&cli.StringFlag{Name: "desc", Aliases: []string{"d"}, Usage: "optional description", Destination: &putDesc, Local: true},
+			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing file without prompting", Destination: &putForce, Local: true},
+			&cli.BoolFlag{Name: "private", Aliases: []string{"p"}, Usage: "upload to private bucket", Destination: &putPrivate, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
-				return fmt.Errorf("share requires a file path\n\n" +
-					"  Upload a file:   sci cloud share results.csv\n" +
+				return fmt.Errorf("put requires a file path\n\n" +
+					"  Upload a file:   sci cloud put results.csv\n" +
 					"  List files:      sci cloud list\n\n" +
-					"  Run 'sci cloud share --help' for more options")
+					"  Run 'sci cloud put --help' for more options")
 			}
 			filePath := cmd.Args().First()
 
-			name := shareName
-			desc := shareDesc
-			force := shareForce
+			// Warn about public access unless uploading to private bucket.
+			if !putPrivate {
+				fmt.Fprintf(os.Stderr, "\n  %s This creates a public URL for file access. Do not share sensitive or personally identifying information.\n", ui.SymWarn)
+				fmt.Fprintf(os.Stderr, "    Use %s for private lab storage.\n\n", ui.TUI.Accent().Render("sci lab put"))
+			}
+
+			name := putName
+			desc := putDesc
+			force := putForce
 
 			// In JSON mode, require --name (no interactive form).
 			if cmdutil.IsJSON(cmd) {
@@ -107,8 +114,8 @@ func cloudShareCommand() *cli.Command {
 				defaultName := share.DefaultShareName(filePath)
 				if err := huh.NewForm(huh.NewGroup(
 					huh.NewInput().
-						Title("Share name").
-						Description("Name used to get/unshare this file").
+						Title("Upload name").
+						Description("Name used to get/remove this file").
 						Placeholder(defaultName).
 						Value(&name),
 					huh.NewInput().
@@ -125,7 +132,7 @@ func cloudShareCommand() *cli.Command {
 
 			// Check for existing file and prompt unless --force.
 			if !force {
-				exists, err := share.CheckExists(name, sharePrivate)
+				exists, err := share.CheckExists(name, putPrivate)
 				if err != nil {
 					return err
 				}
@@ -146,7 +153,7 @@ func cloudShareCommand() *cli.Command {
 				}
 			}
 
-			result, err := share.Share(filePath, share.ShareOpts{Name: name, Description: desc, Force: force, Private: sharePrivate})
+			result, err := share.Share(filePath, share.ShareOpts{Name: name, Description: desc, Force: force, Private: putPrivate})
 			if err != nil {
 				return err
 			}
@@ -182,25 +189,26 @@ func cloudGetCommand() *cli.Command {
 	}
 }
 
-func cloudUnshareCommand() *cli.Command {
+func cloudRemoveCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "unshare",
+		Name:        "remove",
+		Aliases:     []string{"rm"},
 		Usage:       "Remove a shared file",
-		Description: "$ sci cloud unshare results.csv\n$ sci cloud unshare results.csv --private",
+		Description: "$ sci cloud remove results.csv\n$ sci cloud remove results.csv --private",
 		ArgsUsage:   "<name>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &unshareYes, Local: true},
-			&cli.BoolFlag{Name: "private", Aliases: []string{"p"}, Usage: "remove from private bucket", Destination: &unshPrivate, Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &removeYes, Local: true},
+			&cli.BoolFlag{Name: "private", Aliases: []string{"p"}, Usage: "remove from private bucket", Destination: &removePrivate, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return cmdutil.UsageErrorf(cmd, "expected exactly 1 argument, got %d", cmd.Args().Len())
 			}
 			name := cmd.Args().First()
-			if done, err := cmdutil.ConfirmOrSkip(unshareYes, fmt.Sprintf("Remove shared file %q?", name)); done || err != nil {
+			if done, err := cmdutil.ConfirmOrSkip(removeYes, fmt.Sprintf("Remove shared file %q?", name)); done || err != nil {
 				return err
 			}
-			result, err := share.Unshare(name, unshPrivate)
+			result, err := share.Unshare(name, removePrivate)
 			if err != nil {
 				return err
 			}

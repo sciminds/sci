@@ -2,7 +2,11 @@
 
 A small smart CLI toolkit for academic work on macOS in a single command: `sci`
 
-Helps you setup/verify your computer with common libraries for Python-based scientific data storage, analysis, and writing, by *orchestrating* other tools together.  
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh
+```
 
 Written in Go because:  
 - Go is *typed* and *compiled* which makes it much faster than Python/JS *and* makes TDD with LLMs more reliable 
@@ -10,42 +14,7 @@ Written in Go because:
 - No complicated dev tooling: everything is pretty standardized in the ecosystem and distribution is just GitHub
 - Eshin wanted to learn a new language
 
-## Install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh
-```
-
-## Goals
-
-- Make hard CLI tools easy to use, e.g. `ffmpeg`
-- Make setting up mac with essential software turn-key, e.g. via `brew`
-- Include a full data-management solution powered by SQLite
-- Provide easy tools to share files and databases across different lab members (private cloud storage via Pocketbase)
-
-## Included Tools 
-
-*Checked and installed automatically via `sci doctor`*
-
-- `brew`: macOS package manager
-- `git` / `gh`: Git & GitHub version control
-- `uv`: Python project/library management
-- `pixi`: Python project/library management
-- `bun`: JavaScript/TypeScript runtime
-- `node`: JavaScript/TypeScript runtime
-- `ffmpeg`: all-in-one tool for editing video/audio files
-
-*Optional tools available via `sci doctor tools`*
-
-- `code`: Visual Studio Code IDE
-- `zed`: Zed IDE
-- `helix` / `nvim` / `msedit`: terminal editors
-- `rg` / `ast-grep` / `jq` / `mq`: search and data tools
-- `symbex` / `sqlite-utils` / `markitdown` / `datasette`: Python CLI utilities
-
 ## What can it do?
-
-*Run `sci <command> --help` for details on any command*
 
 ### Basic Commands
 
@@ -108,12 +77,12 @@ Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd
 |---------|--------------|
 | `sci cloud auth` | Authenticate via GitHub (requires sciminds org membership) |
 | `sci cloud auth --logout` | Clear saved credentials |
-| `sci cloud share <file>` | Upload a file to the public bucket |
-| `sci cloud share <file> --private` | Upload a file to the private bucket |
+| `sci cloud put <file>` | Upload a file to the public bucket |
+| `sci cloud put <file> --private` | Upload a file to the private bucket |
 | `sci cloud get <name>` | Download a shared file |
 | `sci cloud list` | Browse your shared files interactively |
 | `sci cloud list --plain` | List your shared files (no TUI) |
-| `sci cloud unshare <name>` | Remove a shared file |
+| `sci cloud remove <name>` | Remove a shared file |
 
 All commands accept `--private` / `-p` to target the private bucket instead of the default public one.
 

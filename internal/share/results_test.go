@@ -8,18 +8,18 @@ import (
 // ---- CloudResult ----
 
 func TestCloudResult_JSON(t *testing.T) {
-	r := CloudResult{OK: true, Action: "share", Message: "shared successfully"}
+	r := CloudResult{OK: true, Action: "put", Message: "shared successfully"}
 	got, ok := r.JSON().(CloudResult)
 	if !ok {
 		t.Fatal("JSON() did not return CloudResult")
 	}
-	if got.Action != "share" || got.Message != "shared successfully" {
+	if got.Action != "put" || got.Message != "shared successfully" {
 		t.Errorf("JSON() = %+v, unexpected values", got)
 	}
 }
 
 func TestCloudResult_JSON_WithURL(t *testing.T) {
-	r := CloudResult{OK: true, Action: "share", Message: "shared \"iris.csv\"", URL: "https://pub-xxx.r2.dev/user/iris.csv"}
+	r := CloudResult{OK: true, Action: "put", Message: "shared \"iris.csv\"", URL: "https://pub-xxx.r2.dev/user/iris.csv"}
 	got, ok := r.JSON().(CloudResult)
 	if !ok {
 		t.Fatal("JSON() did not return CloudResult")
@@ -35,7 +35,7 @@ func TestCloudResult_Human(t *testing.T) {
 		r          CloudResult
 		wantSymbol string
 	}{
-		{"ok", CloudResult{OK: true, Action: "share", Message: "shared"}, "✓"},
+		{"ok", CloudResult{OK: true, Action: "put", Message: "shared"}, "✓"},
 		{"fail", CloudResult{OK: false, Action: "get", Message: "auth failed"}, "✗"},
 	}
 	for _, tt := range tests {
@@ -55,7 +55,7 @@ func TestCloudResult_Human(t *testing.T) {
 }
 
 func TestCloudResult_Human_WithURL(t *testing.T) {
-	r := CloudResult{OK: true, Action: "share", Message: "shared \"iris.csv\"", URL: "https://pub-xxx.r2.dev/user/iris.csv"}
+	r := CloudResult{OK: true, Action: "put", Message: "shared \"iris.csv\"", URL: "https://pub-xxx.r2.dev/user/iris.csv"}
 	h := r.Human()
 	if !strings.Contains(h, "https://pub-xxx.r2.dev/user/iris.csv") {
 		t.Errorf("Human() missing URL:\n%s", h)
@@ -169,7 +169,7 @@ func TestAuthResult_Human(t *testing.T) {
 			if !strings.Contains(h, tt.wantSymbol) {
 				t.Errorf("Human() missing symbol %q:\n%s", tt.wantSymbol, h)
 			}
-			hasNextSteps := strings.Contains(h, "sci cloud share") && strings.Contains(h, "sci cloud list")
+			hasNextSteps := strings.Contains(h, "sci cloud put") && strings.Contains(h, "sci cloud list")
 			if hasNextSteps != tt.wantNextSteps {
 				t.Errorf("Human() next-steps present=%v, want %v:\n%s", hasNextSteps, tt.wantNextSteps, h)
 			}

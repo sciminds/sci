@@ -82,6 +82,7 @@ func labSetupCommand() *cli.Command {
 func labLsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "ls",
+		Aliases:     []string{"list"},
 		Usage:       "List remote directory contents",
 		Description: "$ sci lab ls\n$ sci lab ls data/experiment",
 		ArgsUsage:   "[path]",

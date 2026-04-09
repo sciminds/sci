@@ -8,12 +8,12 @@ import (
 	"github.com/sciminds/cli/internal/ui"
 )
 
-func TestCloudShare_JSONRequiresName(t *testing.T) {
+func TestCloudPut_JSONRequiresName(t *testing.T) {
 	ui.SetQuiet(false)
 	root := buildRoot()
 
-	// Run cloud share with --json but no --name — should error.
-	err := root.Run(context.Background(), []string{"sci", "--json", "cloud", "share", "somefile.csv"})
+	// Run cloud put with --json but no --name — should error.
+	err := root.Run(context.Background(), []string{"sci", "--json", "cloud", "put", "somefile.csv"})
 
 	if err == nil {
 		t.Fatal("expected error when --json is set without --name")

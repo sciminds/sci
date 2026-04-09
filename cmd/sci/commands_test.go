@@ -78,7 +78,7 @@ func TestSubcommandTrees(t *testing.T) {
 		{"py", []string{"repl", "marimo", "tutorials", "convert"}},
 		{"vid", []string{"info", "mute", "strip-subs", "speed", "cut", "resize", "extract-audio", "convert", "gif", "compress"}},
 		{"db", []string{"create", "reset", "info", "add", "delete", "rename"}},
-		{"cloud", []string{"auth", "share", "get", "unshare", "list"}},
+		{"cloud", []string{"auth", "put", "get", "remove", "list"}},
 		{"lab", []string{"setup", "ls", "get", "put", "browse"}},
 	}
 
