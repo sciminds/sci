@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"github.com/sciminds/cli/internal/mdview"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -19,14 +20,20 @@ const (
 	levelOverlay              // cast player overlay
 )
 
+// pagesWarmedMsg signals that background page pre-rendering is complete.
+type pagesWarmedMsg struct{}
+
 // model is the top-level Bubble Tea model for the guide TUI.
 type model struct {
+	allBooks []Book     // original book data (for pre-rendering)
 	books    list.Model // top-level book picker
 	entries  list.Model // entry list for the selected book
 	player   *Player
+	viewer   *mdview.Viewer // markdown page viewer
 	level    level
 	width    int
 	height   int
+	warmed   bool // true after pre-render cmd fired
 	quitting bool
 }
 
@@ -49,7 +56,7 @@ func newModel(books []Book) *model {
 		}
 	}
 
-	return &model{books: l, level: levelBooks}
+	return &model{allBooks: books, books: l, level: levelBooks}
 }
 
 func (m *model) Init() tea.Cmd {
@@ -68,6 +75,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.player != nil {
 			m.player.SetHeight(ui.OverlayBodyHeight(m.height, 4))
 		}
+		if m.viewer != nil {
+			w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding
+			m.viewer.SetSize(w, ui.OverlayBodyHeight(m.height, 4))
+		}
+		if !m.warmed {
+			m.warmed = true
+			return m, m.preRenderPages()
+		}
+		return m, nil
+
+	case pagesWarmedMsg:
 		return m, nil
 
 	case TickMsg:
@@ -140,7 +158,7 @@ func (m *model) openBook(book Book) {
 	l.SetShowStatusBar(true)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play demo")),
+			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
 			key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
 		}
 	}
@@ -171,6 +189,9 @@ func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if !ok {
 			break
 		}
+		if item.PageFile != "" {
+			return m.openPage(item)
+		}
 		data, err := LoadCast(item.CastFile)
 		if err != nil {
 			m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.CastFile, err))
@@ -192,6 +213,20 @@ func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m *model) openPage(item Entry) (tea.Model, tea.Cmd) {
+	data, err := LoadPage(item.PageFile)
+	if err != nil {
+		m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.PageFile, err))
+		return m, nil
+	}
+	v := mdview.NewViewer(item.Cmd, string(data))
+	w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding
+	v.SetSize(w, ui.OverlayBodyHeight(m.height, 4))
+	m.viewer = v
+	m.level = levelOverlay
+	return m, nil
+}
+
 func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
@@ -199,8 +234,21 @@ func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		m.player = nil
+		m.viewer = nil
 		m.level = levelEntries
 		return m, nil
+	case "q":
+		if m.viewer != nil {
+			m.viewer = nil
+			m.level = levelEntries
+			return m, nil
+		}
+	}
+
+	if m.viewer != nil {
+		var cmd tea.Cmd
+		m.viewer, cmd = m.viewer.Update(msg)
+		return m, cmd
 	}
 
 	var cmd tea.Cmd
@@ -221,7 +269,7 @@ func (m *model) View() tea.View {
 		bg = m.books.View()
 	}
 
-	if m.player == nil {
+	if m.player == nil && m.viewer == nil {
 		v := tea.NewView(bg)
 		v.AltScreen = true
 		return v
@@ -244,23 +292,64 @@ func (m *model) renderOverlay() string {
 	b.WriteString(ui.TUI.HeaderSection().Render(" " + title + " "))
 	b.WriteString("\n\n")
 
-	// Player content
-	b.WriteString(m.player.View())
-	b.WriteString("\n\n")
+	if m.viewer != nil {
+		b.WriteString(m.viewer.View())
+		b.WriteString("\n\n")
 
-	// Footer keybinds
-	footer := ui.TUI.HeaderHint().Render("space pause/play") + "  " +
-		ui.TUI.HeaderHint().Render("r restart") + "  " +
-		ui.TUI.HeaderHint().Render("esc close")
-	b.WriteString(footer)
+		pct := fmt.Sprintf("%d%%", m.viewer.ScrollPercent())
+		footer := ui.TUI.HeaderHint().Render("↑/↓ scroll") + "  " +
+			ui.TUI.HeaderHint().Render("q/esc close") + "  " +
+			ui.TUI.Dim().Render(pct)
+		b.WriteString(footer)
+	} else {
+		b.WriteString(m.player.View())
+		b.WriteString("\n\n")
+
+		footer := ui.TUI.HeaderHint().Render("space pause/play") + "  " +
+			ui.TUI.HeaderHint().Render("r restart") + "  " +
+			ui.TUI.HeaderHint().Render("esc close")
+		b.WriteString(footer)
+	}
 
 	return ui.TUI.OverlayBox().
 		Width(w).
 		Render(b.String())
 }
 
+// preRenderPages returns a Cmd that renders all page-based entries in the
+// background so they're cached by the time the user opens them.
+func (m *model) preRenderPages() tea.Cmd {
+	contentW := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding - 2
+	if contentW < 20 {
+		contentW = 20
+	}
+
+	var docs []string
+	for _, book := range m.allBooks {
+		for _, e := range book.Entries {
+			if e.PageFile == "" {
+				continue
+			}
+			data, err := LoadPage(e.PageFile)
+			if err != nil {
+				continue
+			}
+			docs = append(docs, string(data))
+		}
+	}
+	if len(docs) == 0 {
+		return nil
+	}
+
+	return func() tea.Msg {
+		mdview.PreRender(docs, contentW)
+		return pagesWarmedMsg{}
+	}
+}
+
 // Run launches the interactive guide TUI with the given books.
 func Run(books []Book) error {
+	mdview.DetectStyle() // probe terminal before bubbletea takes over stdin
 	m := newModel(books)
 	p := tea.NewProgram(m)
 	_, err := p.Run()

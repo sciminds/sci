@@ -17,15 +17,18 @@ func (b Book) FilterValue() string { return b.Name + " " + b.Heading + " " + b.D
 var Books = []Book{
 	{Name: "basic", Heading: "Terminal Guide", Desc: "Learn basic terminal commands (ls, cd, cp, mv, …)", Entries: BasicEntries},
 	{Name: "git", Heading: "Git Guide", Desc: "Learn essential Git commands (init, add, commit, push, …)", Entries: GitEntries},
+	{Name: "python", Heading: "Python Guide", Desc: "Python essentials: basics, Polars DataFrames, Seaborn viz", Entries: PythonEntries},
 }
 
-// Entry holds a single guide item — a terminal command with its demo recording.
+// Entry holds a single guide item — a terminal command demo or a markdown page.
+// Exactly one of CastFile or PageFile should be set.
 type Entry struct {
 	Name     string // command name, e.g. "ls"
 	Cmd      string // display title for the list
 	Desc     string // one-line description
 	Category string // grouping: "Navigation", "Files", "Search"
 	CastFile string // filename in casts/, e.g. "ls.cast"
+	PageFile string // filename in pages/, e.g. "python-basics.md"
 }
 
 // list.Item interface for bubbles/list.

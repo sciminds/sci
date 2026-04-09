@@ -175,3 +175,66 @@ func TestGuideFilteringBlocksQuit(t *testing.T) {
 		t.Errorf("should be in filtering state, got %v", fm.books.FilterState())
 	}
 }
+
+// enterPythonBook navigates to the Python Guide book and waits for entries.
+func enterPythonBook(t *testing.T, tm *teatest.TestModel) {
+	t.Helper()
+	// Navigate down to the Python Guide (third book)
+	tSendSpecial(tm, tea.KeyDown)
+	tSendSpecial(tm, tea.KeyDown)
+	tSendSpecial(tm, tea.KeyEnter)
+	tWaitForOutput(t, tm, "Python Basics")
+}
+
+func TestGuideOpenPageOverlay(t *testing.T) {
+	tm := startGuideTeatest(t)
+	enterPythonBook(t, tm)
+
+	// Press enter to open page overlay on the first item
+	tSendSpecial(tm, tea.KeyEnter)
+	tWaitForOutput(t, tm, "Python Basics")
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelOverlay {
+		t.Errorf("should be at overlay level, got %d", fm.level)
+	}
+	if fm.viewer == nil {
+		t.Error("viewer should be non-nil after opening a page entry")
+	}
+	if fm.player != nil {
+		t.Error("player should be nil for a page entry")
+	}
+}
+
+func TestGuideClosePageOverlay(t *testing.T) {
+	tm := startGuideTeatest(t)
+	enterPythonBook(t, tm)
+
+	// Open page overlay
+	tSendSpecial(tm, tea.KeyEnter)
+	tWaitForOutput(t, tm, "Python Basics")
+
+	// Close overlay
+	tSendSpecial(tm, tea.KeyEscape)
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelEntries {
+		t.Errorf("should be back at entries level, got %d", fm.level)
+	}
+	if fm.viewer != nil {
+		t.Error("viewer should be nil after closing overlay")
+	}
+}
+
+func TestGuidePythonBookEntries(t *testing.T) {
+	tm := startGuideTeatest(t)
+	enterPythonBook(t, tm)
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelEntries {
+		t.Errorf("should be at entries level, got %d", fm.level)
+	}
+	if len(fm.entries.Items()) != len(PythonEntries) {
+		t.Errorf("entries list has %d items, want %d", len(fm.entries.Items()), len(PythonEntries))
+	}
+}

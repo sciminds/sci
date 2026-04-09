@@ -1,0 +1,84 @@
+package mdview
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"github.com/sciminds/cli/internal/ui"
+)
+
+// Run launches the markdown viewer TUI for a file or directory of .md files.
+func Run(path string) error {
+	DetectStyle() // probe terminal before bubbletea takes over stdin
+
+	pages, err := loadPages(path)
+	if err != nil {
+		return err
+	}
+	if len(pages) == 0 {
+		return fmt.Errorf("no markdown files found in %s", path)
+	}
+
+	m := New(pages)
+	if m.multi {
+		m.initPicker()
+	}
+	p := tea.NewProgram(m)
+	_, err = p.Run()
+	return err
+}
+
+func (m *Model) initPicker() {
+	items := make([]list.Item, len(m.pages))
+	for i, p := range m.pages {
+		items[i] = p
+	}
+	d := ui.NewListDelegate()
+	l := list.New(items, d, 0, 0)
+	l.Title = "Markdown Files"
+	l.Styles.Title = ui.TUI.AccentBold()
+	l.SetFilteringEnabled(true)
+	l.SetShowStatusBar(true)
+	m.picker = l
+}
+
+func loadPages(path string) ([]Page, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if !info.IsDir() {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		return []Page{{Name: name, Content: string(data)}}, nil
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var pages []Page
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(path, e.Name()))
+		if err != nil {
+			continue
+		}
+		name := strings.TrimSuffix(e.Name(), ".md")
+		pages = append(pages, Page{Name: name, Content: string(data)})
+	}
+	sort.Slice(pages, func(i, j int) bool { return pages[i].Name < pages[j].Name })
+	return pages, nil
+}

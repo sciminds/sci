@@ -304,8 +304,8 @@ func PullGHAssignments(ctx context.Context, db *DB, ghToken string, classroomID 
 		} else {
 			// Insert as new assignment (GH-only, no canvas_id).
 			row := AssignmentRow{
-				Slug:  ga.Slug,
-				Title: ga.Title,
+				Slug:   ga.Slug,
+				Title:  ga.Title,
 				GHSlug: sql.NullString{String: ga.Slug, Valid: true},
 			}
 			if ga.Deadline != nil {
