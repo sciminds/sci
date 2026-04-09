@@ -36,7 +36,7 @@ func TestRunWithSpinner_QuietRunsFn(t *testing.T) {
 	defer SetQuiet(false)
 
 	ran := false
-	err := RunWithSpinner("loading…", func(_, _ func(string)) error {
+	err := RunWithSpinner("loading…", func(_ SpinnerControls) error {
 		ran = true
 		return nil
 	})
@@ -54,7 +54,7 @@ func TestRunWithSpinner_QuietReturnsError(t *testing.T) {
 	defer SetQuiet(false)
 
 	want := errors.New("boom")
-	got := RunWithSpinner("loading…", func(_, _ func(string)) error {
+	got := RunWithSpinner("loading…", func(_ SpinnerControls) error {
 		return want
 	})
 
@@ -68,7 +68,7 @@ func TestRunWithSpinner_QuietPrintsTitleToStderr(t *testing.T) {
 	defer SetQuiet(false)
 
 	out := captureStderr(t, func() {
-		_ = RunWithSpinner("Checking updates…", func(_, _ func(string)) error {
+		_ = RunWithSpinner("Checking updates…", func(_ SpinnerControls) error {
 			return nil
 		})
 	})
@@ -78,13 +78,11 @@ func TestRunWithSpinner_QuietPrintsTitleToStderr(t *testing.T) {
 	}
 }
 
-func TestRunWithInteractiveSpinner_QuietRunsFn(t *testing.T) {
+func TestRunWithSpinner_QuietSuspendResumeAreNoOps(t *testing.T) {
 	SetQuiet(true)
 	defer SetQuiet(false)
 
-	ran := false
-	err := RunWithInteractiveSpinner("installing…", func(sc SpinnerControls) error {
-		ran = true
+	err := RunWithSpinner("installing…", func(sc SpinnerControls) error {
 		// Callbacks should be no-ops, not panics.
 		sc.SetTitle("new title")
 		sc.SetStatus("status")
@@ -95,9 +93,6 @@ func TestRunWithInteractiveSpinner_QuietRunsFn(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if !ran {
-		t.Error("fn should have been called")
 	}
 }
 

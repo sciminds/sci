@@ -158,7 +158,7 @@ func resolveToolsPkgType() string {
 // prompt with the recommended choice pre-selected.
 func detectPkgType(pkg string) (string, error) {
 	var matches []brew.DetectedPackage
-	if err := ui.RunWithSpinner(fmt.Sprintf("Detecting package type for %s…", pkg), func(_, _ func(string)) error {
+	if err := ui.RunWithSpinner(fmt.Sprintf("Detecting package type for %s…", pkg), func(_ ui.SpinnerControls) error {
 		var detectErr error
 		matches, detectErr = brew.Detect(brew.LiveProber{}, pkg)
 		return detectErr
@@ -233,7 +233,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		}
 
 		var result brew.AddResult
-		err = ui.RunWithSpinner(fmt.Sprintf("Adding %s…", pkg), func(_, _ func(string)) error {
+		err = ui.RunWithSpinner(fmt.Sprintf("Adding %s…", pkg), func(_ ui.SpinnerControls) error {
 			var addErr error
 			result, addErr = brew.Add(brew.BundleRunner{}, file, pkg, pkgType)
 			return addErr
@@ -253,7 +253,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var result brew.InstallResult
-	err = ui.RunWithSpinner("Installing from Brewfile…", func(_, _ func(string)) error {
+	err = ui.RunWithSpinner("Installing from Brewfile…", func(_ ui.SpinnerControls) error {
 		var instErr error
 		result, instErr = brew.Install(brew.BundleRunner{}, file)
 		return instErr
@@ -282,7 +282,7 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var result brew.RemoveResult
-	err = ui.RunWithSpinner(fmt.Sprintf("Removing %s…", pkg), func(_, _ func(string)) error {
+	err = ui.RunWithSpinner(fmt.Sprintf("Removing %s…", pkg), func(_ ui.SpinnerControls) error {
 		var rmErr error
 		result, rmErr = brew.Remove(brew.BundleRunner{}, file, pkg, resolveToolsPkgType())
 		return rmErr
@@ -318,7 +318,7 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 
 	// Default: interactive TUI with descriptions.
 	var packages []brew.PackageInfo
-	err = ui.RunWithSpinner("Loading package info…", func(_, _ func(string)) error {
+	err = ui.RunWithSpinner("Loading package info…", func(_ ui.SpinnerControls) error {
 		var detErr error
 		packages, detErr = brew.ListDetailed(runner, file)
 		return detErr
@@ -343,9 +343,9 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var result brew.UpdateResult
-	err := ui.RunWithSpinner("Updating package registry…", func(setTitle, setStatus func(string)) error {
+	err := ui.RunWithSpinner("Updating package registry…", func(sc ui.SpinnerControls) error {
 		var updateErr error
-		result, updateErr = brew.Update(runner, toolsCheck, setTitle, setStatus)
+		result, updateErr = brew.Update(runner, toolsCheck, sc.SetTitle, sc.SetStatus, sc.Suspend, sc.Resume)
 		return updateErr
 	})
 	if err != nil {

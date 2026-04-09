@@ -98,7 +98,7 @@ func (m *mockRunner) Outdated() ([]OutdatedPackage, error) {
 	return m.outdatedResult, m.outdatedErr
 }
 
-func (m *mockRunner) Upgrade(_ func(string)) (string, error) {
+func (m *mockRunner) Upgrade(_ func(string), _, _ func()) (string, error) {
 	m.upgradeCalls++
 	return m.upgradeOut, m.upgradeErr
 }
@@ -380,7 +380,7 @@ func TestUpdate_UpgradesOutdated(t *testing.T) {
 		upgradeOut: "==> Upgrading htop\n",
 	}
 
-	result, err := Update(m, false, nil, nil)
+	result, err := Update(m, false, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -406,7 +406,7 @@ func TestUpdate_CheckOnly(t *testing.T) {
 		},
 	}
 
-	result, err := Update(m, true, nil, nil)
+	result, err := Update(m, true, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -428,7 +428,7 @@ func TestUpdate_CheckOnly(t *testing.T) {
 func TestUpdate_NothingOutdated(t *testing.T) {
 	m := &mockRunner{}
 
-	result, err := Update(m, false, nil, nil)
+	result, err := Update(m, false, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -453,7 +453,7 @@ func TestUpdate_IncludesUVOutdated(t *testing.T) {
 		uvUpgradeOut: "Updated ruff\n",
 	}
 
-	result, err := Update(m, false, nil, nil)
+	result, err := Update(m, false, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -479,7 +479,7 @@ func TestUpdate_CheckOnly_IncludesUV(t *testing.T) {
 		},
 	}
 
-	result, err := Update(m, true, nil, nil)
+	result, err := Update(m, true, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -503,7 +503,7 @@ func TestUpdate_OnlyUVOutdated(t *testing.T) {
 		uvUpgradeOut: "Updated ruff\n",
 	}
 
-	result, err := Update(m, false, nil, nil)
+	result, err := Update(m, false, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -522,7 +522,7 @@ func TestUpdate_OnlyUVOutdated(t *testing.T) {
 func TestUpdate_UpdateFails(t *testing.T) {
 	m := &mockRunner{updateErr: errors.New("network error")}
 
-	_, err := Update(m, false, nil, nil)
+	_, err := Update(m, false, nil, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

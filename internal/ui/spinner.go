@@ -84,34 +84,9 @@ func (m spinnerModel) View() tea.View {
 	return tea.NewView(line + "\n")
 }
 
-// RunWithSpinner shows a spinner while fn runs. The fn receives two callbacks:
-// setTitle updates the spinner's main label, setStatus updates the dim detail text.
-// Returns fn's error. In quiet mode, skips the TUI and prints the title to stderr.
-func RunWithSpinner(title string, fn func(setTitle, setStatus func(string)) error) error {
-	if IsQuiet() {
-		fmt.Fprintf(os.Stderr, "%s\n", title)
-		return fn(func(string) {}, func(string) {})
-	}
-
-	m := newSpinnerModel(title)
-	p := tea.NewProgram(m)
-
-	go func() {
-		err := fn(
-			func(s string) { p.Send(spinnerTitleMsg(s)) },
-			func(s string) { p.Send(spinnerStatusMsg(s)) },
-		)
-		p.Send(spinnerDoneMsg{err: err})
-	}()
-
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("spinner TUI: %w", err)
-	}
-	return finalModel.(spinnerModel).err
-}
-
-// SpinnerControls provides suspend/resume in addition to title/status updates.
+// SpinnerControls provides title/status updates and suspend/resume controls.
+// Suspend hides the spinner so interactive prompts (e.g. sudo password) are
+// visible; Resume restores it.
 type SpinnerControls struct {
 	SetTitle  func(string)
 	SetStatus func(string)
@@ -119,10 +94,10 @@ type SpinnerControls struct {
 	Resume    func()
 }
 
-// RunWithInteractiveSpinner is like RunWithSpinner but provides suspend/resume
-// controls for commands that may prompt for user input (e.g. sudo password).
-// In quiet mode, skips the TUI and provides no-op callbacks.
-func RunWithInteractiveSpinner(title string, fn func(SpinnerControls) error) error {
+// RunWithSpinner shows a spinner while fn runs. The fn receives SpinnerControls
+// with title/status updates and suspend/resume for interactive prompts.
+// Returns fn's error. In quiet mode, skips the TUI and prints the title to stderr.
+func RunWithSpinner(title string, fn func(SpinnerControls) error) error {
 	if IsQuiet() {
 		fmt.Fprintf(os.Stderr, "%s\n", title)
 		return fn(SpinnerControls{

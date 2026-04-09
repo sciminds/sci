@@ -51,7 +51,7 @@ type Runner interface {
 	Info(names []string, isCask bool) ([]PackageInfo, error)
 	Update(onLine func(string)) error
 	Outdated() ([]OutdatedPackage, error)
-	Upgrade(onLine func(string)) (string, error)
+	Upgrade(onLine func(string), onSuspend, onResume func()) (string, error)
 	UVOutdated() ([]OutdatedPackage, error)
 	UVUpgrade(onLine func(string)) (string, error)
 }
@@ -200,8 +200,8 @@ func (BundleRunner) Outdated() ([]OutdatedPackage, error) {
 	return parseOutdated(out)
 }
 
-func (BundleRunner) Upgrade(onLine func(string)) (string, error) {
-	return runBrewLive(onLine, "upgrade")
+func (BundleRunner) Upgrade(onLine func(string), onSuspend, onResume func()) (string, error) {
+	return runBrewInteractive(onLine, onSuspend, onResume, "upgrade")
 }
 
 func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {

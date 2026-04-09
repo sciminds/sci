@@ -187,9 +187,9 @@ func (m *mockBrewRunner) BundleCheck(_ string) ([]string, error) {
 	return m.missing, nil
 }
 
-func (m *mockBrewRunner) Update(_ func(string)) error               { return nil }
-func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error) { return nil, nil }
-func (m *mockBrewRunner) Upgrade(_ func(string)) (string, error)    { return "", nil }
+func (m *mockBrewRunner) Update(_ func(string)) error                         { return nil }
+func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error)           { return nil, nil }
+func (m *mockBrewRunner) Upgrade(_ func(string), _, _ func()) (string, error) { return "", nil }
 func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) {
 	return nil, nil
 }

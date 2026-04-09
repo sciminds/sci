@@ -262,7 +262,7 @@ func cassPullCommand() *cli.Command {
 
 			var result cass.PullResult
 
-			err = ui.RunWithSpinner("Fetching students", func(_, _ func(string)) error {
+			err = ui.RunWithSpinner("Fetching students", func(_ ui.SpinnerControls) error {
 				cl, err := cass.PullStudents(ctx, db, baseURL, token, courseID)
 				if err != nil {
 					return err
@@ -274,7 +274,7 @@ func cassPullCommand() *cli.Command {
 				return err
 			}
 
-			err = ui.RunWithSpinner("Fetching assignments", func(_, _ func(string)) error {
+			err = ui.RunWithSpinner("Fetching assignments", func(_ ui.SpinnerControls) error {
 				cl, err := cass.PullAssignments(ctx, db, baseURL, token, courseID)
 				if err != nil {
 					return err
@@ -286,7 +286,7 @@ func cassPullCommand() *cli.Command {
 				return err
 			}
 
-			err = ui.RunWithSpinner("Fetching submissions", func(_, _ func(string)) error {
+			err = ui.RunWithSpinner("Fetching submissions", func(_ ui.SpinnerControls) error {
 				cl, err := cass.PullSubmissions(ctx, db, baseURL, token, courseID)
 				if err != nil {
 					return err
@@ -308,7 +308,7 @@ func cassPullCommand() *cli.Command {
 					classroomID, resolveErr := cfg.ClassroomAPIID()
 					if resolveErr != nil {
 						var resolved int
-						resolveErr = ui.RunWithSpinner("Resolving GitHub Classroom", func(_, _ func(string)) error {
+						resolveErr = ui.RunWithSpinner("Resolving GitHub Classroom", func(_ ui.SpinnerControls) error {
 							var err error
 							resolved, err = cass.ResolveClassroomID(ctx, ghToken, cfg.Classroom.URL)
 							return err
@@ -322,7 +322,7 @@ func cassPullCommand() *cli.Command {
 						configPath, _ := cass.FindConfig(filepath.Dir(db.Path))
 						_ = cass.SaveConfig(configPath, cfg)
 					}
-					err = ui.RunWithSpinner("Fetching GitHub assignments", func(_, _ func(string)) error {
+					err = ui.RunWithSpinner("Fetching GitHub assignments", func(_ ui.SpinnerControls) error {
 						cl, err := cass.PullGHAssignments(ctx, db, ghToken, classroomID)
 						if err != nil {
 							return err
@@ -334,7 +334,7 @@ func cassPullCommand() *cli.Command {
 						return err
 					}
 
-					err = ui.RunWithSpinner("Fetching GitHub submissions", func(_, _ func(string)) error {
+					err = ui.RunWithSpinner("Fetching GitHub submissions", func(_ ui.SpinnerControls) error {
 						cl, err := cass.PullGHSubmissions(ctx, db, ghToken, classroomID)
 						if err != nil {
 							return err
@@ -414,7 +414,7 @@ func cassDiffCommand() *cli.Command {
 				}
 
 				var result *cass.RemoteDiffResult
-				err = ui.RunWithSpinner("Fetching live Canvas scores", func(_, _ func(string)) error {
+				err = ui.RunWithSpinner("Fetching live Canvas scores", func(_ ui.SpinnerControls) error {
 					var fetchErr error
 					result, fetchErr = cass.DiffRemote(ctx, db, baseURL, token, courseID)
 					return fetchErr
@@ -486,7 +486,7 @@ func cassPushCommand() *cli.Command {
 			}
 
 			var pushed int
-			err = ui.RunWithSpinner("Pushing grades to Canvas", func(_, _ func(string)) error {
+			err = ui.RunWithSpinner("Pushing grades to Canvas", func(_ ui.SpinnerControls) error {
 				var pushErr error
 				pushed, pushErr = cass.PushGrades(ctx, db, baseURL, token, courseID, diff.Changes)
 				return pushErr

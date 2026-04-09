@@ -29,7 +29,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// ── Step 1–2: Pre-flight + Identity checks ──────────────────────────
 	var result doctor.DocResult
-	err := ui.RunWithSpinner("Checking your computer setup…", func(_, _ func(string)) error {
+	err := ui.RunWithSpinner("Checking your computer setup…", func(_ ui.SpinnerControls) error {
 		result.Sections = doctor.RunAll()
 		return nil
 	})
@@ -61,7 +61,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	// ── Step 3b: Reconcile Brewfile with system (brew bundle dump) ──────
 	if created {
 		// New file — dump system state directly into it, no prompt needed.
-		err = ui.RunWithSpinner("Capturing installed packages…", func(_, _ func(string)) error {
+		err = ui.RunWithSpinner("Capturing installed packages…", func(_ ui.SpinnerControls) error {
 			return runner.BundleDump(brewfilePath)
 		})
 		if err != nil {
@@ -77,7 +77,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 			ui.SymArrow, ui.TUI.Accent().Render(brewfilePath))
 
 		var staleEntries []brew.BrewfileEntry
-		err = ui.RunWithSpinner("Comparing Brewfile with installed packages…", func(_, _ func(string)) error {
+		err = ui.RunWithSpinner("Comparing Brewfile with installed packages…", func(_ ui.SpinnerControls) error {
 			var dumpErr error
 			staleEntries, dumpErr = brew.DumpAndDiff(runner, brewfilePath)
 			return dumpErr
@@ -130,7 +130,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// ── Step 4: Check & install ─────────────────────────────────────────
 	var toolResult doctor.DocResult
-	err = ui.RunWithSpinner("Checking installed tools…", func(_, _ func(string)) error {
+	err = ui.RunWithSpinner("Checking installed tools…", func(_ ui.SpinnerControls) error {
 		toolResult.Tools = doctor.RunToolChecks(runner, brewfilePath)
 		return nil
 	})
@@ -171,7 +171,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var output string
-	spinErr := ui.RunWithInteractiveSpinner("Installing…", func(sc ui.SpinnerControls) error {
+	spinErr := ui.RunWithSpinner("Installing…", func(sc ui.SpinnerControls) error {
 		var instErr error
 		output, instErr = runner.BundleInstallLive(brewfilePath, sc.SetStatus, sc.Suspend, sc.Resume)
 		return instErr

@@ -70,7 +70,8 @@ func List(r Runner, file, pkgType string) (ListResult, error) {
 // Update refreshes the Homebrew registry and optionally upgrades outdated packages.
 // If checkOnly is true, it only lists outdated packages without upgrading.
 // setTitle and setStatus update the spinner's main label and detail text respectively.
-func Update(r Runner, checkOnly bool, setTitle, setStatus func(string)) (UpdateResult, error) {
+// onSuspend and onResume hide/show the spinner when a subprocess stalls (e.g. sudo prompt).
+func Update(r Runner, checkOnly bool, setTitle, setStatus func(string), onSuspend, onResume func()) (UpdateResult, error) {
 	onLine := func(s string) {
 		if setStatus != nil {
 			setStatus(s)
@@ -121,7 +122,7 @@ func Update(r Runner, checkOnly bool, setTitle, setStatus func(string)) (UpdateR
 
 	var upgradeOut string
 	if len(brewOutdated) > 0 {
-		out, err := r.Upgrade(onLine)
+		out, err := r.Upgrade(onLine, onSuspend, onResume)
 		if err != nil {
 			return UpdateResult{}, fmt.Errorf("brew upgrade: %w", err)
 		}
