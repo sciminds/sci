@@ -2,6 +2,8 @@ package mdview
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -94,5 +96,154 @@ func TestViewerScrollPercent(t *testing.T) {
 	pct := v.ScrollPercent()
 	if pct != 100 {
 		t.Errorf("short content should be 100%%, got %d%%", pct)
+	}
+}
+
+func TestViewerSearchEnterAndExit(t *testing.T) {
+	v := NewViewer("test", "# Hello\n\nHello world.")
+	v.SetSize(80, 20)
+
+	// / enters search mode
+	v, _ = v.Update(tea.KeyPressMsg{Code: '/'})
+	if !v.Searching() {
+		t.Fatal("should be in search mode after /")
+	}
+
+	// esc exits search mode
+	v, _ = v.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if v.Searching() {
+		t.Error("should exit search mode after esc")
+	}
+
+	// f also enters search mode
+	v, _ = v.Update(tea.KeyPressMsg{Code: 'f'})
+	if !v.Searching() {
+		t.Fatal("f should also enter search mode")
+	}
+}
+
+func TestViewerApplySearch(t *testing.T) {
+	v := NewViewer("test", "# Hello\n\nHello world. Hello again.")
+	v.SetSize(80, 20)
+
+	// Directly set the search input value and call applySearch to test matching.
+	v.searchInput.SetValue("Hello")
+	v.query = "Hello"
+	v.applySearch()
+
+	if v.MatchCount() == 0 {
+		t.Error("should have matches for 'Hello'")
+	}
+}
+
+func TestViewerApplySearchCaseInsensitive(t *testing.T) {
+	v := NewViewer("test", "# HELLO\n\nhello world.")
+	v.SetSize(80, 20)
+
+	v.query = "hello"
+	v.applySearch()
+
+	if v.MatchCount() < 2 {
+		t.Errorf("case-insensitive search should find at least 2 matches, got %d", v.MatchCount())
+	}
+}
+
+func TestViewerApplySearchEmpty(t *testing.T) {
+	v := NewViewer("test", "# Test")
+	v.SetSize(80, 20)
+
+	v.query = ""
+	v.applySearch()
+
+	if v.MatchCount() != 0 {
+		t.Error("empty query should have 0 matches")
+	}
+}
+
+func TestViewerSearchScrollsToMatch(t *testing.T) {
+	// Build content long enough that "TARGET" is well below the viewport.
+	var sb strings.Builder
+	sb.WriteString("# Top\n\n")
+	for i := range 60 {
+		fmt.Fprintf(&sb, "Filler line %d\n\n", i)
+	}
+	sb.WriteString("TARGET appears here\n")
+
+	v := NewViewer("test", sb.String())
+	v.SetSize(80, 10) // short viewport
+
+	// Initially at top.
+	if v.vp.YOffset() != 0 {
+		t.Fatalf("should start at top, got offset %d", v.vp.YOffset())
+	}
+
+	// Search for TARGET — should scroll down.
+	v.query = "TARGET"
+	v.applySearch()
+
+	if v.MatchCount() != 1 {
+		t.Fatalf("expected 1 match, got %d", v.MatchCount())
+	}
+	if v.vp.YOffset() == 0 {
+		t.Error("viewport should have scrolled away from top to show the match")
+	}
+}
+
+func TestViewerNextPrevScrolls(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("MATCH at top\n\n")
+	for range 60 {
+		sb.WriteString("filler\n\n")
+	}
+	sb.WriteString("MATCH at bottom\n")
+
+	v := NewViewer("test", sb.String())
+	v.SetSize(80, 10)
+
+	v.query = "MATCH"
+	v.applySearch()
+
+	if v.MatchCount() != 2 {
+		t.Fatalf("expected 2 matches, got %d", v.MatchCount())
+	}
+
+	startOffset := v.vp.YOffset()
+
+	// n cycles to next match — should scroll.
+	v, _ = v.Update(tea.KeyPressMsg{Code: 'n'})
+	afterNext := v.vp.YOffset()
+
+	if afterNext == startOffset {
+		t.Error("n should scroll to a different position")
+	}
+
+	// N cycles back — should return.
+	v, _ = v.Update(tea.KeyPressMsg{Code: 'N'})
+	afterPrev := v.vp.YOffset()
+
+	if afterPrev == afterNext {
+		t.Error("N should scroll back")
+	}
+}
+
+func TestSinglePageSearch(t *testing.T) {
+	tm := startSinglePage(t)
+
+	// Enter search mode with /
+	tm.Type("/")
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("/"))
+	}, teatest.WithDuration(testWait))
+
+	// Type and confirm
+	tm.Type("Hello")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	fm := finalModel(t, tm)
+	if fm.searching {
+		t.Error("should not be in search mode after enter")
+	}
+	if fm.query != "Hello" {
+		t.Errorf("query should be 'Hello', got %q", fm.query)
 	}
 }

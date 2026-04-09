@@ -2,6 +2,7 @@ package guide
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -86,6 +87,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case pagesWarmedMsg:
+		return m, nil
+
+	case exportedMsg:
+		if msg.err != nil {
+			m.entries.NewStatusMessage(fmt.Sprintf("Export failed: %v", msg.err))
+		} else {
+			m.entries.NewStatusMessage(fmt.Sprintf("Exported to %s", msg.path))
+		}
 		return m, nil
 
 	case TickMsg:
@@ -228,6 +237,17 @@ func (m *model) openPage(item Entry) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// When the viewer is in search mode, delegate everything except ctrl+c.
+	if m.viewer != nil && m.viewer.Searching() {
+		if msg.String() == "ctrl+c" {
+			m.quitting = true
+			return m, tea.Quit
+		}
+		var cmd tea.Cmd
+		m.viewer, cmd = m.viewer.Update(msg)
+		return m, cmd
+	}
+
 	switch msg.String() {
 	case "ctrl+c":
 		m.quitting = true
@@ -242,6 +262,11 @@ func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.viewer = nil
 			m.level = levelEntries
 			return m, nil
+		}
+	case "e":
+		if m.viewer != nil {
+			entry, _ := m.entries.SelectedItem().(Entry)
+			return m, m.exportPage(entry)
 		}
 	}
 
@@ -296,11 +321,22 @@ func (m *model) renderOverlay() string {
 		b.WriteString(m.viewer.View())
 		b.WriteString("\n\n")
 
-		pct := fmt.Sprintf("%d%%", m.viewer.ScrollPercent())
-		footer := ui.TUI.HeaderHint().Render("↑/↓ scroll") + "  " +
-			ui.TUI.HeaderHint().Render("q/esc close") + "  " +
-			ui.TUI.Dim().Render(pct)
-		b.WriteString(footer)
+		if m.viewer.Searching() {
+			// No footer during search — the input is visible in the viewer.
+		} else {
+			pct := fmt.Sprintf("%d%%", m.viewer.ScrollPercent())
+			hints := ui.TUI.HeaderHint().Render("↑/↓ scroll") + "  " +
+				ui.TUI.HeaderHint().Render("/ search") + "  " +
+				ui.TUI.HeaderHint().Render("e export") + "  " +
+				ui.TUI.HeaderHint().Render("q/esc close")
+			if m.viewer.Query() != "" {
+				hints += "  " + ui.TUI.HeaderHint().Render(
+					fmt.Sprintf("n/N next/prev (%d matches)", m.viewer.MatchCount()),
+				)
+			}
+			hints += "  " + ui.TUI.Dim().Render(pct)
+			b.WriteString(hints)
+		}
 	} else {
 		b.WriteString(m.player.View())
 		b.WriteString("\n\n")
@@ -314,6 +350,22 @@ func (m *model) renderOverlay() string {
 	return ui.TUI.OverlayBox().
 		Width(w).
 		Render(b.String())
+}
+
+// exportedMsg carries the result of an export attempt.
+type exportedMsg struct {
+	path string
+	err  error
+}
+
+// exportPage writes the raw markdown to the current directory.
+func (m *model) exportPage(entry Entry) tea.Cmd {
+	content := m.viewer.RawContent()
+	filename := entry.PageFile
+	return func() tea.Msg {
+		err := os.WriteFile(filename, []byte(content), 0o644)
+		return exportedMsg{path: filename, err: err}
+	}
 }
 
 // preRenderPages returns a Cmd that renders all page-based entries in the

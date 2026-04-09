@@ -1,11 +1,14 @@
 package mdview
 
 import (
+	"fmt"
 	"strings"
 
 	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -43,14 +46,26 @@ type Model struct {
 	height        int
 	ready         bool
 	quitting      bool
+
+	// Search state
+	searching   bool
+	searchInput textinput.Model
+	query       string
+	matchCount  int
+	matchLines  []int
+	matchIdx    int
 }
 
 // New creates a Model for the given pages.
 // With one page it opens directly into the viewer; with multiple it shows a picker.
 func New(pages []Page) *Model {
+	ti := textinput.New()
+	ti.Prompt = "/"
+	ti.CharLimit = 128
 	m := &Model{
-		pages: pages,
-		multi: len(pages) > 1,
+		pages:       pages,
+		multi:       len(pages) > 1,
+		searchInput: ti,
 	}
 	if m.multi {
 		m.level = levelPicker
@@ -127,6 +142,10 @@ func (m *Model) updatePicker(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) updateViewer(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.searching {
+		return m.updateModelSearch(msg)
+	}
+
 	switch msg.String() {
 	case "ctrl+c":
 		m.quitting = true
@@ -138,11 +157,87 @@ func (m *Model) updateViewer(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.quitting = true
 		return m, tea.Quit
+	case "/", "f":
+		m.searching = true
+		m.searchInput.SetValue("")
+		return m, m.searchInput.Focus()
+	case "n":
+		if len(m.matchLines) > 0 {
+			m.matchIdx = (m.matchIdx + 1) % len(m.matchLines)
+			m.vp.SetYOffset(m.matchLines[m.matchIdx])
+		}
+		return m, nil
+	case "N":
+		if len(m.matchLines) > 0 {
+			m.matchIdx = (m.matchIdx - 1 + len(m.matchLines)) % len(m.matchLines)
+			m.vp.SetYOffset(m.matchLines[m.matchIdx])
+		}
+		return m, nil
 	}
 
 	var cmd tea.Cmd
 	m.vp, cmd = m.vp.Update(msg)
 	return m, cmd
+}
+
+func (m *Model) updateModelSearch(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		m.searching = false
+		m.query = m.searchInput.Value()
+		m.applyModelSearch()
+		return m, nil
+	case "esc":
+		m.searching = false
+		m.query = ""
+		m.matchCount = 0
+		m.matchLines = nil
+		m.matchIdx = 0
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.searchInput, cmd = m.searchInput.Update(msg)
+
+	q := m.searchInput.Value()
+	if q != m.query {
+		m.query = q
+		m.applyModelSearch()
+	}
+	return m, cmd
+}
+
+func (m *Model) applyModelSearch() {
+	if m.query == "" {
+		m.matchCount = 0
+		m.matchLines = nil
+		m.matchIdx = 0
+		return
+	}
+
+	plain := ansi.Strip(m.vp.GetContent())
+	lowerPlain := strings.ToLower(plain)
+	lowerQuery := strings.ToLower(m.query)
+
+	m.matchLines = nil
+	start := 0
+	for {
+		idx := strings.Index(lowerPlain[start:], lowerQuery)
+		if idx < 0 {
+			break
+		}
+		begin := start + idx
+		line := strings.Count(lowerPlain[:begin], "\n")
+		m.matchLines = append(m.matchLines, line)
+		start = begin + len(m.query)
+	}
+
+	m.matchCount = len(m.matchLines)
+	m.matchIdx = 0
+
+	if len(m.matchLines) > 0 {
+		m.vp.SetYOffset(m.matchLines[0])
+	}
 }
 
 func (m *Model) initViewport() {
@@ -193,7 +288,11 @@ func (m *Model) View() tea.View {
 	var b strings.Builder
 	b.WriteString(m.vp.View())
 	b.WriteString("\n")
-	b.WriteString(m.statusLine())
+	if m.searching {
+		b.WriteString(m.searchInput.View())
+	} else {
+		b.WriteString(m.statusLine())
+	}
 
 	v := tea.NewView(b.String())
 	v.AltScreen = true
@@ -216,19 +315,18 @@ func (m *Model) statusLine() string {
 	title := m.pages[m.current].Name
 	left := ui.TUI.AccentBold().Render(" " + title + " ")
 
-	nav := "q quit"
+	nav := "/ search  q quit"
 	if m.multi {
-		nav = "esc back  q quit"
+		nav = "/ search  esc back  q quit"
+	}
+	if m.query != "" && !m.searching {
+		nav = fmt.Sprintf("n/N next/prev (%d matches)  ", m.matchCount) + nav
 	}
 	right := ui.TUI.HeaderHint().Render(nav)
 
-	scrollInfo := ui.TUI.Dim().Render(
-		strings.Repeat(" ", 2) + string(rune('0'+pct/100%10)) +
-			string(rune('0'+pct/10%10)) +
-			string(rune('0'+pct%10)) + "%",
-	)
+	scrollInfo := ui.TUI.Dim().Render(fmt.Sprintf("  %d%%", pct))
 
-	return left + "  " + right + "  " + scrollInfo
+	return left + "  " + right + scrollInfo
 }
 
 // ── Embeddable sub-model interface ─────────────────────────────────────────
@@ -242,13 +340,25 @@ type Viewer struct {
 	renderedWidth int    // width used for cached render
 	name          string
 	ready         bool
+
+	// Search state
+	searching   bool
+	searchInput textinput.Model
+	query       string // last confirmed query
+	matchCount  int
+	matchLines  []int // line number for each match
+	matchIdx    int   // current match index for n/N cycling
 }
 
 // NewViewer creates a viewer for a single markdown document.
 func NewViewer(name, markdown string) *Viewer {
+	ti := textinput.New()
+	ti.Prompt = "/"
+	ti.CharLimit = 128
 	return &Viewer{
-		name:    name,
-		content: markdown,
+		name:        name,
+		content:     markdown,
+		searchInput: ti,
 	}
 }
 
@@ -282,23 +392,129 @@ func (v *Viewer) SetSize(w, h int) {
 	v.vp.SetContent(v.rendered)
 }
 
+// Searching returns true when the search input is active.
+func (v *Viewer) Searching() bool { return v.searching }
+
+// MatchCount returns the number of search matches.
+func (v *Viewer) MatchCount() int { return v.matchCount }
+
+// Query returns the current search query.
+func (v *Viewer) Query() string { return v.query }
+
 // Update handles key and scroll messages.
 func (v *Viewer) Update(msg tea.Msg) (*Viewer, tea.Cmd) {
 	if !v.ready {
 		return v, nil
 	}
+
+	if v.searching {
+		return v.updateSearch(msg)
+	}
+
+	if km, ok := msg.(tea.KeyPressMsg); ok {
+		switch km.String() {
+		case "/", "f":
+			v.searching = true
+			v.searchInput.SetValue("")
+			return v, v.searchInput.Focus()
+		case "n":
+			if len(v.matchLines) > 0 {
+				v.matchIdx = (v.matchIdx + 1) % len(v.matchLines)
+				v.vp.SetYOffset(v.matchLines[v.matchIdx])
+			}
+			return v, nil
+		case "N":
+			if len(v.matchLines) > 0 {
+				v.matchIdx = (v.matchIdx - 1 + len(v.matchLines)) % len(v.matchLines)
+				v.vp.SetYOffset(v.matchLines[v.matchIdx])
+			}
+			return v, nil
+		}
+	}
+
 	var cmd tea.Cmd
 	v.vp, cmd = v.vp.Update(msg)
 	return v, cmd
 }
 
-// View renders the viewport content.
+func (v *Viewer) updateSearch(msg tea.Msg) (*Viewer, tea.Cmd) {
+	if km, ok := msg.(tea.KeyPressMsg); ok {
+		switch km.String() {
+		case "enter":
+			v.searching = false
+			v.query = v.searchInput.Value()
+			v.applySearch()
+			return v, nil
+		case "esc":
+			v.searching = false
+			v.query = ""
+			v.matchCount = 0
+			v.matchLines = nil
+			v.matchIdx = 0
+			return v, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	v.searchInput, cmd = v.searchInput.Update(msg)
+
+	// Live-highlight as user types.
+	q := v.searchInput.Value()
+	if q != v.query {
+		v.query = q
+		v.applySearch()
+	}
+	return v, cmd
+}
+
+func (v *Viewer) applySearch() {
+	if v.query == "" {
+		v.matchCount = 0
+		v.matchLines = nil
+		v.matchIdx = 0
+		return
+	}
+
+	plain := ansi.Strip(v.vp.GetContent())
+	lowerPlain := strings.ToLower(plain)
+	lowerQuery := strings.ToLower(v.query)
+
+	v.matchLines = nil
+	start := 0
+	for {
+		idx := strings.Index(lowerPlain[start:], lowerQuery)
+		if idx < 0 {
+			break
+		}
+		begin := start + idx
+		// Count newlines before this match to find the line number.
+		line := strings.Count(lowerPlain[:begin], "\n")
+		v.matchLines = append(v.matchLines, line)
+		start = begin + len(v.query)
+	}
+
+	v.matchCount = len(v.matchLines)
+	v.matchIdx = 0
+
+	// Scroll to the first match.
+	if len(v.matchLines) > 0 {
+		v.vp.SetYOffset(v.matchLines[0])
+	}
+}
+
+// View renders the viewport content, with search input appended when active.
 func (v *Viewer) View() string {
 	if !v.ready {
 		return ""
 	}
+	if v.searching {
+		return v.vp.View() + "\n" + v.searchInput.View()
+	}
 	return v.vp.View()
 }
+
+// RawContent returns the original markdown source.
+func (v *Viewer) RawContent() string { return v.content }
 
 // ScrollPercent returns the current scroll position as 0-100.
 func (v *Viewer) ScrollPercent() int {
