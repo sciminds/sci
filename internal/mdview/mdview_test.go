@@ -90,6 +90,37 @@ func TestMultiPageOpenAndClose(t *testing.T) {
 	}
 }
 
+func TestMultiPageSwitchRendersNewContent(t *testing.T) {
+	tm := startMultiPage(t)
+
+	// Open first page (alpha)
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("First page"))
+	}, teatest.WithDuration(testWait))
+
+	// Go back to picker
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("beta"))
+	}, teatest.WithDuration(testWait))
+
+	// Move down to beta and open it
+	tm.Send(tea.KeyPressMsg{Code: 'j'})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Second page"))
+	}, teatest.WithDuration(testWait))
+
+	fm := finalModel(t, tm)
+	if fm.current != 1 {
+		t.Errorf("should be viewing page 1 (beta), got %d", fm.current)
+	}
+	if !strings.Contains(fm.rendered, "Second") {
+		t.Error("rendered content should be from beta page, but still shows alpha")
+	}
+}
+
 func TestViewerScrollPercent(t *testing.T) {
 	v := NewViewer("test", "# Test\n\nLine 1\nLine 2\nLine 3")
 	v.SetSize(80, 50) // tall enough to fit all content

@@ -42,6 +42,7 @@ type Model struct {
 	current       int  // index of currently viewed page
 	rendered      string
 	renderedWidth int
+	renderedPage  int // index of page used for cached render
 	width         int
 	height        int
 	ready         bool
@@ -132,6 +133,10 @@ func (m *Model) updatePicker(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		idx := m.picker.Index()
 		m.current = idx
 		m.level = levelViewer
+		m.query = ""
+		m.matchCount = 0
+		m.matchLines = nil
+		m.matchIdx = 0
 		m.initViewport()
 		return m, nil
 	}
@@ -255,13 +260,14 @@ func (m *Model) initViewport() {
 		contentW = 20
 	}
 
-	if m.rendered == "" || m.renderedWidth != contentW {
+	if m.rendered == "" || m.renderedWidth != contentW || m.renderedPage != m.current {
 		rendered, err := Render(m.pages[m.current].Content, contentW)
 		if err != nil {
 			rendered = m.pages[m.current].Content // fallback to raw
 		}
 		m.rendered = strings.TrimRight(rendered, "\n")
 		m.renderedWidth = contentW
+		m.renderedPage = m.current
 	}
 
 	m.vp = viewport.New(
