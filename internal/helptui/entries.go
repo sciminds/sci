@@ -12,6 +12,7 @@ type CommandGroup struct {
 	Desc     string
 	Category string
 	FullName string       // e.g. "sci cloud"
+	LongDesc string       // wiki-style overview shown above the subcommand list
 	Subs     []SubCommand // empty for leaf commands
 }
 
@@ -52,6 +53,7 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 			Desc:     cmd.Usage,
 			Category: cmd.Category,
 			FullName: cmd.FullName(),
+			LongDesc: longDescs[cmd.Name],
 		}
 		for _, sub := range cmd.Commands {
 			if sub.Hidden || sub.Name == "help" {

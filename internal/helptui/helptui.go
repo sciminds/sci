@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/sciminds/cli/internal/guide"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -27,6 +28,7 @@ type model struct {
 	subs     list.Model // level 1: subcommand list
 	player   *guide.Player
 	level    level
+	group    *CommandGroup // current group at level 1+
 	width    int
 	height   int
 	quitting bool
@@ -76,7 +78,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case levelCommands:
 			m.commands.SetSize(msg.Width, msg.Height)
 		case levelSubs, levelOverlay:
-			m.subs.SetSize(msg.Width, msg.Height)
+			m.subs.SetSize(msg.Width, msg.Height-m.descHeight())
 		}
 		if m.player != nil {
 			m.player.SetHeight(ui.OverlayBodyHeight(m.height, 4))
@@ -146,8 +148,10 @@ func (m *model) openGroup(g CommandGroup) {
 	for i, s := range g.Subs {
 		items[i] = s
 	}
+	m.group = &g
 	d := ui.NewListDelegate()
-	l := list.New(items, d, m.width, m.height)
+	listH := m.height - m.descHeight()
+	l := list.New(items, d, m.width, listH)
 	l.Title = g.Name
 	l.Styles.Title = ui.TUI.AccentBold()
 	l.SetFilteringEnabled(true)
@@ -234,6 +238,41 @@ func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// ── Description block ──────────────────────────────────────────────────────
+
+// descMaxWidth caps the description paragraph so it doesn't stretch across
+// ultra-wide terminals.
+const descMaxWidth = 76
+
+// renderDesc returns the styled description block for the current group,
+// or "" if there is no long description.
+func (m *model) renderDesc() string {
+	if m.group == nil || m.group.LongDesc == "" {
+		return ""
+	}
+	w := m.width - 4 // account for list padding
+	if w > descMaxWidth {
+		w = descMaxWidth
+	}
+	if w < 20 {
+		w = 20
+	}
+	body := ui.TUI.TextMid().Width(w).Render(m.group.LongDesc)
+	// one blank line below the description to separate from items
+	return body + "\n"
+}
+
+// descHeight returns the number of terminal rows the description block
+// occupies, including its trailing blank line. Returns 0 when there is no
+// description.
+func (m *model) descHeight() int {
+	d := m.renderDesc()
+	if d == "" {
+		return 0
+	}
+	return lipgloss.Height(d)
+}
+
 // ── View ───────────────────────────────────────────────────────────────────
 
 func (m *model) View() tea.View {
@@ -246,7 +285,11 @@ func (m *model) View() tea.View {
 	case levelCommands:
 		bg = m.commands.View()
 	case levelSubs, levelOverlay:
-		bg = m.subs.View()
+		if desc := m.renderDesc(); desc != "" {
+			bg = desc + m.subs.View()
+		} else {
+			bg = m.subs.View()
+		}
 	}
 
 	if m.player == nil {
