@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/selfupdate"
 	dbtui "github.com/sciminds/cli/internal/tui/dbtui/app"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/version"
@@ -19,6 +20,9 @@ import (
 var jsonOutput bool
 
 func buildRoot() *cli.Command {
+	// Non-blocking update check: starts in Before, collected in After.
+	updateNotice := make(chan string, 1)
+
 	root := &cli.Command{
 		Name:    "sci",
 		Usage:   "Your scientific computing toolkit",
@@ -28,7 +32,22 @@ func buildRoot() *cli.Command {
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			ui.SetQuiet(cmdutil.IsJSON(cmd))
+			go func() { updateNotice <- selfupdate.CheckBackground() }()
 			return ctx, nil
+		},
+		After: func(_ context.Context, cmd *cli.Command) error {
+			if cmdutil.IsJSON(cmd) || (len(os.Args) > 1 && os.Args[1] == "update") {
+				return nil
+			}
+			select {
+			case msg := <-updateNotice:
+				if msg != "" {
+					fmt.Fprintf(os.Stderr, "\n  %s %s\n", ui.SymArrow, msg)
+				}
+			default:
+				// Check hasn't finished — don't block.
+			}
+			return nil
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return cli.ShowAppHelp(cmd)
