@@ -96,7 +96,7 @@ jobs:
           done
 
           echo "==> Verify native build"
-          ./dist/sci-darwin-arm64 --version || ./dist/sci-darwin-amd64 --version
+          ./dist/sci-darwin-arm64 --help || ./dist/sci-darwin-amd64 --help
 
       - name: Delete existing release
         run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
