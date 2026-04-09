@@ -27,6 +27,10 @@ test:
 test-slow *ARGS:
     SLOW=1 go test ./internal/proj/new -v -timeout 10m -count=1 {{ARGS}}
 
+# Canvas + GitHub Classroom integration tests (requires CANVAS_TOKEN in .env and gh auth)
+test-canvas:
+    CANVAS_TEST_TOKEN=$CANVAS_TOKEN CANVAS_TEST_URL="https://canvas.ucsd.edu/courses/63653" GH_CLASSROOM_TEST_URL="https://classroom.github.com/classrooms/232475786-test-classroom" go test ./internal/cass/ -run Integration -v -timeout 2m -count=1
+
 test-all: test test-slow
 
 check: tidy fmt vet lint test build

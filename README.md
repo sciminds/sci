@@ -105,6 +105,26 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci vid extract-audio` | Extract audio track to file |
 | `sci vid strip-subs` | Remove subtitles from a video |
 
+### Canvas LMS & GitHub Classroom
+
+| Command | What it does |
+|---------|--------------|
+| `sci cass setup` | Save your Canvas API token (one-time) |
+| `sci cass init` | Create a `cass.yaml` config for a course directory |
+| `sci cass pull` | Fetch students, assignments, and submissions from Canvas/GitHub |
+| `sci cass status` | Show sync status, pending changes, and discrepancies |
+| `sci cass diff` | Show pending grade changes (local or `--remote` 3-way) |
+| `sci cass push` | Push grade changes to Canvas |
+| `sci cass match` | Interactively match GitHub usernames to Canvas students |
+| `sci cass revert` | Discard unpushed grade edits |
+| `sci cass log` | Show operation history |
+| `sci cass canvas modules` | List, create, publish, or delete course modules |
+| `sci cass canvas assignments` | List, create, publish, or delete assignments |
+| `sci cass canvas announce` | List, post, or delete announcements |
+| `sci cass canvas files` | List course files |
+
+Syncs course data to a local SQLite database (`cass.db`) with a git-like workflow: pull shows changelogs, diff shows pending grade changes, push sends grades to Canvas with conflict detection. GitHub Classroom is optional — works with Canvas-only courses.
+
 ### Ingest markdown into SQLite (Experimental)
 
 | Command | What it does |

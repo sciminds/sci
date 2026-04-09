@@ -26,3 +26,5 @@ just test-slow       # proj/new integration tests (~4 min, needs SLOW=1, pixi/uv
 - marimo export exits non-zero for `mo.md()` cells — expected. Assert on produced file, not exit code.
 - `install.sh` must be POSIX sh (runs on bare Macs).
 - CI uses a rolling `latest` release tag (delete + recreate on push to main).
+- `cass` integration tests require `CANVAS_TOKEN` in `.env` and `gh auth login`. Run via `just test-canvas`.
+- GitHub Classroom URL IDs are org IDs, not classroom IDs. `ResolveClassroomID` maps URL → API ID via `GET /classrooms`. The resolved ID is cached in `cass.yaml` as `api_id`.
