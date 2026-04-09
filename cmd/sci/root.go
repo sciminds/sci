@@ -37,7 +37,7 @@ func buildRoot() *cli.Command {
 		HideHelpCommand: true,
 		Commands: []*cli.Command{
 			// Getting Started
-			guideCommand(),
+			learnCommand(),
 			// Commands
 			cloudCommand(),
 			dbCommand(),

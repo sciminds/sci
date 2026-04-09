@@ -1,5 +1,24 @@
 package guide
 
+// Book is a top-level guide category shown in the book picker.
+type Book struct {
+	Name    string  // short identifier
+	Heading string  // display title
+	Desc    string  // one-line description
+	Entries []Entry // items inside this book
+}
+
+// list.DefaultItem interface for bubbles/list.
+func (b Book) Title() string       { return b.Heading }
+func (b Book) Description() string { return b.Desc }
+func (b Book) FilterValue() string { return b.Name + " " + b.Heading + " " + b.Desc }
+
+// Books is the registry of all guide books.
+var Books = []Book{
+	{Name: "basic", Heading: "Terminal Guide", Desc: "Learn basic terminal commands (ls, cd, cp, mv, …)", Entries: BasicEntries},
+	{Name: "git", Heading: "Git Guide", Desc: "Learn essential Git commands (init, add, commit, push, …)", Entries: GitEntries},
+}
+
 // Entry holds a single guide item — a terminal command with its demo recording.
 type Entry struct {
 	Name     string // command name, e.g. "ls"

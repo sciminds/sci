@@ -21,12 +21,19 @@ const (
 
 func startGuideTeatest(t *testing.T) *teatest.TestModel {
 	t.Helper()
-	m := newModel("Terminal Guide", BasicEntries)
+	m := newModel(Books)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("ls"))
+		return bytes.Contains(bts, []byte("Terminal Guide"))
 	}, teatest.WithDuration(testWait))
 	return tm
+}
+
+// enterBook navigates into the first book (Terminal Guide) and waits for its entries.
+func enterBook(t *testing.T, tm *teatest.TestModel) {
+	t.Helper()
+	tSendSpecial(tm, tea.KeyEnter)
+	tWaitForOutput(t, tm, "ls")
 }
 
 func tSendKey(tm *teatest.TestModel, key string) {
@@ -52,29 +59,57 @@ func tFinalModel(t *testing.T, tm *teatest.TestModel) *model {
 
 // ── Integration tests ───────────────────────────────────────────────────────
 
-func TestGuideRender(t *testing.T) {
+func TestGuideRenderBooks(t *testing.T) {
 	tm := startGuideTeatest(t)
 
 	fm := tFinalModel(t, tm)
-	if fm.player != nil {
-		t.Error("player should be nil on initial render")
+	if fm.level != levelBooks {
+		t.Errorf("should be at book level, got %d", fm.level)
 	}
-	// List should have all entries
-	if len(fm.list.Items()) != len(BasicEntries) {
-		t.Errorf("list has %d items, want %d", len(fm.list.Items()), len(BasicEntries))
+	if len(fm.books.Items()) != len(Books) {
+		t.Errorf("books list has %d items, want %d", len(fm.books.Items()), len(Books))
+	}
+}
+
+func TestGuideEnterBook(t *testing.T) {
+	tm := startGuideTeatest(t)
+	enterBook(t, tm)
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelEntries {
+		t.Errorf("should be at entries level, got %d", fm.level)
+	}
+	if len(fm.entries.Items()) != len(BasicEntries) {
+		t.Errorf("entries list has %d items, want %d", len(fm.entries.Items()), len(BasicEntries))
+	}
+}
+
+func TestGuideBackFromEntries(t *testing.T) {
+	tm := startGuideTeatest(t)
+	enterBook(t, tm)
+
+	// Press esc to go back to books
+	tSendSpecial(tm, tea.KeyEscape)
+	tWaitForOutput(t, tm, "Guides")
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelBooks {
+		t.Errorf("should be back at book level, got %d", fm.level)
 	}
 }
 
 func TestGuideOpenOverlay(t *testing.T) {
 	tm := startGuideTeatest(t)
+	enterBook(t, tm)
 
 	// Press enter to open overlay on the first item
 	tSendSpecial(tm, tea.KeyEnter)
-
-	// Wait for the overlay (player) to render.
 	tWaitForOutput(t, tm, "list files")
 
 	fm := tFinalModel(t, tm)
+	if fm.level != levelOverlay {
+		t.Errorf("should be at overlay level, got %d", fm.level)
+	}
 	if fm.player == nil {
 		t.Error("player should be non-nil after pressing enter")
 	}
@@ -82,6 +117,7 @@ func TestGuideOpenOverlay(t *testing.T) {
 
 func TestGuideCloseOverlay(t *testing.T) {
 	tm := startGuideTeatest(t)
+	enterBook(t, tm)
 
 	// Open overlay and wait for it to render.
 	tSendSpecial(tm, tea.KeyEnter)
@@ -91,28 +127,43 @@ func TestGuideCloseOverlay(t *testing.T) {
 	tSendSpecial(tm, tea.KeyEscape)
 
 	fm := tFinalModel(t, tm)
+	if fm.level != levelEntries {
+		t.Errorf("should be back at entries level, got %d", fm.level)
+	}
 	if fm.player != nil {
 		t.Error("player should be nil after closing overlay")
 	}
 }
 
-func TestGuideQuit(t *testing.T) {
+func TestGuideQuitFromBooks(t *testing.T) {
 	tm := startGuideTeatest(t)
 
 	tSendKey(tm, "q")
 
 	fm := tFinalModel(t, tm)
 	if !fm.quitting {
-		t.Error("should be quitting after pressing q")
+		t.Error("should be quitting after pressing q at book level")
+	}
+}
+
+func TestGuideQuitFromEntries(t *testing.T) {
+	tm := startGuideTeatest(t)
+	enterBook(t, tm)
+
+	// q from entries goes back to books, not quit
+	tSendKey(tm, "q")
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelBooks {
+		t.Errorf("q from entries should go back to books, got level %d", fm.level)
 	}
 }
 
 func TestGuideFilteringBlocksQuit(t *testing.T) {
 	tm := startGuideTeatest(t)
 
-	// Enter filter mode (bubbles/list uses "/" to start filtering)
+	// Enter filter mode
 	tSendKey(tm, "/")
-	// Wait for filter prompt to appear.
 	tWaitForOutput(t, tm, "Filter")
 
 	// Type 'q' — should go to filter input, not quit
@@ -120,10 +171,7 @@ func TestGuideFilteringBlocksQuit(t *testing.T) {
 	tWaitForOutput(t, tm, "q")
 
 	fm := tFinalModel(t, tm)
-	// The program should still be alive (ctrl+c from tFinalModel kills it).
-	// The key check: list should be in filtering state, meaning "q" was
-	// treated as filter input rather than a quit command.
-	if fm.list.FilterState() != list.Filtering {
-		t.Errorf("should be in filtering state, got %v", fm.list.FilterState())
+	if fm.books.FilterState() != list.Filtering {
+		t.Errorf("should be in filtering state, got %v", fm.books.FilterState())
 	}
 }

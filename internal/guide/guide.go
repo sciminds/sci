@@ -10,35 +10,46 @@ import (
 	"github.com/sciminds/cli/internal/ui"
 )
 
+// level tracks where we are in the navigation hierarchy.
+type level int
+
+const (
+	levelBooks   level = iota // top-level book picker
+	levelEntries              // entry list within a book
+	levelOverlay              // cast player overlay
+)
+
 // model is the top-level Bubble Tea model for the guide TUI.
 type model struct {
-	list     list.Model
-	player   *Player // nil when overlay is closed
+	books    list.Model // top-level book picker
+	entries  list.Model // entry list for the selected book
+	player   *Player
+	level    level
 	width    int
 	height   int
 	quitting bool
 }
 
-func newModel(title string, entries []Entry) *model {
-	items := make([]list.Item, len(entries))
-	for i, e := range entries {
-		items[i] = e
+func newModel(books []Book) *model {
+	items := make([]list.Item, len(books))
+	for i, b := range books {
+		items[i] = b
 	}
 
 	d := ui.NewListDelegate()
 	l := list.New(items, d, 0, 0)
-	l.Title = title
+	l.Title = "Guides"
 	l.Styles.Title = ui.TUI.AccentBold()
 	l.SetFilteringEnabled(true)
 	l.SetShowStatusBar(true)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play demo")),
+			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
 			key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 		}
 	}
 
-	return &model{list: l}
+	return &model{books: l, level: levelBooks}
 }
 
 func (m *model) Init() tea.Cmd {
@@ -50,7 +61,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.list.SetSize(msg.Width, msg.Height)
+		m.books.SetSize(msg.Width, msg.Height)
+		if m.level >= levelEntries {
+			m.entries.SetSize(msg.Width, msg.Height)
+		}
 		if m.player != nil {
 			m.player.SetHeight(ui.OverlayBodyHeight(m.height, 4))
 		}
@@ -65,52 +79,116 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		if m.player != nil {
+		switch m.level {
+		case levelOverlay:
 			return m.updateOverlay(msg)
+		case levelEntries:
+			return m.updateEntries(msg)
+		default:
+			return m.updateBooks(msg)
 		}
-		return m.updateList(msg)
 	}
 
+	// Delegate to the active list for non-key messages.
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	switch m.level {
+	case levelEntries:
+		m.entries, cmd = m.entries.Update(msg)
+	default:
+		m.books, cmd = m.books.Update(msg)
+	}
 	return m, cmd
 }
 
-func (m *model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+func (m *model) updateBooks(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
 		m.quitting = true
 		return m, tea.Quit
 	case "q":
-		if m.list.FilterState() != list.Filtering {
+		if m.books.FilterState() != list.Filtering {
 			m.quitting = true
 			return m, tea.Quit
 		}
 	case "enter":
-		if m.list.FilterState() == list.Filtering {
+		if m.books.FilterState() == list.Filtering {
 			break
 		}
-		item, ok := m.list.SelectedItem().(Entry)
+		book, ok := m.books.SelectedItem().(Book)
+		if !ok {
+			break
+		}
+		m.openBook(book)
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.books, cmd = m.books.Update(msg)
+	return m, cmd
+}
+
+func (m *model) openBook(book Book) {
+	items := make([]list.Item, len(book.Entries))
+	for i, e := range book.Entries {
+		items[i] = e
+	}
+	d := ui.NewListDelegate()
+	l := list.New(items, d, m.width, m.height)
+	l.Title = book.Heading
+	l.Styles.Title = ui.TUI.AccentBold()
+	l.SetFilteringEnabled(true)
+	l.SetShowStatusBar(true)
+	l.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play demo")),
+			key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+		}
+	}
+	m.entries = l
+	m.level = levelEntries
+}
+
+func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		m.quitting = true
+		return m, tea.Quit
+	case "q":
+		if m.entries.FilterState() != list.Filtering {
+			m.level = levelBooks
+			return m, nil
+		}
+	case "esc":
+		if m.entries.FilterState() != list.Filtering {
+			m.level = levelBooks
+			return m, nil
+		}
+	case "enter":
+		if m.entries.FilterState() == list.Filtering {
+			break
+		}
+		item, ok := m.entries.SelectedItem().(Entry)
 		if !ok {
 			break
 		}
 		data, err := LoadCast(item.CastFile)
 		if err != nil {
-			m.list.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.CastFile, err))
+			m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.CastFile, err))
 			break
 		}
 		cast, err := ParseCast(data)
 		if err != nil {
-			m.list.NewStatusMessage(fmt.Sprintf("Error parsing %s: %v", item.CastFile, err))
+			m.entries.NewStatusMessage(fmt.Sprintf("Error parsing %s: %v", item.CastFile, err))
 			break
 		}
 		visH := ui.OverlayBodyHeight(m.height, 4)
 		m.player = NewPlayer(cast, visH)
+		m.level = levelOverlay
 		return m, m.player.Init()
 	}
 
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	m.entries, cmd = m.entries.Update(msg)
 	return m, cmd
 }
 
@@ -121,6 +199,7 @@ func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		m.player = nil
+		m.level = levelEntries
 		return m, nil
 	}
 
@@ -134,7 +213,14 @@ func (m *model) View() tea.View {
 		return tea.NewView("")
 	}
 
-	bg := m.list.View()
+	var bg string
+	switch m.level {
+	case levelEntries, levelOverlay:
+		bg = m.entries.View()
+	default:
+		bg = m.books.View()
+	}
+
 	if m.player == nil {
 		v := tea.NewView(bg)
 		v.AltScreen = true
@@ -153,7 +239,7 @@ func (m *model) renderOverlay() string {
 	var b strings.Builder
 
 	// Title
-	entry, _ := m.list.SelectedItem().(Entry)
+	entry, _ := m.entries.SelectedItem().(Entry)
 	title := entry.Cmd
 	b.WriteString(ui.TUI.HeaderSection().Render(" " + title + " "))
 	b.WriteString("\n\n")
@@ -173,9 +259,9 @@ func (m *model) renderOverlay() string {
 		Render(b.String())
 }
 
-// Run launches the interactive guide TUI with the given title and entries.
-func Run(title string, entries []Entry) error {
-	m := newModel(title, entries)
+// Run launches the interactive guide TUI with the given books.
+func Run(books []Book) error {
+	m := newModel(books)
 	p := tea.NewProgram(m)
 	_, err := p.Run()
 	return err
