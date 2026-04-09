@@ -54,6 +54,7 @@ func buildRoot() *cli.Command {
 		},
 		Suggest:         true,
 		HideHelpCommand: true,
+		HideVersion:     true,
 		Commands: []*cli.Command{
 			// What Can I Do?
 			helpCommand(),
