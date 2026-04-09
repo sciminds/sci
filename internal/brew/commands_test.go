@@ -31,13 +31,18 @@ type mockRunner struct {
 	infoResult  []PackageInfo
 	infoErr     error
 
-	updateCalls    int
-	updateErr      error
-	outdatedResult []OutdatedPackage
-	outdatedErr    error
-	upgradeCalls   int
-	upgradeOut     string
-	upgradeErr     error
+	updateCalls      int
+	updateErr        error
+	outdatedResult   []OutdatedPackage
+	outdatedErr      error
+	upgradeCalls     int
+	upgradeOut       string
+	upgradeErr       error
+	uvOutdatedResult []OutdatedPackage
+	uvOutdatedErr    error
+	uvUpgradeCalls   int
+	uvUpgradeOut     string
+	uvUpgradeErr     error
 }
 
 type mockCall struct {
@@ -96,6 +101,15 @@ func (m *mockRunner) Outdated() ([]OutdatedPackage, error) {
 func (m *mockRunner) Upgrade(_ func(string)) (string, error) {
 	m.upgradeCalls++
 	return m.upgradeOut, m.upgradeErr
+}
+
+func (m *mockRunner) UVOutdated() ([]OutdatedPackage, error) {
+	return m.uvOutdatedResult, m.uvOutdatedErr
+}
+
+func (m *mockRunner) UVUpgrade(_ func(string)) (string, error) {
+	m.uvUpgradeCalls++
+	return m.uvUpgradeOut, m.uvUpgradeErr
 }
 
 func brewfile(t *testing.T, content string) string {
@@ -339,6 +353,25 @@ Satisfy missing dependencies with ` + "`brew bundle install`.\n"
 	}
 }
 
+func TestParseBundleCheck_UVTools(t *testing.T) {
+	out := `brew bundle can't satisfy your Brewfile's dependencies.
+→ uv Tool symbex needs to be installed.
+→ uv Tool sqlite-utils needs to be installed.
+→ Formula harper needs to be installed or updated.
+Satisfy missing dependencies with ` + "`brew bundle install`.\n"
+
+	missing := parseBundleCheck(out)
+	want := []string{"symbex", "sqlite-utils", "harper"}
+	if len(missing) != len(want) {
+		t.Fatalf("got %v, want %v", missing, want)
+	}
+	for i := range want {
+		if missing[i] != want[i] {
+			t.Errorf("missing[%d] = %q, want %q", i, missing[i], want[i])
+		}
+	}
+}
+
 func TestUpdate_UpgradesOutdated(t *testing.T) {
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
@@ -408,6 +441,84 @@ func TestUpdate_NothingOutdated(t *testing.T) {
 	}
 }
 
+func TestUpdate_IncludesUVOutdated(t *testing.T) {
+	m := &mockRunner{
+		outdatedResult: []OutdatedPackage{
+			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
+		},
+		uvOutdatedResult: []OutdatedPackage{
+			{Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
+		},
+		upgradeOut:   "==> Upgrading htop\n",
+		uvUpgradeOut: "Updated ruff\n",
+	}
+
+	result, err := Update(m, false, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Outdated) != 2 {
+		t.Fatalf("expected 2 outdated (1 brew + 1 uv), got %d", len(result.Outdated))
+	}
+	if m.upgradeCalls != 1 {
+		t.Errorf("expected 1 brew upgrade call, got %d", m.upgradeCalls)
+	}
+	if m.uvUpgradeCalls != 1 {
+		t.Errorf("expected 1 uv upgrade call, got %d", m.uvUpgradeCalls)
+	}
+}
+
+func TestUpdate_CheckOnly_IncludesUV(t *testing.T) {
+	m := &mockRunner{
+		outdatedResult: []OutdatedPackage{
+			{Name: "curl", InstalledVersion: "8.8.0", CurrentVersion: "8.9.0"},
+		},
+		uvOutdatedResult: []OutdatedPackage{
+			{Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
+		},
+	}
+
+	result, err := Update(m, true, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Outdated) != 2 {
+		t.Fatalf("expected 2 outdated, got %d", len(result.Outdated))
+	}
+	if m.upgradeCalls != 0 {
+		t.Errorf("expected 0 brew upgrade calls, got %d", m.upgradeCalls)
+	}
+	if m.uvUpgradeCalls != 0 {
+		t.Errorf("expected 0 uv upgrade calls, got %d", m.uvUpgradeCalls)
+	}
+}
+
+func TestUpdate_OnlyUVOutdated(t *testing.T) {
+	m := &mockRunner{
+		uvOutdatedResult: []OutdatedPackage{
+			{Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
+		},
+		uvUpgradeOut: "Updated ruff\n",
+	}
+
+	result, err := Update(m, false, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Outdated) != 1 {
+		t.Fatalf("expected 1 outdated, got %d", len(result.Outdated))
+	}
+	if m.upgradeCalls != 0 {
+		t.Errorf("expected 0 brew upgrade calls when only uv outdated, got %d", m.upgradeCalls)
+	}
+	if m.uvUpgradeCalls != 1 {
+		t.Errorf("expected 1 uv upgrade call, got %d", m.uvUpgradeCalls)
+	}
+}
+
 func TestUpdate_UpdateFails(t *testing.T) {
 	m := &mockRunner{updateErr: errors.New("network error")}
 
@@ -442,6 +553,52 @@ func TestParseOutdated_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	if len(pkgs) != 0 {
+		t.Errorf("expected 0 packages, got %d", len(pkgs))
+	}
+}
+
+func TestParseUVOutdated(t *testing.T) {
+	output := `huggingface-hub v0.36.2 [latest: 1.9.2]
+- hf
+- huggingface-cli
+- tiny-agents
+marimo v0.22.4 [latest: 0.23.0]
+- marimo
+scipy v0.1.0 [latest: 1.17.1]
+- scipy
+`
+	pkgs := parseUVOutdated(output)
+	want := []OutdatedPackage{
+		{Name: "huggingface-hub", InstalledVersion: "0.36.2", CurrentVersion: "1.9.2"},
+		{Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
+		{Name: "scipy", InstalledVersion: "0.1.0", CurrentVersion: "1.17.1"},
+	}
+	if len(pkgs) != len(want) {
+		t.Fatalf("got %d packages, want %d", len(pkgs), len(want))
+	}
+	for i := range want {
+		if pkgs[i] != want[i] {
+			t.Errorf("pkgs[%d] = %+v, want %+v", i, pkgs[i], want[i])
+		}
+	}
+}
+
+func TestParseUVOutdated_Empty(t *testing.T) {
+	pkgs := parseUVOutdated("")
+	if len(pkgs) != 0 {
+		t.Errorf("expected 0 packages, got %d", len(pkgs))
+	}
+}
+
+func TestParseUVOutdated_NoneOutdated(t *testing.T) {
+	// When nothing is outdated, uv outputs tool list without [latest: ...] markers
+	output := `marimo v0.22.4
+- marimo
+ruff v0.15.9
+- ruff
+`
+	pkgs := parseUVOutdated(output)
 	if len(pkgs) != 0 {
 		t.Errorf("expected 0 packages, got %d", len(pkgs))
 	}

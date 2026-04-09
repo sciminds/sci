@@ -52,6 +52,8 @@ type Runner interface {
 	Update(onLine func(string)) error
 	Outdated() ([]OutdatedPackage, error)
 	Upgrade(onLine func(string)) (string, error)
+	UVOutdated() ([]OutdatedPackage, error)
+	UVUpgrade(onLine func(string)) (string, error)
 }
 
 // BundleRunner shells out to brew bundle.
@@ -202,6 +204,19 @@ func (BundleRunner) Upgrade(onLine func(string)) (string, error) {
 	return runBrewLive(onLine, "upgrade")
 }
 
+func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
+	cmd := exec.Command("uv", "tool", "list", "--outdated")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("uv tool list --outdated: %w", err)
+	}
+	return parseUVOutdated(string(out)), nil
+}
+
+func (BundleRunner) UVUpgrade(onLine func(string)) (string, error) {
+	return runLive(onLine, "uv", "tool", "upgrade", "--all")
+}
+
 // outdatedJSON is the top-level brew outdated --json=v2 response.
 type outdatedJSON struct {
 	Formulae []outdatedFormula `json:"formulae"`
@@ -257,10 +272,10 @@ func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
 	return pkgs, nil
 }
 
-// runBrewLive runs a brew command, captures its combined output, and calls
+// runLive runs a command, captures its combined output, and calls
 // onLine for each non-empty line as it arrives. Returns the full output.
-func runBrewLive(onLine func(string), args ...string) (string, error) {
-	cmd := exec.Command("brew", args...)
+func runLive(onLine func(string), name string, args ...string) (string, error) {
+	cmd := exec.Command(name, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return "", fmt.Errorf("stdout pipe: %w", err)
@@ -286,6 +301,11 @@ func runBrewLive(onLine func(string), args ...string) (string, error) {
 		return full.String(), err
 	}
 	return full.String(), nil
+}
+
+// runBrewLive runs a brew command via runLive.
+func runBrewLive(onLine func(string), args ...string) (string, error) {
+	return runLive(onLine, "brew", args...)
 }
 
 // runBrewInteractive is like runBrewLive but suspends the caller's UI when
@@ -376,7 +396,7 @@ func runBrewOutput(args ...string) (string, error) {
 
 // parseBundleCheck extracts missing package names from `brew bundle check --verbose` output.
 // Lines look like: "→ Formula git needs to be installed or updated."
-var bundleCheckRe = regexp.MustCompile(`→ (?:Formula|Cask) (\S+) needs to be installed`)
+var bundleCheckRe = regexp.MustCompile(`→ (?:Formula|Cask|uv Tool) (\S+) needs to be installed`)
 
 func parseBundleCheck(output string) []string {
 	var missing []string
@@ -384,6 +404,25 @@ func parseBundleCheck(output string) []string {
 		missing = append(missing, m[1])
 	}
 	return missing
+}
+
+// parseUVOutdated extracts outdated packages from `uv tool list --outdated` output.
+// Lines look like: "marimo v0.22.4 [latest: 0.23.0]"
+// Executable lines (starting with "- ") are skipped.
+var uvOutdatedRe = regexp.MustCompile(`^(\S+)\s+v(\S+)\s+\[latest:\s+(\S+)]`)
+
+func parseUVOutdated(output string) []OutdatedPackage {
+	var pkgs []OutdatedPackage
+	for _, line := range strings.Split(output, "\n") {
+		if m := uvOutdatedRe.FindStringSubmatch(line); m != nil {
+			pkgs = append(pkgs, OutdatedPackage{
+				Name:             m[1],
+				InstalledVersion: m[2],
+				CurrentVersion:   m[3],
+			})
+		}
+	}
+	return pkgs
 }
 
 func splitLines(s string) []string {

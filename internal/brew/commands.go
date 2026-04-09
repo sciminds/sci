@@ -84,10 +84,32 @@ func Update(r Runner, checkOnly bool, setTitle, setStatus func(string)) (UpdateR
 	if setTitle != nil {
 		setTitle("Checking for outdated packages…")
 	}
-	outdated, err := r.Outdated()
-	if err != nil {
-		return UpdateResult{}, fmt.Errorf("brew outdated: %w", err)
+
+	// Check brew and uv outdated concurrently.
+	var (
+		brewOutdated, uvOutdated []OutdatedPackage
+		brewErr, uvErr           error
+		wg                       sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		brewOutdated, brewErr = r.Outdated()
+	}()
+	go func() {
+		defer wg.Done()
+		uvOutdated, uvErr = r.UVOutdated()
+	}()
+	wg.Wait()
+
+	if brewErr != nil {
+		return UpdateResult{}, fmt.Errorf("brew outdated: %w", brewErr)
 	}
+	if uvErr != nil {
+		return UpdateResult{}, fmt.Errorf("uv outdated: %w", uvErr)
+	}
+
+	outdated := append(brewOutdated, uvOutdated...)
 
 	if checkOnly || len(outdated) == 0 {
 		return UpdateResult{Outdated: outdated, CheckOnly: checkOnly}, nil
@@ -96,9 +118,21 @@ func Update(r Runner, checkOnly bool, setTitle, setStatus func(string)) (UpdateR
 	if setTitle != nil {
 		setTitle(fmt.Sprintf("Upgrading %d package(s)…", len(outdated)))
 	}
-	upgradeOut, err := r.Upgrade(onLine)
-	if err != nil {
-		return UpdateResult{}, fmt.Errorf("brew upgrade: %w", err)
+
+	var upgradeOut string
+	if len(brewOutdated) > 0 {
+		out, err := r.Upgrade(onLine)
+		if err != nil {
+			return UpdateResult{}, fmt.Errorf("brew upgrade: %w", err)
+		}
+		upgradeOut = out
+	}
+	if len(uvOutdated) > 0 {
+		out, err := r.UVUpgrade(onLine)
+		if err != nil {
+			return UpdateResult{}, fmt.Errorf("uv upgrade: %w", err)
+		}
+		upgradeOut += out
 	}
 
 	return UpdateResult{Outdated: outdated, CheckOnly: false, UpgradeOutput: upgradeOut}, nil

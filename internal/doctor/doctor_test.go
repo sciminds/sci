@@ -190,3 +190,7 @@ func (m *mockBrewRunner) BundleCheck(_ string) ([]string, error) {
 func (m *mockBrewRunner) Update(_ func(string)) error               { return nil }
 func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error) { return nil, nil }
 func (m *mockBrewRunner) Upgrade(_ func(string)) (string, error)    { return "", nil }
+func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) {
+	return nil, nil
+}
+func (m *mockBrewRunner) UVUpgrade(_ func(string)) (string, error) { return "", nil }
