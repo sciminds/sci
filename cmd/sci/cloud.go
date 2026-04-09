@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	putName    string
-	putDesc    string
-	putForce   bool
-	removeYes  bool
-	authLogout bool
-	listPlain  bool
+	putName     string
+	putDesc     string
+	putForce    bool
+	removeYes   bool
+	setupLogout bool
+	listPlain   bool
 )
 
 func cloudCommand() *cli.Command {
@@ -30,7 +30,7 @@ func cloudCommand() *cli.Command {
 		Description: "$ sci cloud put results.csv\n$ sci cloud list\n$ sci cloud get my-data",
 		Category:    "Commands",
 		Commands: []*cli.Command{
-			cloudAuthCommand(),
+			cloudSetupCommand(),
 			cloudPutCommand(),
 			cloudGetCommand(),
 			cloudRemoveCommand(),
@@ -39,16 +39,16 @@ func cloudCommand() *cli.Command {
 	}
 }
 
-func cloudAuthCommand() *cli.Command {
+func cloudSetupCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "auth",
+		Name:        "setup",
 		Usage:       "Authenticate with GitHub to access SciMinds cloud storage",
-		Description: "$ sci cloud auth\n$ sci cloud auth --logout",
+		Description: "$ sci cloud setup\n$ sci cloud setup --logout",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "logout", Usage: "clear saved credentials", Destination: &authLogout, Local: true},
+			&cli.BoolFlag{Name: "logout", Usage: "clear saved credentials", Destination: &setupLogout, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			if authLogout {
+			if setupLogout {
 				result, err := share.AuthLogout()
 				if err != nil {
 					return err

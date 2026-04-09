@@ -65,7 +65,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 
 | Command | What it does |
 |---------|--------------|
-| `sci cloud auth` | Authenticate with GitHub (requires sciminds org membership) |
+| `sci cloud setup` | Authenticate with GitHub (requires sciminds org membership) |
 | `sci cloud put <file>` | Upload a file to cloud storage |
 | `sci cloud get <name>` | Download a shared file |
 | `sci cloud list` | List all shared files |
@@ -162,7 +162,7 @@ just run proj new     # etc.
 
 ### Cloud auth infrastructure
 
-`sci cloud auth` uses a GitHub OAuth device flow brokered by a Cloudflare Worker. The worker verifies `sciminds` GitHub org membership and returns shared R2 credentials.
+`sci cloud setup` uses a GitHub OAuth device flow brokered by a Cloudflare Worker. The worker verifies `sciminds` GitHub org membership and returns shared R2 credentials.
 
 **Components:**
 

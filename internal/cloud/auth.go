@@ -86,10 +86,10 @@ func RequireConfig() (*Config, error) {
 		return nil, err
 	}
 	if cfg == nil {
-		return nil, fmt.Errorf("not configured — run 'sci cloud auth' first")
+		return nil, fmt.Errorf("not configured — run 'sci cloud setup' first")
 	}
 	if cfg.Public == nil || cfg.Public.AccessKey == "" || cfg.Public.SecretKey == "" || cfg.AccountID == "" {
-		return nil, fmt.Errorf("incomplete credentials — run 'sci cloud auth' to reconfigure")
+		return nil, fmt.Errorf("incomplete credentials — run 'sci cloud setup' to reconfigure")
 	}
 	return cfg, nil
 }

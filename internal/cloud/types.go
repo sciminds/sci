@@ -23,7 +23,7 @@ type Config struct {
 	Public      *BucketConfig `json:"public,omitempty"`
 
 	// Legacy flat fields — populated only when reading old-format files.
-	// Deprecated: run "sci cloud auth" to migrate to the new format.
+	// Deprecated: run "sci cloud setup" to migrate to the new format.
 	LegacyAccessKey  string `json:"access_key,omitempty"`
 	LegacySecretKey  string `json:"secret_key,omitempty"`
 	LegacyPublicURL  string `json:"public_url,omitempty"`

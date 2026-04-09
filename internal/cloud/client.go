@@ -54,7 +54,7 @@ func Setup() (*Config, *Client, error) {
 		return nil, nil, err
 	}
 	if cfg.Public == nil || cfg.Public.AccessKey == "" {
-		return nil, nil, fmt.Errorf("public bucket not configured — run 'sci cloud auth' to reconfigure")
+		return nil, nil, fmt.Errorf("public bucket not configured — run 'sci cloud setup' to reconfigure")
 	}
 	return cfg, NewClient(cfg.AccountID, cfg.Username, cfg.Public), nil
 }
