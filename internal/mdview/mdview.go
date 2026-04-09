@@ -193,6 +193,7 @@ func (m *Model) updateModelSearch(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.matchCount = 0
 		m.matchLines = nil
 		m.matchIdx = 0
+		m.vp.SetContent(m.rendered)
 		return m, nil
 	}
 
@@ -212,10 +213,11 @@ func (m *Model) applyModelSearch() {
 		m.matchCount = 0
 		m.matchLines = nil
 		m.matchIdx = 0
+		m.vp.SetContent(m.rendered)
 		return
 	}
 
-	plain := ansi.Strip(m.vp.GetContent())
+	plain := ansi.Strip(m.rendered)
 	lowerPlain := strings.ToLower(plain)
 	lowerQuery := strings.ToLower(m.query)
 
@@ -235,8 +237,11 @@ func (m *Model) applyModelSearch() {
 	m.matchCount = len(m.matchLines)
 	m.matchIdx = 0
 
-	if len(m.matchLines) > 0 {
+	if m.matchCount > 0 {
+		m.vp.SetContent(HighlightMatches(m.rendered, m.query))
 		m.vp.SetYOffset(m.matchLines[0])
+	} else {
+		m.vp.SetContent(m.rendered)
 	}
 }
 
@@ -451,6 +456,7 @@ func (v *Viewer) updateSearch(msg tea.Msg) (*Viewer, tea.Cmd) {
 			v.matchCount = 0
 			v.matchLines = nil
 			v.matchIdx = 0
+			v.vp.SetContent(v.rendered)
 			return v, nil
 		}
 	}
@@ -472,10 +478,11 @@ func (v *Viewer) applySearch() {
 		v.matchCount = 0
 		v.matchLines = nil
 		v.matchIdx = 0
+		v.vp.SetContent(v.rendered)
 		return
 	}
 
-	plain := ansi.Strip(v.vp.GetContent())
+	plain := ansi.Strip(v.rendered)
 	lowerPlain := strings.ToLower(plain)
 	lowerQuery := strings.ToLower(v.query)
 
@@ -487,7 +494,6 @@ func (v *Viewer) applySearch() {
 			break
 		}
 		begin := start + idx
-		// Count newlines before this match to find the line number.
 		line := strings.Count(lowerPlain[:begin], "\n")
 		v.matchLines = append(v.matchLines, line)
 		start = begin + len(v.query)
@@ -496,9 +502,11 @@ func (v *Viewer) applySearch() {
 	v.matchCount = len(v.matchLines)
 	v.matchIdx = 0
 
-	// Scroll to the first match.
-	if len(v.matchLines) > 0 {
+	if v.matchCount > 0 {
+		v.vp.SetContent(HighlightMatches(v.rendered, v.query))
 		v.vp.SetYOffset(v.matchLines[0])
+	} else {
+		v.vp.SetContent(v.rendered)
 	}
 }
 
