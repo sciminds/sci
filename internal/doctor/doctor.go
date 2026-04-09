@@ -198,21 +198,28 @@ func checkIdentity() CheckSection {
 
 	// SciMinds R2 credentials — only shown if configured.
 	if cfg, _ := cloud.LoadConfig(); cfg != nil && cfg.Public != nil && cfg.Public.AccessKey != "" {
-		authCheck := CheckResult{Label: "SciMinds Cloud"}
+		authCheck := CheckResult{Label: "SciMinds Public Cloud"}
 		authCheck.Status = StatusPass
 		authCheck.Message = "configured as @" + cfg.Username
 		checks = append(checks, authCheck)
 	}
 
-	// Lab SSH — only shown if configured.
+	// Lab SSH — only shown if configured. Checks local config + key, not connectivity.
 	if labCfg, _ := lab.LoadConfig(); labCfg != nil && labCfg.User != "" {
 		labCheck := CheckResult{Label: "Lab SSH"}
-		if err := exec.Command("ssh", "-o", "ConnectTimeout=5", labCfg.SSHAlias(), "echo", "ok").Run(); err == nil {
+		home, _ := os.UserHomeDir()
+		hasKey := sshKeyExists(home)
+		hasAlias := sshAliasExists(home, labCfg.SSHAlias())
+		switch {
+		case hasKey && hasAlias:
 			labCheck.Status = StatusPass
-			labCheck.Message = "connected as " + labCfg.User + "@" + lab.Host
-		} else {
+			labCheck.Message = "configured as " + labCfg.User + "@" + lab.Host
+		case !hasKey:
 			labCheck.Status = StatusFail
-			labCheck.Message = "cannot connect — run: sci lab setup"
+			labCheck.Message = "SSH key not found — run: sci lab setup"
+		default:
+			labCheck.Status = StatusFail
+			labCheck.Message = "SSH config alias missing — run: sci lab setup"
 		}
 		checks = append(checks, labCheck)
 	}
@@ -223,6 +230,27 @@ func checkIdentity() CheckSection {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// sshKeyExists returns true if any common SSH private key exists in ~/.ssh/.
+func sshKeyExists(home string) bool {
+	sshDir := filepath.Join(home, ".ssh")
+	for _, name := range []string{"id_ed25519", "id_rsa", "id_ecdsa"} {
+		if _, err := os.Stat(filepath.Join(sshDir, name)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// sshAliasExists returns true if the given Host alias is present in ~/.ssh/config.
+func sshAliasExists(home, alias string) bool {
+	data, err := os.ReadFile(filepath.Join(home, ".ssh", "config"))
+	if err != nil {
+		return false
+	}
+	re := regexp.MustCompile(`(?m)^Host\s+` + regexp.QuoteMeta(alias) + `\s*$`)
+	return re.Match(data)
+}
 
 // boolStatus converts a boolean into [StatusPass] or [StatusFail].
 func boolStatus(ok bool) Status {
