@@ -44,7 +44,7 @@ type Flag struct {
 func BuildGroups(root *cli.Command) []CommandGroup {
 	var groups []CommandGroup
 	for _, cmd := range root.Commands {
-		if cmd.Hidden {
+		if cmd.Hidden || cmd.Name == "help" {
 			continue
 		}
 		g := CommandGroup{
