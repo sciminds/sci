@@ -144,7 +144,7 @@ func TestCheckUpdateAvailable(t *testing.T) {
 	const currentSHA = "aaaaaaa1111111"
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		body := `{"body":"**Commit:** ` + latestSHA + `\n**Version:** v1.2.3","assets":[]}`
+		body := `{"body":"**Commit:** ` + latestSHA + `","assets":[]}`
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(body))
 	}))
@@ -168,9 +168,6 @@ func TestCheckUpdateAvailable(t *testing.T) {
 	}
 	if result.LatestSHA != latestSHA {
 		t.Errorf("LatestSHA = %q, want %q", result.LatestSHA, latestSHA)
-	}
-	if result.LatestVersion != "v1.2.3" {
-		t.Errorf("LatestVersion = %q, want %q", result.LatestVersion, "v1.2.3")
 	}
 }
 

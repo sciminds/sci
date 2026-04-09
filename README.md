@@ -153,8 +153,6 @@ Binaries are named `{tool}-{os}-{arch}` (e.g. `sci-darwin-arm64`, `dbtui-linux-a
 
 **Updating:** Users run `sci update`, which compares the compiled-in commit SHA against the latest release and atomically replaces the binary if a newer build is available.
 
-**Version:** The `VERSION` file at the repo root is the single source of truth — read by both the Justfile and the CI workflow.
-
 ## Development
 
 Prerequisites: [Go 1.23+](https://go.dev/dl/) and [just](https://github.com/casey/just) (`brew install just`).

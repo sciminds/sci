@@ -26,7 +26,7 @@ func buildRoot() *cli.Command {
 	root := &cli.Command{
 		Name:    "sci",
 		Usage:   "Your scientific computing toolkit",
-		Version: version.Version,
+		Version: version.Commit,
 		Flags: []cli.Flag{
 			cmdutil.JSONFlag(&jsonOutput),
 		},

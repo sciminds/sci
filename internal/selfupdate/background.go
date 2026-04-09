@@ -14,11 +14,10 @@ const checkInterval = 24 * time.Hour
 
 // cachedCheck is persisted to disk between runs.
 type cachedCheck struct {
-	CheckedAt     time.Time `json:"checked_at"`
-	Available     bool      `json:"available"`
-	LatestSHA     string    `json:"latest_sha,omitempty"`
-	LatestVersion string    `json:"latest_version,omitempty"`
-	ForCommit     string    `json:"for_commit"` // the build commit this check was for
+	CheckedAt time.Time `json:"checked_at"`
+	Available bool      `json:"available"`
+	LatestSHA string    `json:"latest_sha,omitempty"`
+	ForCommit string    `json:"for_commit"` // the build commit this check was for
 }
 
 // cacheDir returns ~/.config/sci, creating it if needed.
@@ -81,7 +80,7 @@ func CheckBackground() string {
 	// If we have a fresh cache for this same build, use it.
 	if ok && cached.ForCommit == version.Commit && time.Since(cached.CheckedAt) < checkInterval {
 		if cached.Available {
-			return formatNotice(cached.LatestVersion, cached.LatestSHA)
+			return formatNotice(cached.LatestSHA)
 		}
 		return ""
 	}
@@ -89,23 +88,18 @@ func CheckBackground() string {
 	// Stale or missing — do a live check.
 	result := Check()
 	saveCache(cachedCheck{
-		CheckedAt:     time.Now(),
-		Available:     result.Available,
-		LatestSHA:     result.LatestSHA,
-		LatestVersion: result.LatestVersion,
-		ForCommit:     version.Commit,
+		CheckedAt: time.Now(),
+		Available: result.Available,
+		LatestSHA: result.LatestSHA,
+		ForCommit: version.Commit,
 	})
 
 	if result.Available {
-		return formatNotice(result.LatestVersion, result.LatestSHA)
+		return formatNotice(result.LatestSHA)
 	}
 	return ""
 }
 
-func formatNotice(ver, sha string) string {
-	label := ShortSHA(sha)
-	if ver != "" {
-		label = ver + " (" + label + ")"
-	}
-	return fmt.Sprintf("Update available: %s → run: sci update", label)
+func formatNotice(sha string) string {
+	return fmt.Sprintf("Update available: %s → run: sci update", ShortSHA(sha))
 }

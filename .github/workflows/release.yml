@@ -68,14 +68,10 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Set version env
-        run: echo "SCI_VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
-
       - name: Build
         run: |
-          VERSION="${SCI_VERSION}"
           COMMIT="${GITHUB_SHA}"
-          LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Version=${VERSION} -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
+          LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
           LDFLAGS_PLAIN="-s -w"
 
           mkdir -p dist
@@ -114,7 +110,6 @@ jobs:
           body: |
             Latest build from `main` branch.
 
-            **Version:** ${{ env.SCI_VERSION }}
             **Commit:** ${{ github.sha }}
             **Date:** ${{ github.event.head_commit.timestamp }}
 

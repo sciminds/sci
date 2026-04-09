@@ -1,6 +1,5 @@
-version := `cat VERSION`
 commit := `git rev-parse --short HEAD 2>/dev/null || echo unknown`
-ldflags := "-s -w -X github.com/sciminds/cli/internal/version.Version=" + version + " -X github.com/sciminds/cli/internal/version.Commit=" + commit
+ldflags := "-s -w -X github.com/sciminds/cli/internal/version.Commit=" + commit
 
 build:
     go build -ldflags="{{ldflags}}" -o sci ./cmd/sci

@@ -37,12 +37,11 @@ const (
 
 // CheckResult holds the outcome of checking for updates.
 type CheckResult struct {
-	Available     bool   `json:"available"`
-	CurrentSHA    string `json:"currentCommit"`
-	LatestSHA     string `json:"latestCommit,omitempty"`
-	DownloadURL   string `json:"downloadUrl,omitempty"`
-	LatestVersion string `json:"latestVersion,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Available   bool   `json:"available"`
+	CurrentSHA  string `json:"currentCommit"`
+	LatestSHA   string `json:"latestCommit,omitempty"`
+	DownloadURL string `json:"downloadUrl,omitempty"`
+	Error       string `json:"error,omitempty"`
 }
 
 // releaseResponse is the subset of the GitHub release API we need.
@@ -104,12 +103,6 @@ func Check() CheckResult {
 		return result
 	}
 	result.LatestSHA = matches[1]
-
-	// Extract version from release body (optional).
-	versionRe := regexp.MustCompile(`\*\*Version:\*\*\s+(\S+)`)
-	if vm := versionRe.FindStringSubmatch(release.Body); len(vm) >= 2 {
-		result.LatestVersion = vm[1]
-	}
 
 	// Find download URL for our platform.
 	assetName := fmt.Sprintf("sci-%s-%s", runtime.GOOS, runtime.GOARCH)
