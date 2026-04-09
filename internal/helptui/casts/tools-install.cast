@@ -1,6 +1,6 @@
 {"version": 2, "width": 80, "height": 24}
 [0.5, "o", "$ "]
-[0.8, "o", "sci brew install htop"]
+[0.8, "o", "sci tools install htop"]
 [1.0, "o", "\r\n"]
 [1.5, "o", "  ==> Fetching htop\r\n"]
 [1.7, "o", "  ==> Installing htop\r\n"]

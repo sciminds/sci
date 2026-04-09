@@ -1,6 +1,6 @@
 {"version": 2, "width": 80, "height": 24}
 [0.5, "o", "$ "]
-[0.8, "o", "sci doctor reccs"]
+[0.8, "o", "sci tools reccs"]
 [1.0, "o", "\r\n"]
 [1.5, "o", "  Select tools to install:\r\n"]
 [1.7, "o", "  ✓ bat        syntax-highlighted cat\r\n"]

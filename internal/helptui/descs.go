@@ -36,14 +36,12 @@ var longDescs = map[string]string{
 		"Supports CSV, JSON, SQLite databases, and more. Sort columns, scroll " +
 		"through large datasets, and search — all without opening up google-sheets/excel.",
 
-	"brew": "Keep Homebrew packages in sync with a Brewfile so your computer setup is reproducible. " +
-		"All normal brew commands automatically update the Brewfile and ensure the minimum set " +
-		"of required lab tools are installed.",
+	"tools": "A single layer over Homebrew and uv to keep your tools in sync with a Brewfile. " +
+		"Install, uninstall, list, and update packages — type detection is automatic. " +
+		"The reccs subcommand suggests useful optional tools; like a lab-vetted 'App Store' for your terminal :)",
 
 	"doctor": "Run a health check on your Mac to verify that required tools, " +
-		"runtimes, and configurations are present and correctly set up. The " +
-		"reccs subcommand suggests useful tools you might not have installed yet; " +
-		"like a lab-vetted 'App Store' for your terminal :)",
+		"runtimes, and configurations are present and correctly set up.",
 
 	"update": "Update sci to the latest released version. Downloads the newest " +
 		"binary from GitHub and replaces the current one in-place. No additional steps required.",

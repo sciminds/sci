@@ -27,7 +27,7 @@ func TestCommandTree(t *testing.T) {
 	// All top-level subcommands
 	topLevel := map[string]bool{
 		"learn": false,
-		"brew":  false, "doctor": false, "update": false,
+		"tools": false, "doctor": false, "update": false,
 		"proj": false, "py": false, "vid": false,
 		"db": false, "cloud": false, "lab": false, "view": false,
 	}
@@ -47,7 +47,7 @@ func TestCommandTree(t *testing.T) {
 		cats := map[string][]string{
 			"Getting Started": {"learn"},
 			"Commands":        {"cloud", "db", "lab", "proj", "py", "vid", "view"},
-			"Maintenance":     {"brew", "doctor", "update"},
+			"Maintenance":     {"tools", "doctor", "update"},
 		}
 		for cat, expected := range cats {
 			for _, name := range expected {
@@ -72,8 +72,7 @@ func TestSubcommandTrees(t *testing.T) {
 		parent   string
 		children []string
 	}{
-		{"brew", []string{"install", "uninstall", "list"}},
-		{"doctor", []string{"check", "reccs"}},
+		{"tools", []string{"install", "uninstall", "list", "update", "reccs"}},
 		{"proj", []string{"new", "config", "add", "remove", "run", "render", "preview"}},
 		{"py", []string{"repl", "marimo", "tutorials", "convert"}},
 		{"vid", []string{"info", "mute", "strip-subs", "speed", "cut", "resize", "extract-audio", "convert", "gif", "compress"}},

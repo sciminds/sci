@@ -18,30 +18,9 @@ func doctorCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "doctor",
 		Usage:       "Check that your Mac is set up correctly",
-		Description: "$ sci doctor check\n$ sci doctor reccs",
+		Description: "$ sci doctor",
 		Category:    "Maintenance",
-		Commands: []*cli.Command{
-			doctorCheckCommand(),
-			doctorReccsCommand(),
-		},
-	}
-}
-
-func doctorCheckCommand() *cli.Command {
-	return &cli.Command{
-		Name:        "check",
-		Usage:       "Check your environment and install missing tools",
-		Description: "$ sci doctor check",
 		Action:      runDoctorCheck,
-	}
-}
-
-func doctorReccsCommand() *cli.Command {
-	return &cli.Command{
-		Name:        "reccs",
-		Usage:       "Pick optional tools to install",
-		Description: "$ sci doctor reccs",
-		Action:      runDoctorReccs,
 	}
 }
 
@@ -183,7 +162,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	if errors.Is(installErr, cmdutil.ErrCancelled) {
 		fmt.Fprintf(os.Stderr, "\n  To install manually:\n")
-		fmt.Fprintf(os.Stderr, "    %s sci brew install\n", ui.SymArrow)
+		fmt.Fprintf(os.Stderr, "    %s sci tools install\n", ui.SymArrow)
 		fmt.Fprintln(os.Stderr)
 		return nil
 	}
@@ -202,34 +181,13 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 			ui.SymFail, ui.TUI.Fail().Render("Install failed: "+spinErr.Error()))
 		fmt.Fprintf(os.Stderr, "\n  To install manually:\n")
-		fmt.Fprintf(os.Stderr, "    %s sci brew install\n", ui.SymArrow)
+		fmt.Fprintf(os.Stderr, "    %s sci tools install\n", ui.SymArrow)
 		fmt.Fprintln(os.Stderr)
 	} else {
 		_ = output
 		printAllSet()
 	}
 
-	return nil
-}
-
-func runDoctorReccs(_ context.Context, cmd *cli.Command) error {
-	runner := brew.BundleRunner{}
-
-	if cmdutil.IsJSON(cmd) {
-		result, err := doctor.ListOptionalTools(runner)
-		if err != nil {
-			return err
-		}
-		cmdutil.Output(cmd, result)
-		return nil
-	}
-
-	result, err := doctor.RunOptionalSetup(runner)
-	if err != nil {
-		return err
-	}
-
-	cmdutil.Output(cmd, result)
 	return nil
 }
 

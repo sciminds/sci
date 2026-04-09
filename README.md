@@ -81,14 +81,15 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci lab put` | Upload a file or directory to your lab space |
 | `sci lab browse` | Open an SSH shell in lab storage |
 
-### Manage Homebrew packages
+### Manage tools (Homebrew & uv)
 
 | Command | What it does |
 |---------|--------------|
-| `sci brew list` | List packages in the Brewfile |
-| `sci brew install` | Install packages from the Brewfile, or add and install a new package |
-| `sci brew uninstall` | Remove a package from the Brewfile and uninstall it |
-| `sci brew update` | Update the Homebrew registry and upgrade outdated packages |
+| `sci tools list` | List packages in the Brewfile |
+| `sci tools install` | Install packages from the Brewfile, or add and install a new package |
+| `sci tools uninstall` | Remove a package from the Brewfile and uninstall it |
+| `sci tools update` | Update the Homebrew registry and upgrade outdated packages |
+| `sci tools reccs` | Pick optional tools to install |
 
 ### Video/audio editing
 
@@ -156,6 +157,8 @@ Binaries are named `{tool}-{os}-{arch}` (e.g. `sci-darwin-arm64`, `dbtui-linux-a
 ## Development
 
 Prerequisites: [Go 1.23+](https://go.dev/dl/) and [just](https://github.com/casey/just) (`brew install just`).
+
+You'll also need [`asciicinema`](https://docs.asciinema.org/manual/cli/quick-start/#__tabbed_1_3) to create new terminal "casts" to place in `internal/guide/casts/`
 
 *This is also setup as a git pre-commit hook:*
 

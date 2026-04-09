@@ -69,7 +69,7 @@ func buildRoot() *cli.Command {
 			vidCommand(),
 			viewCommand(),
 			// Maintenance
-			brewCommand(),
+			toolsCommand(),
 			doctorCommand(),
 			updateCommand(),
 			// Experimental
