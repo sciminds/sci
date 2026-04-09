@@ -33,15 +33,7 @@ func (r *DiffResult) Human() string {
 		return fmt.Sprintf("  %s No pending grade changes.\n", ui.SymOK)
 	}
 
-	// Group by assignment.
-	byAssignment := make(map[string][]GradeChange)
-	var order []string
-	for _, c := range r.Changes {
-		if _, seen := byAssignment[c.AssignmentSlug]; !seen {
-			order = append(order, c.AssignmentSlug)
-		}
-		byAssignment[c.AssignmentSlug] = append(byAssignment[c.AssignmentSlug], c)
-	}
+	byAssignment, order := groupBySlug(r.Changes)
 
 	var b strings.Builder
 	for _, slug := range order {
@@ -61,6 +53,23 @@ func (r *DiffResult) Human() string {
 	}
 	return b.String()
 }
+
+// groupBySlug groups items by assignment slug, preserving insertion order.
+func groupBySlug[T interface{ slug() string }](items []T) (map[string][]T, []string) {
+	grouped := make(map[string][]T)
+	var order []string
+	for _, item := range items {
+		s := item.slug()
+		if _, seen := grouped[s]; !seen {
+			order = append(order, s)
+		}
+		grouped[s] = append(grouped[s], item)
+	}
+	return grouped, order
+}
+
+func (c GradeChange) slug() string       { return c.AssignmentSlug }
+func (c RemoteGradeChange) slug() string { return c.AssignmentSlug }
 
 // DiffLocal computes pending grade changes by comparing grades vs _grades_synced.
 func DiffLocal(db *DB) (*DiffResult, error) {
@@ -98,13 +107,17 @@ func DiffLocal(db *DB) (*DiffResult, error) {
 
 	changes := make([]GradeChange, len(rows))
 	for i, r := range rows {
+		baseline := ""
+		if r.Baseline.Valid {
+			baseline = r.Baseline.String
+		}
 		changes[i] = GradeChange{
 			StudentID:          r.StudentID,
 			StudentName:        nameMap[r.StudentID],
 			AssignmentSlug:     r.AssignmentSlug,
 			CanvasUserID:       r.CanvasUserID,
 			CanvasAssignmentID: r.CanvasAssignmentID,
-			Baseline:           r.Baseline.String,
+			Baseline:           baseline,
 			Current:            r.PostedGrade,
 		}
 	}
@@ -132,14 +145,7 @@ func (r *RemoteDiffResult) Human() string {
 		return fmt.Sprintf("  %s No pending grade changes.\n", ui.SymOK)
 	}
 
-	byAssignment := make(map[string][]RemoteGradeChange)
-	var order []string
-	for _, c := range r.Changes {
-		if _, seen := byAssignment[c.AssignmentSlug]; !seen {
-			order = append(order, c.AssignmentSlug)
-		}
-		byAssignment[c.AssignmentSlug] = append(byAssignment[c.AssignmentSlug], c)
-	}
+	byAssignment, order := groupBySlug(r.Changes)
 
 	var b strings.Builder
 	for _, slug := range order {
@@ -200,7 +206,9 @@ func DiffRemote(ctx context.Context, db *DB, canvasBaseURL, token string, course
 		byAssignment[c.CanvasAssignmentID] = append(byAssignment[c.CanvasAssignmentID], c)
 	}
 
-	var result RemoteDiffResult
+	result := RemoteDiffResult{
+		Changes: make([]RemoteGradeChange, 0, len(local.Changes)),
+	}
 	for assignmentID, changes := range byAssignment {
 		// Fetch live submissions for this assignment.
 		path := fmt.Sprintf("/courses/%d/assignments/%d/submissions", courseID, assignmentID)

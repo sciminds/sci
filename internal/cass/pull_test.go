@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/sciminds/cli/internal/cass/api/github"
 )
 
 func TestPullStudents_Changelog(t *testing.T) {
@@ -74,6 +77,66 @@ func TestPullStudents_PreservesLocalFields(t *testing.T) {
 	}
 	if students[0].GitHubUsername != "alice-gh" {
 		t.Errorf("github_username = %q, want %q", students[0].GitHubUsername, "alice-gh")
+	}
+}
+
+func TestResolveClassroomID_NotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		classrooms := []map[string]any{
+			{"id": 1, "name": "Other Course", "url": "https://classroom.github.com/classrooms/111-other"},
+		}
+		_ = json.NewEncoder(w).Encode(classrooms)
+	}))
+	defer srv.Close()
+
+	client := github.NewClient("token")
+	client.BaseURL = srv.URL
+
+	_, err := resolveClassroomID(context.Background(), client, "https://classroom.github.com/classrooms/999-missing")
+	if err == nil {
+		t.Fatal("expected error for unmatched classroom URL")
+	}
+	if !strings.Contains(err.Error(), "Other Course") {
+		t.Errorf("error should list available classrooms, got: %v", err)
+	}
+}
+
+func TestResolveClassroomID_EmptyList(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode([]map[string]any{})
+	}))
+	defer srv.Close()
+
+	client := github.NewClient("token")
+	client.BaseURL = srv.URL
+
+	_, err := resolveClassroomID(context.Background(), client, "https://classroom.github.com/classrooms/999")
+	if err == nil {
+		t.Fatal("expected error for empty classroom list")
+	}
+	if !strings.Contains(err.Error(), "no classrooms found") {
+		t.Errorf("error should mention no classrooms found, got: %v", err)
+	}
+}
+
+func TestResolveClassroomID_Found(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		classrooms := []map[string]any{
+			{"id": 42, "name": "My Course", "url": "https://classroom.github.com/classrooms/999-my-course"},
+		}
+		_ = json.NewEncoder(w).Encode(classrooms)
+	}))
+	defer srv.Close()
+
+	client := github.NewClient("token")
+	client.BaseURL = srv.URL
+
+	id, err := resolveClassroomID(context.Background(), client, "https://classroom.github.com/classrooms/999-my-course")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id != 42 {
+		t.Errorf("id = %d, want 42", id)
 	}
 }
 

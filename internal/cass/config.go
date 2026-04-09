@@ -1,3 +1,7 @@
+// Package cass provides Canvas LMS and GitHub Classroom integration.
+// It syncs course data (students, assignments, submissions, grades) to a
+// local SQLite database and supports matching GitHub users to Canvas students,
+// diffing local grade edits, and pushing grades back to Canvas.
 package cass
 
 import (
@@ -112,6 +116,9 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	if cfg.Canvas.URL == "" {
 		return nil, fmt.Errorf("%s: canvas.url is required", filepath.Base(path))
+	}
+	if cfg.Classroom != nil && cfg.Classroom.URL == "" {
+		return nil, fmt.Errorf("%s: classroom.url is required when classroom is configured", filepath.Base(path))
 	}
 	return &cfg, nil
 }

@@ -121,6 +121,56 @@ func TestAutoMatch(t *testing.T) {
 	}
 }
 
+func TestAutoMatch_AllAlreadyMatched(t *testing.T) {
+	// When all students are already matched, should return empty.
+	canvas := []Student{
+		{CanvasID: 1, Name: "Alice Chen"},
+	}
+	matched, unmatched := AutoMatch(nil, canvas)
+	if len(matched) != 0 {
+		t.Errorf("matched = %d", len(matched))
+	}
+	if len(unmatched) != 0 {
+		t.Errorf("unmatched = %d", len(unmatched))
+	}
+}
+
+func TestAutoMatch_DuplicateCanvasStudent(t *testing.T) {
+	// Each Canvas student should only match once.
+	canvas := []Student{
+		{CanvasID: 1, Name: "Alice Chen"},
+	}
+	ghNames := []string{"Alice Chen", "Chen Alice"} // both normalize to same
+
+	matched, unmatched := AutoMatch(ghNames, canvas)
+	if len(matched) != 1 {
+		t.Errorf("matched = %d, want 1 (each Canvas student matches at most once)", len(matched))
+	}
+	if len(unmatched) != 1 {
+		t.Errorf("unmatched = %d, want 1", len(unmatched))
+	}
+}
+
+func TestScoreName_BoundaryConditions(t *testing.T) {
+	// Exactly 50% overlap.
+	score := scoreName("alice bob", []string{"alice", "bob"}, "alice charlie")
+	if score == 0 {
+		t.Error("expected non-zero score for 50% overlap (alice matches)")
+	}
+
+	// Below 50% overlap.
+	score = scoreName("alice bob charlie", []string{"alice", "bob", "charlie"}, "alice dave eve frank")
+	if score != 0 {
+		t.Errorf("expected 0 for < 50%% overlap, got %d", score)
+	}
+
+	// Empty after normalization.
+	score = scoreName("", nil, "alice")
+	if score != 0 {
+		t.Errorf("expected 0 for empty input, got %d", score)
+	}
+}
+
 func TestAutoMatch_LastFirst(t *testing.T) {
 	canvas := []Student{
 		{CanvasID: 1, Name: "Smith, John"},

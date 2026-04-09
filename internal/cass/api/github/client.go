@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/sciminds/cli/internal/cass/api"
-	"github.com/sciminds/cli/internal/netutil"
 )
 
 const (
@@ -61,12 +60,12 @@ func (c *Client) getURL(ctx context.Context, rawURL string, dst any) error {
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return netutil.Wrap("GitHub API", err)
+		return fmt.Errorf("GitHub API: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return fmt.Errorf("GitHub API %s: %d — %s", rawURL, resp.StatusCode, string(body))
 	}
 
@@ -88,38 +87,15 @@ func (c *Client) GetPaginated(ctx context.Context, path string, params url.Value
 	}
 
 	rawURL := c.buildURL(path, params)
-	var allBytes []json.RawMessage
+	allBytes := make([]json.RawMessage, 0, 100)
 
 	for rawURL != "" {
-		c.sem <- struct{}{}
-		req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
+		pageBytes, nextURL, err := c.fetchPage(ctx, rawURL)
 		if err != nil {
-			<-c.sem
 			return err
 		}
-		c.setHeaders(req)
-
-		resp, err := c.HTTPClient.Do(req)
-		<-c.sem
-		if err != nil {
-			return netutil.Wrap("GitHub API", err)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			return fmt.Errorf("GitHub API %s: %d — %s", rawURL, resp.StatusCode, string(body))
-		}
-
-		var page []json.RawMessage
-		if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
-			_ = resp.Body.Close()
-			return fmt.Errorf("GitHub API decode: %w", err)
-		}
-		_ = resp.Body.Close()
-
-		allBytes = append(allBytes, page...)
-		rawURL = api.ParseNextLink(resp.Header.Get("Link"))
+		allBytes = append(allBytes, pageBytes...)
+		rawURL = nextURL
 	}
 
 	combined, err := json.Marshal(allBytes)
@@ -154,6 +130,37 @@ func GetConcurrent[T any](ctx context.Context, c *Client, paths []string, params
 		}
 	}
 	return results, nil
+}
+
+// fetchPage fetches a single page of paginated results, returning raw JSON items
+// and the URL for the next page (or "" if none).
+func (c *Client) fetchPage(ctx context.Context, rawURL string) ([]json.RawMessage, string, error) {
+	c.sem <- struct{}{}
+	defer func() { <-c.sem }()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	c.setHeaders(req)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("GitHub API: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, "", fmt.Errorf("GitHub API %s: %d — %s", rawURL, resp.StatusCode, string(body))
+	}
+
+	var page []json.RawMessage
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		return nil, "", fmt.Errorf("GitHub API decode: %w", err)
+	}
+
+	return page, api.ParseNextLink(resp.Header.Get("Link")), nil
 }
 
 func (c *Client) buildURL(path string, params url.Values) string {

@@ -14,6 +14,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Submission source identifiers.
+const (
+	sourceCanvas = "canvas"
+	sourceGitHub = "github"
+)
+
 // Changelog tracks what changed during a pull operation.
 type Changelog struct {
 	Entity  string   `json:"entity"`
@@ -195,7 +201,7 @@ func PullSubmissions(ctx context.Context, db *DB, canvasBaseURL, token string, c
 			sub := SubmissionRow{
 				StudentID:       cs.UserID,
 				AssignmentSlug:  r.slug,
-				Source:          "canvas",
+				Source:          sourceCanvas,
 				Submitted:       submitted,
 				Late:            cs.Late,
 				LatenessSeconds: cs.SecondsLate,
@@ -235,38 +241,33 @@ type classroomListEntry struct {
 // We resolve by fetching all classrooms and matching the full URL string.
 func ResolveClassroomID(ctx context.Context, ghToken, classroomURL string) (int, error) {
 	client := github.NewClient(ghToken)
+	return resolveClassroomID(ctx, client, classroomURL)
+}
 
+func resolveClassroomID(ctx context.Context, client *github.Client, classroomURL string) (int, error) {
 	var classrooms []classroomListEntry
 	if err := client.GetPaginated(ctx, "/classrooms", nil, &classrooms); err != nil {
 		return 0, fmt.Errorf("list classrooms: %w", err)
 	}
 
 	// Normalize: strip trailing slash for comparison.
-	normalizeURL := func(u string) string {
-		for len(u) > 0 && u[len(u)-1] == '/' {
-			u = u[:len(u)-1]
-		}
-		return u
-	}
-	target := normalizeURL(classroomURL)
+	target := strings.TrimRight(classroomURL, "/")
 
 	for _, c := range classrooms {
-		if normalizeURL(c.URL) == target {
+		if strings.TrimRight(c.URL, "/") == target {
 			return c.ID, nil
 		}
 	}
 
-	// List available classrooms in the error for debugging.
+	if len(classrooms) == 0 {
+		return 0, fmt.Errorf("classroom not found for URL %q — no classrooms found; check your GitHub permissions", classroomURL)
+	}
+
 	var names []string
 	for _, c := range classrooms {
 		names = append(names, fmt.Sprintf("  %s (%s)", c.Name, c.URL))
 	}
-	hint := ""
-	if len(names) > 0 {
-		hint = "\n\nAvailable classrooms:\n" + strings.Join(names, "\n")
-	}
-
-	return 0, fmt.Errorf("classroom not found for URL %q — check the URL or your GitHub permissions%s", classroomURL, hint)
+	return 0, fmt.Errorf("classroom not found for URL %q — check the URL or your GitHub permissions\n\nAvailable classrooms:\n%s", classroomURL, strings.Join(names, "\n"))
 }
 
 // PullGHAssignments fetches GitHub Classroom assignments and merges into the assignments table.
@@ -335,20 +336,37 @@ func PullGHSubmissions(ctx context.Context, db *DB, ghToken string, classroomID 
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
+
+	// Fetch accepted assignments concurrently (bounded parallelism).
+	type assignmentAccepted struct {
+		slug     string
+		accepted []github.AcceptedAssignment
+	}
+	results := make([]assignmentAccepted, len(ghAssignments))
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(5)
+
+	for i, ga := range ghAssignments {
+		g.Go(func() error {
+			acceptedPath := fmt.Sprintf("/assignments/%d/accepted_assignments", ga.ID)
+			var accepted []github.AcceptedAssignment
+			if err := client.GetPaginated(gctx, acceptedPath, nil, &accepted); err != nil {
+				return fmt.Errorf("fetch accepted assignments for %s: %w", ga.Slug, err)
+			}
+			results[i] = assignmentAccepted{slug: ga.Slug, accepted: accepted}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
 	var allSubs []SubmissionRow
-
-	for _, ga := range ghAssignments {
-		acceptedPath := fmt.Sprintf("/assignments/%d/accepted_assignments", ga.ID)
-		var accepted []github.AcceptedAssignment
-		if err := client.GetPaginated(ctx, acceptedPath, nil, &accepted); err != nil {
-			return nil, fmt.Errorf("fetch accepted assignments for %s: %w", ga.Slug, err)
-		}
-
-		for _, aa := range accepted {
+	for _, r := range results {
+		for _, aa := range r.accepted {
 			if len(aa.Students) == 0 {
 				continue
 			}
-			login := aa.Students[0].Login
 			repoName := ""
 			if aa.Repository != nil {
 				repoName = aa.Repository.FullName
@@ -356,8 +374,8 @@ func PullGHSubmissions(ctx context.Context, db *DB, ghToken string, classroomID 
 
 			sub := SubmissionRow{
 				StudentID:      aa.Students[0].ID,
-				AssignmentSlug: ga.Slug,
-				Source:         "github",
+				AssignmentSlug: r.slug,
+				Source:         sourceGitHub,
 				Submitted:      aa.Submitted,
 				Passing:        &aa.Passing,
 				CommitCount:    &aa.CommitCount,
@@ -367,18 +385,14 @@ func PullGHSubmissions(ctx context.Context, db *DB, ghToken string, classroomID 
 			if aa.Grade != nil {
 				sub.GHAutograderScore = sql.NullString{String: *aa.Grade, Valid: true}
 			}
-			_ = login // login used for matching, not stored in submissions
 			allSubs = append(allSubs, sub)
 		}
 	}
 
 	cl := &Changelog{Entity: "gh_submissions", Added: len(allSubs)}
 
-	// Append GH submissions (don't delete Canvas submissions).
-	for _, s := range allSubs {
-		if err := db.UpsertSubmission(s); err != nil {
-			return nil, err
-		}
+	if err := db.UpsertSubmissions(allSubs); err != nil {
+		return nil, err
 	}
 
 	return cl, nil

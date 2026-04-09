@@ -194,6 +194,18 @@ func TestLoadConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("classroom with empty url", func(t *testing.T) {
+		path := filepath.Join(dir, "empty-classroom.yaml")
+		data := []byte("canvas:\n  url: https://canvas.ucsd.edu/courses/63653\nclassroom:\n  url: \"\"\n")
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := LoadConfig(path)
+		if err == nil {
+			t.Fatal("expected error for classroom with empty URL")
+		}
+	})
+
 	t.Run("invalid yaml", func(t *testing.T) {
 		path := filepath.Join(dir, "bad.yaml")
 		if err := os.WriteFile(path, []byte(":::"), 0o644); err != nil {

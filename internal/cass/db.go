@@ -275,27 +275,32 @@ type LogEntry struct {
 // UpsertStudents inserts or updates students, preserving local columns
 // (github_username, excluded).
 func (d *DB) UpsertStudents(students []Student) error {
-	for _, s := range students {
-		_, err := d.db.NewQuery(`
-			INSERT INTO students (canvas_id, name, sortable_name, email, login_id)
-			VALUES ({:canvas_id}, {:name}, {:sortable_name}, {:email}, {:login_id})
-			ON CONFLICT(canvas_id) DO UPDATE SET
-				name            = {:name},
-				sortable_name   = {:sortable_name},
-				email           = {:email},
-				login_id        = {:login_id}
-		`).Bind(map[string]any{
-			"canvas_id":     s.CanvasID,
-			"name":          s.Name,
-			"sortable_name": s.SortableName,
-			"email":         s.Email,
-			"login_id":      s.LoginID,
-		}).Execute()
-		if err != nil {
-			return fmt.Errorf("upsert student %d: %w", s.CanvasID, err)
-		}
+	if len(students) == 0 {
+		return nil
 	}
-	return nil
+	return d.inTx(func(tx *dbx.Tx) error {
+		for _, s := range students {
+			_, err := tx.NewQuery(`
+				INSERT INTO students (canvas_id, name, sortable_name, email, login_id)
+				VALUES ({:canvas_id}, {:name}, {:sortable_name}, {:email}, {:login_id})
+				ON CONFLICT(canvas_id) DO UPDATE SET
+					name            = {:name},
+					sortable_name   = {:sortable_name},
+					email           = {:email},
+					login_id        = {:login_id}
+			`).Bind(map[string]any{
+				"canvas_id":     s.CanvasID,
+				"name":          s.Name,
+				"sortable_name": s.SortableName,
+				"email":         s.Email,
+				"login_id":      s.LoginID,
+			}).Execute()
+			if err != nil {
+				return fmt.Errorf("upsert student %d: %w", s.CanvasID, err)
+			}
+		}
+		return nil
+	})
 }
 
 // AllStudents returns all students ordered by name.
@@ -314,39 +319,44 @@ func (d *DB) AllStudents() ([]Student, error) {
 
 // UpsertAssignments inserts or updates assignments.
 func (d *DB) UpsertAssignments(assignments []AssignmentRow) error {
-	for _, a := range assignments {
-		_, err := d.db.NewQuery(`
-			INSERT INTO assignments (slug, title, canvas_id, gh_slug, points_possible, gh_points, deadline, gh_deadline, published, assignment_group, post_manually)
-			VALUES ({:slug}, {:title}, {:canvas_id}, {:gh_slug}, {:points_possible}, {:gh_points}, {:deadline}, {:gh_deadline}, {:published}, {:assignment_group}, {:post_manually})
-			ON CONFLICT(slug) DO UPDATE SET
-				title            = {:title},
-				canvas_id        = {:canvas_id},
-				gh_slug          = {:gh_slug},
-				points_possible  = {:points_possible},
-				gh_points        = {:gh_points},
-				deadline         = {:deadline},
-				gh_deadline      = {:gh_deadline},
-				published        = {:published},
-				assignment_group = {:assignment_group},
-				post_manually    = {:post_manually}
-		`).Bind(map[string]any{
-			"slug":             a.Slug,
-			"title":            a.Title,
-			"canvas_id":        a.CanvasID,
-			"gh_slug":          nullStr(a.GHSlug),
-			"points_possible":  a.PointsPossible,
-			"gh_points":        a.GHPoints,
-			"deadline":         nullStr(a.Deadline),
-			"gh_deadline":      nullStr(a.GHDeadline),
-			"published":        a.Published,
-			"assignment_group": a.AssignmentGroup,
-			"post_manually":    a.PostManually,
-		}).Execute()
-		if err != nil {
-			return fmt.Errorf("upsert assignment %q: %w", a.Slug, err)
-		}
+	if len(assignments) == 0 {
+		return nil
 	}
-	return nil
+	return d.inTx(func(tx *dbx.Tx) error {
+		for _, a := range assignments {
+			_, err := tx.NewQuery(`
+				INSERT INTO assignments (slug, title, canvas_id, gh_slug, points_possible, gh_points, deadline, gh_deadline, published, assignment_group, post_manually)
+				VALUES ({:slug}, {:title}, {:canvas_id}, {:gh_slug}, {:points_possible}, {:gh_points}, {:deadline}, {:gh_deadline}, {:published}, {:assignment_group}, {:post_manually})
+				ON CONFLICT(slug) DO UPDATE SET
+					title            = {:title},
+					canvas_id        = {:canvas_id},
+					gh_slug          = {:gh_slug},
+					points_possible  = {:points_possible},
+					gh_points        = {:gh_points},
+					deadline         = {:deadline},
+					gh_deadline      = {:gh_deadline},
+					published        = {:published},
+					assignment_group = {:assignment_group},
+					post_manually    = {:post_manually}
+			`).Bind(map[string]any{
+				"slug":             a.Slug,
+				"title":            a.Title,
+				"canvas_id":        a.CanvasID,
+				"gh_slug":          nullStr(a.GHSlug),
+				"points_possible":  a.PointsPossible,
+				"gh_points":        a.GHPoints,
+				"deadline":         nullStr(a.Deadline),
+				"gh_deadline":      nullStr(a.GHDeadline),
+				"published":        a.Published,
+				"assignment_group": a.AssignmentGroup,
+				"post_manually":    a.PostManually,
+			}).Execute()
+			if err != nil {
+				return fmt.Errorf("upsert assignment %q: %w", a.Slug, err)
+			}
+		}
+		return nil
+	})
 }
 
 // AllAssignments returns all assignments ordered by title.
@@ -371,76 +381,37 @@ func (d *DB) UpdateAssignmentGHFields(ghSlug string, ghPoints *float64, ghDeadli
 
 // UpsertSubmission inserts or updates a single submission row.
 func (d *DB) UpsertSubmission(s SubmissionRow) error {
-	_, err := d.db.NewQuery(`
-		INSERT INTO submissions (student_id, assignment_slug, source, submitted, submitted_at, late, lateness_seconds, score, workflow_state, repo_name, commit_count, passing, gh_autograder_score, last_commit_at, last_commit_sha, fetched_at)
-		VALUES ({:student_id}, {:assignment_slug}, {:source}, {:submitted}, {:submitted_at}, {:late}, {:lateness_seconds}, {:score}, {:workflow_state}, {:repo_name}, {:commit_count}, {:passing}, {:gh_autograder_score}, {:last_commit_at}, {:last_commit_sha}, {:fetched_at})
-		ON CONFLICT(student_id, assignment_slug, source) DO UPDATE SET
-			submitted           = {:submitted},
-			submitted_at        = {:submitted_at},
-			late                = {:late},
-			lateness_seconds    = {:lateness_seconds},
-			score               = {:score},
-			workflow_state      = {:workflow_state},
-			repo_name           = {:repo_name},
-			commit_count        = {:commit_count},
-			passing             = {:passing},
-			gh_autograder_score = {:gh_autograder_score},
-			last_commit_at      = {:last_commit_at},
-			last_commit_sha     = {:last_commit_sha},
-			fetched_at          = {:fetched_at}
-	`).Bind(map[string]any{
-		"student_id":          s.StudentID,
-		"assignment_slug":     s.AssignmentSlug,
-		"source":              s.Source,
-		"submitted":           s.Submitted,
-		"submitted_at":        nullStr(s.SubmittedAt),
-		"late":                s.Late,
-		"lateness_seconds":    s.LatenessSeconds,
-		"score":               s.Score,
-		"workflow_state":      nullStr(s.WorkflowState),
-		"repo_name":           nullStr(s.RepoName),
-		"commit_count":        s.CommitCount,
-		"passing":             s.Passing,
-		"gh_autograder_score": nullStr(s.GHAutograderScore),
-		"last_commit_at":      nullStr(s.LastCommitAt),
-		"last_commit_sha":     nullStr(s.LastCommitSHA),
-		"fetched_at":          s.FetchedAt,
-	}).Execute()
-	return err
+	return upsertSubmission(d.db, s)
 }
 
 // ReplaceSubmissions deletes all existing submissions and inserts new ones.
 func (d *DB) ReplaceSubmissions(subs []SubmissionRow) error {
-	if _, err := d.db.NewQuery("DELETE FROM submissions").Execute(); err != nil {
-		return err
-	}
-	for _, s := range subs {
-		_, err := d.db.NewQuery(`
-			INSERT INTO submissions (student_id, assignment_slug, source, submitted, submitted_at, late, lateness_seconds, score, workflow_state, repo_name, commit_count, passing, gh_autograder_score, last_commit_at, last_commit_sha, fetched_at)
-			VALUES ({:student_id}, {:assignment_slug}, {:source}, {:submitted}, {:submitted_at}, {:late}, {:lateness_seconds}, {:score}, {:workflow_state}, {:repo_name}, {:commit_count}, {:passing}, {:gh_autograder_score}, {:last_commit_at}, {:last_commit_sha}, {:fetched_at})
-		`).Bind(map[string]any{
-			"student_id":          s.StudentID,
-			"assignment_slug":     s.AssignmentSlug,
-			"source":              s.Source,
-			"submitted":           s.Submitted,
-			"submitted_at":        nullStr(s.SubmittedAt),
-			"late":                s.Late,
-			"lateness_seconds":    s.LatenessSeconds,
-			"score":               s.Score,
-			"workflow_state":      nullStr(s.WorkflowState),
-			"repo_name":           nullStr(s.RepoName),
-			"commit_count":        s.CommitCount,
-			"passing":             s.Passing,
-			"gh_autograder_score": nullStr(s.GHAutograderScore),
-			"last_commit_at":      nullStr(s.LastCommitAt),
-			"last_commit_sha":     nullStr(s.LastCommitSHA),
-			"fetched_at":          s.FetchedAt,
-		}).Execute()
-		if err != nil {
-			return fmt.Errorf("insert submission: %w", err)
+	return d.inTx(func(tx *dbx.Tx) error {
+		if _, err := tx.NewQuery("DELETE FROM submissions").Execute(); err != nil {
+			return err
 		}
+		for _, s := range subs {
+			if err := insertSubmission(tx, s); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// UpsertSubmissions inserts or updates multiple submissions in a single transaction.
+func (d *DB) UpsertSubmissions(subs []SubmissionRow) error {
+	if len(subs) == 0 {
+		return nil
 	}
-	return nil
+	return d.inTx(func(tx *dbx.Tx) error {
+		for _, s := range subs {
+			if err := upsertSubmission(tx, s); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // SetStudentGitHubUsername sets the github_username for a student by canvas_id.
@@ -467,6 +438,62 @@ func (d *DB) ReadLog(limit int) ([]LogEntry, error) {
 	err := d.db.NewQuery("SELECT * FROM log ORDER BY id DESC LIMIT {:limit}").
 		Bind(map[string]any{"limit": limit}).All(&rows)
 	return rows, err
+}
+
+// inTx runs fn inside a transaction, committing on success or rolling back on error.
+func (d *DB) inTx(fn func(tx *dbx.Tx) error) error {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	if err := fn(tx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+func submissionBinds(s SubmissionRow) map[string]any {
+	return map[string]any{
+		"student_id":          s.StudentID,
+		"assignment_slug":     s.AssignmentSlug,
+		"source":              s.Source,
+		"submitted":           s.Submitted,
+		"submitted_at":        nullStr(s.SubmittedAt),
+		"late":                s.Late,
+		"lateness_seconds":    s.LatenessSeconds,
+		"score":               s.Score,
+		"workflow_state":      nullStr(s.WorkflowState),
+		"repo_name":           nullStr(s.RepoName),
+		"commit_count":        s.CommitCount,
+		"passing":             s.Passing,
+		"gh_autograder_score": nullStr(s.GHAutograderScore),
+		"last_commit_at":      nullStr(s.LastCommitAt),
+		"last_commit_sha":     nullStr(s.LastCommitSHA),
+		"fetched_at":          s.FetchedAt,
+	}
+}
+
+const submissionCols = `student_id, assignment_slug, source, submitted, submitted_at, late, lateness_seconds, score, workflow_state, repo_name, commit_count, passing, gh_autograder_score, last_commit_at, last_commit_sha, fetched_at`
+
+const submissionVals = `{:student_id}, {:assignment_slug}, {:source}, {:submitted}, {:submitted_at}, {:late}, {:lateness_seconds}, {:score}, {:workflow_state}, {:repo_name}, {:commit_count}, {:passing}, {:gh_autograder_score}, {:last_commit_at}, {:last_commit_sha}, {:fetched_at}`
+
+const submissionUpdateSet = `submitted={:submitted}, submitted_at={:submitted_at}, late={:late}, lateness_seconds={:lateness_seconds}, score={:score}, workflow_state={:workflow_state}, repo_name={:repo_name}, commit_count={:commit_count}, passing={:passing}, gh_autograder_score={:gh_autograder_score}, last_commit_at={:last_commit_at}, last_commit_sha={:last_commit_sha}, fetched_at={:fetched_at}`
+
+func insertSubmission(b dbx.Builder, s SubmissionRow) error {
+	_, err := b.NewQuery(`INSERT INTO submissions (` + submissionCols + `) VALUES (` + submissionVals + `)`).
+		Bind(submissionBinds(s)).Execute()
+	if err != nil {
+		return fmt.Errorf("insert submission: %w", err)
+	}
+	return nil
+}
+
+func upsertSubmission(b dbx.Builder, s SubmissionRow) error {
+	_, err := b.NewQuery(`INSERT INTO submissions (` + submissionCols + `) VALUES (` + submissionVals + `)
+		ON CONFLICT(student_id, assignment_slug, source) DO UPDATE SET ` + submissionUpdateSet).
+		Bind(submissionBinds(s)).Execute()
+	return err
 }
 
 // nilIfEmpty returns nil if s is empty, or s otherwise.

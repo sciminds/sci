@@ -63,6 +63,105 @@ func TestClient_GetPaginated(t *testing.T) {
 	}
 }
 
+func TestClient_GetPaginated_SemaphoreSafety(t *testing.T) {
+	// Verifies semaphore is properly released even when requests error mid-pagination.
+	// First page succeeds, second page returns 500.
+	page := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		page++
+		if page == 1 {
+			nextURL := fmt.Sprintf("http://%s%s?page=2", r.Host, r.URL.Path)
+			w.Header().Set("Link", fmt.Sprintf(`<%s>; rel="next"`, nextURL))
+			_ = json.NewEncoder(w).Encode([]Assignment{{ID: 1, Slug: "lab-1"}})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"message":"server error"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient("gh-token")
+	c.BaseURL = srv.URL
+	c.MaxConcurrent = 2
+
+	var assignments []Assignment
+	err := c.GetPaginated(context.Background(), "/classrooms/1/assignments", nil, &assignments)
+	if err == nil {
+		t.Fatal("expected error for 500 on second page")
+	}
+
+	// After the error, the semaphore must be fully drained (not leaked).
+	// Verify by doing another successful request — if semaphore leaked, this would deadlock.
+	page = 0
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode([]Assignment{{ID: 2, Slug: "lab-2"}})
+	}))
+	defer srv2.Close()
+	c.BaseURL = srv2.URL
+
+	var result []Assignment
+	if err := c.GetPaginated(context.Background(), "/test", nil, &result); err != nil {
+		t.Fatalf("follow-up request failed (semaphore leak?): %v", err)
+	}
+	if len(result) != 1 {
+		t.Errorf("len = %d, want 1", len(result))
+	}
+}
+
+func TestClient_NonOKStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"message":"bad credentials"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient("bad-token")
+	c.BaseURL = srv.URL
+
+	var result []Assignment
+	err := c.Get(context.Background(), "/classrooms/1/assignments", nil, &result)
+	if err == nil {
+		t.Fatal("expected error for 403")
+	}
+}
+
+func TestClient_GetPaginated_EmptyResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode([]Assignment{})
+	}))
+	defer srv.Close()
+
+	c := NewClient("gh-token")
+	c.BaseURL = srv.URL
+
+	var assignments []Assignment
+	if err := c.GetPaginated(context.Background(), "/classrooms/1/assignments", nil, &assignments); err != nil {
+		t.Fatal(err)
+	}
+	if len(assignments) != 0 {
+		t.Errorf("len = %d, want 0", len(assignments))
+	}
+}
+
+func TestClient_ContextCancellation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode([]Assignment{{ID: 1}})
+	}))
+	defer srv.Close()
+
+	c := NewClient("gh-token")
+	c.BaseURL = srv.URL
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	var assignments []Assignment
+	err := c.Get(ctx, "/test", nil, &assignments)
+	if err == nil {
+		t.Fatal("expected error for cancelled context")
+	}
+}
+
 func TestClient_GetConcurrent(t *testing.T) {
 	var callCount atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

@@ -1,6 +1,7 @@
 package cass
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 )
@@ -34,6 +35,40 @@ func TestCreateSchema(t *testing.T) {
 	}
 	if ver != schemaVersion {
 		t.Errorf("schema_version = %q, want %q", ver, schemaVersion)
+	}
+}
+
+func TestSchemaVersionMismatch_Recreates(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.db")
+	db, err := OpenDB(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Insert some data.
+	_ = db.UpsertStudents([]Student{{CanvasID: 1, Name: "Alice"}})
+
+	// Tamper with schema version.
+	_ = db.SetMeta("schema_version", "0")
+	_ = db.Close()
+
+	// Reopen — should detect mismatch and recreate.
+	db2, err := OpenDB(path)
+	if err != nil {
+		t.Fatalf("reopen after version change: %v", err)
+	}
+	defer func() { _ = db2.Close() }()
+
+	// Old data should be gone.
+	students, _ := db2.AllStudents()
+	if len(students) != 0 {
+		t.Errorf("expected 0 students after schema reset, got %d", len(students))
+	}
+
+	// Schema version should be current.
+	ver, _ := db2.GetMeta("schema_version")
+	if ver != schemaVersion {
+		t.Errorf("version = %q, want %q", ver, schemaVersion)
 	}
 }
 
@@ -193,6 +228,71 @@ func TestReplaceSubmissions(t *testing.T) {
 	}
 }
 
+func TestUpsertStudents_PreservesExcluded(t *testing.T) {
+	db := openTestDB(t)
+
+	// Insert a student and mark as excluded.
+	_ = db.UpsertStudents([]Student{{CanvasID: 1, Name: "Alice", Email: "a@test.com"}})
+	_, _ = db.db.NewQuery("UPDATE students SET excluded=1 WHERE canvas_id=1").Execute()
+
+	// Re-upsert with updated name.
+	_ = db.UpsertStudents([]Student{{CanvasID: 1, Name: "Alice Updated", Email: "a2@test.com"}})
+
+	students, _ := db.AllStudents()
+	if len(students) != 1 {
+		t.Fatalf("len = %d", len(students))
+	}
+	if students[0].Name != "Alice Updated" {
+		t.Errorf("name = %q", students[0].Name)
+	}
+	if !students[0].Excluded {
+		t.Error("excluded flag should be preserved across upsert")
+	}
+}
+
+func TestUpsertSubmissions_Batch(t *testing.T) {
+	db := openTestDB(t)
+
+	subs := []SubmissionRow{
+		{StudentID: 1, AssignmentSlug: "lab-1", Source: "github", Submitted: true, FetchedAt: "2026-04-08T00:00:00Z"},
+		{StudentID: 2, AssignmentSlug: "lab-1", Source: "github", Submitted: false, FetchedAt: "2026-04-08T00:00:00Z"},
+	}
+	if err := db.UpsertSubmissions(subs); err != nil {
+		t.Fatal(err)
+	}
+
+	var count int
+	_ = db.db.NewQuery("SELECT count(*) FROM submissions").Row(&count)
+	if count != 2 {
+		t.Errorf("count = %d, want 2", count)
+	}
+
+	// Update one submission via upsert.
+	subs[0].Submitted = false
+	if err := db.UpsertSubmissions(subs); err != nil {
+		t.Fatal(err)
+	}
+
+	_ = db.db.NewQuery("SELECT count(*) FROM submissions").Row(&count)
+	if count != 2 {
+		t.Errorf("count after upsert = %d, want 2", count)
+	}
+}
+
+func TestUpsertStudents_Empty(t *testing.T) {
+	db := openTestDB(t)
+	if err := db.UpsertStudents(nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpsertAssignments_Empty(t *testing.T) {
+	db := openTestDB(t)
+	if err := db.UpsertAssignments(nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWriteLog(t *testing.T) {
 	db := openTestDB(t)
 
@@ -213,6 +313,65 @@ func TestWriteLog(t *testing.T) {
 	// Most recent first.
 	if entries[0].Op != "push" {
 		t.Errorf("first entry op = %q, want %q", entries[0].Op, "push")
+	}
+}
+
+func TestReadLog_Limit(t *testing.T) {
+	db := openTestDB(t)
+
+	for i := range 5 {
+		_ = db.WriteLog("op", fmt.Sprintf("entry %d", i), "")
+	}
+
+	entries, err := db.ReadLog(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 3 {
+		t.Errorf("len = %d, want 3", len(entries))
+	}
+	// Most recent first.
+	if entries[0].Summary != "entry 4" {
+		t.Errorf("first = %q, want %q", entries[0].Summary, "entry 4")
+	}
+}
+
+func TestReplaceSubmissions_Empty(t *testing.T) {
+	db := openTestDB(t)
+
+	// Insert some initial data.
+	_ = db.ReplaceSubmissions([]SubmissionRow{
+		{StudentID: 1, AssignmentSlug: "lab-1", Source: "canvas", FetchedAt: "2026-04-08T00:00:00Z"},
+	})
+
+	// Replace with empty list — should clear all.
+	if err := db.ReplaceSubmissions(nil); err != nil {
+		t.Fatal(err)
+	}
+
+	var count int
+	_ = db.db.NewQuery("SELECT count(*) FROM submissions").Row(&count)
+	if count != 0 {
+		t.Errorf("count = %d, want 0", count)
+	}
+}
+
+func TestSetStudentGitHubUsername(t *testing.T) {
+	db := openTestDB(t)
+	_ = db.UpsertStudents([]Student{{CanvasID: 1, Name: "Alice"}})
+
+	if err := db.SetStudentGitHubUsername(1, "alice-gh"); err != nil {
+		t.Fatal(err)
+	}
+
+	students, _ := db.AllStudents()
+	if students[0].GitHubUsername != "alice-gh" {
+		t.Errorf("username = %q", students[0].GitHubUsername)
+	}
+
+	// Setting on non-existent ID should not error (UPDATE affects 0 rows).
+	if err := db.SetStudentGitHubUsername(999, "nobody"); err != nil {
+		t.Fatalf("unexpected error for non-existent student: %v", err)
 	}
 }
 

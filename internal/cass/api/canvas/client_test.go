@@ -148,6 +148,125 @@ func TestClient_PostForm(t *testing.T) {
 	}
 }
 
+func TestClient_ConcurrentThrottleSafety(t *testing.T) {
+	// Exercises concurrent requests that trigger rate-limit throttling.
+	// Run with -race to verify no data races on throttleUntil.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Rate-Limit-Remaining", "10") // below threshold → triggers throttle
+		_ = json.NewEncoder(w).Encode(Course{ID: 1})
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "test-token")
+	c.ThrottleDelay = time.Millisecond // keep test fast
+
+	errs := make(chan error, 10)
+	for range 10 {
+		go func() {
+			var course Course
+			errs <- c.Get(context.Background(), "/courses/1", nil, &course)
+		}()
+	}
+	for range 10 {
+		if err := <-errs; err != nil {
+			t.Errorf("concurrent get: %v", err)
+		}
+	}
+}
+
+func TestClient_RetryExhaustion(t *testing.T) {
+	// All retries return 429 → should return error after MaxRetries.
+	var callCount atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		callCount.Add(1)
+		w.Header().Set("Retry-After", "0")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "test-token")
+	c.MaxRetries = 3
+	c.RetryBaseDelay = time.Millisecond
+
+	var course Course
+	err := c.Get(context.Background(), "/courses/1", nil, &course)
+	if err == nil {
+		t.Fatal("expected error when all retries exhausted")
+	}
+	if callCount.Load() != 3 {
+		t.Errorf("call count = %d, want 3 (MaxRetries)", callCount.Load())
+	}
+}
+
+func TestClient_NonOKStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "test-token")
+	var course Course
+	err := c.Get(context.Background(), "/courses/1", nil, &course)
+	if err == nil {
+		t.Fatal("expected error for 403")
+	}
+	if !strings.Contains(err.Error(), "403") {
+		t.Errorf("error = %q, want it to contain 403", err)
+	}
+}
+
+func TestClient_GetPaginated_EmptyResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode([]User{})
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "test-token")
+	var users []User
+	if err := c.GetPaginated(context.Background(), "/courses/1/users", nil, &users); err != nil {
+		t.Fatal(err)
+	}
+	if len(users) != 0 {
+		t.Errorf("len = %d, want 0", len(users))
+	}
+}
+
+func TestClient_ContextCancellation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		_ = json.NewEncoder(w).Encode(Course{ID: 1})
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "test-token")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	var course Course
+	err := c.Get(ctx, "/courses/1", nil, &course)
+	if err == nil {
+		t.Fatal("expected error for cancelled context")
+	}
+}
+
+func TestClient_Delete(t *testing.T) {
+	var gotMethod string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "test-token")
+	if err := c.Delete(context.Background(), "/courses/1/modules/5"); err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != "DELETE" {
+		t.Errorf("method = %q", gotMethod)
+	}
+}
+
 func TestClient_BulkGradeFormat(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {

@@ -9,10 +9,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sciminds/cli/internal/cass/api"
-	"github.com/sciminds/cli/internal/netutil"
 )
 
 const (
@@ -33,13 +33,14 @@ type Client struct {
 	Token      string
 	HTTPClient *http.Client
 
-	// Tuning knobs (exported for testing).
-	ThrottleThreshold float64
-	ThrottleDelay     time.Duration
-	MaxRetries        int
-	RetryBaseDelay    time.Duration
+	// Tuning knobs — exported for testing. Defaults are set by NewClient.
+	ThrottleThreshold float64       // X-Rate-Limit-Remaining below this triggers a delay (default 50)
+	ThrottleDelay     time.Duration // How long to pause when throttled (default 1s)
+	MaxRetries        int           // Max attempts on 429/network error (default 3)
+	RetryBaseDelay    time.Duration // Base delay for exponential backoff (default 1s)
 
-	// Mutable state.
+	// Mutable state — protected by mu.
+	mu            sync.Mutex
 	throttleUntil time.Time
 }
 
@@ -77,7 +78,7 @@ func (c *Client) GetPaginated(ctx context.Context, path string, params url.Value
 
 func (c *Client) getPaginatedURL(ctx context.Context, rawURL string, dst any) error {
 	// Collect all raw JSON arrays, then decode into dst.
-	var allBytes []json.RawMessage
+	allBytes := make([]json.RawMessage, 0, 100)
 
 	for rawURL != "" {
 		req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
@@ -89,13 +90,13 @@ func (c *Client) getPaginatedURL(ctx context.Context, rawURL string, dst any) er
 
 		resp, err := c.doWithRetry(req)
 		if err != nil {
-			return netutil.Wrap("canvas API", err)
+			return fmt.Errorf("canvas API: %w", err)
 		}
 
 		c.checkRateLimit(resp)
 
 		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 			_ = resp.Body.Close()
 			return fmt.Errorf("canvas API %s: %d — %s", rawURL, resp.StatusCode, string(body))
 		}
@@ -158,7 +159,7 @@ func (c *Client) do(ctx context.Context, method, path string, params url.Values,
 
 	resp, err := c.doWithRetry(req)
 	if err != nil {
-		return netutil.Wrap("canvas API", err)
+		return fmt.Errorf("canvas API: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -195,7 +196,7 @@ func (c *Client) doForm(ctx context.Context, method, path string, form FormData,
 
 	resp, err := c.doWithRetry(req)
 	if err != nil {
-		return netutil.Wrap("canvas API", err)
+		return fmt.Errorf("canvas API: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -268,12 +269,17 @@ func (c *Client) checkRateLimit(resp *http.Response) {
 		return
 	}
 	if val < c.ThrottleThreshold {
+		c.mu.Lock()
 		c.throttleUntil = time.Now().Add(c.ThrottleDelay)
+		c.mu.Unlock()
 	}
 }
 
 func (c *Client) waitThrottle() {
-	if !c.throttleUntil.IsZero() && time.Now().Before(c.throttleUntil) {
-		time.Sleep(time.Until(c.throttleUntil))
+	c.mu.Lock()
+	until := c.throttleUntil
+	c.mu.Unlock()
+	if !until.IsZero() && time.Now().Before(until) {
+		time.Sleep(time.Until(until))
 	}
 }

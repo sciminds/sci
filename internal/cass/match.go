@@ -22,10 +22,12 @@ type MatchPair struct {
 	Student Student
 }
 
-var nonAlphaRe = regexp.MustCompile(`[^a-z ]+`)
-var multiSpaceRe = regexp.MustCompile(`\s+`)
-var slugSepRe = regexp.MustCompile(`[\s_/()]+`)
-var multiDashRe = regexp.MustCompile(`-{2,}`)
+var (
+	nonAlphaRe   = regexp.MustCompile(`[^a-z ]+`)  // strips non-alphabetic chars (keeps spaces)
+	multiSpaceRe = regexp.MustCompile(`\s+`)       // collapses whitespace runs
+	slugSepRe    = regexp.MustCompile(`[\s_/()]+`) // splits on slug separators
+	multiDashRe  = regexp.MustCompile(`-{2,}`)     // collapses consecutive dashes
+)
 
 // NormalizeName normalizes a name for matching:
 //   - lowercase, strip whitespace
@@ -220,8 +222,9 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 	}
 
 	if len(unmatched) == 0 {
-		// Clear the match_pending flag.
-		_ = db.SetMeta("match_pending", "false")
+		if err := db.SetMeta("match_pending", "false"); err != nil {
+			return nil, fmt.Errorf("clear match_pending: %w", err)
+		}
 		return &MatchResult{}, nil
 	}
 
@@ -253,29 +256,36 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 
 	if autoOnly {
 		result.Unmatched = len(remaining)
+		pending := "false"
 		if result.Unmatched > 0 {
-			_ = db.SetMeta("match_pending", "true")
-		} else {
-			_ = db.SetMeta("match_pending", "false")
+			pending = "true"
+		}
+		if err := db.SetMeta("match_pending", pending); err != nil {
+			return nil, fmt.Errorf("set match_pending: %w", err)
 		}
 		return result, nil
 	}
 
 	// Interactive matching for remaining.
-	// Filter out already-matched Canvas students.
+	// Track matched Canvas student IDs to filter candidates.
 	matchedIDs := make(map[int]bool)
 	for _, m := range matched {
 		matchedIDs[m.Student.CanvasID] = true
 	}
-	var availableCanvas []Student
-	for _, s := range unmatched {
-		if !matchedIDs[s.CanvasID] {
-			availableCanvas = append(availableCanvas, s)
+
+	// Build the available pool once; use matchedIDs to filter during candidate generation.
+	availableCanvas := func() []Student {
+		var out []Student
+		for _, s := range unmatched {
+			if !matchedIDs[s.CanvasID] {
+				out = append(out, s)
+			}
 		}
+		return out
 	}
 
 	for _, ghName := range remaining {
-		candidates := FindCandidates(ghName, availableCanvas)
+		candidates := FindCandidates(ghName, availableCanvas())
 		if len(candidates) == 0 {
 			result.Unmatched++
 			result.Details = append(result.Details, fmt.Sprintf("%s → no candidates found", ghName))
@@ -310,26 +320,21 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 			return nil, fmt.Errorf("save match: %w", err)
 		}
 		result.Matched++
-		// Find the name for the detail.
+		matchedIDs[choice] = true
 		for _, c := range candidates {
 			if c.Student.CanvasID == choice {
 				result.Details = append(result.Details, fmt.Sprintf("%s → %s (manual)", ghName, c.Student.Name))
 				break
 			}
 		}
-		// Remove from available pool.
-		for i, s := range availableCanvas {
-			if s.CanvasID == choice {
-				availableCanvas = append(availableCanvas[:i], availableCanvas[i+1:]...)
-				break
-			}
-		}
 	}
 
+	pending := "false"
 	if result.Unmatched > 0 {
-		_ = db.SetMeta("match_pending", "true")
-	} else {
-		_ = db.SetMeta("match_pending", "false")
+		pending = "true"
+	}
+	if err := db.SetMeta("match_pending", pending); err != nil {
+		return nil, fmt.Errorf("set match_pending: %w", err)
 	}
 
 	return result, nil
