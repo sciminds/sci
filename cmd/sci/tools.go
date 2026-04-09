@@ -135,6 +135,25 @@ func resolveToolsFile() (string, error) {
 	return brew.ExpandPath(toolsFile)
 }
 
+// syncBrewfile reconciles the Brewfile with the system state before
+// running a tools subcommand. Errors are non-fatal (printed as warnings).
+func syncBrewfile(file string) {
+	var result brew.SyncResult
+	err := ui.RunWithSpinner("Syncing Brewfile…", func(sc ui.SpinnerControls) error {
+		var syncErr error
+		result, syncErr = brew.Sync(brew.BundleRunner{}, file, sc.Suspend, sc.Resume)
+		return syncErr
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s %s\n",
+			ui.SymWarn, ui.TUI.Warn().Render("Could not sync Brewfile: "+err.Error()))
+		return
+	}
+	if msg := result.Human(); msg != "" {
+		fmt.Fprintf(os.Stderr, "  %s %s", ui.SymArrow, msg)
+	}
+}
+
 func resolveToolsPkgType() string {
 	switch {
 	case toolsCask:
@@ -212,6 +231,10 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	if !toolsDryRun {
+		syncBrewfile(file)
+	}
+
 	// With a package argument: add to Brewfile and install.
 	if cmd.NArg() > 0 {
 		pkg := cmd.Args().First()
@@ -275,6 +298,11 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+
+	if !toolsDryRun {
+		syncBrewfile(file)
+	}
+
 	pkg := cmd.Args().First()
 
 	if toolsDryRun {
@@ -301,6 +329,9 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+
+	syncBrewfile(file)
+
 	runner := brew.BundleRunner{}
 
 	// Type-specific filter or --json: plain text list.
@@ -334,6 +365,12 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 	runner := brew.BundleRunner{}
 
+	if !toolsDryRun {
+		if file, err := resolveToolsFile(); err == nil {
+			syncBrewfile(file)
+		}
+	}
+
 	if toolsDryRun {
 		ui.Hint("would update the registry and upgrade outdated packages")
 		return nil
@@ -356,6 +393,12 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 	runner := brew.BundleRunner{}
 
+	if !toolsDryRun {
+		if file, err := resolveToolsFile(); err == nil {
+			syncBrewfile(file)
+		}
+	}
+
 	if toolsDryRun {
 		ui.Hint("would update the registry and list outdated packages")
 		return nil
@@ -377,6 +420,10 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 
 func runToolsReccs(_ context.Context, cmd *cli.Command) error {
 	runner := brew.BundleRunner{}
+
+	if file, err := resolveToolsFile(); err == nil {
+		syncBrewfile(file)
+	}
 
 	if cmdutil.IsJSON(cmd) {
 		result, err := doctor.ListOptionalTools(runner)

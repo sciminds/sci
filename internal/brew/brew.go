@@ -47,13 +47,15 @@ type Runner interface {
 	BundleCheck(file string) ([]string, error)
 	BundleCleanup(file string) (string, error)
 	BundleDump(file string) error
+	BundleDumpLive(file string, onSuspend, onResume func()) error
 	BundleList(file, pkgType string) ([]string, error)
 	Info(names []string, isCask bool) ([]PackageInfo, error)
-	Update(onLine func(string)) error
+	Update(onLine func(string), onSuspend, onResume func()) error
 	Outdated() ([]OutdatedPackage, error)
 	Upgrade(onLine func(string), onSuspend, onResume func()) (string, error)
 	UVOutdated() ([]OutdatedPackage, error)
 	UVUpgrade(onLine func(string)) (string, error)
+	UVToolList() ([]string, error)
 }
 
 // BundleRunner shells out to brew bundle.
@@ -100,6 +102,13 @@ func (BundleRunner) BundleCheck(file string) ([]string, error) {
 // It uses --force to overwrite and --no-vscode to skip editor extensions.
 func (BundleRunner) BundleDump(file string) error {
 	_, err := runBrewOutput("bundle", "dump", "--force", "--no-vscode", "--file="+file)
+	return err
+}
+
+// BundleDumpLive is like BundleDump but connects stdin and uses stall
+// detection so interactive prompts (e.g. sudo password) are visible.
+func (BundleRunner) BundleDumpLive(file string, onSuspend, onResume func()) error {
+	_, err := runBrewInteractive(nil, onSuspend, onResume, "bundle", "dump", "--force", "--no-vscode", "--file="+file)
 	return err
 }
 
@@ -187,8 +196,8 @@ type OutdatedPackage struct {
 	Pinned           bool   `json:"pinned"`
 }
 
-func (BundleRunner) Update(onLine func(string)) error {
-	_, err := runBrewLive(onLine, "update")
+func (BundleRunner) Update(onLine func(string), onSuspend, onResume func()) error {
+	_, err := runBrewInteractive(onLine, onSuspend, onResume, "update")
 	return err
 }
 
@@ -215,6 +224,15 @@ func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
 
 func (BundleRunner) UVUpgrade(onLine func(string)) (string, error) {
 	return runLive(onLine, "uv", "tool", "upgrade", "--all")
+}
+
+func (BundleRunner) UVToolList() ([]string, error) {
+	cmd := exec.Command("uv", "tool", "list")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("uv tool list: %w", err)
+	}
+	return parseUVToolList(string(out)), nil
 }
 
 // outdatedJSON is the top-level brew outdated --json=v2 response.
@@ -303,15 +321,10 @@ func runLive(onLine func(string), name string, args ...string) (string, error) {
 	return full.String(), nil
 }
 
-// runBrewLive runs a brew command via runLive.
-func runBrewLive(onLine func(string), args ...string) (string, error) {
-	return runLive(onLine, "brew", args...)
-}
-
-// runBrewInteractive is like runBrewLive but suspends the caller's UI when
-// the process stalls (e.g. waiting for a sudo password prompt). It connects
-// stdin so interactive prompts can be answered, and calls onSuspend/onResume
-// to hide/show the spinner around the stall.
+// runBrewInteractive runs a brew command, streaming output via onLine.
+// When the process stalls (e.g. waiting for a sudo password prompt) it
+// connects stdin so interactive prompts can be answered, and calls
+// onSuspend/onResume to hide/show the spinner around the stall.
 func runBrewInteractive(onLine func(string), onSuspend, onResume func(), args ...string) (string, error) {
 	const stallTimeout = 2 * time.Second
 
@@ -404,6 +417,20 @@ func parseBundleCheck(output string) []string {
 		missing = append(missing, m[1])
 	}
 	return missing
+}
+
+// parseUVToolList extracts package names from `uv tool list` output.
+// Package lines look like: "marimo v0.22.4". Executable lines ("- marimo") are skipped.
+var uvToolListRe = regexp.MustCompile(`^(\S+)\s+v\S+`)
+
+func parseUVToolList(output string) []string {
+	var names []string
+	for _, line := range strings.Split(output, "\n") {
+		if m := uvToolListRe.FindStringSubmatch(line); m != nil {
+			names = append(names, m[1])
+		}
+	}
+	return names
 }
 
 // parseUVOutdated extracts outdated packages from `uv tool list --outdated` output.

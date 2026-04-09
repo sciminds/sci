@@ -75,6 +75,29 @@ func (r UpdateResult) Human() string {
 	return b.String()
 }
 
+// SyncResult is returned by Sync.
+type SyncResult struct {
+	Added        int      `json:"added"`
+	Removed      int      `json:"removed"`
+	AddedNames   []string `json:"added_names,omitempty"`
+	RemovedNames []string `json:"removed_names,omitempty"`
+}
+
+func (r SyncResult) JSON() any { return r }
+func (r SyncResult) Human() string {
+	if r.Added == 0 && r.Removed == 0 {
+		return ""
+	}
+	var parts []string
+	if r.Added > 0 {
+		parts = append(parts, fmt.Sprintf("added %d", r.Added))
+	}
+	if r.Removed > 0 {
+		parts = append(parts, fmt.Sprintf("removed %d", r.Removed))
+	}
+	return fmt.Sprintf("Synced Brewfile (%s)\n", strings.Join(parts, ", "))
+}
+
 // ListResult is returned by List.
 type ListResult struct {
 	Packages []string `json:"packages"`

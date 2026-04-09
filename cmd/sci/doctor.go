@@ -61,8 +61,8 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	// ── Step 3b: Reconcile Brewfile with system (brew bundle dump) ──────
 	if created {
 		// New file — dump system state directly into it, no prompt needed.
-		err = ui.RunWithSpinner("Capturing installed packages…", func(_ ui.SpinnerControls) error {
-			return runner.BundleDump(brewfilePath)
+		err = ui.RunWithSpinner("Capturing installed packages…", func(sc ui.SpinnerControls) error {
+			return runner.BundleDumpLive(brewfilePath, sc.Suspend, sc.Resume)
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
@@ -76,31 +76,17 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		fmt.Fprintf(os.Stderr, "\n  %s Found Brewfile at %s\n",
 			ui.SymArrow, ui.TUI.Accent().Render(brewfilePath))
 
-		var staleEntries []brew.BrewfileEntry
-		err = ui.RunWithSpinner("Comparing Brewfile with installed packages…", func(_ ui.SpinnerControls) error {
-			var dumpErr error
-			staleEntries, dumpErr = brew.DumpAndDiff(runner, brewfilePath)
-			return dumpErr
+		var syncResult brew.SyncResult
+		err = ui.RunWithSpinner("Syncing Brewfile with installed packages…", func(sc ui.SpinnerControls) error {
+			var syncErr error
+			syncResult, syncErr = brew.Sync(runner, brewfilePath, sc.Suspend, sc.Resume)
+			return syncErr
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				ui.SymWarn, ui.TUI.Warn().Render("Could not compare Brewfile with system: "+err.Error()))
-		} else if len(staleEntries) > 0 {
-			names := entryNames(staleEntries)
-			fmt.Fprintf(os.Stderr, "\n  Your Brewfile is out-of-date with what's currently installed (%d packages missing from file).\n", len(staleEntries))
-			fmt.Fprintf(os.Stderr, "  e.g. %s\n", ui.TUI.Dim().Render(strings.Join(truncateNames(names, 5), ", ")))
-
-			updateErr := cmdutil.ConfirmYes("Update Brewfile? (this won't change anything on your system)")
-			if updateErr == nil {
-				added, appendErr := brew.AppendEntries(brewfilePath, staleEntries)
-				if appendErr != nil {
-					return fmt.Errorf("update Brewfile: %w", appendErr)
-				}
-				fmt.Fprintf(os.Stderr, "  %s Added %d packages to Brewfile\n",
-					ui.SymOK, len(added))
-			} else if !errors.Is(updateErr, cmdutil.ErrCancelled) {
-				return updateErr
-			}
+				ui.SymWarn, ui.TUI.Warn().Render("Could not sync Brewfile with system: "+err.Error()))
+		} else if msg := syncResult.Human(); msg != "" {
+			fmt.Fprintf(os.Stderr, "  %s %s", ui.SymOK, msg)
 		}
 	}
 
@@ -227,14 +213,6 @@ func entryNames(entries []brew.BrewfileEntry) []string {
 		names[i] = e.Name
 	}
 	return names
-}
-
-// truncateNames returns at most n names, appending "…" if truncated.
-func truncateNames(names []string, n int) []string {
-	if len(names) <= n {
-		return names
-	}
-	return append(names[:n], fmt.Sprintf("and %d more", len(names)-n))
 }
 
 // mustReadFile reads a file, returning "" on error.

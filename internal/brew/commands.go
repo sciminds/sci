@@ -78,7 +78,7 @@ func Update(r Runner, checkOnly bool, setTitle, setStatus func(string), onSuspen
 		}
 	}
 
-	if err := r.Update(onLine); err != nil {
+	if err := r.Update(onLine, onSuspend, onResume); err != nil {
 		return UpdateResult{}, fmt.Errorf("brew update: %w", err)
 	}
 

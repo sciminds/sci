@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -20,6 +21,8 @@ type mockRunner struct {
 	installCalls []string
 	checkCalls   []string
 	cleanupCalls []string
+	dumpContent  string
+	dumpErr      error
 	listCalls    []mockCall
 
 	installErr  error
@@ -43,6 +46,8 @@ type mockRunner struct {
 	uvUpgradeCalls   int
 	uvUpgradeOut     string
 	uvUpgradeErr     error
+	uvToolListResult []string
+	uvToolListErr    error
 }
 
 type mockCall struct {
@@ -73,7 +78,19 @@ func (m *mockRunner) BundleCheck(file string) ([]string, error) {
 	return m.checkResult, m.checkErr
 }
 
-func (m *mockRunner) BundleDump(_ string) error { return nil }
+func (m *mockRunner) BundleDump(file string) error {
+	if m.dumpErr != nil {
+		return m.dumpErr
+	}
+	if m.dumpContent != "" {
+		return os.WriteFile(file, []byte(m.dumpContent), 0o644)
+	}
+	return nil
+}
+
+func (m *mockRunner) BundleDumpLive(file string, _, _ func()) error {
+	return m.BundleDump(file)
+}
 
 func (m *mockRunner) BundleCleanup(file string) (string, error) {
 	m.cleanupCalls = append(m.cleanupCalls, file)
@@ -89,7 +106,7 @@ func (m *mockRunner) Info(_ []string, _ bool) ([]PackageInfo, error) {
 	return m.infoResult, m.infoErr
 }
 
-func (m *mockRunner) Update(_ func(string)) error {
+func (m *mockRunner) Update(_ func(string), _, _ func()) error {
 	m.updateCalls++
 	return m.updateErr
 }
@@ -110,6 +127,10 @@ func (m *mockRunner) UVOutdated() ([]OutdatedPackage, error) {
 func (m *mockRunner) UVUpgrade(_ func(string)) (string, error) {
 	m.uvUpgradeCalls++
 	return m.uvUpgradeOut, m.uvUpgradeErr
+}
+
+func (m *mockRunner) UVToolList() ([]string, error) {
+	return m.uvToolListResult, m.uvToolListErr
 }
 
 func brewfile(t *testing.T, content string) string {
@@ -591,6 +612,45 @@ func TestParseUVOutdated_Empty(t *testing.T) {
 	}
 }
 
+func TestParseUVToolList(t *testing.T) {
+	output := `huggingface-hub v0.36.2
+- hf
+- huggingface-cli
+- tiny-agents
+marimo v0.22.4
+- marimo
+ruff v0.15.9
+- ruff
+`
+	names := parseUVToolList(output)
+	want := []string{"huggingface-hub", "marimo", "ruff"}
+	if len(names) != len(want) {
+		t.Fatalf("got %d names, want %d", len(names), len(want))
+	}
+	for i := range want {
+		if names[i] != want[i] {
+			t.Errorf("names[%d] = %q, want %q", i, names[i], want[i])
+		}
+	}
+}
+
+func TestParseUVToolList_Empty(t *testing.T) {
+	names := parseUVToolList("")
+	if len(names) != 0 {
+		t.Errorf("expected 0 names, got %d", len(names))
+	}
+}
+
+func TestParseUVToolList_OnlyExecutables(t *testing.T) {
+	output := `- marimo
+- ruff
+`
+	names := parseUVToolList(output)
+	if len(names) != 0 {
+		t.Errorf("expected 0 names, got %d", len(names))
+	}
+}
+
 func TestParseUVOutdated_NoneOutdated(t *testing.T) {
 	// When nothing is outdated, uv outputs tool list without [latest: ...] markers
 	output := `marimo v0.22.4
@@ -601,6 +661,245 @@ ruff v0.15.9
 	pkgs := parseUVOutdated(output)
 	if len(pkgs) != 0 {
 		t.Errorf("expected 0 packages, got %d", len(pkgs))
+	}
+}
+
+func TestSyncResult_Human_NoChanges(t *testing.T) {
+	r := SyncResult{}
+	if got := r.Human(); got != "" {
+		t.Errorf("got %q, want empty", got)
+	}
+}
+
+func TestSyncResult_Human_Added(t *testing.T) {
+	r := SyncResult{Added: 3, AddedNames: []string{"a", "b", "c"}}
+	want := "Synced Brewfile (added 3)\n"
+	if got := r.Human(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestSyncResult_Human_Removed(t *testing.T) {
+	r := SyncResult{Removed: 2, RemovedNames: []string{"x", "y"}}
+	want := "Synced Brewfile (removed 2)\n"
+	if got := r.Human(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestSyncResult_Human_Both(t *testing.T) {
+	r := SyncResult{Added: 3, Removed: 2}
+	want := "Synced Brewfile (added 3, removed 2)\n"
+	if got := r.Human(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestSync_NoChanges(t *testing.T) {
+	bf := brewfile(t, "brew \"htop\"\n")
+	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
+
+	result, err := Sync(m, bf, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Added != 0 || result.Removed != 0 {
+		t.Errorf("expected no changes, got added=%d removed=%d", result.Added, result.Removed)
+	}
+}
+
+func TestSync_AddsBrewEntries(t *testing.T) {
+	bf := brewfile(t, "brew \"htop\"\n")
+	m := &mockRunner{dumpContent: "brew \"htop\"\nbrew \"curl\"\n"}
+
+	result, err := Sync(m, bf, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Added != 1 {
+		t.Errorf("expected 1 added, got %d", result.Added)
+	}
+
+	got, _ := os.ReadFile(bf)
+	if !strings.Contains(string(got), "brew \"curl\"") {
+		t.Errorf("Brewfile should contain curl:\n%s", got)
+	}
+}
+
+func TestSync_AddsUVEntries(t *testing.T) {
+	bf := brewfile(t, "")
+	m := &mockRunner{uvToolListResult: []string{"ruff"}}
+
+	result, err := Sync(m, bf, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Added != 1 {
+		t.Errorf("expected 1 added, got %d", result.Added)
+	}
+
+	got, _ := os.ReadFile(bf)
+	if !strings.Contains(string(got), "uv \"ruff\"") {
+		t.Errorf("Brewfile should contain uv ruff:\n%s", got)
+	}
+}
+
+func TestSync_RemovesBrewEntries(t *testing.T) {
+	bf := brewfile(t, "brew \"htop\"\nbrew \"wget\"\n")
+	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
+
+	result, err := Sync(m, bf, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Removed != 1 {
+		t.Errorf("expected 1 removed, got %d", result.Removed)
+	}
+
+	got, _ := os.ReadFile(bf)
+	if strings.Contains(string(got), "wget") {
+		t.Errorf("Brewfile should not contain wget:\n%s", got)
+	}
+}
+
+func TestSync_RemovesUVEntries(t *testing.T) {
+	bf := brewfile(t, "uv \"ruff\"\nuv \"marimo\"\n")
+	m := &mockRunner{uvToolListResult: []string{"marimo"}}
+
+	result, err := Sync(m, bf, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Removed != 1 {
+		t.Errorf("expected 1 removed, got %d", result.Removed)
+	}
+
+	got, _ := os.ReadFile(bf)
+	if strings.Contains(string(got), "ruff") {
+		t.Errorf("Brewfile should not contain ruff:\n%s", got)
+	}
+	if !strings.Contains(string(got), "marimo") {
+		t.Errorf("Brewfile should still contain marimo:\n%s", got)
+	}
+}
+
+func TestSync_Bidirectional(t *testing.T) {
+	bf := brewfile(t, "brew \"htop\"\nuv \"ruff\"\n")
+	m := &mockRunner{
+		dumpContent:      "brew \"htop\"\nbrew \"curl\"\n",
+		uvToolListResult: []string{"marimo"},
+	}
+
+	result, err := Sync(m, bf, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Added != 2 {
+		t.Errorf("expected 2 added, got %d", result.Added)
+	}
+	if result.Removed != 1 {
+		t.Errorf("expected 1 removed, got %d", result.Removed)
+	}
+}
+
+func TestSync_DumpError(t *testing.T) {
+	bf := brewfile(t, "")
+	m := &mockRunner{dumpErr: errors.New("dump failed")}
+
+	_, err := Sync(m, bf, nil, nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestSync_UVListError(t *testing.T) {
+	bf := brewfile(t, "")
+	m := &mockRunner{uvToolListErr: errors.New("uv failed")}
+
+	_, err := Sync(m, bf, nil, nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestSync_IgnoresUnscannableTypes(t *testing.T) {
+	// go and cargo entries in Brewfile should not be removed even if not detected
+	bf := brewfile(t, "brew \"htop\"\ngo \"github.com/foo/bar\"\ncargo \"ripgrep\"\n")
+	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
+
+	result, err := Sync(m, bf, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Removed != 0 {
+		t.Errorf("expected 0 removed (go/cargo unscannable), got %d", result.Removed)
+	}
+
+	got, _ := os.ReadFile(bf)
+	if !strings.Contains(string(got), "go \"github.com/foo/bar\"") {
+		t.Errorf("go entry should be preserved:\n%s", got)
+	}
+}
+
+func TestRemoveEntries_HappyPath(t *testing.T) {
+	bf := brewfile(t, "brew \"htop\"\ncask \"firefox\"\nbrew \"curl\"\nuv \"ruff\"\n")
+	toRemove := []BrewfileEntry{
+		{Type: "cask", Name: "firefox"},
+		{Type: "uv", Name: "ruff"},
+	}
+
+	names, err := RemoveEntries(bf, toRemove)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(names) != 2 {
+		t.Fatalf("expected 2 removed, got %d", len(names))
+	}
+
+	got, _ := os.ReadFile(bf)
+	want := "brew \"htop\"\nbrew \"curl\"\n"
+	if string(got) != want {
+		t.Errorf("file content:\ngot:  %q\nwant: %q", string(got), want)
+	}
+}
+
+func TestRemoveEntries_NoMatch(t *testing.T) {
+	original := "brew \"htop\"\nbrew \"curl\"\n"
+	bf := brewfile(t, original)
+	toRemove := []BrewfileEntry{
+		{Type: "cask", Name: "nonexistent"},
+	}
+
+	names, err := RemoveEntries(bf, toRemove)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(names) != 0 {
+		t.Errorf("expected 0 removed, got %d", len(names))
+	}
+
+	got, _ := os.ReadFile(bf)
+	if string(got) != original {
+		t.Errorf("file should be unchanged:\ngot:  %q\nwant: %q", string(got), original)
+	}
+}
+
+func TestRemoveEntries_PreservesComments(t *testing.T) {
+	bf := brewfile(t, "# My tools\nbrew \"htop\"\n\nbrew \"curl\"\n# end\n")
+	toRemove := []BrewfileEntry{
+		{Type: "brew", Name: "curl"},
+	}
+
+	_, err := RemoveEntries(bf, toRemove)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, _ := os.ReadFile(bf)
+	want := "# My tools\nbrew \"htop\"\n\n# end\n"
+	if string(got) != want {
+		t.Errorf("file content:\ngot:  %q\nwant: %q", string(got), want)
 	}
 }
 

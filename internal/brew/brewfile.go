@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // BrewfileEntry is a parsed line from a Brewfile.
@@ -216,6 +217,174 @@ func AppendEntries(path string, entries []BrewfileEntry) ([]string, error) {
 		return nil, fmt.Errorf("write Brewfile: %w", err)
 	}
 	return names, nil
+}
+
+// scannableTypes are the package types we can detect on the system.
+// Entries of other types (e.g. "go", "cargo") are left untouched.
+var scannableTypes = map[string]bool{
+	"brew": true,
+	"cask": true,
+	"tap":  true,
+	"uv":   true,
+}
+
+// Sync reconciles the Brewfile at path with the actual system state.
+// It runs brew bundle dump and uv tool list concurrently, then:
+//   - appends entries that are installed but missing from the Brewfile
+//   - removes entries that are declared but no longer installed
+//
+// Only entries of scannable types (brew, cask, tap, uv) are candidates
+// for removal; unknown types are left untouched.
+//
+// onSuspend/onResume hide and restore the caller's spinner when brew
+// stalls waiting for interactive input (e.g. a sudo password prompt).
+func Sync(r Runner, path string, onSuspend, onResume func()) (SyncResult, error) {
+	// Dump brew state to a temp file and list uv tools concurrently.
+	tmp, err := os.CreateTemp("", "sci-sync-dump-*")
+	if err != nil {
+		return SyncResult{}, fmt.Errorf("create temp dump file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	_ = tmp.Close()
+	defer func() { _ = os.Remove(tmpPath) }()
+
+	var (
+		uvTools        []string
+		dumpErr, uvErr error
+		wg             sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		dumpErr = r.BundleDumpLive(tmpPath, onSuspend, onResume)
+	}()
+	go func() {
+		defer wg.Done()
+		uvTools, uvErr = r.UVToolList()
+	}()
+	wg.Wait()
+
+	if dumpErr != nil {
+		return SyncResult{}, fmt.Errorf("brew bundle dump: %w", dumpErr)
+	}
+	if uvErr != nil {
+		return SyncResult{}, fmt.Errorf("uv tool list: %w", uvErr)
+	}
+
+	// Build the system set from dump + uv tools.
+	dumpContent, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return SyncResult{}, fmt.Errorf("read dump: %w", err)
+	}
+	systemSet := make(map[string]BrewfileEntry)
+	for _, e := range ParseBrewfileEntries(string(dumpContent)) {
+		systemSet[e.Type+"\t"+e.Name] = e
+	}
+	for _, name := range uvTools {
+		key := "uv\t" + name
+		if _, ok := systemSet[key]; !ok {
+			systemSet[key] = BrewfileEntry{
+				Type: "uv",
+				Name: name,
+				Line: fmt.Sprintf("uv %q", name),
+			}
+		}
+	}
+
+	// Read the existing Brewfile.
+	existing, err := os.ReadFile(path)
+	if err != nil {
+		return SyncResult{}, fmt.Errorf("read Brewfile: %w", err)
+	}
+	brewfileSet := make(map[string]bool)
+	for _, e := range ParseBrewfileEntries(string(existing)) {
+		brewfileSet[e.Type+"\t"+e.Name] = true
+	}
+
+	// Compute additions: in system but not in Brewfile.
+	var toAdd []BrewfileEntry
+	for key, e := range systemSet {
+		if !brewfileSet[key] {
+			toAdd = append(toAdd, e)
+		}
+	}
+
+	// Compute removals: in Brewfile but not on system (scannable types only).
+	var toRemove []BrewfileEntry
+	for _, e := range ParseBrewfileEntries(string(existing)) {
+		key := e.Type + "\t" + e.Name
+		if !scannableTypes[e.Type] {
+			continue
+		}
+		if _, onSystem := systemSet[key]; !onSystem {
+			toRemove = append(toRemove, e)
+		}
+	}
+
+	var result SyncResult
+	if len(toAdd) > 0 {
+		added, appendErr := AppendEntries(path, toAdd)
+		if appendErr != nil {
+			return SyncResult{}, fmt.Errorf("append entries: %w", appendErr)
+		}
+		result.Added = len(added)
+		result.AddedNames = added
+	}
+	if len(toRemove) > 0 {
+		removed, removeErr := RemoveEntries(path, toRemove)
+		if removeErr != nil {
+			return SyncResult{}, fmt.Errorf("remove entries: %w", removeErr)
+		}
+		result.Removed = len(removed)
+		result.RemovedNames = removed
+	}
+
+	return result, nil
+}
+
+// RemoveEntries removes the given entries from the Brewfile at path,
+// matching by (type, name) pair. Returns the names of removed entries.
+func RemoveEntries(path string, entries []BrewfileEntry) ([]string, error) {
+	removeSet := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		removeSet[e.Type+"\t"+e.Name] = true
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read Brewfile: %w", err)
+	}
+
+	var kept []string
+	var removed []string
+	for _, line := range strings.Split(string(content), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			kept = append(kept, line)
+			continue
+		}
+		parts := strings.Fields(trimmed)
+		if len(parts) >= 2 {
+			typ := parts[0]
+			name := strings.Trim(parts[1], `",`)
+			if idx := strings.Index(name, "["); idx != -1 {
+				name = name[:idx]
+			}
+			if removeSet[typ+"\t"+name] {
+				removed = append(removed, name)
+				continue
+			}
+		}
+		kept = append(kept, line)
+	}
+
+	// strings.Split produces a trailing empty element for files ending in \n.
+	// Rejoin and write back.
+	out := strings.Join(kept, "\n")
+	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
+		return nil, fmt.Errorf("write Brewfile: %w", err)
+	}
+	return removed, nil
 }
 
 // WriteTempBrewfile writes content to a temp file and returns its path.
