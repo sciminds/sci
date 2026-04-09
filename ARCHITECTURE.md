@@ -86,5 +86,5 @@ just test-slow    # Integration tests (SLOW=1, needs pixi/uv/quarto/marimo/typst
 ```
 
 - Unit tests: pure logic, no I/O, fast
-- Teatest: full Bubble Tea message loop, gated behind `SLOW=1`
+- Teatest: full Bubble Tea message loop, runs unconditionally
 - Integration tests: shell out to real tools, gated behind `SLOW=1`
