@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -72,6 +73,9 @@ func Check() CheckResult {
 		return result
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
+	if token := ghToken(); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -194,6 +198,22 @@ func Update(downloadURL string) (string, error) {
 	}
 
 	return execPath, nil
+}
+
+// ghToken returns a GitHub token, checking environment variables first then
+// falling back to `gh auth token` for keyring-based auth.
+func ghToken() string {
+	if t := os.Getenv("GH_TOKEN"); t != "" {
+		return t
+	}
+	if t := os.Getenv("GITHUB_TOKEN"); t != "" {
+		return t
+	}
+	out, err := exec.Command("gh", "auth", "token").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 type progressReader struct {
