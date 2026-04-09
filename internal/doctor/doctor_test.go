@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"os"
 	"testing"
 
 	"github.com/sciminds/cli/internal/brew"
@@ -101,7 +102,7 @@ brew "uv"
 # a comment
 cask "visual-studio-code"
 `
-	names := parseBrewfileNames(content)
+	names := brew.ParseBrewfileNames(content)
 	want := []string{"git", "uv", "visual-studio-code"}
 	if len(names) != len(want) {
 		t.Fatalf("got %v, want %v", names, want)
@@ -114,7 +115,7 @@ cask "visual-studio-code"
 }
 
 func TestParseBrewfileNames_Empty(t *testing.T) {
-	names := parseBrewfileNames("")
+	names := brew.ParseBrewfileNames("")
 	if len(names) != 0 {
 		t.Errorf("expected empty, got %v", names)
 	}
@@ -124,15 +125,23 @@ func TestBrewfileEmbedded(t *testing.T) {
 	if Brewfile == "" {
 		t.Fatal("embedded Brewfile is empty")
 	}
-	names := parseBrewfileNames(Brewfile)
+	names := brew.ParseBrewfileNames(Brewfile)
 	if len(names) == 0 {
 		t.Fatal("embedded Brewfile has no packages")
 	}
 }
 
 func TestRunToolChecks(t *testing.T) {
+	// Write a Brewfile containing the embedded required packages so
+	// BundleCheck has something to check against.
+	tmpFile, err := brew.WriteTempBrewfile(Brewfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(tmpFile) }()
+
 	mock := &mockBrewRunner{missing: []string{"uv"}}
-	infos := RunToolChecks(mock)
+	infos := RunToolChecks(mock, tmpFile)
 
 	if len(infos) == 0 {
 		t.Fatal("expected tool infos from embedded Brewfile")
@@ -149,17 +158,6 @@ func TestRunToolChecks(t *testing.T) {
 	}
 }
 
-func TestInstallAll(t *testing.T) {
-	mock := &mockBrewRunner{}
-	_, err := InstallAll(mock)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(mock.installCalls) != 1 {
-		t.Errorf("expected 1 install call, got %d", len(mock.installCalls))
-	}
-}
-
 // mockBrewRunner implements brew.Runner for testing.
 type mockBrewRunner struct {
 	missing      []string
@@ -169,6 +167,7 @@ type mockBrewRunner struct {
 
 func (m *mockBrewRunner) BundleAdd(_, _, _ string) error           { return nil }
 func (m *mockBrewRunner) BundleRemove(_, _, _ string) error        { return nil }
+func (m *mockBrewRunner) BundleDump(_ string) error                { return nil }
 func (m *mockBrewRunner) BundleCleanup(_ string) (string, error)   { return "", nil }
 func (m *mockBrewRunner) BundleList(_, _ string) ([]string, error) { return nil, nil }
 func (m *mockBrewRunner) Info(_ []string, _ bool) ([]brew.PackageInfo, error) {
@@ -178,6 +177,10 @@ func (m *mockBrewRunner) Info(_ []string, _ bool) ([]brew.PackageInfo, error) {
 func (m *mockBrewRunner) BundleInstall(file string) (string, error) {
 	m.installCalls = append(m.installCalls, file)
 	return "installed", m.installErr
+}
+
+func (m *mockBrewRunner) BundleInstallLive(file string, _ func(string), _, _ func()) (string, error) {
+	return m.BundleInstall(file)
 }
 
 func (m *mockBrewRunner) BundleCheck(_ string) ([]string, error) {

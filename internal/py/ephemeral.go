@@ -199,7 +199,7 @@ func runPixiTool(dir string, tool Tool) error {
 func requireUV() (string, error) {
 	bin, err := exec.LookPath("uv")
 	if err != nil {
-		return "", fmt.Errorf("uv not found — run %s to install it", ui.TUI.Accent().Render("sci doctor"))
+		return "", fmt.Errorf("uv not found — run %s to install it", ui.TUI.Accent().Render("sci doctor check"))
 	}
 	return bin, nil
 }

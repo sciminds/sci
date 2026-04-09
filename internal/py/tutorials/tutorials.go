@@ -182,7 +182,7 @@ func RunSelect() ([]string, error) {
 func Run() error {
 	uvBin, err := exec.LookPath("uv")
 	if err != nil {
-		return fmt.Errorf("uv not found — run %s to install it", ui.TUI.Accent().Render("sci doc"))
+		return fmt.Errorf("uv not found — run %s to install it", ui.TUI.Accent().Render("sci doctor check"))
 	}
 
 	tmpDir, err := os.MkdirTemp("", "sci-tutorials-")

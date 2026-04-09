@@ -12,10 +12,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
-// DefaultBrewfile is the default Brewfile location.
-const DefaultBrewfile = "~/.config/Brewfile"
+// DefaultBrewfile is the default Brewfile location (matches brew's XDG convention).
+const DefaultBrewfile = "~/.config/homebrew/Brewfile"
 
 // ExpandPath resolves ~ to the user's home directory.
 func ExpandPath(path string) (string, error) {
@@ -42,8 +43,10 @@ type Runner interface {
 	BundleAdd(file, pkg, pkgType string) error
 	BundleRemove(file, pkg, pkgType string) error
 	BundleInstall(file string) (string, error)
+	BundleInstallLive(file string, onLine func(string), onSuspend, onResume func()) (string, error)
 	BundleCheck(file string) ([]string, error)
 	BundleCleanup(file string) (string, error)
+	BundleDump(file string) error
 	BundleList(file, pkgType string) ([]string, error)
 	Info(names []string, isCask bool) ([]PackageInfo, error)
 	Update(onLine func(string)) error
@@ -76,13 +79,26 @@ func (BundleRunner) BundleInstall(file string) (string, error) {
 	return runBrewOutput("bundle", "install", "--file="+file)
 }
 
+func (BundleRunner) BundleInstallLive(file string, onLine func(string), onSuspend, onResume func()) (string, error) {
+	return runBrewInteractive(onLine, onSuspend, onResume, "bundle", "install", "--file="+file)
+}
+
 // BundleCheck runs `brew bundle check --verbose` and returns the names of
 // missing packages. An empty slice means all dependencies are satisfied.
 func (BundleRunner) BundleCheck(file string) ([]string, error) {
-	out, _ := runBrewOutput("bundle", "check", "--verbose", "--file="+file)
-	// brew bundle check may exit non-zero when deps are missing, but some
-	// versions exit 0 regardless. Parse the output text instead.
-	return parseBundleCheck(out), nil
+	// brew bundle check exits non-zero when deps are missing, so we must
+	// capture stdout regardless of exit code (runBrewOutput discards it on
+	// error). Use CombinedOutput and parse the text for missing packages.
+	cmd := exec.Command("brew", "bundle", "check", "--verbose", "--file="+file)
+	out, _ := cmd.CombinedOutput()
+	return parseBundleCheck(string(out)), nil
+}
+
+// BundleDump runs `brew bundle dump` to write the current system state to file.
+// It uses --force to overwrite and --no-vscode to skip editor extensions.
+func (BundleRunner) BundleDump(file string) error {
+	_, err := runBrewOutput("bundle", "dump", "--force", "--no-vscode", "--file="+file)
+	return err
 }
 
 func (BundleRunner) BundleCleanup(file string) (string, error) {
@@ -200,9 +216,9 @@ type outdatedFormula struct {
 }
 
 type outdatedCask struct {
-	Name              string `json:"name"`
-	InstalledVersions string `json:"installed_versions"`
-	CurrentVersion    string `json:"current_version"`
+	Name              string   `json:"name"`
+	InstalledVersions []string `json:"installed_versions"`
+	CurrentVersion    string   `json:"current_version"`
 }
 
 func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
@@ -228,9 +244,13 @@ func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
 		})
 	}
 	for _, c := range info.Casks {
+		installed := ""
+		if len(c.InstalledVersions) > 0 {
+			installed = c.InstalledVersions[len(c.InstalledVersions)-1]
+		}
 		pkgs = append(pkgs, OutdatedPackage{
 			Name:             c.Name,
-			InstalledVersion: c.InstalledVersions,
+			InstalledVersion: installed,
 			CurrentVersion:   c.CurrentVersion,
 		})
 	}
@@ -262,6 +282,74 @@ func runBrewLive(onLine func(string), args ...string) (string, error) {
 		}
 	}
 
+	if err := cmd.Wait(); err != nil {
+		return full.String(), err
+	}
+	return full.String(), nil
+}
+
+// runBrewInteractive is like runBrewLive but suspends the caller's UI when
+// the process stalls (e.g. waiting for a sudo password prompt). It connects
+// stdin so interactive prompts can be answered, and calls onSuspend/onResume
+// to hide/show the spinner around the stall.
+func runBrewInteractive(onLine func(string), onSuspend, onResume func(), args ...string) (string, error) {
+	const stallTimeout = 2 * time.Second
+
+	cmd := exec.Command("brew", args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("stdout pipe: %w", err)
+	}
+	cmd.Stderr = cmd.Stdout
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("start: %w", err)
+	}
+
+	lines := make(chan string)
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			lines <- scanner.Text()
+		}
+		close(lines)
+	}()
+
+	var full strings.Builder
+	suspended := false
+
+	for {
+		select {
+		case line, ok := <-lines:
+			if !ok {
+				goto wait
+			}
+			full.WriteString(line + "\n")
+			if suspended {
+				suspended = false
+				if onResume != nil {
+					onResume()
+				}
+			}
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" && onLine != nil {
+				onLine(trimmed)
+			}
+		case <-time.After(stallTimeout):
+			if !suspended {
+				suspended = true
+				if onSuspend != nil {
+					onSuspend()
+				}
+			}
+		}
+	}
+
+wait:
+	if suspended && onResume != nil {
+		onResume()
+	}
 	if err := cmd.Wait(); err != nil {
 		return full.String(), err
 	}

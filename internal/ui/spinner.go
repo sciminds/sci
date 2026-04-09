@@ -18,15 +18,18 @@ import (
 type spinnerDoneMsg struct{ err error }
 type spinnerTitleMsg string
 type spinnerStatusMsg string
+type spinnerSuspendMsg struct{}
+type spinnerResumeMsg struct{}
 
 // spinnerModel is a lightweight bubbletea model that shows a spinner
 // while a blocking function runs in a goroutine.
 type spinnerModel struct {
-	spinner spinner.Model
-	title   string
-	status  string
-	err     error
-	done    bool
+	spinner   spinner.Model
+	title     string
+	status    string
+	err       error
+	done      bool
+	suspended bool
 }
 
 func newSpinnerModel(title string) spinnerModel {
@@ -55,6 +58,12 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case spinnerStatusMsg:
 		m.status = string(msg)
 		return m, nil
+	case spinnerSuspendMsg:
+		m.suspended = true
+		return m, nil
+	case spinnerResumeMsg:
+		m.suspended = false
+		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -64,7 +73,7 @@ func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m spinnerModel) View() tea.View {
-	if m.done {
+	if m.done || m.suspended {
 		return tea.NewView("")
 	}
 	line := m.spinner.View() + " " + TUI.FgAccent().Render(m.title)
@@ -86,6 +95,37 @@ func RunWithSpinner(title string, fn func(setTitle, setStatus func(string)) erro
 			func(s string) { p.Send(spinnerTitleMsg(s)) },
 			func(s string) { p.Send(spinnerStatusMsg(s)) },
 		)
+		p.Send(spinnerDoneMsg{err: err})
+	}()
+
+	finalModel, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("spinner TUI: %w", err)
+	}
+	return finalModel.(spinnerModel).err
+}
+
+// SpinnerControls provides suspend/resume in addition to title/status updates.
+type SpinnerControls struct {
+	SetTitle  func(string)
+	SetStatus func(string)
+	Suspend   func()
+	Resume    func()
+}
+
+// RunWithInteractiveSpinner is like RunWithSpinner but provides suspend/resume
+// controls for commands that may prompt for user input (e.g. sudo password).
+func RunWithInteractiveSpinner(title string, fn func(SpinnerControls) error) error {
+	m := newSpinnerModel(title)
+	p := tea.NewProgram(m)
+
+	go func() {
+		err := fn(SpinnerControls{
+			SetTitle:  func(s string) { p.Send(spinnerTitleMsg(s)) },
+			SetStatus: func(s string) { p.Send(spinnerStatusMsg(s)) },
+			Suspend:   func() { p.Send(spinnerSuspendMsg{}) },
+			Resume:    func() { p.Send(spinnerResumeMsg{}) },
+		})
 		p.Send(spinnerDoneMsg{err: err})
 	}()
 

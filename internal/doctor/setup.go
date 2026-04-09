@@ -32,7 +32,7 @@ func (r OptionalSetupResult) Human() string {
 // RunOptionalSetup presents a multi-select of optional tools and installs the
 // user's selections via brew bundle install.
 func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
-	entries := parseBrewfileEntries(BrewfileOptional)
+	entries := brew.ParseBrewfileEntries(BrewfileOptional)
 	if len(entries) == 0 {
 		return OptionalSetupResult{}, nil
 	}
@@ -82,7 +82,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 		names = append(names, entries[idx].Name)
 	}
 
-	tmpFile, err := writeTempBrewfileContent(strings.Join(lines, "\n") + "\n")
+	tmpFile, err := brew.WriteTempBrewfile(strings.Join(lines, "\n") + "\n")
 	if err != nil {
 		return OptionalSetupResult{}, fmt.Errorf("write temp brewfile: %w", err)
 	}
@@ -98,7 +98,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 // missingSet runs BundleCheck against the given Brewfile content and returns
 // a set of package names that are not installed.
 func missingSet(r brew.Runner, content string) map[string]bool {
-	tmpFile, err := writeTempBrewfileContent(content)
+	tmpFile, err := brew.WriteTempBrewfile(content)
 	if err != nil {
 		return nil
 	}

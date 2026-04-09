@@ -88,16 +88,10 @@ func RunAll() []CheckSection {
 	return sections
 }
 
-// RunToolChecks writes the embedded Brewfile to a temp file and runs
-// `brew bundle check` to identify missing packages.
-func RunToolChecks(r brew.Runner) []ToolInfo {
-	tmpFile, err := writeTempBrewfile()
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = os.Remove(tmpFile) }()
-
-	missing, err := r.BundleCheck(tmpFile)
+// RunToolChecks runs `brew bundle check` against the user's Brewfile and
+// returns install status for the required (embedded) packages.
+func RunToolChecks(r brew.Runner, brewfilePath string) []ToolInfo {
+	missing, err := r.BundleCheck(brewfilePath)
 	if err != nil {
 		return nil
 	}
@@ -106,22 +100,12 @@ func RunToolChecks(r brew.Runner) []ToolInfo {
 		missingSet[name] = true
 	}
 
-	all := parseBrewfileNames(Brewfile)
+	all := brew.ParseBrewfileNames(Brewfile)
 	infos := make([]ToolInfo, len(all))
 	for i, name := range all {
 		infos[i] = ToolInfo{Name: name, Installed: !missingSet[name]}
 	}
 	return infos
-}
-
-// InstallAll runs `brew bundle install` with the embedded Brewfile.
-func InstallAll(r brew.Runner) (string, error) {
-	tmpFile, err := writeTempBrewfile()
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = os.Remove(tmpFile) }()
-	return r.BundleInstall(tmpFile)
 }
 
 // ---------------------------------------------------------------------------
@@ -213,7 +197,7 @@ func checkIdentity() CheckSection {
 
 	// SciMinds R2 credentials — only shown if configured.
 	if cfg, _ := cloud.LoadConfig(); cfg != nil && cfg.Public != nil && cfg.Public.AccessKey != "" {
-		authCheck := CheckResult{Label: "SciMinds R2"}
+		authCheck := CheckResult{Label: "SciMinds Cloud"}
 		authCheck.Status = StatusPass
 		authCheck.Message = "configured as @" + cfg.Username
 		checks = append(checks, authCheck)
@@ -243,77 +227,4 @@ func gitConfigValue(key string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
-}
-
-// parseBrewfileNames extracts package names from a Brewfile in declaration order.
-func parseBrewfileNames(content string) []string {
-	var names []string
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		// Lines like: brew "git" or cask "visual-studio-code"
-		parts := strings.Fields(line)
-		if len(parts) >= 2 {
-			name := strings.Trim(parts[1], `"`)
-			names = append(names, name)
-		}
-	}
-	return names
-}
-
-// BrewfileEntry is a parsed line from a Brewfile.
-type BrewfileEntry struct {
-	Type string // "brew", "cask", "uv"
-	Name string // package name without quotes/extras (e.g. "git", "symbex")
-	Line string // original Brewfile line for writing back
-}
-
-// Label returns a display label like "git (brew)" or "symbex (uv)".
-func (e BrewfileEntry) Label() string {
-	return e.Name + " (" + e.Type + ")"
-}
-
-// parseBrewfileEntries parses a Brewfile into structured entries.
-func parseBrewfileEntries(content string) []BrewfileEntry {
-	var entries []BrewfileEntry
-	for _, line := range strings.Split(content, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		parts := strings.Fields(trimmed)
-		if len(parts) < 2 {
-			continue
-		}
-		typ := parts[0]
-		// Strip quotes and any trailing extras like [recommended] or , with: [...]
-		name := strings.Trim(parts[1], `",`)
-		// Strip bracket suffixes like "marimo[recommended]"
-		if idx := strings.Index(name, "["); idx != -1 {
-			name = name[:idx]
-		}
-		entries = append(entries, BrewfileEntry{Type: typ, Name: name, Line: trimmed})
-	}
-	return entries
-}
-
-// writeTempBrewfile writes the embedded Brewfile to a temp file and returns its path.
-func writeTempBrewfile() (string, error) {
-	return writeTempBrewfileContent(Brewfile)
-}
-
-func writeTempBrewfileContent(content string) (string, error) {
-	f, err := os.CreateTemp("", "sci-doctor-Brewfile-*")
-	if err != nil {
-		return "", err
-	}
-	if _, err := f.WriteString(content); err != nil {
-		_ = f.Close()
-		_ = os.Remove(f.Name())
-		return "", err
-	}
-	_ = f.Close()
-	return f.Name(), nil
 }

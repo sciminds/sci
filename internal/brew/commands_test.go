@@ -59,10 +59,16 @@ func (m *mockRunner) BundleInstall(file string) (string, error) {
 	return "installed", m.installErr
 }
 
+func (m *mockRunner) BundleInstallLive(file string, _ func(string), _, _ func()) (string, error) {
+	return m.BundleInstall(file)
+}
+
 func (m *mockRunner) BundleCheck(file string) ([]string, error) {
 	m.checkCalls = append(m.checkCalls, file)
 	return m.checkResult, m.checkErr
 }
+
+func (m *mockRunner) BundleDump(_ string) error { return nil }
 
 func (m *mockRunner) BundleCleanup(file string) (string, error) {
 	m.cleanupCalls = append(m.cleanupCalls, file)
@@ -415,7 +421,7 @@ func TestUpdate_UpdateFails(t *testing.T) {
 }
 
 func TestParseOutdated(t *testing.T) {
-	jsonData := `{"formulae":[{"name":"htop","installed_versions":["3.3.0"],"current_version":"3.4.0","pinned":false}],"casks":[{"name":"firefox","installed_versions":"130.0","current_version":"131.0"}]}`
+	jsonData := `{"formulae":[{"name":"htop","installed_versions":["3.3.0"],"current_version":"3.4.0","pinned":false}],"casks":[{"name":"firefox","installed_versions":["130.0"],"current_version":"131.0"}]}`
 	pkgs, err := parseOutdated(jsonData)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
