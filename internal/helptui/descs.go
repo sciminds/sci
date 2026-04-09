@@ -52,6 +52,11 @@ var longDescs = map[string]string{
 		"with live demos you can watch and replay. A good starting point if " +
 		"you're new to the command-line or need a refresher.",
 
+	"cass": "(Experimental) Manage Canvas LMS courses and GitHub Classroom assignments from the terminal. " +
+		"Pull student rosters, assignments, and submissions into a local SQLite database, " +
+		"edit grades locally, then push changes back to Canvas with conflict detection. " +
+		"GitHub Classroom is optional — works with Canvas-only courses too.",
+
 	"markdb": "(Experimental) Obsidian compatible tool to ingest a folder of Markdown files into a database with " +
 		"full-text search, frontmatter extracted as columns, and a link graph " +
 		"between documents. Useful for building queryable knowledge bases from " +

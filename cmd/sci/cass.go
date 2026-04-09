@@ -31,7 +31,7 @@ func cassCommand() *cli.Command {
 			"  $ sci cass init           # create cass.yaml for this course\n" +
 			"  $ sci cass pull           # fetch students, assignments, submissions\n" +
 			"  $ sci cass status         # see what changed",
-		Category: "Commands",
+		Category: "Experimental",
 		Commands: []*cli.Command{
 			cassSetupCommand(),
 			cassInitCommand(),
@@ -304,24 +304,24 @@ func cassPullCommand() *cli.Command {
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "  %s GitHub token not available — skipping Classroom pull (%v)\n", ui.SymWarn, err)
 				} else {
-				// Resolve classroom API ID if not cached.
-				classroomID, resolveErr := cfg.ClassroomAPIID()
-				if resolveErr != nil {
-					var resolved int
-					resolveErr = ui.RunWithSpinner("Resolving GitHub Classroom", func(_, _ func(string)) error {
-						var err error
-						resolved, err = cass.ResolveClassroomID(ctx, ghToken, cfg.Classroom.URL)
-						return err
-					})
+					// Resolve classroom API ID if not cached.
+					classroomID, resolveErr := cfg.ClassroomAPIID()
 					if resolveErr != nil {
-						return resolveErr
+						var resolved int
+						resolveErr = ui.RunWithSpinner("Resolving GitHub Classroom", func(_, _ func(string)) error {
+							var err error
+							resolved, err = cass.ResolveClassroomID(ctx, ghToken, cfg.Classroom.URL)
+							return err
+						})
+						if resolveErr != nil {
+							return resolveErr
+						}
+						classroomID = resolved
+						cfg.Classroom.APIID = classroomID
+						// Cache to config file.
+						configPath, _ := cass.FindConfig(filepath.Dir(db.Path))
+						_ = cass.SaveConfig(configPath, cfg)
 					}
-					classroomID = resolved
-					cfg.Classroom.APIID = classroomID
-					// Cache to config file.
-					configPath, _ := cass.FindConfig(filepath.Dir(db.Path))
-					_ = cass.SaveConfig(configPath, cfg)
-				}
 					err = ui.RunWithSpinner("Fetching GitHub assignments", func(_, _ func(string)) error {
 						cl, err := cass.PullGHAssignments(ctx, db, ghToken, classroomID)
 						if err != nil {

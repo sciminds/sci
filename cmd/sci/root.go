@@ -61,7 +61,6 @@ func buildRoot() *cli.Command {
 			// Getting Started
 			learnCommand(),
 			// Commands
-			cassCommand(),
 			cloudCommand(),
 			dbCommand(),
 			labCommand(),
@@ -74,6 +73,7 @@ func buildRoot() *cli.Command {
 			doctorCommand(),
 			updateCommand(),
 			// Experimental
+			cassCommand(),
 			markdbCommand(),
 		},
 	}
