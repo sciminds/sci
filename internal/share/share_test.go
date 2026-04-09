@@ -23,7 +23,7 @@ func TestShare_RequiresAuth(t *testing.T) {
 
 func TestGet_RequiresAuth(t *testing.T) {
 	t.Setenv("SCI_CONFIG_PATH", filepath.Join(t.TempDir(), "no-such-config.json"))
-	_, err := Get("nonexistent-file.csv", false)
+	_, err := Get("nonexistent-file.csv")
 	if err == nil {
 		t.Fatal("expected error (no config), got nil")
 	}
@@ -31,7 +31,7 @@ func TestGet_RequiresAuth(t *testing.T) {
 
 func TestCheckExists_RequiresAuth(t *testing.T) {
 	t.Setenv("SCI_CONFIG_PATH", filepath.Join(t.TempDir(), "no-such-config.json"))
-	_, err := CheckExists("test.csv", false)
+	_, err := CheckExists("test.csv")
 	if err == nil {
 		t.Fatal("expected error (no config), got nil")
 	}

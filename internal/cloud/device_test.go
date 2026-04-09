@@ -70,11 +70,6 @@ func TestPollForToken_Success(t *testing.T) {
 				BucketName: "sci-public",
 				PublicURL:  "https://pub.r2.dev",
 			},
-			Private: &BucketConfig{
-				AccessKey:  "AKPRIV",
-				SecretKey:  "SKPRIV",
-				BucketName: "sci-private",
-			},
 		})
 	}))
 	defer srv.Close()
@@ -94,9 +89,6 @@ func TestPollForToken_Success(t *testing.T) {
 	}
 	if resp.Public == nil || resp.Public.AccessKey != "AKPUB" {
 		t.Error("Public bucket not returned correctly")
-	}
-	if resp.Private == nil || resp.Private.AccessKey != "AKPRIV" {
-		t.Error("Private bucket not returned correctly")
 	}
 	if c := calls.Load(); c != 3 {
 		t.Errorf("expected 3 poll calls, got %d", c)

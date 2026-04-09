@@ -16,7 +16,6 @@ import (
 // Client wraps the S3 client for R2 operations.
 type Client struct {
 	S3       *s3.Client
-	Presign  *s3.PresignClient
 	Bucket   string
 	Username string
 	// PublicURL is the r2.dev base URL for public downloads (no trailing slash).
@@ -42,7 +41,6 @@ func NewClient(accountID, username string, bucket *BucketConfig) *Client {
 
 	return &Client{
 		S3:        s3Client,
-		Presign:   s3.NewPresignClient(s3Client),
 		Bucket:    bucketName,
 		Username:  username,
 		PublicURL: bucket.PublicURL,
@@ -51,20 +49,14 @@ func NewClient(accountID, username string, bucket *BucketConfig) *Client {
 
 // Setup loads config and returns a client for the public bucket.
 func Setup() (*Config, *Client, error) {
-	return SetupBucket(false)
-}
-
-// SetupBucket loads config and returns a client for the requested bucket.
-func SetupBucket(private bool) (*Config, *Client, error) {
 	cfg, err := RequireConfig()
 	if err != nil {
 		return nil, nil, err
 	}
-	bucket, err := BucketForMode(cfg, private)
-	if err != nil {
-		return nil, nil, err
+	if cfg.Public == nil || cfg.Public.AccessKey == "" {
+		return nil, nil, fmt.Errorf("public bucket not configured — run 'sci cloud auth' to reconfigure")
 	}
-	return cfg, NewClient(cfg.AccountID, cfg.Username, bucket), nil
+	return cfg, NewClient(cfg.AccountID, cfg.Username, cfg.Public), nil
 }
 
 // objectKey returns the full key for a file: "<username>/<filename>".
@@ -205,16 +197,4 @@ func (c *Client) Exists(ctx context.Context, filename string) (bool, error) {
 		return false, err
 	}
 	return true, nil
-}
-
-// PresignDownload returns a presigned GET URL for a private object.
-func (c *Client) PresignDownload(ctx context.Context, filename string, expiry time.Duration) (string, error) {
-	req, err := c.Presign.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(c.Bucket),
-		Key:    aws.String(c.objectKey(filename)),
-	}, s3.WithPresignExpires(expiry))
-	if err != nil {
-		return "", err
-	}
-	return req.URL, nil
 }

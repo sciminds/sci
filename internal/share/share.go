@@ -86,7 +86,6 @@ func Auth() (*AuthResult, error) {
 		GitHubLogin: resp.GitHubLogin,
 		AccountID:   resp.AccountID,
 		Public:      resp.Public,
-		Private:     resp.Private,
 	}
 	if err := cloud.SaveConfig(newCfg); err != nil {
 		return nil, fmt.Errorf("saving credentials: %w", err)
@@ -120,8 +119,6 @@ type ShareOpts struct {
 	Description string
 	// Force overwrites an existing file without error.
 	Force bool
-	// Private uploads to the private bucket instead of public.
-	Private bool
 }
 
 // DefaultShareName returns the default share name for a file path,
@@ -138,8 +135,8 @@ func DefaultShareName(filePath string) string {
 }
 
 // CheckExists returns true if a file with the given name already exists in R2.
-func CheckExists(name string, private bool) (bool, error) {
-	_, c, err := cloud.SetupBucket(private)
+func CheckExists(name string) (bool, error) {
+	_, c, err := cloud.Setup()
 	if err != nil {
 		return false, err
 	}
@@ -155,7 +152,7 @@ func CheckExists(name string, private bool) (bool, error) {
 // Share uploads a file or directory to R2 under the given name.
 // Directories are automatically zipped.
 func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
-	_, c, err := cloud.SetupBucket(opts.Private)
+	_, c, err := cloud.Setup()
 	if err != nil {
 		return nil, err
 	}
@@ -260,8 +257,8 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 }
 
 // Unshare removes a shared file from R2.
-func Unshare(name string, private bool) (*CloudResult, error) {
-	_, c, err := cloud.SetupBucket(private)
+func Unshare(name string) (*CloudResult, error) {
+	_, c, err := cloud.Setup()
 	if err != nil {
 		return nil, err
 	}
@@ -289,8 +286,8 @@ func Unshare(name string, private bool) (*CloudResult, error) {
 }
 
 // Shared lists the current user's shared files.
-func Shared(private bool) (*SharedListResult, error) {
-	_, c, err := cloud.SetupBucket(private)
+func Shared() (*SharedListResult, error) {
+	_, c, err := cloud.Setup()
 	if err != nil {
 		return nil, err
 	}
@@ -409,8 +406,8 @@ func buildSharedEntries(objects []cloud.ObjectInfo, username string, allUsers bo
 }
 
 // Ls lists all shared files, optionally filtered by a username prefix.
-func Ls(username, fileType string, private bool) (*DatasetListResult, error) {
-	cfg, c, err := cloud.SetupBucket(private)
+func Ls(username, fileType string) (*DatasetListResult, error) {
+	cfg, c, err := cloud.Setup()
 	if err != nil {
 		return nil, err
 	}
@@ -463,8 +460,8 @@ func Ls(username, fileType string, private bool) (*DatasetListResult, error) {
 
 // GetTo downloads a shared file to a specific directory.
 // Zip files are automatically extracted and the archive is removed.
-func GetTo(name, destDir string, private bool) (string, error) {
-	_, c, err := cloud.SetupBucket(private)
+func GetTo(name, destDir string) (string, error) {
+	_, c, err := cloud.Setup()
 	if err != nil {
 		return "", err
 	}
@@ -507,8 +504,8 @@ func GetTo(name, destDir string, private bool) (string, error) {
 }
 
 // Get downloads a shared file to the current directory.
-func Get(name string, private bool) (*CloudResult, error) {
-	_, c, err := cloud.SetupBucket(private)
+func Get(name string) (*CloudResult, error) {
+	_, c, err := cloud.Setup()
 	if err != nil {
 		return nil, err
 	}

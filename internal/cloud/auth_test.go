@@ -57,10 +57,6 @@ func TestLoadConfig_LegacyMigration(t *testing.T) {
 		t.Errorf("Public.PublicURL = %q, want %q", cfg.Public.PublicURL, "https://pub-xxx.r2.dev")
 	}
 
-	// Private should be nil for legacy configs.
-	if cfg.Private != nil {
-		t.Errorf("expected Private = nil for legacy config, got %+v", cfg.Private)
-	}
 }
 
 func TestLoadConfig_NewFormat(t *testing.T) {
@@ -76,11 +72,6 @@ func TestLoadConfig_NewFormat(t *testing.T) {
     "secret_key": "SKPUB",
     "bucket_name": "sci-public",
     "public_url": "https://pub-xxx.r2.dev"
-  },
-  "private": {
-    "access_key": "AKPRIV",
-    "secret_key": "SKPRIV",
-    "bucket_name": "sci-private"
   }
 }`
 	if err := os.WriteFile(path, []byte(newFmt), 0o600); err != nil {
@@ -100,9 +91,6 @@ func TestLoadConfig_NewFormat(t *testing.T) {
 	}
 	if cfg.Public == nil || cfg.Public.AccessKey != "AKPUB" {
 		t.Errorf("Public bucket not loaded correctly: %+v", cfg.Public)
-	}
-	if cfg.Private == nil || cfg.Private.AccessKey != "AKPRIV" {
-		t.Errorf("Private bucket not loaded correctly: %+v", cfg.Private)
 	}
 }
 
@@ -146,46 +134,6 @@ func TestSaveConfig_ClearsLegacyFields(t *testing.T) {
 	}
 	if loaded.Public == nil || loaded.Public.AccessKey != "AK" {
 		t.Errorf("Public bucket not loaded correctly after save: %+v", loaded.Public)
-	}
-}
-
-func TestBucketForMode(t *testing.T) {
-	cfg := &Config{
-		Public: &BucketConfig{
-			AccessKey:  "AKPUB",
-			SecretKey:  "SKPUB",
-			BucketName: "sci-public",
-		},
-		Private: &BucketConfig{
-			AccessKey:  "AKPRIV",
-			SecretKey:  "SKPRIV",
-			BucketName: "sci-private",
-		},
-	}
-
-	pub, err := BucketForMode(cfg, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pub.BucketName != "sci-public" {
-		t.Errorf("got %q, want sci-public", pub.BucketName)
-	}
-
-	priv, err := BucketForMode(cfg, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if priv.BucketName != "sci-private" {
-		t.Errorf("got %q, want sci-private", priv.BucketName)
-	}
-
-	// Missing private should error.
-	cfgNoPrv := &Config{
-		Public: cfg.Public,
-	}
-	_, err = BucketForMode(cfgNoPrv, true)
-	if err == nil {
-		t.Error("expected error for missing private bucket config")
 	}
 }
 

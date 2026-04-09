@@ -81,7 +81,7 @@ func Fetch(names []string, destDir string) error {
 			return fmt.Errorf("unknown tutorial %q", name)
 		}
 		fmt.Fprintf(os.Stderr, "  %s %s\n", ui.SymArrow, t.Title)
-		outPath, err := share.GetTo(t.Name, destDir, false)
+		outPath, err := share.GetTo(t.Name, destDir)
 		if err != nil {
 			return fmt.Errorf("download %s: %w", t.Name, err)
 		}
@@ -133,7 +133,7 @@ func FetchAll(destDir string) error {
 func FetchAssets(destDir string) error {
 	for _, asset := range []string{DatasetData, DatasetFigs} {
 		fmt.Fprintf(os.Stderr, "  %s %s\n", ui.SymArrow, asset)
-		zipPath, err := share.GetTo(asset, destDir, false)
+		zipPath, err := share.GetTo(asset, destDir)
 		if err != nil {
 			return fmt.Errorf("download %s: %w", asset, err)
 		}

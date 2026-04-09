@@ -52,9 +52,8 @@ func (r AuthResult) Human() string {
 	}
 	if r.Action == "login" || r.Action == "status" {
 		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("Try these next:"))
-		fmt.Fprintf(&b, "    sci cloud put                 Upload a file publicly\n")
-		fmt.Fprintf(&b, "    sci cloud put --private        Upload to private bucket\n")
-		fmt.Fprintf(&b, "    sci cloud list                List your shared files\n")
+		fmt.Fprintf(&b, "    sci cloud put                 Upload a file\n")
+		fmt.Fprintf(&b, "    sci cloud list                List shared files\n")
 	}
 	return b.String()
 }

@@ -9,10 +9,7 @@ interface Env {
 	R2_ACCESS_KEY: string;
 	R2_SECRET_KEY: string;
 	R2_PUBLIC_URL: string;
-	R2_PRIVATE_ACCESS_KEY: string;
-	R2_PRIVATE_SECRET_KEY: string;
 	PUBLIC_BUCKET_NAME: string;
-	PRIVATE_BUCKET_NAME: string;
 }
 
 interface GitHubDeviceCodeResponse {
@@ -216,11 +213,6 @@ async function handleToken(request: Request, env: Env): Promise<Response> {
 			secret_key: env.R2_SECRET_KEY,
 			bucket_name: env.PUBLIC_BUCKET_NAME,
 			public_url: env.R2_PUBLIC_URL,
-		},
-		private: {
-			access_key: env.R2_PRIVATE_ACCESS_KEY,
-			secret_key: env.R2_PRIVATE_SECRET_KEY,
-			bucket_name: env.PRIVATE_BUCKET_NAME,
 		},
 	});
 }

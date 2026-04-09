@@ -44,7 +44,5 @@ Set via `bunx wrangler secret put <NAME>`:
 | `R2_ACCESS_KEY` | Public bucket access key |
 | `R2_SECRET_KEY` | Public bucket secret key |
 | `R2_PUBLIC_URL` | Public bucket URL (e.g. `https://pub-xxx.r2.dev`) |
-| `R2_PRIVATE_ACCESS_KEY` | Private bucket access key |
-| `R2_PRIVATE_SECRET_KEY` | Private bucket secret key |
 
 The GitHub OAuth App Client ID and org name are configured as plain vars in `wrangler.toml`.

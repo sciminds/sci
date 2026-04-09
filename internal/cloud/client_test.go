@@ -18,11 +18,7 @@ func TestR2Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RequireConfig: %v", err)
 	}
-	bucket, err := BucketForMode(cfg, false)
-	if err != nil {
-		t.Fatalf("BucketForMode: %v", err)
-	}
-	c := NewClient(cfg.AccountID, cfg.Username, bucket)
+	c := NewClient(cfg.AccountID, cfg.Username, cfg.Public)
 	ctx := context.Background()
 
 	const filename = "_test_integration.csv"

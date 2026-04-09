@@ -14,16 +14,12 @@ import (
 )
 
 var (
-	putName       string
-	putDesc       string
-	putForce      bool
-	putPrivate    bool
-	removeYes     bool
-	authLogout    bool
-	listPlain     bool
-	getPrivate    bool
-	removePrivate bool
-	listPrivate   bool
+	putName    string
+	putDesc    string
+	putForce   bool
+	removeYes  bool
+	authLogout bool
+	listPlain  bool
 )
 
 func cloudCommand() *cli.Command {
@@ -74,13 +70,12 @@ func cloudPutCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "put",
 		Usage:       "Upload a file to cloud storage",
-		Description: "$ sci cloud put results.csv\n$ sci cloud put results.csv --private\n$ sci cloud put results.csv --name my-results.csv --desc 'Experiment results' --force",
+		Description: "$ sci cloud put results.csv\n$ sci cloud put results.csv --name my-results.csv --desc 'Experiment results' --force",
 		ArgsUsage:   "<file>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "upload name (default: filename)", Destination: &putName, Local: true},
 			&cli.StringFlag{Name: "desc", Aliases: []string{"d"}, Usage: "optional description", Destination: &putDesc, Local: true},
 			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing file without prompting", Destination: &putForce, Local: true},
-			&cli.BoolFlag{Name: "private", Aliases: []string{"p"}, Usage: "upload to private bucket", Destination: &putPrivate, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
@@ -91,11 +86,9 @@ func cloudPutCommand() *cli.Command {
 			}
 			filePath := cmd.Args().First()
 
-			// Warn about public access unless uploading to private bucket.
-			if !putPrivate {
-				fmt.Fprintf(os.Stderr, "\n  %s This creates a public URL for file access. Do not share sensitive or personally identifying information.\n", ui.SymWarn)
-				fmt.Fprintf(os.Stderr, "    Use %s for private lab storage.\n\n", ui.TUI.Accent().Render("sci lab put"))
-			}
+			// Warn about public access.
+			fmt.Fprintf(os.Stderr, "\n  %s This creates a public URL for file access. Do not share sensitive or personally identifying information.\n", ui.SymWarn)
+			fmt.Fprintf(os.Stderr, "    Use %s for private lab storage.\n\n", ui.TUI.Accent().Render("sci lab put"))
 
 			name := putName
 			desc := putDesc
@@ -132,7 +125,7 @@ func cloudPutCommand() *cli.Command {
 
 			// Check for existing file and prompt unless --force.
 			if !force {
-				exists, err := share.CheckExists(name, putPrivate)
+				exists, err := share.CheckExists(name)
 				if err != nil {
 					return err
 				}
@@ -153,7 +146,7 @@ func cloudPutCommand() *cli.Command {
 				}
 			}
 
-			result, err := share.Share(filePath, share.ShareOpts{Name: name, Description: desc, Force: force, Private: putPrivate})
+			result, err := share.Share(filePath, share.ShareOpts{Name: name, Description: desc, Force: force})
 			if err != nil {
 				return err
 			}
@@ -167,11 +160,8 @@ func cloudGetCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "get",
 		Usage:       "Download a shared file",
-		Description: "$ sci cloud get experiment-results.csv\n$ sci cloud get experiment-results.csv --private",
+		Description: "$ sci cloud get experiment-results.csv",
 		ArgsUsage:   "<name>",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "private", Aliases: []string{"p"}, Usage: "download from private bucket", Destination: &getPrivate, Local: true},
-		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return fmt.Errorf("get requires a file name\n\n" +
@@ -179,7 +169,7 @@ func cloudGetCommand() *cli.Command {
 					"  List files:        sci cloud list\n\n" +
 					"  Run 'sci cloud get --help' for more options")
 			}
-			result, err := share.Get(cmd.Args().First(), getPrivate)
+			result, err := share.Get(cmd.Args().First())
 			if err != nil {
 				return err
 			}
@@ -194,11 +184,10 @@ func cloudRemoveCommand() *cli.Command {
 		Name:        "remove",
 		Aliases:     []string{"rm"},
 		Usage:       "Remove a shared file",
-		Description: "$ sci cloud remove results.csv\n$ sci cloud remove results.csv --private",
+		Description: "$ sci cloud remove results.csv",
 		ArgsUsage:   "<name>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &removeYes, Local: true},
-			&cli.BoolFlag{Name: "private", Aliases: []string{"p"}, Usage: "remove from private bucket", Destination: &removePrivate, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
@@ -208,7 +197,7 @@ func cloudRemoveCommand() *cli.Command {
 			if done, err := cmdutil.ConfirmOrSkip(removeYes, fmt.Sprintf("Remove shared file %q?", name)); done || err != nil {
 				return err
 			}
-			result, err := share.Unshare(name, removePrivate)
+			result, err := share.Unshare(name)
 			if err != nil {
 				return err
 			}
@@ -222,25 +211,19 @@ func cloudListCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "list",
 		Aliases:     []string{"ls"},
-		Usage:       "List shared files (public: all users, private: yours only)",
-		Description: "$ sci cloud list\n$ sci cloud list --private\n$ sci cloud list --plain",
+		Usage:       "List all shared files",
+		Description: "$ sci cloud list\n$ sci cloud list --plain",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "plain", Usage: "plain table output instead of interactive TUI", Destination: &listPlain, Local: true},
-			&cli.BoolFlag{Name: "private", Aliases: []string{"p"}, Usage: "list files in private bucket", Destination: &listPrivate, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			_, c, err := cloud.SetupBucket(listPrivate)
+			_, c, err := cloud.Setup()
 			if err != nil {
 				return err
 			}
 
 			plain := cmdutil.IsJSON(cmd) || listPlain
-			var result *share.SharedListResult
-			if listPrivate {
-				result, err = share.SharedWithOpts(c, plain)
-			} else {
-				result, err = share.SharedAll(c, plain)
-			}
+			result, err := share.SharedAll(c, plain)
 			if err != nil {
 				return err
 			}

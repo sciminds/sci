@@ -94,20 +94,6 @@ func RequireConfig() (*Config, error) {
 	return cfg, nil
 }
 
-// BucketForMode returns the BucketConfig for the requested mode.
-func BucketForMode(cfg *Config, private bool) (*BucketConfig, error) {
-	if private {
-		if cfg.Private == nil || cfg.Private.AccessKey == "" {
-			return nil, fmt.Errorf("private bucket not configured — run 'sci cloud auth' to reconfigure")
-		}
-		return cfg.Private, nil
-	}
-	if cfg.Public == nil || cfg.Public.AccessKey == "" {
-		return nil, fmt.Errorf("public bucket not configured — run 'sci cloud auth' to reconfigure")
-	}
-	return cfg.Public, nil
-}
-
 // ConfigPath returns the credentials path, honoring SCI_CONFIG_PATH env var.
 func ConfigPath() string {
 	if p := os.Getenv("SCI_CONFIG_PATH"); p != "" {

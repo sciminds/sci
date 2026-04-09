@@ -68,10 +68,8 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci cloud auth` | Authenticate with GitHub (requires sciminds org membership) |
 | `sci cloud put <file>` | Upload a file to cloud storage |
 | `sci cloud get <name>` | Download a shared file |
-| `sci cloud list` | List shared files (public: all users, private: yours only) |
+| `sci cloud list` | List all shared files |
 | `sci cloud remove <name>` | Remove a shared file |
-
-All commands accept `--private` / `-p` to target the private bucket instead of the default public one.
 
 ### Lab storage (SFTP)
 
@@ -170,7 +168,7 @@ just run proj new     # etc.
 
 1. **GitHub OAuth App** — [sciminds org settings → OAuth Apps](https://github.com/organizations/sciminds/settings/applications). Client ID is compiled into the CLI (`internal/cloud/device.go`). Must have **"Enable Device Flow"** checked.
 2. **Cloudflare Worker** (`worker/`) — two endpoints: `POST /auth/device` and `POST /auth/token`. Deployed at `sci-auth.sciminds.workers.dev`.
-3. **R2 buckets** — `sci-public` (public read, auth'd write) and `sci-private` (auth'd read/write).
+3. **R2 bucket** — `sci-public` (public read, auth'd write).
 
 **Deploy / redeploy the worker:**
 
@@ -189,8 +187,6 @@ bunx wrangler secret put R2_ACCOUNT_ID
 bunx wrangler secret put R2_ACCESS_KEY          # public bucket
 bunx wrangler secret put R2_SECRET_KEY          # public bucket
 bunx wrangler secret put R2_PUBLIC_URL           # e.g. https://pub-xxx.r2.dev
-bunx wrangler secret put R2_PRIVATE_ACCESS_KEY   # private bucket
-bunx wrangler secret put R2_PRIVATE_SECRET_KEY   # private bucket
 ```
 
 Each command prompts for the value interactively. Get these from the [Cloudflare R2 dashboard](https://dash.cloudflare.com/) → R2 → API Tokens.

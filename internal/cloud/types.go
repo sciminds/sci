@@ -15,13 +15,12 @@ type BucketConfig struct {
 	PublicURL  string `json:"public_url,omitempty"`
 }
 
-// Config holds multi-bucket R2 credentials and user identity.
+// Config holds R2 credentials and user identity.
 type Config struct {
 	Username    string        `json:"username"`
 	GitHubLogin string        `json:"github_login,omitempty"`
 	AccountID   string        `json:"account_id"`
 	Public      *BucketConfig `json:"public,omitempty"`
-	Private     *BucketConfig `json:"private,omitempty"`
 
 	// Legacy flat fields — populated only when reading old-format files.
 	// Deprecated: run "sci cloud auth" to migrate to the new format.
