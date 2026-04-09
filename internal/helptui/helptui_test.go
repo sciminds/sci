@@ -2,11 +2,14 @@ package helptui
 
 import (
 	"bytes"
+	"context"
+	"io"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -71,6 +74,113 @@ func tFinalModel(t *testing.T, tm *teatest.TestModel) *model {
 	t.Helper()
 	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	return tm.FinalModel(t, teatest.WithFinalTimeout(testFinal)).(*model)
+}
+
+// testRoot returns a cli.Command tree that mirrors the real app structure:
+// leaf commands, parent+children, and nested grandchildren. The command must
+// be Run so urfave/cli injects its automatic "help" subcommands — the exact
+// condition that caused the empty-list bug.
+func testRoot() *cli.Command {
+	noop := func(context.Context, *cli.Command) error { return nil }
+	return &cli.Command{
+		Name:            "sci",
+		HideHelpCommand: true,
+		Action:          noop,
+		Commands: []*cli.Command{
+			{
+				Name: "leaf",
+				// Leaf command with no subcommands — gets a synthetic sub.
+				Usage:    "A leaf command",
+				Category: "Commands",
+				Action:   noop,
+			},
+			{
+				Name:     "parent",
+				Usage:    "A parent command",
+				Category: "Commands",
+				Commands: []*cli.Command{
+					{Name: "child1", Usage: "First child", Action: noop},
+					{Name: "child2", Usage: "Second child", Action: noop},
+				},
+			},
+			{
+				Name:     "nested",
+				Usage:    "Has both direct and nested children",
+				Category: "Commands",
+				Commands: []*cli.Command{
+					{Name: "direct", Usage: "Direct sub", Action: noop},
+					{
+						Name:  "deep",
+						Usage: "Has grandchildren",
+						Commands: []*cli.Command{
+							{Name: "gc1", Usage: "Grandchild 1", Action: noop},
+							{Name: "gc2", Usage: "Grandchild 2", Action: noop},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// initRoot runs the root command with --help so urfave/cli initialises the
+// tree (injecting auto-help commands, setting parents, etc.) without
+// executing any real action.
+func initRoot(t *testing.T) *cli.Command {
+	t.Helper()
+	root := testRoot()
+	// Run with --help triggers init but prints help to stdout; silence it.
+	root.Writer = io.Discard
+	_ = root.Run(context.Background(), []string{"sci", "--help"})
+	return root
+}
+
+func TestBuildGroupsAfterInit(t *testing.T) {
+	root := initRoot(t)
+	groups := BuildGroups(root)
+
+	find := func(name string) *CommandGroup {
+		for i := range groups {
+			if groups[i].Name == name {
+				return &groups[i]
+			}
+		}
+		t.Fatalf("group %q not found", name)
+		return nil
+	}
+
+	// Leaf command should have exactly 1 synthetic sub.
+	leaf := find("leaf")
+	if len(leaf.Subs) != 1 {
+		t.Errorf("leaf: got %d subs, want 1", len(leaf.Subs))
+	}
+
+	// Parent with 2 children should have exactly 2 subs (not 0).
+	parent := find("parent")
+	if len(parent.Subs) != 2 {
+		t.Errorf("parent: got %d subs, want 2", len(parent.Subs))
+	}
+
+	// Nested: 1 direct child + 2 flattened grandchildren = 3 subs.
+	nested := find("nested")
+	if len(nested.Subs) != 3 {
+		t.Errorf("nested: got %d subs, want 3", len(nested.Subs))
+	}
+	// Verify flattened names use "deep gc1" format.
+	found := false
+	for _, s := range nested.Subs {
+		if s.Name == "deep gc1" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		names := make([]string, len(nested.Subs))
+		for i, s := range nested.Subs {
+			names[i] = s.Name
+		}
+		t.Errorf("nested: expected flattened sub \"deep gc1\", got %v", names)
+	}
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────

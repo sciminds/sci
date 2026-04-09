@@ -60,7 +60,8 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 				continue
 			}
 			// Flatten nested subcommands (e.g. cass canvas → canvas modules, canvas assignments, ...).
-			if len(sub.Commands) > 0 {
+			// Use hasRealSubs to ignore the auto-injected "help" command from urfave/cli.
+			if hasRealSubs(sub) {
 				for _, child := range sub.Commands {
 					if child.Hidden || child.Name == "help" {
 						continue
@@ -118,6 +119,16 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 		groups = append(groups, g)
 	}
 	return groups
+}
+
+// hasRealSubs reports whether cmd has subcommands beyond the auto-injected "help".
+func hasRealSubs(cmd *cli.Command) bool {
+	for _, c := range cmd.Commands {
+		if !c.Hidden && c.Name != "help" {
+			return true
+		}
+	}
+	return false
 }
 
 func extractFlags(cmd *cli.Command) []Flag {
