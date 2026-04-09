@@ -13,7 +13,7 @@ import (
 )
 
 // categoryOrder defines the display order for command categories in root help.
-var categoryOrder = []string{"Getting Started", "Commands", "Maintenance", "Experimental"}
+var categoryOrder = []string{"What Can I Do?", "Getting Started", "Commands", "Maintenance", "Experimental"}
 
 // SetupHelp configures styled help rendering on the root command.
 // In urfave/cli v3 this is done by replacing the HelpPrinter function.

@@ -131,7 +131,7 @@ func TestPlayerAdvance(t *testing.T) {
 	p := NewPlayer(testCast(), 20)
 
 	// Simulate first tick
-	p, cmd := p.Update(tickMsg{index: 0})
+	p, cmd := p.Update(TickMsg{Index: 0})
 	if p.output != "$ " {
 		t.Errorf("output after tick 0 = %q, want %q", p.output, "$ ")
 	}
@@ -150,7 +150,7 @@ func TestPlayerPause(t *testing.T) {
 	p := NewPlayer(testCast(), 20)
 
 	// Advance one event
-	p, _ = p.Update(tickMsg{index: 0})
+	p, _ = p.Update(TickMsg{Index: 0})
 
 	// Pause
 	p, _ = p.Update(tea.KeyPressMsg{Code: tea.KeySpace})
@@ -160,7 +160,7 @@ func TestPlayerPause(t *testing.T) {
 
 	// Tick while paused should be ignored
 	outputBefore := p.output
-	p, cmd := p.Update(tickMsg{index: 1})
+	p, cmd := p.Update(TickMsg{Index: 1})
 	if p.output != outputBefore {
 		t.Error("output should not change while paused")
 	}
@@ -182,8 +182,8 @@ func TestPlayerRestart(t *testing.T) {
 	p := NewPlayer(testCast(), 20)
 
 	// Advance two events
-	p, _ = p.Update(tickMsg{index: 0})
-	p, _ = p.Update(tickMsg{index: 1})
+	p, _ = p.Update(TickMsg{Index: 0})
+	p, _ = p.Update(TickMsg{Index: 1})
 	if p.current != 2 {
 		t.Fatalf("current = %d, want 2", p.current)
 	}
@@ -212,7 +212,7 @@ func TestPlayerFinished(t *testing.T) {
 
 	// Advance all events
 	for i := range p.cast.Events {
-		p, _ = p.Update(tickMsg{index: i})
+		p, _ = p.Update(TickMsg{Index: i})
 	}
 
 	if !p.finished {
@@ -230,8 +230,8 @@ func TestPlayerFinished(t *testing.T) {
 
 func TestPlayerViewContainsOutput(t *testing.T) {
 	p := NewPlayer(testCast(), 20)
-	p, _ = p.Update(tickMsg{index: 0})
-	p, _ = p.Update(tickMsg{index: 1})
+	p, _ = p.Update(TickMsg{Index: 0})
+	p, _ = p.Update(TickMsg{Index: 1})
 
 	view := p.View()
 	if !contains(view, "ls") {
@@ -253,7 +253,7 @@ func TestPlayerViewTailCap(t *testing.T) {
 	c, _ := ParseCast(data)
 	p := NewPlayer(c, 3) // only 3 visible lines
 
-	p, _ = p.Update(tickMsg{index: 0})
+	p, _ = p.Update(TickMsg{Index: 0})
 	view := p.View()
 
 	// Should show only the last 3 lines of output (+ status)

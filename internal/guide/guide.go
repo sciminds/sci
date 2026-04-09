@@ -70,7 +70,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tickMsg:
+	case TickMsg:
 		if m.player != nil {
 			var cmd tea.Cmd
 			m.player, cmd = m.player.Update(msg)

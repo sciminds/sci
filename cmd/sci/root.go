@@ -36,6 +36,8 @@ func buildRoot() *cli.Command {
 		Suggest:         true,
 		HideHelpCommand: true,
 		Commands: []*cli.Command{
+			// What Can I Do?
+			helpCommand(),
 			// Getting Started
 			learnCommand(),
 			// Commands

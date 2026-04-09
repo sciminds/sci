@@ -107,8 +107,8 @@ func ParseCast(data []byte) (Cast, error) {
 
 const maxDelay = 2 * time.Second
 
-// tickMsg advances playback to the given event index.
-type tickMsg struct{ index int }
+// TickMsg advances playback to the given event index.
+type TickMsg struct{ Index int }
 
 // Player is a bubbletea sub-model that plays back an asciicast recording.
 type Player struct {
@@ -136,8 +136,8 @@ func (p *Player) Init() tea.Cmd {
 // Update handles ticks and key controls.
 func (p *Player) Update(msg tea.Msg) (*Player, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tickMsg:
-		if p.paused || p.finished || msg.index != p.current {
+	case TickMsg:
+		if p.paused || p.finished || msg.Index != p.current {
 			return p, nil
 		}
 		p.output += p.cast.Events[p.current].Data
@@ -223,6 +223,6 @@ func (p *Player) scheduleNext() tea.Cmd {
 	}
 	idx := p.current
 	return tea.Tick(delay, func(_ time.Time) tea.Msg {
-		return tickMsg{index: idx}
+		return TickMsg{Index: idx}
 	})
 }

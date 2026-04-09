@@ -1,0 +1,2 @@
+This directory holds asciinema cast files for help demos.
+Name convention: <command>-<subcommand>.cast (e.g. cloud-put.cast)
