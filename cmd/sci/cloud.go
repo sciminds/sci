@@ -206,7 +206,7 @@ func cloudListCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "list",
 		Aliases:     []string{"ls"},
-		Usage:       "List your shared files",
+		Usage:       "List shared files (public: all users, private: yours only)",
 		Description: "$ sci cloud list\n$ sci cloud list --private\n$ sci cloud list --plain",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "plain", Usage: "plain table output instead of interactive TUI", Destination: &listPlain, Local: true},
@@ -219,7 +219,12 @@ func cloudListCommand() *cli.Command {
 			}
 
 			plain := cmdutil.IsJSON(cmd) || listPlain
-			result, err := share.SharedWithOpts(c, plain)
+			var result *share.SharedListResult
+			if listPrivate {
+				result, err = share.SharedWithOpts(c, plain)
+			} else {
+				result, err = share.SharedAll(c, plain)
+			}
 			if err != nil {
 				return err
 			}

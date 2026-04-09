@@ -216,6 +216,35 @@ func TestSharedListResult_Human_Empty(t *testing.T) {
 	}
 }
 
+func TestSharedListResult_Human_ShowsOwner(t *testing.T) {
+	r := SharedListResult{Datasets: []SharedEntry{
+		{Name: "iris.csv", Owner: "alice", Type: "csv", Updated: "2024-01-01", URL: "https://pub.r2.dev/alice/iris.csv", Size: 1024},
+		{Name: "penguins.csv", Owner: "bob", Type: "csv", Updated: "2024-02-01", URL: "https://pub.r2.dev/bob/penguins.csv", Size: 2048},
+	}}
+	h := r.Human()
+	if !strings.Contains(h, "alice") {
+		t.Errorf("Human() missing owner 'alice':\n%s", h)
+	}
+	if !strings.Contains(h, "bob") {
+		t.Errorf("Human() missing owner 'bob':\n%s", h)
+	}
+	// Should show the owner column header.
+	if !strings.Contains(h, "owner") {
+		t.Errorf("Human() missing 'owner' column header:\n%s", h)
+	}
+}
+
+func TestSharedListResult_Human_NoOwnerColumn_WhenEmpty(t *testing.T) {
+	r := SharedListResult{Datasets: []SharedEntry{
+		{Name: "iris.csv", Type: "csv", Updated: "2024-01-01", URL: "https://pub.r2.dev/user/iris.csv", Size: 1024},
+	}}
+	h := r.Human()
+	// When Owner is empty on all entries, should NOT show owner column.
+	if strings.Contains(h, "owner") {
+		t.Errorf("Human() should not show 'owner' column when no entries have Owner set:\n%s", h)
+	}
+}
+
 func TestSharedListResult_Human_ShowsURL(t *testing.T) {
 	r := SharedListResult{Datasets: []SharedEntry{
 		{Name: "iris.csv", Type: "csv", Updated: "2024-01-01", URL: "https://pub-xxx.r2.dev/user/iris.csv", Size: 512},

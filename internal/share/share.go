@@ -284,38 +284,50 @@ func SharedWith(c *cloud.Client) (*SharedListResult, error) {
 
 // SharedWithOpts lists shared files. When plain is true the spinner is skipped.
 func SharedWithOpts(c *cloud.Client, plain bool) (*SharedListResult, error) {
+	return sharedWithOpts(c, plain, false)
+}
+
+// SharedAll lists all users' shared files in the bucket.
+// When plain is true the spinner is skipped.
+func SharedAll(c *cloud.Client, plain bool) (*SharedListResult, error) {
+	return sharedWithOpts(c, plain, true)
+}
+
+func sharedWithOpts(c *cloud.Client, plain, allUsers bool) (*SharedListResult, error) {
+	listFn := c.List
+	spinnerMsg := "Fetching your files"
+	if allUsers {
+		listFn = func(ctx context.Context) ([]cloud.ObjectInfo, error) {
+			return c.ListPrefix(ctx, "")
+		}
+		spinnerMsg = "Fetching files"
+	}
+
 	var objects []cloud.ObjectInfo
 	if plain {
 		var err error
-		objects, err = c.List(context.Background())
+		objects, err = listFn(context.Background())
 		if err != nil {
 			return nil, err
 		}
-	} else if err := ui.RunWithSpinner("Fetching your files", func(_, _ func(string)) error {
+	} else if err := ui.RunWithSpinner(spinnerMsg, func(_, _ func(string)) error {
 		var listErr error
-		objects, listErr = c.List(context.Background())
+		objects, listErr = listFn(context.Background())
 		return listErr
 	}); err != nil {
 		return nil, err
 	}
 
-	prefix := c.Username + "/"
-	entries := make([]SharedEntry, len(objects))
-	for i, obj := range objects {
-		name := strings.TrimPrefix(obj.Key, prefix)
-		entries[i] = SharedEntry{
-			Name:    name,
-			Type:    detectFileType(name),
-			Updated: obj.LastModified,
-			URL:     obj.URL,
-			Size:    obj.Size,
-		}
-	}
+	entries := buildSharedEntries(objects, c.Username, allUsers)
 
 	// Fetch descriptions concurrently via HeadObject (max 10 in flight).
+	// Only fetch for the current user's files (HeadObject is scoped to username).
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 10)
 	for i := range entries {
+		if allUsers && entries[i].Owner != c.Username {
+			continue
+		}
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(idx int) {
@@ -333,6 +345,42 @@ func SharedWithOpts(c *cloud.Client, plain bool) (*SharedListResult, error) {
 	wg.Wait()
 
 	return &SharedListResult{Datasets: entries}, nil
+}
+
+// buildSharedEntries converts raw ObjectInfo into SharedEntry slices.
+// When allUsers is false, it strips the username prefix from keys.
+// When allUsers is true, it parses the owner from the key and populates Owner.
+func buildSharedEntries(objects []cloud.ObjectInfo, username string, allUsers bool) []SharedEntry {
+	entries := make([]SharedEntry, len(objects))
+	for i, obj := range objects {
+		if allUsers {
+			parts := strings.SplitN(obj.Key, "/", 2)
+			owner := ""
+			name := obj.Key
+			if len(parts) == 2 {
+				owner = parts[0]
+				name = parts[1]
+			}
+			entries[i] = SharedEntry{
+				Name:    name,
+				Owner:   owner,
+				Type:    detectFileType(name),
+				Updated: obj.LastModified,
+				URL:     obj.URL,
+				Size:    obj.Size,
+			}
+		} else {
+			name := strings.TrimPrefix(obj.Key, username+"/")
+			entries[i] = SharedEntry{
+				Name:    name,
+				Type:    detectFileType(name),
+				Updated: obj.LastModified,
+				URL:     obj.URL,
+				Size:    obj.Size,
+			}
+		}
+	}
+	return entries
 }
 
 // Ls lists all shared files, optionally filtered by a username prefix.

@@ -67,6 +67,7 @@ type SharedListResult struct {
 // SharedEntry is a single file in SharedListResult.
 type SharedEntry struct {
 	Name        string `json:"name"`
+	Owner       string `json:"owner,omitempty"`
 	Type        string `json:"type"`
 	Updated     string `json:"updated"`
 	URL         string `json:"url"`
@@ -79,12 +80,32 @@ func (r SharedListResult) Human() string {
 	if len(r.Datasets) == 0 {
 		return fmt.Sprintf("  %s no files shared\n", ui.TUI.Dim().Render("·"))
 	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render("name                          type       size        url"))
+
+	// Show owner column only when at least one entry has Owner set.
+	hasOwner := false
 	for _, d := range r.Datasets {
-		fmt.Fprintf(&b, "  %-30s%-11s%-12s%s\n", d.Name, d.Type, humanize.Bytes(uint64(d.Size)), ui.TUI.Dim().Render(d.URL))
-		if d.Description != "" {
-			fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render(d.Description))
+		if d.Owner != "" {
+			hasOwner = true
+			break
+		}
+	}
+
+	var b strings.Builder
+	if hasOwner {
+		fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render("owner             name                          type       size        url"))
+		for _, d := range r.Datasets {
+			fmt.Fprintf(&b, "  %-18s%-30s%-11s%-12s%s\n", d.Owner, d.Name, d.Type, humanize.Bytes(uint64(d.Size)), ui.TUI.Dim().Render(d.URL))
+			if d.Description != "" {
+				fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render(d.Description))
+			}
+		}
+	} else {
+		fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render("name                          type       size        url"))
+		for _, d := range r.Datasets {
+			fmt.Fprintf(&b, "  %-30s%-11s%-12s%s\n", d.Name, d.Type, humanize.Bytes(uint64(d.Size)), ui.TUI.Dim().Render(d.URL))
+			if d.Description != "" {
+				fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render(d.Description))
+			}
 		}
 	}
 	return b.String()
