@@ -1,0 +1,7 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci cass revert"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  Revert 3 pending grade change(s)? (y/n) y\r\n"]
+[1.8, "o", "  ✓ Reverted 3 grade(s)\r\n"]
+[2.3, "o", "$ "]

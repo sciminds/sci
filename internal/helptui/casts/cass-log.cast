@@ -1,0 +1,10 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci cass log"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  time                  op       detail\r\n"]
+[1.4, "o", "  ──────────────────────────────────────────────────────────\r\n"]
+[1.5, "o", "  2026-04-08 14:35:00   push     3 grades pushed\r\n"]
+[1.6, "o", "  2026-04-08 14:32:00   match    43 matched, 5 unmatched\r\n"]
+[1.7, "o", "  2026-04-08 14:30:00   pull     students: 48 new; assignments: 6 new\r\n"]
+[2.2, "o", "$ "]

@@ -59,6 +59,29 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 			if sub.Hidden || sub.Name == "help" {
 				continue
 			}
+			// Flatten nested subcommands (e.g. cass canvas → canvas modules, canvas assignments, ...).
+			if len(sub.Commands) > 0 {
+				for _, child := range sub.Commands {
+					if child.Hidden || child.Name == "help" {
+						continue
+					}
+					castName := cmd.Name + "-" + sub.Name + "-" + child.Name + ".cast"
+					cast := ""
+					if hasCast(castName) {
+						cast = castName
+					}
+					g.Subs = append(g.Subs, SubCommand{
+						Name:      sub.Name + " " + child.Name,
+						Usage:     child.Usage,
+						FullName:  child.FullName(),
+						ArgsUsage: child.ArgsUsage,
+						Flags:     extractFlags(child),
+						Examples:  child.Description,
+						CastFile:  cast,
+					})
+				}
+				continue
+			}
 			castName := cmd.Name + "-" + sub.Name + ".cast"
 			cast := ""
 			if hasCast(castName) {

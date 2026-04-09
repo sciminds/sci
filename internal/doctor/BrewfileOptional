@@ -1,6 +1,8 @@
 brew "helix"
 brew "nvim"
 brew "msedit"
+brew "starship"
+brew "lsd"
 brew "jq"
 brew "mq"
 brew "rg"

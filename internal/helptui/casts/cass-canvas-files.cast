@@ -1,0 +1,10 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci cass canvas files"]
+[1.0, "o", "\r\n"]
+[1.3, "o", "  id    name                    size     folder\r\n"]
+[1.4, "o", "  ─────────────────────────────────────────────────\r\n"]
+[1.5, "o", "  401   syllabus.pdf            1.2 MB   course files\r\n"]
+[1.6, "o", "  402   lab1-data.csv           24 KB    course files\r\n"]
+[1.7, "o", "  403   midterm-rubric.pdf      340 KB   course files\r\n"]
+[2.2, "o", "$ "]

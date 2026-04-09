@@ -1,0 +1,12 @@
+{"version": 2, "width": 80, "height": 24}
+[0.5, "o", "$ "]
+[0.8, "o", "sci cass init"]
+[1.0, "o", "\r\n"]
+[1.4, "o", "  Canvas course URL: https://canvas.ucsd.edu/courses/54321\r\n"]
+[1.8, "o", "  GitHub Classroom URL (optional): https://classroom.github.com/classrooms/12345\r\n"]
+[2.2, "o", "  ✓ Created cass.yaml\r\n"]
+[2.4, "o", "  ✓ Created cass.db\r\n"]
+[2.6, "o", "  ✓ GitHub Classroom configured\r\n"]
+[2.9, "o", "\r\n"]
+[3.1, "o", "  Next: run sci cass pull to fetch course data\r\n"]
+[3.6, "o", "$ "]
