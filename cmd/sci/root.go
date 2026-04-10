@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/selfupdate"
@@ -21,8 +20,9 @@ import (
 var jsonOutput bool
 
 func buildRoot() *cli.Command {
-	// Non-blocking update check: starts in Before, collected in After.
-	updateNotice := make(chan string, 1)
+	// Update check: Before reads the *previous* cached result (instant) and
+	// kicks off a fire-and-forget goroutine to refresh the cache for next time.
+	var updateNotice string
 
 	root := &cli.Command{
 		Name:    "sci",
@@ -33,20 +33,16 @@ func buildRoot() *cli.Command {
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			ui.SetQuiet(cmdutil.IsJSON(cmd))
-			go func() { updateNotice <- selfupdate.CheckBackground() }()
+			updateNotice = selfupdate.ReadCachedNotice()
+			go selfupdate.RefreshCache()
 			return ctx, nil
 		},
 		After: func(_ context.Context, cmd *cli.Command) error {
 			if cmdutil.IsJSON(cmd) || (len(os.Args) > 1 && os.Args[1] == "update") {
 				return nil
 			}
-			var msg string
-			select {
-			case msg = <-updateNotice:
-			case <-time.After(200 * time.Millisecond):
-			}
-			if msg != "" {
-				fmt.Fprintf(os.Stderr, "\n  %s %s\n", ui.SymArrow, msg)
+			if updateNotice != "" {
+				fmt.Fprintf(os.Stderr, "\n  %s %s\n", ui.SymArrow, updateNotice)
 			}
 			return nil
 		},
