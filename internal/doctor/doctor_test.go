@@ -163,6 +163,11 @@ type mockBrewRunner struct {
 	missing      []string
 	installCalls []string
 	installErr   error
+	outdated     []brew.OutdatedPackage
+	uvOutdated   []brew.OutdatedPackage
+	updateErr    error
+	upgradeCalls int
+	uvUpgCalls   int
 }
 
 func (m *mockBrewRunner) BundleAdd(_, _, _ string) error           { return nil }
@@ -184,9 +189,19 @@ func (m *mockBrewRunner) BundleCheck(_ string) ([]string, error) {
 	return m.missing, nil
 }
 
-func (m *mockBrewRunner) Update() error                               { return nil }
-func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error)   { return nil, nil }
-func (m *mockBrewRunner) Upgrade() (string, error)                    { return "", nil }
-func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) { return nil, nil }
-func (m *mockBrewRunner) UVUpgrade() (string, error)                  { return "", nil }
-func (m *mockBrewRunner) UVToolList() ([]string, error)               { return nil, nil }
+func (m *mockBrewRunner) Update() error { return m.updateErr }
+func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error) {
+	return m.outdated, nil
+}
+func (m *mockBrewRunner) Upgrade() (string, error) {
+	m.upgradeCalls++
+	return "", nil
+}
+func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) {
+	return m.uvOutdated, nil
+}
+func (m *mockBrewRunner) UVUpgrade() (string, error) {
+	m.uvUpgCalls++
+	return "", nil
+}
+func (m *mockBrewRunner) UVToolList() ([]string, error) { return nil, nil }

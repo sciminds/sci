@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -22,6 +24,9 @@ type SetupResult struct {
 	Tools           []ToolInfo
 	ToolsInstalled  []string
 	InstallError    string
+	Outdated        []brew.OutdatedPackage
+	Upgraded        []brew.OutdatedPackage
+	UpdateError     string
 }
 
 // RunSetup performs Brewfile sync, required-package injection, tool checking,
@@ -91,18 +96,91 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 		}
 	}
 
-	if len(missingTools) == 0 {
+	if len(missingTools) > 0 {
+		// Install missing tools.
+		_, installErr := r.BundleInstall(brewfilePath)
+		if installErr != nil {
+			result.InstallError = installErr.Error()
+		} else {
+			result.ToolsInstalled = missingTools
+			// Update Tools to reflect post-install state.
+			for i := range result.Tools {
+				if !result.Tools[i].Installed {
+					result.Tools[i].Installed = true
+				}
+			}
+		}
+	}
+
+	// ── Check for outdated packages ────────────────────────────────────
+	if !ui.IsQuiet() {
+		fmt.Fprintf(os.Stderr, "\n  Checking for outdated packages…\n")
+	}
+
+	if err := r.Update(); err != nil {
+		result.UpdateError = err.Error()
 		return result
 	}
 
-	// Install missing tools.
-	_, installErr := r.BundleInstall(brewfilePath)
-	if installErr != nil {
-		result.InstallError = installErr.Error()
-	} else {
-		result.ToolsInstalled = missingTools
+	var (
+		brewOutdated, uvOutdated []brew.OutdatedPackage
+		brewErr, uvErr           error
+		wg                       sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		brewOutdated, brewErr = r.Outdated()
+	}()
+	go func() {
+		defer wg.Done()
+		uvOutdated, uvErr = r.UVOutdated()
+	}()
+	wg.Wait()
+
+	if brewErr != nil {
+		result.UpdateError = brewErr.Error()
+		return result
+	}
+	if uvErr != nil {
+		result.UpdateError = uvErr.Error()
+		return result
 	}
 
+	result.Outdated = append(brewOutdated, uvOutdated...)
+	if len(result.Outdated) == 0 {
+		return result
+	}
+
+	// Show outdated packages and prompt for upgrade.
+	if !ui.IsQuiet() {
+		fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(result.Outdated))
+		for _, pkg := range result.Outdated {
+			arrow := ui.TUI.Muted().Render(" → ")
+			version := ui.TUI.Muted().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+			fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
+
+	if err := cmdutil.ConfirmYes("Upgrade outdated packages?"); err != nil {
+		return result
+	}
+
+	if len(brewOutdated) > 0 {
+		if _, err := r.Upgrade(); err != nil {
+			result.UpdateError = err.Error()
+			return result
+		}
+	}
+	if len(uvOutdated) > 0 {
+		if _, err := r.UVUpgrade(); err != nil {
+			result.UpdateError = err.Error()
+			return result
+		}
+	}
+
+	result.Upgraded = result.Outdated
 	return result
 }
 

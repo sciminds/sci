@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -22,6 +23,11 @@ type DocResult struct {
 	PackagesAdded   []string
 	ToolsInstalled  []string
 	InstallError    string
+
+	// Update state — populated after the outdated-package check.
+	Outdated    []brew.OutdatedPackage
+	Upgraded    []brew.OutdatedPackage
+	UpdateError string
 }
 
 type jsonCheck struct {
@@ -47,14 +53,17 @@ type jsonTool struct {
 }
 
 type jsonDocResult struct {
-	Sections        []jsonSection `json:"sections"`
-	Summary         jsonSummary   `json:"summary"`
-	Tools           []jsonTool    `json:"tools,omitempty"`
-	BrewfilePath    string        `json:"brewfile_path,omitempty"`
-	BrewfileCreated bool          `json:"brewfile_created,omitempty"`
-	PackagesAdded   []string      `json:"packages_added,omitempty"`
-	ToolsInstalled  []string      `json:"tools_installed,omitempty"`
-	InstallError    string        `json:"install_error,omitempty"`
+	Sections        []jsonSection          `json:"sections"`
+	Summary         jsonSummary            `json:"summary"`
+	Tools           []jsonTool             `json:"tools,omitempty"`
+	BrewfilePath    string                 `json:"brewfile_path,omitempty"`
+	BrewfileCreated bool                   `json:"brewfile_created,omitempty"`
+	PackagesAdded   []string               `json:"packages_added,omitempty"`
+	ToolsInstalled  []string               `json:"tools_installed,omitempty"`
+	InstallError    string                 `json:"install_error,omitempty"`
+	Outdated        []brew.OutdatedPackage `json:"outdated,omitempty"`
+	Upgraded        []brew.OutdatedPackage `json:"upgraded,omitempty"`
+	UpdateError     string                 `json:"update_error,omitempty"`
 }
 
 // JSON returns the structured output for --json mode.
@@ -90,6 +99,9 @@ func (r DocResult) JSON() any {
 		PackagesAdded:   r.PackagesAdded,
 		ToolsInstalled:  r.ToolsInstalled,
 		InstallError:    r.InstallError,
+		Outdated:        r.Outdated,
+		Upgraded:        r.Upgraded,
+		UpdateError:     r.UpdateError,
 	}
 }
 

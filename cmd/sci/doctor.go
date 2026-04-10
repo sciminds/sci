@@ -75,6 +75,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		result.Tools = setup.Tools
 		result.ToolsInstalled = setup.ToolsInstalled
 		result.InstallError = setup.InstallError
+		result.Outdated = setup.Outdated
+		result.Upgraded = setup.Upgraded
+		result.UpdateError = setup.UpdateError
 
 		cmdutil.Output(cmd, result)
 		if !result.AllPassed() || result.InstallError != "" {
@@ -150,40 +153,33 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	if len(missingTools) == 0 {
-		printAllSet()
-		return nil
-	}
-
-	fmt.Fprintf(os.Stderr, "\n  Missing: %s\n", strings.Join(missingTools, ", "))
-	fmt.Fprintln(os.Stderr)
-	installErr := cmdutil.ConfirmYes("Install missing tools?")
-
-	if errors.Is(installErr, cmdutil.ErrCancelled) {
-		fmt.Fprintf(os.Stderr, "\n  To install manually:\n")
-		fmt.Fprintf(os.Stderr, "    %s sci tools install\n", ui.SymArrow)
+	if len(missingTools) > 0 {
+		fmt.Fprintf(os.Stderr, "\n  Missing: %s\n", strings.Join(missingTools, ", "))
 		fmt.Fprintln(os.Stderr)
-		return nil
-	}
-	if installErr != nil {
-		return nil
+		installErr := cmdutil.ConfirmYes("Install missing tools?")
+
+		if errors.Is(installErr, cmdutil.ErrCancelled) {
+			fmt.Fprintf(os.Stderr, "\n  To install manually:\n")
+			fmt.Fprintf(os.Stderr, "    %s sci tools install\n", ui.SymArrow)
+			fmt.Fprintln(os.Stderr)
+		} else if installErr != nil {
+			return nil
+		} else {
+			fmt.Fprintf(os.Stderr, "  Installing…\n")
+			instResult, spinErr := brew.Install(runner, brewfilePath)
+			_ = instResult.Output
+			if spinErr != nil {
+				fmt.Fprintf(os.Stderr, "\n  %s %s\n",
+					ui.SymFail, ui.TUI.Fail().Render("Install failed: "+spinErr.Error()))
+				fmt.Fprintf(os.Stderr, "\n  To install manually:\n")
+				fmt.Fprintf(os.Stderr, "    %s sci tools install\n", ui.SymArrow)
+				fmt.Fprintln(os.Stderr)
+			}
+		}
 	}
 
-	fmt.Fprintf(os.Stderr, "  Installing…\n")
-	instResult, spinErr := brew.Install(runner, brewfilePath)
-	_ = instResult.Output
-
-	if spinErr != nil {
-		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-			ui.SymFail, ui.TUI.Fail().Render("Install failed: "+spinErr.Error()))
-		fmt.Fprintf(os.Stderr, "\n  To install manually:\n")
-		fmt.Fprintf(os.Stderr, "    %s sci tools install\n", ui.SymArrow)
-		fmt.Fprintln(os.Stderr)
-	} else {
-		printAllSet()
-	}
-
-	return nil
+	// ── Step 5: Check for outdated packages ─────────────────────────────
+	return runDoctorUpdateCheck(runner)
 }
 
 // hasHomebrew checks if the pre-flight section includes a passing Homebrew check.
@@ -231,6 +227,58 @@ func mustReadFile(path string) string {
 		return ""
 	}
 	return string(data)
+}
+
+// runDoctorUpdateCheck refreshes the registry, checks for outdated packages,
+// and offers to upgrade them — the interactive equivalent of
+// `sci tools outdated && sci tools update`.
+func runDoctorUpdateCheck(runner brew.Runner) error {
+	fmt.Fprintf(os.Stderr, "\n  Checking for outdated packages…\n")
+
+	result, err := brew.Update(runner, true)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s %s\n",
+			ui.SymWarn, ui.TUI.Warn().Render("Could not check for updates: "+err.Error()))
+		return nil
+	}
+
+	if len(result.Outdated) == 0 {
+		printAllSet()
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(result.Outdated))
+	for _, pkg := range result.Outdated {
+		arrow := ui.TUI.Muted().Render(" → ")
+		version := ui.TUI.Muted().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+		fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
+	}
+	fmt.Fprintln(os.Stderr)
+
+	upgradeErr := cmdutil.ConfirmYes("Upgrade outdated packages?")
+	if errors.Is(upgradeErr, cmdutil.ErrCancelled) {
+		fmt.Fprintf(os.Stderr, "\n  To upgrade manually:\n")
+		fmt.Fprintf(os.Stderr, "    %s sci tools update\n", ui.SymArrow)
+		fmt.Fprintln(os.Stderr)
+		return nil
+	}
+	if upgradeErr != nil {
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "  Upgrading…\n")
+	_, err = brew.Update(runner, false)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s %s\n",
+			ui.SymFail, ui.TUI.Fail().Render("Upgrade failed: "+err.Error()))
+		fmt.Fprintf(os.Stderr, "\n  To upgrade manually:\n")
+		fmt.Fprintf(os.Stderr, "    %s sci tools update\n", ui.SymArrow)
+		fmt.Fprintln(os.Stderr)
+		return nil
+	}
+
+	printAllSet()
+	return nil
 }
 
 func printAllSet() {

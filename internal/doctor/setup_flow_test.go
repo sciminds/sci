@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -46,6 +47,13 @@ func TestRunSetup_CreatedBrewfile(t *testing.T) {
 	if result.InstallError != "" {
 		t.Errorf("unexpected InstallError: %s", result.InstallError)
 	}
+
+	// After a successful install, all Tools entries should be marked installed.
+	for _, ti := range result.Tools {
+		if !ti.Installed {
+			t.Errorf("tool %q still marked as not installed after successful install", ti.Name)
+		}
+	}
 }
 
 // TestRunSetup_ExistingBrewfile tests the sync path for a pre-existing Brewfile.
@@ -87,6 +95,13 @@ func TestRunSetup_InstallError(t *testing.T) {
 	if result.InstallError == "" {
 		t.Error("expected InstallError to be set when install fails")
 	}
+
+	// Tools should remain not-installed when install fails.
+	for _, ti := range result.Tools {
+		if ti.Name == "uv" && ti.Installed {
+			t.Error("tool uv should remain not-installed after failed install")
+		}
+	}
 }
 
 // TestRunSetup_NoMissingTools skips install when everything is present.
@@ -108,6 +123,110 @@ func TestRunSetup_NoMissingTools(t *testing.T) {
 	}
 	if result.InstallError != "" {
 		t.Errorf("unexpected InstallError: %s", result.InstallError)
+	}
+}
+
+// TestRunSetup_OutdatedUpgrade checks that outdated packages are detected and upgraded.
+func TestRunSetup_OutdatedUpgrade(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, Brewfile)
+
+	mock := &mockBrewRunner{
+		missing: []string{},
+		outdated: []brew.OutdatedPackage{
+			{Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
+		},
+		uvOutdated: []brew.OutdatedPackage{
+			{Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
+		},
+	}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	if len(result.Outdated) != 2 {
+		t.Fatalf("expected 2 outdated packages, got %d", len(result.Outdated))
+	}
+	if len(result.Upgraded) != 2 {
+		t.Fatalf("expected 2 upgraded packages, got %d", len(result.Upgraded))
+	}
+	if mock.upgradeCalls != 1 {
+		t.Errorf("expected 1 brew upgrade call, got %d", mock.upgradeCalls)
+	}
+	if mock.uvUpgCalls != 1 {
+		t.Errorf("expected 1 uv upgrade call, got %d", mock.uvUpgCalls)
+	}
+	if result.UpdateError != "" {
+		t.Errorf("unexpected UpdateError: %s", result.UpdateError)
+	}
+}
+
+// TestRunSetup_NothingOutdated verifies no upgrade when everything is current.
+func TestRunSetup_NothingOutdated(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, Brewfile)
+
+	mock := &mockBrewRunner{missing: []string{}}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	if len(result.Outdated) != 0 {
+		t.Errorf("expected no outdated packages, got %d", len(result.Outdated))
+	}
+	if len(result.Upgraded) != 0 {
+		t.Errorf("expected no upgraded packages, got %d", len(result.Upgraded))
+	}
+	if mock.upgradeCalls != 0 {
+		t.Errorf("expected 0 brew upgrade calls, got %d", mock.upgradeCalls)
+	}
+}
+
+// TestRunSetup_UpdateError records update failures in UpdateError.
+func TestRunSetup_UpdateError(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, Brewfile)
+
+	mock := &mockBrewRunner{
+		missing:   []string{},
+		updateErr: os.ErrPermission,
+	}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	if result.UpdateError == "" {
+		t.Error("expected UpdateError to be set when brew update fails")
+	}
+}
+
+// TestRunSetup_BrewOnlyUpgrade only calls brew upgrade when only brew packages are outdated.
+func TestRunSetup_BrewOnlyUpgrade(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, Brewfile)
+
+	mock := &mockBrewRunner{
+		missing: []string{},
+		outdated: []brew.OutdatedPackage{
+			{Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
+		},
+	}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	if len(result.Upgraded) != 1 {
+		t.Fatalf("expected 1 upgraded package, got %d", len(result.Upgraded))
+	}
+	if mock.upgradeCalls != 1 {
+		t.Errorf("expected 1 brew upgrade call, got %d", mock.upgradeCalls)
+	}
+	if mock.uvUpgCalls != 0 {
+		t.Errorf("expected 0 uv upgrade calls, got %d", mock.uvUpgCalls)
 	}
 }
 
