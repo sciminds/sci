@@ -69,7 +69,7 @@ func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
 	}
 
 	var missing map[string]bool
-	if err := ui.RunWithSpinner("Checking installed tools…", func(_ ui.SpinnerControls) error {
+	if err := ui.RunWithSpinner("Checking installed tools…", func() error {
 		missing = missingSet(r, BrewfileOptional)
 		return nil
 	}); err != nil {
@@ -97,7 +97,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 
 	// Detect which optional tools are already installed (behind a spinner).
 	var missing map[string]bool
-	if err := ui.RunWithSpinner("Checking installed tools…", func(_ ui.SpinnerControls) error {
+	if err := ui.RunWithSpinner("Checking installed tools…", func() error {
 		missing = missingSet(r, BrewfileOptional)
 		return nil
 	}); err != nil {
@@ -145,7 +145,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 		return OptionalSetupResult{}, fmt.Errorf("write temp brewfile: %w", err)
 	}
 
-	output, err := r.BundleInstall(tmpFile, nil, nil, nil)
+	output, err := r.BundleInstall(tmpFile)
 	if err != nil {
 		return OptionalSetupResult{}, fmt.Errorf("brew bundle install: %w", err)
 	}

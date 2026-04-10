@@ -9,7 +9,7 @@
 //   - [OK] / [Fail] / [Warn] print status lines with colored symbols
 //   - [Header] prints a bold section heading
 //   - [NextStep] suggests a follow-up command after an operation
-//   - [RunWithSpinner] wraps a long-running function with a spinner (supports suspend/resume for interactive prompts)
+//   - [RunWithSpinner] wraps a long-running function with a bubbletea inline spinner
 //   - [ClampWidth] / [ClampHeight] guard Bubble Tea views against zero dimensions
 //
 // Symbols are available as package variables: [SymOK] (✓), [SymFail] (✗),

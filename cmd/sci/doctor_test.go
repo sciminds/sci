@@ -27,6 +27,9 @@ func TestToolsReccs_JSONSkipsForm(t *testing.T) {
 }
 
 func TestDoctor_JSONIncludesBrewfileFields(t *testing.T) {
+	if os.Getenv("SLOW") == "" {
+		t.Skip("skipping integration test (set SLOW=1 to run)")
+	}
 	// Capture stdout to parse the JSON output.
 	old := os.Stdout
 	r, w, _ := os.Pipe()

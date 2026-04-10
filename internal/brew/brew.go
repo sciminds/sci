@@ -3,7 +3,6 @@
 package brew
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 )
 
 // DefaultBrewfile is the default Brewfile location (matches brew's XDG convention).
@@ -42,18 +40,18 @@ type PackageInfo struct {
 type Runner interface {
 	BundleAdd(file, pkg, pkgType string) error
 	BundleRemove(file, pkg, pkgType string) error
-	BundleInstall(file string, onLine func(string), onSuspend, onResume func()) (string, error)
+	BundleInstall(file string) (string, error)
 	BundleCheck(file string) ([]string, error)
-	BundleCleanup(file string, onLine func(string), onSuspend, onResume func()) (string, error)
+	BundleCleanup(file string) (string, error)
 	BundleDump(file string) error
-	BundleDumpLive(file string, onSuspend, onResume func()) error
+	BundleDumpLive(file string) error
 	BundleList(file, pkgType string) ([]string, error)
 	Info(names []string, isCask bool) ([]PackageInfo, error)
-	Update(onLine func(string), onSuspend, onResume func()) error
+	Update() error
 	Outdated() ([]OutdatedPackage, error)
-	Upgrade(onLine func(string), onSuspend, onResume func()) (string, error)
+	Upgrade() (string, error)
 	UVOutdated() ([]OutdatedPackage, error)
-	UVUpgrade(onLine func(string)) (string, error)
+	UVUpgrade() (string, error)
 	UVToolList() ([]string, error)
 }
 
@@ -66,7 +64,7 @@ func (BundleRunner) BundleAdd(file, pkg, pkgType string) error {
 		args = append(args, "--"+pkgType)
 	}
 	args = append(args, pkg)
-	_, err := runBrewInteractive(nil, nil, nil, args...)
+	_, err := runBrewDirect(args...)
 	return err
 }
 
@@ -76,12 +74,12 @@ func (BundleRunner) BundleRemove(file, pkg, pkgType string) error {
 		args = append(args, "--"+pkgType)
 	}
 	args = append(args, pkg)
-	_, err := runBrewInteractive(nil, nil, nil, args...)
+	_, err := runBrewDirect(args...)
 	return err
 }
 
-func (BundleRunner) BundleInstall(file string, onLine func(string), onSuspend, onResume func()) (string, error) {
-	return runBrewInteractive(onLine, onSuspend, onResume, "bundle", "install", "--file="+file)
+func (BundleRunner) BundleInstall(file string) (string, error) {
+	return runBrewDirect("bundle", "install", "--verbose", "--file="+file)
 }
 
 // BundleCheck runs `brew bundle check --verbose` and returns the names of
@@ -102,15 +100,15 @@ func (BundleRunner) BundleDump(file string) error {
 	return err
 }
 
-// BundleDumpLive is like BundleDump but connects stdin and uses stall
-// detection so interactive prompts (e.g. sudo password) are visible.
-func (BundleRunner) BundleDumpLive(file string, onSuspend, onResume func()) error {
-	_, err := runBrewInteractive(nil, onSuspend, onResume, "bundle", "dump", "--force", "--no-vscode", "--file="+file)
+// BundleDumpLive is like BundleDump but connects stdin so interactive
+// prompts (e.g. sudo password) are visible.
+func (BundleRunner) BundleDumpLive(file string) error {
+	_, err := runBrewDirect("bundle", "dump", "--force", "--no-vscode", "--file="+file)
 	return err
 }
 
-func (BundleRunner) BundleCleanup(file string, onLine func(string), onSuspend, onResume func()) (string, error) {
-	return runBrewInteractive(onLine, onSuspend, onResume, "bundle", "cleanup", "--force", "--file="+file)
+func (BundleRunner) BundleCleanup(file string) (string, error) {
+	return runBrewDirect("bundle", "cleanup", "--force", "--file="+file)
 }
 
 func (BundleRunner) BundleList(file, pkgType string) ([]string, error) {
@@ -193,8 +191,8 @@ type OutdatedPackage struct {
 	Pinned           bool   `json:"pinned"`
 }
 
-func (BundleRunner) Update(onLine func(string), onSuspend, onResume func()) error {
-	_, err := runBrewInteractive(onLine, onSuspend, onResume, "update")
+func (BundleRunner) Update() error {
+	_, err := runBrewDirect("update")
 	return err
 }
 
@@ -206,8 +204,8 @@ func (BundleRunner) Outdated() ([]OutdatedPackage, error) {
 	return parseOutdated(out)
 }
 
-func (BundleRunner) Upgrade(onLine func(string), onSuspend, onResume func()) (string, error) {
-	return runBrewInteractive(onLine, onSuspend, onResume, "upgrade")
+func (BundleRunner) Upgrade() (string, error) {
+	return runBrewDirect("upgrade")
 }
 
 func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
@@ -219,8 +217,8 @@ func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
 	return parseUVOutdated(string(out)), nil
 }
 
-func (BundleRunner) UVUpgrade(onLine func(string)) (string, error) {
-	return runLive(onLine, "uv", "tool", "upgrade", "--all")
+func (BundleRunner) UVUpgrade() (string, error) {
+	return runDirect("uv", "tool", "upgrade", "--all")
 }
 
 func (BundleRunner) UVToolList() ([]string, error) {
@@ -287,103 +285,20 @@ func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
 	return pkgs, nil
 }
 
-// runLive runs a command, captures its combined output, and calls
-// onLine for each non-empty line as it arrives. Returns the full output.
-func runLive(onLine func(string), name string, args ...string) (string, error) {
+// runDirect runs a command with stdin/stdout/stderr connected directly to the
+// terminal. Returns empty output — the user sees it live.
+func runDirect(name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", fmt.Errorf("stdout pipe: %w", err)
-	}
-	cmd.Stderr = cmd.Stdout // merge stderr into stdout
-
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("start: %w", err)
-	}
-
-	var full strings.Builder
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		line := scanner.Text()
-		full.WriteString(line + "\n")
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" && onLine != nil {
-			onLine(trimmed)
-		}
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return full.String(), err
-	}
-	return full.String(), nil
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stderr // brew output goes to stderr (stdout reserved for JSON)
+	cmd.Stderr = os.Stderr
+	return "", cmd.Run()
 }
 
-// runBrewInteractive runs a brew command, streaming output via onLine.
-// When the process stalls (e.g. waiting for a sudo password prompt) it
-// connects stdin so interactive prompts can be answered, and calls
-// onSuspend/onResume to hide/show the spinner around the stall.
-func runBrewInteractive(onLine func(string), onSuspend, onResume func(), args ...string) (string, error) {
-	const stallTimeout = 2 * time.Second
-
-	cmd := exec.Command("brew", args...)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", fmt.Errorf("stdout pipe: %w", err)
-	}
-	cmd.Stderr = cmd.Stdout
-	cmd.Stdin = os.Stdin
-
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("start: %w", err)
-	}
-
-	lines := make(chan string)
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			lines <- scanner.Text()
-		}
-		close(lines)
-	}()
-
-	var full strings.Builder
-	suspended := false
-
-	for {
-		select {
-		case line, ok := <-lines:
-			if !ok {
-				goto wait
-			}
-			full.WriteString(line + "\n")
-			if suspended {
-				suspended = false
-				if onResume != nil {
-					onResume()
-				}
-			}
-			trimmed := strings.TrimSpace(line)
-			if trimmed != "" && onLine != nil {
-				onLine(trimmed)
-			}
-		case <-time.After(stallTimeout):
-			if !suspended {
-				suspended = true
-				if onSuspend != nil {
-					onSuspend()
-				}
-			}
-		}
-	}
-
-wait:
-	if suspended && onResume != nil {
-		onResume()
-	}
-	if err := cmd.Wait(); err != nil {
-		return full.String(), err
-	}
-	return full.String(), nil
+// runBrewDirect runs a brew command with direct terminal access.
+// Sudo prompts, progress output, and interactive input work naturally.
+func runBrewDirect(args ...string) (string, error) {
+	return runDirect("brew", args...)
 }
 
 func runBrewOutput(args ...string) (string, error) {

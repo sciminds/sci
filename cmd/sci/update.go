@@ -23,7 +23,7 @@ func updateCommand() *cli.Command {
 func runUpdate(_ context.Context, cmd *cli.Command) error {
 	var result selfupdate.CheckResult
 
-	err := ui.RunWithSpinner("Checking for updates…", func(_ ui.SpinnerControls) error {
+	err := ui.RunWithSpinner("Checking for updates…", func() error {
 		result = selfupdate.Check()
 		if result.Error != "" {
 			return fmt.Errorf("%s", result.Error)
@@ -53,7 +53,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 
 	fmt.Printf("  %s New version available: %s → %s\n", ui.SymArrow, current, ui.TUI.Accent().Render(latest))
 
-	err = ui.RunWithSpinner("Downloading…", func(_ ui.SpinnerControls) error {
+	err = ui.RunWithSpinner("Downloading…", func() error {
 		_, uerr := selfupdate.Update(result.DownloadURL)
 		return uerr
 	})

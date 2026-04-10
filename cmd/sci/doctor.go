@@ -30,7 +30,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// ── Step 1–2: Pre-flight + Identity checks ──────────────────────────
 	var result doctor.DocResult
-	err := ui.RunWithSpinner("Checking your computer setup…", func(_ ui.SpinnerControls) error {
+	err := ui.RunWithSpinner("Checking your computer setup…", func() error {
 		result.Sections = doctor.RunAll()
 		return nil
 	})
@@ -87,27 +87,20 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// Step 3b: Reconcile Brewfile with system.
 	if created {
-		err = ui.RunWithSpinner("Capturing installed packages…", func(sc ui.SpinnerControls) error {
-			return runner.BundleDumpLive(brewfilePath, sc.Suspend, sc.Resume)
-		})
-		if err != nil {
+		dumpErr := runner.BundleDumpLive(brewfilePath)
+		if dumpErr != nil {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				ui.SymWarn, ui.TUI.Warn().Render("Could not capture installed packages: "+err.Error()))
+				ui.SymWarn, ui.TUI.Warn().Render("Could not capture installed packages: "+dumpErr.Error()))
 		} else {
 			n := len(brew.ParseBrewfileNames(mustReadFile(brewfilePath)))
 			fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
 				ui.SymOK, ui.TUI.Accent().Render(brewfilePath), n)
 		}
 	} else {
-		var syncResult brew.SyncResult
-		err = ui.RunWithSpinner("Syncing Brewfile with installed packages…", func(sc ui.SpinnerControls) error {
-			var syncErr error
-			syncResult, syncErr = brew.Sync(runner, brewfilePath, sc.Suspend, sc.Resume)
-			return syncErr
-		})
-		if err != nil {
+		syncResult, syncErr := brew.Sync(runner, brewfilePath)
+		if syncErr != nil {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				ui.SymWarn, ui.TUI.Warn().Render("Could not sync Brewfile with system: "+err.Error()))
+				ui.SymWarn, ui.TUI.Warn().Render("Could not sync Brewfile with system: "+syncErr.Error()))
 		} else if msg := syncResult.Human(); msg != "" {
 			fmt.Fprintf(os.Stderr, "  %s %s", ui.SymOK, msg)
 		}
@@ -139,7 +132,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// Step 4: Check & install.
 	var toolResult doctor.DocResult
-	err = ui.RunWithSpinner("Checking installed tools…", func(_ ui.SpinnerControls) error {
+	err = ui.RunWithSpinner("Checking installed tools…", func() error {
 		toolResult.Tools = doctor.RunToolChecks(runner, brewfilePath)
 		return nil
 	})
@@ -176,12 +169,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	var output string
-	spinErr := ui.RunWithSpinner("Installing…", func(sc ui.SpinnerControls) error {
-		result, instErr := brew.Install(runner, brewfilePath, sc.SetStatus, sc.Suspend, sc.Resume)
-		output = result.Output
-		return instErr
-	})
+	fmt.Fprintf(os.Stderr, "  Installing…\n")
+	instResult, spinErr := brew.Install(runner, brewfilePath)
+	_ = instResult.Output
 
 	if spinErr != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
@@ -190,7 +180,6 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		fmt.Fprintf(os.Stderr, "    %s sci tools install\n", ui.SymArrow)
 		fmt.Fprintln(os.Stderr)
 	} else {
-		_ = output
 		printAllSet()
 	}
 

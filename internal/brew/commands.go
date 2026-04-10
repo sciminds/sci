@@ -9,9 +9,7 @@ import (
 
 // Add adds a package to the Brewfile and installs it.
 // If install fails, the Brewfile is restored to its previous state.
-// onLine, onSuspend, onResume enable spinner status updates and stall-detection
-// for interactive prompts (e.g. sudo password). Pass nil when not behind a spinner.
-func Add(r Runner, file, pkg, pkgType string, onLine func(string), onSuspend, onResume func()) (AddResult, error) {
+func Add(r Runner, file, pkg, pkgType string) (AddResult, error) {
 	backup, err := os.ReadFile(file)
 	if err != nil {
 		return AddResult{}, fmt.Errorf("read brewfile: %w", err)
@@ -21,7 +19,7 @@ func Add(r Runner, file, pkg, pkgType string, onLine func(string), onSuspend, on
 		return AddResult{}, fmt.Errorf("bundle add: %w", err)
 	}
 
-	if _, err := r.BundleInstall(file, onLine, onSuspend, onResume); err != nil {
+	if _, err := r.BundleInstall(file); err != nil {
 		// Rollback: restore the Brewfile.
 		_ = os.WriteFile(file, backup, 0o644)
 		return AddResult{}, fmt.Errorf("bundle install (rolled back): %w", err)
@@ -32,9 +30,7 @@ func Add(r Runner, file, pkg, pkgType string, onLine func(string), onSuspend, on
 
 // Remove removes a package from the Brewfile and cleans up.
 // If cleanup fails, the Brewfile is restored to its previous state.
-// onLine, onSuspend, onResume enable spinner status updates and stall-detection
-// for interactive prompts (e.g. sudo password). Pass nil when not behind a spinner.
-func Remove(r Runner, file, pkg, pkgType string, onLine func(string), onSuspend, onResume func()) (RemoveResult, error) {
+func Remove(r Runner, file, pkg, pkgType string) (RemoveResult, error) {
 	backup, err := os.ReadFile(file)
 	if err != nil {
 		return RemoveResult{}, fmt.Errorf("read brewfile: %w", err)
@@ -44,7 +40,7 @@ func Remove(r Runner, file, pkg, pkgType string, onLine func(string), onSuspend,
 		return RemoveResult{}, fmt.Errorf("bundle remove: %w", err)
 	}
 
-	if _, err := r.BundleCleanup(file, onLine, onSuspend, onResume); err != nil {
+	if _, err := r.BundleCleanup(file); err != nil {
 		// Rollback: restore the Brewfile.
 		_ = os.WriteFile(file, backup, 0o644)
 		return RemoveResult{}, fmt.Errorf("bundle cleanup (rolled back): %w", err)
@@ -54,10 +50,8 @@ func Remove(r Runner, file, pkg, pkgType string, onLine func(string), onSuspend,
 }
 
 // Install installs all packages from the Brewfile.
-// onLine, onSuspend, onResume enable spinner status updates and stall-detection
-// for interactive prompts (e.g. sudo password). Pass nil when not behind a spinner.
-func Install(r Runner, file string, onLine func(string), onSuspend, onResume func()) (InstallResult, error) {
-	out, err := r.BundleInstall(file, onLine, onSuspend, onResume)
+func Install(r Runner, file string) (InstallResult, error) {
+	out, err := r.BundleInstall(file)
 	if err != nil {
 		return InstallResult{}, fmt.Errorf("bundle install: %w", err)
 	}
@@ -75,21 +69,9 @@ func List(r Runner, file, pkgType string) (ListResult, error) {
 
 // Update refreshes the Homebrew registry and optionally upgrades outdated packages.
 // If checkOnly is true, it only lists outdated packages without upgrading.
-// setTitle and setStatus update the spinner's main label and detail text respectively.
-// onSuspend and onResume hide/show the spinner when a subprocess stalls (e.g. sudo prompt).
-func Update(r Runner, checkOnly bool, setTitle, setStatus func(string), onSuspend, onResume func()) (UpdateResult, error) {
-	onLine := func(s string) {
-		if setStatus != nil {
-			setStatus(s)
-		}
-	}
-
-	if err := r.Update(onLine, onSuspend, onResume); err != nil {
+func Update(r Runner, checkOnly bool) (UpdateResult, error) {
+	if err := r.Update(); err != nil {
 		return UpdateResult{}, fmt.Errorf("brew update: %w", err)
-	}
-
-	if setTitle != nil {
-		setTitle("Checking for outdated packages…")
 	}
 
 	// Check brew and uv outdated concurrently.
@@ -122,20 +104,16 @@ func Update(r Runner, checkOnly bool, setTitle, setStatus func(string), onSuspen
 		return UpdateResult{Outdated: outdated, CheckOnly: checkOnly}, nil
 	}
 
-	if setTitle != nil {
-		setTitle(fmt.Sprintf("Upgrading %d package(s)…", len(outdated)))
-	}
-
 	var upgradeOut string
 	if len(brewOutdated) > 0 {
-		out, err := r.Upgrade(onLine, onSuspend, onResume)
+		out, err := r.Upgrade()
 		if err != nil {
 			return UpdateResult{}, fmt.Errorf("brew upgrade: %w", err)
 		}
 		upgradeOut = out
 	}
 	if len(uvOutdated) > 0 {
-		out, err := r.UVUpgrade(onLine)
+		out, err := r.UVUpgrade()
 		if err != nil {
 			return UpdateResult{}, fmt.Errorf("uv upgrade: %w", err)
 		}

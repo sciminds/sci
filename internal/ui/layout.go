@@ -85,9 +85,6 @@ const (
 // ── Component defaults ──────────────────────────────────────────────────────
 
 const (
-	// ProgressBarWidth is the default width for the progress bar model.
-	ProgressBarWidth = 40
-
 	// FallbackDividerWidth is the divider width used when terminal width
 	// is unknown or too narrow for arithmetic.
 	FallbackDividerWidth = 50

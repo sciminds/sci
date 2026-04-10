@@ -49,7 +49,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 				ui.SymOK, ui.TUI.Accent().Render(brewfilePath), n)
 		}
 	} else {
-		syncResult, err := brew.Sync(r, brewfilePath, noop, noop)
+		syncResult, err := brew.Sync(r, brewfilePath)
 		if err != nil && !ui.IsQuiet() {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 				ui.SymWarn, ui.TUI.Warn().Render("Could not sync Brewfile with system: "+err.Error()))
@@ -96,8 +96,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	}
 
 	// Install missing tools.
-	output, installErr := r.BundleInstall(brewfilePath, nil, nil, nil)
-	_ = output
+	_, installErr := r.BundleInstall(brewfilePath)
 	if installErr != nil {
 		result.InstallError = installErr.Error()
 	} else {
@@ -106,8 +105,6 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 
 	return result
 }
-
-func noop() {}
 
 func setupEntryNames(entries []brew.BrewfileEntry) []string {
 	names := make([]string, len(entries))

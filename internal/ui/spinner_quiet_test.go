@@ -36,7 +36,7 @@ func TestRunWithSpinner_QuietRunsFn(t *testing.T) {
 	defer SetQuiet(false)
 
 	ran := false
-	err := RunWithSpinner("loading…", func(_ SpinnerControls) error {
+	err := RunWithSpinner("loading…", func() error {
 		ran = true
 		return nil
 	})
@@ -54,7 +54,7 @@ func TestRunWithSpinner_QuietReturnsError(t *testing.T) {
 	defer SetQuiet(false)
 
 	want := errors.New("boom")
-	got := RunWithSpinner("loading…", func(_ SpinnerControls) error {
+	got := RunWithSpinner("loading…", func() error {
 		return want
 	})
 
@@ -68,7 +68,7 @@ func TestRunWithSpinner_QuietPrintsTitleToStderr(t *testing.T) {
 	defer SetQuiet(false)
 
 	out := captureStderr(t, func() {
-		_ = RunWithSpinner("Checking updates…", func(_ SpinnerControls) error {
+		_ = RunWithSpinner("Checking updates…", func() error {
 			return nil
 		})
 	})
@@ -78,77 +78,17 @@ func TestRunWithSpinner_QuietPrintsTitleToStderr(t *testing.T) {
 	}
 }
 
-func TestRunWithSpinner_QuietSuspendResumeAreNoOps(t *testing.T) {
+func TestRunWithSpinnerStatus_QuietRunsFn(t *testing.T) {
 	SetQuiet(true)
 	defer SetQuiet(false)
 
-	err := RunWithSpinner("installing…", func(sc SpinnerControls) error {
-		// Callbacks should be no-ops, not panics.
-		sc.SetTitle("new title")
-		sc.SetStatus("status")
-		sc.Suspend()
-		sc.Resume()
+	err := RunWithSpinnerStatus("installing…", func(setStatus func(string)) error {
+		setStatus("step 1")
+		setStatus("step 2")
 		return nil
 	})
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestRunWithItemProgress_QuietRunsFn(t *testing.T) {
-	SetQuiet(true)
-	defer SetQuiet(false)
-
-	ran := false
-	err := RunWithItemProgress("importing…", func(update func(current, total int)) error {
-		update(1, 10)
-		ran = true
-		return nil
-	})
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !ran {
-		t.Error("fn should have been called")
-	}
-}
-
-func TestRunWithItemProgressStatus_QuietRunsFn(t *testing.T) {
-	SetQuiet(true)
-	defer SetQuiet(false)
-
-	ran := false
-	err := RunWithItemProgressStatus("syncing…", func(update func(current, total int, status string)) error {
-		update(1, 5, "file.csv")
-		ran = true
-		return nil
-	})
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !ran {
-		t.Error("fn should have been called")
-	}
-}
-
-func TestRunWithProgress_QuietRunsFn(t *testing.T) {
-	SetQuiet(true)
-	defer SetQuiet(false)
-
-	ran := false
-	err := RunWithProgress("downloading…", func(update func(current, total int64)) error {
-		update(512, 1024)
-		ran = true
-		return nil
-	})
-
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !ran {
-		t.Error("fn should have been called")
 	}
 }

@@ -138,12 +138,7 @@ func resolveToolsFile() (string, error) {
 // syncBrewfile reconciles the Brewfile with the system state before
 // running a tools subcommand. Errors are non-fatal (printed as warnings).
 func syncBrewfile(file string) {
-	var result brew.SyncResult
-	err := ui.RunWithSpinner("Syncing Brewfile…", func(sc ui.SpinnerControls) error {
-		var syncErr error
-		result, syncErr = brew.Sync(brew.BundleRunner{}, file, sc.Suspend, sc.Resume)
-		return syncErr
-	})
+	result, err := brew.Sync(brew.BundleRunner{}, file)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
 			ui.SymWarn, ui.TUI.Warn().Render("Could not sync Brewfile: "+err.Error()))
@@ -178,7 +173,7 @@ func resolveToolsPkgType() string {
 // prompt with the recommended choice pre-selected.
 func detectPkgType(pkg string) (string, error) {
 	var matches []brew.DetectedPackage
-	if err := ui.RunWithSpinner(fmt.Sprintf("Detecting package type for %s…", pkg), func(_ ui.SpinnerControls) error {
+	if err := ui.RunWithSpinner(fmt.Sprintf("Detecting package type for %s…", pkg), func() error {
 		var detectErr error
 		matches, detectErr = brew.Detect(brew.LiveProber{}, pkg)
 		return detectErr
@@ -256,14 +251,10 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 			return nil
 		}
 
-		var result brew.AddResult
-		err = ui.RunWithSpinner(fmt.Sprintf("Adding %s…", pkg), func(sc ui.SpinnerControls) error {
-			var addErr error
-			result, addErr = brew.Add(brew.BundleRunner{}, file, pkg, pkgType, sc.SetStatus, sc.Suspend, sc.Resume)
+		fmt.Fprintf(os.Stderr, "  Adding %s…\n", pkg)
+		result, addErr := brew.Add(brew.BundleRunner{}, file, pkg, pkgType)
+		if addErr != nil {
 			return addErr
-		})
-		if err != nil {
-			return err
 		}
 
 		cmdutil.Output(cmd, result)
@@ -276,14 +267,10 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	var result brew.InstallResult
-	err = ui.RunWithSpinner("Installing from Brewfile…", func(sc ui.SpinnerControls) error {
-		var instErr error
-		result, instErr = brew.Install(brew.BundleRunner{}, file, sc.SetStatus, sc.Suspend, sc.Resume)
+	fmt.Fprintf(os.Stderr, "  Installing from Brewfile…\n")
+	result, instErr := brew.Install(brew.BundleRunner{}, file)
+	if instErr != nil {
 		return instErr
-	})
-	if err != nil {
-		return err
 	}
 
 	cmdutil.Output(cmd, result)
@@ -310,14 +297,10 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	var result brew.RemoveResult
-	err = ui.RunWithSpinner(fmt.Sprintf("Removing %s…", pkg), func(sc ui.SpinnerControls) error {
-		var rmErr error
-		result, rmErr = brew.Remove(brew.BundleRunner{}, file, pkg, resolveToolsPkgType(), sc.SetStatus, sc.Suspend, sc.Resume)
+	fmt.Fprintf(os.Stderr, "  Removing %s…\n", pkg)
+	result, rmErr := brew.Remove(brew.BundleRunner{}, file, pkg, resolveToolsPkgType())
+	if rmErr != nil {
 		return rmErr
-	})
-	if err != nil {
-		return err
 	}
 
 	cmdutil.Output(cmd, result)
@@ -350,7 +333,7 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 
 	// Default: interactive TUI with descriptions.
 	var packages []brew.PackageInfo
-	err = ui.RunWithSpinner("Loading package info…", func(_ ui.SpinnerControls) error {
+	err = ui.RunWithSpinner("Loading package info…", func() error {
 		var detErr error
 		packages, detErr = brew.ListDetailed(runner, file)
 		return detErr
@@ -376,12 +359,8 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	var result brew.UpdateResult
-	err := ui.RunWithSpinner("Updating package registry…", func(sc ui.SpinnerControls) error {
-		var updateErr error
-		result, updateErr = brew.Update(runner, false, sc.SetTitle, sc.SetStatus, sc.Suspend, sc.Resume)
-		return updateErr
-	})
+	fmt.Fprintf(os.Stderr, "  Updating package registry…\n")
+	result, err := brew.Update(runner, false)
 	if err != nil {
 		return err
 	}
@@ -404,12 +383,8 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	var result brew.UpdateResult
-	err := ui.RunWithSpinner("Checking for outdated packages…", func(sc ui.SpinnerControls) error {
-		var updateErr error
-		result, updateErr = brew.Update(runner, true, sc.SetTitle, sc.SetStatus, sc.Suspend, sc.Resume)
-		return updateErr
-	})
+	fmt.Fprintf(os.Stderr, "  Checking for outdated packages…\n")
+	result, err := brew.Update(runner, true)
 	if err != nil {
 		return err
 	}

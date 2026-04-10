@@ -76,12 +76,12 @@ func Setup(user string) (*SetupResult, error) {
 
 	// 6. Test connection.
 	var testErr error
-	if err := ui.RunWithSpinner("Testing SSH connection", func(sc ui.SpinnerControls) error {
+	if err := ui.RunWithSpinnerStatus("Testing SSH connection", func(setStatus func(string)) error {
 		testErr = exec.Command("ssh", "-o", "ConnectTimeout=10", alias, "echo", "ok").Run()
 		if testErr != nil {
-			sc.SetStatus("failed")
+			setStatus("failed")
 		} else {
-			sc.SetStatus("connected")
+			setStatus("connected")
 		}
 		return nil
 	}); err != nil {

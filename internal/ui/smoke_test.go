@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"bytes"
 	"testing"
 )
 
@@ -27,9 +26,8 @@ func TestViewAtZeroSize(t *testing.T) {
 		_ = o.View() // must not panic
 	})
 
-	t.Run("tickRenderer", func(t *testing.T) {
-		var buf bytes.Buffer
-		r := newTickRenderer(&buf, "test")
-		r.render() // must not panic at zero state
+	t.Run("spinnerModel", func(t *testing.T) {
+		m := newSpinnerModel("test")
+		_ = m.View() // must not panic at zero state
 	})
 }

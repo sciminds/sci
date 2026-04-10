@@ -235,10 +235,7 @@ var scannableTypes = map[string]bool{
 //
 // Only entries of scannable types (brew, cask, tap, uv) are candidates
 // for removal; unknown types are left untouched.
-//
-// onSuspend/onResume hide and restore the caller's spinner when brew
-// stalls waiting for interactive input (e.g. a sudo password prompt).
-func Sync(r Runner, path string, onSuspend, onResume func()) (SyncResult, error) {
+func Sync(r Runner, path string) (SyncResult, error) {
 	// Dump brew state to a temp file and list uv tools concurrently.
 	tmp, err := os.CreateTemp("", "sci-sync-dump-*")
 	if err != nil {
@@ -256,7 +253,7 @@ func Sync(r Runner, path string, onSuspend, onResume func()) (SyncResult, error)
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		dumpErr = r.BundleDumpLive(tmpPath, onSuspend, onResume)
+		dumpErr = r.BundleDumpLive(tmpPath)
 	}()
 	go func() {
 		defer wg.Done()

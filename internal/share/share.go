@@ -73,7 +73,7 @@ func Auth() (*AuthResult, error) {
 
 	// Poll for approval.
 	var resp *cloud.TokenResponse
-	if err := ui.RunWithSpinner("Waiting for GitHub authorization", func(_ ui.SpinnerControls) error {
+	if err := ui.RunWithSpinner("Waiting for GitHub authorization", func() error {
 		var pollErr error
 		resp, pollErr = cloud.PollForToken(ctx, cloud.DefaultWorkerURL, dc.DeviceCode, dc.Interval)
 		return pollErr
@@ -182,7 +182,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		}
 		tmpZipPath := tmpZip.Name()
 		_ = tmpZip.Close() // zipDir will create/overwrite the file
-		if err := ui.RunWithSpinner("Packing "+stem, func(_ ui.SpinnerControls) error {
+		if err := ui.RunWithSpinner("Packing "+stem, func() error {
 			return zipDir(absPath, tmpZipPath)
 		}); err != nil {
 			_ = os.Remove(tmpZipPath)
@@ -225,7 +225,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 	}
 
 	var result *CloudResult
-	if err := ui.RunWithSpinner("Uploading "+name, func(_ ui.SpinnerControls) error {
+	if err := ui.RunWithSpinner("Uploading "+name, func() error {
 		f, openErr := os.Open(absPath)
 		if openErr != nil {
 			return openErr
@@ -266,7 +266,7 @@ func Unshare(name string) (*CloudResult, error) {
 
 	filename := ensureExtension(name)
 
-	if err := ui.RunWithSpinner("Removing "+filename, func(_ ui.SpinnerControls) error {
+	if err := ui.RunWithSpinner("Removing "+filename, func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), metadataTimeout)
 		defer cancel()
 		exists, existsErr := c.Exists(ctx, filename)
@@ -331,7 +331,7 @@ func sharedWithOpts(c *cloud.Client, plain, allUsers bool) (*SharedListResult, e
 		if err != nil {
 			return nil, netutil.Wrap("listing files", err)
 		}
-	} else if err := ui.RunWithSpinner(spinnerMsg, func(_ ui.SpinnerControls) error {
+	} else if err := ui.RunWithSpinner(spinnerMsg, func() error {
 		var listErr error
 		objects, listErr = listFn(listCtx)
 		return listErr
@@ -419,7 +419,7 @@ func Ls(username, fileType string) (*DatasetListResult, error) {
 	}
 
 	var objects []cloud.ObjectInfo
-	if err := ui.RunWithSpinner("Fetching files", func(_ ui.SpinnerControls) error {
+	if err := ui.RunWithSpinner("Fetching files", func() error {
 		lsCtx, lsCancel := context.WithTimeout(context.Background(), metadataTimeout)
 		defer lsCancel()
 		var listErr error
@@ -477,7 +477,7 @@ func GetTo(name, destDir string) (string, error) {
 	}
 
 	dl := downloadFunc(c, filename)
-	if err := ui.RunWithSpinner("Downloading "+filepath.Base(filename), func(_ ui.SpinnerControls) error {
+	if err := ui.RunWithSpinner("Downloading "+filepath.Base(filename), func() error {
 		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
 		defer dlCancel()
 		f, createErr := os.Create(outPath)
@@ -496,7 +496,7 @@ func GetTo(name, destDir string) (string, error) {
 	// Auto-extract zip files.
 	if filepath.Ext(outPath) == ".zip" {
 		extractDir := filepath.Join(destDir, nameFromFile(filename))
-		if err := ui.RunWithSpinner("Extracting "+filepath.Base(filename), func(_ ui.SpinnerControls) error {
+		if err := ui.RunWithSpinner("Extracting "+filepath.Base(filename), func() error {
 			return unzip(outPath, extractDir)
 		}); err != nil {
 			return "", fmt.Errorf("extracting: %w", err)
@@ -520,7 +520,7 @@ func Get(name string) (*CloudResult, error) {
 
 	outPath := filepath.Base(filename)
 	dl := downloadFunc(c, filename)
-	if err := ui.RunWithSpinner("Downloading "+filepath.Base(filename), func(_ ui.SpinnerControls) error {
+	if err := ui.RunWithSpinner("Downloading "+filepath.Base(filename), func() error {
 		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
 		defer dlCancel()
 		f, createErr := os.Create(outPath)
@@ -539,7 +539,7 @@ func Get(name string) (*CloudResult, error) {
 	// Auto-extract zip files.
 	if filepath.Ext(outPath) == ".zip" {
 		extractDir := nameFromFile(filename)
-		if err := ui.RunWithSpinner("Extracting "+filepath.Base(filename), func(_ ui.SpinnerControls) error {
+		if err := ui.RunWithSpinner("Extracting "+filepath.Base(filename), func() error {
 			return unzip(outPath, extractDir)
 		}); err != nil {
 			return nil, fmt.Errorf("extracting: %w", err)

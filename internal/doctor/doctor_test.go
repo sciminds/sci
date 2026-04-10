@@ -165,19 +165,17 @@ type mockBrewRunner struct {
 	installErr   error
 }
 
-func (m *mockBrewRunner) BundleAdd(_, _, _ string) error             { return nil }
-func (m *mockBrewRunner) BundleRemove(_, _, _ string) error          { return nil }
-func (m *mockBrewRunner) BundleDump(_ string) error                  { return nil }
-func (m *mockBrewRunner) BundleDumpLive(_ string, _, _ func()) error { return nil }
-func (m *mockBrewRunner) BundleCleanup(_ string, _ func(string), _, _ func()) (string, error) {
-	return "", nil
-}
+func (m *mockBrewRunner) BundleAdd(_, _, _ string) error           { return nil }
+func (m *mockBrewRunner) BundleRemove(_, _, _ string) error        { return nil }
+func (m *mockBrewRunner) BundleDump(_ string) error                { return nil }
+func (m *mockBrewRunner) BundleDumpLive(_ string) error            { return nil }
+func (m *mockBrewRunner) BundleCleanup(_ string) (string, error)   { return "", nil }
 func (m *mockBrewRunner) BundleList(_, _ string) ([]string, error) { return nil, nil }
 func (m *mockBrewRunner) Info(_ []string, _ bool) ([]brew.PackageInfo, error) {
 	return nil, nil
 }
 
-func (m *mockBrewRunner) BundleInstall(file string, _ func(string), _, _ func()) (string, error) {
+func (m *mockBrewRunner) BundleInstall(file string) (string, error) {
 	m.installCalls = append(m.installCalls, file)
 	return "installed", m.installErr
 }
@@ -186,11 +184,9 @@ func (m *mockBrewRunner) BundleCheck(_ string) ([]string, error) {
 	return m.missing, nil
 }
 
-func (m *mockBrewRunner) Update(_ func(string), _, _ func()) error            { return nil }
-func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error)           { return nil, nil }
-func (m *mockBrewRunner) Upgrade(_ func(string), _, _ func()) (string, error) { return "", nil }
-func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) {
-	return nil, nil
-}
-func (m *mockBrewRunner) UVUpgrade(_ func(string)) (string, error) { return "", nil }
-func (m *mockBrewRunner) UVToolList() ([]string, error)            { return nil, nil }
+func (m *mockBrewRunner) Update() error                               { return nil }
+func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error)   { return nil, nil }
+func (m *mockBrewRunner) Upgrade() (string, error)                    { return "", nil }
+func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) { return nil, nil }
+func (m *mockBrewRunner) UVUpgrade() (string, error)                  { return "", nil }
+func (m *mockBrewRunner) UVToolList() ([]string, error)               { return nil, nil }

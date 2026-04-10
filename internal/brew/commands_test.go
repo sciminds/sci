@@ -64,7 +64,7 @@ func (m *mockRunner) BundleRemove(file, pkg, pkgType string) error {
 	return nil
 }
 
-func (m *mockRunner) BundleInstall(file string, _ func(string), _, _ func()) (string, error) {
+func (m *mockRunner) BundleInstall(file string) (string, error) {
 	m.installCalls = append(m.installCalls, file)
 	return "installed", m.installErr
 }
@@ -84,11 +84,11 @@ func (m *mockRunner) BundleDump(file string) error {
 	return nil
 }
 
-func (m *mockRunner) BundleDumpLive(file string, _, _ func()) error {
+func (m *mockRunner) BundleDumpLive(file string) error {
 	return m.BundleDump(file)
 }
 
-func (m *mockRunner) BundleCleanup(file string, _ func(string), _, _ func()) (string, error) {
+func (m *mockRunner) BundleCleanup(file string) (string, error) {
 	m.cleanupCalls = append(m.cleanupCalls, file)
 	return "cleaned", m.cleanupErr
 }
@@ -102,7 +102,7 @@ func (m *mockRunner) Info(_ []string, _ bool) ([]PackageInfo, error) {
 	return m.infoResult, m.infoErr
 }
 
-func (m *mockRunner) Update(_ func(string), _, _ func()) error {
+func (m *mockRunner) Update() error {
 	m.updateCalls++
 	return m.updateErr
 }
@@ -111,7 +111,7 @@ func (m *mockRunner) Outdated() ([]OutdatedPackage, error) {
 	return m.outdatedResult, m.outdatedErr
 }
 
-func (m *mockRunner) Upgrade(_ func(string), _, _ func()) (string, error) {
+func (m *mockRunner) Upgrade() (string, error) {
 	m.upgradeCalls++
 	return m.upgradeOut, m.upgradeErr
 }
@@ -120,7 +120,7 @@ func (m *mockRunner) UVOutdated() ([]OutdatedPackage, error) {
 	return m.uvOutdatedResult, m.uvOutdatedErr
 }
 
-func (m *mockRunner) UVUpgrade(_ func(string)) (string, error) {
+func (m *mockRunner) UVUpgrade() (string, error) {
 	m.uvUpgradeCalls++
 	return m.uvUpgradeOut, m.uvUpgradeErr
 }
@@ -143,7 +143,7 @@ func TestAdd_HappyPath(t *testing.T) {
 	bf := brewfile(t, `brew "existing"`)
 	m := &mockRunner{}
 
-	result, err := Add(m, bf, "htop", "", nil, nil, nil)
+	result, err := Add(m, bf, "htop", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestAdd_WithType(t *testing.T) {
 	bf := brewfile(t, "")
 	m := &mockRunner{}
 
-	_, err := Add(m, bf, "firefox", "cask", nil, nil, nil)
+	_, err := Add(m, bf, "firefox", "cask")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestAdd_RollbackOnInstallFailure(t *testing.T) {
 	bf := brewfile(t, original)
 	m := &mockRunner{installErr: errors.New("install failed")}
 
-	_, err := Add(m, bf, "htop", "", nil, nil, nil)
+	_, err := Add(m, bf, "htop", "")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -202,7 +202,7 @@ func TestRemove_HappyPath(t *testing.T) {
 	bf := brewfile(t, `brew "htop"`+"\n"+`brew "curl"`+"\n")
 	m := &mockRunner{}
 
-	result, err := Remove(m, bf, "htop", "", nil, nil, nil)
+	result, err := Remove(m, bf, "htop", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestRemove_RollbackOnCleanupFailure(t *testing.T) {
 	bf := brewfile(t, original)
 	m := &mockRunner{cleanupErr: errors.New("cleanup failed")}
 
-	_, err := Remove(m, bf, "htop", "", nil, nil, nil)
+	_, err := Remove(m, bf, "htop", "")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -244,7 +244,7 @@ func TestInstall_HappyPath(t *testing.T) {
 	bf := brewfile(t, `brew "htop"`)
 	m := &mockRunner{}
 
-	result, err := Install(m, bf, nil, nil, nil)
+	result, err := Install(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -397,7 +397,7 @@ func TestUpdate_UpgradesOutdated(t *testing.T) {
 		upgradeOut: "==> Upgrading htop\n",
 	}
 
-	result, err := Update(m, false, nil, nil, nil, nil)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -423,7 +423,7 @@ func TestUpdate_CheckOnly(t *testing.T) {
 		},
 	}
 
-	result, err := Update(m, true, nil, nil, nil, nil)
+	result, err := Update(m, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestUpdate_CheckOnly(t *testing.T) {
 func TestUpdate_NothingOutdated(t *testing.T) {
 	m := &mockRunner{}
 
-	result, err := Update(m, false, nil, nil, nil, nil)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -470,7 +470,7 @@ func TestUpdate_IncludesUVOutdated(t *testing.T) {
 		uvUpgradeOut: "Updated ruff\n",
 	}
 
-	result, err := Update(m, false, nil, nil, nil, nil)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -496,7 +496,7 @@ func TestUpdate_CheckOnly_IncludesUV(t *testing.T) {
 		},
 	}
 
-	result, err := Update(m, true, nil, nil, nil, nil)
+	result, err := Update(m, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -520,7 +520,7 @@ func TestUpdate_OnlyUVOutdated(t *testing.T) {
 		uvUpgradeOut: "Updated ruff\n",
 	}
 
-	result, err := Update(m, false, nil, nil, nil, nil)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -539,7 +539,7 @@ func TestUpdate_OnlyUVOutdated(t *testing.T) {
 func TestUpdate_UpdateFails(t *testing.T) {
 	m := &mockRunner{updateErr: errors.New("network error")}
 
-	_, err := Update(m, false, nil, nil, nil, nil)
+	_, err := Update(m, false)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -695,7 +695,7 @@ func TestSync_NoChanges(t *testing.T) {
 	bf := brewfile(t, "brew \"htop\"\n")
 	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
 
-	result, err := Sync(m, bf, nil, nil)
+	result, err := Sync(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -708,7 +708,7 @@ func TestSync_AddsBrewEntries(t *testing.T) {
 	bf := brewfile(t, "brew \"htop\"\n")
 	m := &mockRunner{dumpContent: "brew \"htop\"\nbrew \"curl\"\n"}
 
-	result, err := Sync(m, bf, nil, nil)
+	result, err := Sync(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -726,7 +726,7 @@ func TestSync_AddsUVEntries(t *testing.T) {
 	bf := brewfile(t, "")
 	m := &mockRunner{uvToolListResult: []string{"ruff"}}
 
-	result, err := Sync(m, bf, nil, nil)
+	result, err := Sync(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -744,7 +744,7 @@ func TestSync_RemovesBrewEntries(t *testing.T) {
 	bf := brewfile(t, "brew \"htop\"\nbrew \"wget\"\n")
 	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
 
-	result, err := Sync(m, bf, nil, nil)
+	result, err := Sync(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -762,7 +762,7 @@ func TestSync_RemovesUVEntries(t *testing.T) {
 	bf := brewfile(t, "uv \"ruff\"\nuv \"marimo\"\n")
 	m := &mockRunner{uvToolListResult: []string{"marimo"}}
 
-	result, err := Sync(m, bf, nil, nil)
+	result, err := Sync(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -786,7 +786,7 @@ func TestSync_Bidirectional(t *testing.T) {
 		uvToolListResult: []string{"marimo"},
 	}
 
-	result, err := Sync(m, bf, nil, nil)
+	result, err := Sync(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -802,7 +802,7 @@ func TestSync_DumpError(t *testing.T) {
 	bf := brewfile(t, "")
 	m := &mockRunner{dumpErr: errors.New("dump failed")}
 
-	_, err := Sync(m, bf, nil, nil)
+	_, err := Sync(m, bf)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -812,7 +812,7 @@ func TestSync_UVListError(t *testing.T) {
 	bf := brewfile(t, "")
 	m := &mockRunner{uvToolListErr: errors.New("uv failed")}
 
-	_, err := Sync(m, bf, nil, nil)
+	_, err := Sync(m, bf)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -823,7 +823,7 @@ func TestSync_IgnoresUnscannableTypes(t *testing.T) {
 	bf := brewfile(t, "brew \"htop\"\ngo \"github.com/foo/bar\"\ncargo \"ripgrep\"\n")
 	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
 
-	result, err := Sync(m, bf, nil, nil)
+	result, err := Sync(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
