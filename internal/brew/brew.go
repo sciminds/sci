@@ -6,11 +6,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/creack/pty/v2"
 )
 
 // DefaultBrewfile is the default Brewfile location (matches brew's XDG convention).
@@ -79,7 +82,7 @@ func (BundleRunner) BundleRemove(file, pkg, pkgType string) error {
 }
 
 func (BundleRunner) BundleInstall(file string) (string, error) {
-	return runBrewDirect("bundle", "install", "--verbose", "--file="+file)
+	return runBrewLive("bundle", "install", "--verbose", "--file="+file)
 }
 
 // BundleCheck runs `brew bundle check --verbose` and returns the names of
@@ -103,12 +106,12 @@ func (BundleRunner) BundleDump(file string) error {
 // BundleDumpLive is like BundleDump but connects stdin so interactive
 // prompts (e.g. sudo password) are visible.
 func (BundleRunner) BundleDumpLive(file string) error {
-	_, err := runBrewDirect("bundle", "dump", "--force", "--no-vscode", "--file="+file)
+	_, err := runBrewLive("bundle", "dump", "--force", "--no-vscode", "--file="+file)
 	return err
 }
 
 func (BundleRunner) BundleCleanup(file string) (string, error) {
-	return runBrewDirect("bundle", "cleanup", "--force", "--file="+file)
+	return runBrewLive("bundle", "cleanup", "--force", "--file="+file)
 }
 
 func (BundleRunner) BundleList(file, pkgType string) ([]string, error) {
@@ -192,7 +195,7 @@ type OutdatedPackage struct {
 }
 
 func (BundleRunner) Update() error {
-	_, err := runBrewDirect("update")
+	_, err := runBrewLive("update")
 	return err
 }
 
@@ -205,7 +208,7 @@ func (BundleRunner) Outdated() ([]OutdatedPackage, error) {
 }
 
 func (BundleRunner) Upgrade() (string, error) {
-	return runBrewDirect("upgrade")
+	return runBrewLive("upgrade")
 }
 
 func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
@@ -218,7 +221,11 @@ func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
 }
 
 func (BundleRunner) UVUpgrade() (string, error) {
-	return runDirect("uv", "tool", "upgrade", "--all")
+	cmd := exec.Command("uv", "tool", "upgrade", "--all")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	return "", cmd.Run()
 }
 
 func (BundleRunner) UVToolList() ([]string, error) {
@@ -285,20 +292,48 @@ func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
 	return pkgs, nil
 }
 
-// runDirect runs a command with stdin/stdout/stderr connected directly to the
-// terminal. Returns empty output — the user sees it live.
-func runDirect(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+// runBrewLive runs a brew command with a PTY for stdout/stderr so output
+// streams in real-time (brew bundle buffers without a PTY). Stdin remains
+// the real terminal so sudo password prompts work via /dev/tty.
+//
+// This is deliberately minimal — no stall detection, no callbacks, no
+// output parsing. The PTY just forces line-buffered output from brew.
+func runBrewLive(args ...string) (string, error) {
+	ptmx, pts, err := pty.Open()
+	if err != nil {
+		// Fallback: direct passthrough if PTY unavailable.
+		return runBrewDirect(args...)
+	}
+	defer func() { _ = ptmx.Close() }()
+
+	cmd := exec.Command("brew", args...)
+	cmd.Stdout = pts
+	cmd.Stderr = pts
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stderr // brew output goes to stderr (stdout reserved for JSON)
-	cmd.Stderr = os.Stderr
-	return "", cmd.Run()
+
+	if err := cmd.Start(); err != nil {
+		_ = pts.Close()
+		return "", fmt.Errorf("start: %w", err)
+	}
+	_ = pts.Close() // close slave in parent; child inherited it
+
+	// Splice PTY output to stderr in real-time.
+	_, _ = io.Copy(os.Stderr, ptmx)
+
+	if err := cmd.Wait(); err != nil {
+		return "", err
+	}
+	return "", nil
 }
 
-// runBrewDirect runs a brew command with direct terminal access.
-// Sudo prompts, progress output, and interactive input work naturally.
+// runBrewDirect runs a brew command with direct terminal access (no PTY).
+// Used as a fallback and for commands that don't need real-time output.
 func runBrewDirect(args ...string) (string, error) {
-	return runDirect("brew", args...)
+	cmd := exec.Command("brew", args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	return "", cmd.Run()
 }
 
 func runBrewOutput(args ...string) (string, error) {

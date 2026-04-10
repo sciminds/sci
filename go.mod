@@ -15,6 +15,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260406091427-a791e22d5143
 	github.com/charmbracelet/x/term v0.2.2
+	github.com/creack/pty/v2 v2.0.1
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lrstanley/bubblezone/v2 v2.0.0
 	github.com/muesli/termenv v0.16.0
