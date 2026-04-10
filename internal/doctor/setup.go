@@ -1,13 +1,13 @@
 package doctor
 
-// setup.go — optional tool picker via huh multi-select form.
+// setup.go — optional tool picker via interactive list TUI.
 
 import (
 	"fmt"
 	"os"
 	"strings"
 
-	"charm.land/huh/v2"
+	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -87,8 +87,8 @@ func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
 	return OptionalToolsResult{Tools: tools}, nil
 }
 
-// RunOptionalSetup presents a multi-select of optional tools and installs the
-// user's selections via brew bundle install.
+// RunOptionalSetup presents a list of uninstalled optional tools and installs
+// the user's selection via brew bundle install.
 func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 	entries := brew.ParseBrewfileEntries(BrewfileOptional)
 	if len(entries) == 0 {
@@ -104,43 +104,35 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 		return OptionalSetupResult{}, err
 	}
 
-	options := make([]huh.Option[int], len(entries))
-	var selected []int
-	for i, e := range entries {
-		label := e.Name + ui.TUI.Dim().Render(" "+e.Type)
-		if !missing[e.Name] {
-			label += ui.TUI.Dim().Render(" ✓")
-			selected = append(selected, i)
+	// All tools already installed — nothing to show.
+	allInstalled := true
+	for _, e := range entries {
+		if missing[e.Name] {
+			allInstalled = false
+			break
 		}
-		options[i] = huh.NewOption(label, i)
 	}
-
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewMultiSelect[int]().
-				Title("Select optional tools to install").
-				Options(options...).
-				Value(&selected),
-		),
-	).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap())
-
-	if err := form.Run(); err != nil {
-		return OptionalSetupResult{}, err
-	}
-
-	if len(selected) == 0 {
+	if allInstalled {
 		return OptionalSetupResult{}, nil
 	}
 
-	// Build a temp Brewfile from selected entries.
-	var lines []string
-	var names []string
-	for _, idx := range selected {
-		lines = append(lines, entries[idx].Line)
-		names = append(names, entries[idx].Name)
+	// Launch list TUI — only uninstalled tools are shown.
+	m := newReccsModel(entries, missing)
+	p := tea.NewProgram(m)
+	final, err := p.Run()
+	if err != nil {
+		return OptionalSetupResult{}, err
 	}
 
-	tmpFile, err := brew.WriteTempBrewfile(strings.Join(lines, "\n") + "\n")
+	model := final.(reccsModel)
+	if model.quitting || model.chosen < 0 {
+		return OptionalSetupResult{}, nil
+	}
+
+	chosen := model.entries[model.chosen]
+
+	// Build a temp Brewfile with just the selected entry.
+	tmpFile, err := brew.WriteTempBrewfile(chosen.Line + "\n")
 	if err != nil {
 		return OptionalSetupResult{}, fmt.Errorf("write temp brewfile: %w", err)
 	}
@@ -150,7 +142,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 		return OptionalSetupResult{}, fmt.Errorf("brew bundle install: %w", err)
 	}
 
-	return OptionalSetupResult{Installed: names, Output: output}, nil
+	return OptionalSetupResult{Installed: []string{chosen.Name}, Output: output}, nil
 }
 
 // missingSet runs BundleCheck against the given Brewfile content and returns

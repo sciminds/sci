@@ -143,6 +143,7 @@ func syncBrewfile(file string) {
 	if !netutil.Online() {
 		return
 	}
+	fmt.Fprintf(os.Stderr, "  %s Ensuring Brewfile is up-to-date…\n", ui.SymArrow)
 	result, err := brew.Sync(brew.BundleRunner{}, file)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
@@ -266,6 +267,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 			return addErr
 		}
 
+		syncBrewfile(file)
 		cmdutil.Output(cmd, result)
 		return nil
 	}
@@ -282,6 +284,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		return instErr
 	}
 
+	syncBrewfile(file)
 	cmdutil.Output(cmd, result)
 	return nil
 }
@@ -315,6 +318,7 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 		return rmErr
 	}
 
+	syncBrewfile(file)
 	cmdutil.Output(cmd, result)
 	return nil
 }
@@ -381,6 +385,9 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	if file, err := resolveToolsFile(); err == nil {
+		syncBrewfile(file)
+	}
 	cmdutil.Output(cmd, result)
 	return nil
 }
@@ -409,6 +416,9 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	if file, err := resolveToolsFile(); err == nil {
+		syncBrewfile(file)
+	}
 	cmdutil.Output(cmd, result)
 	return nil
 }
@@ -432,6 +442,12 @@ func runToolsReccs(_ context.Context, cmd *cli.Command) error {
 	result, err := doctor.RunOptionalSetup(runner)
 	if err != nil {
 		return err
+	}
+
+	if len(result.Installed) > 0 {
+		if file, err := resolveToolsFile(); err == nil {
+			syncBrewfile(file)
+		}
 	}
 
 	cmdutil.Output(cmd, result)
