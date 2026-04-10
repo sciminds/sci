@@ -391,6 +391,7 @@ wait:
 
 func runBrew(args ...string) error {
 	cmd := exec.Command("brew", args...)
+	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

@@ -1,88 +1,234 @@
 package ui
 
-// spinner.go — Bubble Tea model that wraps a blocking operation with a spinner
-// and optional progress bar, reporting status updates as they arrive.
+// spinner.go — tick-loop renderer for spinners and progress bars.
+// Renders inline to stderr using ANSI escape codes. No bubbletea program,
+// no raw mode, no terminal capability queries — child processes get clean
+// uncontested access to stdin/stdout.
 
 import (
 	"fmt"
+	"io"
 	"os"
-	"strings"
+	"sync"
+	"time"
 
 	"charm.land/bubbles/v2/progress"
-	"charm.land/bubbles/v2/spinner"
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
 
-// ── Spinner TUI — wraps a blocking operation with visual feedback ───────────
+// Braille dot spinner frames (matches bubbles/spinner.Dot).
+var spinnerFrames = []string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "}
 
-type spinnerDoneMsg struct{ err error }
-type spinnerTitleMsg string
-type spinnerStatusMsg string
-type spinnerSuspendMsg struct{}
-type spinnerResumeMsg struct{}
+const spinnerFPS = time.Second / 10
 
-// spinnerModel is a lightweight bubbletea model that shows a spinner
-// while a blocking function runs in a goroutine.
-type spinnerModel struct {
-	spinner   spinner.Model
+// ── tickRenderer — inline spinner / progress renderer ────────────────────────
+
+// tickRenderer manages a ticker goroutine that renders a spinner or progress
+// bar to an io.Writer (normally os.Stderr). All state updates are mutex-
+// protected and safe to call from any goroutine.
+//
+// Rendering strategy: the spinner occupies line(s) ABOVE the cursor position.
+// The cursor always sits on a blank line below, so external process output
+// (e.g. sudo password prompts written to /dev/tty) appears there and is never
+// overwritten by the spinner's tick loop.
+type tickRenderer struct {
+	mu        sync.Mutex
+	out       io.Writer
 	title     string
 	status    string
-	err       error
-	done      bool
+	frameIdx  int
 	suspended bool
+	drawn     bool // true after the first frame has been rendered
+
+	// Progress-bar mode (nil = spinner mode).
+	bar         *progress.Model
+	percent     float64
+	barLabel    string
+	lines       int // number of rendered lines (1 for spinner, 2-3 for progress)
+	formatLabel func(current, total int64) string
+
+	done chan struct{}
 }
 
-func newSpinnerModel(title string) spinnerModel {
-	s := spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(TUI.FgAccent()))
-	return spinnerModel{spinner: s, title: title}
+func newTickRenderer(out io.Writer, title string) *tickRenderer {
+	return &tickRenderer{
+		out:   out,
+		title: title,
+		done:  make(chan struct{}),
+		lines: 1,
+	}
 }
 
-func (m spinnerModel) Init() tea.Cmd {
-	return m.spinner.Tick
+func newProgressRenderer(out io.Writer, title string, formatLabel func(current, total int64) string) *tickRenderer {
+	bar := progress.New(
+		progress.WithColors(lipgloss.Color("#56B4E9"), lipgloss.Color("#009E73")),
+		progress.WithWidth(ProgressBarWidth),
+	)
+	return &tickRenderer{
+		out:         out,
+		title:       title,
+		bar:         &bar,
+		done:        make(chan struct{}),
+		lines:       2,
+		formatLabel: formatLabel,
+	}
 }
 
-func (m spinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if msg.String() == KeyCtrlC {
-			return m, tea.Quit
+// start launches the rendering goroutine.
+func (r *tickRenderer) start() {
+	go func() {
+		ticker := time.NewTicker(spinnerFPS)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-r.done:
+				return
+			case <-ticker.C:
+				r.render()
+			}
 		}
-	case spinnerDoneMsg:
-		m.done = true
-		m.err = msg.err
-		return m, tea.Quit
-	case spinnerTitleMsg:
-		m.title = string(msg)
-		m.status = ""
-		return m, nil
-	case spinnerStatusMsg:
-		m.status = string(msg)
-		return m, nil
-	case spinnerSuspendMsg:
-		m.suspended = true
-		return m, nil
-	case spinnerResumeMsg:
-		m.suspended = false
-		return m, nil
-	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-	}
-	return m, nil
+	}()
 }
 
-func (m spinnerModel) View() tea.View {
-	if m.done || m.suspended {
-		return tea.NewView("")
+// stop halts the renderer and clears any output.
+func (r *tickRenderer) stop() {
+	close(r.done)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.drawn {
+		r.clearLines()
+		r.drawn = false
 	}
-	line := m.spinner.View() + " " + TUI.FgAccent().Render(m.title)
-	if m.status != "" {
-		line += TUI.Dim().Render("  " + m.status)
-	}
-	return tea.NewView(line + "\n")
 }
+
+// setTitle updates the title and clears the status line.
+func (r *tickRenderer) setTitle(s string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.title = s
+	r.status = ""
+}
+
+// setStatus updates the status text.
+func (r *tickRenderer) setStatus(s string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.status = s
+}
+
+// suspend hides the spinner so the terminal is clean for interactive prompts.
+// Clears the spinner lines and moves the cursor back down to the line where
+// external output (e.g. a password prompt) appears.
+func (r *tickRenderer) suspend() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.suspended = true
+	if r.drawn {
+		r.clearLines()
+		// Move cursor back down past the cleared region and below any
+		// external output (e.g. "Password:") on the cursor line.
+		for i := 0; i <= r.lines; i++ {
+			_, _ = fmt.Fprint(r.out, "\033[B")
+		}
+		_, _ = fmt.Fprint(r.out, "\r")
+		r.drawn = false
+	}
+}
+
+// resume restores rendering after a suspend. The next tick will redraw the
+// spinner above the cursor.
+func (r *tickRenderer) resume() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.suspended = false
+}
+
+// setProgress updates progress bar state.
+func (r *tickRenderer) setProgress(current, total int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if total > 0 {
+		r.percent = float64(current) / float64(total)
+	}
+	if r.formatLabel != nil {
+		r.barLabel = r.formatLabel(current, total)
+	}
+}
+
+// setProgressStatus updates both progress and status in one call.
+func (r *tickRenderer) setProgressStatus(current, total int64, status string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if total > 0 {
+		r.percent = float64(current) / float64(total)
+	}
+	if r.formatLabel != nil {
+		r.barLabel = r.formatLabel(current, total)
+	}
+	r.status = status
+}
+
+// render writes one frame to the output. Must not be called with mu held.
+//
+// Layout: the spinner occupies N lines above the cursor. The cursor always
+// rests on a blank line below so that external /dev/tty output (e.g. sudo
+// "Password:" prompt) is never overwritten.
+//
+//	Line -N   ⣾  Removing quarto…        ← spinner (rewritten each tick)
+//	Line -N+1 [progress bar, if any]
+//	Line 0    _                           ← cursor; external output safe here
+func (r *tickRenderer) render() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.suspended {
+		return
+	}
+
+	if r.drawn {
+		// Move cursor up to the first spinner line.
+		for i := 0; i < r.lines; i++ {
+			_, _ = fmt.Fprint(r.out, "\033[A")
+		}
+	}
+
+	if r.bar == nil {
+		// Spinner mode: single line + cursor line below.
+		frame := TUI.FgAccent().Render(spinnerFrames[r.frameIdx])
+		r.frameIdx = (r.frameIdx + 1) % len(spinnerFrames)
+		line := frame + " " + TUI.FgAccent().Render(r.title)
+		if r.status != "" {
+			line += TUI.Dim().Render("  " + r.status)
+		}
+		_, _ = fmt.Fprint(r.out, "\r\033[K"+line+"\n")
+	} else {
+		// Progress mode: title + bar + optional status, then cursor line.
+		r.lines = 2
+		_, _ = fmt.Fprint(r.out, "\r\033[K"+TUI.FgAccent().Render(r.title)+"\n")
+		barLine := r.bar.ViewAs(r.percent)
+		if r.barLabel != "" {
+			barLine += TUI.Dim().Render(r.barLabel)
+		}
+		_, _ = fmt.Fprint(r.out, "\033[K"+barLine+"\n")
+		if r.status != "" {
+			r.lines = 3
+			_, _ = fmt.Fprint(r.out, "\033[K"+TUI.Dim().Render("  "+r.status)+"\n")
+		}
+	}
+
+	r.drawn = true
+}
+
+// clearLines erases the spinner output above the cursor. Caller must hold mu.
+// After clearing, the cursor is on the line where the spinner's first line was.
+func (r *tickRenderer) clearLines() {
+	// Move up into the spinner region.
+	for i := 0; i < r.lines; i++ {
+		_, _ = fmt.Fprint(r.out, "\033[A\033[2K")
+	}
+	_, _ = fmt.Fprint(r.out, "\r")
+}
+
+// ── Public API ───────────────────────────────────────────────────────────────
 
 // SpinnerControls provides title/status updates and suspend/resume controls.
 // Suspend hides the spinner so interactive prompts (e.g. sudo password) are
@@ -108,109 +254,21 @@ func RunWithSpinner(title string, fn func(SpinnerControls) error) error {
 		})
 	}
 
-	m := newSpinnerModel(title)
-	p := tea.NewProgram(m)
+	r := newTickRenderer(os.Stderr, title)
+	r.start()
 
-	go func() {
-		err := fn(SpinnerControls{
-			SetTitle:  func(s string) { p.Send(spinnerTitleMsg(s)) },
-			SetStatus: func(s string) { p.Send(spinnerStatusMsg(s)) },
-			Suspend:   func() { p.Send(spinnerSuspendMsg{}) },
-			Resume:    func() { p.Send(spinnerResumeMsg{}) },
-		})
-		p.Send(spinnerDoneMsg{err: err})
-	}()
+	err := fn(SpinnerControls{
+		SetTitle:  r.setTitle,
+		SetStatus: r.setStatus,
+		Suspend:   r.suspend,
+		Resume:    r.resume,
+	})
 
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("spinner TUI: %w", err)
-	}
-	return finalModel.(spinnerModel).err
+	r.stop()
+	return err
 }
 
-// ── Progress bar TUI — for operations with known total ──────────────────────
-
-type progressTickMsg struct {
-	current int64
-	total   int64
-}
-type progressDoneMsg struct{ err error }
-type progressStatusMsg string
-
-type progressModel struct {
-	bar         progress.Model
-	title       string
-	status      string
-	current     int64
-	total       int64
-	err         error
-	done        bool
-	formatLabel func(current, total int64) string
-}
-
-func newProgressModel(title string) progressModel {
-	// Use the dark-mode accent/success hex values for the gradient.
-	bar := progress.New(
-		progress.WithColors(lipgloss.Color("#56B4E9"), lipgloss.Color("#009E73")),
-		progress.WithWidth(ProgressBarWidth),
-	)
-	return progressModel{bar: bar, title: title}
-}
-
-func (m progressModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if msg.String() == KeyCtrlC {
-			return m, tea.Quit
-		}
-	case progressDoneMsg:
-		m.done = true
-		m.err = msg.err
-		return m, tea.Quit
-	case progressStatusMsg:
-		m.status = string(msg)
-		return m, nil
-	case progressTickMsg:
-		m.current = msg.current
-		m.total = msg.total
-		if m.total > 0 {
-			return m, m.bar.SetPercent(float64(m.current) / float64(m.total))
-		}
-		return m, nil
-	case progress.FrameMsg:
-		var cmd tea.Cmd
-		m.bar, cmd = m.bar.Update(msg)
-		return m, cmd
-	}
-	return m, nil
-}
-
-func (m progressModel) View() tea.View {
-	if m.done {
-		return tea.NewView("")
-	}
-	var b strings.Builder
-	b.WriteString(TUI.FgAccent().Render(m.title))
-	b.WriteString("\n")
-	b.WriteString(m.bar.View())
-	if m.total > 0 {
-		label := fmt.Sprintf("  %s / %s", formatBytes(m.current), formatBytes(m.total))
-		if m.formatLabel != nil {
-			label = m.formatLabel(m.current, m.total)
-		}
-		b.WriteString(TUI.Dim().Render(label))
-	}
-	b.WriteString("\n")
-	if m.status != "" {
-		b.WriteString(TUI.Dim().Render("  " + m.status))
-		b.WriteString("\n")
-	}
-	return tea.NewView(b.String())
-}
+// ── Progress bar variants ────────────────────────────────────────────────────
 
 // RunWithItemProgress shows a progress bar for operations with a known item count.
 // The fn receives a callback to report (current, total) progress as item counts.
@@ -221,24 +279,17 @@ func RunWithItemProgress(title string, fn func(update func(current, total int)) 
 		return fn(func(int, int) {})
 	}
 
-	m := newProgressModel(title)
-	m.formatLabel = func(cur, tot int64) string {
+	r := newProgressRenderer(os.Stderr, title, func(cur, tot int64) string {
 		return fmt.Sprintf("  %d / %d", cur, tot)
-	}
-	p := tea.NewProgram(m)
+	})
+	r.start()
 
-	go func() {
-		err := fn(func(current, total int) {
-			p.Send(progressTickMsg{current: int64(current), total: int64(total)})
-		})
-		p.Send(progressDoneMsg{err: err})
-	}()
+	err := fn(func(current, total int) {
+		r.setProgress(int64(current), int64(total))
+	})
 
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("progress TUI: %w", err)
-	}
-	return finalModel.(progressModel).err
+	r.stop()
+	return err
 }
 
 // RunWithItemProgressStatus shows a progress bar with a per-item status line.
@@ -250,25 +301,17 @@ func RunWithItemProgressStatus(title string, fn func(update func(current, total 
 		return fn(func(int, int, string) {})
 	}
 
-	m := newProgressModel(title)
-	m.formatLabel = func(cur, tot int64) string {
+	r := newProgressRenderer(os.Stderr, title, func(cur, tot int64) string {
 		return fmt.Sprintf("  %d / %d", cur, tot)
-	}
-	p := tea.NewProgram(m)
+	})
+	r.start()
 
-	go func() {
-		err := fn(func(current, total int, status string) {
-			p.Send(progressTickMsg{current: int64(current), total: int64(total)})
-			p.Send(progressStatusMsg(status))
-		})
-		p.Send(progressDoneMsg{err: err})
-	}()
+	err := fn(func(current, total int, status string) {
+		r.setProgressStatus(int64(current), int64(total), status)
+	})
 
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("progress TUI: %w", err)
-	}
-	return finalModel.(progressModel).err
+	r.stop()
+	return err
 }
 
 // RunWithProgress shows a progress bar for operations with known total bytes.
@@ -280,21 +323,17 @@ func RunWithProgress(title string, fn func(update func(current, total int64)) er
 		return fn(func(int64, int64) {})
 	}
 
-	m := newProgressModel(title)
-	p := tea.NewProgram(m)
+	r := newProgressRenderer(os.Stderr, title, func(cur, tot int64) string {
+		return fmt.Sprintf("  %s / %s", formatBytes(cur), formatBytes(tot))
+	})
+	r.start()
 
-	go func() {
-		err := fn(func(current, total int64) {
-			p.Send(progressTickMsg{current: current, total: total})
-		})
-		p.Send(progressDoneMsg{err: err})
-	}()
+	err := fn(func(current, total int64) {
+		r.setProgress(current, total)
+	})
 
-	finalModel, err := p.Run()
-	if err != nil {
-		return fmt.Errorf("progress TUI: %w", err)
-	}
-	return finalModel.(progressModel).err
+	r.stop()
+	return err
 }
 
 func formatBytes(b int64) string {

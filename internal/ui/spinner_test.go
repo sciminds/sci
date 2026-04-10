@@ -1,97 +1,126 @@
 package ui
 
 import (
-	"errors"
+	"bytes"
+	"strings"
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
+	"time"
 )
 
-func TestSpinnerModel_SuspendHidesView(t *testing.T) {
-	m := newSpinnerModel("Working…")
-	// Simulate Init tick so spinner has content.
-	m.spinner, _ = m.spinner.Update(m.spinner.Tick())
+func TestTickRenderer_SuspendHidesOutput(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTickRenderer(&buf, "Working…")
+	r.start()
+	time.Sleep(200 * time.Millisecond)
 
-	// Visible before suspend.
-	if v := m.View(); v.Content == "" {
-		t.Error("spinner should be visible before suspend")
+	// Should have rendered something.
+	r.mu.Lock()
+	got := buf.String()
+	r.mu.Unlock()
+	if got == "" {
+		t.Error("expected spinner output before suspend")
 	}
 
-	// Suspend hides.
-	updated, _ := m.Update(spinnerSuspendMsg{})
-	m = updated.(spinnerModel)
-	if v := m.View(); v.Content != "" {
-		t.Errorf("spinner should be hidden after suspend, got %q", v.Content)
+	// Suspend — next ticks should not add spinner frames.
+	r.suspend()
+	r.mu.Lock()
+	buf.Reset()
+	r.mu.Unlock()
+	time.Sleep(200 * time.Millisecond)
+
+	r.mu.Lock()
+	afterSuspend := buf.String()
+	r.mu.Unlock()
+	if strings.ContainsAny(afterSuspend, "⣾⣽⣻⢿⡿⣟⣯⣷") {
+		t.Errorf("spinner should not render frames while suspended, got %q", afterSuspend)
 	}
 
-	// Resume restores.
-	updated, _ = m.Update(spinnerResumeMsg{})
-	m = updated.(spinnerModel)
-	if v := m.View(); v.Content == "" {
-		t.Error("spinner should be visible after resume")
+	// Resume — should render again.
+	r.resume()
+	r.mu.Lock()
+	buf.Reset()
+	r.mu.Unlock()
+	time.Sleep(200 * time.Millisecond)
+
+	r.mu.Lock()
+	afterResume := buf.String()
+	r.mu.Unlock()
+	if afterResume == "" {
+		t.Error("expected spinner output after resume")
+	}
+
+	r.stop()
+}
+
+func TestTickRenderer_SetTitleClearsStatus(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTickRenderer(&buf, "Phase 1")
+
+	r.setStatus("detail")
+	r.mu.Lock()
+	if r.status != "detail" {
+		t.Errorf("status = %q, want %q", r.status, "detail")
+	}
+	r.mu.Unlock()
+
+	r.setTitle("Phase 2")
+	r.mu.Lock()
+	if r.title != "Phase 2" {
+		t.Errorf("title = %q, want %q", r.title, "Phase 2")
+	}
+	if r.status != "" {
+		t.Errorf("status should be cleared after title change, got %q", r.status)
+	}
+	r.mu.Unlock()
+}
+
+func TestTickRenderer_StopClearsOutput(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTickRenderer(&buf, "Loading…")
+	r.start()
+	time.Sleep(200 * time.Millisecond)
+	r.stop()
+
+	// After stop, the output should end with a clear sequence (cursor up + clear line + \r).
+	got := buf.String()
+	if !strings.HasSuffix(got, "\r") {
+		t.Errorf("stop should end with cursor at column 0, output ends with %q", got[max(0, len(got)-20):])
+	}
+	// Should contain cursor-up escape to erase the spinner line.
+	if !strings.Contains(got, "\033[A") {
+		t.Error("stop should move cursor up to clear spinner line")
 	}
 }
 
-func TestSpinnerModel_DoneHidesView(t *testing.T) {
-	m := newSpinnerModel("Loading…")
-	m.spinner, _ = m.spinner.Update(m.spinner.Tick())
+func TestTickRenderer_RendersAboveCursor(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTickRenderer(&buf, "Installing…")
+	// Render two frames manually.
+	r.render()
+	r.render()
 
-	updated, cmd := m.Update(spinnerDoneMsg{err: nil})
-	m = updated.(spinnerModel)
-
-	if !m.done {
-		t.Error("expected done=true")
-	}
-	if m.err != nil {
-		t.Errorf("unexpected error: %v", m.err)
-	}
-	if v := m.View(); v.Content != "" {
-		t.Errorf("view should be empty after done, got %q", v.Content)
-	}
-	// Should issue Quit.
-	if cmd == nil {
-		t.Error("done should return tea.Quit cmd")
+	got := buf.String()
+	// First render: frame + newline (no cursor-up needed).
+	// Second render: cursor-up + clear + frame + newline.
+	// Count cursor-up sequences — should have exactly 1 (from second render).
+	ups := strings.Count(got, "\033[A")
+	if ups != 1 {
+		t.Errorf("expected 1 cursor-up (from second render), got %d", ups)
 	}
 }
 
-func TestSpinnerModel_DonePreservesError(t *testing.T) {
-	m := newSpinnerModel("Loading…")
-	want := errors.New("something broke")
+func TestTickRenderer_ProgressMode(t *testing.T) {
+	var buf bytes.Buffer
+	r := newProgressRenderer(&buf, "Downloading…", func(cur, tot int64) string {
+		return "  half"
+	})
+	r.setProgress(50, 100)
+	r.start()
+	time.Sleep(200 * time.Millisecond)
+	r.stop()
 
-	updated, _ := m.Update(spinnerDoneMsg{err: want})
-	m = updated.(spinnerModel)
-
-	if !errors.Is(m.err, want) {
-		t.Errorf("err = %v, want %v", m.err, want)
-	}
-}
-
-func TestSpinnerModel_TitleUpdateClearsStatus(t *testing.T) {
-	m := newSpinnerModel("Phase 1")
-	m.spinner, _ = m.spinner.Update(m.spinner.Tick())
-
-	// Set a status.
-	updated, _ := m.Update(spinnerStatusMsg("detail"))
-	m = updated.(spinnerModel)
-	if m.status != "detail" {
-		t.Errorf("status = %q, want %q", m.status, "detail")
-	}
-
-	// Title change clears status.
-	updated, _ = m.Update(spinnerTitleMsg("Phase 2"))
-	m = updated.(spinnerModel)
-	if m.title != "Phase 2" {
-		t.Errorf("title = %q, want %q", m.title, "Phase 2")
-	}
-	if m.status != "" {
-		t.Errorf("status should be cleared after title change, got %q", m.status)
-	}
-}
-
-func TestSpinnerModel_CtrlCQuits(t *testing.T) {
-	m := newSpinnerModel("Working…")
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	if cmd == nil {
-		t.Error("Ctrl+C should return tea.Quit cmd")
+	got := buf.String()
+	if !strings.Contains(got, "Downloading") {
+		t.Errorf("progress output should contain title, got %q", got)
 	}
 }

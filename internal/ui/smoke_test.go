@@ -1,6 +1,9 @@
 package ui
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 type selectTestItem string
 
@@ -24,13 +27,9 @@ func TestViewAtZeroSize(t *testing.T) {
 		_ = o.View() // must not panic
 	})
 
-	t.Run("spinner", func(t *testing.T) {
-		m := newSpinnerModel("test")
-		_ = m.View() // must not panic
-	})
-
-	t.Run("progress", func(t *testing.T) {
-		m := newProgressModel("test")
-		_ = m.View() // must not panic
+	t.Run("tickRenderer", func(t *testing.T) {
+		var buf bytes.Buffer
+		r := newTickRenderer(&buf, "test")
+		r.render() // must not panic at zero state
 	})
 }
