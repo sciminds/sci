@@ -71,8 +71,15 @@ func splitPanelWidths(totalW, castW int) (left, right int) {
 // panel gets the full width.
 const splitMinW = 80
 
-// splitChromeLines is the vertical overhead: title (1) + gap (1) + gap (1) + footer (1).
-const splitChromeLines = 4
+// splitChromeLines is the vertical overhead: title (1) + gap (1).
+const splitChromeLines = 2
+
+// panelFooterLines is the vertical space reserved for each panel's help footer.
+const panelFooterLines = 1
+
+// playerStatusLines is the vertical overhead of the player's built-in status
+// line: blank line (1) + status text (1).
+const playerStatusLines = 2
 
 // stackedDividerLines is the vertical overhead of the horizontal divider
 // between the two stacked panels: divider (1) + gap below (1).
@@ -110,14 +117,14 @@ func (s *splitView) SetSize(w, h int) {
 		topH := availH / 2
 		botH := availH - topH
 
-		s.viewer.SetSize(w, topH)
-		s.player.SetHeight(botH)
+		s.viewer.SetSize(w, topH-panelFooterLines)
+		s.player.SetHeight(botH - panelFooterLines - playerStatusLines)
 		s.player.SetWidth(w)
 	} else {
 		// Side-by-side: markdown left, cast right.
 		leftW, rightW := splitPanelWidths(w, s.player.cast.Header.Width)
-		s.viewer.SetSize(leftW, bodyH)
-		s.player.SetHeight(bodyH)
+		s.viewer.SetSize(leftW, bodyH-panelFooterLines)
+		s.player.SetHeight(bodyH - panelFooterLines - playerStatusLines)
 		s.player.SetWidth(rightW)
 	}
 }
@@ -187,11 +194,6 @@ func (s *splitView) View() string {
 		b.WriteString(s.viewSideBySide())
 	}
 
-	b.WriteString("\n")
-
-	// Footer
-	b.WriteString(s.footer())
-
 	return b.String()
 }
 
@@ -204,12 +206,14 @@ func (s *splitView) viewSideBySide() string {
 		bodyH = minBodyH
 	}
 
+	leftContent := s.viewer.View() + "\n" + s.viewerFooter(leftW)
 	leftBox := lipgloss.NewStyle().
 		Width(leftW).
 		Height(bodyH).
 		PaddingRight(1).
-		Render(s.viewer.View())
+		Render(leftContent)
 
+	rightContent := s.player.View() + "\n" + s.playerFooter(rightW)
 	rightBox := lipgloss.NewStyle().
 		Width(rightW).
 		Height(bodyH).
@@ -217,7 +221,7 @@ func (s *splitView) viewSideBySide() string {
 		BorderStyle(lipgloss.ThickBorder()).
 		BorderLeftForeground(ui.TUI.Palette().Accent).
 		PaddingLeft(1).
-		Render(s.player.View())
+		Render(rightContent)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftBox, rightBox)
 }
@@ -236,68 +240,88 @@ func (s *splitView) viewStacked() string {
 	topH := availH / 2
 	botH := availH - topH
 
+	topContent := s.viewer.View() + "\n" + s.viewerFooter(s.width)
 	topBox := lipgloss.NewStyle().
 		Width(s.width).
 		Height(topH).
-		Render(s.viewer.View())
+		Render(topContent)
 
 	divider := lipgloss.NewStyle().
 		Foreground(ui.TUI.Palette().Accent).
 		Render(strings.Repeat("━", s.width))
 
+	botContent := s.player.View() + "\n" + s.playerFooter(s.width)
 	botBox := lipgloss.NewStyle().
 		Width(s.width).
 		Height(botH).
-		Render(s.player.View())
+		Render(botContent)
 
 	return topBox + "\n" + divider + "\n" + botBox
 }
 
-// footer renders a combined hint line for both panels, progressively dropping
-// less-important hints as the terminal narrows.
-func (s *splitView) footer() string {
+// viewerFooter renders the help line for the markdown (left/top) panel,
+// progressively dropping hints as width shrinks.
+func (s *splitView) viewerFooter(width int) string {
 	if s.viewer.Searching() {
 		return "" // search input is visible in the viewer
 	}
 
 	const sep = "  "
 
-	// Hints ordered most → least important. We always keep esc and scroll %.
-	// The rest are dropped right-to-left as width shrinks.
-	type hint struct {
-		text string
-	}
-	hints := []hint{
-		{"↑/↓ scroll"},
-		{"/ search"},
-		{"space pause/play"},
-		{"r restart"},
+	// Always-present suffix: scroll percent.
+	pctPart := ui.TUI.Dim().Render(fmt.Sprintf("%d%%", s.viewer.ScrollPercent()))
+	pctW := lipgloss.Width(pctPart)
+
+	hints := []string{
+		"↑/↓ scroll",
+		"/ search",
 	}
 	if s.viewer.Query() != "" {
-		hints = append(hints, hint{
-			fmt.Sprintf("n/N next/prev (%d matches)", s.viewer.MatchCount()),
-		})
+		hints = append(hints, fmt.Sprintf("n/N next/prev (%d matches)", s.viewer.MatchCount()))
 	}
 
-	// Always-present suffix: esc + scroll percent.
-	escPart := ui.TUI.HeaderHint().Render("esc close")
-	pctPart := ui.TUI.Dim().Render(fmt.Sprintf("%d%%", s.viewer.ScrollPercent()))
-	suffix := escPart + sep + pctPart
-	suffixW := lipgloss.Width(suffix)
-
-	// Build from left, dropping hints that don't fit.
-	budget := s.width - suffixW
+	budget := width - pctW
 	var parts []string
 	for _, h := range hints {
-		rendered := ui.TUI.HeaderHint().Render(h.text)
+		rendered := ui.TUI.HeaderHint().Render(h)
 		w := lipgloss.Width(rendered) + len(sep)
 		if budget-w < 0 {
-			break // remaining hints won't fit
+			break
 		}
 		parts = append(parts, rendered)
 		budget -= w
 	}
 
-	parts = append(parts, suffix)
+	parts = append(parts, pctPart)
+	return strings.Join(parts, sep)
+}
+
+// playerFooter renders the help line for the cast player (right/bottom) panel,
+// progressively dropping hints as width shrinks.
+func (s *splitView) playerFooter(width int) string {
+	const sep = "  "
+
+	// Always-present suffix: q/esc close.
+	escPart := ui.TUI.HeaderHint().Render("q/esc close")
+	escW := lipgloss.Width(escPart)
+
+	hints := []string{
+		"space pause/play",
+		"r restart",
+	}
+
+	budget := width - escW
+	var parts []string
+	for _, h := range hints {
+		rendered := ui.TUI.HeaderHint().Render(h)
+		w := lipgloss.Width(rendered) + len(sep)
+		if budget-w < 0 {
+			break
+		}
+		parts = append(parts, rendered)
+		budget -= w
+	}
+
+	parts = append(parts, escPart)
 	return strings.Join(parts, sep)
 }
