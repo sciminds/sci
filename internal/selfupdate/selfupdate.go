@@ -66,6 +66,11 @@ func Check() CheckResult {
 		return result
 	}
 
+	if !netutil.Online() {
+		result.Error = "offline"
+		return result
+	}
+
 	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest("GET", releaseURL, nil)
 	if err != nil {

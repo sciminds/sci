@@ -179,16 +179,16 @@ func checkIdentity() CheckSection {
 		emailCheck.Message = "not set — run: git config --global user.email you@example.com"
 	}
 
+	// gh auth token reads the local keyring/config — no network required.
+	// This avoids failing the check when the user is offline.
 	ghCheck := CheckResult{Label: "GitHub CLI auth"}
-	ghOut, ghErr := exec.Command("gh", "auth", "status").CombinedOutput()
-	if ghErr == nil {
-		re := regexp.MustCompile(`account\s+(\S+)`)
-		if m := re.FindSubmatch(ghOut); len(m) >= 2 {
-			ghCheck.Message = "authenticated as " + string(m[1])
-		} else {
-			ghCheck.Message = "authenticated"
-		}
+	ghToken, ghErr := exec.Command("gh", "auth", "token").Output()
+	if ghErr == nil && strings.TrimSpace(string(ghToken)) != "" {
 		ghCheck.Status = StatusPass
+		ghCheck.Message = "logged into github"
+	} else if _, lookErr := exec.LookPath("gh"); lookErr != nil {
+		ghCheck.Status = StatusFail
+		ghCheck.Message = "gh not found — install via: brew install gh"
 	} else {
 		ghCheck.Status = StatusFail
 		ghCheck.Message = "not authenticated — run: gh auth login"

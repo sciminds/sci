@@ -8,6 +8,7 @@ import (
 	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/share"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
@@ -29,6 +30,12 @@ func cloudCommand() *cli.Command {
 		Usage:       "Share/download files from SciMinds cloud storage",
 		Description: "$ sci cloud put results.csv\n$ sci cloud list\n$ sci cloud get my-data",
 		Category:    "Commands",
+		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
+			if !netutil.Online() {
+				return nil, fmt.Errorf("no internet connection — sci cloud requires network access")
+			}
+			return nil, nil
+		},
 		Commands: []*cli.Command{
 			cloudSetupCommand(),
 			cloudPutCommand(),

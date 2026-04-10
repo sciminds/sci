@@ -12,6 +12,7 @@ import (
 	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -27,6 +28,12 @@ func labCommand() *cli.Command {
 		Usage:       "Access university lab storage (SFTP)",
 		Description: "$ sci lab ls\n$ sci lab get data/results.csv\n$ sci lab put results.csv",
 		Category:    "Commands",
+		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
+			if !netutil.Online() {
+				return nil, fmt.Errorf("no internet connection — sci lab requires network access")
+			}
+			return nil, nil
+		},
 		Commands: []*cli.Command{
 			labSetupCommand(),
 			labLsCommand(),

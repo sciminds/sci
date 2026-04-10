@@ -12,6 +12,7 @@ import (
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/doctor"
+	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -81,6 +82,18 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		if err := promptGitIdentity(result); err != nil {
 			return err
 		}
+	}
+
+	// Remaining steps need network access (Homebrew sync, install, updates).
+	if !netutil.Online() {
+		if !isJSON {
+			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
+				ui.SymWarn, ui.TUI.Warn().Render("No internet connection — skipping Homebrew checks"))
+		}
+		if isJSON {
+			cmdutil.Output(cmd, result)
+		}
+		return nil
 	}
 
 	// Bail early if Homebrew isn't installed — remaining steps need it.

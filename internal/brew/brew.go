@@ -92,6 +92,7 @@ func (BundleRunner) BundleCheck(file string) ([]string, error) {
 	// capture stdout regardless of exit code (runBrewOutput discards it on
 	// error). Use CombinedOutput and parse the text for missing packages.
 	cmd := exec.Command("brew", "bundle", "check", "--verbose", "--file="+file)
+	cmd.Env = offlineEnv()
 	out, _ := cmd.CombinedOutput()
 	return parseBundleCheck(string(out)), nil
 }
@@ -99,14 +100,14 @@ func (BundleRunner) BundleCheck(file string) ([]string, error) {
 // BundleDump runs `brew bundle dump` to write the current system state to file.
 // It uses --force to overwrite and --no-vscode to skip editor extensions.
 func (BundleRunner) BundleDump(file string) error {
-	_, err := runBrewOutput("bundle", "dump", "--force", "--no-vscode", "--file="+file)
+	_, err := runBrewOutputLocal("bundle", "dump", "--force", "--no-vscode", "--file="+file)
 	return err
 }
 
 // BundleDumpLive is like BundleDump but connects stdin so interactive
 // prompts (e.g. sudo password) are visible.
 func (BundleRunner) BundleDumpLive(file string) error {
-	_, err := runBrewLive("bundle", "dump", "--force", "--no-vscode", "--file="+file)
+	_, err := runBrewLiveLocal("bundle", "dump", "--force", "--no-vscode", "--file="+file)
 	return err
 }
 
@@ -121,7 +122,7 @@ func (BundleRunner) BundleList(file, pkgType string) ([]string, error) {
 	} else {
 		args = append(args, "--all")
 	}
-	out, err := runBrewOutput(args...)
+	out, err := runBrewOutputLocal(args...)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +139,7 @@ func (BundleRunner) Info(names []string, isCask bool) ([]PackageInfo, error) {
 		args = append(args, "--cask")
 	}
 	args = append(args, names...)
-	out, err := runBrewOutput(args...)
+	out, err := runBrewOutputLocal(args...)
 	if err != nil {
 		return nil, err
 	}
@@ -298,6 +299,31 @@ func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
 	return pkgs, nil
 }
 
+// offlineEnv returns the current environment with variables set to prevent
+// brew from making any network requests. Used for brew commands that are
+// local reads (list, check, info) so they don't hang offline.
+func offlineEnv() []string {
+	return append(os.Environ(),
+		"HOMEBREW_NO_AUTO_UPDATE=1",
+		"HOMEBREW_NO_ANALYTICS=1",
+		"HOMEBREW_NO_GITHUB_API=1",
+	)
+}
+
+// runBrewOutputLocal is like runBrewOutput but suppresses brew's auto-update.
+// Use for commands that only read local state (bundle list, info, outdated).
+func runBrewOutputLocal(args ...string) (string, error) {
+	cmd := exec.Command("brew", args...)
+	cmd.Env = offlineEnv()
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("%w: %s", err, stderr.String())
+	}
+	return stdout.String(), nil
+}
+
 // runBrewLive runs a brew command with a PTY for stdout/stderr so output
 // streams in real-time (brew bundle buffers without a PTY). Stdin remains
 // the real terminal so sudo password prompts work via /dev/tty.
@@ -305,6 +331,15 @@ func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
 // This is deliberately minimal — no stall detection, no callbacks, no
 // output parsing. The PTY just forces line-buffered output from brew.
 func runBrewLive(args ...string) (string, error) {
+	return runBrewLiveWithEnv(nil, args...)
+}
+
+// runBrewLiveLocal is like runBrewLive but suppresses brew's auto-update.
+func runBrewLiveLocal(args ...string) (string, error) {
+	return runBrewLiveWithEnv(offlineEnv(), args...)
+}
+
+func runBrewLiveWithEnv(env []string, args ...string) (string, error) {
 	ptmx, pts, err := pty.Open()
 	if err != nil {
 		// Fallback: direct passthrough if PTY unavailable.
@@ -313,6 +348,7 @@ func runBrewLive(args ...string) (string, error) {
 	defer func() { _ = ptmx.Close() }()
 
 	cmd := exec.Command("brew", args...)
+	cmd.Env = env
 	cmd.Stdout = pts
 	cmd.Stderr = pts
 	cmd.Stdin = os.Stdin

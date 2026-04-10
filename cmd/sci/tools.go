@@ -9,6 +9,7 @@ import (
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/doctor"
+	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -137,7 +138,11 @@ func resolveToolsFile() (string, error) {
 
 // syncBrewfile reconciles the Brewfile with the system state before
 // running a tools subcommand. Errors are non-fatal (printed as warnings).
+// Skipped when offline to avoid hanging on brew commands.
 func syncBrewfile(file string) {
+	if !netutil.Online() {
+		return
+	}
 	result, err := brew.Sync(brew.BundleRunner{}, file)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
@@ -221,6 +226,10 @@ func promptPkgType(pkg string, matches []brew.DetectedPackage) (string, error) {
 }
 
 func runToolsInstall(_ context.Context, cmd *cli.Command) error {
+	if !netutil.Online() {
+		return fmt.Errorf("no internet connection — sci tools install requires network access")
+	}
+
 	file, err := resolveToolsFile()
 	if err != nil {
 		return err
@@ -278,6 +287,9 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 }
 
 func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
+	if !netutil.Online() {
+		return fmt.Errorf("no internet connection — sci tools uninstall requires network access")
+	}
 	if cmd.NArg() < 1 {
 		return cmdutil.UsageErrorf(cmd, "expected a package name")
 	}
@@ -346,6 +358,10 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 }
 
 func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
+	if !netutil.Online() {
+		return fmt.Errorf("no internet connection — sci tools update requires network access")
+	}
+
 	runner := brew.BundleRunner{}
 
 	if !toolsDryRun {
@@ -370,6 +386,10 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 }
 
 func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
+	if !netutil.Online() {
+		return fmt.Errorf("no internet connection — sci tools outdated requires network access")
+	}
+
 	runner := brew.BundleRunner{}
 
 	if !toolsDryRun {
