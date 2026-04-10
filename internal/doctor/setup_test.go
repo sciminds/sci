@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/sciminds/cli/internal/brew"
@@ -56,6 +57,30 @@ func TestBrewfileEntry_Label(t *testing.T) {
 	e := brew.BrewfileEntry{Type: "uv", Name: "symbex"}
 	if got := e.Label(); got != "symbex (uv)" {
 		t.Errorf("Label() = %q, want %q", got, "symbex (uv)")
+	}
+}
+
+func TestMissingSet_BundleCheckError(t *testing.T) {
+	// When BundleCheck fails, missingSet should return ALL names as missing
+	// (not nil/empty, which would hide the problem).
+	mock := &mockBrewRunner{
+		bundleCheckErr: fmt.Errorf("brew borked"),
+	}
+
+	content := `brew "git"
+brew "uv"
+cask "firefox"
+`
+	set := missingSet(mock, content)
+
+	if set == nil {
+		t.Fatal("missingSet should not return nil on error")
+	}
+	// All 3 packages should be in the set (treated as missing).
+	for _, name := range []string{"git", "uv", "firefox"} {
+		if !set[name] {
+			t.Errorf("expected %q to be in missing set on BundleCheck error", name)
+		}
 	}
 }
 

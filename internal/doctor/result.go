@@ -21,6 +21,8 @@ type DocResult struct {
 	BrewfilePath    string
 	BrewfileCreated bool
 	PackagesAdded   []string
+	AppendError     string
+	ToolCheckError  string
 	ToolsInstalled  []string
 	InstallError    string
 
@@ -59,6 +61,8 @@ type jsonDocResult struct {
 	BrewfilePath    string                 `json:"brewfile_path,omitempty"`
 	BrewfileCreated bool                   `json:"brewfile_created,omitempty"`
 	PackagesAdded   []string               `json:"packages_added,omitempty"`
+	AppendError     string                 `json:"append_error,omitempty"`
+	ToolCheckError  string                 `json:"tool_check_error,omitempty"`
 	ToolsInstalled  []string               `json:"tools_installed,omitempty"`
 	InstallError    string                 `json:"install_error,omitempty"`
 	Outdated        []brew.OutdatedPackage `json:"outdated,omitempty"`
@@ -97,6 +101,8 @@ func (r DocResult) JSON() any {
 		BrewfilePath:    r.BrewfilePath,
 		BrewfileCreated: r.BrewfileCreated,
 		PackagesAdded:   r.PackagesAdded,
+		AppendError:     r.AppendError,
+		ToolCheckError:  r.ToolCheckError,
 		ToolsInstalled:  r.ToolsInstalled,
 		InstallError:    r.InstallError,
 		Outdated:        r.Outdated,
@@ -129,7 +135,11 @@ func (r DocResult) Human() string {
 	}
 
 	// Tools summary (one line instead of full list)
-	if len(r.Tools) > 0 {
+	if r.ToolCheckError != "" {
+		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Bold().Render("Tools"))
+		fmt.Fprintf(&b, "    %s %-20s %s\n", ui.SymWarn, "status",
+			ui.TUI.Warn().Render("could not check: "+r.ToolCheckError))
+	} else if len(r.Tools) > 0 {
 		installed := 0
 		for _, t := range r.Tools {
 			if t.Installed {

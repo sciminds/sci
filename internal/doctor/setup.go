@@ -146,20 +146,33 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 }
 
 // missingSet runs BundleCheck against the given Brewfile content and returns
-// a set of package names that are not installed.
+// a set of package names that are not installed. On error, returns a set
+// containing ALL package names from the content (assumes everything is
+// missing) so callers don't incorrectly treat tools as installed.
 func missingSet(r brew.Runner, content string) map[string]bool {
 	tmpFile, err := brew.WriteTempBrewfile(content)
 	if err != nil {
-		return nil
+		return allNamesSet(content)
 	}
 	defer func() { _ = os.Remove(tmpFile) }()
 
 	names, err := r.BundleCheck(tmpFile)
 	if err != nil {
-		return nil
+		return allNamesSet(content)
 	}
 	set := make(map[string]bool, len(names))
 	for _, n := range names {
+		set[n] = true
+	}
+	return set
+}
+
+// allNamesSet returns a set with every package name from a Brewfile marked
+// as missing. Used as a safe fallback when BundleCheck fails.
+func allNamesSet(content string) map[string]bool {
+	all := brew.ParseBrewfileNames(content)
+	set := make(map[string]bool, len(all))
+	for _, n := range all {
 		set[n] = true
 	}
 	return set

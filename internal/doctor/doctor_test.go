@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -141,7 +142,10 @@ func TestRunToolChecks(t *testing.T) {
 	defer func() { _ = os.Remove(tmpFile) }()
 
 	mock := &mockBrewRunner{missing: []string{"uv"}}
-	infos := RunToolChecks(mock, tmpFile)
+	infos, err := RunToolChecks(mock, tmpFile)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if len(infos) == 0 {
 		t.Fatal("expected tool infos from embedded Brewfile")
@@ -159,21 +163,29 @@ func TestRunToolChecks(t *testing.T) {
 }
 
 // mockBrewRunner implements brew.Runner for testing.
+// All error fields default to nil (no error), so existing tests are unaffected.
 type mockBrewRunner struct {
-	missing      []string
-	installCalls []string
-	installErr   error
-	outdated     []brew.OutdatedPackage
-	uvOutdated   []brew.OutdatedPackage
-	updateErr    error
-	upgradeCalls int
-	uvUpgCalls   int
+	missing        []string
+	bundleCheckErr error
+	installCalls   []string
+	installErr     error
+	dumpErr        error
+	dumpLiveErr    error
+	outdated       []brew.OutdatedPackage
+	outdatedErr    error
+	uvOutdated     []brew.OutdatedPackage
+	uvOutdatedErr  error
+	updateErr      error
+	upgradeCalls   int
+	upgradeErr     error
+	uvUpgCalls     int
+	uvUpgradeErr   error
 }
 
 func (m *mockBrewRunner) BundleAdd(_, _, _ string) error           { return nil }
 func (m *mockBrewRunner) BundleRemove(_, _, _ string) error        { return nil }
-func (m *mockBrewRunner) BundleDump(_ string) error                { return nil }
-func (m *mockBrewRunner) BundleDumpLive(_ string) error            { return nil }
+func (m *mockBrewRunner) BundleDump(_ string) error                { return m.dumpErr }
+func (m *mockBrewRunner) BundleDumpLive(_ string) error            { return m.dumpLiveErr }
 func (m *mockBrewRunner) BundleCleanup(_ string) (string, error)   { return "", nil }
 func (m *mockBrewRunner) BundleList(_, _ string) ([]string, error) { return nil, nil }
 func (m *mockBrewRunner) Info(_ []string, _ bool) ([]brew.PackageInfo, error) {
@@ -186,25 +198,42 @@ func (m *mockBrewRunner) BundleInstall(file string) (string, error) {
 }
 
 func (m *mockBrewRunner) BundleCheck(_ string) ([]string, error) {
-	return m.missing, nil
+	return m.missing, m.bundleCheckErr
 }
 
 func (m *mockBrewRunner) Update() error { return m.updateErr }
 func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error) {
-	return m.outdated, nil
+	return m.outdated, m.outdatedErr
 }
 func (m *mockBrewRunner) Upgrade() (string, error) {
 	m.upgradeCalls++
-	return "", nil
+	return "", m.upgradeErr
 }
 func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) {
-	return m.uvOutdated, nil
+	return m.uvOutdated, m.uvOutdatedErr
 }
 func (m *mockBrewRunner) UVUpgrade(_ []string) (string, error) {
 	m.uvUpgCalls++
-	return "", nil
+	return "", m.uvUpgradeErr
 }
 func (m *mockBrewRunner) UVToolList() ([]string, error) { return nil, nil }
+
+func TestRunToolChecks_BundleCheckError(t *testing.T) {
+	tmpFile, err := brew.WriteTempBrewfile(Brewfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(tmpFile) }()
+
+	mock := &mockBrewRunner{bundleCheckErr: fmt.Errorf("brew not installed")}
+	infos, err := RunToolChecks(mock, tmpFile)
+	if err == nil {
+		t.Fatal("expected error from RunToolChecks when BundleCheck fails")
+	}
+	if infos != nil {
+		t.Errorf("expected nil infos on error, got %v", infos)
+	}
+}
 
 func TestCheckPreflight_ShellUnset(t *testing.T) {
 	t.Setenv("SHELL", "")

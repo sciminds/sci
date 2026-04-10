@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -227,6 +228,195 @@ func TestRunSetup_BrewOnlyUpgrade(t *testing.T) {
 	}
 	if mock.uvUpgCalls != 0 {
 		t.Errorf("expected 0 uv upgrade calls, got %d", mock.uvUpgCalls)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Error-path tests: each exercises a failure mode in RunSetup.
+// ---------------------------------------------------------------------------
+
+// TestRunSetup_BundleCheckError verifies that when BundleCheck fails (e.g.
+// brew is borked), ToolCheckError is populated and no install is attempted.
+func TestRunSetup_BundleCheckError(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, `brew "git"`)
+
+	mock := &mockBrewRunner{
+		bundleCheckErr: fmt.Errorf("brew: command not found"),
+	}
+
+	result := RunSetup(mock, tmpFile, true)
+
+	if result.ToolCheckError == "" {
+		t.Fatal("expected ToolCheckError to be set when BundleCheck fails")
+	}
+	if result.Tools != nil {
+		t.Errorf("expected nil Tools on BundleCheck error, got %v", result.Tools)
+	}
+	if len(result.ToolsInstalled) != 0 {
+		t.Error("expected no tools installed when BundleCheck fails")
+	}
+	if len(mock.installCalls) != 0 {
+		t.Error("BundleInstall should not be called when BundleCheck fails")
+	}
+}
+
+// TestRunSetup_DumpError verifies that when BundleDump fails on a newly
+// created Brewfile, the rest of the flow still runs.
+func TestRunSetup_DumpError(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, `brew "git"`)
+
+	mock := &mockBrewRunner{
+		dumpErr: fmt.Errorf("permission denied"),
+		missing: []string{},
+	}
+
+	result := RunSetup(mock, tmpFile, true)
+
+	// Dump failed but flow should continue — tools should still be checked.
+	if result.Tools == nil {
+		t.Fatal("expected Tools to be populated even when dump fails")
+	}
+}
+
+// TestRunSetup_SyncDumpLiveError verifies that when Sync fails on an existing
+// Brewfile (via BundleDumpLive error), the rest of the flow still runs.
+func TestRunSetup_SyncDumpLiveError(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, `brew "git"`)
+
+	mock := &mockBrewRunner{
+		dumpLiveErr: fmt.Errorf("pty unavailable"),
+		missing:     []string{},
+	}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	// Sync failed but flow should continue.
+	if result.Tools == nil {
+		t.Fatal("expected Tools to be populated even when sync fails")
+	}
+}
+
+// TestRunSetup_AppendError verifies that when required packages can't be
+// added to the Brewfile, the error is recorded.
+func TestRunSetup_AppendError(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	// Create a Brewfile that's missing required packages, then make it
+	// read-only so AppendEntries fails.
+	tmpFile := writeTmpBrewfile(t, `brew "git"`)
+	if err := os.Chmod(tmpFile, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(tmpFile, 0o644) }()
+
+	mock := &mockBrewRunner{missing: []string{}}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	if result.AppendError == "" {
+		t.Error("expected AppendError when Brewfile is read-only")
+	}
+}
+
+// TestRunSetup_OutdatedBrewError verifies that a brew Outdated() error is
+// recorded in UpdateError.
+func TestRunSetup_OutdatedBrewError(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, Brewfile)
+
+	mock := &mockBrewRunner{
+		missing:     []string{},
+		outdatedErr: fmt.Errorf("brew outdated: json parse error"),
+	}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	if result.UpdateError == "" {
+		t.Fatal("expected UpdateError when Outdated() fails")
+	}
+}
+
+// TestRunSetup_OutdatedUVError verifies that a uv UVOutdated() error is
+// recorded in UpdateError even when brew Outdated() succeeds.
+func TestRunSetup_OutdatedUVError(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, Brewfile)
+
+	mock := &mockBrewRunner{
+		missing:       []string{},
+		uvOutdatedErr: fmt.Errorf("uv: command not found"),
+	}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	if result.UpdateError == "" {
+		t.Fatal("expected UpdateError when UVOutdated() fails")
+	}
+}
+
+// TestRunSetup_UpgradeError verifies that outdated packages are detected but
+// when Upgrade() fails, no packages are marked as upgraded.
+func TestRunSetup_UpgradeError(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, Brewfile)
+
+	mock := &mockBrewRunner{
+		missing: []string{},
+		outdated: []brew.OutdatedPackage{
+			{Name: "git", InstalledVersion: "2.44", CurrentVersion: "2.45"},
+		},
+		upgradeErr: fmt.Errorf("upgrade failed: permission denied"),
+	}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	if len(result.Outdated) == 0 {
+		t.Error("expected Outdated to be populated")
+	}
+	if len(result.Upgraded) != 0 {
+		t.Errorf("expected no Upgraded when upgrade fails, got %v", result.Upgraded)
+	}
+	if result.UpdateError == "" {
+		t.Fatal("expected UpdateError when Upgrade() fails")
+	}
+}
+
+// TestRunSetup_UVUpgradeError verifies that when brew upgrade succeeds but
+// uv upgrade fails, the error is still recorded.
+func TestRunSetup_UVUpgradeError(t *testing.T) {
+	ui.SetQuiet(true)
+	defer ui.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, Brewfile)
+
+	mock := &mockBrewRunner{
+		missing: []string{},
+		uvOutdated: []brew.OutdatedPackage{
+			{Name: "marimo", InstalledVersion: "0.22", CurrentVersion: "0.23"},
+		},
+		uvUpgradeErr: fmt.Errorf("uv tool upgrade: network error"),
+	}
+
+	result := RunSetup(mock, tmpFile, false)
+
+	if result.UpdateError == "" {
+		t.Fatal("expected UpdateError when UVUpgrade() fails")
 	}
 }
 

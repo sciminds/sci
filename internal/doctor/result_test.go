@@ -252,6 +252,90 @@ func TestJSON_OmitsEmptyBrewfileFields(t *testing.T) {
 	}
 }
 
+func TestJSON_IncludesToolCheckError(t *testing.T) {
+	r := DocResult{
+		Sections: []CheckSection{
+			{Name: "Pre-flight", Checks: []CheckResult{
+				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
+			}},
+		},
+		ToolCheckError: "brew: command not found",
+	}
+
+	raw, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+
+	if !strings.Contains(s, `"tool_check_error":"brew: command not found"`) {
+		t.Errorf("expected tool_check_error in JSON, got %s", s)
+	}
+}
+
+func TestJSON_IncludesAppendError(t *testing.T) {
+	r := DocResult{
+		Sections: []CheckSection{
+			{Name: "Pre-flight", Checks: []CheckResult{
+				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
+			}},
+		},
+		AppendError: "permission denied",
+	}
+
+	raw, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+
+	if !strings.Contains(s, `"append_error":"permission denied"`) {
+		t.Errorf("expected append_error in JSON, got %s", s)
+	}
+}
+
+func TestHuman_ToolCheckError(t *testing.T) {
+	r := DocResult{
+		Sections: []CheckSection{
+			{Name: "Pre-flight", Checks: []CheckResult{
+				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
+			}},
+		},
+		ToolCheckError: "brew borked",
+	}
+
+	output := r.Human()
+	if !strings.Contains(output, "could not check") {
+		t.Errorf("expected 'could not check' warning in Human output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "brew borked") {
+		t.Errorf("expected error message in Human output, got:\n%s", output)
+	}
+}
+
+func TestJSON_OmitsNewErrorFieldsWhenEmpty(t *testing.T) {
+	r := DocResult{
+		Sections: []CheckSection{
+			{Name: "Pre-flight", Checks: []CheckResult{
+				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
+			}},
+		},
+	}
+
+	raw, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+
+	if strings.Contains(s, `"tool_check_error"`) {
+		t.Errorf("expected tool_check_error to be omitted when empty, got %s", s)
+	}
+	if strings.Contains(s, `"append_error"`) {
+		t.Errorf("expected append_error to be omitted when empty, got %s", s)
+	}
+}
+
 func TestAllPassed(t *testing.T) {
 	passing := DocResult{Sections: []CheckSection{
 		{Checks: []CheckResult{{Status: StatusPass}, {Status: StatusWarn}}},

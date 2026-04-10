@@ -21,7 +21,9 @@ type SetupResult struct {
 	BrewfilePath    string
 	BrewfileCreated bool
 	PackagesAdded   []string
+	AppendError     string
 	Tools           []ToolInfo
+	ToolCheckError  string
 	ToolsInstalled  []string
 	InstallError    string
 	Outdated        []brew.OutdatedPackage
@@ -77,7 +79,13 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 
 		// In quiet mode this auto-confirms (IsQuiet check inside).
 		added, appendErr := brew.AppendEntries(brewfilePath, missingEntries)
-		if appendErr == nil {
+		if appendErr != nil {
+			result.AppendError = appendErr.Error()
+			if !ui.IsQuiet() {
+				fmt.Fprintf(os.Stderr, "  %s %s\n",
+					ui.SymWarn, ui.TUI.Warn().Render("Could not add required packages: "+appendErr.Error()))
+			}
+		} else {
 			result.PackagesAdded = added
 			if !ui.IsQuiet() {
 				fmt.Fprintf(os.Stderr, "  %s Added %s to Brewfile\n",
@@ -87,7 +95,15 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	}
 
 	// ── Check & install tools ───────────────────────────────────────────
-	result.Tools = RunToolChecks(r, brewfilePath)
+	tools, toolErr := RunToolChecks(r, brewfilePath)
+	if toolErr != nil {
+		result.ToolCheckError = toolErr.Error()
+		if !ui.IsQuiet() {
+			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
+				ui.SymWarn, ui.TUI.Warn().Render("Could not check tools: "+toolErr.Error()))
+		}
+	}
+	result.Tools = tools
 
 	var missingTools []string
 	for _, t := range result.Tools {

@@ -125,7 +125,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		result.BrewfilePath = setup.BrewfilePath
 		result.BrewfileCreated = setup.BrewfileCreated
 		result.PackagesAdded = setup.PackagesAdded
+		result.AppendError = setup.AppendError
 		result.Tools = setup.Tools
+		result.ToolCheckError = setup.ToolCheckError
 		result.ToolsInstalled = setup.ToolsInstalled
 		result.InstallError = setup.InstallError
 		result.Outdated = setup.Outdated
@@ -187,20 +189,28 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Step 4: Check & install.
-	var toolResult doctor.DocResult
+	var toolInfos []doctor.ToolInfo
+	var toolCheckErr error
 	err = ui.RunWithSpinner("Checking for required tools…", func() error {
-		toolResult.Tools = doctor.RunToolChecks(runner, brewfilePath)
+		toolInfos, toolCheckErr = doctor.RunToolChecks(runner, brewfilePath)
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	result.Tools = toolResult.Tools
-	printToolSummary(toolResult.Tools)
+	if toolCheckErr != nil {
+		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
+			ui.SymWarn, ui.TUI.Warn().Render("Could not check tools: "+toolCheckErr.Error()))
+		// Can't install if we don't know what's missing — skip to update check.
+		return runDoctorUpdateCheck(runner)
+	}
+
+	result.Tools = toolInfos
+	printToolSummary(toolInfos)
 
 	var missingTools []string
-	for _, t := range toolResult.Tools {
+	for _, t := range toolInfos {
 		if !t.Installed {
 			missingTools = append(missingTools, t.Name)
 		}

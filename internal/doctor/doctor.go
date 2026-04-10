@@ -10,6 +10,7 @@ package doctor
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,11 +90,12 @@ func RunAll() []CheckSection {
 }
 
 // RunToolChecks runs `brew bundle check` against the user's Brewfile and
-// returns install status for the required (embedded) packages.
-func RunToolChecks(r brew.Runner, brewfilePath string) []ToolInfo {
+// returns install status for the required (embedded) packages. Returns an
+// error if BundleCheck itself fails (e.g. brew not installed or borked).
+func RunToolChecks(r brew.Runner, brewfilePath string) ([]ToolInfo, error) {
 	missing, err := r.BundleCheck(brewfilePath)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("check tools: %w", err)
 	}
 	missingSet := make(map[string]bool, len(missing))
 	for _, name := range missing {
@@ -105,7 +107,7 @@ func RunToolChecks(r brew.Runner, brewfilePath string) []ToolInfo {
 	for i, name := range all {
 		infos[i] = ToolInfo{Name: name, Installed: !missingSet[name]}
 	}
-	return infos
+	return infos, nil
 }
 
 // ---------------------------------------------------------------------------
