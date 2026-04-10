@@ -26,6 +26,7 @@ func doctorCommand() *cli.Command {
 
 func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	runner := brew.BundleRunner{}
+	isJSON := cmdutil.IsJSON(cmd)
 
 	// ── Step 1–2: Pre-flight + Identity checks ──────────────────────────
 	var result doctor.DocResult
@@ -37,18 +38,19 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	// Print pre-flight/identity results immediately.
-	cmdutil.Output(cmd, result)
-
-	if cmdutil.IsJSON(cmd) {
-		if !result.AllPassed() {
-			os.Exit(1)
-		}
-		return nil
+	// In human mode, print checks immediately so the user sees progress.
+	if !isJSON {
+		cmdutil.Output(cmd, result)
 	}
 
 	// Bail early if Homebrew isn't installed — remaining steps need it.
 	if !hasHomebrew(result) {
+		if isJSON {
+			cmdutil.Output(cmd, result)
+			if !result.AllPassed() {
+				os.Exit(1)
+			}
+		}
 		return nil
 	}
 
@@ -58,9 +60,33 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("resolve Brewfile: %w", err)
 	}
 
-	// ── Step 3b: Reconcile Brewfile with system (brew bundle dump) ──────
+	if !isJSON && !created {
+		fmt.Fprintf(os.Stderr, "\n  %s Found Brewfile at %s\n",
+			ui.SymArrow, ui.TUI.Accent().Render(brewfilePath))
+	}
+
+	// ── Steps 3b–4: Sync, required packages, tool check & install ──────
+	if isJSON {
+		// Non-interactive: RunSetup handles everything, auto-confirms.
+		setup := doctor.RunSetup(runner, brewfilePath, created)
+		result.BrewfilePath = setup.BrewfilePath
+		result.BrewfileCreated = setup.BrewfileCreated
+		result.PackagesAdded = setup.PackagesAdded
+		result.Tools = setup.Tools
+		result.ToolsInstalled = setup.ToolsInstalled
+		result.InstallError = setup.InstallError
+
+		cmdutil.Output(cmd, result)
+		if !result.AllPassed() || result.InstallError != "" {
+			os.Exit(1)
+		}
+		return nil
+	}
+
+	// ── Interactive path (human mode) ───────────────────────────────────
+
+	// Step 3b: Reconcile Brewfile with system.
 	if created {
-		// New file — dump system state directly into it, no prompt needed.
 		err = ui.RunWithSpinner("Capturing installed packages…", func(sc ui.SpinnerControls) error {
 			return runner.BundleDumpLive(brewfilePath, sc.Suspend, sc.Resume)
 		})
@@ -73,9 +99,6 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 				ui.SymOK, ui.TUI.Accent().Render(brewfilePath), n)
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "\n  %s Found Brewfile at %s\n",
-			ui.SymArrow, ui.TUI.Accent().Render(brewfilePath))
-
 		var syncResult brew.SyncResult
 		err = ui.RunWithSpinner("Syncing Brewfile with installed packages…", func(sc ui.SpinnerControls) error {
 			var syncErr error
@@ -90,7 +113,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	// ── Step 3c: Ensure required packages are declared ──────────────────
+	// Step 3c: Ensure required packages are declared.
 	missingEntries, err := brew.MissingEntries(brewfilePath, doctor.Brewfile)
 	if err != nil {
 		return fmt.Errorf("check required packages: %w", err)
@@ -114,7 +137,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	// ── Step 4: Check & install ─────────────────────────────────────────
+	// Step 4: Check & install.
 	var toolResult doctor.DocResult
 	err = ui.RunWithSpinner("Checking installed tools…", func(_ ui.SpinnerControls) error {
 		toolResult.Tools = doctor.RunToolChecks(runner, brewfilePath)
@@ -124,11 +147,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	// Print tool summary.
 	result.Tools = toolResult.Tools
 	printToolSummary(toolResult.Tools)
 
-	// Collect missing tools.
 	var missingTools []string
 	for _, t := range toolResult.Tools {
 		if !t.Installed {
@@ -141,7 +162,6 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	// List what's missing and offer to install.
 	fmt.Fprintf(os.Stderr, "\n  Missing: %s\n", strings.Join(missingTools, ", "))
 	fmt.Fprintln(os.Stderr)
 	installErr := cmdutil.ConfirmYes("Install missing tools?")

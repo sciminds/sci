@@ -147,6 +147,111 @@ func TestJSON_EmptyTools(t *testing.T) {
 	}
 }
 
+func TestJSON_IncludesBrewfileFields(t *testing.T) {
+	r := DocResult{
+		Sections: []CheckSection{
+			{Name: "Pre-flight", Checks: []CheckResult{
+				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
+			}},
+		},
+		BrewfilePath:    "/Users/test/.Brewfile",
+		BrewfileCreated: true,
+		PackagesAdded:   []string{"pixi", "uv"},
+	}
+
+	raw, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+
+	if !strings.Contains(s, `"brewfile_path":"/Users/test/.Brewfile"`) {
+		t.Errorf("expected brewfile_path in JSON, got %s", s)
+	}
+	if !strings.Contains(s, `"brewfile_created":true`) {
+		t.Errorf("expected brewfile_created:true in JSON, got %s", s)
+	}
+	if !strings.Contains(s, `"packages_added":["pixi","uv"]`) {
+		t.Errorf("expected packages_added in JSON, got %s", s)
+	}
+}
+
+func TestJSON_IncludesInstallFields(t *testing.T) {
+	r := DocResult{
+		Sections: []CheckSection{
+			{Name: "Pre-flight", Checks: []CheckResult{
+				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
+			}},
+		},
+		Tools: []ToolInfo{
+			{Name: "git", Installed: true},
+			{Name: "uv", Installed: false},
+		},
+		ToolsInstalled: []string{"uv"},
+	}
+
+	raw, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+
+	if !strings.Contains(s, `"tools_installed":["uv"]`) {
+		t.Errorf("expected tools_installed in JSON, got %s", s)
+	}
+}
+
+func TestJSON_IncludesInstallError(t *testing.T) {
+	r := DocResult{
+		Sections: []CheckSection{
+			{Name: "Pre-flight", Checks: []CheckResult{
+				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
+			}},
+		},
+		InstallError: "brew bundle failed",
+	}
+
+	raw, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+
+	if !strings.Contains(s, `"install_error":"brew bundle failed"`) {
+		t.Errorf("expected install_error in JSON, got %s", s)
+	}
+}
+
+func TestJSON_OmitsEmptyBrewfileFields(t *testing.T) {
+	r := DocResult{
+		Sections: []CheckSection{
+			{Name: "Pre-flight", Checks: []CheckResult{
+				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
+			}},
+		},
+	}
+
+	raw, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+
+	// When empty, these fields should be omitted from JSON
+	if strings.Contains(s, `"brewfile_path"`) {
+		t.Errorf("expected brewfile_path to be omitted when empty, got %s", s)
+	}
+	if strings.Contains(s, `"packages_added"`) {
+		t.Errorf("expected packages_added to be omitted when empty, got %s", s)
+	}
+	if strings.Contains(s, `"tools_installed"`) {
+		t.Errorf("expected tools_installed to be omitted when empty, got %s", s)
+	}
+	if strings.Contains(s, `"install_error"`) {
+		t.Errorf("expected install_error to be omitted when empty, got %s", s)
+	}
+}
+
 func TestAllPassed(t *testing.T) {
 	passing := DocResult{Sections: []CheckSection{
 		{Checks: []CheckResult{{Status: StatusPass}, {Status: StatusWarn}}},

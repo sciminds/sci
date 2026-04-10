@@ -15,6 +15,13 @@ import (
 type DocResult struct {
 	Sections []CheckSection
 	Tools    []ToolInfo
+
+	// Brewfile state — populated when the full flow runs (including --json).
+	BrewfilePath    string
+	BrewfileCreated bool
+	PackagesAdded   []string
+	ToolsInstalled  []string
+	InstallError    string
 }
 
 type jsonCheck struct {
@@ -40,9 +47,14 @@ type jsonTool struct {
 }
 
 type jsonDocResult struct {
-	Sections []jsonSection `json:"sections"`
-	Summary  jsonSummary   `json:"summary"`
-	Tools    []jsonTool    `json:"tools,omitempty"`
+	Sections        []jsonSection `json:"sections"`
+	Summary         jsonSummary   `json:"summary"`
+	Tools           []jsonTool    `json:"tools,omitempty"`
+	BrewfilePath    string        `json:"brewfile_path,omitempty"`
+	BrewfileCreated bool          `json:"brewfile_created,omitempty"`
+	PackagesAdded   []string      `json:"packages_added,omitempty"`
+	ToolsInstalled  []string      `json:"tools_installed,omitempty"`
+	InstallError    string        `json:"install_error,omitempty"`
 }
 
 // JSON returns the structured output for --json mode.
@@ -70,9 +82,14 @@ func (r DocResult) JSON() any {
 	}
 
 	return jsonDocResult{
-		Sections: sections,
-		Summary:  jsonSummary{Pass: pass, Fail: fail, Warn: warn},
-		Tools:    tools,
+		Sections:        sections,
+		Summary:         jsonSummary{Pass: pass, Fail: fail, Warn: warn},
+		Tools:           tools,
+		BrewfilePath:    r.BrewfilePath,
+		BrewfileCreated: r.BrewfileCreated,
+		PackagesAdded:   r.PackagesAdded,
+		ToolsInstalled:  r.ToolsInstalled,
+		InstallError:    r.InstallError,
 	}
 }
 
