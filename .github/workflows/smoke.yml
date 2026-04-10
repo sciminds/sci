@@ -1,0 +1,53 @@
+name: Smoke Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: |
+          COMMIT="${GITHUB_SHA}"
+          LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
+          go build -ldflags="${LDFLAGS}" -o sci ./cmd/sci
+
+      - name: Install
+        run: |
+          mkdir -p ~/.local/bin
+          cp sci ~/.local/bin/sci
+          echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify binary
+        run: |
+          sci --help
+          sci --version
+
+      - name: Set up git identity
+        run: |
+          git config --global user.name "CI Smoke Test"
+          git config --global user.email "ci@sciminds.com"
+
+      - name: Run doctor
+        run: sci doctor --json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify tools
+        run: sci tools list --json
