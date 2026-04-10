@@ -1,7 +1,6 @@
 package markdb
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -108,8 +107,9 @@ func TestSearchRanked(t *testing.T) {
 func TestSearchFTSSpecialChars(t *testing.T) {
 	s := searchTestStore(t)
 
-	// These FTS5 special-character queries should either return results or
-	// return an error — but must never panic.
+	// Queries with FTS5 special characters must not return errors — the
+	// Search function should sanitize input so users never see FTS parse
+	// failures. They may return zero hits, but must not error.
 	edgeCases := []struct {
 		name  string
 		query string
@@ -119,38 +119,60 @@ func TestSearchFTSSpecialChars(t *testing.T) {
 		{"bare OR operator", `OR`},
 		{"bare NOT operator", `NOT`},
 		{"asterisk wildcard", `data*`},
-		{"parenthesized group", `(databases OR cooking)`},
 		{"unbalanced parens", `(databases`},
-		{"empty string", ``},
-		{"only whitespace", `   `},
 		{"special punctuation", `what's up?`},
 	}
 	for _, tt := range edgeCases {
 		t.Run(tt.name, func(t *testing.T) {
-			// We don't care whether it returns hits or errors — just that
-			// it doesn't panic. If it errors, the error should be non-nil.
-			hits, err := s.Search(tt.query, 50)
+			_, err := s.Search(tt.query, 50)
 			if err != nil {
-				// FTS5 parse error is acceptable for malformed queries.
-				return
+				t.Errorf("Search(%q) returned error: %v — should be sanitized", tt.query, err)
 			}
-			// If no error, hits should be a valid (possibly empty) slice.
-			_ = hits
 		})
 	}
 }
 
 func TestSearchEmptyQuery(t *testing.T) {
 	s := searchTestStore(t)
-	_, err := s.Search("", 50)
-	// Empty MATCH is a parse error in FTS5.
-	if err == nil {
-		t.Log("empty query returned no error (FTS5 accepted it)")
-		return
+	hits, err := s.Search("", 50)
+	if err != nil {
+		t.Errorf("Search(\"\") returned error: %v — empty query should return empty results", err)
 	}
-	// Error is expected and acceptable.
-	if !strings.Contains(err.Error(), "fts5") && !strings.Contains(err.Error(), "syntax") {
-		t.Logf("unexpected error type: %v", err)
+	if len(hits) != 0 {
+		t.Errorf("Search(\"\") returned %d hits, want 0", len(hits))
+	}
+}
+
+func TestSearchWhitespaceOnly(t *testing.T) {
+	s := searchTestStore(t)
+	hits, err := s.Search("   ", 50)
+	if err != nil {
+		t.Errorf("Search(whitespace) returned error: %v", err)
+	}
+	if len(hits) != 0 {
+		t.Errorf("Search(whitespace) returned %d hits, want 0", len(hits))
+	}
+}
+
+func TestSearchPhrasePreserved(t *testing.T) {
+	s := searchTestStore(t)
+	// Balanced quotes should be passed through as an FTS5 phrase query.
+	// "deployment strategies" is a phrase that only appears in beta.md.
+	hits, err := s.Search(`"deployment strategies"`, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 || hits[0].Path != "beta.md" {
+		t.Errorf("phrase search returned %v, want single hit on beta.md", hits)
+	}
+
+	// "strategies deployment" is reversed — should NOT match as a phrase.
+	hits, err = s.Search(`"strategies deployment"`, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Errorf("reversed phrase should return 0 hits, got %d", len(hits))
 	}
 }
 

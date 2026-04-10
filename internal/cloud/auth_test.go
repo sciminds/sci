@@ -184,6 +184,9 @@ func TestLoadConfig_EmptyFile(t *testing.T) {
 	if cfg != nil {
 		t.Errorf("expected nil config on parse error, got %+v", cfg)
 	}
+	if !strings.Contains(err.Error(), "empty") {
+		t.Errorf("error should mention 'empty', got %q", err)
+	}
 }
 
 func TestRequireConfig_CorruptFile(t *testing.T) {

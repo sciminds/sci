@@ -8,7 +8,6 @@
 package doctor
 
 import (
-	"cmp"
 	"context"
 	_ "embed"
 	"os"
@@ -144,7 +143,10 @@ func checkPreflight() CheckSection {
 			Label: "Shell", Status: StatusPass, Message: "zsh",
 		})
 	} else {
-		shellName := cmp.Or(filepath.Base(shell), "unknown")
+		shellName := "not set"
+		if shell != "" {
+			shellName = filepath.Base(shell)
+		}
 		checks = append(checks, CheckResult{
 			Label: "Shell", Status: StatusWarn, Message: shellName + " — expected zsh",
 		})

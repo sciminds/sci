@@ -27,6 +27,9 @@ func LoadConfig() (*Config, error) {
 		}
 		return nil, err
 	}
+	if len(data) == 0 {
+		return nil, fmt.Errorf("credentials file is empty — run 'sci cloud setup' to reconfigure")
+	}
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse credentials: %w", err)

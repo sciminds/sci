@@ -70,14 +70,14 @@ func detectPkgManager(dir string) PkgManager {
 		return Pixi
 	}
 
-	// pyproject.toml: check for [tool.pixi] or [tool.poe] / uv.lock
+	// pyproject.toml: check for [tool.pixi] or [tool.poe] / uv.lock.
+	// Only match section headers on non-comment lines.
 	pyproject := filepath.Join(dir, "pyproject.toml")
 	if data, err := os.ReadFile(pyproject); err == nil {
-		text := string(data)
-		if strings.Contains(text, "[tool.pixi") {
+		if tomlContains(string(data), "[tool.pixi") {
 			return Pixi
 		}
-		if strings.Contains(text, "[tool.poe.") || strings.Contains(text, "[tool.poe]") {
+		if tomlContains(string(data), "[tool.poe.") || tomlContains(string(data), "[tool.poe]") {
 			return UV
 		}
 	}
@@ -88,6 +88,20 @@ func detectPkgManager(dir string) PkgManager {
 	}
 
 	return ""
+}
+
+// tomlContains checks whether any non-comment line in text contains substr.
+func tomlContains(text, substr string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.Contains(trimmed, substr) {
+			return true
+		}
+	}
+	return false
 }
 
 func detectDocSystem(dir string) DocSystem {

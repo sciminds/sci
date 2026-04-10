@@ -67,23 +67,25 @@ func TestDetect(t *testing.T) {
 			wantNil: true,
 		},
 		{
-			name: "pixi marker in TOML comment is false positive",
+			name: "pixi marker in TOML comment should not match",
 			files: map[string]string{
 				"pyproject.toml": "[project]\nname = \"test\"\n# [tool.pixi] is not used here\n",
 			},
-			// NOTE: This documents known behavior — the detector uses
-			// strings.Contains, so commented-out markers are a false positive.
-			// If this becomes a problem, switch to a TOML parser.
-			wantPkg: Pixi,
-			wantDoc: NoDoc,
+			wantNil: true,
 		},
 		{
-			name: "poe marker in comment is false positive",
+			name: "poe marker in TOML comment should not match",
 			files: map[string]string{
 				"pyproject.toml": "[project]\nname = \"test\"\n# [tool.poe.tasks] is not used\n",
 			},
-			// Same as above — documents the false positive.
-			wantPkg: UV,
+			wantNil: true,
+		},
+		{
+			name: "pixi marker with inline comment still matches",
+			files: map[string]string{
+				"pyproject.toml": "[project]\nname = \"test\"\n\n[tool.pixi.project] # configure pixi\nplatforms = [\"osx-arm64\"]\n",
+			},
+			wantPkg: Pixi,
 			wantDoc: NoDoc,
 		},
 		{

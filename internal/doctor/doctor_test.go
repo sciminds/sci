@@ -224,9 +224,8 @@ func TestCheckPreflight_ShellUnset(t *testing.T) {
 	if shellCheck.Status != StatusWarn {
 		t.Errorf("Shell status = %q, want %q when SHELL is empty", shellCheck.Status, StatusWarn)
 	}
-	// filepath.Base("") returns ".", so cmp.Or picks "." over "unknown".
-	if shellCheck.Message != ". — expected zsh" {
-		t.Errorf("Shell message = %q, want %q", shellCheck.Message, ". — expected zsh")
+	if shellCheck.Message != "not set — expected zsh" {
+		t.Errorf("Shell message = %q, want %q", shellCheck.Message, "not set — expected zsh")
 	}
 }
 

@@ -77,6 +77,8 @@ func readCache() string {
 }
 
 // writeCache persists a CheckResult to disk for the next invocation.
+// It uses write-to-temp + rename for atomicity so concurrent CLI
+// invocations never produce a torn (partial/corrupt) cache file.
 func writeCache(result CheckResult) {
 	path := cachePath()
 	if path == "" {
@@ -88,12 +90,29 @@ func writeCache(result CheckResult) {
 		return
 	}
 
-	// Ensure parent directory exists.
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return
 	}
 
-	_ = os.WriteFile(path, data, 0o644)
+	tmp, err := os.CreateTemp(dir, ".update-check-*.tmp")
+	if err != nil {
+		return
+	}
+	tmpPath := tmp.Name()
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+		return
+	}
+	_ = tmp.Close()
+
+	// Atomic rename — readers see either the old file or the new one, never
+	// a partial write.
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+	}
 }
 
 func cachePath() string {

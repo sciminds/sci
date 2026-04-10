@@ -2,6 +2,7 @@ package selfupdate
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -155,30 +156,25 @@ func TestConcurrentCacheReadWrite(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	// 5 concurrent readers.
-	for range 5 {
-		wg.Add(1)
+	// Hammer the cache with many concurrent readers and writers.
+	for i := range 20 {
+		wg.Add(2)
 		go func() {
 			defer wg.Done()
 			_ = readCache()
 		}()
-	}
-
-	// 5 concurrent writers.
-	for i := range 5 {
-		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			writeCache(CheckResult{
 				Available: true,
-				LatestSHA: "ccccccc" + string(rune('0'+i)),
+				LatestSHA: fmt.Sprintf("ccccccc%07d", i),
 			})
 		}()
 	}
 
 	wg.Wait()
 
-	// Cache file should still be valid JSON after concurrent access.
+	// Cache file must still be valid JSON — no torn writes.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("cache file missing after concurrent ops: %v", err)

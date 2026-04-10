@@ -8,8 +8,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/version"
 )
+
+// overrideOnlineProbe points netutil.Online() at a local httptest server so
+// Check() tests don't depend on real internet connectivity.
+func overrideOnlineProbe(t *testing.T, srv *httptest.Server) {
+	t.Helper()
+	netutil.SetProbeURL(srv.URL)
+	t.Cleanup(func() { netutil.ResetProbeURL() })
+}
 
 // skipIfLoopbackFlake skips the test when result.Error indicates a transient
 // loopback connectivity failure (macOS firewall, VPN interference, etc.).
@@ -111,6 +120,9 @@ func TestCheckUpToDate(t *testing.T) {
 	}))
 	defer srv.Close()
 
+	// Ensure Online() check passes without real internet.
+	overrideOnlineProbe(t, srv)
+
 	// Point the package at the test server.
 	oldURL := releaseURL
 	releaseURL = srv.URL
@@ -149,6 +161,8 @@ func TestCheckUpdateAvailable(t *testing.T) {
 		_, _ = w.Write([]byte(body))
 	}))
 	defer srv.Close()
+
+	overrideOnlineProbe(t, srv)
 
 	oldURL := releaseURL
 	releaseURL = srv.URL
@@ -285,6 +299,8 @@ func TestCheck_MissingCommitInRelease(t *testing.T) {
 	}))
 	defer srv.Close()
 
+	overrideOnlineProbe(t, srv)
+
 	oldURL := releaseURL
 	releaseURL = srv.URL
 	defer func() { releaseURL = oldURL }()
@@ -309,6 +325,8 @@ func TestCheck_Non200Response(t *testing.T) {
 		w.WriteHeader(http.StatusForbidden)
 	}))
 	defer srv.Close()
+
+	overrideOnlineProbe(t, srv)
 
 	oldURL := releaseURL
 	releaseURL = srv.URL
