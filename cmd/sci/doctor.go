@@ -175,7 +175,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// Step 4: Check & install.
 	var toolResult doctor.DocResult
-	err = ui.RunWithSpinner("Checking installed tools…", func() error {
+	err = ui.RunWithSpinner("Checking for required tools…", func() error {
 		toolResult.Tools = doctor.RunToolChecks(runner, brewfilePath)
 		return nil
 	})

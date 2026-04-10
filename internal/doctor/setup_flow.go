@@ -174,7 +174,11 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 		}
 	}
 	if len(uvOutdated) > 0 {
-		if _, err := r.UVUpgrade(); err != nil {
+		names := make([]string, len(uvOutdated))
+		for i, pkg := range uvOutdated {
+			names[i] = pkg.Name
+		}
+		if _, err := r.UVUpgrade(names); err != nil {
 			result.UpdateError = err.Error()
 			return result
 		}

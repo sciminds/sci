@@ -113,7 +113,11 @@ func Update(r Runner, checkOnly bool) (UpdateResult, error) {
 		upgradeOut = out
 	}
 	if len(uvOutdated) > 0 {
-		out, err := r.UVUpgrade()
+		names := make([]string, len(uvOutdated))
+		for i, pkg := range uvOutdated {
+			names[i] = pkg.Name
+		}
+		out, err := r.UVUpgrade(names)
 		if err != nil {
 			return UpdateResult{}, fmt.Errorf("uv upgrade: %w", err)
 		}

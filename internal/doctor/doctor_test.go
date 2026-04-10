@@ -200,7 +200,7 @@ func (m *mockBrewRunner) Upgrade() (string, error) {
 func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) {
 	return m.uvOutdated, nil
 }
-func (m *mockBrewRunner) UVUpgrade() (string, error) {
+func (m *mockBrewRunner) UVUpgrade(_ []string) (string, error) {
 	m.uvUpgCalls++
 	return "", nil
 }

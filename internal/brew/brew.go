@@ -54,7 +54,7 @@ type Runner interface {
 	Outdated() ([]OutdatedPackage, error)
 	Upgrade() (string, error)
 	UVOutdated() ([]OutdatedPackage, error)
-	UVUpgrade() (string, error)
+	UVUpgrade(names []string) (string, error)
 	UVToolList() ([]string, error)
 }
 
@@ -220,12 +220,18 @@ func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
 	return parseUVOutdated(string(out)), nil
 }
 
-func (BundleRunner) UVUpgrade() (string, error) {
-	cmd := exec.Command("uv", "tool", "upgrade", "--all")
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-	return "", cmd.Run()
+func (BundleRunner) UVUpgrade(names []string) (string, error) {
+	var out strings.Builder
+	for _, name := range names {
+		cmd := exec.Command("uv", "tool", "upgrade", name)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return out.String(), fmt.Errorf("uv tool upgrade %s: %w", name, err)
+		}
+	}
+	return out.String(), nil
 }
 
 func (BundleRunner) UVToolList() ([]string, error) {

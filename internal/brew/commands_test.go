@@ -120,7 +120,7 @@ func (m *mockRunner) UVOutdated() ([]OutdatedPackage, error) {
 	return m.uvOutdatedResult, m.uvOutdatedErr
 }
 
-func (m *mockRunner) UVUpgrade() (string, error) {
+func (m *mockRunner) UVUpgrade(_ []string) (string, error) {
 	m.uvUpgradeCalls++
 	return m.uvUpgradeOut, m.uvUpgradeErr
 }
