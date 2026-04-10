@@ -20,7 +20,8 @@ type level int
 const (
 	levelBooks   level = iota // top-level book picker
 	levelEntries              // entry list within a book
-	levelOverlay              // cast player overlay
+	levelOverlay              // cast player or page viewer overlay
+	levelSplit                // side-by-side markdown + cast
 )
 
 // pagesWarmedMsg signals that background page pre-rendering is complete.
@@ -33,6 +34,7 @@ type model struct {
 	entries  list.Model // entry list for the selected book
 	player   *Player
 	viewer   *mdview.Viewer // markdown page viewer
+	split    *splitView     // side-by-side markdown + cast
 	level    level
 	width    int
 	height   int
@@ -82,6 +84,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding
 			m.viewer.SetSize(w, ui.OverlayBodyHeight(m.height, 4))
 		}
+		if m.split != nil {
+			m.split.SetSize(msg.Width, msg.Height)
+		}
 		if !m.warmed {
 			m.warmed = true
 			return m, m.preRenderPages()
@@ -100,6 +105,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case TickMsg:
+		if m.split != nil {
+			var cmd tea.Cmd
+			m.split, cmd = m.split.Update(msg)
+			return m, cmd
+		}
 		if m.player != nil {
 			var cmd tea.Cmd
 			m.player, cmd = m.player.Update(msg)
@@ -109,6 +119,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		switch m.level {
+		case levelSplit:
+			return m.updateSplit(msg)
 		case levelOverlay:
 			return m.updateOverlay(msg)
 		case levelEntries:
@@ -200,9 +212,15 @@ func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if !ok {
 			break
 		}
+		// Both files → side-by-side split view.
+		if item.CastFile != "" && item.PageFile != "" {
+			return m.openSplit(item)
+		}
+		// Page only → markdown overlay.
 		if item.PageFile != "" {
 			return m.openPage(item)
 		}
+		// Cast only → player overlay.
 		data, err := LoadCast(item.CastFile)
 		if err != nil {
 			m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.CastFile, err))
@@ -236,6 +254,59 @@ func (m *model) openPage(item Entry) (tea.Model, tea.Cmd) {
 	m.viewer = v
 	m.level = levelOverlay
 	return m, nil
+}
+
+func (m *model) openSplit(item Entry) (tea.Model, tea.Cmd) {
+	pageData, err := LoadPage(item.PageFile)
+	if err != nil {
+		m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.PageFile, err))
+		return m, nil
+	}
+	castData, err := LoadCast(item.CastFile)
+	if err != nil {
+		m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.CastFile, err))
+		return m, nil
+	}
+	cast, err := ParseCast(castData)
+	if err != nil {
+		m.entries.NewStatusMessage(fmt.Sprintf("Error parsing %s: %v", item.CastFile, err))
+		return m, nil
+	}
+
+	viewer := mdview.NewViewer(item.Cmd, string(pageData))
+	player := NewPlayer(cast, 10) // height set by SetSize below
+	s := newSplitView(item.Cmd, viewer, player)
+	s.SetSize(m.width, m.height)
+	m.split = s
+	m.level = levelSplit
+	return m, s.Init()
+}
+
+func (m *model) updateSplit(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// When the viewer is in search mode, delegate everything except ctrl+c.
+	if m.split.Searching() {
+		if msg.String() == "ctrl+c" {
+			m.quitting = true
+			return m, tea.Quit
+		}
+		var cmd tea.Cmd
+		m.split, cmd = m.split.Update(msg)
+		return m, cmd
+	}
+
+	switch msg.String() {
+	case "ctrl+c":
+		m.quitting = true
+		return m, tea.Quit
+	case "esc", "q":
+		m.split = nil
+		m.level = levelEntries
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.split, cmd = m.split.Update(msg)
+	return m, cmd
 }
 
 func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -286,6 +357,13 @@ func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m *model) View() tea.View {
 	if m.quitting {
 		return tea.NewView("")
+	}
+
+	// Split view is full-screen, no overlay compositing.
+	if m.split != nil {
+		v := tea.NewView(m.split.View())
+		v.AltScreen = true
+		return v
 	}
 
 	var bg string

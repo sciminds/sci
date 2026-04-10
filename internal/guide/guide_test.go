@@ -98,13 +98,21 @@ func TestGuideBackFromEntries(t *testing.T) {
 	}
 }
 
+// enterGitBook navigates to the Git Guide (second book) and waits for entries.
+func enterGitBook(t *testing.T, tm *teatest.TestModel) {
+	t.Helper()
+	tSendSpecial(tm, tea.KeyDown)
+	tSendSpecial(tm, tea.KeyEnter)
+	tWaitForOutput(t, tm, "git init")
+}
+
 func TestGuideOpenOverlay(t *testing.T) {
 	tm := startGuideTeatest(t)
-	enterBook(t, tm)
+	// Use git guide — all its entries are cast-only.
+	enterGitBook(t, tm)
 
-	// Press enter to open overlay on the first item
 	tSendSpecial(tm, tea.KeyEnter)
-	tWaitForOutput(t, tm, "list files")
+	tWaitForOutput(t, tm, "initialize")
 
 	fm := tFinalModel(t, tm)
 	if fm.level != levelOverlay {
@@ -117,11 +125,10 @@ func TestGuideOpenOverlay(t *testing.T) {
 
 func TestGuideCloseOverlay(t *testing.T) {
 	tm := startGuideTeatest(t)
-	enterBook(t, tm)
+	enterGitBook(t, tm)
 
-	// Open overlay and wait for it to render.
 	tSendSpecial(tm, tea.KeyEnter)
-	tWaitForOutput(t, tm, "list files")
+	tWaitForOutput(t, tm, "initialize")
 
 	// Close overlay
 	tSendSpecial(tm, tea.KeyEscape)

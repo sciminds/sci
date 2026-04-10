@@ -20,8 +20,11 @@ var Books = []Book{
 	{Name: "python", Heading: "Python Guide", Desc: "Python essentials: basics, Polars DataFrames, Seaborn viz", Entries: PythonEntries},
 }
 
-// Entry holds a single guide item — a terminal command demo or a markdown page.
-// Exactly one of CastFile or PageFile should be set.
+// Entry holds a single guide item — a terminal command demo, a markdown page,
+// or both. At least one of CastFile or PageFile should be set.
+//   - PageFile only → full-width markdown overlay
+//   - CastFile only → cast player overlay
+//   - Both set      → side-by-side: scrollable markdown (left) + cast player (right)
 type Entry struct {
 	Name     string // command name, e.g. "ls"
 	Cmd      string // display title for the list
@@ -44,6 +47,7 @@ var BasicEntries = []Entry{
 		Desc:     "Show the contents of a directory",
 		Category: "Navigation",
 		CastFile: "ls.cast",
+		PageFile: "ls.md",
 	},
 	{
 		Name:     "cd",
@@ -51,6 +55,7 @@ var BasicEntries = []Entry{
 		Desc:     "Move into a different folder",
 		Category: "Navigation",
 		CastFile: "cd.cast",
+		PageFile: "cd.md",
 	},
 	{
 		Name:     "pwd",
@@ -58,6 +63,7 @@ var BasicEntries = []Entry{
 		Desc:     "Show where you are in the filesystem",
 		Category: "Navigation",
 		CastFile: "pwd.cast",
+		PageFile: "pwd.md",
 	},
 	{
 		Name:     "cat",
@@ -65,6 +71,7 @@ var BasicEntries = []Entry{
 		Desc:     "Display the contents of a file",
 		Category: "Files",
 		CastFile: "cat.cast",
+		PageFile: "cat.md",
 	},
 	{
 		Name:     "mkdir",
@@ -72,6 +79,7 @@ var BasicEntries = []Entry{
 		Desc:     "Create a new folder",
 		Category: "Files",
 		CastFile: "mkdir.cast",
+		PageFile: "mkdir.md",
 	},
 	{
 		Name:     "cp",
@@ -79,6 +87,7 @@ var BasicEntries = []Entry{
 		Desc:     "Copy files or directories",
 		Category: "Files",
 		CastFile: "cp.cast",
+		PageFile: "cp.md",
 	},
 	{
 		Name:     "mv",
@@ -86,6 +95,7 @@ var BasicEntries = []Entry{
 		Desc:     "Move or rename files and directories",
 		Category: "Files",
 		CastFile: "mv.cast",
+		PageFile: "mv.md",
 	},
 	{
 		Name:     "rm",
@@ -93,6 +103,7 @@ var BasicEntries = []Entry{
 		Desc:     "Delete files (use with caution!)",
 		Category: "Files",
 		CastFile: "rm.cast",
+		PageFile: "rm.md",
 	},
 	{
 		Name:     "grep",
@@ -100,6 +111,7 @@ var BasicEntries = []Entry{
 		Desc:     "Find lines matching a pattern in files",
 		Category: "Search",
 		CastFile: "grep.cast",
+		PageFile: "grep.md",
 	},
 	{
 		Name:     "head",
@@ -107,6 +119,7 @@ var BasicEntries = []Entry{
 		Desc:     "Display the first lines of a file",
 		Category: "Search",
 		CastFile: "head.cast",
+		PageFile: "head.md",
 	},
 	{
 		Name:     "echo",
@@ -114,6 +127,7 @@ var BasicEntries = []Entry{
 		Desc:     "Print text to the screen or redirect it to a file",
 		Category: "Files",
 		CastFile: "echo.cast",
+		PageFile: "echo.md",
 	},
 	{
 		Name:     "touch",
@@ -121,6 +135,7 @@ var BasicEntries = []Entry{
 		Desc:     "Create an empty file or update its timestamp",
 		Category: "Files",
 		CastFile: "touch.cast",
+		PageFile: "touch.md",
 	},
 	{
 		Name:     "bat",
@@ -128,6 +143,7 @@ var BasicEntries = []Entry{
 		Desc:     "View files with syntax highlighting and line numbers",
 		Category: "Search",
 		CastFile: "bat.cast",
+		PageFile: "bat.md",
 	},
 	{
 		Name:     "which",
@@ -135,6 +151,7 @@ var BasicEntries = []Entry{
 		Desc:     "Show the full path of a command",
 		Category: "Help",
 		CastFile: "which.cast",
+		PageFile: "which.md",
 	},
 	{
 		Name:     "man",
@@ -142,5 +159,6 @@ var BasicEntries = []Entry{
 		Desc:     "Read the built-in manual for any command",
 		Category: "Help",
 		CastFile: "man.cast",
+		PageFile: "man.md",
 	},
 }
