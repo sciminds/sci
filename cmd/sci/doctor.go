@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/doctor"
@@ -73,6 +74,13 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	// In human mode, print checks immediately so the user sees progress.
 	if !isJSON {
 		cmdutil.Output(cmd, result)
+	}
+
+	// Prompt for missing git identity (interactive mode only, when flags weren't used).
+	if !isJSON {
+		if err := promptGitIdentity(result); err != nil {
+			return err
+		}
 	}
 
 	// Bail early if Homebrew isn't installed — remaining steps need it.
@@ -315,4 +323,66 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 
 func printAllSet() {
 	fmt.Fprintf(os.Stderr, "\n  🧠 %s\n\n", ui.TUI.Pass().Render("You're all set up!"))
+}
+
+// promptGitIdentity checks whether git user.name or user.email are missing
+// (and weren't supplied via flags) and prompts the user to set them.
+func promptGitIdentity(result doctor.DocResult) error {
+	needName := doctorGitName == "" && gitIdentityMissing(result, "Git user.name")
+	needEmail := doctorGitEmail == "" && gitIdentityMissing(result, "Git user.email")
+	if !needName && !needEmail {
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "\n")
+
+	var name, email string
+	var fields []huh.Field
+	if needName {
+		fields = append(fields, huh.NewInput().
+			Title("Git user.name").
+			Description("Used in your git commits (e.g. Jane Doe)").
+			Value(&name))
+	}
+	if needEmail {
+		fields = append(fields, huh.NewInput().
+			Title("Git user.email").
+			Description("Used in your git commits (e.g. jane@example.com)").
+			Value(&email))
+	}
+
+	if err := huh.NewForm(huh.NewGroup(fields...)).
+		WithTheme(ui.HuhTheme()).
+		WithKeyMap(ui.HuhKeyMap()).
+		Run(); err != nil {
+		return err
+	}
+
+	if name != "" {
+		if err := exec.Command("git", "config", "--global", "user.name", name).Run(); err != nil {
+			return fmt.Errorf("set git user.name: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "  %s Set git user.name to %s\n", ui.SymOK, ui.TUI.Accent().Render(name))
+	}
+	if email != "" {
+		if err := exec.Command("git", "config", "--global", "user.email", email).Run(); err != nil {
+			return fmt.Errorf("set git user.email: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "  %s Set git user.email to %s\n", ui.SymOK, ui.TUI.Accent().Render(email))
+	}
+
+	return nil
+}
+
+// gitIdentityMissing returns true if the named check (e.g. "Git user.name")
+// has a failing status in the doctor results.
+func gitIdentityMissing(result doctor.DocResult, label string) bool {
+	for _, sec := range result.Sections {
+		for _, c := range sec.Checks {
+			if c.Label == label {
+				return c.Status == doctor.StatusFail
+			}
+		}
+	}
+	return false
 }
