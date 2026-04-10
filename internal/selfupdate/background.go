@@ -87,15 +87,42 @@ func CheckBackground() string {
 
 	// Stale or missing — do a live check.
 	result := Check()
-	saveCache(cachedCheck{
-		CheckedAt: time.Now(),
-		Available: result.Available,
-		LatestSHA: result.LatestSHA,
-		ForCommit: version.Commit,
-	})
+
+	// Only cache successful checks. On network failure, fall back to the
+	// stale cache so we still surface a known-available update even when
+	// offline, and retry the live check next invocation.
+	if result.Error == "" {
+		saveCache(cachedCheck{
+			CheckedAt: time.Now(),
+			Available: result.Available,
+			LatestSHA: result.LatestSHA,
+			ForCommit: version.Commit,
+		})
+	}
 
 	if result.Available {
 		return formatNotice(result.LatestSHA)
+	}
+
+	// Live check failed (offline, timeout, etc.) — surface stale cache if
+	// it recorded an available update for this same binary.
+	if result.Error != "" && ok && cached.ForCommit == version.Commit && cached.Available {
+		return formatNotice(cached.LatestSHA)
+	}
+
+	return ""
+}
+
+// CachedNotice returns a user-facing update message if the on-disk cache
+// records an available update for the current binary. It does no network I/O.
+// Used as a fallback when the background goroutine hasn't finished in time.
+func CachedNotice() string {
+	if version.Commit == "unknown" {
+		return ""
+	}
+	cached, ok := loadCache()
+	if ok && cached.ForCommit == version.Commit && cached.Available {
+		return formatNotice(cached.LatestSHA)
 	}
 	return ""
 }
