@@ -154,7 +154,7 @@ Binaries are named `{tool}-{os}-{arch}` (e.g. `sci-darwin-arm64`, `dbtui-linux-a
 
 ## Development
 
-Prerequisites: [Go 1.23+](https://go.dev/dl/) and [just](https://github.com/casey/just) (`brew install just`).
+Prerequisites: [Go 1.26+](https://go.dev/dl/) and [just](https://github.com/casey/just) (`brew install just`).
 
 You'll also need [`asciicinema`](https://docs.asciinema.org/manual/cli/quick-start/#__tabbed_1_3) to create new terminal "casts" to place in `internal/guide/casts/`
 

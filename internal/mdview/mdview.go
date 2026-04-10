@@ -1,3 +1,6 @@
+// Package mdview provides a markdown rendering TUI with file picking, viewport
+// scrolling, and live search highlighting. The Viewer sub-model is embeddable
+// in other bubbletea programs.
 package mdview
 
 import (

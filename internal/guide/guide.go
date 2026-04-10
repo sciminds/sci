@@ -1,3 +1,5 @@
+// Package guide provides an interactive tutorial TUI with embedded asciicast
+// playback and markdown page viewing, used by "sci learn".
 package guide
 
 import (

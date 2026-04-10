@@ -21,7 +21,7 @@ cmd/sci/root.go          CLI entry point (urfave/cli/v3)
  |
  +---> internal/proj/     Python project detection + scaffolding
  +---> internal/py/       Python REPL, notebook conversion
- +---> internal/db/       Database create/reset/import/sync/view
+ +---> internal/db/       Database create/reset/import/rename/delete/view
  |       |
  |       +---> internal/db/data/         SQLiteStore (pocketbase/dbx)
  |       +---> internal/tui/dbtui/app/   Interactive database browser
@@ -31,14 +31,19 @@ cmd/sci/root.go          CLI entry point (urfave/cli/v3)
  |
  +---> internal/markdb/   Markdown ingestion (database/sql, FTS5)
  +---> internal/share/    Upload/download datasets (Cloudflare R2)
- +---> internal/brew/     Homebrew package management
+ +---> internal/cass/     Canvas LMS & GitHub Classroom sync
+ +---> internal/brew/     Homebrew/uv package management
  +---> internal/vid/      Video/audio editing (ffmpeg wrapper)
+ +---> internal/lab/      SFTP lab storage access
  +---> internal/guide/    Interactive asciicast tutorials
- +---> internal/doctor/   System health checks
+ +---> internal/helptui/  Interactive help TUI with demo overlays
+ +---> internal/mdview/   Embeddable markdown viewer TUI
+ +---> internal/doctor/   System health checks + setup flow
  +---> internal/selfupdate/   Binary self-update from GitHub
  |
  +---> internal/cmdutil/  Result interface, JSON/human output routing
  +---> internal/ui/       Centralized CLI styling (lipgloss)
+ +---> internal/netutil/  Network error helpers
  +---> internal/version/  Build-time version metadata
 ```
 
@@ -71,7 +76,7 @@ All terminal UIs use the Bubble Tea Model-View-Update (MVU) pattern:
 
 Messages flow through Update; side effects are returned as `Cmd` functions.
 This makes the UI testable without a real terminal — see `teatest` integration
-tests in `internal/tui/dbtui/app/`.
+tests across TUI packages.
 
 ### Centralized Styling
 CLI styles live in `internal/ui/` and are accessed via `ui.TUI.StyleName()`.
@@ -83,6 +88,7 @@ No inline `lipgloss.NewStyle()` calls outside these packages.
 ```bash
 just ok           # Fast gate: fmt + vet + lint + test + build
 just test-slow    # Integration tests (SLOW=1, needs pixi/uv/quarto/marimo/typst/node)
+just test-canvas  # Canvas/GitHub Classroom integration (needs CANVAS_TOKEN + gh auth)
 ```
 
 - Unit tests: pure logic, no I/O, fast

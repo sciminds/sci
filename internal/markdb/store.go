@@ -1,3 +1,5 @@
+// Package markdb ingests directories of markdown files into SQLite with dynamic
+// frontmatter columns, a link/backlink graph, and FTS5 full-text search.
 package markdb
 
 import (

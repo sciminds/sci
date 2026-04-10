@@ -1,3 +1,5 @@
+// Package helptui provides an interactive help TUI that lets users browse
+// commands and watch embedded demo recordings, used by "sci help".
 package helptui
 
 import (
