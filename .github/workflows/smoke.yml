@@ -37,13 +37,8 @@ jobs:
       - name: Verify binary
         run: sci --help
 
-      - name: Set up git identity
-        run: |
-          git config --global user.name "CI Smoke Test"
-          git config --global user.email "ci@sciminds.com"
-
       - name: Run doctor
-        run: sci doctor --json
+        run: sci doctor --json --git-name "CI Smoke Test" --git-email "ci@sciminds.com"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

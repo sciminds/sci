@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/sciminds/cli/internal/brew"
@@ -14,19 +15,50 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+var (
+	doctorGitName  string
+	doctorGitEmail string
+)
+
 func doctorCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "doctor",
 		Usage:       "Check that your Mac is set up correctly",
-		Description: "$ sci doctor",
+		Description: "$ sci doctor\n$ sci doctor --json --git-name \"Jane Doe\" --git-email jane@example.com",
 		Category:    "Maintenance",
-		Action:      runDoctorCheck,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "git-name",
+				Usage:       "set git user.name (skips interactive prompt)",
+				Destination: &doctorGitName,
+				Local:       true,
+			},
+			&cli.StringFlag{
+				Name:        "git-email",
+				Usage:       "set git user.email (skips interactive prompt)",
+				Destination: &doctorGitEmail,
+				Local:       true,
+			},
+		},
+		Action: runDoctorCheck,
 	}
 }
 
 func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	runner := brew.BundleRunner{}
 	isJSON := cmdutil.IsJSON(cmd)
+
+	// ── Step 0: Apply git identity flags ────────────────────────────────
+	if doctorGitName != "" {
+		if err := exec.Command("git", "config", "--global", "user.name", doctorGitName).Run(); err != nil {
+			return fmt.Errorf("set git user.name: %w", err)
+		}
+	}
+	if doctorGitEmail != "" {
+		if err := exec.Command("git", "config", "--global", "user.email", doctorGitEmail).Run(); err != nil {
+			return fmt.Errorf("set git user.email: %w", err)
+		}
+	}
 
 	// ── Step 1–2: Pre-flight + Identity checks ──────────────────────────
 	var result doctor.DocResult
