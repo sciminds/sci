@@ -40,17 +40,10 @@ func buildRoot() *cli.Command {
 			if cmdutil.IsJSON(cmd) || (len(os.Args) > 1 && os.Args[1] == "update") {
 				return nil
 			}
-			// Give the background check a brief grace period before falling
-			// back. This keeps the CLI snappy (~200ms worst case) while
-			// catching the common fast paths (cached result or fast network).
 			var msg string
 			select {
 			case msg = <-updateNotice:
 			case <-time.After(200 * time.Millisecond):
-				// Goroutine is still running (slow network / offline).
-				// Check if the on-disk cache already knows about an update
-				// so we don't silently swallow the notice.
-				msg = selfupdate.CachedNotice()
 			}
 			if msg != "" {
 				fmt.Fprintf(os.Stderr, "\n  %s %s\n", ui.SymArrow, msg)
