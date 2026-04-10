@@ -50,6 +50,7 @@ func cassCommand() *cli.Command {
 // --- setup: one-time Canvas API token ---
 
 func cassSetupCommand() *cli.Command {
+	var tokenFlag string
 	return &cli.Command{
 		Name:  "setup",
 		Usage: "Configure Canvas API token (one-time setup)",
@@ -58,9 +59,28 @@ func cassSetupCommand() *cli.Command {
 			"  1. Log in to your Canvas instance\n" +
 			"  2. Go to Account → Settings → Approved Integrations\n" +
 			"  3. Click '+ New Access Token' and copy the token\n\n" +
-			"  $ sci cass setup",
+			"  $ sci cass setup\n" +
+			"  $ sci cass setup --token TOKEN   # non-interactive",
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "token", Usage: "Canvas API token (required with --json)", Destination: &tokenFlag, Local: true},
+		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			credPath := cloud.ConfigPath()
+
+			if cmdutil.IsJSON(cmd) {
+				if tokenFlag == "" {
+					return fmt.Errorf("--token is required in --json mode")
+				}
+				if len(tokenFlag) < 10 {
+					return fmt.Errorf("token too short")
+				}
+				if err := cass.SaveCanvasToken(credPath, tokenFlag); err != nil {
+					return err
+				}
+				result := &setupResult{Token: tokenFlag}
+				cmdutil.Output(cmd, result)
+				return nil
+			}
 
 			// Check for existing token.
 			existing, _ := cass.LoadCanvasToken(credPath)
@@ -80,21 +100,23 @@ func cassSetupCommand() *cli.Command {
 				}
 			}
 
-			var token string
-			if err := huh.NewForm(huh.NewGroup(
-				huh.NewInput().
-					Title("Canvas API token").
-					Description("Paste the token from Canvas → Account → Settings → Approved Integrations").
-					EchoMode(huh.EchoModePassword).
-					Value(&token).
-					Validate(func(s string) error {
-						if len(s) < 10 {
-							return fmt.Errorf("token too short")
-						}
-						return nil
-					}),
-			)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
-				return err
+			token := tokenFlag
+			if token == "" {
+				if err := huh.NewForm(huh.NewGroup(
+					huh.NewInput().
+						Title("Canvas API token").
+						Description("Paste the token from Canvas → Account → Settings → Approved Integrations").
+						EchoMode(huh.EchoModePassword).
+						Value(&token).
+						Validate(func(s string) error {
+							if len(s) < 10 {
+								return fmt.Errorf("token too short")
+							}
+							return nil
+						}),
+				)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
+					return err
+				}
 			}
 
 			if err := cass.SaveCanvasToken(credPath, token); err != nil {
@@ -128,14 +150,18 @@ func (r *setupResult) Human() string {
 // --- init: per-project cass.yaml ---
 
 func cassInitCommand() *cli.Command {
+	var canvasURLFlag, classroomURLFlag string
 	return &cli.Command{
 		Name:  "init",
 		Usage: "Initialize a course directory (creates cass.yaml)",
 		Description: "Creates a cass.yaml config file and empty database in the current directory.\n\n" +
 			"  $ sci cass init\n" +
-			"  $ sci cass init --force   # overwrite existing cass.yaml",
+			"  $ sci cass init --force   # overwrite existing cass.yaml\n" +
+			"  $ sci cass init --canvas-url URL   # non-interactive",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config", Destination: &cassForce, Local: true},
+			&cli.StringFlag{Name: "canvas-url", Usage: "Canvas course URL (required with --json)", Destination: &canvasURLFlag, Local: true},
+			&cli.StringFlag{Name: "classroom-url", Usage: "GitHub Classroom URL (optional)", Destination: &classroomURLFlag, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			dir, _ := os.Getwd()
@@ -148,29 +174,47 @@ func cassInitCommand() *cli.Command {
 				}
 			}
 
-			var canvasURL, classroomURL string
-			if err := huh.NewForm(huh.NewGroup(
-				huh.NewInput().
-					Title("Canvas course URL").
-					Description("Paste the full URL from your browser (e.g. https://canvas.ucsd.edu/courses/12345)").
-					Value(&canvasURL).
-					Validate(func(s string) error {
-						_, _, err := cass.ParseCanvasURL(s)
-						return err
-					}),
-				huh.NewInput().
-					Title("GitHub Classroom URL (optional)").
-					Description("Leave blank for Canvas-only courses").
-					Value(&classroomURL).
-					Validate(func(s string) error {
-						if s == "" {
-							return nil
-						}
-						_, err := cass.ParseClassroomURL(s)
-						return err
-					}),
-			)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
+			canvasURL, classroomURL := canvasURLFlag, classroomURLFlag
+
+			if cmdutil.IsJSON(cmd) {
+				if canvasURL == "" {
+					return fmt.Errorf("--canvas-url is required in --json mode")
+				}
+			} else if canvasURL == "" {
+				// Interactive mode — prompt for URLs.
+				if err := huh.NewForm(huh.NewGroup(
+					huh.NewInput().
+						Title("Canvas course URL").
+						Description("Paste the full URL from your browser (e.g. https://canvas.ucsd.edu/courses/12345)").
+						Value(&canvasURL).
+						Validate(func(s string) error {
+							_, _, err := cass.ParseCanvasURL(s)
+							return err
+						}),
+					huh.NewInput().
+						Title("GitHub Classroom URL (optional)").
+						Description("Leave blank for Canvas-only courses").
+						Value(&classroomURL).
+						Validate(func(s string) error {
+							if s == "" {
+								return nil
+							}
+							_, err := cass.ParseClassroomURL(s)
+							return err
+						}),
+				)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
+					return err
+				}
+			}
+
+			// Validate URL even in non-interactive mode.
+			if _, _, err := cass.ParseCanvasURL(canvasURL); err != nil {
 				return err
+			}
+			if classroomURL != "" {
+				if _, err := cass.ParseClassroomURL(classroomURL); err != nil {
+					return err
+				}
 			}
 
 			cfg := &cass.Config{
@@ -531,6 +575,11 @@ func cassMatchCommand() *cli.Command {
 			if !cfg.HasClassroom() {
 				fmt.Fprintf(os.Stderr, "  %s No GitHub Classroom configured — nothing to match.\n", ui.SymOK)
 				return nil
+			}
+
+			// JSON mode forces auto-only matching (no interactive prompts).
+			if cmdutil.IsJSON(cmd) {
+				auto = true
 			}
 
 			result, err := cass.RunMatch(db, auto)
