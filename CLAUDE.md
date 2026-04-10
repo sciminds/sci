@@ -16,6 +16,8 @@ just test-canvas     # cass integration tests (needs CANVAS_TOKEN in .env + gh a
 - **UI centralization:** no inline `lipgloss.NewStyle()` outside `internal/ui/` or `internal/tui/dbtui/ui/`. Access via `ui.TUI` singleton. All `huh` forms use `ui.HuhTheme()` and `ui.HuhKeyMap()`.
 - **Bubbletea v2:** all TUI code uses bubbletea v2 and bubbles v2. No v1 imports.
 - **Process-replacing exec:** external tools (REPL, marimo) use `syscall.Exec`, not `exec.Command`. Export `Build*Args` helpers for testing.
+- **Brewfile as lockfile:** the global Brewfile is a lockfile reflecting system state, not a hand-edited manifest. `brew.Sync` reconciles it bidirectionally — packages installed/removed via `brew`/`uv` directly are synced automatically. Users manage packages through `sci tools install/uninstall`; `sci doctor` owns creation. `sci tools` must resolve the Brewfile via `brew.LocateBrewfile()`, not hardcode the XDG default — users may have it at `~/.Brewfile` or `$HOMEBREW_BUNDLE_FILE_GLOBAL`. Sync additions are sorted by (type, name) for stable diffs.
+- **Supported package types:** `sci doctor` manages brew, cask, tap, and uv packages. `sci tools` additionally supports go and cargo via `brew bundle` flags. Sync only scans brew/cask/tap/uv (entries of other types are preserved but not auto-added or auto-removed).
 
 ## Testing
 
@@ -43,3 +45,4 @@ Collaborators are beginner/intermediate Go developers. Keep code clear and strai
 - `install.sh` must be POSIX sh (runs on bare Macs).
 - CI uses a rolling `latest` release tag (delete + recreate on push to main).
 - GitHub Classroom URL IDs are org IDs, not classroom IDs. `ResolveClassroomID` maps URL → API ID via `GET /classrooms`. The resolved ID is cached in `cass.yaml` as `api_id`.
+- `brew bundle check` exits non-zero when deps are missing — that's normal, not an error. `isBundleCheckOutput` in `brew.go` distinguishes missing-deps output from real failures. Don't blindly discard the exit code.

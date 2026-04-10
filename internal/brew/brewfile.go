@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -275,6 +276,13 @@ func Sync(r Runner, path string) (SyncResult, error) {
 			toAdd = append(toAdd, e)
 		}
 	}
+	// Sort for deterministic Brewfile output (map iteration is random).
+	sort.Slice(toAdd, func(i, j int) bool {
+		if toAdd[i].Type != toAdd[j].Type {
+			return toAdd[i].Type < toAdd[j].Type
+		}
+		return toAdd[i].Name < toAdd[j].Name
+	})
 
 	// Compute removals: in Brewfile but not on system (scannable types only).
 	var toRemove []BrewfileEntry

@@ -88,13 +88,19 @@ func (BundleRunner) BundleInstall(file string) (string, error) {
 // BundleCheck runs `brew bundle check --verbose` and returns the names of
 // missing packages. An empty slice means all dependencies are satisfied.
 func (BundleRunner) BundleCheck(file string) ([]string, error) {
-	// brew bundle check exits non-zero when deps are missing, so we must
-	// capture stdout regardless of exit code (runBrewOutput discards it on
-	// error). Use CombinedOutput and parse the text for missing packages.
+	// brew bundle check exits non-zero when deps are missing — that's normal.
+	// We distinguish "missing deps" from real failures by inspecting the
+	// output: if it contains recognized package lines or the "satisfied"
+	// message, the exit code is just the missing-deps signal. Otherwise
+	// something is actually broken (bad Brewfile, brew not found, etc.).
 	cmd := exec.Command("brew", "bundle", "check", "--verbose", "--file="+file)
 	cmd.Env = offlineEnv()
-	out, _ := cmd.CombinedOutput()
-	return parseBundleCheck(string(out)), nil
+	out, err := cmd.CombinedOutput()
+	s := string(out)
+	if err != nil && !isBundleCheckOutput(s) {
+		return nil, fmt.Errorf("brew bundle check: %w: %s", err, s)
+	}
+	return parseBundleCheck(s), nil
 }
 
 // BundleDump runs `brew bundle dump` to write the current system state to file.
@@ -387,6 +393,15 @@ func runBrewOutput(args ...string) (string, error) {
 		return "", fmt.Errorf("%w: %s", err, stderr.String())
 	}
 	return stdout.String(), nil
+}
+
+// isBundleCheckOutput returns true if the output looks like a valid
+// `brew bundle check` response — either listing missing deps or
+// confirming everything is satisfied. Used to distinguish a normal
+// non-zero exit (missing deps) from a real failure (e.g. bad Brewfile).
+func isBundleCheckOutput(s string) bool {
+	return strings.Contains(s, "needs to be installed") ||
+		strings.Contains(s, "dependencies are satisfied")
 }
 
 // parseBundleCheck extracts missing package names from `brew bundle check --verbose` output.

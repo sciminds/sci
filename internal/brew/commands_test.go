@@ -981,6 +981,118 @@ func TestBrewfileEntry_Label(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// BundleCheck error-handling tests (real runner uses isBundleCheckOutput)
+// ---------------------------------------------------------------------------
+
+func TestIsBundleCheckOutput_MissingDeps(t *testing.T) {
+	out := "→ Formula git needs to be installed or updated.\n→ Cask firefox needs to be installed or updated.\n"
+	if !isBundleCheckOutput(out) {
+		t.Error("expected true for output with missing deps")
+	}
+}
+
+func TestIsBundleCheckOutput_Satisfied(t *testing.T) {
+	out := "The Brewfile's dependencies are satisfied.\n"
+	if !isBundleCheckOutput(out) {
+		t.Error("expected true for satisfied output")
+	}
+}
+
+func TestIsBundleCheckOutput_RealError(t *testing.T) {
+	out := "Error: No such file or directory @ rb_check_realpath_internal\n"
+	if isBundleCheckOutput(out) {
+		t.Error("expected false for a real error message")
+	}
+}
+
+func TestIsBundleCheckOutput_Empty(t *testing.T) {
+	if isBundleCheckOutput("") {
+		t.Error("expected false for empty output")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// UpgradeOnly tests
+// ---------------------------------------------------------------------------
+
+func TestUpgradeOnly_HappyPath(t *testing.T) {
+	m := &mockRunner{
+		outdatedResult: []OutdatedPackage{
+			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
+		},
+		uvOutdatedResult: []OutdatedPackage{
+			{Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
+		},
+	}
+
+	result, err := UpgradeOnly(m)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should NOT call Update (registry refresh).
+	if m.updateCalls != 0 {
+		t.Errorf("expected 0 update calls (no registry refresh), got %d", m.updateCalls)
+	}
+	if m.upgradeCalls != 1 {
+		t.Errorf("expected 1 brew upgrade call, got %d", m.upgradeCalls)
+	}
+	if m.uvUpgradeCalls != 1 {
+		t.Errorf("expected 1 uv upgrade call, got %d", m.uvUpgradeCalls)
+	}
+	if len(result.Outdated) != 2 {
+		t.Errorf("expected 2 outdated, got %d", len(result.Outdated))
+	}
+}
+
+func TestUpgradeOnly_NothingOutdated(t *testing.T) {
+	m := &mockRunner{}
+
+	result, err := UpgradeOnly(m)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if m.upgradeCalls != 0 {
+		t.Errorf("expected 0 upgrade calls, got %d", m.upgradeCalls)
+	}
+	if len(result.Outdated) != 0 {
+		t.Errorf("expected 0 outdated, got %d", len(result.Outdated))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Sync deterministic order test
+// ---------------------------------------------------------------------------
+
+func TestSync_AdditionsAreSorted(t *testing.T) {
+	bf := brewfile(t, "")
+	// Dump returns packages in a specific order — Sync should sort additions
+	// so the Brewfile is deterministic regardless of map iteration order.
+	m := &mockRunner{
+		dumpContent:      "cask \"zed\"\nbrew \"wget\"\nbrew \"curl\"\ncask \"alacritty\"\n",
+		uvToolListResult: []string{"ruff", "marimo"},
+	}
+
+	_, err := Sync(m, bf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, _ := os.ReadFile(bf)
+	entries := ParseBrewfileEntries(string(got))
+
+	// Verify entries are sorted by type then name.
+	for i := 1; i < len(entries); i++ {
+		prev := entries[i-1].Type + "\t" + entries[i-1].Name
+		curr := entries[i].Type + "\t" + entries[i].Name
+		if prev > curr {
+			t.Errorf("entries not sorted: %q > %q\nfull Brewfile:\n%s", prev, curr, got)
+			break
+		}
+	}
+}
+
 func TestExpandPath(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {

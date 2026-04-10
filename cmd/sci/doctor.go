@@ -330,7 +330,7 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "  Upgrading…\n")
-	_, err = brew.Update(runner, false)
+	_, err = brew.UpgradeOnly(runner)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
 			ui.SymFail, ui.TUI.Fail().Render("Upgrade failed: "+err.Error()))

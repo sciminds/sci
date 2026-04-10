@@ -75,10 +75,52 @@ func Update(r Runner, checkOnly bool) (UpdateResult, error) {
 	}
 
 	// Check brew and uv outdated concurrently.
+	brewOutdated, uvOutdated, err := checkOutdated(r)
+	if err != nil {
+		return UpdateResult{}, err
+	}
+
+	outdated := append(brewOutdated, uvOutdated...)
+
+	if checkOnly || len(outdated) == 0 {
+		return UpdateResult{Outdated: outdated, CheckOnly: checkOnly}, nil
+	}
+
+	upgradeOut, err := runUpgrades(r, brewOutdated, uvOutdated)
+	if err != nil {
+		return UpdateResult{}, err
+	}
+
+	return UpdateResult{Outdated: outdated, CheckOnly: false, UpgradeOutput: upgradeOut}, nil
+}
+
+// UpgradeOnly upgrades outdated packages without refreshing the registry.
+// Use when the registry was already refreshed by an earlier Update call.
+func UpgradeOnly(r Runner) (UpdateResult, error) {
+	// Re-check what's outdated (fast — registry is already fresh).
+	brewOutdated, uvOutdated, err := checkOutdated(r)
+	if err != nil {
+		return UpdateResult{}, err
+	}
+
+	allOutdated := append(brewOutdated, uvOutdated...)
+	if len(allOutdated) == 0 {
+		return UpdateResult{}, nil
+	}
+
+	upgradeOut, err := runUpgrades(r, brewOutdated, uvOutdated)
+	if err != nil {
+		return UpdateResult{}, err
+	}
+
+	return UpdateResult{Outdated: allOutdated, UpgradeOutput: upgradeOut}, nil
+}
+
+// checkOutdated queries brew and uv outdated concurrently.
+func checkOutdated(r Runner) (brewOutdated, uvOutdated []OutdatedPackage, err error) {
 	var (
-		brewOutdated, uvOutdated []OutdatedPackage
-		brewErr, uvErr           error
-		wg                       sync.WaitGroup
+		brewErr, uvErr error
+		wg             sync.WaitGroup
 	)
 	wg.Add(2)
 	go func() {
@@ -92,23 +134,21 @@ func Update(r Runner, checkOnly bool) (UpdateResult, error) {
 	wg.Wait()
 
 	if brewErr != nil {
-		return UpdateResult{}, fmt.Errorf("brew outdated: %w", brewErr)
+		return nil, nil, fmt.Errorf("brew outdated: %w", brewErr)
 	}
 	if uvErr != nil {
-		return UpdateResult{}, fmt.Errorf("uv outdated: %w", uvErr)
+		return nil, nil, fmt.Errorf("uv outdated: %w", uvErr)
 	}
+	return brewOutdated, uvOutdated, nil
+}
 
-	outdated := append(brewOutdated, uvOutdated...)
-
-	if checkOnly || len(outdated) == 0 {
-		return UpdateResult{Outdated: outdated, CheckOnly: checkOnly}, nil
-	}
-
+// runUpgrades runs brew upgrade and uv upgrade for the given outdated packages.
+func runUpgrades(r Runner, brewOutdated, uvOutdated []OutdatedPackage) (string, error) {
 	var upgradeOut string
 	if len(brewOutdated) > 0 {
 		out, err := r.Upgrade()
 		if err != nil {
-			return UpdateResult{}, fmt.Errorf("brew upgrade: %w", err)
+			return "", fmt.Errorf("brew upgrade: %w", err)
 		}
 		upgradeOut = out
 	}
@@ -119,12 +159,11 @@ func Update(r Runner, checkOnly bool) (UpdateResult, error) {
 		}
 		out, err := r.UVUpgrade(names)
 		if err != nil {
-			return UpdateResult{}, fmt.Errorf("uv upgrade: %w", err)
+			return upgradeOut, fmt.Errorf("uv upgrade: %w", err)
 		}
 		upgradeOut += out
 	}
-
-	return UpdateResult{Outdated: outdated, CheckOnly: false, UpgradeOutput: upgradeOut}, nil
+	return upgradeOut, nil
 }
 
 // ListDetailed fetches formulae and casks with descriptions in parallel.

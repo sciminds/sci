@@ -133,7 +133,15 @@ func toolsReccsCommand() *cli.Command {
 }
 
 func resolveToolsFile() (string, error) {
-	return brew.ExpandPath(toolsFile)
+	// If the user passed an explicit --file flag, honour it.
+	if toolsFile != brew.DefaultBrewfile {
+		return brew.ExpandPath(toolsFile)
+	}
+	// Otherwise search the candidate paths brew recognises.
+	if found := brew.LocateBrewfile(); found != "" {
+		return found, nil
+	}
+	return "", fmt.Errorf("no Brewfile found — run 'sci doctor' first to set up your environment")
 }
 
 // syncBrewfile reconciles the Brewfile with the system state before
