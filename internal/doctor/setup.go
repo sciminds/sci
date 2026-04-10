@@ -145,7 +145,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 		return OptionalSetupResult{}, fmt.Errorf("write temp brewfile: %w", err)
 	}
 
-	output, err := r.BundleInstall(tmpFile)
+	output, err := r.BundleInstall(tmpFile, nil, nil, nil)
 	if err != nil {
 		return OptionalSetupResult{}, fmt.Errorf("brew bundle install: %w", err)
 	}

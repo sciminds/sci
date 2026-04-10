@@ -42,10 +42,9 @@ type PackageInfo struct {
 type Runner interface {
 	BundleAdd(file, pkg, pkgType string) error
 	BundleRemove(file, pkg, pkgType string) error
-	BundleInstall(file string) (string, error)
-	BundleInstallLive(file string, onLine func(string), onSuspend, onResume func()) (string, error)
+	BundleInstall(file string, onLine func(string), onSuspend, onResume func()) (string, error)
 	BundleCheck(file string) ([]string, error)
-	BundleCleanup(file string) (string, error)
+	BundleCleanup(file string, onLine func(string), onSuspend, onResume func()) (string, error)
 	BundleDump(file string) error
 	BundleDumpLive(file string, onSuspend, onResume func()) error
 	BundleList(file, pkgType string) ([]string, error)
@@ -67,7 +66,8 @@ func (BundleRunner) BundleAdd(file, pkg, pkgType string) error {
 		args = append(args, "--"+pkgType)
 	}
 	args = append(args, pkg)
-	return runBrew(args...)
+	_, err := runBrewInteractive(nil, nil, nil, args...)
+	return err
 }
 
 func (BundleRunner) BundleRemove(file, pkg, pkgType string) error {
@@ -76,14 +76,11 @@ func (BundleRunner) BundleRemove(file, pkg, pkgType string) error {
 		args = append(args, "--"+pkgType)
 	}
 	args = append(args, pkg)
-	return runBrew(args...)
+	_, err := runBrewInteractive(nil, nil, nil, args...)
+	return err
 }
 
-func (BundleRunner) BundleInstall(file string) (string, error) {
-	return runBrewOutput("bundle", "install", "--file="+file)
-}
-
-func (BundleRunner) BundleInstallLive(file string, onLine func(string), onSuspend, onResume func()) (string, error) {
+func (BundleRunner) BundleInstall(file string, onLine func(string), onSuspend, onResume func()) (string, error) {
 	return runBrewInteractive(onLine, onSuspend, onResume, "bundle", "install", "--file="+file)
 }
 
@@ -112,8 +109,8 @@ func (BundleRunner) BundleDumpLive(file string, onSuspend, onResume func()) erro
 	return err
 }
 
-func (BundleRunner) BundleCleanup(file string) (string, error) {
-	return runBrewOutput("bundle", "cleanup", "--force", "--file="+file)
+func (BundleRunner) BundleCleanup(file string, onLine func(string), onSuspend, onResume func()) (string, error) {
+	return runBrewInteractive(onLine, onSuspend, onResume, "bundle", "cleanup", "--force", "--file="+file)
 }
 
 func (BundleRunner) BundleList(file, pkgType string) ([]string, error) {
@@ -387,14 +384,6 @@ wait:
 		return full.String(), err
 	}
 	return full.String(), nil
-}
-
-func runBrew(args ...string) error {
-	cmd := exec.Command("brew", args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
 }
 
 func runBrewOutput(args ...string) (string, error) {

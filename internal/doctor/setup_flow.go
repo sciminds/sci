@@ -96,7 +96,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	}
 
 	// Install missing tools.
-	output, installErr := r.BundleInstall(brewfilePath)
+	output, installErr := r.BundleInstall(brewfilePath, nil, nil, nil)
 	_ = output
 	if installErr != nil {
 		result.InstallError = installErr.Error()

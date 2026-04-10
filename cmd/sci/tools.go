@@ -257,9 +257,9 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		}
 
 		var result brew.AddResult
-		err = ui.RunWithSpinner(fmt.Sprintf("Adding %s…", pkg), func(_ ui.SpinnerControls) error {
+		err = ui.RunWithSpinner(fmt.Sprintf("Adding %s…", pkg), func(sc ui.SpinnerControls) error {
 			var addErr error
-			result, addErr = brew.Add(brew.BundleRunner{}, file, pkg, pkgType)
+			result, addErr = brew.Add(brew.BundleRunner{}, file, pkg, pkgType, sc.SetStatus, sc.Suspend, sc.Resume)
 			return addErr
 		})
 		if err != nil {
@@ -277,9 +277,9 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var result brew.InstallResult
-	err = ui.RunWithSpinner("Installing from Brewfile…", func(_ ui.SpinnerControls) error {
+	err = ui.RunWithSpinner("Installing from Brewfile…", func(sc ui.SpinnerControls) error {
 		var instErr error
-		result, instErr = brew.Install(brew.BundleRunner{}, file)
+		result, instErr = brew.Install(brew.BundleRunner{}, file, sc.SetStatus, sc.Suspend, sc.Resume)
 		return instErr
 	})
 	if err != nil {
@@ -311,9 +311,9 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var result brew.RemoveResult
-	err = ui.RunWithSpinner(fmt.Sprintf("Removing %s…", pkg), func(_ ui.SpinnerControls) error {
+	err = ui.RunWithSpinner(fmt.Sprintf("Removing %s…", pkg), func(sc ui.SpinnerControls) error {
 		var rmErr error
-		result, rmErr = brew.Remove(brew.BundleRunner{}, file, pkg, resolveToolsPkgType())
+		result, rmErr = brew.Remove(brew.BundleRunner{}, file, pkg, resolveToolsPkgType(), sc.SetStatus, sc.Suspend, sc.Resume)
 		return rmErr
 	})
 	if err != nil {

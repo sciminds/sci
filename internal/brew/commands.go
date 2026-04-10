@@ -9,7 +9,9 @@ import (
 
 // Add adds a package to the Brewfile and installs it.
 // If install fails, the Brewfile is restored to its previous state.
-func Add(r Runner, file, pkg, pkgType string) (AddResult, error) {
+// onLine, onSuspend, onResume enable spinner status updates and stall-detection
+// for interactive prompts (e.g. sudo password). Pass nil when not behind a spinner.
+func Add(r Runner, file, pkg, pkgType string, onLine func(string), onSuspend, onResume func()) (AddResult, error) {
 	backup, err := os.ReadFile(file)
 	if err != nil {
 		return AddResult{}, fmt.Errorf("read brewfile: %w", err)
@@ -19,7 +21,7 @@ func Add(r Runner, file, pkg, pkgType string) (AddResult, error) {
 		return AddResult{}, fmt.Errorf("bundle add: %w", err)
 	}
 
-	if _, err := r.BundleInstall(file); err != nil {
+	if _, err := r.BundleInstall(file, onLine, onSuspend, onResume); err != nil {
 		// Rollback: restore the Brewfile.
 		_ = os.WriteFile(file, backup, 0o644)
 		return AddResult{}, fmt.Errorf("bundle install (rolled back): %w", err)
@@ -30,7 +32,9 @@ func Add(r Runner, file, pkg, pkgType string) (AddResult, error) {
 
 // Remove removes a package from the Brewfile and cleans up.
 // If cleanup fails, the Brewfile is restored to its previous state.
-func Remove(r Runner, file, pkg, pkgType string) (RemoveResult, error) {
+// onLine, onSuspend, onResume enable spinner status updates and stall-detection
+// for interactive prompts (e.g. sudo password). Pass nil when not behind a spinner.
+func Remove(r Runner, file, pkg, pkgType string, onLine func(string), onSuspend, onResume func()) (RemoveResult, error) {
 	backup, err := os.ReadFile(file)
 	if err != nil {
 		return RemoveResult{}, fmt.Errorf("read brewfile: %w", err)
@@ -40,7 +44,7 @@ func Remove(r Runner, file, pkg, pkgType string) (RemoveResult, error) {
 		return RemoveResult{}, fmt.Errorf("bundle remove: %w", err)
 	}
 
-	if _, err := r.BundleCleanup(file); err != nil {
+	if _, err := r.BundleCleanup(file, onLine, onSuspend, onResume); err != nil {
 		// Rollback: restore the Brewfile.
 		_ = os.WriteFile(file, backup, 0o644)
 		return RemoveResult{}, fmt.Errorf("bundle cleanup (rolled back): %w", err)
@@ -50,8 +54,10 @@ func Remove(r Runner, file, pkg, pkgType string) (RemoveResult, error) {
 }
 
 // Install installs all packages from the Brewfile.
-func Install(r Runner, file string) (InstallResult, error) {
-	out, err := r.BundleInstall(file)
+// onLine, onSuspend, onResume enable spinner status updates and stall-detection
+// for interactive prompts (e.g. sudo password). Pass nil when not behind a spinner.
+func Install(r Runner, file string, onLine func(string), onSuspend, onResume func()) (InstallResult, error) {
+	out, err := r.BundleInstall(file, onLine, onSuspend, onResume)
 	if err != nil {
 		return InstallResult{}, fmt.Errorf("bundle install: %w", err)
 	}

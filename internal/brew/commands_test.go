@@ -64,13 +64,9 @@ func (m *mockRunner) BundleRemove(file, pkg, pkgType string) error {
 	return nil
 }
 
-func (m *mockRunner) BundleInstall(file string) (string, error) {
+func (m *mockRunner) BundleInstall(file string, _ func(string), _, _ func()) (string, error) {
 	m.installCalls = append(m.installCalls, file)
 	return "installed", m.installErr
-}
-
-func (m *mockRunner) BundleInstallLive(file string, _ func(string), _, _ func()) (string, error) {
-	return m.BundleInstall(file)
 }
 
 func (m *mockRunner) BundleCheck(file string) ([]string, error) {
@@ -92,7 +88,7 @@ func (m *mockRunner) BundleDumpLive(file string, _, _ func()) error {
 	return m.BundleDump(file)
 }
 
-func (m *mockRunner) BundleCleanup(file string) (string, error) {
+func (m *mockRunner) BundleCleanup(file string, _ func(string), _, _ func()) (string, error) {
 	m.cleanupCalls = append(m.cleanupCalls, file)
 	return "cleaned", m.cleanupErr
 }
@@ -147,7 +143,7 @@ func TestAdd_HappyPath(t *testing.T) {
 	bf := brewfile(t, `brew "existing"`)
 	m := &mockRunner{}
 
-	result, err := Add(m, bf, "htop", "")
+	result, err := Add(m, bf, "htop", "", nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -172,7 +168,7 @@ func TestAdd_WithType(t *testing.T) {
 	bf := brewfile(t, "")
 	m := &mockRunner{}
 
-	_, err := Add(m, bf, "firefox", "cask")
+	_, err := Add(m, bf, "firefox", "cask", nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -187,7 +183,7 @@ func TestAdd_RollbackOnInstallFailure(t *testing.T) {
 	bf := brewfile(t, original)
 	m := &mockRunner{installErr: errors.New("install failed")}
 
-	_, err := Add(m, bf, "htop", "")
+	_, err := Add(m, bf, "htop", "", nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -206,7 +202,7 @@ func TestRemove_HappyPath(t *testing.T) {
 	bf := brewfile(t, `brew "htop"`+"\n"+`brew "curl"`+"\n")
 	m := &mockRunner{}
 
-	result, err := Remove(m, bf, "htop", "")
+	result, err := Remove(m, bf, "htop", "", nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -230,7 +226,7 @@ func TestRemove_RollbackOnCleanupFailure(t *testing.T) {
 	bf := brewfile(t, original)
 	m := &mockRunner{cleanupErr: errors.New("cleanup failed")}
 
-	_, err := Remove(m, bf, "htop", "")
+	_, err := Remove(m, bf, "htop", "", nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -248,7 +244,7 @@ func TestInstall_HappyPath(t *testing.T) {
 	bf := brewfile(t, `brew "htop"`)
 	m := &mockRunner{}
 
-	result, err := Install(m, bf)
+	result, err := Install(m, bf, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

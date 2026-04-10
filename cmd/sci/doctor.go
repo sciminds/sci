@@ -178,8 +178,8 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	var output string
 	spinErr := ui.RunWithSpinner("Installing…", func(sc ui.SpinnerControls) error {
-		var instErr error
-		output, instErr = runner.BundleInstallLive(brewfilePath, sc.SetStatus, sc.Suspend, sc.Resume)
+		result, instErr := brew.Install(runner, brewfilePath, sc.SetStatus, sc.Suspend, sc.Resume)
+		output = result.Output
 		return instErr
 	})
 
