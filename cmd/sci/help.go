@@ -10,7 +10,7 @@ import (
 func helpCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "help",
-		Usage:     "Interactive help with demos for any command",
+		Usage:     "Get-to-know what each sci command(s) does",
 		Category:  "What Can I Do?",
 		Aliases:   []string{"h"},
 		ArgsUsage: "[command]",
