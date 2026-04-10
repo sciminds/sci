@@ -79,12 +79,12 @@ func TestDetect_MultipleMatches_PriorityOrder(t *testing.T) {
 	if len(matches) != 3 {
 		t.Fatalf("expected 3 matches, got %d", len(matches))
 	}
-	// Priority: formula > cask > uv
-	if matches[0].Type != "formula" {
-		t.Errorf("matches[0].Type = %q, want %q", matches[0].Type, "formula")
+	// Priority: cask > formula > uv
+	if matches[0].Type != "cask" {
+		t.Errorf("matches[0].Type = %q, want %q", matches[0].Type, "cask")
 	}
-	if matches[1].Type != "cask" {
-		t.Errorf("matches[1].Type = %q, want %q", matches[1].Type, "cask")
+	if matches[1].Type != "formula" {
+		t.Errorf("matches[1].Type = %q, want %q", matches[1].Type, "formula")
 	}
 	if matches[2].Type != "uv" {
 		t.Errorf("matches[2].Type = %q, want %q", matches[2].Type, "uv")
@@ -100,11 +100,11 @@ func TestDetect_FormulaCask_PriorityOrder(t *testing.T) {
 	if len(matches) != 2 {
 		t.Fatalf("expected 2 matches, got %d", len(matches))
 	}
-	if matches[0].Type != "formula" {
-		t.Errorf("matches[0].Type = %q, want %q", matches[0].Type, "formula")
+	if matches[0].Type != "cask" {
+		t.Errorf("matches[0].Type = %q, want %q", matches[0].Type, "cask")
 	}
-	if matches[1].Type != "cask" {
-		t.Errorf("matches[1].Type = %q, want %q", matches[1].Type, "cask")
+	if matches[1].Type != "formula" {
+		t.Errorf("matches[1].Type = %q, want %q", matches[1].Type, "formula")
 	}
 }
 

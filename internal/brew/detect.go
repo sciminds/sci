@@ -27,7 +27,7 @@ type Prober interface {
 }
 
 // Detect probes all backends concurrently and returns matches in priority
-// order: formula > cask > uv. Probe errors are treated as "not found".
+// order: cask > formula > uv. Probe errors are treated as "not found".
 func Detect(p Prober, pkg string) ([]DetectedPackage, error) {
 	type result struct {
 		found bool
@@ -43,13 +43,13 @@ func Detect(p Prober, pkg string) ([]DetectedPackage, error) {
 	wg.Add(3)
 	go func() {
 		defer wg.Done()
-		found, _ := p.ProbeFormula(pkg)
-		results[0] = result{found: found, typ: "formula", order: 0}
+		found, _ := p.ProbeCask(pkg)
+		results[0] = result{found: found, typ: "cask", order: 0}
 	}()
 	go func() {
 		defer wg.Done()
-		found, _ := p.ProbeCask(pkg)
-		results[1] = result{found: found, typ: "cask", order: 1}
+		found, _ := p.ProbeFormula(pkg)
+		results[1] = result{found: found, typ: "formula", order: 1}
 	}()
 	go func() {
 		defer wg.Done()
