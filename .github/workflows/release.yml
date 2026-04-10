@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  check:
+  release:
     runs-on: macos-latest
 
     env:
@@ -50,23 +50,6 @@ jobs:
 
       - name: Test
         run: go test ./... -count=1
-
-  release:
-    needs: check
-    runs-on: macos-latest
-
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
 
       - name: Build
         run: |
