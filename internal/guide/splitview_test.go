@@ -237,6 +237,90 @@ func TestSplitViewContainsBothPanels(t *testing.T) {
 	}
 }
 
+// ── Stacked layout ────────────────────────────────────────────────────────
+
+func TestSplitViewStackedAtNarrowWidth(t *testing.T) {
+	// Below splitMinW the view should use a stacked layout with a
+	// horizontal divider (━) instead of the vertical thick border (┃).
+	s := newTestSplitAt(60, 30)
+	s, _ = s.Update(TickMsg{Index: 0})
+
+	view := s.View()
+	if !contains(view, "━") {
+		t.Error("narrow view should contain horizontal divider ━")
+	}
+	if contains(view, "┃") {
+		t.Error("narrow view should not contain vertical thick border ┃")
+	}
+	if !contains(view, "test entry") {
+		t.Error("stacked view should still contain the title")
+	}
+}
+
+func TestSplitViewSideBySideAtWideWidth(t *testing.T) {
+	s := newTestSplitAt(120, 40)
+	s, _ = s.Update(TickMsg{Index: 0})
+
+	view := s.View()
+	if !contains(view, "┃") {
+		t.Error("wide view should contain vertical thick border ┃")
+	}
+}
+
+func TestSplitViewLayoutTransition(t *testing.T) {
+	// Resize from wide → narrow → wide and verify layout switches.
+	s := newTestSplitAt(120, 40)
+	s, _ = s.Update(TickMsg{Index: 0})
+
+	// Wide → side-by-side
+	view := s.View()
+	if !contains(view, "┃") {
+		t.Error("120-wide should be side-by-side")
+	}
+
+	// Narrow → stacked
+	s.SetSize(60, 30)
+	view = s.View()
+	if !contains(view, "━") {
+		t.Error("60-wide should be stacked")
+	}
+	if contains(view, "┃") {
+		t.Error("60-wide should not have vertical divider")
+	}
+
+	// Back to wide → side-by-side again
+	s.SetSize(120, 40)
+	view = s.View()
+	if !contains(view, "┃") {
+		t.Error("back to 120-wide should be side-by-side again")
+	}
+}
+
+// ── Adaptive footer ──────────────────────────────────────────────────────
+
+func TestSplitViewFooterAdaptive(t *testing.T) {
+	// At full width all hints should appear.
+	s := newTestSplitAt(120, 40)
+	s, _ = s.Update(TickMsg{Index: 0})
+	view := s.View()
+	if !contains(view, "pause/play") {
+		t.Error("wide footer should contain pause/play hint")
+	}
+	if !contains(view, "scroll") {
+		t.Error("wide footer should contain scroll hint")
+	}
+	if !contains(view, "esc close") {
+		t.Error("wide footer should always contain esc close")
+	}
+
+	// At very narrow width some hints should be dropped but esc always present.
+	s.SetSize(40, 15)
+	view = s.View()
+	if !contains(view, "esc close") {
+		t.Error("narrow footer should still contain esc close")
+	}
+}
+
 // ── Integration: resize during split view ──────────────────────────────────
 
 func TestGuideSplitViewResize(t *testing.T) {

@@ -79,6 +79,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.player != nil {
 			m.player.SetHeight(ui.OverlayBodyHeight(m.height, 4))
+			m.player.SetWidth(ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding)
 		}
 		if m.viewer != nil {
 			w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding
@@ -232,7 +233,9 @@ func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			break
 		}
 		visH := ui.OverlayBodyHeight(m.height, 4)
+		visW := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding
 		m.player = NewPlayer(cast, visH)
+		m.player.SetWidth(visW)
 		m.level = levelOverlay
 		return m, m.player.Init()
 	}

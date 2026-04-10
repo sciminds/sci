@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -118,6 +119,7 @@ type Player struct {
 	paused   bool
 	finished bool
 	height   int // max visible lines
+	width    int // max visible columns (0 = no clipping)
 }
 
 // NewPlayer creates a player for the given cast recording.
@@ -178,6 +180,12 @@ func (p *Player) View() string {
 	for len(lines) < p.height {
 		lines = append(lines, "")
 	}
+	// Clip each line to the panel width to prevent overflow / unwanted wrapping.
+	if p.width > 0 {
+		for i, line := range lines {
+			lines[i] = ansi.Truncate(line, p.width, "")
+		}
+	}
 
 	var b strings.Builder
 	b.WriteString(strings.Join(lines, "\n"))
@@ -202,6 +210,12 @@ func (p *Player) View() string {
 // SetHeight updates the visible line cap.
 func (p *Player) SetHeight(h int) {
 	p.height = h
+}
+
+// SetWidth updates the visible column cap. Lines exceeding this width are
+// truncated in View() to prevent overflow into adjacent panels.
+func (p *Player) SetWidth(w int) {
+	p.width = w
 }
 
 func (p *Player) scheduleNext() tea.Cmd {
