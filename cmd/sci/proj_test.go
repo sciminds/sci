@@ -10,6 +10,8 @@ import (
 
 func TestProjNew_JSONRequiresNameArg(t *testing.T) {
 	ui.SetQuiet(false)
+	t.Cleanup(func() { ui.SetQuiet(false) })
+
 	root := buildRoot()
 
 	// --json with no name argument should error instead of launching wizard.
@@ -21,5 +23,4 @@ func TestProjNew_JSONRequiresNameArg(t *testing.T) {
 	if !strings.Contains(err.Error(), "name") {
 		t.Errorf("error should mention project name, got: %v", err)
 	}
-	ui.SetQuiet(false)
 }

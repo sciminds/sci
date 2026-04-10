@@ -178,26 +178,3 @@ func FindGroup(groups []CommandGroup, name string) *CommandGroup {
 	}
 	return nil
 }
-
-// GroupsByCategory returns groups ordered by the standard category order.
-func GroupsByCategory(groups []CommandGroup) []CommandGroup {
-	order := map[string]int{
-		"What Can I Do?":  0,
-		"Getting Started": 1,
-		"Commands":        2,
-		"Maintenance":     3,
-		"Experimental":    4,
-	}
-	out := make([]CommandGroup, len(groups))
-	copy(out, groups)
-	for i := 0; i < len(out)-1; i++ {
-		for j := i + 1; j < len(out); j++ {
-			oi := order[out[i].Category]
-			oj := order[out[j].Category]
-			if oi > oj || (oi == oj && out[i].Name > out[j].Name) {
-				out[i], out[j] = out[j], out[i]
-			}
-		}
-	}
-	return out
-}

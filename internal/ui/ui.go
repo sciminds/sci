@@ -33,12 +33,6 @@ func statusOut() *os.File {
 // OK prints a green check line.
 func OK(msg string) { _, _ = fmt.Fprintf(statusOut(), "%s %s\n", SymOK, msg) }
 
-// Fail prints a red X line to stderr.
-func Fail(msg string) { _, _ = fmt.Fprintf(os.Stderr, "%s %s\n", SymFail, msg) }
-
-// Warn prints a yellow warning line.
-func Warn(msg string) { _, _ = fmt.Fprintf(statusOut(), "%s %s\n", SymWarn, msg) }
-
 // Hint prints a dimmed indented line.
 func Hint(msg string) { _, _ = fmt.Fprintf(statusOut(), "  %s\n", TUI.Dim().Render(msg)) }
 

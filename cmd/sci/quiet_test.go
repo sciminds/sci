@@ -9,11 +9,11 @@ import (
 )
 
 func TestJSONFlag_SetsQuiet(t *testing.T) {
-	ui.SetQuiet(false) // reset
+	ui.SetQuiet(false)
+	t.Cleanup(func() { ui.SetQuiet(false) })
 
 	var observed bool
 	root := buildRoot()
-	// Add a tiny subcommand that captures the quiet state after Before runs.
 	root.Commands = append(root.Commands, &cli.Command{
 		Name: "test-quiet",
 		Action: func(_ context.Context, _ *cli.Command) error {
@@ -27,11 +27,11 @@ func TestJSONFlag_SetsQuiet(t *testing.T) {
 	if !observed {
 		t.Error("--json should set ui.IsQuiet() to true")
 	}
-	ui.SetQuiet(false) // cleanup
 }
 
 func TestNoJSONFlag_QuietFalse(t *testing.T) {
-	ui.SetQuiet(true) // start with true to verify it gets set to false
+	ui.SetQuiet(true)
+	t.Cleanup(func() { ui.SetQuiet(false) })
 
 	var observed bool
 	root := buildRoot()

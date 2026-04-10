@@ -99,15 +99,7 @@ func TestSubcommandTrees(t *testing.T) {
 // TestJSONFlag checks that --json is available on root (inherited by all).
 func TestJSONFlag(t *testing.T) {
 	root := buildRoot()
-	found := false
-	for _, f := range root.Flags {
-		for _, name := range f.Names() {
-			if name == "json" {
-				found = true
-			}
-		}
-	}
-	if !found {
+	if !hasFlag(root, "json") {
 		t.Error("root should have a --json flag")
 	}
 }
@@ -121,17 +113,8 @@ func TestVidPersistentFlags(t *testing.T) {
 	}
 
 	// vid's shared flags (output, yes, dry-run) should be on the vid command itself.
-	wantFlags := []string{"output", "yes", "dry-run"}
-	for _, name := range wantFlags {
-		found := false
-		for _, f := range vid.Flags {
-			for _, fn := range f.Names() {
-				if fn == name {
-					found = true
-				}
-			}
-		}
-		if !found {
+	for _, name := range []string{"output", "yes", "dry-run"} {
+		if !hasFlag(vid, name) {
 			t.Errorf("vid should have flag %q", name)
 		}
 	}
@@ -150,28 +133,28 @@ func TestMutuallyExclusiveFlags(t *testing.T) {
 		if repl == nil {
 			t.Fatal("py repl not found")
 		}
-		flagNames := make(map[string]bool)
-		for _, f := range repl.Flags {
-			for _, n := range f.Names() {
-				flagNames[n] = true
-			}
-		}
-		if !flagNames["with"] {
+		if !hasFlag(repl, "with") {
 			t.Error("py repl should have --with flag")
 		}
-		if !flagNames["ignore-existing"] {
+		if !hasFlag(repl, "ignore-existing") {
 			t.Error("py repl should have --ignore-existing flag")
 		}
 	})
 
 }
 
-// TestDoctorCommand checks the doctor command is registered.
+// TestDoctorCommand checks doctor is registered as a leaf command with an action.
 func TestDoctorCommand(t *testing.T) {
 	root := buildRoot()
 	doc := findCmd(root.Commands, "doctor")
 	if doc == nil {
 		t.Fatal("doctor not found")
+	}
+	if len(doc.Commands) > 0 {
+		t.Errorf("doctor should be a leaf command (no subcommands), got %d", len(doc.Commands))
+	}
+	if doc.Action == nil {
+		t.Error("doctor should have an Action")
 	}
 }
 
@@ -191,15 +174,73 @@ func TestSkipFlagParsing(t *testing.T) {
 	}
 }
 
-// TestHelpOutput verifies help renders without panics.
+// TestHelpOutput verifies help renders without panics for root and all top-level commands.
 func TestHelpOutput(t *testing.T) {
+	commands := []struct {
+		args     []string
+		contains string
+	}{
+		{[]string{"sci", "--help"}, "sci"},
+		{[]string{"sci", "tools", "--help"}, "install"},
+		{[]string{"sci", "proj", "--help"}, "new"},
+		{[]string{"sci", "vid", "--help"}, "info"},
+		{[]string{"sci", "db", "--help"}, "create"},
+		{[]string{"sci", "cloud", "--help"}, "setup"},
+		{[]string{"sci", "lab", "--help"}, "setup"},
+		{[]string{"sci", "py", "--help"}, "repl"},
+	}
+
+	for _, tt := range commands {
+		t.Run(strings.Join(tt.args[1:], "_"), func(t *testing.T) {
+			root := buildRoot()
+			var buf strings.Builder
+			root.Writer = &buf
+			_ = root.Run(context.Background(), tt.args)
+			out := buf.String()
+			if !strings.Contains(out, tt.contains) {
+				t.Errorf("%v help should mention %q, got:\n%s", tt.args, tt.contains, out)
+			}
+		})
+	}
+}
+
+// TestVidArgValidation verifies vid subcommands reject wrong argument counts.
+func TestVidArgValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{"info_no_args", []string{"sci", "vid", "info"}, "expected 1"},
+		{"mute_no_args", []string{"sci", "vid", "mute"}, "expected 1"},
+		{"speed_one_arg", []string{"sci", "vid", "speed", "in.mp4"}, "expected 2"},
+		{"cut_two_args", []string{"sci", "vid", "cut", "in.mp4", "0:30"}, "expected 3"},
+		{"resize_one_arg", []string{"sci", "vid", "resize", "in.mp4"}, "expected 2"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := buildRoot()
+			err := root.Run(context.Background(), tt.args)
+			if err == nil {
+				t.Fatal("expected error for missing args")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error should contain %q, got: %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+// TestDbRequiresSubcommand verifies db without subcommand shows help (no panic).
+func TestDbRequiresSubcommand(t *testing.T) {
 	root := buildRoot()
 	var buf strings.Builder
 	root.Writer = &buf
-	_ = root.Run(context.Background(), []string{"sci", "--help"})
-	out := buf.String()
-	if !strings.Contains(out, "sci") {
-		t.Errorf("help should mention 'sci', got:\n%s", out)
+	err := root.Run(context.Background(), []string{"sci", "db"})
+	// db with no subcommand should show help or return nil (not panic)
+	if err != nil {
+		t.Errorf("db with no subcommand should not error, got: %v", err)
 	}
 }
 
@@ -210,4 +251,16 @@ func findCmd(cmds []*cli.Command, name string) *cli.Command {
 		}
 	}
 	return nil
+}
+
+// hasFlag returns true if cmd has a flag with the given name.
+func hasFlag(cmd *cli.Command, name string) bool {
+	for _, f := range cmd.Flags {
+		for _, n := range f.Names() {
+			if n == name {
+				return true
+			}
+		}
+	}
+	return false
 }

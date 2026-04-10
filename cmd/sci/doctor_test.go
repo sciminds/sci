@@ -13,6 +13,8 @@ import (
 
 func TestToolsReccs_JSONSkipsForm(t *testing.T) {
 	ui.SetQuiet(false)
+	t.Cleanup(func() { ui.SetQuiet(false) })
+
 	root := buildRoot()
 
 	// --json mode should not launch the interactive multi-select.
@@ -23,7 +25,6 @@ func TestToolsReccs_JSONSkipsForm(t *testing.T) {
 	if err != nil && strings.Contains(err.Error(), "TTY") {
 		t.Errorf("--json mode should not open a TTY, got: %v", err)
 	}
-	ui.SetQuiet(false)
 }
 
 func TestDoctor_JSONIncludesBrewfileFields(t *testing.T) {

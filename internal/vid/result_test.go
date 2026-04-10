@@ -108,34 +108,3 @@ func TestInfoResultHumanNoAudioNoSubs(t *testing.T) {
 		t.Errorf("InfoResult.Human() expected at least 2 'no' (audio + subs), got %d in:\n%s", noCount, out)
 	}
 }
-
-func TestSimpleResultHuman(t *testing.T) {
-	r := SimpleResult{Output: "/tmp/output.mp4"}
-	out := r.Human()
-	if !strings.Contains(out, "/tmp/output.mp4") {
-		t.Errorf("SimpleResult.Human() missing output path in:\n%s", out)
-	}
-	// Should end with newline
-	if !strings.HasSuffix(out, "\n") {
-		t.Errorf("SimpleResult.Human() should end with newline")
-	}
-}
-
-func TestCompressResultHuman(t *testing.T) {
-	r := CompressResult{
-		Output:     "/tmp/compressed.mp4",
-		OrigSize:   100 * 1024 * 1024,
-		NewSize:    70 * 1024 * 1024,
-		SavingsPct: 30.0,
-	}
-	out := r.Human()
-	if !strings.Contains(out, "/tmp/compressed.mp4") {
-		t.Errorf("CompressResult.Human() missing output path in:\n%s", out)
-	}
-	if !strings.Contains(out, "30%") {
-		t.Errorf("CompressResult.Human() missing savings percentage in:\n%s", out)
-	}
-	if !strings.HasSuffix(out, "\n") {
-		t.Errorf("CompressResult.Human() should end with newline")
-	}
-}

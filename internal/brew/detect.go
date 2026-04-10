@@ -14,11 +14,6 @@ type DetectedPackage struct {
 	Type string // "formula", "cask", or "uv"
 }
 
-// Label returns a display string like "htop (formula)".
-func (d DetectedPackage) Label() string {
-	return d.Name + " (" + d.Type + ")"
-}
-
 // Prober abstracts the three detection probes for testability.
 type Prober interface {
 	ProbeFormula(pkg string) (bool, error)

@@ -75,17 +75,6 @@ func StatusRow(icon, label string) string {
 	return fmt.Sprintf("  %s %s", icon, label)
 }
 
-// ActivePanel renders a bordered panel with a description and spinner+verb
-// line, used for "working…" / "fixing…" states.
-func ActivePanel(spinnerView, description, verb string) string {
-	lines := []string{
-		TUI.DimIt().Render(description),
-		"",
-		spinnerView + " " + TUI.Accent().Render(verb),
-	}
-	return TUI.Panel().Render(strings.Join(lines, "\n"))
-}
-
 // PageLayout composes a standard TUI page: title header, body, and footer bar,
 // all wrapped in the shared Page() style.
 func PageLayout(title, body, footerLeft, footerRight string, width int) string {

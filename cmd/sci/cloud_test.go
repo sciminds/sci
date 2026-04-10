@@ -10,6 +10,8 @@ import (
 
 func TestCloudPut_JSONRequiresName(t *testing.T) {
 	ui.SetQuiet(false)
+	t.Cleanup(func() { ui.SetQuiet(false) })
+
 	root := buildRoot()
 
 	// Run cloud put with --json but no --name — should error.
@@ -21,5 +23,4 @@ func TestCloudPut_JSONRequiresName(t *testing.T) {
 	if !strings.Contains(err.Error(), "--name") {
 		t.Errorf("error should mention --name, got: %v", err)
 	}
-	ui.SetQuiet(false)
 }

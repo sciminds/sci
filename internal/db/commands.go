@@ -51,36 +51,6 @@ func Info(dbPath string) (*InfoResult, error) {
 	return &result, nil
 }
 
-// Tables returns table summaries for a database.
-func Tables(dbPath string) (*TablesResult, error) {
-	var result TablesResult
-	err := withStore(dbPath, func(store data.DataStore) error {
-		summaries, err := store.TableSummaries()
-		if err != nil {
-			return err
-		}
-		type viewLister interface{ IsView(string) bool }
-		type virtualLister interface{ IsVirtual(string) bool }
-		vl, hasViews := store.(viewLister)
-		vtl, hasVirtuals := store.(virtualLister)
-		result.Tables = make([]TableEntry, len(summaries))
-		for i, s := range summaries {
-			result.Tables[i] = TableEntry{Name: s.Name, Rows: s.Rows, Columns: s.Columns}
-			if hasViews {
-				result.Tables[i].IsView = vl.IsView(s.Name)
-			}
-			if hasVirtuals {
-				result.Tables[i].IsVirtual = vtl.IsVirtual(s.Name)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
 // DeleteTable drops a table from the database.
 func DeleteTable(table, dbPath string) (*MutationResult, error) {
 	if err := validateTableName(table); err != nil {

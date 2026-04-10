@@ -10,6 +10,8 @@ import (
 
 func TestLabSetup_JSONRequiresUser(t *testing.T) {
 	ui.SetQuiet(false)
+	t.Cleanup(func() { ui.SetQuiet(false) })
+
 	root := buildRoot()
 
 	err := root.Run(context.Background(), []string{"sci", "--json", "lab", "setup"})
@@ -20,7 +22,6 @@ func TestLabSetup_JSONRequiresUser(t *testing.T) {
 	if !strings.Contains(err.Error(), "--user") {
 		t.Errorf("error should mention --user, got: %v", err)
 	}
-	ui.SetQuiet(false)
 }
 
 func TestLabSetup_HasUserFlag(t *testing.T) {
@@ -33,16 +34,7 @@ func TestLabSetup_HasUserFlag(t *testing.T) {
 	if setup == nil {
 		t.Fatal("lab setup not found")
 	}
-
-	found := false
-	for _, f := range setup.Flags {
-		for _, n := range f.Names() {
-			if n == "user" {
-				found = true
-			}
-		}
-	}
-	if !found {
+	if !hasFlag(setup, "user") {
 		t.Error("lab setup should have a --user flag")
 	}
 }

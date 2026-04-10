@@ -134,36 +134,6 @@ func ResolveBrewfile() (path string, created bool, err error) {
 	return path, true, nil
 }
 
-// DumpAndDiff runs `brew bundle dump` to capture the system's installed
-// packages, then diffs against the Brewfile at path. Returns the entries
-// from the dump that are not already declared in the Brewfile.
-func DumpAndDiff(r Runner, path string) ([]BrewfileEntry, error) {
-	// Dump current system state to a temp file.
-	tmp, err := os.CreateTemp("", "sci-brew-dump-*")
-	if err != nil {
-		return nil, fmt.Errorf("create temp dump file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	_ = tmp.Close()
-	defer func() { _ = os.Remove(tmpPath) }()
-
-	if err := r.BundleDump(tmpPath); err != nil {
-		return nil, fmt.Errorf("brew bundle dump: %w", err)
-	}
-
-	dumpContent, err := os.ReadFile(tmpPath)
-	if err != nil {
-		return nil, fmt.Errorf("read dump: %w", err)
-	}
-
-	existing, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read Brewfile: %w", err)
-	}
-
-	return diffEntries(string(dumpContent), string(existing)), nil
-}
-
 // diffEntries returns entries present in dump but not in existing.
 // Matching is by (type, name) pair.
 func diffEntries(dump, existing string) []BrewfileEntry {

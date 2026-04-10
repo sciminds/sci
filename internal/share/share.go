@@ -286,25 +286,6 @@ func Unshare(name string) (*CloudResult, error) {
 	return &CloudResult{OK: true, Action: "remove", Message: fmt.Sprintf("removed %q", filename)}, nil
 }
 
-// Shared lists the current user's shared files.
-func Shared() (*SharedListResult, error) {
-	_, c, err := cloud.Setup()
-	if err != nil {
-		return nil, err
-	}
-	return SharedWith(c)
-}
-
-// SharedWith lists shared files using the provided client.
-func SharedWith(c *cloud.Client) (*SharedListResult, error) {
-	return SharedWithOpts(c, false)
-}
-
-// SharedWithOpts lists shared files. When plain is true the spinner is skipped.
-func SharedWithOpts(c *cloud.Client, plain bool) (*SharedListResult, error) {
-	return sharedWithOpts(c, plain, false)
-}
-
 // SharedAll lists all users' shared files in the bucket.
 // When plain is true the spinner is skipped.
 func SharedAll(c *cloud.Client, plain bool) (*SharedListResult, error) {
@@ -404,107 +385,6 @@ func buildSharedEntries(objects []cloud.ObjectInfo, username string, allUsers bo
 		}
 	}
 	return entries
-}
-
-// Ls lists all shared files, optionally filtered by a username prefix.
-func Ls(username, fileType string) (*DatasetListResult, error) {
-	cfg, c, err := cloud.Setup()
-	if err != nil {
-		return nil, err
-	}
-
-	prefix := ""
-	if username != "" {
-		prefix = username + "/"
-	}
-
-	var objects []cloud.ObjectInfo
-	if err := ui.RunWithSpinner("Fetching files", func() error {
-		lsCtx, lsCancel := context.WithTimeout(context.Background(), metadataTimeout)
-		defer lsCancel()
-		var listErr error
-		objects, listErr = c.ListPrefix(lsCtx, prefix)
-		if listErr != nil {
-			return netutil.Wrap("listing files", listErr)
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	result := &DatasetListResult{}
-	for _, obj := range objects {
-		ft := detectFileType(obj.Key)
-		if fileType != "" && ft != fileType {
-			continue
-		}
-		// Extract username and filename from key.
-		parts := strings.SplitN(obj.Key, "/", 2)
-		owner := ""
-		name := obj.Key
-		if len(parts) == 2 {
-			owner = parts[0]
-			name = parts[1]
-		}
-		_ = cfg // available if needed
-		result.Datasets = append(result.Datasets, DatasetListEntry{
-			Name:    name,
-			Owner:   owner,
-			Type:    ft,
-			Updated: obj.LastModified,
-			URL:     obj.URL,
-			Size:    obj.Size,
-		})
-	}
-	return result, nil
-}
-
-// GetTo downloads a shared file to a specific directory.
-// If name contains a "/" it is treated as "owner/filename" for cross-user
-// downloads; otherwise the current user's namespace is used.
-// Zip files are automatically extracted and the archive is removed.
-func GetTo(name, destDir string) (string, error) {
-	_, c, err := cloud.Setup()
-	if err != nil {
-		return "", err
-	}
-
-	filename := ensureExtension(name)
-
-	outPath := filepath.Join(destDir, filepath.Base(filename))
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-		return "", err
-	}
-
-	dl := downloadFunc(c, filename)
-	if err := ui.RunWithSpinner("Downloading "+filepath.Base(filename), func() error {
-		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
-		defer dlCancel()
-		f, createErr := os.Create(outPath)
-		if createErr != nil {
-			return createErr
-		}
-		defer func() { _ = f.Close() }()
-		if dlErr := dl(dlCtx, f); dlErr != nil {
-			return netutil.Wrap("download", dlErr)
-		}
-		return nil
-	}); err != nil {
-		return "", err
-	}
-
-	// Auto-extract zip files.
-	if filepath.Ext(outPath) == ".zip" {
-		extractDir := filepath.Join(destDir, nameFromFile(filename))
-		if err := ui.RunWithSpinner("Extracting "+filepath.Base(filename), func() error {
-			return unzip(outPath, extractDir)
-		}); err != nil {
-			return "", fmt.Errorf("extracting: %w", err)
-		}
-		_ = os.Remove(outPath)
-		return extractDir, nil
-	}
-	return outPath, nil
 }
 
 // Get downloads a shared file to the current directory.

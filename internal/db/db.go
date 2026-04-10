@@ -19,12 +19,6 @@ import (
 	"github.com/sciminds/cli/internal/db/data"
 )
 
-// IsViewableFile returns true if the path has a file extension that can be
-// viewed directly (CSV, TSV, JSON, Parquet, etc.) without being a DuckDB database.
-func IsViewableFile(path string) bool {
-	return data.IsViewableFile(path)
-}
-
 // withStore opens the database, calls fn, and closes it.
 func withStore(path string, fn func(data.DataStore) error) error {
 	if _, err := os.Stat(path); err != nil {

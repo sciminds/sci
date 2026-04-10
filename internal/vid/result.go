@@ -40,29 +40,3 @@ func (r InfoResult) Human() string {
 		ui.TUI.Bold().Render("Subtitles:"), hasSubs,
 	)
 }
-
-// SimpleResult implements cmdutil.Result for commands that just output a file path.
-type SimpleResult struct {
-	Output string `json:"output"`
-}
-
-func (r SimpleResult) JSON() any { return r }
-
-func (r SimpleResult) Human() string {
-	return fmt.Sprintf("%s %s\n", ui.SymOK, r.Output)
-}
-
-// CompressResult implements cmdutil.Result for compress with size comparison.
-type CompressResult struct {
-	Output     string  `json:"output"`
-	OrigSize   int64   `json:"origSize"`
-	NewSize    int64   `json:"newSize"`
-	SavingsPct float64 `json:"savingsPct"`
-}
-
-func (r CompressResult) JSON() any { return r }
-
-func (r CompressResult) Human() string {
-	return fmt.Sprintf("%s %s %s\n", ui.SymOK, r.Output,
-		ui.TUI.Dim().Render(fmt.Sprintf("(%.0f%% smaller)", r.SavingsPct)))
-}
