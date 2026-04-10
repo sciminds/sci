@@ -3,6 +3,7 @@ package cloud
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -145,5 +146,98 @@ func TestLoadConfig_Missing(t *testing.T) {
 	}
 	if cfg != nil {
 		t.Errorf("expected nil for missing file, got %+v", cfg)
+	}
+}
+
+func TestLoadConfig_CorruptJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "credentials.json")
+	if err := os.WriteFile(path, []byte("{invalid json!!!"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SCI_CONFIG_PATH", path)
+
+	cfg, err := LoadConfig()
+	if err == nil {
+		t.Fatal("expected error for corrupt JSON, got nil")
+	}
+	if cfg != nil {
+		t.Errorf("expected nil config on parse error, got %+v", cfg)
+	}
+	if !strings.Contains(err.Error(), "parse credentials") {
+		t.Errorf("error should mention 'parse credentials', got %q", err)
+	}
+}
+
+func TestLoadConfig_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "credentials.json")
+	if err := os.WriteFile(path, []byte{}, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SCI_CONFIG_PATH", path)
+
+	cfg, err := LoadConfig()
+	if err == nil {
+		t.Fatal("expected error for empty file, got nil")
+	}
+	if cfg != nil {
+		t.Errorf("expected nil config on parse error, got %+v", cfg)
+	}
+}
+
+func TestRequireConfig_CorruptFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "credentials.json")
+	if err := os.WriteFile(path, []byte("not-json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SCI_CONFIG_PATH", path)
+
+	cfg, err := RequireConfig()
+	if err == nil {
+		t.Fatal("expected error from RequireConfig with corrupt file")
+	}
+	if cfg != nil {
+		t.Error("expected nil config")
+	}
+}
+
+func TestRequireConfig_IncompleteCredentials(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "credentials.json")
+	// Valid JSON but missing required fields.
+	incomplete := `{"username": "alice"}`
+	if err := os.WriteFile(path, []byte(incomplete), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SCI_CONFIG_PATH", path)
+
+	cfg, err := RequireConfig()
+	if err == nil {
+		t.Fatal("expected error for incomplete credentials")
+	}
+	if cfg != nil {
+		t.Error("expected nil config")
+	}
+	if !strings.Contains(err.Error(), "incomplete credentials") {
+		t.Errorf("error should mention 'incomplete credentials', got %q", err)
+	}
+}
+
+func TestSaveConfig_DirectoryCreationFails(t *testing.T) {
+	dir := t.TempDir()
+	// Create a regular file where MkdirAll needs a directory.
+	blocker := filepath.Join(dir, "blocker")
+	if err := os.WriteFile(blocker, []byte("file"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(blocker, "subdir", "creds.json")
+	t.Setenv("SCI_CONFIG_PATH", path)
+
+	cfg := &Config{Username: "test", AccountID: "id"}
+	err := SaveConfig(cfg)
+	if err == nil {
+		t.Fatal("expected error when parent is a file, got nil")
 	}
 }

@@ -502,6 +502,107 @@ func TestImportCSVEmpty(t *testing.T) {
 	}
 }
 
+func TestImportCSV_InconsistentFieldCount(t *testing.T) {
+	store := setupTestDB(t)
+	csvPath := t.TempDir() + "/ragged.csv"
+	// Second row has 3 fields instead of 2.
+	writeFile(t, csvPath, "x,y\n1,a\n2,b,extra\n3,c\n")
+
+	err := store.ImportCSV(csvPath, "ragged")
+	if err == nil {
+		t.Fatal("expected error for CSV with inconsistent field count, got nil")
+	}
+}
+
+func TestImportCSV_UnescapedQuotes(t *testing.T) {
+	store := setupTestDB(t)
+	csvPath := t.TempDir() + "/badquote.csv"
+	// An unescaped quote mid-field is a parse error in Go's strict csv reader.
+	writeFile(t, csvPath, "x,y\nhello \"world\",a\n")
+
+	err := store.ImportCSV(csvPath, "badquote")
+	if err == nil {
+		t.Fatal("expected error for CSV with unescaped quotes, got nil")
+	}
+}
+
+func TestImportCSV_UnicodeData(t *testing.T) {
+	store := setupTestDB(t)
+	csvPath := t.TempDir() + "/unicode.csv"
+	writeFile(t, csvPath, "name,city\nМосква,🇷🇺\n日本語,東京\ncafé,Zürich\n")
+
+	if err := store.ImportCSV(csvPath, "unicode"); err != nil {
+		t.Fatalf("ImportCSV with unicode: %v", err)
+	}
+
+	count, err := store.TableRowCount("unicode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 3 {
+		t.Errorf("row count = %d, want 3", count)
+	}
+
+	// Verify round-trip of unicode data.
+	_, rows, err := store.ReadOnlyQuery(`SELECT name, city FROM unicode WHERE name = 'café'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0][1] != "Zürich" {
+		t.Errorf("unicode round-trip failed: got %v", rows)
+	}
+}
+
+func TestImportCSV_HeaderOnly(t *testing.T) {
+	// CSV with a header line (no trailing newline, no data rows).
+	store := setupTestDB(t)
+	csvPath := t.TempDir() + "/headeronly.csv"
+	writeFile(t, csvPath, "a,b,c")
+
+	if err := store.ImportCSV(csvPath, "headeronly"); err != nil {
+		t.Fatalf("ImportCSV: %v", err)
+	}
+
+	count, _ := store.TableRowCount("headeronly")
+	if count != 0 {
+		t.Errorf("row count = %d, want 0", count)
+	}
+
+	// Table should exist with the right columns.
+	cols, err := store.TableColumns("headeronly")
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, len(cols))
+	for i, c := range cols {
+		names[i] = c.Name
+	}
+	want := []string{"a", "b", "c"}
+	if !slices.Equal(names, want) {
+		t.Errorf("columns = %v, want %v", names, want)
+	}
+}
+
+func TestImportCSV_InvalidTableName(t *testing.T) {
+	store := setupTestDB(t)
+	csvPath := t.TempDir() + "/data.csv"
+	writeFile(t, csvPath, "x\n1\n")
+
+	err := store.ImportCSV(csvPath, "DROP TABLE; --")
+	if err == nil {
+		t.Fatal("expected error for invalid table name")
+	}
+}
+
+func TestImportCSV_NonexistentFile(t *testing.T) {
+	store := setupTestDB(t)
+
+	err := store.ImportCSV("/nonexistent/path/data.csv", "tbl")
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+}
+
 func TestReadOnlyQueryEmptyQuery(t *testing.T) {
 	store := setupTestDB(t)
 	_, _, err := store.ReadOnlyQuery("")

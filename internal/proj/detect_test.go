@@ -66,6 +66,44 @@ func TestDetect(t *testing.T) {
 			files:   map[string]string{"pyproject.toml": "[project]\nname = \"test\"\n\n[tool.poetry]\nname = \"test\""},
 			wantNil: true,
 		},
+		{
+			name: "pixi marker in TOML comment is false positive",
+			files: map[string]string{
+				"pyproject.toml": "[project]\nname = \"test\"\n# [tool.pixi] is not used here\n",
+			},
+			// NOTE: This documents known behavior — the detector uses
+			// strings.Contains, so commented-out markers are a false positive.
+			// If this becomes a problem, switch to a TOML parser.
+			wantPkg: Pixi,
+			wantDoc: NoDoc,
+		},
+		{
+			name: "poe marker in comment is false positive",
+			files: map[string]string{
+				"pyproject.toml": "[project]\nname = \"test\"\n# [tool.poe.tasks] is not used\n",
+			},
+			// Same as above — documents the false positive.
+			wantPkg: UV,
+			wantDoc: NoDoc,
+		},
+		{
+			name: "unreadable pyproject falls back to uv.lock",
+			files: map[string]string{
+				"uv.lock": "version = 1\n",
+			},
+			wantPkg: UV,
+			wantDoc: NoDoc,
+		},
+		{
+			name:    "pyproject exists but empty",
+			files:   map[string]string{"pyproject.toml": ""},
+			wantNil: true,
+		},
+		{
+			name:    "nonexistent dir",
+			files:   nil,
+			wantNil: true,
+		},
 	}
 
 	for _, tt := range tests {

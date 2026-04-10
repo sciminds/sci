@@ -205,3 +205,74 @@ func (m *mockBrewRunner) UVUpgrade(_ []string) (string, error) {
 	return "", nil
 }
 func (m *mockBrewRunner) UVToolList() ([]string, error) { return nil, nil }
+
+func TestCheckPreflight_ShellUnset(t *testing.T) {
+	t.Setenv("SHELL", "")
+
+	sec := checkPreflight()
+
+	var shellCheck *CheckResult
+	for i := range sec.Checks {
+		if sec.Checks[i].Label == "Shell" {
+			shellCheck = &sec.Checks[i]
+			break
+		}
+	}
+	if shellCheck == nil {
+		t.Fatal("Shell check not found in pre-flight section")
+	}
+	if shellCheck.Status != StatusWarn {
+		t.Errorf("Shell status = %q, want %q when SHELL is empty", shellCheck.Status, StatusWarn)
+	}
+	// filepath.Base("") returns ".", so cmp.Or picks "." over "unknown".
+	if shellCheck.Message != ". — expected zsh" {
+		t.Errorf("Shell message = %q, want %q", shellCheck.Message, ". — expected zsh")
+	}
+}
+
+func TestCheckPreflight_NonZshShell(t *testing.T) {
+	t.Setenv("SHELL", "/bin/bash")
+
+	sec := checkPreflight()
+
+	var shellCheck *CheckResult
+	for i := range sec.Checks {
+		if sec.Checks[i].Label == "Shell" {
+			shellCheck = &sec.Checks[i]
+			break
+		}
+	}
+	if shellCheck == nil {
+		t.Fatal("Shell check not found")
+	}
+	if shellCheck.Status != StatusWarn {
+		t.Errorf("Shell status = %q, want %q for bash", shellCheck.Status, StatusWarn)
+	}
+	if shellCheck.Message != "bash — expected zsh" {
+		t.Errorf("Shell message = %q, want %q", shellCheck.Message, "bash — expected zsh")
+	}
+}
+
+func TestCheckPreflight_BrewMissing(t *testing.T) {
+	// Hide brew from PATH by setting PATH to an empty directory.
+	t.Setenv("PATH", t.TempDir())
+
+	sec := checkPreflight()
+
+	var brewCheck *CheckResult
+	for i := range sec.Checks {
+		if sec.Checks[i].Label == "Homebrew" {
+			brewCheck = &sec.Checks[i]
+			break
+		}
+	}
+	if brewCheck == nil {
+		t.Fatal("Homebrew check not found")
+	}
+	if brewCheck.Status != StatusFail {
+		t.Errorf("Homebrew status = %q, want %q when brew not in PATH", brewCheck.Status, StatusFail)
+	}
+	if brewCheck.Message != "not installed — visit https://brew.sh" {
+		t.Errorf("Homebrew message = %q", brewCheck.Message)
+	}
+}

@@ -187,6 +187,60 @@ func TestDetectContentType(t *testing.T) {
 	}
 }
 
+func TestDetectFileType_UppercaseExtensions(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"DATA.CSV", "csv"},
+		{"PHOTO.PNG", "media"},
+		{"ARCHIVE.ZIP", "zip"},
+		{"FILE.DB", "db"},
+		{"Data.Tsv", "csv"},
+	}
+	for _, tt := range tests {
+		if got := detectFileType(tt.path); got != tt.want {
+			t.Errorf("detectFileType(%q) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestDetectContentType_UppercaseExtensions(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"DATA.CSV", "text/csv"},
+		{"FILE.JSON", "application/json"},
+		{"PHOTO.JPG", "image/jpeg"},
+		{"ARCHIVE.ZIP", "application/zip"},
+	}
+	for _, tt := range tests {
+		if got := detectContentType(tt.path); got != tt.want {
+			t.Errorf("detectContentType(%q) = %q, want %q", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestDetectContentType_NoExtension(t *testing.T) {
+	if got := detectContentType("Makefile"); got != "application/octet-stream" {
+		t.Errorf("detectContentType(no ext) = %q, want application/octet-stream", got)
+	}
+}
+
+func TestDefaultShareName_SpecialCharsInFilename(t *testing.T) {
+	tmp := t.TempDir()
+	// Filename with spaces and unicode.
+	f := filepath.Join(tmp, "my data (final).csv")
+	if err := os.WriteFile(f, []byte("a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := DefaultShareName(f)
+	if got != "my data (final).csv" {
+		t.Errorf("DefaultShareName = %q, want %q", got, "my data (final).csv")
+	}
+}
+
 func TestNameFromFile(t *testing.T) {
 	tests := []struct {
 		path string

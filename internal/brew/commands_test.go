@@ -899,6 +899,88 @@ func TestRemoveEntries_PreservesComments(t *testing.T) {
 	}
 }
 
+func TestParseBrewfileEntries_MalformedLines(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    int // expected number of parsed entries
+	}{
+		{
+			name:    "single word line (no name)",
+			content: "brew\n",
+			want:    0,
+		},
+		{
+			name:    "empty lines and comments only",
+			content: "# comment\n\n# another\n",
+			want:    0,
+		},
+		{
+			name:    "unclosed quote still parses name",
+			content: `brew "unclosed` + "\n",
+			want:    1, // Trim strips quotes from edges
+		},
+		{
+			name:    "extra whitespace",
+			content: "  brew   \"git\"  \n",
+			want:    1,
+		},
+		{
+			name:    "mixed valid and malformed",
+			content: "brew \"git\"\njust-garbage\ncask \"firefox\"\n",
+			want:    2, // "just-garbage" has 1 field, skipped
+		},
+		{
+			name:    "version pinned package",
+			content: `brew "python@3.12"` + "\n",
+			want:    1,
+		},
+		{
+			name:    "bracket extras",
+			content: `uv "marimo[recommended]"` + "\n",
+			want:    1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries := ParseBrewfileEntries(tt.content)
+			if len(entries) != tt.want {
+				t.Errorf("got %d entries, want %d; entries=%v", len(entries), tt.want, entries)
+			}
+		})
+	}
+}
+
+func TestParseBrewfileEntries_VersionPinned(t *testing.T) {
+	entries := ParseBrewfileEntries(`brew "python@3.12"` + "\n")
+	if len(entries) != 1 {
+		t.Fatalf("got %d entries, want 1", len(entries))
+	}
+	if entries[0].Name != "python@3.12" {
+		t.Errorf("Name = %q, want %q", entries[0].Name, "python@3.12")
+	}
+	if entries[0].Type != "brew" {
+		t.Errorf("Type = %q, want %q", entries[0].Type, "brew")
+	}
+}
+
+func TestParseBrewfileEntries_BracketStripped(t *testing.T) {
+	entries := ParseBrewfileEntries(`uv "marimo[recommended]"` + "\n")
+	if len(entries) != 1 {
+		t.Fatalf("got %d entries, want 1", len(entries))
+	}
+	if entries[0].Name != "marimo" {
+		t.Errorf("Name = %q, want %q (bracket suffix not stripped)", entries[0].Name, "marimo")
+	}
+}
+
+func TestBrewfileEntry_Label(t *testing.T) {
+	e := BrewfileEntry{Type: "brew", Name: "git"}
+	if got := e.Label(); got != "git (brew)" {
+		t.Errorf("Label() = %q, want %q", got, "git (brew)")
+	}
+}
+
 func TestExpandPath(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {

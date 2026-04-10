@@ -228,3 +228,103 @@ func TestProgressReader(t *testing.T) {
 		t.Error("progressFn was never called")
 	}
 }
+
+func TestDownload_TruncatedResponse(t *testing.T) {
+	// Server advertises 10 000 bytes via Content-Length but only sends 5.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", "10000")
+		_, _ = w.Write([]byte("short"))
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "binary")
+	f, err := os.Create(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = Download(srv.URL, f, nil)
+	_ = f.Close()
+
+	// io.Copy sees unexpected EOF when the body closes before Content-Length
+	// bytes have been read, so Download must return an error.
+	if err == nil {
+		t.Fatal("expected error for truncated response, got nil")
+	}
+}
+
+func TestDownload_Non200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	f, err := os.Create(filepath.Join(dir, "binary"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = Download(srv.URL, f, nil)
+	_ = f.Close()
+
+	if err == nil {
+		t.Fatal("expected error for 404 response, got nil")
+	}
+	if !strings.Contains(err.Error(), "404") {
+		t.Errorf("error should mention status code, got %q", err)
+	}
+}
+
+func TestCheck_MissingCommitInRelease(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Release body has no **Commit:** line.
+		_, _ = w.Write([]byte(`{"body":"No commit info here","assets":[]}`))
+	}))
+	defer srv.Close()
+
+	oldURL := releaseURL
+	releaseURL = srv.URL
+	defer func() { releaseURL = oldURL }()
+
+	oldCommit := version.Commit
+	version.Commit = "abc1234"
+	defer func() { version.Commit = oldCommit }()
+
+	result := Check()
+	skipIfLoopbackFlake(t, result.Error)
+
+	if result.Available {
+		t.Error("should not report update available when commit SHA is missing")
+	}
+	if !strings.Contains(result.Error, "could not find commit SHA") {
+		t.Errorf("expected 'could not find commit SHA' error, got %q", result.Error)
+	}
+}
+
+func TestCheck_Non200Response(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer srv.Close()
+
+	oldURL := releaseURL
+	releaseURL = srv.URL
+	defer func() { releaseURL = oldURL }()
+
+	oldCommit := version.Commit
+	version.Commit = "abc1234"
+	defer func() { version.Commit = oldCommit }()
+
+	result := Check()
+	skipIfLoopbackFlake(t, result.Error)
+
+	if result.Available {
+		t.Error("should not report update when API returns 403")
+	}
+	if !strings.Contains(result.Error, "403") {
+		t.Errorf("expected error mentioning 403, got %q", result.Error)
+	}
+}

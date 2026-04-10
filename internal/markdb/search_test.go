@@ -1,6 +1,7 @@
 package markdb
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -101,5 +102,77 @@ func TestSearchRanked(t *testing.T) {
 		if h.Rank == 0 {
 			t.Errorf("rank = 0 for %q, want non-zero", h.Path)
 		}
+	}
+}
+
+func TestSearchFTSSpecialChars(t *testing.T) {
+	s := searchTestStore(t)
+
+	// These FTS5 special-character queries should either return results or
+	// return an error — but must never panic.
+	edgeCases := []struct {
+		name  string
+		query string
+	}{
+		{"unbalanced quote", `"databases`},
+		{"bare AND operator", `AND`},
+		{"bare OR operator", `OR`},
+		{"bare NOT operator", `NOT`},
+		{"asterisk wildcard", `data*`},
+		{"parenthesized group", `(databases OR cooking)`},
+		{"unbalanced parens", `(databases`},
+		{"empty string", ``},
+		{"only whitespace", `   `},
+		{"special punctuation", `what's up?`},
+	}
+	for _, tt := range edgeCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// We don't care whether it returns hits or errors — just that
+			// it doesn't panic. If it errors, the error should be non-nil.
+			hits, err := s.Search(tt.query, 50)
+			if err != nil {
+				// FTS5 parse error is acceptable for malformed queries.
+				return
+			}
+			// If no error, hits should be a valid (possibly empty) slice.
+			_ = hits
+		})
+	}
+}
+
+func TestSearchEmptyQuery(t *testing.T) {
+	s := searchTestStore(t)
+	_, err := s.Search("", 50)
+	// Empty MATCH is a parse error in FTS5.
+	if err == nil {
+		t.Log("empty query returned no error (FTS5 accepted it)")
+		return
+	}
+	// Error is expected and acceptable.
+	if !strings.Contains(err.Error(), "fts5") && !strings.Contains(err.Error(), "syntax") {
+		t.Logf("unexpected error type: %v", err)
+	}
+}
+
+func TestSearchLimitZero(t *testing.T) {
+	s := searchTestStore(t)
+	hits, err := s.Search("databases", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// limit <= 0 defaults to 50 internally, so should still find results.
+	if len(hits) == 0 {
+		t.Error("got 0 hits with limit=0, expected default limit to apply")
+	}
+}
+
+func TestSearchNegativeLimit(t *testing.T) {
+	s := searchTestStore(t)
+	hits, err := s.Search("databases", -5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) == 0 {
+		t.Error("got 0 hits with negative limit, expected default to apply")
 	}
 }
