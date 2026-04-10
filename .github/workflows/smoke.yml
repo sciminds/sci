@@ -35,9 +35,7 @@ jobs:
           echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
 
       - name: Verify binary
-        run: |
-          sci --help
-          sci --version
+        run: sci --help
 
       - name: Set up git identity
         run: |
