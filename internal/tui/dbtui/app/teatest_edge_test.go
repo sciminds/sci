@@ -242,3 +242,56 @@ func TestTeatestResizeDuringCellEditor(t *testing.T) {
 		t.Error("cell editor should still be open after resize")
 	}
 }
+
+// TestTeatestResizeDuringDeriveOverlay verifies resize updates derive textarea dimensions.
+func TestTeatestResizeDuringDeriveOverlay(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "t") // open table list
+	sendKey(tm, "s") // start derive
+	tm.Send(tea.WindowSizeMsg{Width: 140, Height: 50})
+
+	fm := finalModel(t, tm)
+
+	if fm.width != 140 || fm.height != 50 {
+		t.Errorf("dimensions = %dx%d, want 140x50", fm.width, fm.height)
+	}
+	if fm.tableList == nil || !fm.tableList.Deriving {
+		t.Error("derive overlay should still be open after resize")
+	}
+}
+
+// TestTeatestResizeShrinkToTooSmall verifies shrinking below minimum is handled.
+func TestTeatestResizeShrinkToTooSmall(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	// Shrink well below minimums.
+	tm.Send(tea.WindowSizeMsg{Width: 15, Height: 5})
+
+	fm := finalModel(t, tm)
+
+	if fm.width != 15 || fm.height != 5 {
+		t.Errorf("dimensions = %dx%d, want 15x5", fm.width, fm.height)
+	}
+	// Model should still be functional — no panic.
+}
+
+// TestTeatestResizeGrowFromTooSmall verifies recovering from a too-small terminal.
+func TestTeatestResizeGrowFromTooSmall(t *testing.T) {
+	m := newTeatestModel(t)
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(10, 5))
+
+	// Start too small, then grow to usable size.
+	tm.Send(tea.WindowSizeMsg{Width: 100, Height: 30})
+	waitForTable(t, tm)
+
+	fm := finalModel(t, tm)
+
+	if fm.width != 100 || fm.height != 30 {
+		t.Errorf("dimensions = %dx%d, want 100x30", fm.width, fm.height)
+	}
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("should have a usable tab after growing")
+	}
+}

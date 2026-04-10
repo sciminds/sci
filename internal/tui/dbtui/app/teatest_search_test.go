@@ -200,3 +200,65 @@ func TestTeatestSearchBackspace(t *testing.T) {
 		t.Errorf("filtered rows = %d, want 1 for 'Widget'", len(tab.CellRows))
 	}
 }
+
+// TestTeatestSearchORSyntax verifies pipe-separated OR groups filter correctly.
+func TestTeatestSearchORSyntax(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "/")
+	tm.Type("Widget | Gadget")
+
+	fm := finalModel(t, tm)
+
+	if fm.search == nil {
+		t.Fatal("search should be open")
+	}
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	// "Widget" OR "Gadget" should match 2 of 3 products.
+	if len(tab.CellRows) != 2 {
+		t.Errorf("filtered rows = %d, want 2 for 'Widget | Gadget'", len(tab.CellRows))
+	}
+}
+
+// TestTeatestSearchNoMatches verifies search with no results shows empty table.
+func TestTeatestSearchNoMatches(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "/")
+	tm.Type("zzzznonexistent")
+
+	fm := finalModel(t, tm)
+
+	if fm.search == nil {
+		t.Fatal("search should be open")
+	}
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	if len(tab.CellRows) != 0 {
+		t.Errorf("filtered rows = %d, want 0 for no-match query", len(tab.CellRows))
+	}
+}
+
+// TestTeatestSearchNoMatchesThenEscRestores verifies Esc after zero-match search restores all rows.
+func TestTeatestSearchNoMatchesThenEscRestores(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "/")
+	tm.Type("zzzznonexistent")
+	sendSpecial(tm, tea.KeyEscape)
+
+	fm := finalModel(t, tm)
+
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	if len(tab.CellRows) != 3 {
+		t.Errorf("rows = %d, want 3 (restored after Esc from zero-match search)", len(tab.CellRows))
+	}
+}

@@ -24,6 +24,11 @@ const (
 	// header+path(1) + blanks(3) + status(1) + hints(2) = 7
 	tableListExtraChrome   = 7
 	fileBrowserExtraChrome = 7
+
+	// Derive textarea sizing.
+	deriveSQLWidthInset = 6  // OverlayBoxPadding(4) + textarea border(2)
+	deriveSQLMinH       = 4  // minimum SQL textarea height
+	deriveSQLChrome     = 14 // lines consumed by header, labels, name field, blanks, hints
 )
 
 // buildTableListOverlay renders the table list modal.

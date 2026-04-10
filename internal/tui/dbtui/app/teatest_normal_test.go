@@ -540,3 +540,57 @@ func TestTeatestHalfPageWithLargeData(t *testing.T) {
 	// Half-page up should go back.
 	// Can't send more keys after finalModel, so just verify cursor position.
 }
+
+// ── Column picker navigation ──────────────────────────────────────────
+
+// TestTeatestColumnPickerNavigate verifies j/k moves through hidden columns in the picker.
+func TestTeatestColumnPickerNavigate(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	// Hide two columns so picker opens.
+	sendKey(tm, "c") // hide col 1 (title or whatever is at cursor)
+	sendKey(tm, "c") // hide col 2
+
+	sendKey(tm, "C") // open picker
+	sendKey(tm, "j") // move down in picker
+
+	fm := finalModel(t, tm)
+
+	if fm.columnPicker == nil {
+		t.Fatal("column picker should be open")
+	}
+	if fm.columnPicker.Cursor != 1 {
+		t.Errorf("picker cursor = %d, want 1 after j", fm.columnPicker.Cursor)
+	}
+}
+
+// TestTeatestColumnPickerNavigateAndUnhide verifies navigating to a specific column and unhiding it.
+func TestTeatestColumnPickerNavigateAndUnhide(t *testing.T) {
+	tm, _ := startTeatest(t)
+
+	// Hide two columns.
+	sendKey(tm, "c") // hide first selectable col
+	sendKey(tm, "c") // hide second selectable col
+
+	sendKey(tm, "C")              // open picker
+	sendKey(tm, "j")              // move to second hidden column
+	sendSpecial(tm, tea.KeyEnter) // unhide that one
+
+	fm := finalModel(t, tm)
+
+	// Picker should auto-close (only 1 hidden col left → fast path triggers on next C).
+	// Or it stays open with 1 item; either way the cursor is clamped.
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	hiddenCount := 0
+	for _, s := range tab.Specs {
+		if s.HideOrder > 0 {
+			hiddenCount++
+		}
+	}
+	if hiddenCount != 1 {
+		t.Errorf("hidden columns = %d, want 1 (one of two was unhidden)", hiddenCount)
+	}
+}

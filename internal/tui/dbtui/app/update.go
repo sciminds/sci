@@ -29,6 +29,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			ce.Editor.SetHeight(taH)
 		}
+		if tl := m.tableList; tl != nil && tl.Deriving {
+			tl.DeriveSQL.SetWidth(ui.OverlayWidth(msg.Width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
+			taH := msg.Height - deriveSQLChrome
+			if taH < deriveSQLMinH {
+				taH = deriveSQLMinH
+			}
+			tl.DeriveSQL.SetHeight(taH)
+		}
 		return m, nil
 	case tea.BackgroundColorMsg:
 		m.styles = ui.NewStyles(msg.IsDark())

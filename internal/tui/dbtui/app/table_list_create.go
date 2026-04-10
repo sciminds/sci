@@ -160,8 +160,12 @@ func (m *Model) tableListStartDerive() {
 	ta.SetValue("SELECT ")
 	ta.Focus()
 	ta.CharLimit = 0
-	ta.SetWidth(50)
-	ta.SetHeight(4)
+	ta.SetWidth(ui.OverlayWidth(m.width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
+	taH := m.height - deriveSQLChrome
+	if taH < deriveSQLMinH {
+		taH = deriveSQLMinH
+	}
+	ta.SetHeight(taH)
 	ta.ShowLineNumbers = false
 
 	ti := textinput.New()
