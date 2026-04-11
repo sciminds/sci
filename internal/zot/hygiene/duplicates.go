@@ -43,11 +43,24 @@ const (
 	StrategyBoth  Strategy = "both"
 )
 
-// DuplicatesOptions configures RunDuplicates and Duplicates. Threshold is
-// the minimum SimilarityRatio (in [0,1]) that the fuzzy title pass uses
-// to pair singletons. A typical value is 0.85.
+// DuplicatesOptions configures RunDuplicates and Duplicates.
+//
+// Strategy picks *what* to match on (DOI, normalized title, or both). It
+// does NOT control whether the fuzzy title pass runs — that's Fuzzy.
+//
+// Fuzzy toggles the slow second pass of the title clusterer: a length-
+// windowed Levenshtein comparison over singletons left over from the
+// exact-normalized bucketing. It's off by default because on a 5k-item
+// library it takes ~30s, whereas the DOI + exact-title passes finish in
+// under a second. `zot duplicates --fuzzy` (and `zot doctor --deep`)
+// enable it.
+//
+// Threshold is the minimum SimilarityRatio (in [0,1]) the fuzzy pass
+// uses to pair singletons. Only consulted when Fuzzy is true. A typical
+// value is 0.85.
 type DuplicatesOptions struct {
 	Strategy  Strategy
+	Fuzzy     bool
 	Threshold float64
 }
 
@@ -70,7 +83,7 @@ func RunDuplicates(cands []DuplicateCandidate, opts DuplicatesOptions) []Cluster
 		doiClusters = ClusterByDOI(cands)
 	}
 	if opts.Strategy == StrategyTitle || opts.Strategy == StrategyBoth {
-		titleClusters = ClusterByTitle(cands, opts.Threshold)
+		titleClusters = ClusterByTitle(cands, opts.Threshold, opts.Fuzzy)
 	}
 
 	// Track which items are already captured by a DOI cluster so title
@@ -119,6 +132,7 @@ func Duplicates(db *local.DB, opts DuplicatesOptions) (*Report, error) {
 		Stats: DuplicatesStats{
 			Scanned:       len(cands),
 			Strategy:      string(opts.Strategy),
+			Fuzzy:         opts.Fuzzy,
 			Threshold:     opts.Threshold,
 			ClusterCount:  len(clusters),
 			ItemsInGroups: countClusterMembers(clusters),
@@ -133,6 +147,7 @@ func Duplicates(db *local.DB, opts DuplicatesOptions) (*Report, error) {
 type DuplicatesStats struct {
 	Scanned       int     `json:"scanned"`
 	Strategy      string  `json:"strategy"`
+	Fuzzy         bool    `json:"fuzzy"`
 	Threshold     float64 `json:"threshold"`
 	ClusterCount  int     `json:"cluster_count"`
 	ItemsInGroups int     `json:"items_in_groups"`
@@ -215,20 +230,23 @@ func normalizeDOI(raw string) string {
 // 20 runes covers the practical minimum of a real paper title.
 const minFuzzyTitleLen = 20
 
-// ClusterByTitle groups candidates in two passes. First, it buckets by
-// normalized title and emits any bucket with ≥2 members as a "title-exact"
-// cluster (Score 1.0). Second, it runs a fuzzy pass over the *singletons*
-// from the first pass, pairing titles whose SimilarityRatio meets
-// threshold — emitted as "title-fuzzy" clusters with the pair's actual
-// ratio as the Score.
+// ClusterByTitle groups candidates in up to two passes. First, it buckets
+// by normalized title and emits any bucket with ≥2 members as a
+// "title-exact" cluster (Score 1.0). Second, if fuzzy is true, it runs a
+// slow fuzzy pass over the *singletons* from the first pass, pairing
+// titles whose SimilarityRatio meets threshold — emitted as "title-fuzzy"
+// clusters with the pair's actual ratio as the Score.
 //
-// The fuzzy pass skips titles shorter than minFuzzyTitleLen to avoid
+// The exact pass is a hash-bucket operation and is effectively free. The
+// fuzzy pass is O(n²) Levenshtein over the singletons and takes tens of
+// seconds on real libraries; callers opt in via the fuzzy flag. The
+// fuzzy pass also skips titles shorter than minFuzzyTitleLen to avoid
 // false positives on stub entries.
 //
 // Only exact clusters are transitive; fuzzy pairs are emitted as a chain
 // (A~B and B~C both pass → cluster {A,B,C}), but A is only compared once
 // per round so the cost stays O(n^2) on the singleton population.
-func ClusterByTitle(cands []DuplicateCandidate, threshold float64) []Cluster {
+func ClusterByTitle(cands []DuplicateCandidate, threshold float64, fuzzy bool) []Cluster {
 	// Pass 1: bucket by normalized title.
 	type normEntry struct {
 		cand DuplicateCandidate
@@ -271,6 +289,10 @@ func ClusterByTitle(cands []DuplicateCandidate, threshold float64) []Cluster {
 			Score:     1.0,
 			Members:   toMembers(members),
 		})
+	}
+
+	if !fuzzy {
+		return out
 	}
 
 	// Pass 2: fuzzy match over singletons.

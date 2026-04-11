@@ -25,6 +25,7 @@ internal/zot/
 ├── config.go / setup.go / *_test.go      # XDG config + Setup() / Logout() business logic
 ├── result.go / readresult.go / writeresult.go  # cmdutil.Result types for read/write commands
 ├── hygieneresult.go                      # Result types for hygiene commands (Missing/Duplicates/Invalid/Orphans)
+├── doctor.go / doctor_test.go            # Doctor() orchestrator + DoctorResult renderer
 ├── export.go / export_test.go            # CSL-JSON + minimal BibTeX emitters
 ├── open.go                               # attachment path resolution + LaunchFile
 ├── cli/                                  # SHARED command tree
@@ -32,7 +33,8 @@ internal/zot/
 │   ├── setup.go                          # setup command (huh form + flags)
 │   ├── read.go                           # search/read/list/stats/export/open
 │   ├── write.go                          # add/update/delete/collection/tag
-│   └── hygiene.go                        # missing/duplicates/invalid/orphans commands
+│   ├── hygiene.go                        # missing/duplicates/invalid/orphans commands
+│   └── doctor.go                         # doctor umbrella command
 ├── client/                               # GENERATED — do not hand-edit
 │   ├── zotero.gen.go                     # `just zot-gen` regenerates from webapps/apis/zotero/openapi.yaml
 │   ├── config.yaml                       # oapi-codegen config
@@ -133,7 +135,9 @@ Findings and Clusters are mutually informative, not exclusive. `Stats` is a chec
 
 Both are in `hygiene.AllOrphanKinds` but not in `defaultOrphanKinds`. The parser accepts them; the default run skips them.
 
-**Duplicate detection.** DOI pass (exact match, score 1.0) subsumes title passes when members overlap. Title pass is two-stage: normalized-equality bucketing, then length-windowed fuzzy over singletons. Length window + `levenshteinCapped` (DP aborts when row-min exceeds the threshold budget) keeps a 5k-item library scan under ~30s.
+**Duplicate detection.** DOI pass (exact match, score 1.0) subsumes title passes when members overlap. Title pass is two-stage: normalized-equality bucketing (always runs, ~free) and then length-windowed fuzzy over singletons (gated behind `DuplicatesOptions.Fuzzy`). The split matters: DOI + exact-title finish in ~300ms on 8.8k items, the fuzzy pass adds ~12s. `zot duplicates` defaults to fast; `--fuzzy` opts into the slow pass. `zot doctor --deep` does the same globally.
+
+**Doctor command.** `zot doctor` (`internal/zot/doctor.go` + `cli/doctor.go`) is the read-only dashboard — runs invalid → missing → orphans → duplicates in that order (cheap/structural first, slow last) and prints a one-line summary per check plus an aggregate totals footer. It does NOT dump findings; users drill in via the per-check commands. `--check` narrows the run (repeatable, validated via `zot.ParseDoctorCheck`). `--deep` flips slow paths: fuzzy duplicates + `uncollected-item` orphan kind. It deliberately does NOT enable `--check-files` — stat'ing every attachment is another order of magnitude and stays a per-command opt-in.
 
 **Adding a new hygiene check.** The pattern:
 
@@ -155,15 +159,14 @@ Both are in `hygiene.AllOrphanKinds` but not in `defaultOrphanKinds`. The parser
 - **`ZOT_REAL_DB` env var** / **`./zotero.sqlite`**: `local/realdb_test.go` uses `ZOT_REAL_DB`. Hygiene real-library tests open `./zotero.sqlite` at the repo root (gitignored, safe to mess with) and gate behind `SLOW=1`. Never hardcode the user's live library path.
 - **Single-name creators**: Zotero stores institutional authors like "NASA" with `fieldMode=1` and the name in `lastName`. Our `Creator.Name` field carries these; `Creator.First`/`Last` stay empty. BibTeX emits them as `{NASA}` to suppress name parsing.
 - **`DuplicateCandidate` lives in `local`, not `hygiene`**: type-aliased in `hygiene/duplicates.go` to avoid the circular import (`hygiene` imports `local`; `local` can't import `hygiene`). Same pattern applies if future checks need to share their scan types.
-- **Fuzzy duplicate perf**: naive O(n²) Levenshtein over 5k singletons is multi-minute. `ClusterByTitle` sorts singletons by normalized-title length, breaks the inner loop once `lb > la/threshold`, and uses `levenshteinCapped` (DP aborts when row-min exceeds the edit budget). Together: ~27s for the full real library, workable under `SLOW=1`.
+- **Fuzzy duplicate perf**: naive O(n²) Levenshtein over 5k singletons is multi-minute. `ClusterByTitle` sorts singletons by normalized-title length, breaks the inner loop once `lb > la/threshold`, and uses `levenshteinCapped` (DP aborts when row-min exceeds the edit budget). Together: ~12s on 8.8k items, workable interactively but still gated behind the `Fuzzy` flag. Fast mode (DOI + title-exact only, no fuzzy) is ~300ms on the same library and is the default for both `zot duplicates` and `zot doctor`.
 - **Shared fixture**: `local/fixture_test.go` builds the synthetic `zotero.sqlite` once per `go test` invocation via `sync.Once` + `TestMain` cleanup. Safe because every test opens with `mode=ro&immutable=1`. Adding new tables/rows to the fixture may require updating `TestStats` and `TestListCollections` counts.
 
 ## Deferred — revisit next session
 
 ### Phase 6 (hygiene) — remaining
-Four primitive checks landed: `missing`, `duplicates`, `invalid`, `orphans`. What's left:
+Five primitive checks landed: `missing`, `duplicates`, `invalid`, `orphans`, and the `doctor` umbrella. What's left:
 
-- **`zot doctor`** — umbrella running all four checks and merging reports. Standalone, not part of `sci doctor` (different concern: library vs system). The Report/Finding/Cluster/Stats shapes are already uniform; doctor is a thin loop + aggregated renderer.
 - **`--fix` paths for `orphans`** — `--fix empty-collections` via existing `api.collections.Delete`, `--fix unused-tags` via `api.tags.DeleteTagsFromLibrary` batching. Both gated behind `cmdutil.ConfirmOrSkip` with a `--yes` bypass, matching the destructive-op pattern in `cli/write.go`.
 - **`--fix trash` for duplicates** — only for DOI clusters (score 1.0, high confidence). Picks a keeper per cluster (item with more attachments / newer dateModified) and trashes the rest via `api.items.Trash`. Merging requires a Web API endpoint that the generated client doesn't currently expose.
 

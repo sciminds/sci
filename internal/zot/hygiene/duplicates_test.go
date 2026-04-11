@@ -93,7 +93,7 @@ func TestClusterByTitle_ExactNormalized(t *testing.T) {
 		[3]string{"A3", "Deep Learning: For Neuroimaging!", ""},
 		[3]string{"A4", "Something else entirely different here", ""},
 	)
-	clusters := ClusterByTitle(cands, 0.85)
+	clusters := ClusterByTitle(cands, 0.85, true)
 	// Expect one exact cluster of 3. A4 is alone → no fuzzy partner.
 	if len(clusters) != 1 {
 		t.Fatalf("got %d clusters, want 1", len(clusters))
@@ -113,7 +113,7 @@ func TestClusterByTitle_FuzzyOnSingletons(t *testing.T) {
 		[3]string{"A2", "a survery of graph neural networks for molecular property prediction", ""}, // typo
 		[3]string{"A3", "totally unrelated work on protein folding dynamics in cells", ""},
 	)
-	clusters := ClusterByTitle(cands, 0.85)
+	clusters := ClusterByTitle(cands, 0.85, true)
 	if len(clusters) != 1 {
 		t.Fatalf("got %d clusters, want 1", len(clusters))
 	}
@@ -137,7 +137,7 @@ func TestClusterByTitle_ShortTitlesIgnoredByFuzzy(t *testing.T) {
 		[3]string{"A1", "notes", ""},
 		[3]string{"A2", "notez", ""},
 	)
-	if got := ClusterByTitle(cands, 0.85); len(got) != 0 {
+	if got := ClusterByTitle(cands, 0.85, true); len(got) != 0 {
 		t.Errorf("short titles must not fuzzy-match, got %+v", got)
 	}
 }
@@ -152,6 +152,7 @@ func TestRunDuplicates_DedupAcrossStrategies(t *testing.T) {
 	)
 	clusters := RunDuplicates(cands, DuplicatesOptions{
 		Strategy:  StrategyBoth,
+		Fuzzy:     true,
 		Threshold: 0.85,
 	})
 	if len(clusters) != 1 {
@@ -171,9 +172,37 @@ func TestRunDuplicates_StrategyFilter(t *testing.T) {
 	if got := RunDuplicates(cands, DuplicatesOptions{Strategy: StrategyDOI, Threshold: 0.85}); len(got) != 1 || got[0].MatchType != "doi" {
 		t.Errorf("StrategyDOI: got %+v", got)
 	}
-	// Title-only: titles differ too much (short + one word added) → no match.
-	if got := RunDuplicates(cands, DuplicatesOptions{Strategy: StrategyTitle, Threshold: 0.85}); len(got) != 0 {
+	// Title-only, fuzzy on: titles differ too much (short + one word
+	// added, below minFuzzyTitleLen) → no match.
+	if got := RunDuplicates(cands, DuplicatesOptions{Strategy: StrategyTitle, Fuzzy: true, Threshold: 0.85}); len(got) != 0 {
 		t.Errorf("StrategyTitle should not match, got %+v", got)
+	}
+	// Title-only, fuzzy off: exact-bucket differs too → still no match.
+	if got := RunDuplicates(cands, DuplicatesOptions{Strategy: StrategyTitle, Threshold: 0.85}); len(got) != 0 {
+		t.Errorf("StrategyTitle (exact-only): got %+v", got)
+	}
+}
+
+func TestClusterByTitle_FastModeSkipsFuzzyPass(t *testing.T) {
+	// Fast mode (fuzzy=false) emits only exact-normalized clusters. The
+	// typo pair that TestClusterByTitle_FuzzyOnSingletons would catch
+	// must NOT fire here — this guards the default-fast invariant.
+	cands := makeCands(
+		[3]string{"A1", "a survey of graph neural networks for molecular property prediction", ""},
+		[3]string{"A2", "a survery of graph neural networks for molecular property prediction", ""}, // typo
+		[3]string{"A3", "Deep Learning for Neuroimaging", ""},
+		[3]string{"A4", "deep learning for neuroimaging", ""}, // exact-normalized partner of A3
+	)
+	clusters := ClusterByTitle(cands, 0.85, false)
+	if len(clusters) != 1 {
+		t.Fatalf("got %d clusters, want 1 (only the exact pair)", len(clusters))
+	}
+	if clusters[0].MatchType != "title-exact" {
+		t.Errorf("MatchType = %q, want title-exact", clusters[0].MatchType)
+	}
+	keys := clusterKeys(clusters[0])
+	if len(keys) != 2 || keys[0] != "A3" || keys[1] != "A4" {
+		t.Errorf("members = %v, want [A3 A4]", keys)
 	}
 }
 
@@ -186,7 +215,7 @@ func TestClusterByTitle_ExactPreemptsFuzzy(t *testing.T) {
 		[3]string{"A2", "Deep Learning for Neuroimaging Studies Today!", ""},
 		[3]string{"A3", "deep learning for neuroimaging studeis today", ""}, // typo
 	)
-	clusters := ClusterByTitle(cands, 0.85)
+	clusters := ClusterByTitle(cands, 0.85, true)
 	// We accept either:
 	//   (a) one exact cluster of 2 (A3 orphaned), or
 	//   (b) one exact cluster of 2 + one fuzzy cluster matching A3 to a representative.

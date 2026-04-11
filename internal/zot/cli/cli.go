@@ -24,6 +24,7 @@ import "github.com/urfave/cli/v3"
 //	duplicates                  hygiene: find duplicate item clusters
 //	invalid                     hygiene: validate DOI/ISBN/URL/date values
 //	orphans                     hygiene: find structural orphans
+//	doctor                      hygiene: run every check + print dashboard
 //
 // `item`, `collection`, and `tags` all reuse the leaf commands defined in
 // read.go / write.go — the wrapper functions below just parent them under
@@ -40,6 +41,7 @@ func Commands() []*cli.Command {
 		duplicatesCommand(),
 		invalidCommand(),
 		orphansCommand(),
+		doctorCommand(),
 	}
 }
 

@@ -308,12 +308,17 @@ func (r DuplicatesResult) Human() string {
 	stats, _ := r.Report.Stats.(hygiene.DuplicatesStats)
 
 	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Duplicate clusters"))
-	fmt.Fprintf(&b, "  %s %d items scanned  %s strategy=%s threshold=%.2f\n",
+	fuzzLabel := "fuzzy=off"
+	if stats.Fuzzy {
+		fuzzLabel = fmt.Sprintf("fuzzy=on threshold=%.2f", stats.Threshold)
+	}
+	fmt.Fprintf(&b, "  %s %d items scanned  %s strategy=%s  %s %s\n",
 		ui.TUI.Dim().Render("·"),
 		stats.Scanned,
 		ui.TUI.Dim().Render("·"),
 		stats.Strategy,
-		stats.Threshold,
+		ui.TUI.Dim().Render("·"),
+		fuzzLabel,
 	)
 
 	if len(r.Report.Clusters) == 0 {

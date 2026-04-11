@@ -106,6 +106,7 @@ func TestDuplicates_RealLibrary(t *testing.T) {
 	db := openRealDB(t)
 	rep, err := Duplicates(db, DuplicatesOptions{
 		Strategy:  StrategyBoth,
+		Fuzzy:     true,
 		Threshold: 0.85,
 	})
 	if err != nil {

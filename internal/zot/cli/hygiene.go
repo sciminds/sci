@@ -17,6 +17,7 @@ var (
 	missingLimit  int
 
 	dupStrategy  string
+	dupFuzzy     bool
 	dupThreshold float64
 	dupLimit     int
 
@@ -80,13 +81,20 @@ Severity: title=error, creators/date=warn, others=info.`,
 func duplicatesCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "duplicates",
-		Usage: "Find potential duplicate items (by DOI and/or title similarity)",
-		Description: `$ zot duplicates
+		Usage: "Find potential duplicate items (by DOI and/or title)",
+		Description: `$ zot duplicates                  # fast: DOI + exact-normalized title
+$ zot duplicates --fuzzy          # adds slow fuzzy title pass (~30s on 5k items)
 $ zot duplicates --strategy doi
-$ zot duplicates --strategy title --threshold 0.9
+$ zot duplicates --fuzzy --threshold 0.9
 $ zot duplicates --limit 0 --json > dupes.json
 
-Strategies: doi (strongest), title (exact normalized + fuzzy), both (default).
+Strategies: doi (strongest), title, both (default).
+
+Fast mode catches shared DOIs and titles that are identical after
+normalization (case/whitespace/punctuation). Use --fuzzy to additionally
+pair near-identical titles (typos, punctuation drift) using Levenshtein
+similarity — accurate but O(n²) on the title-only singletons.
+
 DOI matches subsume title matches when both fire on the same items.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -97,11 +105,17 @@ DOI matches subsume title matches when both fire on the same items.`,
 				Destination: &dupStrategy,
 				Local:       true,
 			},
+			&cli.BoolFlag{
+				Name:        "fuzzy",
+				Usage:       "enable slow fuzzy title matching (Levenshtein)",
+				Destination: &dupFuzzy,
+				Local:       true,
+			},
 			&cli.FloatFlag{
 				Name:        "threshold",
 				Aliases:     []string{"t"},
 				Value:       0.85,
-				Usage:       "fuzzy title similarity floor (0..1)",
+				Usage:       "fuzzy title similarity floor (0..1, requires --fuzzy)",
 				Destination: &dupThreshold,
 				Local:       true,
 			},
@@ -130,6 +144,7 @@ DOI matches subsume title matches when both fire on the same items.`,
 
 			rep, err := hygiene.Duplicates(db, hygiene.DuplicatesOptions{
 				Strategy:  strategy,
+				Fuzzy:     dupFuzzy,
 				Threshold: dupThreshold,
 			})
 			if err != nil {
