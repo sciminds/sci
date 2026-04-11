@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot/hygiene"
 )
 
@@ -144,6 +145,46 @@ func TestDoctorResult_HealthyLibrary(t *testing.T) {
 	out := res.Human()
 	if !strings.Contains(out, "library looks healthy") {
 		t.Errorf("clean library should show healthy footer:\n%s", out)
+	}
+}
+
+// When a totals bucket is zero, the footer should swap the warn/fail
+// glyph for the OK checkmark and render the count in the pass color so
+// "0 error" reads as a positive signal instead of a scary red row.
+func TestDoctorResult_FooterZeroBucketsRenderAsPass(t *testing.T) {
+	t.Parallel()
+	res := &DoctorResult{
+		Scanned: 100,
+		Reports: map[string]*hygiene.Report{
+			"invalid":    buildReport("invalid", 0, 3, 0),
+			"missing":    buildReport("missing", 0, 0, 4),
+			"orphans":    buildReport("orphans", 0, 0, 0),
+			"duplicates": {Check: "duplicates", Scanned: 100, Stats: hygiene.DuplicatesStats{Scanned: 100}},
+		},
+		Order: []string{"invalid", "missing", "orphans", "duplicates"},
+		Totals: DoctorTotals{
+			Errors: 0, Warnings: 3, Info: 4,
+		},
+	}
+	out := res.Human()
+
+	wantPassZero := ui.TUI.Pass().Render("0 error")
+	if !strings.Contains(out, wantPassZero) {
+		t.Errorf("Human() should render '0 error' in the pass color:\n%s", out)
+	}
+	wantWarnNonzero := ui.TUI.Warn().Render("3 warn")
+	if !strings.Contains(out, wantWarnNonzero) {
+		t.Errorf("Human() should still render nonzero warnings in the warn color:\n%s", out)
+	}
+
+	// And when warnings are zero too: both buckets should be pass-colored.
+	res.Totals.Warnings = 0
+	for _, name := range []string{"invalid", "missing", "orphans"} {
+		res.Reports[name] = buildReport(name, 0, 0, 0)
+	}
+	out = res.Human()
+	if !strings.Contains(out, ui.TUI.Pass().Render("0 warn")) {
+		t.Errorf("Human() should render '0 warn' in the pass color when warnings=0:\n%s", out)
 	}
 }
 

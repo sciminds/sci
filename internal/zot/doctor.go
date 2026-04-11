@@ -181,9 +181,17 @@ func (r *DoctorResult) Human() string {
 		fmt.Fprintf(&b, "    %s  %-12s %s\n", doctorStatusGlyph(rep), name, line)
 	}
 
+	errSym, errText := ui.SymFail, ui.TUI.Fail().Render(fmt.Sprintf("%d error", r.Totals.Errors))
+	if r.Totals.Errors == 0 {
+		errSym, errText = ui.SymOK, ui.TUI.Pass().Render("0 error")
+	}
+	warnSym, warnText := ui.SymWarn, ui.TUI.Warn().Render(fmt.Sprintf("%d warn", r.Totals.Warnings))
+	if r.Totals.Warnings == 0 {
+		warnSym, warnText = ui.SymOK, ui.TUI.Pass().Render("0 warn")
+	}
 	fmt.Fprintf(&b, "\n  %s %s  %s %s  %s %s\n",
-		ui.SymFail, ui.TUI.Fail().Render(fmt.Sprintf("%d error", r.Totals.Errors)),
-		ui.SymWarn, ui.TUI.Warn().Render(fmt.Sprintf("%d warn", r.Totals.Warnings)),
+		errSym, errText,
+		warnSym, warnText,
 		ui.TUI.Dim().Render("·"), ui.TUI.Dim().Render(fmt.Sprintf("%d info", r.Totals.Info)),
 	)
 
