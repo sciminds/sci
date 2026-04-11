@@ -44,30 +44,26 @@ func DetectStyle() {
 	})
 }
 
-func getRenderer(width int) (*glamour.TermRenderer, error) {
-	rendererMu.Lock()
-	defer rendererMu.Unlock()
-
-	if cachedRenderer != nil && cachedWidth == width {
-		return cachedRenderer, nil
+// renderLocked builds (or reuses) the cached renderer and runs it.
+// Caller must hold rendererMu — glamour.TermRenderer is not safe for
+// concurrent use, so the lock spans the Render call itself.
+func renderLocked(markdown string, width int) (string, error) {
+	if cachedRenderer == nil || cachedWidth != width {
+		style := styleName
+		if style == "" {
+			style = "dark"
+		}
+		r, err := glamour.NewTermRenderer(
+			glamour.WithStandardStyle(style),
+			glamour.WithWordWrap(width),
+		)
+		if err != nil {
+			return "", err
+		}
+		cachedRenderer = r
+		cachedWidth = width
 	}
-
-	// Fall back to dark if DetectStyle was never called.
-	style := styleName
-	if style == "" {
-		style = "dark"
-	}
-
-	r, err := glamour.NewTermRenderer(
-		glamour.WithStandardStyle(style),
-		glamour.WithWordWrap(width),
-	)
-	if err != nil {
-		return nil, err
-	}
-	cachedRenderer = r
-	cachedWidth = width
-	return r, nil
+	return cachedRenderer.Render(markdown)
 }
 
 // Render converts markdown to terminal-styled output at the given width.
@@ -82,11 +78,9 @@ func Render(markdown string, width int) (string, error) {
 	}
 	contentMu.RUnlock()
 
-	r, err := getRenderer(width)
-	if err != nil {
-		return "", err
-	}
-	out, err := r.Render(markdown)
+	rendererMu.Lock()
+	out, err := renderLocked(markdown, width)
+	rendererMu.Unlock()
 	if err != nil {
 		return "", err
 	}

@@ -2,6 +2,8 @@
 /dbtui
 /markdb
 /zot
+/boarddemo
+/board
 *.duckdb
 *.db
 *.db-*

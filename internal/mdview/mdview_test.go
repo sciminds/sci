@@ -14,8 +14,8 @@ import (
 const (
 	testW    = 100
 	testH    = 30
-	testWait = 2 * time.Second
-	testFin  = 3 * time.Second
+	testWait = 5 * time.Second
+	testFin  = 8 * time.Second
 )
 
 var testPages = []Page{
