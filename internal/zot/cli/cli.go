@@ -11,9 +11,44 @@ import "github.com/urfave/cli/v3"
 
 // Commands returns the full zot subcommand tree.
 // Entry points wrap this in their own root cli.Command.
+//
+// Top-level layout:
+//
+//	setup                       configure API key + library
+//	stats                       library summary
+//	search  <query>             cross-field search
+//	item    <subcommand>        per-item ops (read/add/update/delete/list/open/export)
+//	collection <subcommand>     collections (list/create/delete/add/remove)
+//	tags    <subcommand>        tags (list/add/remove/delete)
+//
+// `item`, `collection`, and `tags` all reuse the leaf commands defined in
+// read.go / write.go — the wrapper functions below just parent them under
+// the right namespace.
 func Commands() []*cli.Command {
-	cmds := []*cli.Command{setupCommand()}
-	cmds = append(cmds, readCommands()...)
-	cmds = append(cmds, writeCommands()...)
-	return cmds
+	return []*cli.Command{
+		setupCommand(),
+		statsCommand(),
+		searchCommand(),
+		itemCommand(),
+		collectionCommand(),
+		tagsCommand(),
+	}
+}
+
+// itemCommand groups per-item operations under a single namespace. Nothing
+// here is defined inline — the leaf commands live in read.go / write.go.
+func itemCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "item",
+		Usage: "Work with individual items (read, add, update, delete, list, open, export)",
+		Commands: []*cli.Command{
+			readCommand(),
+			addCommand(),
+			updateCommand(),
+			deleteCommand(),
+			listCommand(),
+			openCommand(),
+			exportCommand(),
+		},
+	}
 }

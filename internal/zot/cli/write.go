@@ -42,16 +42,6 @@ var (
 	tagDeleteYes bool
 )
 
-func writeCommands() []*cli.Command {
-	return []*cli.Command{
-		addCommand(),
-		updateCommand(),
-		deleteCommand(),
-		collectionCommand(),
-		tagCommand(),
-	}
-}
-
 // requireAPIClient builds an API client from the loaded config, short-circuiting
 // if the machine is offline or not configured.
 func requireAPIClient() (*api.Client, error) {
@@ -76,7 +66,7 @@ func addCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "add",
 		Usage:       "Create a new item in your Zotero library",
-		Description: "$ zot add --type journalArticle --title \"My Paper\" --author \"Smith, Alice\" --doi 10.1000/abc",
+		Description: "$ zot item add --type journalArticle --title \"My Paper\" --author \"Smith, Alice\" --doi 10.1000/abc",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "type", Value: "journalArticle", Usage: "item type (e.g. journalArticle, book, webpage)", Destination: &addType, Local: true},
 			&cli.StringFlag{Name: "title", Usage: "item title (required)", Destination: &addTitle, Local: true},
@@ -169,10 +159,13 @@ func trim(s string) string {
 
 func updateCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "update",
-		Usage:       "Update fields on an existing item",
-		Description: "$ zot update ABC12345 --title \"Corrected Title\"\n$ zot update ABC12345 --doi 10.1000/xyz",
-		ArgsUsage:   "<key>",
+		Name:  "update",
+		Usage: "Update fields on one or more items",
+		Description: "$ zot item update ABC12345 --title \"Corrected Title\"\n" +
+			"$ zot item update ABC12345 DEF67890 --publication \"Nature\"\n" +
+			"Providing multiple keys applies the same field patch to each item via a\n" +
+			"batched POST /items request (up to 50 items per round-trip).",
+		ArgsUsage: "<key> [<key>...]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "title", Destination: &updTitle, Local: true},
 			&cli.StringFlag{Name: "doi", Destination: &updDOI, Local: true},
@@ -183,17 +176,17 @@ func updateCommand() *cli.Command {
 			&cli.StringFlag{Name: "extra", Destination: &updExtra, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected an item key")
+			keys := cmd.Args().Slice()
+			if len(keys) == 0 {
+				return cmdutil.UsageErrorf(cmd, "expected at least one item key")
 			}
-			key := cmd.Args().First()
 
 			patch := client.ItemData{}
-			any := false
+			anyField := false
 			set := func(dst **string, v string) {
 				if v != "" {
 					*dst = strPtr(v)
-					any = true
+					anyField = true
 				}
 			}
 			set(&patch.Title, updTitle)
@@ -203,7 +196,7 @@ func updateCommand() *cli.Command {
 			set(&patch.AbstractNote, updAbstract)
 			set(&patch.PublicationTitle, updPublication)
 			set(&patch.Extra, updExtra)
-			if !any {
+			if !anyField {
 				return cmdutil.UsageErrorf(cmd, "at least one field flag is required")
 			}
 
@@ -211,20 +204,44 @@ func updateCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			// itemType is required on the patch body — fetch current to supply it.
-			cur, err := c.GetItemRaw(ctx, key)
+
+			if len(keys) == 1 {
+				// Fast path: single PATCH. Fetch current to supply itemType.
+				cur, err := c.GetItemRaw(ctx, keys[0])
+				if err != nil {
+					return err
+				}
+				patch.ItemType = cur.Data.ItemType
+				if err := c.UpdateItem(ctx, keys[0], patch); err != nil {
+					return err
+				}
+				cmdutil.Output(cmd, zot.WriteResult{Action: "updated", Kind: "item", Target: keys[0]})
+				return nil
+			}
+
+			patches := make([]api.ItemPatch, len(keys))
+			for i, k := range keys {
+				patches[i] = api.ItemPatch{Key: k, Data: patch}
+			}
+			results, err := c.UpdateItemsBatch(ctx, patches)
 			if err != nil {
 				return err
 			}
-			patch.ItemType = cur.Data.ItemType
-
-			if err := c.UpdateItem(ctx, key, patch); err != nil {
-				return err
+			var success []string
+			failed := map[string]string{}
+			for _, k := range keys {
+				if e := results[k]; e != nil {
+					failed[k] = e.Error()
+				} else {
+					success = append(success, k)
+				}
 			}
-			cmdutil.Output(cmd, zot.WriteResult{
-				Action: "updated",
-				Kind:   "item",
-				Target: key,
+			cmdutil.Output(cmd, zot.BulkWriteResult{
+				Action:  "updated",
+				Kind:    "item",
+				Total:   len(keys),
+				Success: success,
+				Failed:  failed,
 			})
 			return nil
 		},
@@ -236,7 +253,7 @@ func deleteCommand() *cli.Command {
 		Name:        "delete",
 		Aliases:     []string{"trash"},
 		Usage:       "Move an item to trash",
-		Description: "$ zot delete ABC12345\n$ zot delete ABC12345 --yes",
+		Description: "$ zot item delete ABC12345\n$ zot item delete ABC12345 --yes",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &deleteYes, Local: true},
@@ -270,9 +287,27 @@ func collectionCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "collection",
 		Aliases:     []string{"coll"},
-		Usage:       "Manage collections (create, delete, add/remove items)",
-		Description: "$ zot collection create \"Brain Papers\"\n$ zot collection add ABC12345 COLLXXX1\n$ zot collection delete COLLXXX1",
+		Usage:       "Manage collections (list, create, delete, add/remove items)",
+		Description: "$ zot collection list\n$ zot collection create \"Brain Papers\"\n$ zot collection add ABC12345 COLLXXX1\n$ zot collection delete COLLXXX1",
 		Commands: []*cli.Command{
+			{
+				Name:        "list",
+				Usage:       "List every collection in the library with item counts",
+				Description: "$ zot collection list",
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					_, db, err := openLocalDB()
+					if err != nil {
+						return err
+					}
+					defer func() { _ = db.Close() }()
+					colls, err := db.ListCollections()
+					if err != nil {
+						return err
+					}
+					cmdutil.Output(cmd, zot.CollectionListResult{Count: len(colls), Collections: colls})
+					return nil
+				},
+			},
 			{
 				Name:      "create",
 				Usage:     "Create a new collection",
@@ -374,12 +409,31 @@ func collectionCommand() *cli.Command {
 	}
 }
 
-func tagCommand() *cli.Command {
+func tagsCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "tag",
-		Usage:       "Manage tags (add/remove per item, delete library-wide)",
-		Description: "$ zot tag add ABC12345 neuroimaging\n$ zot tag remove ABC12345 deprecated\n$ zot tag delete deprecated",
+		Name:        "tags",
+		Aliases:     []string{"tag"},
+		Usage:       "Manage tags (list, add/remove per item, delete library-wide)",
+		Description: "$ zot tags list\n$ zot tags add ABC12345 neuroimaging\n$ zot tags remove ABC12345 deprecated\n$ zot tags delete deprecated",
 		Commands: []*cli.Command{
+			{
+				Name:        "list",
+				Usage:       "List every tag in the library with usage counts",
+				Description: "$ zot tags list",
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					_, db, err := openLocalDB()
+					if err != nil {
+						return err
+					}
+					defer func() { _ = db.Close() }()
+					tags, err := db.ListTags()
+					if err != nil {
+						return err
+					}
+					cmdutil.Output(cmd, zot.TagListResult{Count: len(tags), Tags: tags})
+					return nil
+				},
+			},
 			{
 				Name:      "add",
 				Usage:     "Attach a tag to an item",

@@ -106,6 +106,33 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"successful": map[string]any{},
 		}
 		for idx, d := range batch {
+			if d.Key != nil && *d.Key != "" {
+				key := *d.Key
+				it, ok := h.items[key]
+				if !ok {
+					result["failed"].(map[string]any)[itoaIdx(idx)] = map[string]any{"code": 404, "message": "not found"}
+					continue
+				}
+				if d.Version != nil && *d.Version != it.version {
+					result["failed"].(map[string]any)[itoaIdx(idx)] = map[string]any{"code": 412, "message": "version conflict"}
+					continue
+				}
+				if d.Title != nil {
+					it.data.Title = d.Title
+				}
+				if d.DOI != nil {
+					it.data.DOI = d.DOI
+				}
+				if d.Collections != nil {
+					it.data.Collections = d.Collections
+				}
+				if d.Tags != nil {
+					it.data.Tags = d.Tags
+				}
+				it.version++
+				result["successful"].(map[string]any)[itoaIdx(idx)] = map[string]any{"key": key, "version": it.version}
+				continue
+			}
 			key := "NEWKEY00"
 			d.Key = &key
 			v := 1
@@ -250,6 +277,41 @@ func TestAddItemToCollection(t *testing.T) {
 	colls := h.items["ABC12345"].data.Collections
 	if colls == nil || len(*colls) != 1 || (*colls)[0] != "COLLXXX1" {
 		t.Errorf("collections: %+v", colls)
+	}
+}
+
+func TestUpdateItemsBatch(t *testing.T) {
+	h := newItemHandler(t)
+	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle"}, 10)
+	h.seed("DEF67890", client.ItemData{ItemType: "book"}, 5)
+	c, _ := newTestClient(t, h)
+
+	title := "Bulk Fixed"
+	patches := []ItemPatch{
+		{Key: "ABC12345", Data: client.ItemData{Title: &title}},
+		{Key: "DEF67890", Data: client.ItemData{Title: &title}},
+	}
+	results, err := c.UpdateItemsBatch(context.Background(), patches)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, e := range results {
+		if e != nil {
+			t.Errorf("key %s: %v", k, e)
+		}
+	}
+	if h.items["ABC12345"].data.Title == nil || *h.items["ABC12345"].data.Title != "Bulk Fixed" {
+		t.Errorf("ABC12345 title not applied")
+	}
+	if h.items["DEF67890"].data.Title == nil || *h.items["DEF67890"].data.Title != "Bulk Fixed" {
+		t.Errorf("DEF67890 title not applied")
+	}
+	// Verify the item type was preserved per-item (patch carried over from source).
+	if h.items["DEF67890"].data.ItemType != "book" {
+		t.Errorf("DEF67890 itemType clobbered: %v", h.items["DEF67890"].data.ItemType)
+	}
+	if atomic.LoadInt32(&h.posts) != 1 {
+		t.Errorf("want 1 POST, got %d", h.posts)
 	}
 }
 

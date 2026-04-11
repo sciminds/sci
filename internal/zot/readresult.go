@@ -124,6 +124,51 @@ func writeField(b *strings.Builder, label, value string) {
 	fmt.Fprintf(b, "  %s %s\n", ui.TUI.Dim().Render(label+":"), value)
 }
 
+// CollectionListResult is returned for `zot collection list`.
+type CollectionListResult struct {
+	Count       int                `json:"count"`
+	Collections []local.Collection `json:"collections"`
+}
+
+func (r CollectionListResult) JSON() any { return r }
+func (r CollectionListResult) Human() string {
+	if r.Count == 0 {
+		return fmt.Sprintf("  %s no collections\n", ui.TUI.Dim().Render("·"))
+	}
+	var b strings.Builder
+	for _, c := range r.Collections {
+		fmt.Fprintf(&b, "  %s  %s %s\n",
+			ui.TUI.Accent().Render(c.Key),
+			c.Name,
+			ui.TUI.Dim().Render(fmt.Sprintf("(%d)", c.ItemCount)),
+		)
+	}
+	fmt.Fprintf(&b, "\n  %s %d collection(s)\n", ui.SymArrow, r.Count)
+	return b.String()
+}
+
+// TagListResult is returned for `zot tags list`.
+type TagListResult struct {
+	Count int         `json:"count"`
+	Tags  []local.Tag `json:"tags"`
+}
+
+func (r TagListResult) JSON() any { return r }
+func (r TagListResult) Human() string {
+	if r.Count == 0 {
+		return fmt.Sprintf("  %s no tags\n", ui.TUI.Dim().Render("·"))
+	}
+	var b strings.Builder
+	for _, t := range r.Tags {
+		fmt.Fprintf(&b, "  %s  %s\n",
+			ui.TUI.Dim().Render(fmt.Sprintf("%5d", t.Count)),
+			t.Name,
+		)
+	}
+	fmt.Fprintf(&b, "\n  %s %d tag(s)\n", ui.SymArrow, r.Count)
+	return b.String()
+}
+
 // StatsResult is returned for `zot stats`.
 type StatsResult struct {
 	Stats   local.Stats `json:"stats"`

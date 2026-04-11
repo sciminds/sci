@@ -27,17 +27,6 @@ var (
 	exportOut    string
 )
 
-func readCommands() []*cli.Command {
-	return []*cli.Command{
-		searchCommand(),
-		readCommand(),
-		listCommand(),
-		statsCommand(),
-		exportCommand(),
-		openCommand(),
-	}
-}
-
 // openLocalDB loads config, opens the local zotero.sqlite, and warns if the
 // schema version is outside the tested range.
 func openLocalDB() (*zot.Config, *local.DB, error) {
@@ -95,7 +84,7 @@ func readCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "read",
 		Usage:       "Show full details of a single item",
-		Description: "$ zot read ABC12345",
+		Description: "$ zot item read ABC12345",
 		ArgsUsage:   "<key>",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -122,7 +111,7 @@ func listCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "list",
 		Usage:       "List items in your library with optional filters",
-		Description: "$ zot list\n$ zot list --type journalArticle --limit 25\n$ zot list --collection ABC12345\n$ zot list --tag neuroimaging --order title",
+		Description: "$ zot item list\n$ zot item list --type journalArticle --limit 25\n$ zot item list --collection ABC12345\n$ zot item list --tag neuroimaging --order title",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "type", Aliases: []string{"t"}, Usage: "filter by item type (e.g. journalArticle, book)", Destination: &listType, Local: true},
 			&cli.StringFlag{Name: "collection", Aliases: []string{"c"}, Usage: "filter by collection key", Destination: &listCollection, Local: true},
@@ -200,7 +189,7 @@ func exportCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "export",
 		Usage:       "Export a citation for an item (csl-json or bibtex)",
-		Description: "$ zot export ABC12345\n$ zot export ABC12345 --format bibtex\n$ zot export ABC12345 --format bibtex --out ref.bib",
+		Description: "$ zot item export ABC12345\n$ zot item export ABC12345 --format bibtex\n$ zot item export ABC12345 --format bibtex --out ref.bib",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csl-json", Usage: "output format: csl-json, bibtex", Destination: &exportFormat, Local: true},
@@ -241,7 +230,7 @@ func openCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "open",
 		Usage:       "Open an item's attachment in the default viewer",
-		Description: "$ zot open ABC12345",
+		Description: "$ zot item open ABC12345",
 		ArgsUsage:   "<key>",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {

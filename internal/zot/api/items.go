@@ -265,6 +265,175 @@ func (c *Client) RemoveTagFromItem(ctx context.Context, itemKey, tag string) err
 	})
 }
 
+// ItemPatch describes a single entry in a bulk item update. Key is required;
+// Data holds the fields to change. ItemType and Version are filled in
+// automatically by UpdateItemsBatch.
+type ItemPatch struct {
+	Key  string
+	Data client.ItemData
+}
+
+// maxBatchItems is the Zotero Web API's per-request object cap for
+// POST /items. Keep in sync with DeleteTagsFromLibrary's batch cap.
+const maxBatchItems = 50
+
+// UpdateItemsBatch applies patches to many items efficiently.
+//
+// Zotero's POST /items endpoint accepts up to 50 items per request and will
+// UPDATE rather than create when each element carries its own Key+Version.
+// We fetch the current version + item type for every key (one GET each —
+// required for the payload) and then POST in groups of 50.
+//
+// The return map is keyed by item key: nil means success, non-nil is the
+// per-item error. A non-nil second return value indicates a whole-request
+// failure (network/HTTP/malformed response) that was not recoverable.
+//
+// Per-item 412 Precondition Failed conflicts are retried once: a fresh
+// version is fetched and the failing items are resubmitted in a second
+// batch round. More than one retry round would indicate hot contention
+// we'd rather surface.
+func (c *Client) UpdateItemsBatch(ctx context.Context, patches []ItemPatch) (map[string]error, error) {
+	results := make(map[string]error, len(patches))
+	if len(patches) == 0 {
+		return results, nil
+	}
+
+	// Build initial payloads: fetch version + itemType for each key.
+	type built struct {
+		patch ItemPatch
+		body  client.ItemData
+	}
+	initial := make([]built, 0, len(patches))
+	for _, p := range patches {
+		cur, err := c.GetItemRaw(ctx, p.Key)
+		if err != nil {
+			results[p.Key] = err
+			continue
+		}
+		body := p.Data
+		k := p.Key
+		v := cur.Version
+		body.Key = &k
+		body.Version = &v
+		body.ItemType = cur.Data.ItemType
+		initial = append(initial, built{patch: p, body: body})
+	}
+
+	// submit POSTs `group` in batches of maxBatchItems. Per-item outcomes are
+	// written into `results` (success → nil, failure → error). Returns the
+	// subset of entries that failed with a 412 version conflict so the caller
+	// can refresh + retry them once.
+	submit := func(group []built) ([]built, error) {
+		var retryable []built
+		for start := 0; start < len(group); start += maxBatchItems {
+			end := start + maxBatchItems
+			if end > len(group) {
+				end = len(group)
+			}
+			slice := group[start:end]
+			bodies := make([]client.ItemData, len(slice))
+			for i, b := range slice {
+				bodies[i] = b.body
+			}
+			resp, err := c.Gen.CreateOrUpdateItemsWithResponse(ctx, c.UserID, &client.CreateOrUpdateItemsParams{}, bodies)
+			if err != nil {
+				return nil, err
+			}
+			if resp.StatusCode() != http.StatusOK {
+				return nil, fmt.Errorf("POST /items: %s: %s", resp.Status(), string(resp.Body))
+			}
+			mor, err := decodeMultiObject(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			// Successful + unchanged both mean "no error for this key".
+			for idxStr := range mor.Successful {
+				if i, ok := batchIndex(idxStr, len(slice)); ok {
+					results[slice[i].patch.Key] = nil
+				}
+			}
+			for idxStr := range mor.Unchanged {
+				if i, ok := batchIndex(idxStr, len(slice)); ok {
+					results[slice[i].patch.Key] = nil
+				}
+			}
+			for idxStr, f := range mor.Failed {
+				i, ok := batchIndex(idxStr, len(slice))
+				if !ok {
+					continue
+				}
+				msg := ""
+				if f.Message != nil {
+					msg = *f.Message
+				}
+				code := 0
+				if f.Code != nil {
+					code = *f.Code
+				}
+				if code == http.StatusPreconditionFailed {
+					retryable = append(retryable, slice[i])
+					continue
+				}
+				results[slice[i].patch.Key] = fmt.Errorf("batch item %s failed (code %d): %s", slice[i].patch.Key, code, msg)
+			}
+		}
+		return retryable, nil
+	}
+
+	retry, err := submit(initial)
+	if err != nil {
+		return results, err
+	}
+
+	// Refresh versions for 412 items and run one more round.
+	if len(retry) > 0 {
+		refreshed := make([]built, 0, len(retry))
+		for _, b := range retry {
+			cur, gerr := c.GetItemRaw(ctx, b.patch.Key)
+			if gerr != nil {
+				results[b.patch.Key] = fmt.Errorf("refresh after 412: %w", gerr)
+				continue
+			}
+			v := cur.Version
+			b.body.Version = &v
+			b.body.ItemType = cur.Data.ItemType
+			refreshed = append(refreshed, b)
+		}
+		leftover, err := submit(refreshed)
+		if err != nil {
+			return results, err
+		}
+		for _, b := range leftover {
+			results[b.patch.Key] = &VersionConflictError{Path: "/items/" + b.patch.Key}
+		}
+	}
+
+	// Any patch whose key is still absent from results means we never managed
+	// to submit it (shouldn't happen, but be defensive).
+	for _, p := range patches {
+		if _, ok := results[p.Key]; !ok {
+			results[p.Key] = fmt.Errorf("item %s: no result reported", p.Key)
+		}
+	}
+	return results, nil
+}
+
+// batchIndex parses a MultiObjectResult map key (zero-indexed decimal string)
+// and bounds-checks it against the submitted slice length.
+func batchIndex(s string, n int) (int, bool) {
+	i := 0
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+		i = i*10 + int(r-'0')
+	}
+	if i < 0 || i >= n {
+		return 0, false
+	}
+	return i, true
+}
+
 // decodeMultiObject unmarshals a POST /items or POST /collections response
 // body into a MultiObjectResult.
 func decodeMultiObject(body []byte) (*client.MultiObjectResult, error) {

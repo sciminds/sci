@@ -2,6 +2,8 @@ package zot
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -23,4 +25,33 @@ func (r WriteResult) Human() string {
 		msg = fmt.Sprintf("%s %s %s", r.Action, r.Kind, r.Target)
 	}
 	return fmt.Sprintf("  %s %s\n", ui.SymOK, msg)
+}
+
+// BulkWriteResult reports per-item outcomes for a batch write (e.g. bulk
+// metadata update across many items). Success holds the keys that applied
+// cleanly; Failed maps key → error message for the rest.
+type BulkWriteResult struct {
+	Action  string            `json:"action"`
+	Kind    string            `json:"kind"`
+	Total   int               `json:"total"`
+	Success []string          `json:"success"`
+	Failed  map[string]string `json:"failed,omitempty"`
+}
+
+func (r BulkWriteResult) JSON() any { return r }
+func (r BulkWriteResult) Human() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %s %s %d/%d %s(s)\n",
+		ui.SymOK, r.Action, len(r.Success), r.Total, r.Kind)
+	if len(r.Failed) > 0 {
+		keys := make([]string, 0, len(r.Failed))
+		for k := range r.Failed {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(&b, "  %s %s: %s\n", ui.SymFail, k, r.Failed[k])
+		}
+	}
+	return b.String()
 }
