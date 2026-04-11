@@ -1,48 +1,62 @@
 # CLAUDE.md — sci CLI (Go)
 
-## Build & Test
+## Workflow
 
-```bash
-just ok              # gate: fmt + vet + lint + test + build — run after every change
-just test-slow       # proj/new integration tests (~4 min, needs SLOW=1, pixi/uv/quarto/marimo/typst/node)
-just test-canvas     # cass integration tests (needs CANVAS_TOKEN in .env + gh auth login)
+- **`just ok` is the gate.** Run after every change. Never invoke `go build` / `go test` / `gofmt` directly — always go through `justfile` recipes (`just test`, `just run …`, `just lint`, etc.). If you need a recipe that doesn't exist, add it.
+- **TDD by default** for new features and bug fixes: write the failing test first, then make it pass. Skip TDD only for trivial edits (typos, doc tweaks, one-line refactors).
+- **Bubbletea work → invoke the `bubbletea` skill** before designing layouts, fixing rendering bugs, or adding mouse/keyboard handling. Its `references/golden-rules.md` prevents the most common border/overflow bugs. Required for any new TUI screen.
+- **All work on `main`.** Linear project: `sciminds-cli` (team EJO).
+
+## Test recipes
+
+```
+just ok              # gate: fmt + vet + lint + test + build
+just test-slow       # proj/new integration (~4 min, SLOW=1, needs pixi/uv/quarto/marimo/typst/node)
+just test-canvas     # cass integration (needs CANVAS_TOKEN in .env + gh auth login)
+just test-board-live # R2 round-trip + privacy assertion (BOARD_LIVE=1)
+just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 ```
 
-## Design Rules
+## Sub-CLAUDE pointers (read before editing these packages)
 
-- **`cmdutil.Result`:** every command returns `JSON() any` + `Human() string`. Emit via `cmdutil.Output(cmd, result)`.
-- **CLI framework:** urfave/cli v3 (not Cobra). All flags use `Local: true`.
-- **SQLite:** pure Go, no CGO (`modernc.org/sqlite`). Use `pocketbase/dbx` in `internal/db/data/`. Exceptions: `internal/tui/dbtui/data/` and `internal/markdb/` use raw `database/sql` (intentional — dbtui avoids the pocketbase dependency).
-- **UI centralization:** no inline `lipgloss.NewStyle()` outside `internal/ui/` or `internal/tui/dbtui/ui/`. Access via `ui.TUI` singleton. All `huh` forms use `ui.HuhTheme()` and `ui.HuhKeyMap()`.
-- **Bubbletea v2:** all TUI code uses bubbletea v2 and bubbles v2. No v1 imports.
-- **Process-replacing exec:** external tools (REPL, marimo) use `syscall.Exec`, not `exec.Command`. Export `Build*Args` helpers for testing.
-- **Brewfile as lockfile:** the global Brewfile is a lockfile reflecting system state, not a hand-edited manifest. `brew.Sync` reconciles it bidirectionally — packages installed/removed via `brew`/`uv` directly are synced automatically. Users manage packages through `sci tools install/uninstall`; `sci doctor` owns creation. `sci tools` must resolve the Brewfile via `brew.LocateBrewfile()`, not hardcode the XDG default — users may have it at `~/.Brewfile` or `$HOMEBREW_BUNDLE_FILE_GLOBAL`. Sync additions are sorted by (type, name) for stable diffs.
-- **Supported package types:** `sci doctor` manages brew, cask, tap, and uv packages. `sci tools` additionally supports go and cargo via `brew bundle` flags. Sync only scans brew/cask/tap/uv (entries of other types are preserved but not auto-added or auto-removed).
+| When you touch… | Read first |
+|---|---|
+| `internal/board/` (sync engine, R2 event log) | `internal/board/CLAUDE.md` |
+| `internal/tui/board/` (kanban TUI) | `internal/tui/board/CLAUDE.md` |
+| `internal/tui/dbtui/` (SQLite browser) | `internal/tui/dbtui/CLAUDE.md` + `app/TESTING.md` |
+| `internal/zot/` (Zotero CLI + hygiene) | `internal/zot/CLAUDE.md` |
 
-## Testing
+`ARCHITECTURE.md` and `internal/README.md` are sketches and may be stale — trust the code.
 
-- **teatest** for all bubbletea models — full message loop (key → Update → state → View). See `internal/tui/dbtui/app/TESTING.md` for protocol.
-- DB mutations verified by querying the store directly, not just inspecting model state.
-- No `time.Sleep` in tests — use `WaitFor` for async operations.
-- Golden file updates: `go test ./path/to/pkg/ -run TestName -update`.
+## Cross-cutting design rules
 
-## Conventions
+- **`cmdutil.Result`:** every command returns `JSON() any` + `Human() string`; emit via `cmdutil.Output(cmd, result)`.
+- **CLI framework:** urfave/cli v3. All flags use `Local: true`.
+- **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/`, `internal/markdb/`, `internal/zot/local/`, `internal/board/` LocalCache. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
+- **Bubbletea v2 + bubbles v2** everywhere. No v1 imports.
+- **No inline `lipgloss.NewStyle()`** outside `internal/ui/` or `internal/tui/*/ui/`. Access via the `ui.TUI` singleton. `huh` forms use `ui.HuhTheme()` + `ui.HuhKeyMap()`.
+- **Process-replacing exec** (REPL, marimo, quarto) via `syscall.Exec`, not `exec.Command`. Export `Build*Args` helpers for tests.
+- **Reuse shared infra** (`cmdutil`, `ui`, `netutil`) — don't re-implement spinners, confirms, or styling per-package.
+- **New TUI apps** go under `internal/tui/<name>/` and follow the dbtui split (`app/`, `ui/`, root-pkg `Run` entry).
+- **Two-surface CLIs** (e.g. `zot`): full command tree lives in `internal/<pkg>/cli.Commands()`; both `cmd/<pkg>/main.go` and `cmd/sci/<pkg>.go` import it. Never duplicate wiring.
 
-- `defer func() { _ = f.Close() }()` — errcheck requires the blank identifier.
-- All work on `main`. Linear project: `sciminds-cli` (team EJO).
-- Reuse shared infra (`cmdutil`, `ui`, `netutil`) — don't duplicate spinners, confirm prompts, or styling logic in feature packages.
-- Every package gets a doc comment on the `package` declaration.
-- New TUI apps go under `internal/tui/<appname>/` following dbtui's pattern.
+## Testing rules
+
+- **teatest** for every bubbletea model — full key→Update→View loop. Protocol: `internal/tui/dbtui/app/TESTING.md`.
+- DB mutations verified by querying the store directly, not by inspecting model state.
+- No `time.Sleep` in tests — use `teatest.WaitFor`.
+- Golden file updates: `go test ./path -run TestName -update` (only place raw `go test` is acceptable; the `-update` flag isn't wired through `just`).
 
 ## Audience
 
-Collaborators are beginner/intermediate Go developers. Keep code clear and straightforward — avoid overly clever patterns. But don't sacrifice efficiency for pedagogy.
+Collaborators are beginner/intermediate Go devs — keep code clear, avoid clever patterns, don't sacrifice efficiency for pedagogy.
 
 ## Gotchas
 
-- `proj/new` integration tests skip unless `SLOW=1` is set. Teatests run unconditionally in `just ok`.
-- marimo export exits non-zero for `mo.md()` cells — expected. Assert on produced file, not exit code.
+- `proj/new` integration tests skip unless `SLOW=1`.
+- marimo export exits non-zero for `mo.md()` cells — assert on the produced file, not the exit code.
 - `install.sh` must be POSIX sh (runs on bare Macs).
 - CI uses a rolling `latest` release tag (delete + recreate on push to main).
-- GitHub Classroom URL IDs are org IDs, not classroom IDs. `ResolveClassroomID` maps URL → API ID via `GET /classrooms`. The resolved ID is cached in `cass.yaml` as `api_id`.
-- `brew bundle check` exits non-zero when deps are missing — that's normal, not an error. `isBundleCheckOutput` in `brew.go` distinguishes missing-deps output from real failures. Don't blindly discard the exit code.
+- GitHub Classroom URL IDs are *org* IDs, not classroom IDs — `ResolveClassroomID` maps URL → API ID and caches in `cass.yaml` as `api_id`.
+- `brew bundle check` exits non-zero when deps are missing (normal). `isBundleCheckOutput` in `brew.go` distinguishes that from a real failure.
+- Brewfile is a *lockfile*, not a manifest. `brew.Sync` reconciles bidirectionally with the actual brew/uv state. Resolve its path via `brew.LocateBrewfile()` — never hardcode the XDG default.

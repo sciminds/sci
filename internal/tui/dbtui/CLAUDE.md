@@ -2,9 +2,11 @@
 
 VisiData-inspired SQLite viewer/editor. Also installable standalone via `cmd/dbtui/`.
 
+**Any new TUI work here must invoke the `bubbletea` skill** before designing layouts or adding mouse/keyboard handling.
+
 ## Architecture
 
-- Single backend: `data.Store` (raw `database/sql` + `modernc.org/sqlite`, no CGO). Intentionally separate from sci-go's `pocketbase/dbx`-based stores.
+- Single backend: `data.Store` — raw `database/sql` + `modernc.org/sqlite`. **Must not import `pocketbase/dbx` or anything that pulls it in** — `cmd/dbtui` is a standalone binary and dragging in pocketbase would bloat it. This is the entire reason for the raw-`database/sql` exception.
 - SQLite uses implicit `rowid` for all edits.
 - Bubble Tea v2 MVU with a single `Model`. `data.DataStore` interface is the integration contract.
 
