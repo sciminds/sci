@@ -6,6 +6,7 @@ build:
     go build -ldflags="-s -w" -o dbtui ./cmd/dbtui
     go build -ldflags="-s -w" -o markdb ./cmd/markdb
     go build -ldflags="-s -w" -o zot ./cmd/zot
+    go build -ldflags="-s -w" -o boarddemo ./cmd/boarddemo
 
 tidy:
     go mod tidy
@@ -39,7 +40,7 @@ ok: check
     @echo "All checks passed."
 
 clean:
-    rm -f sci dbtui markdb zot
+    rm -f sci dbtui markdb zot boarddemo
 
 run *ARGS:
     go run ./cmd/sci {{ARGS}}

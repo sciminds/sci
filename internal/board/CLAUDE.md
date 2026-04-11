@@ -2,7 +2,8 @@
 
 Shared kanban board synchronized across authenticated sci lab users via a
 private Cloudflare R2 bucket (`sci-board`). This package is the headless
-sync/data engine. The TUI lives under `internal/tui/board/` (not yet built).
+sync/data engine. The TUI lives under `internal/tui/board/` — see that
+package's CLAUDE.md for architecture.
 
 ## What it is
 
@@ -334,69 +335,10 @@ Bucket name is hardcoded as `defaultBoardBucket = "sci-board"` in
   column. Consider whether to split `card.move` into move-column vs
   reorder-within-column if this is noisy.
 
-## What the TUI needs from this package
+## Consumers
 
-Planning notes for the next session:
-
-1. **Entry point.** `sci board open <id>` (or board picker from `sci board`).
-   Wire via `cloud.SetupBoard()` → `NewCloudAdapter` → `OpenLocalCache` →
-   `NewStore` → launch TUI with the Store and initial `Load` result.
-
-2. **Three panes** (suggested):
-   - **Board picker** (if no ID given) — `ListBoards` + select
-   - **Column view** — the main kanban grid, columns × cards
-   - **Card detail** — full card with description editor, checklist, comments
-
-3. **Optimistic updates.** On every user edit:
-   - Apply the mutation to the in-memory `Board` in the model immediately
-   - Spawn a `tea.Cmd` that calls `Store.Append`
-   - On failure, the event is already in `events_pending` — show a toast but
-     don't roll back the UI. `FlushPending` will retry later.
-
-4. **Polling.** Spawn a tea.Cmd every 30s that calls `Store.Poll(boardID, lastSeenID)`.
-   On non-empty return, emit a `SyncMsg{count, authors}` and show a
-   toast. `R` key → `ReloadMsg` → full `Store.Load`. Update `lastSeenID`
-   after each poll.
-
-5. **Editors.** All in bubbletea — no external editor.
-   - Title: single-line `bubbles/textinput`
-   - Description: full-screen `bubbles/textarea` (up to ~a page of markdown)
-   - Labels / Assignees: chip input (custom — none in bubbles by default)
-   - Dates: a small date picker (custom — suggest `bubbles/list` with
-     relative options: today, tomorrow, next week, custom)
-   - Priority: 3-state toggle
-   - Checklist: inline list with `space` to toggle, `o` to add, `dd` to delete
-
-6. **Ops to emit from the TUI** (not a 1:1 with UI actions):
-   - New card form → `OpCardAdd`
-   - Edit card field → `OpCardPatch` (only changed fields — granularity matters!)
-   - Drag/move card → `OpCardMove`
-   - Delete card → `OpCardDelete` (confirm)
-   - Add comment → `OpCommentAdd`
-   - Toggle checklist item → `OpChecklistToggle`
-   - New column → `OpColumnAdd`
-
-7. **Reuse existing infra.** Use `ui.TUI` singleton for all styles;
-   `ui.HuhTheme()` / `ui.HuhKeyMap()` if you use huh for forms. Tests via
-   `teatest` with goldens. Follow dbtui's pattern under
-   `internal/tui/dbtui/app/` for file organization.
-
-8. **What the TUI does NOT do:**
-   - No live merge (only reload-on-demand)
-   - No attachments / file uploads
-   - No cross-board search
-   - No history viewer (v1)
-   - No permissions UI (all org members can edit anything)
-
-9. **Package layout to aim for:**
-   ```
-   internal/tui/board/
-     app/           bubbletea model, update, view, keys, dispatch
-     ui/            styles
-     run.go         entry point
-   ```
-   Mirror `internal/tui/dbtui/` structure.
-
-10. **CLI is deferred** per the current plan. When needed, `cmd/board.go`
-    with `urfave/cli v3` subcommands (all flags `Local: true`), returning
-    `cmdutil.Result` via `cmdutil.Output`.
+- **`internal/tui/board/`** — the bubbletea TUI. Uses `Store.ListBoards`,
+  `Store.Load`, `Store.Poll`, and (not yet wired for edits) `Store.Append`.
+- **`cmd/board.go`** — not yet built. When added, it is the place to wire
+  `cloud.SetupBoard()` → `NewCloudAdapter` → `OpenLocalCache` → `NewStore`
+  and launch the TUI.
