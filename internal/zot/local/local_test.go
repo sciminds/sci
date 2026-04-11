@@ -231,8 +231,8 @@ func TestStats(t *testing.T) {
 	if s.WithAttachment != 1 {
 		t.Errorf("WithAttachment = %d, want 1", s.WithAttachment)
 	}
-	if s.Collections != 2 {
-		t.Errorf("Collections = %d, want 2", s.Collections)
+	if s.Collections != 3 {
+		t.Errorf("Collections = %d, want 3", s.Collections)
 	}
 	if s.Tags != 3 {
 		t.Errorf("Tags = %d, want 3", s.Tags)
@@ -245,7 +245,7 @@ func TestListCollections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cs) != 2 {
+	if len(cs) != 3 {
 		t.Fatalf("len = %d", len(cs))
 	}
 	byKey := map[string]Collection{}
@@ -259,6 +259,10 @@ func TestListCollections(t *testing.T) {
 	fav := byKey["COLLBBB2"]
 	if fav.ParentKey != "COLLAAA1" || fav.ItemCount != 1 {
 		t.Errorf("Favorites: %+v", fav)
+	}
+	empty := byKey["EMPTYCOL"]
+	if empty.Name != "Empty Box" || empty.ItemCount != 0 {
+		t.Errorf("Empty Box: %+v", empty)
 	}
 }
 

@@ -182,6 +182,114 @@ func (r InvalidResult) Human() string {
 	return b.String()
 }
 
+// OrphansResult wraps a hygiene.Report from the Orphans check. Limit
+// caps the human-mode findings list per sub-kind; JSON always returns
+// every finding.
+type OrphansResult struct {
+	Report *hygiene.Report `json:"report"`
+	Limit  int             `json:"-"`
+}
+
+func (r OrphansResult) JSON() any { return r.Report }
+
+func (r OrphansResult) Human() string {
+	if r.Report == nil {
+		return ""
+	}
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Orphan scan"))
+	stats, _ := r.Report.Stats.(hygiene.OrphansStats)
+	fmt.Fprintf(&b, "  %s %d total orphan(s) across %d kind(s)\n\n",
+		ui.TUI.Dim().Render("·"),
+		stats.Total,
+		len(stats.CountsByKind),
+	)
+
+	// Summary table: one row per kind that was run, in AllOrphanKinds
+	// order so the output is stable.
+	for _, k := range hygiene.AllOrphanKinds {
+		count, ran := stats.CountsByKind[string(k)]
+		if !ran {
+			continue
+		}
+		marker := ui.TUI.Dim().Render("·")
+		if count > 0 {
+			switch k {
+			case hygiene.OrphanMissingFile:
+				marker = ui.SymFail
+			case hygiene.OrphanStandaloneAttachment:
+				marker = ui.SymWarn
+			default:
+				marker = ui.TUI.Accent().Render("●")
+			}
+		}
+		fmt.Fprintf(&b, "    %s  %-24s %d\n", marker, string(k), count)
+	}
+
+	if stats.Total == 0 {
+		fmt.Fprintf(&b, "\n  %s no orphans found\n", ui.SymOK)
+		return b.String()
+	}
+
+	// Group findings by kind for the detail section.
+	groups := map[string][]hygiene.Finding{}
+	for _, f := range r.Report.Findings {
+		groups[f.Kind] = append(groups[f.Kind], f)
+	}
+
+	for _, k := range hygiene.AllOrphanKinds {
+		gs, ok := groups[string(k)]
+		if !ok || len(gs) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "\n  %s %s\n",
+			ui.TUI.Dim().Render("─"),
+			styleSeverity(severityForOrphanKind(k), string(k)),
+		)
+		show := gs
+		truncated := 0
+		if r.Limit > 0 && len(show) > r.Limit {
+			truncated = len(show) - r.Limit
+			show = show[:r.Limit]
+		}
+		for _, f := range show {
+			label := f.Title
+			if label == "" {
+				label = ui.TUI.Dim().Render("(none)")
+			}
+			if f.ItemKey != "" {
+				fmt.Fprintf(&b, "    %s  %s\n",
+					ui.TUI.Accent().Render(f.ItemKey), label)
+			} else {
+				fmt.Fprintf(&b, "    %s\n", label)
+			}
+		}
+		if truncated > 0 {
+			fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
+				ui.TUI.Dim().Render("…"), truncated)
+		}
+	}
+
+	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", ui.SymArrow, stats.Total)
+	return b.String()
+}
+
+// severityForOrphanKind mirrors hygiene.severityForOrphan but is
+// duplicated here because the hygiene function is unexported. Keeping
+// the switch local to the renderer means the severity mapping is in
+// one file per concern.
+func severityForOrphanKind(k hygiene.OrphanKind) hygiene.Severity {
+	switch k {
+	case hygiene.OrphanMissingFile:
+		return hygiene.SevError
+	case hygiene.OrphanStandaloneAttachment:
+		return hygiene.SevWarn
+	default:
+		return hygiene.SevInfo
+	}
+}
+
 // DuplicatesResult wraps a hygiene.Report from the Duplicates check.
 // Limit caps the number of clusters printed by Human() — JSON always
 // returns every cluster.

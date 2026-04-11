@@ -22,6 +22,10 @@ var (
 
 	invalidFields string
 	invalidLimit  int
+
+	orphansKinds      string
+	orphansLimit      int
+	orphansCheckFiles bool
 )
 
 func missingCommand() *cli.Command {
@@ -183,6 +187,91 @@ All invalid findings are graded SevWarn (citation-affecting).`,
 			return nil
 		},
 	}
+}
+
+func orphansCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "orphans",
+		Usage: "Find structural orphans (empty collections, standalone attachments/notes, unused tags, uncollected items, missing files)",
+		Description: `$ zot orphans
+$ zot orphans --kind uncollected-item
+$ zot orphans --kind missing-file --check-files
+$ zot orphans --limit 0 --json > orphans.json
+
+Default kinds: empty-collection, standalone-attachment,
+standalone-note, unused-tag.
+
+Opt-in kinds (pass via --kind):
+  uncollected-item  Noisy if you don't organize with collections.
+  missing-file      Requires --check-files; stats every attachment.`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "kind",
+				Aliases:     []string{"k"},
+				Usage:       "comma-separated orphan kinds to scan",
+				Destination: &orphansKinds,
+				Local:       true,
+			},
+			&cli.BoolFlag{
+				Name:        "check-files",
+				Usage:       "stat each imported attachment to detect missing files (slow)",
+				Destination: &orphansCheckFiles,
+				Local:       true,
+			},
+			&cli.IntFlag{
+				Name:        "limit",
+				Aliases:     []string{"n"},
+				Value:       25,
+				Usage:       "max findings per kind (0 = all)",
+				Destination: &orphansLimit,
+				Local:       true,
+			},
+		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			kinds, err := parseOrphanKindList(orphansKinds)
+			if err != nil {
+				return cmdutil.UsageErrorf(cmd, "%s", err.Error())
+			}
+			cfg, db, err := openLocalDB()
+			if err != nil {
+				return err
+			}
+			defer func() { _ = db.Close() }()
+
+			opts := hygiene.OrphansOptions{
+				Kinds:      kinds,
+				CheckFiles: orphansCheckFiles,
+				DataDir:    cfg.DataDir,
+			}
+			rep, err := hygiene.Orphans(db, opts)
+			if err != nil {
+				return err
+			}
+			cmdutil.Output(cmd, zot.OrphansResult{Report: rep, Limit: orphansLimit})
+			return nil
+		},
+	}
+}
+
+func parseOrphanKindList(s string) ([]hygiene.OrphanKind, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]hygiene.OrphanKind, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		k, err := hygiene.ParseOrphanKind(p)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, k)
+	}
+	return out, nil
 }
 
 func parseInvalidFieldList(s string) ([]hygiene.InvalidField, error) {

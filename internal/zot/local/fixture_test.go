@@ -122,6 +122,12 @@ func seedFixture(dir string) error {
 			contentType TEXT,
 			path TEXT
 		)`,
+		`CREATE TABLE itemNotes (
+			itemID INTEGER PRIMARY KEY,
+			parentItemID INTEGER,
+			note TEXT,
+			title TEXT
+		)`,
 	}
 	for _, stmt := range ddl {
 		if _, err := db.Exec(stmt); err != nil {
@@ -146,13 +152,18 @@ func seedFixture(dir string) error {
 			(2,'Bob','Jones',0),
 			(3,'','NASA',1)`,
 
-		// 3 content items + 1 attachment child + 1 trashed item.
+		// Content items (10, 20, 30) + attachment child (40) + trashed item
+		// (50) + standalone attachment (60) + standalone note (70).
+		// Item 30 is intentionally left uncollected to exercise the
+		// uncollected-item orphan check.
 		`INSERT INTO items VALUES
 			(10, 1, 1, 'AAAA1111', '2024-01-01 10:00:00', '2024-01-01 10:00:00', '2024-01-01 10:00:00'),
 			(20, 1, 1, 'BBBB2222', '2024-02-01 10:00:00', '2024-02-02 10:00:00', '2024-02-02 10:00:00'),
 			(30, 2, 1, 'CCCC3333', '2024-03-01 10:00:00', '2024-03-01 10:00:00', '2024-03-01 10:00:00'),
 			(40, 3, 1, 'DDDD4444', '2024-01-01 10:05:00', '2024-01-01 10:05:00', '2024-01-01 10:05:00'),
-			(50, 5, 1, 'EEEE5555', '2024-04-01 10:00:00', '2024-04-01 10:00:00', '2024-04-01 10:00:00')`,
+			(50, 5, 1, 'EEEE5555', '2024-04-01 10:00:00', '2024-04-01 10:00:00', '2024-04-01 10:00:00'),
+			(60, 3, 1, 'ORPHANATT', '2024-05-01 10:00:00', '2024-05-01 10:00:00', '2024-05-01 10:00:00'),
+			(70, 4, 1, 'ORPHNNOTE', '2024-05-02 10:00:00', '2024-05-02 10:00:00', '2024-05-02 10:00:00')`,
 
 		// Item 50 is trashed.
 		`INSERT INTO deletedItems VALUES (50)`,
@@ -185,16 +196,29 @@ func seedFixture(dir string) error {
 			(20,3,1,0),
 			(30,1,1,0)`,
 
-		`INSERT INTO tags VALUES (1,'neuroimaging',0),(2,'deep-learning',0),(3,'cats',0)`,
+		// Tag 4 ("orphan-tag") has no itemTags row — unused.
+		`INSERT INTO tags VALUES
+			(1,'neuroimaging',0),
+			(2,'deep-learning',0),
+			(3,'cats',0),
+			(4,'orphan-tag',0)`,
 		`INSERT INTO itemTags VALUES (10,1,0),(10,2,0),(30,3,0)`,
 
+		// Collection 102 ("Empty Box") has no items and no children — orphan.
 		`INSERT INTO collections VALUES
 			(100,'Brain Papers',1,NULL,'COLLAAA1'),
-			(101,'Favorites',1,100,'COLLBBB2')`,
+			(101,'Favorites',1,100,'COLLBBB2'),
+			(102,'Empty Box',1,NULL,'EMPTYCOL')`,
 		`INSERT INTO collectionItems VALUES (100,10),(100,20),(101,10)`,
 
-		// Item 40 is an attachment child of item 10.
-		`INSERT INTO itemAttachments VALUES (40,10,1,'application/pdf','storage:deeplearning.pdf')`,
+		// Item 40 is an attachment child of item 10. Item 60 is a
+		// standalone attachment (parentItemID NULL).
+		`INSERT INTO itemAttachments VALUES
+			(40,10,1,'application/pdf','storage:deeplearning.pdf'),
+			(60,NULL,1,'application/pdf','storage:standalone.pdf')`,
+
+		// Item 70 is a standalone note with no parent.
+		`INSERT INTO itemNotes VALUES (70,NULL,'<p>Loose thoughts on attention.</p>','Attention Notes')`,
 	}
 	for _, stmt := range seed {
 		if _, err := db.Exec(stmt); err != nil {
