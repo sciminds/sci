@@ -147,7 +147,7 @@ func waitForTable(t *testing.T, tm *teatest.TestModel) {
 	t.Helper()
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("products"))
-	}, teatest.WithDuration(testWait))
+	}, teatest.WithDuration(testWait), teatest.WithCheckInterval(time.Millisecond))
 }
 
 // waitForOutput waits for substr to appear in the test model's output.
@@ -155,7 +155,7 @@ func waitForOutput(t *testing.T, tm *teatest.TestModel, substr string) {
 	t.Helper()
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte(substr))
-	}, teatest.WithDuration(testWait))
+	}, teatest.WithDuration(testWait), teatest.WithCheckInterval(time.Millisecond))
 }
 
 // startTeatest is a convenience that creates a model + test model + waits for render.
