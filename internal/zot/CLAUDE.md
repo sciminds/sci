@@ -23,14 +23,16 @@ Corollary: immediately after a write, the local DB will briefly diverge from the
 ```
 internal/zot/
 ├── config.go / setup.go / *_test.go      # XDG config + Setup() / Logout() business logic
-├── result.go / readresult.go / writeresult.go  # cmdutil.Result types for every command
+├── result.go / readresult.go / writeresult.go  # cmdutil.Result types for read/write commands
+├── hygieneresult.go                      # Result types for hygiene commands (Missing/Duplicates/Invalid/Orphans)
 ├── export.go / export_test.go            # CSL-JSON + minimal BibTeX emitters
 ├── open.go                               # attachment path resolution + LaunchFile
 ├── cli/                                  # SHARED command tree
 │   ├── cli.go                            # Commands() factory
 │   ├── setup.go                          # setup command (huh form + flags)
 │   ├── read.go                           # search/read/list/stats/export/open
-│   └── write.go                          # add/update/delete/collection/tag
+│   ├── write.go                          # add/update/delete/collection/tag
+│   └── hygiene.go                        # missing/duplicates/invalid/orphans commands
 ├── client/                               # GENERATED — do not hand-edit
 │   ├── zotero.gen.go                     # `just zot-gen` regenerates from webapps/apis/zotero/openapi.yaml
 │   ├── config.yaml                       # oapi-codegen config
@@ -43,10 +45,20 @@ internal/zot/
 │   ├── collections.go                    # Create/Delete
 │   ├── tags.go                           # DeleteTagsFromLibrary
 │   └── *_test.go                         # httptest-driven, includes a fake Zotero server
+├── hygiene/                              # Library-quality checks (pure + DB-backed)
+│   ├── hygiene.go                        # Severity / Finding / Cluster / Report taxonomy
+│   ├── missing.go / missing_test.go      # field-presence coverage check
+│   ├── duplicates.go / duplicates_test.go  # DOI + title clusterer (pure)
+│   ├── invalid.go / invalid_test.go      # DOI/ISBN/URL/date validators
+│   ├── orphans.go / orphans_test.go      # 6 structural-dangling sub-kinds
+│   ├── normalize.go / normalize_test.go  # title normalization (shared with duplicates)
+│   └── similarity.go / similarity_test.go  # Levenshtein + SimilarityRatio + capped variant
 └── local/                                # Read-only sqlite (raw database/sql)
     ├── db.go                             # Open() + schema version probe
     ├── types.go / items.go / collections.go / tags.go
-    ├── fixture_test.go                   # synthetic zotero.sqlite built in TestMain
+    ├── hygiene.go                        # ScanFieldPresence, ScanDuplicateCandidates, ScanFieldValues
+    ├── orphans.go                        # ScanEmptyCollections, ScanStandalone*, ScanUncollected*, ScanUnusedTags, ScanAttachmentFiles
+    ├── fixture_test.go                   # synthetic zotero.sqlite (sync.Once shared across tests)
     └── realdb_test.go                    # opt-in smoke via ZOT_REAL_DB env var
 ```
 
@@ -84,22 +96,76 @@ Zotero uses optimistic concurrency: writes include `If-Unmodified-Since-Version`
 
 Every write operation that uses this helper owns its own `getVersion` closure so the refresh path is explicit at the call site.
 
+## Hygiene checks (`hygiene/` + scans in `local/`)
+
+Read-only library-quality checks, each fronted by its own `zot <check>` subcommand. A future `zot doctor` will run all four and merge reports.
+
+**The shape.** Every check returns `*hygiene.Report`:
+
+```
+Report {
+  Check    string         // "missing" | "duplicates" | "invalid" | "orphans"
+  Scanned  int
+  Findings []Finding      // per-item issues (most checks)
+  Clusters []Cluster      // grouped issues (duplicates only)
+  Stats    any            // per-check summary blob — typed-asserted by renderer
+}
+```
+
+Findings and Clusters are mutually informative, not exclusive. `Stats` is a check-specific struct (`MissingStats`, `DuplicatesStats`, `InvalidStats`, `OrphansStats`) that renderers read via type assertion.
+
+**Severity taxonomy.** Graded consistently across checks:
+
+- `SevError` — structurally broken (missing title, attachment file gone from disk)
+- `SevWarn` — citation-affecting (missing creators/date, malformed DOI/URL/date, standalone attachment)
+- `SevInfo` — coverage gaps and user-workflow choices
+
+**The pure/DB split.** SQL lives in `local/hygiene.go` and `local/orphans.go`. The `hygiene/` package contains pure functions (validators, clusterers, orchestrators) that take typed scan results as input. This means:
+
+- Clustering and validation logic is unit-testable without a DB (see `TestRunDuplicates_*`, `TestValidate*`, `TestInvalid_FromFieldValues`)
+- SQL is covered separately by `local/*_test.go` against the synthetic fixture
+- Real-library integration runs only under `SLOW=1` and is for eyeballing counts, not for regression detection
+
+**Opt-in sub-checks.** Some checks are noisy or expensive and are excluded from the default set:
+
+- `orphans --kind uncollected-item` — users who don't organize with collections get thousands of findings
+- `orphans --kind missing-file --check-files` — stat's every imported attachment
+
+Both are in `hygiene.AllOrphanKinds` but not in `defaultOrphanKinds`. The parser accepts them; the default run skips them.
+
+**Duplicate detection.** DOI pass (exact match, score 1.0) subsumes title passes when members overlap. Title pass is two-stage: normalized-equality bucketing, then length-windowed fuzzy over singletons. Length window + `levenshteinCapped` (DP aborts when row-min exceeds the threshold budget) keeps a 5k-item library scan under ~30s.
+
+**Adding a new hygiene check.** The pattern:
+
+1. New SQL scan in `local/` returning a typed struct
+2. Pure function in `hygiene/` that takes the scan output
+3. DB-backed orchestrator `hygiene.X(db, opts) → *Report`
+4. Result type in `hygieneresult.go` with `JSON()` + `Human()`
+5. CLI command in `cli/hygiene.go` with `parseXFieldList` helper
+6. Register in `cli/cli.go` `Commands()` factory
+7. Tests: pure-function unit tests + fixture-backed SQL test + `SLOW=1`-gated real-library smoke
+
 ## Gotchas
 
 - **Zotero date storage**: `itemDataValues.value` for the `date` field is stored as `"YYYY-MM-DD originalText"` — first token is the sortable form, second is the user's original input. `cleanDate()` in `readresult.go` strips everything after the first whitespace for display. Keep raw values in JSON output so downstream tools see Zotero's authentic data.
+- **Zotero date `00` padding**: The sortable form pads unspecified components with `00`, not by truncating. A year-only entry is stored as `"1871-00-00 1871"`, not `"1871 1871"`. `ValidateDate` in `hygiene/invalid.go` treats `month=0` and `day=0` as "unspecified" markers — caught by the real-library smoke test after the first TDD pass flagged 4995 false positives.
 - **Schema version drift**: `SchemaOutOfRange()` warns if `version.userdata` is outside `[MinTestedSchemaVersion, MaxTestedSchemaVersion]`. Current tested: 120–130 (live DB is 125 as of 2026-04-11). If queries start failing on a newer schema, widen the range only after verifying every query in `items.go` / `collections.go` / `tags.go`.
 - **`tagFilter` vs `tag`**: `DeleteTagsParams.Tag` is a pipe-separated string (`"a || b || c"`), NOT a slice. API cap: 50 tags per request — see `DeleteTagsFromLibrary`'s batching.
 - **BibTeX scope**: `exportBibTeX` is intentionally minimal. It reuses Better BibTeX's `citationKey` field when present (~all items in real libraries) and does only basic `{` escaping. For full LaTeX escaping, cite-key derivation, and edge-case handling, users should use Better BibTeX's own export from the desktop app.
-- **`ZOT_REAL_DB` env var**: opt-in smoke test in `local/realdb_test.go`. Never hardcode the user's library path in tests.
+- **`ZOT_REAL_DB` env var** / **`./zotero.sqlite`**: `local/realdb_test.go` uses `ZOT_REAL_DB`. Hygiene real-library tests open `./zotero.sqlite` at the repo root (gitignored, safe to mess with) and gate behind `SLOW=1`. Never hardcode the user's live library path.
 - **Single-name creators**: Zotero stores institutional authors like "NASA" with `fieldMode=1` and the name in `lastName`. Our `Creator.Name` field carries these; `Creator.First`/`Last` stay empty. BibTeX emits them as `{NASA}` to suppress name parsing.
+- **`DuplicateCandidate` lives in `local`, not `hygiene`**: type-aliased in `hygiene/duplicates.go` to avoid the circular import (`hygiene` imports `local`; `local` can't import `hygiene`). Same pattern applies if future checks need to share their scan types.
+- **Fuzzy duplicate perf**: naive O(n²) Levenshtein over 5k singletons is multi-minute. `ClusterByTitle` sorts singletons by normalized-title length, breaks the inner loop once `lb > la/threshold`, and uses `levenshteinCapped` (DP aborts when row-min exceeds the edit budget). Together: ~27s for the full real library, workable under `SLOW=1`.
+- **Shared fixture**: `local/fixture_test.go` builds the synthetic `zotero.sqlite` once per `go test` invocation via `sync.Once` + `TestMain` cleanup. Safe because every test opens with `mode=ro&immutable=1`. Adding new tables/rows to the fixture may require updating `TestStats` and `TestListCollections` counts.
 
 ## Deferred — revisit next session
 
-### Phase 6 (hygiene) — next up
-- `zot doctor` — umbrella running all hygiene scans with a combined report. Standalone, not part of `sci doctor` (different concern: library vs system).
-- `zot duplicates [--by doi|title|isbn] [--fix merge|trash]`
-- `zot missing [--field doi,abstract,date,pdf,…]` — scan for empty required fields. NB the current live library has `withAbstract=1` out of 5,059; field coverage reporting is worth structuring carefully before the `--fix` flag gets wired.
-- `zot orphans` — attachments/notes with null `parentItemID`, items in zero collections.
+### Phase 6 (hygiene) — remaining
+Four primitive checks landed: `missing`, `duplicates`, `invalid`, `orphans`. What's left:
+
+- **`zot doctor`** — umbrella running all four checks and merging reports. Standalone, not part of `sci doctor` (different concern: library vs system). The Report/Finding/Cluster/Stats shapes are already uniform; doctor is a thin loop + aggregated renderer.
+- **`--fix` paths for `orphans`** — `--fix empty-collections` via existing `api.collections.Delete`, `--fix unused-tags` via `api.tags.DeleteTagsFromLibrary` batching. Both gated behind `cmdutil.ConfirmOrSkip` with a `--yes` bypass, matching the destructive-op pattern in `cli/write.go`.
+- **`--fix trash` for duplicates** — only for DOI clusters (score 1.0, high confidence). Picks a keeper per cluster (item with more attachments / newer dateModified) and trashes the rest via `api.items.Trash`. Merging requires a Web API endpoint that the generated client doesn't currently expose.
 
 ### Phase 7
 - **Tag rename** — requires fetching all items with the tag, per-item updates (new tag added + old removed), then `DeleteTagsFromLibrary([old])`. Doable, just tedious; skipped from Phase 5 to keep scope tight.
