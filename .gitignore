@@ -8,6 +8,8 @@
 *.csv
 *.bib
 *.sqlite
+*.sqlite-shm
+*.sqlite-wal
 plan.md
 /tutorials/
 

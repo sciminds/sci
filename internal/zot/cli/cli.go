@@ -20,6 +20,8 @@ import "github.com/urfave/cli/v3"
 //	item    <subcommand>        per-item ops (read/add/update/delete/list/open/export)
 //	collection <subcommand>     collections (list/create/delete/add/remove)
 //	tags    <subcommand>        tags (list/add/remove/delete)
+//	missing                     hygiene: scan for items missing fields
+//	duplicates                  hygiene: find duplicate item clusters
 //
 // `item`, `collection`, and `tags` all reuse the leaf commands defined in
 // read.go / write.go — the wrapper functions below just parent them under
@@ -32,6 +34,8 @@ func Commands() []*cli.Command {
 		itemCommand(),
 		collectionCommand(),
 		tagsCommand(),
+		missingCommand(),
+		duplicatesCommand(),
 	}
 }
 
