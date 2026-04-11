@@ -74,10 +74,10 @@ func TestPollForToken_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	resp, err := PollForToken(ctx, srv.URL, "dc_test", 1)
+	resp, err := PollForToken(ctx, srv.URL, "dc_test", 10*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,10 +105,10 @@ func TestPollForToken_Denied(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	_, err := PollForToken(ctx, srv.URL, "dc_test", 1)
+	_, err := PollForToken(ctx, srv.URL, "dc_test", 10*time.Millisecond)
 	if err == nil {
 		t.Fatal("expected error for denied auth")
 	}
@@ -124,10 +124,10 @@ func TestPollForToken_Timeout(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	_, err := PollForToken(ctx, srv.URL, "dc_test", 1)
+	_, err := PollForToken(ctx, srv.URL, "dc_test", 10*time.Millisecond)
 	if err == nil {
 		t.Fatal("expected error on timeout")
 	}

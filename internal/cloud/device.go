@@ -65,12 +65,12 @@ func RequestDeviceCode(ctx context.Context, workerURL string) (*DeviceCodeRespon
 }
 
 // PollForToken polls the auth worker until the user approves, the code
-// expires, or the context is cancelled. interval is the poll delay in seconds.
-func PollForToken(ctx context.Context, workerURL, deviceCode string, interval int) (*TokenResponse, error) {
-	if interval < 1 {
-		interval = 5
+// expires, or the context is cancelled.
+func PollForToken(ctx context.Context, workerURL, deviceCode string, interval time.Duration) (*TokenResponse, error) {
+	if interval <= 0 {
+		interval = 5 * time.Second
 	}
-	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
@@ -89,7 +89,7 @@ func PollForToken(ctx context.Context, workerURL, deviceCode string, interval in
 				continue
 			case "slow_down":
 				// Back off by 5 seconds as per the spec.
-				ticker.Reset(time.Duration(interval+5) * time.Second)
+				ticker.Reset(interval + 5*time.Second)
 				continue
 			default:
 				// "error", "expired_token", "access_denied", etc.

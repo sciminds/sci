@@ -75,7 +75,7 @@ func Auth() (*AuthResult, error) {
 	var resp *cloud.TokenResponse
 	if err := ui.RunWithSpinner("Waiting for GitHub authorization", func() error {
 		var pollErr error
-		resp, pollErr = cloud.PollForToken(ctx, cloud.DefaultWorkerURL, dc.DeviceCode, dc.Interval)
+		resp, pollErr = cloud.PollForToken(ctx, cloud.DefaultWorkerURL, dc.DeviceCode, time.Duration(dc.Interval)*time.Second)
 		return pollErr
 	}); err != nil {
 		return nil, err
