@@ -8,6 +8,7 @@ import (
 // ---- InfoResult ----
 
 func TestInfoResult_JSON(t *testing.T) {
+	t.Parallel()
 	r := InfoResult{
 		SizeMB: 1.5,
 		Tables: []TableEntry{
@@ -28,6 +29,7 @@ func TestInfoResult_JSON(t *testing.T) {
 }
 
 func TestInfoResult_Human(t *testing.T) {
+	t.Parallel()
 	r := InfoResult{
 		SizeMB: 2.25,
 		Tables: []TableEntry{
@@ -47,6 +49,7 @@ func TestInfoResult_Human(t *testing.T) {
 }
 
 func TestInfoResult_Human_Empty(t *testing.T) {
+	t.Parallel()
 	r := InfoResult{SizeMB: 0, Tables: nil}
 	h := r.Human()
 	if h == "" {
@@ -57,6 +60,7 @@ func TestInfoResult_Human_Empty(t *testing.T) {
 // ---- TablesResult ----
 
 func TestTablesResult_JSON(t *testing.T) {
+	t.Parallel()
 	r := TablesResult{Tables: []TableEntry{
 		{Name: "users", Rows: 10, Columns: 4},
 	}}
@@ -70,6 +74,7 @@ func TestTablesResult_JSON(t *testing.T) {
 }
 
 func TestTablesResult_Human(t *testing.T) {
+	t.Parallel()
 	r := TablesResult{Tables: []TableEntry{
 		{Name: "users", Rows: 100, Columns: 5},
 		{Name: "orders", Rows: 42, Columns: 3},
@@ -86,6 +91,7 @@ func TestTablesResult_Human(t *testing.T) {
 }
 
 func TestTablesResult_Human_Empty(t *testing.T) {
+	t.Parallel()
 	r := TablesResult{Tables: nil}
 	h := r.Human()
 	if h == "" {
@@ -96,6 +102,7 @@ func TestTablesResult_Human_Empty(t *testing.T) {
 // ---- MutationResult ----
 
 func TestMutationResult_JSON(t *testing.T) {
+	t.Parallel()
 	r := MutationResult{OK: true, Message: "table created"}
 	got, ok := r.JSON().(MutationResult)
 	if !ok {
@@ -107,6 +114,7 @@ func TestMutationResult_JSON(t *testing.T) {
 }
 
 func TestMutationResult_Human(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		r           MutationResult

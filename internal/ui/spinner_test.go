@@ -5,6 +5,7 @@ import (
 )
 
 func TestSpinnerModel_Init(t *testing.T) {
+	t.Parallel()
 	m := newSpinnerModel("Loading…")
 	cmd := m.Init()
 	if cmd == nil {
@@ -13,6 +14,7 @@ func TestSpinnerModel_Init(t *testing.T) {
 }
 
 func TestSpinnerModel_DoneMsg(t *testing.T) {
+	t.Parallel()
 	m := newSpinnerModel("Loading…")
 	updated, cmd := m.Update(doneMsg{err: nil})
 	sm := updated.(spinnerModel)
@@ -30,6 +32,7 @@ func TestSpinnerModel_DoneMsg(t *testing.T) {
 }
 
 func TestSpinnerModel_StatusMsg(t *testing.T) {
+	t.Parallel()
 	m := newSpinnerModel("Loading…")
 	updated, _ := m.Update(statusMsg("step 1"))
 	sm := updated.(spinnerModel)
@@ -40,6 +43,7 @@ func TestSpinnerModel_StatusMsg(t *testing.T) {
 }
 
 func TestSpinnerModel_ViewShowsTitle(t *testing.T) {
+	t.Parallel()
 	m := newSpinnerModel("Installing…")
 	v := m.View()
 	got := v.Content
@@ -49,6 +53,7 @@ func TestSpinnerModel_ViewShowsTitle(t *testing.T) {
 }
 
 func TestSpinnerModel_ViewEmptyWhenDone(t *testing.T) {
+	t.Parallel()
 	m := newSpinnerModel("Installing…")
 	m.done = true
 	v := m.View()

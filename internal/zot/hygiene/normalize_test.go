@@ -3,6 +3,7 @@ package hygiene
 import "testing"
 
 func TestNormalizeTitle(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in   string
 		want string

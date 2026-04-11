@@ -5,6 +5,7 @@ import (
 )
 
 func TestScanFieldPresence(t *testing.T) {
+	t.Parallel()
 	dir := buildFixture(t)
 	db, err := Open(dir)
 	if err != nil {
@@ -75,6 +76,7 @@ func TestScanFieldPresence(t *testing.T) {
 }
 
 func TestScanFieldValues(t *testing.T) {
+	t.Parallel()
 	dir := buildFixture(t)
 	db, err := Open(dir)
 	if err != nil {
@@ -119,6 +121,7 @@ func TestScanFieldValues(t *testing.T) {
 }
 
 func TestScanFieldValues_EmptyFieldsReturnsNothing(t *testing.T) {
+	t.Parallel()
 	dir := buildFixture(t)
 	db, err := Open(dir)
 	if err != nil {
@@ -136,6 +139,7 @@ func TestScanFieldValues_EmptyFieldsReturnsNothing(t *testing.T) {
 }
 
 func TestScanDuplicateCandidates(t *testing.T) {
+	t.Parallel()
 	dir := buildFixture(t)
 	db, err := Open(dir)
 	if err != nil {

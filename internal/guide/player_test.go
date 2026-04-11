@@ -15,6 +15,7 @@ var sampleCast = []byte(`{"version": 2, "width": 80, "height": 24}
 `)
 
 func TestParseCast(t *testing.T) {
+	t.Parallel()
 	c, err := ParseCast(sampleCast)
 	if err != nil {
 		t.Fatalf("ParseCast: %v", err)
@@ -54,6 +55,7 @@ func TestParseCast(t *testing.T) {
 }
 
 func TestParseCastFiltersNonOutput(t *testing.T) {
+	t.Parallel()
 	data := []byte(`{"version": 2, "width": 80, "height": 24}
 [0.5, "o", "$ "]
 [0.8, "i", "l"]
@@ -69,6 +71,7 @@ func TestParseCastFiltersNonOutput(t *testing.T) {
 }
 
 func TestParseCastErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input []byte
@@ -90,6 +93,7 @@ func TestParseCastErrors(t *testing.T) {
 }
 
 func TestParseCastSkipsBlankLines(t *testing.T) {
+	t.Parallel()
 	data := []byte(`{"version": 2, "width": 80, "height": 24}
 
 [0.5, "o", "hello"]
@@ -113,6 +117,7 @@ func testCast() Cast {
 }
 
 func TestPlayerInit(t *testing.T) {
+	t.Parallel()
 	p := NewPlayer(testCast(), 20)
 
 	cmd := p.Init()
@@ -128,6 +133,7 @@ func TestPlayerInit(t *testing.T) {
 }
 
 func TestPlayerAdvance(t *testing.T) {
+	t.Parallel()
 	p := NewPlayer(testCast(), 20)
 
 	// Simulate first tick
@@ -147,6 +153,7 @@ func TestPlayerAdvance(t *testing.T) {
 }
 
 func TestPlayerPause(t *testing.T) {
+	t.Parallel()
 	p := NewPlayer(testCast(), 20)
 
 	// Advance one event
@@ -179,6 +186,7 @@ func TestPlayerPause(t *testing.T) {
 }
 
 func TestPlayerRestart(t *testing.T) {
+	t.Parallel()
 	p := NewPlayer(testCast(), 20)
 
 	// Advance two events
@@ -208,6 +216,7 @@ func TestPlayerRestart(t *testing.T) {
 }
 
 func TestPlayerFinished(t *testing.T) {
+	t.Parallel()
 	p := NewPlayer(testCast(), 20)
 
 	// Advance all events
@@ -229,6 +238,7 @@ func TestPlayerFinished(t *testing.T) {
 }
 
 func TestPlayerViewContainsOutput(t *testing.T) {
+	t.Parallel()
 	p := NewPlayer(testCast(), 20)
 	p, _ = p.Update(TickMsg{Index: 0})
 	p, _ = p.Update(TickMsg{Index: 1})
@@ -246,6 +256,7 @@ func TestPlayerViewContainsOutput(t *testing.T) {
 }
 
 func TestPlayerViewTailCap(t *testing.T) {
+	t.Parallel()
 	// Create a cast with many output lines
 	data := []byte(`{"version": 2, "width": 80, "height": 24}
 [0.1, "o", "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"]

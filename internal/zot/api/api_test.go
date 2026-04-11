@@ -41,6 +41,7 @@ func newTestClient(t *testing.T, handler http.Handler, opts ...Option) (*Client,
 }
 
 func TestCurrentKey_AuthHeaderInjected(t *testing.T) {
+	t.Parallel()
 	var gotKey, gotVersion string
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotKey = r.Header.Get("Zotero-API-Key")
@@ -66,6 +67,7 @@ func TestCurrentKey_AuthHeaderInjected(t *testing.T) {
 }
 
 func TestRetry_On429HonorsRetryAfter(t *testing.T) {
+	t.Parallel()
 	var calls int32
 	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		n := atomic.AddInt32(&calls, 1)
@@ -92,6 +94,7 @@ func TestRetry_On429HonorsRetryAfter(t *testing.T) {
 }
 
 func TestRetry_On5xxExponentialBackoff(t *testing.T) {
+	t.Parallel()
 	var calls int32
 	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		n := atomic.AddInt32(&calls, 1)
@@ -117,6 +120,7 @@ func TestRetry_On5xxExponentialBackoff(t *testing.T) {
 }
 
 func TestRetry_GivesUpAfterMaxRetries(t *testing.T) {
+	t.Parallel()
 	var calls int32
 	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		atomic.AddInt32(&calls, 1)
@@ -136,6 +140,7 @@ func TestRetry_GivesUpAfterMaxRetries(t *testing.T) {
 }
 
 func TestBackoffHeader_DelaysNextRequest(t *testing.T) {
+	t.Parallel()
 	var calls int32
 	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		atomic.AddInt32(&calls, 1)
@@ -163,6 +168,7 @@ func TestBackoffHeader_DelaysNextRequest(t *testing.T) {
 }
 
 func TestParseSeconds(t *testing.T) {
+	t.Parallel()
 	tests := map[string]time.Duration{
 		"":    0,
 		"0":   0,
@@ -178,6 +184,7 @@ func TestParseSeconds(t *testing.T) {
 }
 
 func TestBackoffDelay_Cap(t *testing.T) {
+	t.Parallel()
 	// 200ms, 400ms, 800ms, ..., capped at 10s.
 	for attempt, want := range map[int]time.Duration{
 		0:  200 * time.Millisecond,

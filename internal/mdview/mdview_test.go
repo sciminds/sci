@@ -51,6 +51,7 @@ func finalModel(t *testing.T, tm *teatest.TestModel) *Model {
 }
 
 func TestSinglePageRenders(t *testing.T) {
+	t.Parallel()
 	tm := startSinglePage(t)
 	fm := finalModel(t, tm)
 	if fm.level != levelViewer {
@@ -62,6 +63,7 @@ func TestSinglePageRenders(t *testing.T) {
 }
 
 func TestMultiPageShowsPicker(t *testing.T) {
+	t.Parallel()
 	tm := startMultiPage(t)
 	fm := finalModel(t, tm)
 	if fm.level != levelPicker {
@@ -70,6 +72,7 @@ func TestMultiPageShowsPicker(t *testing.T) {
 }
 
 func TestMultiPageOpenAndClose(t *testing.T) {
+	t.Parallel()
 	tm := startMultiPage(t)
 
 	// Open first page
@@ -91,6 +94,7 @@ func TestMultiPageOpenAndClose(t *testing.T) {
 }
 
 func TestMultiPageSwitchRendersNewContent(t *testing.T) {
+	t.Parallel()
 	tm := startMultiPage(t)
 
 	// Open first page (alpha)
@@ -122,6 +126,7 @@ func TestMultiPageSwitchRendersNewContent(t *testing.T) {
 }
 
 func TestViewerScrollPercent(t *testing.T) {
+	t.Parallel()
 	v := NewViewer("test", "# Test\n\nLine 1\nLine 2\nLine 3")
 	v.SetSize(80, 50) // tall enough to fit all content
 	pct := v.ScrollPercent()
@@ -131,6 +136,7 @@ func TestViewerScrollPercent(t *testing.T) {
 }
 
 func TestViewerSearchEnterAndExit(t *testing.T) {
+	t.Parallel()
 	v := NewViewer("test", "# Hello\n\nHello world.")
 	v.SetSize(80, 20)
 
@@ -154,6 +160,7 @@ func TestViewerSearchEnterAndExit(t *testing.T) {
 }
 
 func TestViewerApplySearch(t *testing.T) {
+	t.Parallel()
 	v := NewViewer("test", "# Hello\n\nHello world. Hello again.")
 	v.SetSize(80, 20)
 
@@ -168,6 +175,7 @@ func TestViewerApplySearch(t *testing.T) {
 }
 
 func TestViewerApplySearchCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	v := NewViewer("test", "# HELLO\n\nhello world.")
 	v.SetSize(80, 20)
 
@@ -180,6 +188,7 @@ func TestViewerApplySearchCaseInsensitive(t *testing.T) {
 }
 
 func TestViewerApplySearchEmpty(t *testing.T) {
+	t.Parallel()
 	v := NewViewer("test", "# Test")
 	v.SetSize(80, 20)
 
@@ -192,6 +201,7 @@ func TestViewerApplySearchEmpty(t *testing.T) {
 }
 
 func TestViewerSearchScrollsToMatch(t *testing.T) {
+	t.Parallel()
 	// Build content long enough that "TARGET" is well below the viewport.
 	var sb strings.Builder
 	sb.WriteString("# Top\n\n")
@@ -221,6 +231,7 @@ func TestViewerSearchScrollsToMatch(t *testing.T) {
 }
 
 func TestViewerNextPrevScrolls(t *testing.T) {
+	t.Parallel()
 	var sb strings.Builder
 	sb.WriteString("MATCH at top\n\n")
 	for range 60 {
@@ -258,6 +269,7 @@ func TestViewerNextPrevScrolls(t *testing.T) {
 }
 
 func TestSinglePageSearch(t *testing.T) {
+	t.Parallel()
 	tm := startSinglePage(t)
 
 	// Enter search mode with /

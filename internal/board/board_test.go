@@ -8,6 +8,7 @@ import (
 )
 
 func TestBoardJSONRoundTrip(t *testing.T) {
+	t.Parallel()
 	due := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
 	deadline := time.Date(2026, 5, 15, 23, 59, 0, 0, time.UTC)
 	created := time.Date(2026, 4, 1, 10, 0, 0, 0, time.UTC)
@@ -92,6 +93,7 @@ func TestBoardJSONRoundTrip(t *testing.T) {
 }
 
 func TestCardJSONNilDatesOmitted(t *testing.T) {
+	t.Parallel()
 	c := Card{ID: "x", Title: "t", Column: "c1", Position: 1.0}
 	data, err := json.Marshal(c)
 	if err != nil {
@@ -104,6 +106,7 @@ func TestCardJSONNilDatesOmitted(t *testing.T) {
 }
 
 func TestBoardJSONUnknownFieldsIgnored(t *testing.T) {
+	t.Parallel()
 	// Forward compat: adding fields to the schema should not break old clients.
 	raw := `{
 		"id": "b1",
@@ -126,6 +129,7 @@ func TestBoardJSONUnknownFieldsIgnored(t *testing.T) {
 }
 
 func TestTimeFieldsUseRFC3339(t *testing.T) {
+	t.Parallel()
 	created := time.Date(2026, 4, 1, 10, 30, 45, 0, time.UTC)
 	b := Board{BoardMeta: BoardMeta{ID: "b", Title: "t", CreatedAt: created, CreatedBy: "esh", UpdatedAt: created}}
 	data, err := json.Marshal(b)

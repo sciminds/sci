@@ -39,6 +39,7 @@ func (h *tagHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestDeleteTags_Empty(t *testing.T) {
+	t.Parallel()
 	h := &tagHandler{}
 	c, _ := newTestClient(t, h)
 
@@ -51,6 +52,7 @@ func TestDeleteTags_Empty(t *testing.T) {
 }
 
 func TestDeleteTags_SingleBatch(t *testing.T) {
+	t.Parallel()
 	h := &tagHandler{}
 	c, _ := newTestClient(t, h)
 
@@ -66,6 +68,7 @@ func TestDeleteTags_SingleBatch(t *testing.T) {
 }
 
 func TestDeleteTags_Batching50(t *testing.T) {
+	t.Parallel()
 	h := &tagHandler{}
 	c, _ := newTestClient(t, h)
 
@@ -93,6 +96,7 @@ func TestDeleteTags_Batching50(t *testing.T) {
 }
 
 func TestDeleteTags_412ReturnsError(t *testing.T) {
+	t.Parallel()
 	h := &tagHandler{fail412: true}
 	c, _ := newTestClient(t, h)
 
@@ -106,6 +110,7 @@ func TestDeleteTags_412ReturnsError(t *testing.T) {
 }
 
 func TestDeleteTags_ServerError(t *testing.T) {
+	t.Parallel()
 	// 400 from the server — not retried by middleware, surfaced as error.
 	h := &tagHandler{failCode: http.StatusBadRequest}
 	c, _ := newTestClient(t, h)

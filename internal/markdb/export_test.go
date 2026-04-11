@@ -7,6 +7,7 @@ import (
 )
 
 func TestExportRoundTrip(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	srcDir := t.TempDir()
 
@@ -47,6 +48,7 @@ func TestExportRoundTrip(t *testing.T) {
 }
 
 func TestExportWithFrontmatter(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	content := "---\ntitle: Test\n---\nBody"
@@ -68,6 +70,7 @@ func TestExportWithFrontmatter(t *testing.T) {
 }
 
 func TestExportWithoutFrontmatter(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	content := "Just body"
@@ -89,6 +92,7 @@ func TestExportWithoutFrontmatter(t *testing.T) {
 }
 
 func TestExportCreatesSubdirs(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "a/b/c/deep.md", "deep content")
@@ -108,6 +112,7 @@ func TestExportCreatesSubdirs(t *testing.T) {
 }
 
 func TestExportWithWhereFilter(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "a.md", "---\ntitle: Alpha\n---\nA content")
@@ -135,6 +140,7 @@ func TestExportWithWhereFilter(t *testing.T) {
 }
 
 func TestExportNoMatches(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "content")

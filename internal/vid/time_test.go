@@ -6,6 +6,7 @@ import (
 )
 
 func TestParseTime(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  float64
@@ -51,6 +52,7 @@ func TestParseTime(t *testing.T) {
 }
 
 func TestParseTimeErrors(t *testing.T) {
+	t.Parallel()
 	bad := []string{"", "abc", ":::", "1h2x"}
 	for _, input := range bad {
 		t.Run(input, func(t *testing.T) {
@@ -63,6 +65,7 @@ func TestParseTimeErrors(t *testing.T) {
 }
 
 func TestFormatTime(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		secs float64
 		want string
@@ -83,6 +86,7 @@ func TestFormatTime(t *testing.T) {
 }
 
 func TestFormatTimeFilename(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		secs float64
 		want string

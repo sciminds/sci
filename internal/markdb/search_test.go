@@ -19,6 +19,7 @@ func searchTestStore(t *testing.T) *Store {
 }
 
 func TestSearchBodyMatch(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	hits, err := s.Search("databases", 50)
 	if err != nil {
@@ -33,6 +34,7 @@ func TestSearchBodyMatch(t *testing.T) {
 }
 
 func TestSearchPhraseMatch(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	hits, err := s.Search(`"deployment strategies"`, 50)
 	if err != nil {
@@ -47,6 +49,7 @@ func TestSearchPhraseMatch(t *testing.T) {
 }
 
 func TestSearchNoResults(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	hits, err := s.Search("xyznonexistent", 50)
 	if err != nil {
@@ -58,6 +61,7 @@ func TestSearchNoResults(t *testing.T) {
 }
 
 func TestSearchSnippet(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	hits, err := s.Search("cooking", 50)
 	if err != nil {
@@ -72,6 +76,7 @@ func TestSearchSnippet(t *testing.T) {
 }
 
 func TestSearchFrontmatter(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	// "golang" appears only in frontmatter tags.
 	hits, err := s.Search("golang", 50)
@@ -87,6 +92,7 @@ func TestSearchFrontmatter(t *testing.T) {
 }
 
 func TestSearchRanked(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	// "guide" appears in beta's title and body.
 	hits, err := s.Search("guide", 50)
@@ -105,6 +111,7 @@ func TestSearchRanked(t *testing.T) {
 }
 
 func TestSearchFTSSpecialChars(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 
 	// Queries with FTS5 special characters must not return errors — the
@@ -133,6 +140,7 @@ func TestSearchFTSSpecialChars(t *testing.T) {
 }
 
 func TestSearchEmptyQuery(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	hits, err := s.Search("", 50)
 	if err != nil {
@@ -144,6 +152,7 @@ func TestSearchEmptyQuery(t *testing.T) {
 }
 
 func TestSearchWhitespaceOnly(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	hits, err := s.Search("   ", 50)
 	if err != nil {
@@ -155,6 +164,7 @@ func TestSearchWhitespaceOnly(t *testing.T) {
 }
 
 func TestSearchPhrasePreserved(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	// Balanced quotes should be passed through as an FTS5 phrase query.
 	// "deployment strategies" is a phrase that only appears in beta.md.
@@ -177,6 +187,7 @@ func TestSearchPhrasePreserved(t *testing.T) {
 }
 
 func TestSearchLimitZero(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	hits, err := s.Search("databases", 0)
 	if err != nil {
@@ -189,6 +200,7 @@ func TestSearchLimitZero(t *testing.T) {
 }
 
 func TestSearchNegativeLimit(t *testing.T) {
+	t.Parallel()
 	s := searchTestStore(t)
 	hits, err := s.Search("databases", -5)
 	if err != nil {

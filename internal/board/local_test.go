@@ -33,6 +33,7 @@ func mkCachedEvent(id, author string, op Op, payload any) Event {
 }
 
 func TestLocalCacheEventsRoundTrip(t *testing.T) {
+	t.Parallel()
 	c := openTestCache(t)
 	ctx := context.Background()
 
@@ -70,6 +71,7 @@ func TestLocalCacheEventsRoundTrip(t *testing.T) {
 }
 
 func TestLocalCacheSince(t *testing.T) {
+	t.Parallel()
 	c := openTestCache(t)
 	ctx := context.Background()
 
@@ -90,6 +92,7 @@ func TestLocalCacheSince(t *testing.T) {
 }
 
 func TestLocalCacheIdempotentInsert(t *testing.T) {
+	t.Parallel()
 	c := openTestCache(t)
 	ctx := context.Background()
 
@@ -104,6 +107,7 @@ func TestLocalCacheIdempotentInsert(t *testing.T) {
 }
 
 func TestLocalCachePendingQueue(t *testing.T) {
+	t.Parallel()
 	c := openTestCache(t)
 	ctx := context.Background()
 
@@ -142,6 +146,7 @@ func TestLocalCachePendingQueue(t *testing.T) {
 }
 
 func TestLocalCacheSyncState(t *testing.T) {
+	t.Parallel()
 	c := openTestCache(t)
 	ctx := context.Background()
 
@@ -178,6 +183,7 @@ func TestLocalCacheSyncState(t *testing.T) {
 }
 
 func TestLocalCacheBoardMeta(t *testing.T) {
+	t.Parallel()
 	c := openTestCache(t)
 	ctx := context.Background()
 
@@ -228,6 +234,7 @@ func TestLocalCacheBoardMeta(t *testing.T) {
 }
 
 func TestLocalCacheReopenPreservesState(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "board.db")
 	ctx := context.Background()
@@ -257,6 +264,7 @@ func TestLocalCacheReopenPreservesState(t *testing.T) {
 }
 
 func TestLocalCacheEmptySinceReturnsAll(t *testing.T) {
+	t.Parallel()
 	c := openTestCache(t)
 	ctx := context.Background()
 	got, err := c.LoadCachedEvents(ctx, "nonexistent", "")
@@ -269,6 +277,7 @@ func TestLocalCacheEmptySinceReturnsAll(t *testing.T) {
 }
 
 func TestLocalCacheSqlErrNoRowsIsPreserved(t *testing.T) {
+	t.Parallel()
 	// Sanity check that callers can detect missing-meta via errors.Is.
 	c := openTestCache(t)
 	ctx := context.Background()

@@ -3,6 +3,7 @@ package ui
 import "testing"
 
 func TestStatusRow(t *testing.T) {
+	t.Parallel()
 	got := StatusRow("✓", "all good")
 	if got == "" {
 		t.Error("StatusRow returned empty string")
@@ -14,6 +15,7 @@ func TestStatusRow(t *testing.T) {
 }
 
 func TestFooterBar(t *testing.T) {
+	t.Parallel()
 	t.Run("zero width returns left only", func(t *testing.T) {
 		got := FooterBar("left", "right", 0)
 		if got != "left" {

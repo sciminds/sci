@@ -3,6 +3,7 @@ package local
 import "testing"
 
 func TestScanEmptyCollections(t *testing.T) {
+	t.Parallel()
 	dir := buildFixture(t)
 	db, err := Open(dir)
 	if err != nil {
@@ -26,6 +27,7 @@ func TestScanEmptyCollections(t *testing.T) {
 }
 
 func TestScanStandaloneAttachments(t *testing.T) {
+	t.Parallel()
 	dir := buildFixture(t)
 	db, err := Open(dir)
 	if err != nil {
@@ -55,6 +57,7 @@ func TestScanStandaloneAttachments(t *testing.T) {
 }
 
 func TestScanStandaloneNotes(t *testing.T) {
+	t.Parallel()
 	dir := buildFixture(t)
 	db, err := Open(dir)
 	if err != nil {
@@ -79,6 +82,7 @@ func TestScanStandaloneNotes(t *testing.T) {
 }
 
 func TestScanUncollectedItems(t *testing.T) {
+	t.Parallel()
 	dir := buildFixture(t)
 	db, err := Open(dir)
 	if err != nil {
@@ -103,6 +107,7 @@ func TestScanUncollectedItems(t *testing.T) {
 }
 
 func TestScanUnusedTags(t *testing.T) {
+	t.Parallel()
 	dir := buildFixture(t)
 	db, err := Open(dir)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 )
 
 func TestCreateDryRun(t *testing.T) {
+	t.Parallel()
 	combos := []struct {
 		pkgManager string
 		docSystem  string
@@ -21,6 +22,7 @@ func TestCreateDryRun(t *testing.T) {
 	for _, tt := range combos {
 		name := tt.pkgManager + "+" + tt.docSystem
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			opts := CreateOptions{
 				Name:        "test-proj",
 				Dir:         t.TempDir(),
@@ -46,6 +48,7 @@ func TestCreateDryRun(t *testing.T) {
 }
 
 func TestCreateDirExists(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	opts := CreateOptions{
 		Name:       ".",

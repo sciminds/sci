@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -15,7 +16,10 @@ var (
 )
 
 // mockRunner records calls and returns preset results.
+// ListDetailed fans out BundleList across goroutines, so mutations to
+// listCalls must be guarded.
 type mockRunner struct {
+	mu           sync.Mutex
 	addCalls     []mockCall
 	removeCalls  []mockCall
 	installCalls []string
@@ -94,7 +98,9 @@ func (m *mockRunner) BundleCleanup(file string) (string, error) {
 }
 
 func (m *mockRunner) BundleList(file, pkgType string) ([]string, error) {
+	m.mu.Lock()
 	m.listCalls = append(m.listCalls, mockCall{file: file, pkgType: pkgType})
+	m.mu.Unlock()
 	return m.listResult, m.listErr
 }
 
@@ -140,6 +146,7 @@ func brewfile(t *testing.T, content string) string {
 }
 
 func TestAdd_HappyPath(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, `brew "existing"`)
 	m := &mockRunner{}
 
@@ -165,6 +172,7 @@ func TestAdd_HappyPath(t *testing.T) {
 }
 
 func TestAdd_WithType(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "")
 	m := &mockRunner{}
 
@@ -179,6 +187,7 @@ func TestAdd_WithType(t *testing.T) {
 }
 
 func TestAdd_RollbackOnInstallFailure(t *testing.T) {
+	t.Parallel()
 	original := `brew "existing"` + "\n"
 	bf := brewfile(t, original)
 	m := &mockRunner{installErr: errors.New("install failed")}
@@ -199,6 +208,7 @@ func TestAdd_RollbackOnInstallFailure(t *testing.T) {
 }
 
 func TestRemove_HappyPath(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, `brew "htop"`+"\n"+`brew "curl"`+"\n")
 	m := &mockRunner{}
 
@@ -222,6 +232,7 @@ func TestRemove_HappyPath(t *testing.T) {
 }
 
 func TestRemove_RollbackOnCleanupFailure(t *testing.T) {
+	t.Parallel()
 	original := `brew "htop"` + "\n" + `brew "curl"` + "\n"
 	bf := brewfile(t, original)
 	m := &mockRunner{cleanupErr: errors.New("cleanup failed")}
@@ -241,6 +252,7 @@ func TestRemove_RollbackOnCleanupFailure(t *testing.T) {
 }
 
 func TestInstall_HappyPath(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, `brew "htop"`)
 	m := &mockRunner{}
 
@@ -258,6 +270,7 @@ func TestInstall_HappyPath(t *testing.T) {
 }
 
 func TestList_HappyPath(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, `brew "htop"`+"\n"+`brew "curl"`)
 	m := &mockRunner{listResult: []string{"htop", "curl"}}
 
@@ -275,6 +288,7 @@ func TestList_HappyPath(t *testing.T) {
 }
 
 func TestList_WithType(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "")
 	m := &mockRunner{listResult: []string{"firefox"}}
 
@@ -289,6 +303,7 @@ func TestList_WithType(t *testing.T) {
 }
 
 func TestParseBrewInfo_Formulae(t *testing.T) {
+	t.Parallel()
 	jsonData := `{"formulae":[{"name":"htop","desc":"Improved top","versions":{"stable":"3.4.1"}},{"name":"curl","desc":"Get a file from an HTTP server","versions":{"stable":"8.9.1"}}],"casks":[]}`
 	pkgs, err := parseBrewInfo(jsonData, false)
 	if err != nil {
@@ -306,6 +321,7 @@ func TestParseBrewInfo_Formulae(t *testing.T) {
 }
 
 func TestParseBrewInfo_Casks(t *testing.T) {
+	t.Parallel()
 	jsonData := `{"formulae":[],"casks":[{"token":"firefox","desc":"Web browser","version":"149.0"}]}`
 	pkgs, err := parseBrewInfo(jsonData, true)
 	if err != nil {
@@ -323,6 +339,7 @@ func TestParseBrewInfo_Casks(t *testing.T) {
 }
 
 func TestListDetailed_HappyPath(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, `brew "htop"`+"\n"+`cask "firefox"`)
 	m := &mockRunner{
 		listResult: []string{"htop"},
@@ -344,6 +361,7 @@ func TestListDetailed_HappyPath(t *testing.T) {
 }
 
 func TestParseBundleCheck_Satisfied(t *testing.T) {
+	t.Parallel()
 	out := "The Brewfile's dependencies are satisfied.\n"
 	missing := parseBundleCheck(out)
 	if len(missing) != 0 {
@@ -352,6 +370,7 @@ func TestParseBundleCheck_Satisfied(t *testing.T) {
 }
 
 func TestParseBundleCheck_Missing(t *testing.T) {
+	t.Parallel()
 	out := `brew bundle can't satisfy your Brewfile's dependencies.
 → Cask visual-studio-code needs to be installed or updated.
 → Formula git needs to be installed or updated.
@@ -371,6 +390,7 @@ Satisfy missing dependencies with ` + "`brew bundle install`.\n"
 }
 
 func TestParseBundleCheck_UVTools(t *testing.T) {
+	t.Parallel()
 	out := `brew bundle can't satisfy your Brewfile's dependencies.
 → uv Tool symbex needs to be installed.
 → uv Tool sqlite-utils needs to be installed.
@@ -390,6 +410,7 @@ Satisfy missing dependencies with ` + "`brew bundle install`.\n"
 }
 
 func TestUpdate_UpgradesOutdated(t *testing.T) {
+	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
 			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
@@ -417,6 +438,7 @@ func TestUpdate_UpgradesOutdated(t *testing.T) {
 }
 
 func TestUpdate_CheckOnly(t *testing.T) {
+	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
 			{Name: "curl", InstalledVersion: "8.8.0", CurrentVersion: "8.9.0"},
@@ -443,6 +465,7 @@ func TestUpdate_CheckOnly(t *testing.T) {
 }
 
 func TestUpdate_NothingOutdated(t *testing.T) {
+	t.Parallel()
 	m := &mockRunner{}
 
 	result, err := Update(m, false)
@@ -459,6 +482,7 @@ func TestUpdate_NothingOutdated(t *testing.T) {
 }
 
 func TestUpdate_IncludesUVOutdated(t *testing.T) {
+	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
 			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
@@ -487,6 +511,7 @@ func TestUpdate_IncludesUVOutdated(t *testing.T) {
 }
 
 func TestUpdate_CheckOnly_IncludesUV(t *testing.T) {
+	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
 			{Name: "curl", InstalledVersion: "8.8.0", CurrentVersion: "8.9.0"},
@@ -513,6 +538,7 @@ func TestUpdate_CheckOnly_IncludesUV(t *testing.T) {
 }
 
 func TestUpdate_OnlyUVOutdated(t *testing.T) {
+	t.Parallel()
 	m := &mockRunner{
 		uvOutdatedResult: []OutdatedPackage{
 			{Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
@@ -537,6 +563,7 @@ func TestUpdate_OnlyUVOutdated(t *testing.T) {
 }
 
 func TestUpdate_UpdateFails(t *testing.T) {
+	t.Parallel()
 	m := &mockRunner{updateErr: errors.New("network error")}
 
 	_, err := Update(m, false)
@@ -549,6 +576,7 @@ func TestUpdate_UpdateFails(t *testing.T) {
 }
 
 func TestParseOutdated(t *testing.T) {
+	t.Parallel()
 	jsonData := `{"formulae":[{"name":"htop","installed_versions":["3.3.0"],"current_version":"3.4.0","pinned":false}],"casks":[{"name":"firefox","installed_versions":["130.0"],"current_version":"131.0"}]}`
 	pkgs, err := parseOutdated(jsonData)
 	if err != nil {
@@ -566,6 +594,7 @@ func TestParseOutdated(t *testing.T) {
 }
 
 func TestParseOutdated_Empty(t *testing.T) {
+	t.Parallel()
 	pkgs, err := parseOutdated("")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -576,6 +605,7 @@ func TestParseOutdated_Empty(t *testing.T) {
 }
 
 func TestParseUVOutdated(t *testing.T) {
+	t.Parallel()
 	output := `huggingface-hub v0.36.2 [latest: 1.9.2]
 - hf
 - huggingface-cli
@@ -602,6 +632,7 @@ scipy v0.1.0 [latest: 1.17.1]
 }
 
 func TestParseUVOutdated_Empty(t *testing.T) {
+	t.Parallel()
 	pkgs := parseUVOutdated("")
 	if len(pkgs) != 0 {
 		t.Errorf("expected 0 packages, got %d", len(pkgs))
@@ -609,6 +640,7 @@ func TestParseUVOutdated_Empty(t *testing.T) {
 }
 
 func TestParseUVToolList(t *testing.T) {
+	t.Parallel()
 	output := `huggingface-hub v0.36.2
 - hf
 - huggingface-cli
@@ -631,6 +663,7 @@ ruff v0.15.9
 }
 
 func TestParseUVToolList_Empty(t *testing.T) {
+	t.Parallel()
 	names := parseUVToolList("")
 	if len(names) != 0 {
 		t.Errorf("expected 0 names, got %d", len(names))
@@ -638,6 +671,7 @@ func TestParseUVToolList_Empty(t *testing.T) {
 }
 
 func TestParseUVToolList_OnlyExecutables(t *testing.T) {
+	t.Parallel()
 	output := `- marimo
 - ruff
 `
@@ -648,6 +682,7 @@ func TestParseUVToolList_OnlyExecutables(t *testing.T) {
 }
 
 func TestParseUVOutdated_NoneOutdated(t *testing.T) {
+	t.Parallel()
 	// When nothing is outdated, uv outputs tool list without [latest: ...] markers
 	output := `marimo v0.22.4
 - marimo
@@ -661,6 +696,7 @@ ruff v0.15.9
 }
 
 func TestSyncResult_Human_NoChanges(t *testing.T) {
+	t.Parallel()
 	r := SyncResult{}
 	if got := r.Human(); got != "" {
 		t.Errorf("got %q, want empty", got)
@@ -668,6 +704,7 @@ func TestSyncResult_Human_NoChanges(t *testing.T) {
 }
 
 func TestSyncResult_Human_Added(t *testing.T) {
+	t.Parallel()
 	r := SyncResult{Added: 3, AddedNames: []string{"a", "b", "c"}}
 	want := "Synced Brewfile (added 3)\n"
 	if got := r.Human(); got != want {
@@ -676,6 +713,7 @@ func TestSyncResult_Human_Added(t *testing.T) {
 }
 
 func TestSyncResult_Human_Removed(t *testing.T) {
+	t.Parallel()
 	r := SyncResult{Removed: 2, RemovedNames: []string{"x", "y"}}
 	want := "Synced Brewfile (removed 2)\n"
 	if got := r.Human(); got != want {
@@ -684,6 +722,7 @@ func TestSyncResult_Human_Removed(t *testing.T) {
 }
 
 func TestSyncResult_Human_Both(t *testing.T) {
+	t.Parallel()
 	r := SyncResult{Added: 3, Removed: 2}
 	want := "Synced Brewfile (added 3, removed 2)\n"
 	if got := r.Human(); got != want {
@@ -692,6 +731,7 @@ func TestSyncResult_Human_Both(t *testing.T) {
 }
 
 func TestSync_NoChanges(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\n")
 	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
 
@@ -705,6 +745,7 @@ func TestSync_NoChanges(t *testing.T) {
 }
 
 func TestSync_AddsBrewEntries(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\n")
 	m := &mockRunner{dumpContent: "brew \"htop\"\nbrew \"curl\"\n"}
 
@@ -723,6 +764,7 @@ func TestSync_AddsBrewEntries(t *testing.T) {
 }
 
 func TestSync_AddsUVEntries(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "")
 	m := &mockRunner{uvToolListResult: []string{"ruff"}}
 
@@ -741,6 +783,7 @@ func TestSync_AddsUVEntries(t *testing.T) {
 }
 
 func TestSync_RemovesBrewEntries(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\nbrew \"wget\"\n")
 	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
 
@@ -759,6 +802,7 @@ func TestSync_RemovesBrewEntries(t *testing.T) {
 }
 
 func TestSync_RemovesUVEntries(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "uv \"ruff\"\nuv \"marimo\"\n")
 	m := &mockRunner{uvToolListResult: []string{"marimo"}}
 
@@ -780,6 +824,7 @@ func TestSync_RemovesUVEntries(t *testing.T) {
 }
 
 func TestSync_Bidirectional(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\nuv \"ruff\"\n")
 	m := &mockRunner{
 		dumpContent:      "brew \"htop\"\nbrew \"curl\"\n",
@@ -799,6 +844,7 @@ func TestSync_Bidirectional(t *testing.T) {
 }
 
 func TestSync_DumpError(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "")
 	m := &mockRunner{dumpErr: errors.New("dump failed")}
 
@@ -809,6 +855,7 @@ func TestSync_DumpError(t *testing.T) {
 }
 
 func TestSync_UVListError(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "")
 	m := &mockRunner{uvToolListErr: errors.New("uv failed")}
 
@@ -819,6 +866,7 @@ func TestSync_UVListError(t *testing.T) {
 }
 
 func TestSync_IgnoresUnscannableTypes(t *testing.T) {
+	t.Parallel()
 	// go and cargo entries in Brewfile should not be removed even if not detected
 	bf := brewfile(t, "brew \"htop\"\ngo \"github.com/foo/bar\"\ncargo \"ripgrep\"\n")
 	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
@@ -838,6 +886,7 @@ func TestSync_IgnoresUnscannableTypes(t *testing.T) {
 }
 
 func TestRemoveEntries_HappyPath(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\ncask \"firefox\"\nbrew \"curl\"\nuv \"ruff\"\n")
 	toRemove := []BrewfileEntry{
 		{Type: "cask", Name: "firefox"},
@@ -861,6 +910,7 @@ func TestRemoveEntries_HappyPath(t *testing.T) {
 }
 
 func TestRemoveEntries_NoMatch(t *testing.T) {
+	t.Parallel()
 	original := "brew \"htop\"\nbrew \"curl\"\n"
 	bf := brewfile(t, original)
 	toRemove := []BrewfileEntry{
@@ -882,6 +932,7 @@ func TestRemoveEntries_NoMatch(t *testing.T) {
 }
 
 func TestRemoveEntries_PreservesComments(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "# My tools\nbrew \"htop\"\n\nbrew \"curl\"\n# end\n")
 	toRemove := []BrewfileEntry{
 		{Type: "brew", Name: "curl"},
@@ -900,6 +951,7 @@ func TestRemoveEntries_PreservesComments(t *testing.T) {
 }
 
 func TestParseBrewfileEntries_MalformedLines(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -952,6 +1004,7 @@ func TestParseBrewfileEntries_MalformedLines(t *testing.T) {
 }
 
 func TestParseBrewfileEntries_VersionPinned(t *testing.T) {
+	t.Parallel()
 	entries := ParseBrewfileEntries(`brew "python@3.12"` + "\n")
 	if len(entries) != 1 {
 		t.Fatalf("got %d entries, want 1", len(entries))
@@ -965,6 +1018,7 @@ func TestParseBrewfileEntries_VersionPinned(t *testing.T) {
 }
 
 func TestParseBrewfileEntries_BracketStripped(t *testing.T) {
+	t.Parallel()
 	entries := ParseBrewfileEntries(`uv "marimo[recommended]"` + "\n")
 	if len(entries) != 1 {
 		t.Fatalf("got %d entries, want 1", len(entries))
@@ -975,6 +1029,7 @@ func TestParseBrewfileEntries_BracketStripped(t *testing.T) {
 }
 
 func TestBrewfileEntry_Label(t *testing.T) {
+	t.Parallel()
 	e := BrewfileEntry{Type: "brew", Name: "git"}
 	if got := e.Label(); got != "git (brew)" {
 		t.Errorf("Label() = %q, want %q", got, "git (brew)")
@@ -986,6 +1041,7 @@ func TestBrewfileEntry_Label(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestIsBundleCheckOutput_MissingDeps(t *testing.T) {
+	t.Parallel()
 	out := "→ Formula git needs to be installed or updated.\n→ Cask firefox needs to be installed or updated.\n"
 	if !isBundleCheckOutput(out) {
 		t.Error("expected true for output with missing deps")
@@ -993,6 +1049,7 @@ func TestIsBundleCheckOutput_MissingDeps(t *testing.T) {
 }
 
 func TestIsBundleCheckOutput_Satisfied(t *testing.T) {
+	t.Parallel()
 	out := "The Brewfile's dependencies are satisfied.\n"
 	if !isBundleCheckOutput(out) {
 		t.Error("expected true for satisfied output")
@@ -1000,6 +1057,7 @@ func TestIsBundleCheckOutput_Satisfied(t *testing.T) {
 }
 
 func TestIsBundleCheckOutput_RealError(t *testing.T) {
+	t.Parallel()
 	out := "Error: No such file or directory @ rb_check_realpath_internal\n"
 	if isBundleCheckOutput(out) {
 		t.Error("expected false for a real error message")
@@ -1007,6 +1065,7 @@ func TestIsBundleCheckOutput_RealError(t *testing.T) {
 }
 
 func TestIsBundleCheckOutput_Empty(t *testing.T) {
+	t.Parallel()
 	if isBundleCheckOutput("") {
 		t.Error("expected false for empty output")
 	}
@@ -1017,6 +1076,7 @@ func TestIsBundleCheckOutput_Empty(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUpgradeOnly_HappyPath(t *testing.T) {
+	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
 			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
@@ -1047,6 +1107,7 @@ func TestUpgradeOnly_HappyPath(t *testing.T) {
 }
 
 func TestUpgradeOnly_NothingOutdated(t *testing.T) {
+	t.Parallel()
 	m := &mockRunner{}
 
 	result, err := UpgradeOnly(m)
@@ -1066,6 +1127,7 @@ func TestUpgradeOnly_NothingOutdated(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSync_AdditionsAreSorted(t *testing.T) {
+	t.Parallel()
 	bf := brewfile(t, "")
 	// Dump returns packages in a specific order — Sync should sort additions
 	// so the Brewfile is deterministic regardless of map iteration order.
@@ -1094,6 +1156,7 @@ func TestSync_AdditionsAreSorted(t *testing.T) {
 }
 
 func TestExpandPath(t *testing.T) {
+	t.Parallel()
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatal(err)

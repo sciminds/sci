@@ -9,6 +9,7 @@ import (
 )
 
 func TestCleanDate(t *testing.T) {
+	t.Parallel()
 	tests := map[string]string{
 		"":                          "",
 		"2024":                      "2024",
@@ -25,6 +26,7 @@ func TestCleanDate(t *testing.T) {
 }
 
 func TestListResult_Empty(t *testing.T) {
+	t.Parallel()
 	r := ListResult{Count: 0}
 	if !strings.Contains(r.Human(), "no items") {
 		t.Errorf("empty ListResult.Human() = %q", r.Human())
@@ -37,6 +39,7 @@ func TestListResult_Empty(t *testing.T) {
 }
 
 func TestListResult_Populated(t *testing.T) {
+	t.Parallel()
 	r := ListResult{
 		Count: 2,
 		Items: []local.Item{
@@ -75,6 +78,7 @@ func TestListResult_Populated(t *testing.T) {
 }
 
 func TestListResult_JSONRoundTrip(t *testing.T) {
+	t.Parallel()
 	r := ListResult{Count: 1, Library: 42, Items: []local.Item{{Key: "X"}}}
 	b, err := json.Marshal(r.JSON())
 	if err != nil {
@@ -86,6 +90,7 @@ func TestListResult_JSONRoundTrip(t *testing.T) {
 }
 
 func TestItemResult_Human(t *testing.T) {
+	t.Parallel()
 	r := ItemResult{Item: local.Item{
 		Key:   "ABC12345",
 		Type:  "journalArticle",
@@ -121,6 +126,7 @@ func TestItemResult_Human(t *testing.T) {
 }
 
 func TestItemResult_JSONIsItem(t *testing.T) {
+	t.Parallel()
 	// ItemResult.JSON() returns the inner Item so callers see the same
 	// shape as the underlying local package — verify that contract.
 	r := ItemResult{Item: local.Item{Key: "ABC12345"}}
@@ -131,6 +137,7 @@ func TestItemResult_JSONIsItem(t *testing.T) {
 }
 
 func TestItemResult_Untitled(t *testing.T) {
+	t.Parallel()
 	r := ItemResult{Item: local.Item{Key: "X", Type: "book"}}
 	if !strings.Contains(r.Human(), "(untitled)") {
 		t.Errorf("missing untitled fallback")
@@ -138,6 +145,7 @@ func TestItemResult_Untitled(t *testing.T) {
 }
 
 func TestStatsResult_Human(t *testing.T) {
+	t.Parallel()
 	r := StatsResult{
 		DataDir: "/home/u/Zotero",
 		Schema:  125,
@@ -165,6 +173,7 @@ func TestStatsResult_Human(t *testing.T) {
 }
 
 func TestExportResult(t *testing.T) {
+	t.Parallel()
 	r := ExportResult{Key: "K", Format: "bibtex", Body: "@article{K,}\n"}
 	if r.Human() != "@article{K,}\n\n" {
 		t.Errorf("Human = %q", r.Human())
@@ -176,6 +185,7 @@ func TestExportResult(t *testing.T) {
 }
 
 func TestOpenResult(t *testing.T) {
+	t.Parallel()
 	// Launched = success symbol.
 	r := OpenResult{Key: "K", Path: "/tmp/p.pdf", Launched: true, Message: "opened"}
 	if !strings.Contains(r.Human(), "opened") || !strings.Contains(r.Human(), "/tmp/p.pdf") {
@@ -190,6 +200,7 @@ func TestOpenResult(t *testing.T) {
 }
 
 func TestWriteResult(t *testing.T) {
+	t.Parallel()
 	r := WriteResult{Action: "trashed", Kind: "item", Target: "ABC12345"}
 	if !strings.Contains(r.Human(), "trashed item ABC12345") {
 		t.Errorf("default Human = %q", r.Human())
@@ -202,6 +213,7 @@ func TestWriteResult(t *testing.T) {
 }
 
 func TestSetupResult(t *testing.T) {
+	t.Parallel()
 	r := SetupResult{OK: true, LibraryID: "42", DataDir: "/z", Message: "configured"}
 	out := r.Human()
 	for _, want := range []string{"configured", "42", "/z"} {

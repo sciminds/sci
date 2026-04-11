@@ -8,6 +8,7 @@ import (
 )
 
 func TestEventPayloadRoundTrip(t *testing.T) {
+	t.Parallel()
 	due := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	title := "New title"
 
@@ -59,6 +60,7 @@ func TestEventPayloadRoundTrip(t *testing.T) {
 }
 
 func TestDecodeUnknownOp(t *testing.T) {
+	t.Parallel()
 	e := Event{ID: "01HX", Op: Op("mystery.op"), Payload: []byte("{}")}
 	_, err := DecodePayload(e)
 	if err == nil {
@@ -74,6 +76,7 @@ func TestDecodeUnknownOp(t *testing.T) {
 }
 
 func TestEventULIDOrdering(t *testing.T) {
+	t.Parallel()
 	// ULIDs are lexicographically sortable — sorting by ID == sorting by time.
 	// We don't need a real ULID library here; the test asserts the contract
 	// that Apply will rely on: lex sort matches insertion order for our IDs.

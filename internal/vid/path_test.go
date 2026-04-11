@@ -7,6 +7,7 @@ import (
 )
 
 func TestOutputPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		input  string
@@ -54,6 +55,7 @@ func TestOutputPath(t *testing.T) {
 }
 
 func TestOutputPathCollision(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	existing := filepath.Join(dir, "video_muted.mp4")
 	if err := os.WriteFile(existing, []byte("x"), 0o644); err != nil {

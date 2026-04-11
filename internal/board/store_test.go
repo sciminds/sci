@@ -123,6 +123,7 @@ func newTestStore(t *testing.T) (*Store, *fakeObjectStore) {
 }
 
 func TestStoreCreateAndListBoards(t *testing.T) {
+	t.Parallel()
 	s, _ := newTestStore(t)
 	ctx := context.Background()
 
@@ -144,6 +145,7 @@ func TestStoreCreateAndListBoards(t *testing.T) {
 }
 
 func TestStoreCreateBoardDuplicateFails(t *testing.T) {
+	t.Parallel()
 	s, _ := newTestStore(t)
 	ctx := context.Background()
 	_ = s.CreateBoard(ctx, "b", "B", "", nil)
@@ -154,6 +156,7 @@ func TestStoreCreateBoardDuplicateFails(t *testing.T) {
 }
 
 func TestStoreLoadEmptyBoard(t *testing.T) {
+	t.Parallel()
 	s, _ := newTestStore(t)
 	ctx := context.Background()
 	cols := []Column{{ID: "c1", Title: "Todo"}}
@@ -169,6 +172,7 @@ func TestStoreLoadEmptyBoard(t *testing.T) {
 }
 
 func TestStoreLoadNonexistent(t *testing.T) {
+	t.Parallel()
 	s, _ := newTestStore(t)
 	_, err := s.Load(context.Background(), "ghost")
 	if !errors.Is(err, ErrBoardNotFound) {
@@ -177,6 +181,7 @@ func TestStoreLoadNonexistent(t *testing.T) {
 }
 
 func TestStoreAppendAndLoad(t *testing.T) {
+	t.Parallel()
 	s, _ := newTestStore(t)
 	ctx := context.Background()
 	_ = s.CreateBoard(ctx, "b", "Test", "", []Column{{ID: "c1", Title: "Todo"}})
@@ -201,6 +206,7 @@ func TestStoreAppendAndLoad(t *testing.T) {
 }
 
 func TestStoreAppendGranularPatches(t *testing.T) {
+	t.Parallel()
 	s, _ := newTestStore(t)
 	ctx := context.Background()
 	_ = s.CreateBoard(ctx, "b", "T", "", []Column{{ID: "c1", Title: "Todo"}})
@@ -219,6 +225,7 @@ func TestStoreAppendGranularPatches(t *testing.T) {
 }
 
 func TestStoreAppendQueuesOnUploadFailure(t *testing.T) {
+	t.Parallel()
 	s, obj := newTestStore(t)
 	ctx := context.Background()
 	_ = s.CreateBoard(ctx, "b", "T", "", []Column{{ID: "c1", Title: "Todo"}})
@@ -254,6 +261,7 @@ func TestStoreAppendQueuesOnUploadFailure(t *testing.T) {
 }
 
 func TestStorePoll(t *testing.T) {
+	t.Parallel()
 	s, _ := newTestStore(t)
 	ctx := context.Background()
 	_ = s.CreateBoard(ctx, "b", "T", "", []Column{{ID: "c1", Title: "Todo"}})
@@ -284,6 +292,7 @@ func TestStorePoll(t *testing.T) {
 }
 
 func TestStoreSnapshotRoundTrip(t *testing.T) {
+	t.Parallel()
 	s, obj := newTestStore(t)
 	ctx := context.Background()
 	_ = s.CreateBoard(ctx, "b", "T", "", []Column{{ID: "c1", Title: "Todo"}})
@@ -318,6 +327,7 @@ func TestStoreSnapshotRoundTrip(t *testing.T) {
 }
 
 func TestStoreDeleteBoard(t *testing.T) {
+	t.Parallel()
 	s, obj := newTestStore(t)
 	ctx := context.Background()
 	_ = s.CreateBoard(ctx, "b", "T", "", []Column{{ID: "c1", Title: "Todo"}})
@@ -340,6 +350,7 @@ func TestStoreDeleteBoard(t *testing.T) {
 }
 
 func TestStoreDeterministicFoldAcrossAuthors(t *testing.T) {
+	t.Parallel()
 	// Two clients writing to the same board produce the same Load result.
 	obj := newFakeObjectStore()
 

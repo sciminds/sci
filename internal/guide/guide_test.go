@@ -13,8 +13,8 @@ import (
 const (
 	testTermW = 100
 	testTermH = 30
-	testWait  = 2 * time.Second
-	testFinal = 3 * time.Second
+	testWait  = 5 * time.Second
+	testFinal = 8 * time.Second
 )
 
 // ── Shared helpers ──────────────────────────────────────────────────────────

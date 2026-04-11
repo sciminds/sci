@@ -8,6 +8,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/urfave/cli/v3"
 )
@@ -15,10 +16,17 @@ import (
 // categoryOrder defines the display order for command categories in root help.
 var categoryOrder = []string{"What Can I Do?", "Getting Started", "Commands", "Maintenance", "Experimental"}
 
+var setupHelpOnce sync.Once
+
 // SetupHelp configures styled help rendering on the root command.
 // In urfave/cli v3 this is done by replacing the HelpPrinter function.
+// Idempotent — safe to call concurrently from parallel tests, which is
+// why the write is guarded by sync.Once (the race detector flags even
+// same-value repeat writes to a package global).
 func SetupHelp(root *cli.Command) {
-	cli.HelpPrinterCustom = renderHelpCustom
+	setupHelpOnce.Do(func() {
+		cli.HelpPrinterCustom = renderHelpCustom
+	})
 }
 
 func renderHelpCustom(w io.Writer, templ string, data any, fm map[string]any) {

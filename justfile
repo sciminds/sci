@@ -51,6 +51,13 @@ check: tidy fmt vet lint test build
 ok: check
     @echo "All checks passed."
 
+# Like `ok` but also runs proj/new integration tests (SLOW=1).
+# Requires pixi, uv, quarto, marimo, typst, node on PATH.
+# Does NOT run test-canvas / test-board-live / test-zot-real — those need
+# credentials or live infra and stay opt-in.
+ok-slow: tidy fmt vet lint test test-slow build
+    @echo "All checks (incl. slow) passed."
+
 clean:
     rm -f sci dbtui markdb zot boarddemo
 

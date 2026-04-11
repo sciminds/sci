@@ -6,6 +6,7 @@ import (
 )
 
 func TestOpenMemory(t *testing.T) {
+	t.Parallel()
 	db, err := OpenMemory()
 	if err != nil {
 		t.Fatal(err)
@@ -22,6 +23,7 @@ func TestOpenMemory(t *testing.T) {
 }
 
 func TestOpenFile(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "test.db")
 	db, err := OpenFile(path)
 	if err != nil {
@@ -47,6 +49,7 @@ func TestOpenFile(t *testing.T) {
 }
 
 func TestConcurrentReads(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "concurrent.db")
 	db, err := OpenFile(path)
 	if err != nil {
@@ -80,6 +83,7 @@ func TestConcurrentReads(t *testing.T) {
 }
 
 func TestMmapPragmaSet(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "mmap.db")
 	db, err := OpenFile(path)
 	if err != nil {

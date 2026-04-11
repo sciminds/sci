@@ -8,6 +8,7 @@ import (
 )
 
 func TestInvalid_FromFieldValues(t *testing.T) {
+	t.Parallel()
 	// Bypass the DB entirely — exercise the orchestrator over a
 	// hand-built slice of FieldValue rows covering all four validators
 	// with both valid and invalid cases.
@@ -52,6 +53,7 @@ func TestInvalid_FromFieldValues(t *testing.T) {
 }
 
 func TestInvalid_RealLibrary(t *testing.T) {
+	t.Parallel()
 	// SLOW-gated for parity with the other real-library tests. The
 	// orchestrator is already covered by TestInvalid_FromFieldValues;
 	// this one exists to eyeball bad-value counts on a real library.
@@ -79,6 +81,7 @@ func testingSlowEnabled() bool {
 }
 
 func TestInvalid_IgnoresUnknownFields(t *testing.T) {
+	t.Parallel()
 	// Fields outside our validator set must pass through without
 	// error and without generating findings.
 	rows := []local.FieldValue{
@@ -92,6 +95,7 @@ func TestInvalid_IgnoresUnknownFields(t *testing.T) {
 }
 
 func TestValidateDOI(t *testing.T) {
+	t.Parallel()
 	valid := []string{
 		"10.1000/abc123",
 		"10.1016/j.conb.2014.07.014",
@@ -120,6 +124,7 @@ func TestValidateDOI(t *testing.T) {
 }
 
 func TestValidateDOI_StripsPrefix(t *testing.T) {
+	t.Parallel()
 	// Real-world DOIs are sometimes stored with a URL prefix. The
 	// validator should accept them (Zotero itself does this).
 	cases := []string{
@@ -135,6 +140,7 @@ func TestValidateDOI_StripsPrefix(t *testing.T) {
 }
 
 func TestValidateISBN(t *testing.T) {
+	t.Parallel()
 	valid := []string{
 		"0306406152",    // ISBN-10, valid checksum
 		"0-306-40615-2", // same, with hyphens
@@ -162,6 +168,7 @@ func TestValidateISBN(t *testing.T) {
 }
 
 func TestValidateURL(t *testing.T) {
+	t.Parallel()
 	valid := []string{
 		"https://example.org",
 		"http://example.org/path?q=1",
@@ -187,6 +194,7 @@ func TestValidateURL(t *testing.T) {
 }
 
 func TestValidateDate(t *testing.T) {
+	t.Parallel()
 	// Zotero stores dates as "YYYY-MM-DD originalText" — validator
 	// should only look at the first token.
 	valid := []string{

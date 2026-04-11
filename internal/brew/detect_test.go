@@ -26,6 +26,7 @@ func (m *mockProber) ProbePyPI(pkg string) (bool, error) {
 }
 
 func TestDetect_FormulaOnly(t *testing.T) {
+	t.Parallel()
 	p := &mockProber{formulaResult: true}
 	matches, err := Detect(p, "htop")
 	if err != nil {
@@ -43,6 +44,7 @@ func TestDetect_FormulaOnly(t *testing.T) {
 }
 
 func TestDetect_CaskOnly(t *testing.T) {
+	t.Parallel()
 	p := &mockProber{caskResult: true}
 	matches, err := Detect(p, "firefox")
 	if err != nil {
@@ -57,6 +59,7 @@ func TestDetect_CaskOnly(t *testing.T) {
 }
 
 func TestDetect_UVOnly(t *testing.T) {
+	t.Parallel()
 	p := &mockProber{pypiResult: true}
 	matches, err := Detect(p, "marimo")
 	if err != nil {
@@ -71,6 +74,7 @@ func TestDetect_UVOnly(t *testing.T) {
 }
 
 func TestDetect_MultipleMatches_PriorityOrder(t *testing.T) {
+	t.Parallel()
 	p := &mockProber{formulaResult: true, caskResult: true, pypiResult: true}
 	matches, err := Detect(p, "rg")
 	if err != nil {
@@ -92,6 +96,7 @@ func TestDetect_MultipleMatches_PriorityOrder(t *testing.T) {
 }
 
 func TestDetect_FormulaCask_PriorityOrder(t *testing.T) {
+	t.Parallel()
 	p := &mockProber{formulaResult: true, caskResult: true}
 	matches, err := Detect(p, "firefox")
 	if err != nil {
@@ -109,6 +114,7 @@ func TestDetect_FormulaCask_PriorityOrder(t *testing.T) {
 }
 
 func TestDetect_NoMatch(t *testing.T) {
+	t.Parallel()
 	p := &mockProber{}
 	matches, err := Detect(p, "notarealpackage")
 	if err != nil {
@@ -120,6 +126,7 @@ func TestDetect_NoMatch(t *testing.T) {
 }
 
 func TestDetect_ProbeErrorsAreNotFatal(t *testing.T) {
+	t.Parallel()
 	// If a probe errors, it's treated as "not found" — not a fatal error.
 	p := &mockProber{
 		formulaErr: errors.New("brew not responding"),
@@ -138,6 +145,7 @@ func TestDetect_ProbeErrorsAreNotFatal(t *testing.T) {
 }
 
 func TestDetect_AllProbesFail(t *testing.T) {
+	t.Parallel()
 	// All probes error → still no fatal error, just 0 matches.
 	p := &mockProber{
 		formulaErr: errors.New("fail"),

@@ -6,6 +6,7 @@ import (
 )
 
 func TestParseOrphanKind(t *testing.T) {
+	t.Parallel()
 	for _, k := range AllOrphanKinds {
 		got, err := ParseOrphanKind(string(k))
 		if err != nil {
@@ -21,6 +22,7 @@ func TestParseOrphanKind(t *testing.T) {
 }
 
 func TestSeverityForOrphan(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		kind OrphanKind
 		want Severity
@@ -40,6 +42,7 @@ func TestSeverityForOrphan(t *testing.T) {
 }
 
 func TestOrphans_RealLibrary(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("SLOW") == "" {
 		t.Skip("set SLOW=1 to run real-library orphans scan")
 	}
@@ -70,6 +73,7 @@ func TestOrphans_RealLibrary(t *testing.T) {
 }
 
 func TestOrphansKindsSelected(t *testing.T) {
+	t.Parallel()
 	// Nil selection = default kinds (excludes uncollected-item and
 	// missing-file). Subset selection = exactly those kinds.
 	def := orphanKindsSelected(nil)

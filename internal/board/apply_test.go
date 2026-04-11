@@ -43,6 +43,7 @@ func baseBoard() Board {
 }
 
 func TestApplyBoardCreate(t *testing.T) {
+	t.Parallel()
 	b := Board{BoardMeta: BoardMeta{ID: "b"}}
 	ts := time.Date(2026, 4, 1, 10, 0, 0, 0, time.UTC)
 	e := mkEvent(t, "01", "esh", ts, OpBoardCreate, BoardCreatePayload{
@@ -63,6 +64,7 @@ func TestApplyBoardCreate(t *testing.T) {
 }
 
 func TestApplyCardAdd(t *testing.T) {
+	t.Parallel()
 	b := baseBoard()
 	ts := time.Date(2026, 4, 2, 9, 0, 0, 0, time.UTC)
 	e := mkEvent(t, "01", "esh", ts, OpCardAdd, CardAddPayload{
@@ -82,6 +84,7 @@ func TestApplyCardAdd(t *testing.T) {
 }
 
 func TestApplyCardAddDuplicateIsNoop(t *testing.T) {
+	t.Parallel()
 	b := baseBoard()
 	ts := time.Now()
 	add := mkEvent(t, "01", "esh", ts, OpCardAdd, CardAddPayload{
@@ -98,6 +101,7 @@ func TestApplyCardAddDuplicateIsNoop(t *testing.T) {
 }
 
 func TestApplyCardPatchFieldIndependence(t *testing.T) {
+	t.Parallel()
 	// Alice patches title at t=1; Bob patches description at t=2.
 	// Both must survive — the whole point of granular ops.
 	b := baseBoard()
@@ -128,6 +132,7 @@ func TestApplyCardPatchFieldIndependence(t *testing.T) {
 }
 
 func TestApplyCardPatchMissingIsNoop(t *testing.T) {
+	t.Parallel()
 	b := baseBoard()
 	title := "x"
 	e := mkEvent(t, "01", "esh", time.Now(), OpCardPatch, CardPatchPayload{ID: "nonexistent", Title: &title})
@@ -138,6 +143,7 @@ func TestApplyCardPatchMissingIsNoop(t *testing.T) {
 }
 
 func TestApplyCardMove(t *testing.T) {
+	t.Parallel()
 	b := baseBoard()
 	ts := time.Now()
 	b = apply(t, b, mkEvent(t, "01", "esh", ts, OpCardAdd, CardAddPayload{
@@ -152,6 +158,7 @@ func TestApplyCardMove(t *testing.T) {
 }
 
 func TestApplyCardDelete(t *testing.T) {
+	t.Parallel()
 	b := baseBoard()
 	ts := time.Now()
 	b = apply(t, b, mkEvent(t, "01", "esh", ts, OpCardAdd, CardAddPayload{Card: Card{ID: "k1", Column: "col1", Position: 1.0}}))
@@ -169,6 +176,7 @@ func TestApplyCardDelete(t *testing.T) {
 }
 
 func TestApplyColumnAddRenameDelete(t *testing.T) {
+	t.Parallel()
 	b := baseBoard()
 	ts := time.Now()
 	b = apply(t, b, mkEvent(t, "01", "esh", ts, OpColumnAdd, ColumnAddPayload{Column: Column{ID: "col3", Title: "Blocked"}}))
@@ -187,6 +195,7 @@ func TestApplyColumnAddRenameDelete(t *testing.T) {
 }
 
 func TestApplyColumnReorder(t *testing.T) {
+	t.Parallel()
 	b := baseBoard()
 	b = apply(t, b, mkEvent(t, "01", "esh", time.Now(), OpColumnAdd, ColumnAddPayload{Column: Column{ID: "col3", Title: "Blocked"}}))
 	// Reorder with a missing ID and leaving one out — both should be handled.
@@ -202,6 +211,7 @@ func TestApplyColumnReorder(t *testing.T) {
 }
 
 func TestApplyCommentAppendOnly(t *testing.T) {
+	t.Parallel()
 	b := baseBoard()
 	ts := time.Now()
 	b = apply(t, b, mkEvent(t, "01", "esh", ts, OpCardAdd, CardAddPayload{Card: Card{ID: "k1", Column: "col1", Position: 1.0}}))
@@ -222,6 +232,7 @@ func TestApplyCommentAppendOnly(t *testing.T) {
 }
 
 func TestApplyChecklistToggleAndDelete(t *testing.T) {
+	t.Parallel()
 	b := baseBoard()
 	ts := time.Now()
 	b = apply(t, b, mkEvent(t, "01", "esh", ts, OpCardAdd, CardAddPayload{Card: Card{ID: "k1", Column: "col1", Position: 1.0}}))
@@ -249,6 +260,7 @@ func TestApplyChecklistToggleAndDelete(t *testing.T) {
 // confirm the result is always identical. This is the property that lets us
 // trust concurrent clients will converge.
 func TestApplyDeterminism(t *testing.T) {
+	t.Parallel()
 	events := buildFixtureEvents(t)
 
 	// Canonical fold: sort by ID and fold in order.
@@ -316,6 +328,7 @@ func boardsEqual(a, b Board) bool {
 }
 
 func TestApplyMalformedPayloadReturnsError(t *testing.T) {
+	t.Parallel()
 	e := Event{ID: "01", Op: OpCardAdd, Payload: []byte(`{"card": "not an object"}`)}
 	_, err := Apply(Board{}, e)
 	if err == nil {

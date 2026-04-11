@@ -6,6 +6,7 @@ import (
 )
 
 func TestAudioExt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		format  string
 		wantExt string
@@ -36,6 +37,7 @@ func TestAudioExt(t *testing.T) {
 }
 
 func TestConvertExt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		format  string
 		wantExt string
@@ -67,6 +69,7 @@ func TestConvertExt(t *testing.T) {
 }
 
 func TestInfoResultHuman(t *testing.T) {
+	t.Parallel()
 	r := InfoResult{
 		File: "video.mp4",
 		Info: ProbeInfo{
@@ -90,6 +93,7 @@ func TestInfoResultHuman(t *testing.T) {
 }
 
 func TestInfoResultHumanNoAudioNoSubs(t *testing.T) {
+	t.Parallel()
 	r := InfoResult{
 		File: "clip.mov",
 		Info: ProbeInfo{

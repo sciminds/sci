@@ -34,6 +34,7 @@ func ingestTestStore(t *testing.T) (*Store, string) {
 }
 
 func TestIngestSingleFile(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "# Hello\nWorld")
@@ -63,6 +64,7 @@ func TestIngestSingleFile(t *testing.T) {
 }
 
 func TestIngestNestedDirs(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "sub/deep/note.md", "nested")
@@ -83,6 +85,7 @@ func TestIngestNestedDirs(t *testing.T) {
 }
 
 func TestIngestSkipsDotDirs(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, ".git/config.md", "git config")
@@ -99,6 +102,7 @@ func TestIngestSkipsDotDirs(t *testing.T) {
 }
 
 func TestIngestSkipsNonMd(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "readme.txt", "text file")
@@ -115,6 +119,7 @@ func TestIngestSkipsNonMd(t *testing.T) {
 }
 
 func TestIngestUnchangedSkipped(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "content")
@@ -136,6 +141,7 @@ func TestIngestUnchangedSkipped(t *testing.T) {
 }
 
 func TestIngestChangedFile(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "version 1")
@@ -161,6 +167,7 @@ func TestIngestChangedFile(t *testing.T) {
 }
 
 func TestIngestDeletedFile(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "keep.md", "kept")
@@ -187,6 +194,7 @@ func TestIngestDeletedFile(t *testing.T) {
 }
 
 func TestIngestFrontmatterStored(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "---\ntitle: Hello\n---\nBody")
@@ -206,6 +214,7 @@ func TestIngestFrontmatterStored(t *testing.T) {
 }
 
 func TestIngestDynamicColumns(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "a.md", "---\ntitle: Post A\ncount: 10\n---\nBody A")
@@ -237,6 +246,7 @@ func TestIngestDynamicColumns(t *testing.T) {
 }
 
 func TestIngestMalformedYAML(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "bad.md", "---\n: [invalid\n---\nBody is fine")
@@ -263,6 +273,7 @@ func TestIngestMalformedYAML(t *testing.T) {
 }
 
 func TestIngestSourcesTable(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "content")
@@ -285,6 +296,7 @@ func TestIngestSourcesTable(t *testing.T) {
 }
 
 func TestIngestPlaintextFields(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "---\ntitle: Hello World\n---\n# Heading\nSome **bold** text")
@@ -304,6 +316,7 @@ func TestIngestPlaintextFields(t *testing.T) {
 }
 
 func TestIngestFTSPopulated(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "---\ntitle: UniqueSearchTerm\n---\nBody with anotherUniqueWord")

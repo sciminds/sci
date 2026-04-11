@@ -15,6 +15,7 @@ var (
 )
 
 func TestSQLiteStoreOpenClose(t *testing.T) {
+	t.Parallel()
 	store, err := OpenMemoryStore()
 	if err != nil {
 		t.Fatalf("OpenMemoryStore: %v", err)
@@ -25,6 +26,7 @@ func TestSQLiteStoreOpenClose(t *testing.T) {
 }
 
 func TestSQLiteStoreSetup(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	if store.db == nil {
 		t.Fatal("db is nil")
@@ -32,6 +34,7 @@ func TestSQLiteStoreSetup(t *testing.T) {
 }
 
 func TestTableNames(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	names, err := store.TableNames()
 	if err != nil {
@@ -44,6 +47,7 @@ func TestTableNames(t *testing.T) {
 }
 
 func TestTableColumns(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 
 	t.Run("penguins", func(t *testing.T) {
@@ -90,6 +94,7 @@ func TestTableColumns(t *testing.T) {
 }
 
 func TestTableRowCount(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	got, err := store.TableRowCount("penguins")
 	if err != nil {
@@ -108,6 +113,7 @@ func TestTableRowCount(t *testing.T) {
 }
 
 func TestTableSummaries(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	summaries, err := store.TableSummaries()
 	if err != nil {
@@ -125,6 +131,7 @@ func TestTableSummaries(t *testing.T) {
 }
 
 func TestQueryTable(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	colNames, rows, nullFlags, rowIDs, err := store.QueryTable("penguins")
 	if err != nil {
@@ -160,6 +167,7 @@ func TestQueryTable(t *testing.T) {
 }
 
 func TestReadOnlyQuery(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 
 	t.Run("basic", func(t *testing.T) {
@@ -220,6 +228,7 @@ func TestReadOnlyQuery(t *testing.T) {
 }
 
 func TestUpdateCell(t *testing.T) {
+	t.Parallel()
 	t.Run("by_rowid", func(t *testing.T) {
 		store := setupTestDB(t)
 		_, _, _, rowIDs, err := store.QueryTable("penguins")
@@ -275,6 +284,7 @@ func TestUpdateCell(t *testing.T) {
 }
 
 func TestDeleteRows(t *testing.T) {
+	t.Parallel()
 	t.Run("by_rowid", func(t *testing.T) {
 		store := setupTestDB(t)
 		_, _, _, rowIDs, err := store.QueryTable("penguins")
@@ -325,6 +335,7 @@ func TestDeleteRows(t *testing.T) {
 }
 
 func TestInsertRows(t *testing.T) {
+	t.Parallel()
 	t.Run("basic", func(t *testing.T) {
 		store := setupTestDB(t)
 		err := store.InsertRows("penguins",
@@ -386,6 +397,7 @@ func TestInsertRows(t *testing.T) {
 }
 
 func TestRenameTable(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	if err := store.RenameTable("penguins", "birds"); err != nil {
 		t.Fatalf("RenameTable: %v", err)
@@ -400,6 +412,7 @@ func TestRenameTable(t *testing.T) {
 }
 
 func TestDropTable(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	if err := store.DropTable("example"); err != nil {
 		t.Fatalf("DropTable: %v", err)
@@ -414,6 +427,7 @@ func TestDropTable(t *testing.T) {
 }
 
 func TestExportCSV(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	csvPath := t.TempDir() + "/out.csv"
 	if err := store.ExportCSV("example", csvPath); err != nil {
@@ -432,6 +446,7 @@ func TestExportCSV(t *testing.T) {
 }
 
 func TestImportCSV(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	csvPath := t.TempDir() + "/import.csv"
 	writeFile(t, csvPath, "x,y\n1,a\n2,b\n3,c\n")
@@ -445,6 +460,7 @@ func TestImportCSV(t *testing.T) {
 }
 
 func TestImportCSVStreaming(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	csvPath := t.TempDir() + "/big.csv"
 
@@ -490,6 +506,7 @@ func TestImportCSVStreaming(t *testing.T) {
 }
 
 func TestImportCSVEmpty(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	csvPath := t.TempDir() + "/empty.csv"
 	writeFile(t, csvPath, "x,y\n")
@@ -503,6 +520,7 @@ func TestImportCSVEmpty(t *testing.T) {
 }
 
 func TestImportCSV_InconsistentFieldCount(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	csvPath := t.TempDir() + "/ragged.csv"
 	// Second row has 3 fields instead of 2.
@@ -515,6 +533,7 @@ func TestImportCSV_InconsistentFieldCount(t *testing.T) {
 }
 
 func TestImportCSV_UnescapedQuotes(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	csvPath := t.TempDir() + "/badquote.csv"
 	// An unescaped quote mid-field is a parse error in Go's strict csv reader.
@@ -527,6 +546,7 @@ func TestImportCSV_UnescapedQuotes(t *testing.T) {
 }
 
 func TestImportCSV_UnicodeData(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	csvPath := t.TempDir() + "/unicode.csv"
 	writeFile(t, csvPath, "name,city\nМосква,🇷🇺\n日本語,東京\ncafé,Zürich\n")
@@ -554,6 +574,7 @@ func TestImportCSV_UnicodeData(t *testing.T) {
 }
 
 func TestImportCSV_HeaderOnly(t *testing.T) {
+	t.Parallel()
 	// CSV with a header line (no trailing newline, no data rows).
 	store := setupTestDB(t)
 	csvPath := t.TempDir() + "/headeronly.csv"
@@ -584,6 +605,7 @@ func TestImportCSV_HeaderOnly(t *testing.T) {
 }
 
 func TestImportCSV_InvalidTableName(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	csvPath := t.TempDir() + "/data.csv"
 	writeFile(t, csvPath, "x\n1\n")
@@ -595,6 +617,7 @@ func TestImportCSV_InvalidTableName(t *testing.T) {
 }
 
 func TestImportCSV_NonexistentFile(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 
 	err := store.ImportCSV("/nonexistent/path/data.csv", "tbl")
@@ -604,6 +627,7 @@ func TestImportCSV_NonexistentFile(t *testing.T) {
 }
 
 func TestReadOnlyQueryEmptyQuery(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	_, _, err := store.ReadOnlyQuery("")
 	if err == nil {
@@ -615,6 +639,7 @@ func TestReadOnlyQueryEmptyQuery(t *testing.T) {
 }
 
 func TestReadOnlyQuerySemicolon(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	_, _, err := store.ReadOnlyQuery("SELECT 1; DROP TABLE foo")
 	if err == nil {
@@ -623,6 +648,7 @@ func TestReadOnlyQuerySemicolon(t *testing.T) {
 }
 
 func TestReadOnlyQueryRejectsWritableCTE(t *testing.T) {
+	t.Parallel()
 	store := setupTestDB(t)
 	_, _, err := store.ReadOnlyQuery("WITH x AS (SELECT 1) INSERT INTO example(id,name) VALUES(99,'hack')")
 	if err == nil {
@@ -631,6 +657,7 @@ func TestReadOnlyQueryRejectsWritableCTE(t *testing.T) {
 }
 
 func TestContainsWriteKeyword(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  bool
@@ -657,6 +684,7 @@ func TestContainsWriteKeyword(t *testing.T) {
 }
 
 func TestViewsIncludedInTableNames(t *testing.T) {
+	t.Parallel()
 	store := setupTestDBWithView(t)
 	names, err := store.TableNames()
 	if err != nil {
@@ -672,6 +700,7 @@ func TestViewsIncludedInTableNames(t *testing.T) {
 }
 
 func TestIsView(t *testing.T) {
+	t.Parallel()
 	store := setupTestDBWithView(t)
 	// Populate views map via TableNames.
 	if _, err := store.TableNames(); err != nil {
@@ -689,6 +718,7 @@ func TestIsView(t *testing.T) {
 }
 
 func TestQueryTableView(t *testing.T) {
+	t.Parallel()
 	store := setupTestDBWithView(t)
 	// Populate views map.
 	if _, err := store.TableNames(); err != nil {
@@ -721,6 +751,7 @@ func TestQueryTableView(t *testing.T) {
 }
 
 func TestTableColumnsView(t *testing.T) {
+	t.Parallel()
 	store := setupTestDBWithView(t)
 	cols, err := store.TableColumns("penguin_summary")
 	if err != nil {
@@ -735,6 +766,7 @@ func TestTableColumnsView(t *testing.T) {
 }
 
 func TestTableSummariesManyTables(t *testing.T) {
+	t.Parallel()
 	store, err := OpenMemoryStore()
 	if err != nil {
 		t.Fatal(err)
@@ -781,6 +813,7 @@ func TestTableSummariesManyTables(t *testing.T) {
 }
 
 func TestTableSummariesIncludesViews(t *testing.T) {
+	t.Parallel()
 	store := setupTestDBWithView(t)
 	summaries, err := store.TableSummaries()
 	if err != nil {
@@ -804,6 +837,7 @@ func TestTableSummariesIncludesViews(t *testing.T) {
 }
 
 func TestExportCSVView(t *testing.T) {
+	t.Parallel()
 	store := setupTestDBWithView(t)
 	// Populate views map.
 	if _, err := store.TableNames(); err != nil {

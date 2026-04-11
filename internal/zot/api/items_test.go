@@ -167,6 +167,7 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func itoaIdx(i int) string { return string(rune('0' + i)) }
 
 func TestCreateItem(t *testing.T) {
+	t.Parallel()
 	h := newItemHandler(t)
 	c, _ := newTestClient(t, h)
 
@@ -184,6 +185,7 @@ func TestCreateItem(t *testing.T) {
 }
 
 func TestUpdateItem_VersionRetry(t *testing.T) {
+	t.Parallel()
 	h := newItemHandler(t)
 	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle"}, 10)
 	h.post412Once = true
@@ -201,6 +203,7 @@ func TestUpdateItem_VersionRetry(t *testing.T) {
 }
 
 func TestTrashItem(t *testing.T) {
+	t.Parallel()
 	h := newItemHandler(t)
 	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle"}, 10)
 	c, _ := newTestClient(t, h)
@@ -214,6 +217,7 @@ func TestTrashItem(t *testing.T) {
 }
 
 func TestTrashItem_VersionRetry(t *testing.T) {
+	t.Parallel()
 	h := newItemHandler(t)
 	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle"}, 10)
 	h.delete412Once = true
@@ -227,6 +231,7 @@ func TestTrashItem_VersionRetry(t *testing.T) {
 }
 
 func TestAddTagToItem(t *testing.T) {
+	t.Parallel()
 	h := newItemHandler(t)
 	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle"}, 10)
 	c, _ := newTestClient(t, h)
@@ -250,6 +255,7 @@ func TestAddTagToItem(t *testing.T) {
 }
 
 func TestRemoveTagFromItem(t *testing.T) {
+	t.Parallel()
 	h := newItemHandler(t)
 	h.seed("ABC12345", client.ItemData{
 		ItemType: "journalArticle",
@@ -267,6 +273,7 @@ func TestRemoveTagFromItem(t *testing.T) {
 }
 
 func TestAddItemToCollection(t *testing.T) {
+	t.Parallel()
 	h := newItemHandler(t)
 	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle"}, 10)
 	c, _ := newTestClient(t, h)
@@ -281,6 +288,7 @@ func TestAddItemToCollection(t *testing.T) {
 }
 
 func TestUpdateItemsBatch(t *testing.T) {
+	t.Parallel()
 	h := newItemHandler(t)
 	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle"}, 10)
 	h.seed("DEF67890", client.ItemData{ItemType: "book"}, 5)
@@ -316,6 +324,7 @@ func TestUpdateItemsBatch(t *testing.T) {
 }
 
 func TestRemoveItemFromCollection(t *testing.T) {
+	t.Parallel()
 	h := newItemHandler(t)
 	h.seed("ABC12345", client.ItemData{
 		ItemType:    "journalArticle",

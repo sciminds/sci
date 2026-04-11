@@ -3,6 +3,7 @@ package ui
 import "testing"
 
 func TestClampWidth(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input int
@@ -32,6 +33,7 @@ func TestClampWidth(t *testing.T) {
 }
 
 func TestClampHeight(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input int
@@ -55,6 +57,7 @@ func TestClampHeight(t *testing.T) {
 }
 
 func TestContentWidth(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input int
@@ -79,6 +82,7 @@ func TestContentWidth(t *testing.T) {
 }
 
 func TestOverlayBodyHeight(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		termH       int

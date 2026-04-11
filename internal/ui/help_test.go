@@ -10,6 +10,7 @@ import (
 )
 
 func TestRenderHelp_RootBanner(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	cmd := &cli.Command{
 		Name:   "sci",
@@ -40,6 +41,7 @@ func TestRenderHelp_RootBanner(t *testing.T) {
 }
 
 func TestRenderHelp_Subcommand(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	cmd := &cli.Command{
 		Name:   "sci",
@@ -67,6 +69,7 @@ func TestRenderHelp_Subcommand(t *testing.T) {
 }
 
 func TestRenderHelp_Examples(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	cmd := &cli.Command{
 		Name:   "sci",
@@ -92,6 +95,7 @@ func TestRenderHelp_Examples(t *testing.T) {
 }
 
 func TestRenderHelp_UsageLine(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	cmd := &cli.Command{
 		Name:   "sci",

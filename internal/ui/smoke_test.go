@@ -15,6 +15,7 @@ func (s selectTestItem) SelectTitle() string { return string(s) }
 //
 // Add a subtest here for every new Bubble Tea model in this package.
 func TestViewAtZeroSize(t *testing.T) {
+	t.Parallel()
 	t.Run("selectList", func(t *testing.T) {
 		items := []SelectItem{selectTestItem("a"), selectTestItem("b")}
 		m := NewSelectList(items)

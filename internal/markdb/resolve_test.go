@@ -6,6 +6,7 @@ import (
 )
 
 func TestResolveWikilink(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "hello.md", "---\ntitle: Hello\n---\nSee [[world]]")
@@ -37,6 +38,7 @@ func TestResolveWikilink(t *testing.T) {
 }
 
 func TestResolveWikilinkCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "hello.md", "See [[World]]")
@@ -55,6 +57,7 @@ func TestResolveWikilinkCaseInsensitive(t *testing.T) {
 }
 
 func TestResolveWikilinkWithExtension(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "hello.md", "See [[world.md]]")
@@ -73,6 +76,7 @@ func TestResolveWikilinkWithExtension(t *testing.T) {
 }
 
 func TestResolveRelativeLink(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "sub/hello.md", "See [other](../other.md)")
@@ -91,6 +95,7 @@ func TestResolveRelativeLink(t *testing.T) {
 }
 
 func TestResolveBrokenLink(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "hello.md", "See [[nonexistent]]")
@@ -120,6 +125,7 @@ func TestResolveBrokenLink(t *testing.T) {
 }
 
 func TestResolveLinkMetadata(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "hello.md", "Line 1\n\nSee [[world#heading|display]]")
@@ -152,6 +158,7 @@ func TestResolveLinkMetadata(t *testing.T) {
 }
 
 func TestResolveLinksReIngest(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "hello.md", "See [[world]]")

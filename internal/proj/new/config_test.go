@@ -9,6 +9,7 @@ import (
 )
 
 func TestSyncResultJSON(t *testing.T) {
+	t.Parallel()
 	r := SyncResult{
 		Dir:    "/tmp/proj",
 		DryRun: true,
@@ -27,6 +28,7 @@ func TestSyncResultJSON(t *testing.T) {
 }
 
 func TestSyncResultHuman_NoChanges(t *testing.T) {
+	t.Parallel()
 	r := SyncResult{
 		Changed: []SyncChange{
 			{Path: ".vscode/settings.json", Changed: false},
@@ -39,6 +41,7 @@ func TestSyncResultHuman_NoChanges(t *testing.T) {
 }
 
 func TestSyncResultHuman_WithChanges(t *testing.T) {
+	t.Parallel()
 	r := SyncResult{
 		Changed: []SyncChange{
 			{Path: ".vscode/settings.json", Changed: true},
@@ -52,6 +55,7 @@ func TestSyncResultHuman_WithChanges(t *testing.T) {
 }
 
 func TestSyncResultHuman_DryRun(t *testing.T) {
+	t.Parallel()
 	r := SyncResult{
 		DryRun: true,
 		Changed: []SyncChange{
@@ -65,6 +69,7 @@ func TestSyncResultHuman_DryRun(t *testing.T) {
 }
 
 func TestApplyConfigFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	files := []ConfigFile{
 		{Path: ".vscode/settings.json", Content: `{"editor.fontSize": 14}`},
@@ -89,6 +94,7 @@ func TestApplyConfigFiles(t *testing.T) {
 }
 
 func TestManagedFiles_NonEmpty(t *testing.T) {
+	t.Parallel()
 	if len(ManagedFiles) == 0 {
 		t.Error("ManagedFiles should not be empty")
 	}

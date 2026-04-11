@@ -9,6 +9,7 @@ import (
 // zotero.sqlite when ZOT_REAL_DB points at the containing directory.
 // Skipped by default so it never runs in CI or on other machines.
 func TestRealLibrary_Smoke(t *testing.T) {
+	t.Parallel()
 	dir := os.Getenv("ZOT_REAL_DB")
 	if dir == "" {
 		t.Skip("set ZOT_REAL_DB=<dir containing zotero.sqlite> to run")

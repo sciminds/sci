@@ -37,18 +37,22 @@ func createFixtureFiles(t *testing.T) string {
 }
 
 func TestFileViewStoreCSV(t *testing.T) {
+	t.Parallel()
 	testFileStore(t, filepath.Join(createFixtureFiles(t), "sample.csv"))
 }
 
 func TestFileViewStoreTSV(t *testing.T) {
+	t.Parallel()
 	testFileStore(t, filepath.Join(createFixtureFiles(t), "sample.tsv"))
 }
 
 func TestFileViewStoreJSON(t *testing.T) {
+	t.Parallel()
 	testFileStore(t, filepath.Join(createFixtureFiles(t), "sample.json"))
 }
 
 func TestFileViewStoreJSONL(t *testing.T) {
+	t.Parallel()
 	testFileStore(t, filepath.Join(createFixtureFiles(t), "sample.jsonl"))
 }
 
@@ -113,6 +117,7 @@ func testFileStore(t *testing.T, path string) {
 }
 
 func TestFileViewStoreUnsupportedOps(t *testing.T) {
+	t.Parallel()
 	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
 		t.Fatalf("OpenFileStore: %v", err)
@@ -131,6 +136,7 @@ func TestFileViewStoreUnsupportedOps(t *testing.T) {
 }
 
 func TestFileViewStoreUpdateCell(t *testing.T) {
+	t.Parallel()
 	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
 		t.Fatalf("OpenFileStore: %v", err)
@@ -157,6 +163,7 @@ func TestFileViewStoreUpdateCell(t *testing.T) {
 }
 
 func TestFileViewStoreDeleteRows(t *testing.T) {
+	t.Parallel()
 	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
 		t.Fatalf("OpenFileStore: %v", err)
@@ -178,6 +185,7 @@ func TestFileViewStoreDeleteRows(t *testing.T) {
 }
 
 func TestFileViewStoreInsertRows(t *testing.T) {
+	t.Parallel()
 	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
 		t.Fatalf("OpenFileStore: %v", err)
@@ -196,6 +204,7 @@ func TestFileViewStoreInsertRows(t *testing.T) {
 }
 
 func TestFileViewStoreWriteBack(t *testing.T) {
+	t.Parallel()
 	dir := createFixtureFiles(t)
 	csvPath := filepath.Join(dir, "sample.csv")
 	store, err := OpenFileStore(csvPath)
@@ -219,6 +228,7 @@ func TestFileViewStoreWriteBack(t *testing.T) {
 }
 
 func TestFileViewStoreNoWriteBackWhenClean(t *testing.T) {
+	t.Parallel()
 	dir := createFixtureFiles(t)
 	csvPath := filepath.Join(dir, "sample.csv")
 	original, _ := os.ReadFile(csvPath)
@@ -236,6 +246,7 @@ func TestFileViewStoreNoWriteBackWhenClean(t *testing.T) {
 }
 
 func TestFileViewStoreReadOnlyQuery(t *testing.T) {
+	t.Parallel()
 	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
 		t.Fatalf("OpenFileStore: %v", err)
@@ -252,6 +263,7 @@ func TestFileViewStoreReadOnlyQuery(t *testing.T) {
 }
 
 func TestFileViewStoreExportCSV(t *testing.T) {
+	t.Parallel()
 	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
 		t.Fatalf("OpenFileStore: %v", err)
@@ -269,6 +281,7 @@ func TestFileViewStoreExportCSV(t *testing.T) {
 }
 
 func TestFileViewStoreUnsupportedExt(t *testing.T) {
+	t.Parallel()
 	tmp := filepath.Join(t.TempDir(), "data.xlsx")
 	_ = os.WriteFile(tmp, []byte("fake"), 0o644)
 	_, err := OpenFileStore(tmp)
@@ -278,6 +291,7 @@ func TestFileViewStoreUnsupportedExt(t *testing.T) {
 }
 
 func TestFileViewStoreNonexistentFile(t *testing.T) {
+	t.Parallel()
 	_, err := OpenFileStore("/tmp/does-not-exist-ever.csv")
 	if err == nil {
 		t.Fatal("expected error for nonexistent file")
@@ -285,6 +299,7 @@ func TestFileViewStoreNonexistentFile(t *testing.T) {
 }
 
 func TestIsViewableFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want bool

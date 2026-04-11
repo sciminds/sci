@@ -31,6 +31,7 @@ func clusterKeys(c Cluster) []string {
 }
 
 func TestClusterByDOI_ExactMatch(t *testing.T) {
+	t.Parallel()
 	cands := makeCands(
 		[3]string{"A1", "Paper one", "10.1000/foo"},
 		[3]string{"A2", "Paper one (imported)", "10.1000/foo"},
@@ -51,6 +52,7 @@ func TestClusterByDOI_ExactMatch(t *testing.T) {
 }
 
 func TestClusterByDOI_NormalizesCaseAndPrefix(t *testing.T) {
+	t.Parallel()
 	cands := makeCands(
 		[3]string{"A1", "", "10.1000/ABC"},
 		[3]string{"A2", "", "https://doi.org/10.1000/abc"},
@@ -66,6 +68,7 @@ func TestClusterByDOI_NormalizesCaseAndPrefix(t *testing.T) {
 }
 
 func TestClusterByDOI_EmptyDOIsIgnored(t *testing.T) {
+	t.Parallel()
 	cands := makeCands(
 		[3]string{"A1", "x", ""},
 		[3]string{"A2", "x", ""},
@@ -76,6 +79,7 @@ func TestClusterByDOI_EmptyDOIsIgnored(t *testing.T) {
 }
 
 func TestClusterByDOI_SingletonNotAClusterr(t *testing.T) {
+	t.Parallel()
 	cands := makeCands(
 		[3]string{"A1", "x", "10.1000/a"},
 		[3]string{"A2", "y", "10.1000/b"},
@@ -86,6 +90,7 @@ func TestClusterByDOI_SingletonNotAClusterr(t *testing.T) {
 }
 
 func TestClusterByTitle_ExactNormalized(t *testing.T) {
+	t.Parallel()
 	// Punctuation, case, and whitespace differences should all bucket.
 	cands := makeCands(
 		[3]string{"A1", "Deep Learning for Neuroimaging", ""},
@@ -108,6 +113,7 @@ func TestClusterByTitle_ExactNormalized(t *testing.T) {
 }
 
 func TestClusterByTitle_FuzzyOnSingletons(t *testing.T) {
+	t.Parallel()
 	cands := makeCands(
 		[3]string{"A1", "a survey of graph neural networks for molecular property prediction", ""},
 		[3]string{"A2", "a survery of graph neural networks for molecular property prediction", ""}, // typo
@@ -131,6 +137,7 @@ func TestClusterByTitle_FuzzyOnSingletons(t *testing.T) {
 }
 
 func TestClusterByTitle_ShortTitlesIgnoredByFuzzy(t *testing.T) {
+	t.Parallel()
 	// Short titles must not match fuzzily — one-char edit on a 5-char
 	// title is already an 80% ratio and would produce false positives.
 	cands := makeCands(
@@ -143,6 +150,7 @@ func TestClusterByTitle_ShortTitlesIgnoredByFuzzy(t *testing.T) {
 }
 
 func TestRunDuplicates_DedupAcrossStrategies(t *testing.T) {
+	t.Parallel()
 	// A1 and A2 share both a DOI and a normalized title. They must appear
 	// in exactly ONE cluster, not one per strategy. DOI wins because it's
 	// the stronger signal.
@@ -164,6 +172,7 @@ func TestRunDuplicates_DedupAcrossStrategies(t *testing.T) {
 }
 
 func TestRunDuplicates_StrategyFilter(t *testing.T) {
+	t.Parallel()
 	cands := makeCands(
 		[3]string{"A1", "paper x", "10.1000/foo"},
 		[3]string{"A2", "paper x imported", "10.1000/foo"},
@@ -184,6 +193,7 @@ func TestRunDuplicates_StrategyFilter(t *testing.T) {
 }
 
 func TestClusterByTitle_FastModeSkipsFuzzyPass(t *testing.T) {
+	t.Parallel()
 	// Fast mode (fuzzy=false) emits only exact-normalized clusters. The
 	// typo pair that TestClusterByTitle_FuzzyOnSingletons would catch
 	// must NOT fire here — this guards the default-fast invariant.
@@ -207,6 +217,7 @@ func TestClusterByTitle_FastModeSkipsFuzzyPass(t *testing.T) {
 }
 
 func TestClusterByTitle_ExactPreemptsFuzzy(t *testing.T) {
+	t.Parallel()
 	// A1/A2 are exact-normalized matches; A3 is a typo of A1. The exact
 	// cluster should absorb A1+A2 and A3 should remain unmatched (since
 	// members of an exact cluster are not fuzzy-compared).

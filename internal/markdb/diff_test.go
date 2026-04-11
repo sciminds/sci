@@ -8,6 +8,7 @@ import (
 )
 
 func TestDiffNoChanges(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "content")
@@ -27,6 +28,7 @@ func TestDiffNoChanges(t *testing.T) {
 }
 
 func TestDiffNewFile(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "old.md", "old content")
@@ -46,6 +48,7 @@ func TestDiffNewFile(t *testing.T) {
 }
 
 func TestDiffModifiedFile(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "version 1")
@@ -65,6 +68,7 @@ func TestDiffModifiedFile(t *testing.T) {
 }
 
 func TestDiffDeletedFile(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "keep.md", "kept")
@@ -85,6 +89,7 @@ func TestDiffDeletedFile(t *testing.T) {
 }
 
 func TestDiffTouchedUnchanged(t *testing.T) {
+	t.Parallel()
 	s, _ := ingestTestStore(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "note.md", "same content")

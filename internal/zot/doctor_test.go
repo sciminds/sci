@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseDoctorCheck(t *testing.T) {
+	t.Parallel()
 	for _, want := range DoctorChecks {
 		got, err := ParseDoctorCheck(want)
 		if err != nil {
@@ -28,6 +29,7 @@ func TestParseDoctorCheck(t *testing.T) {
 }
 
 func TestSelectedChecks_Defaults(t *testing.T) {
+	t.Parallel()
 	got := selectedChecks(nil)
 	for _, c := range DoctorChecks {
 		if !got[c] {
@@ -58,6 +60,7 @@ func buildReport(check string, errors, warns, infos int) *hygiene.Report {
 }
 
 func TestDoctorResult_TotalsAndRendering(t *testing.T) {
+	t.Parallel()
 	res := &DoctorResult{
 		Scanned: 100,
 		Reports: map[string]*hygiene.Report{
@@ -121,6 +124,7 @@ func TestDoctorResult_TotalsAndRendering(t *testing.T) {
 }
 
 func TestDoctorResult_HealthyLibrary(t *testing.T) {
+	t.Parallel()
 	res := &DoctorResult{
 		Scanned: 100,
 		Reports: map[string]*hygiene.Report{
@@ -144,6 +148,7 @@ func TestDoctorResult_HealthyLibrary(t *testing.T) {
 }
 
 func TestDoctorResult_DeepLabel(t *testing.T) {
+	t.Parallel()
 	res := &DoctorResult{
 		Reports: map[string]*hygiene.Report{},
 		Deep:    true,

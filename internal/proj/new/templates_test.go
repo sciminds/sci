@@ -17,6 +17,7 @@ func baseVars() TemplateVars {
 }
 
 func TestRenderAllCombos(t *testing.T) {
+	t.Parallel()
 	combos := []struct {
 		name       string
 		pkgManager string
@@ -70,6 +71,7 @@ func TestRenderAllCombos(t *testing.T) {
 
 	for _, tt := range combos {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			vars := baseVars()
 			vars.PkgManager = tt.pkgManager
 			vars.DocSystem = tt.docSystem
@@ -105,6 +107,7 @@ func TestRenderAllCombos(t *testing.T) {
 }
 
 func TestPyprojectContent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		pkgManager string
@@ -151,6 +154,7 @@ func TestPyprojectContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			vars := baseVars()
 			vars.PkgManager = tt.pkgManager
 			vars.DocSystem = tt.docSystem
@@ -175,6 +179,7 @@ func TestPyprojectContent(t *testing.T) {
 }
 
 func TestConditionalFileSkipping(t *testing.T) {
+	t.Parallel()
 	// _quarto.yml should render empty (and be skipped) when docSystem != "quarto"
 	vars := baseVars()
 	vars.PkgManager = "pixi"

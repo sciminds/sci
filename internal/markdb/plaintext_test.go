@@ -5,6 +5,7 @@ import (
 )
 
 func TestStripMarkdown(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input string
@@ -88,6 +89,7 @@ func TestStripMarkdown(t *testing.T) {
 }
 
 func TestFlattenFrontmatter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input map[string]any

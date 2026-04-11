@@ -100,6 +100,7 @@ func (h *collHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestCreateCollection_TopLevel(t *testing.T) {
+	t.Parallel()
 	h := newCollHandler(t)
 	c, _ := newTestClient(t, h)
 
@@ -127,6 +128,7 @@ func TestCreateCollection_TopLevel(t *testing.T) {
 }
 
 func TestCreateCollection_WithParent(t *testing.T) {
+	t.Parallel()
 	h := newCollHandler(t)
 	c, _ := newTestClient(t, h)
 
@@ -149,6 +151,7 @@ func TestCreateCollection_WithParent(t *testing.T) {
 }
 
 func TestGetCollection_NotFound(t *testing.T) {
+	t.Parallel()
 	h := newCollHandler(t)
 	c, _ := newTestClient(t, h)
 
@@ -162,6 +165,7 @@ func TestGetCollection_NotFound(t *testing.T) {
 }
 
 func TestDeleteCollection(t *testing.T) {
+	t.Parallel()
 	h := newCollHandler(t)
 	h.seed("COLLXXX1", "Papers", 10)
 	c, _ := newTestClient(t, h)
@@ -175,6 +179,7 @@ func TestDeleteCollection(t *testing.T) {
 }
 
 func TestDeleteCollection_VersionRetry(t *testing.T) {
+	t.Parallel()
 	h := newCollHandler(t)
 	h.seed("COLLXXX1", "Papers", 10)
 	h.delete412Once = true

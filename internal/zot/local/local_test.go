@@ -17,6 +17,7 @@ func openFixture(t *testing.T) *DB {
 }
 
 func TestOpen_Meta(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	if db.LibraryID() != 1 {
 		t.Errorf("LibraryID = %d, want 1", db.LibraryID())
@@ -30,6 +31,7 @@ func TestOpen_Meta(t *testing.T) {
 }
 
 func TestList_ExcludesTrashedAndAttachments(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	items, err := db.List(ListFilter{})
 	if err != nil {
@@ -53,6 +55,7 @@ func TestList_ExcludesTrashedAndAttachments(t *testing.T) {
 }
 
 func TestList_OrderDateAddedDesc(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	items, err := db.List(ListFilter{OrderBy: OrderDateAddedDesc})
 	if err != nil {
@@ -65,6 +68,7 @@ func TestList_OrderDateAddedDesc(t *testing.T) {
 }
 
 func TestList_FilterByType(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	items, err := db.List(ListFilter{ItemType: "book"})
 	if err != nil {
@@ -76,6 +80,7 @@ func TestList_FilterByType(t *testing.T) {
 }
 
 func TestList_FilterByCollection(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	items, err := db.List(ListFilter{CollectionKey: "COLLAAA1"})
 	if err != nil {
@@ -88,6 +93,7 @@ func TestList_FilterByCollection(t *testing.T) {
 }
 
 func TestList_FilterByTag(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	items, err := db.List(ListFilter{Tag: "neuroimaging"})
 	if err != nil {
@@ -99,6 +105,7 @@ func TestList_FilterByTag(t *testing.T) {
 }
 
 func TestSearch_TitleMatch(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	items, err := db.Search("neuroimaging", 10)
 	if err != nil {
@@ -110,6 +117,7 @@ func TestSearch_TitleMatch(t *testing.T) {
 }
 
 func TestSearch_DOIMatch(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	items, err := db.Search("abc123", 10)
 	if err != nil {
@@ -121,6 +129,7 @@ func TestSearch_DOIMatch(t *testing.T) {
 }
 
 func TestSearch_NoResults(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	items, err := db.Search("nonexistent", 10)
 	if err != nil {
@@ -132,6 +141,7 @@ func TestSearch_NoResults(t *testing.T) {
 }
 
 func TestRead_FullHydration(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	it, err := db.Read("AAAA1111")
 	if err != nil {
@@ -183,6 +193,7 @@ func TestRead_FullHydration(t *testing.T) {
 }
 
 func TestRead_SingleNameCreator(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	it, err := db.Read("BBBB2222")
 	if err != nil {
@@ -197,6 +208,7 @@ func TestRead_SingleNameCreator(t *testing.T) {
 }
 
 func TestRead_NotFound(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	if _, err := db.Read("NOSUCHKEY"); err == nil {
 		t.Error("expected error for missing key")
@@ -204,6 +216,7 @@ func TestRead_NotFound(t *testing.T) {
 }
 
 func TestRead_TrashedExcluded(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	if _, err := db.Read("EEEE5555"); err == nil {
 		t.Error("expected trashed item to be invisible to Read")
@@ -211,6 +224,7 @@ func TestRead_TrashedExcluded(t *testing.T) {
 }
 
 func TestStats(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	s, err := db.Stats()
 	if err != nil {
@@ -240,6 +254,7 @@ func TestStats(t *testing.T) {
 }
 
 func TestListCollections(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	cs, err := db.ListCollections()
 	if err != nil {
@@ -267,6 +282,7 @@ func TestListCollections(t *testing.T) {
 }
 
 func TestListTags(t *testing.T) {
+	t.Parallel()
 	db := openFixture(t)
 	tags, err := db.ListTags()
 	if err != nil {

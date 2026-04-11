@@ -48,6 +48,7 @@ func openRealDB(t *testing.T) *local.DB {
 }
 
 func TestMissing_RealLibrary(t *testing.T) {
+	t.Parallel()
 	// Gated behind SLOW=1 — the SQL itself is covered by the local
 	// package fixture test; this one is for eyeballing coverage numbers
 	// against a real library and catches ~nothing that the fixture misses.
@@ -97,6 +98,7 @@ func TestMissing_RealLibrary(t *testing.T) {
 }
 
 func TestDuplicates_RealLibrary(t *testing.T) {
+	t.Parallel()
 	// ~26s on a 5k-item library — gated behind SLOW=1 to match the
 	// proj/new integration-test convention noted in CLAUDE.md. The
 	// smaller TestMissing_RealLibrary above runs unconditionally.
@@ -154,6 +156,7 @@ func TestDuplicates_RealLibrary(t *testing.T) {
 }
 
 func TestSeverityFor(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		field MissingField
 		want  Severity
@@ -175,6 +178,7 @@ func TestSeverityFor(t *testing.T) {
 }
 
 func TestParseMissingField(t *testing.T) {
+	t.Parallel()
 	for _, f := range AllMissingFields {
 		got, err := ParseMissingField(string(f))
 		if err != nil {

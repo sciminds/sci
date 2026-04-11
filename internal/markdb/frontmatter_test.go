@@ -5,6 +5,7 @@ import (
 )
 
 func TestExtractFrontmatter(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		input      string
@@ -103,6 +104,7 @@ func TestExtractFrontmatter(t *testing.T) {
 }
 
 func TestExtractFrontmatterValues(t *testing.T) {
+	t.Parallel()
 	input := "---\ncount: 42\npi: 3.14\ndraft: true\nname: hello\n---\n"
 	got := ExtractFrontmatter([]byte(input))
 

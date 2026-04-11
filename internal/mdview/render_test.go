@@ -8,6 +8,7 @@ import (
 )
 
 func TestRenderBasicMarkdown(t *testing.T) {
+	t.Parallel()
 	md := "# Hello\n\nSome **bold** text."
 	out, err := Render(md, 80)
 	if err != nil {
@@ -19,6 +20,7 @@ func TestRenderBasicMarkdown(t *testing.T) {
 }
 
 func TestRenderCodeBlock(t *testing.T) {
+	t.Parallel()
 	md := "```python\nprint('hello')\n```"
 	out, err := Render(md, 80)
 	if err != nil {
@@ -30,6 +32,7 @@ func TestRenderCodeBlock(t *testing.T) {
 }
 
 func TestRenderNarrowWidth(t *testing.T) {
+	t.Parallel()
 	md := "This is a long line that should be wrapped when the width is very narrow."
 	out, err := Render(md, 20)
 	if err != nil {
@@ -43,6 +46,7 @@ func TestRenderNarrowWidth(t *testing.T) {
 // ── HighlightMatches tests ──────────────────────────────────────────────────
 
 func TestHighlightMatchesPlainText(t *testing.T) {
+	t.Parallel()
 	out := HighlightMatches("hello world hello", "hello")
 	if !strings.Contains(out, hlOn) {
 		t.Error("output should contain highlight-on escape")
@@ -57,6 +61,7 @@ func TestHighlightMatchesPlainText(t *testing.T) {
 }
 
 func TestHighlightMatchesCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	out := HighlightMatches("Hello HELLO hello", "hello")
 	// All three occurrences should be highlighted (3 on + 3 off).
 	if strings.Count(out, hlOn) != 3 {
@@ -65,6 +70,7 @@ func TestHighlightMatchesCaseInsensitive(t *testing.T) {
 }
 
 func TestHighlightMatchesEmptyQuery(t *testing.T) {
+	t.Parallel()
 	styled := "\x1b[1mhello\x1b[0m"
 	out := HighlightMatches(styled, "")
 	if out != styled {
@@ -73,6 +79,7 @@ func TestHighlightMatchesEmptyQuery(t *testing.T) {
 }
 
 func TestHighlightMatchesNoMatch(t *testing.T) {
+	t.Parallel()
 	styled := "\x1b[1mhello\x1b[0m"
 	out := HighlightMatches(styled, "xyz")
 	if out != styled {
@@ -81,6 +88,7 @@ func TestHighlightMatchesNoMatch(t *testing.T) {
 }
 
 func TestHighlightMatchesPreservesANSI(t *testing.T) {
+	t.Parallel()
 	// Simulate glamour output: bold "hello" with reset.
 	styled := "\x1b[1mhello\x1b[0m world"
 	out := HighlightMatches(styled, "hello")
@@ -94,6 +102,7 @@ func TestHighlightMatchesPreservesANSI(t *testing.T) {
 }
 
 func TestHighlightMatchesSpansAcrossANSI(t *testing.T) {
+	t.Parallel()
 	// Match spans across an ANSI reset mid-word.
 	styled := "\x1b[1mhel\x1b[0mlo world"
 	out := HighlightMatches(styled, "hello")
@@ -110,6 +119,7 @@ func TestHighlightMatchesSpansAcrossANSI(t *testing.T) {
 }
 
 func TestAnsiSeqLen(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  int

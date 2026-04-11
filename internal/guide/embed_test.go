@@ -3,6 +3,7 @@ package guide
 import "testing"
 
 func TestLoadCast(t *testing.T) {
+	t.Parallel()
 	data, err := LoadCast("ls.cast")
 	if err != nil {
 		t.Fatalf("LoadCast(ls.cast): %v", err)
@@ -20,6 +21,7 @@ func TestLoadCast(t *testing.T) {
 }
 
 func TestLoadCastNotFound(t *testing.T) {
+	t.Parallel()
 	_, err := LoadCast("nonexistent.cast")
 	if err == nil {
 		t.Error("expected error for nonexistent cast file")
@@ -27,6 +29,7 @@ func TestLoadCastNotFound(t *testing.T) {
 }
 
 func TestAllEntriesHaveCasts(t *testing.T) {
+	t.Parallel()
 	for _, e := range append(BasicEntries, GitEntries...) {
 		t.Run(e.Name, func(t *testing.T) {
 			if e.Name == "" || e.Cmd == "" || e.Desc == "" || e.CastFile == "" {
@@ -44,6 +47,7 @@ func TestAllEntriesHaveCasts(t *testing.T) {
 }
 
 func TestLoadPage(t *testing.T) {
+	t.Parallel()
 	data, err := LoadPage("python-basics.md")
 	if err != nil {
 		t.Fatalf("LoadPage(python-basics.md): %v", err)
@@ -54,6 +58,7 @@ func TestLoadPage(t *testing.T) {
 }
 
 func TestLoadPageNotFound(t *testing.T) {
+	t.Parallel()
 	_, err := LoadPage("nonexistent.md")
 	if err == nil {
 		t.Error("expected error for nonexistent page file")
@@ -61,6 +66,7 @@ func TestLoadPageNotFound(t *testing.T) {
 }
 
 func TestAllEntriesHavePages(t *testing.T) {
+	t.Parallel()
 	for _, e := range PythonEntries {
 		t.Run(e.Name, func(t *testing.T) {
 			if e.Name == "" || e.Cmd == "" || e.Desc == "" || e.PageFile == "" {

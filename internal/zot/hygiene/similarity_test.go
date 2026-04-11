@@ -3,6 +3,7 @@ package hygiene
 import "testing"
 
 func TestLevenshteinDistance(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		a, b string
 		want int
@@ -24,6 +25,7 @@ func TestLevenshteinDistance(t *testing.T) {
 }
 
 func TestSimilarityRatio(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		a, b string
 		want float64
@@ -42,6 +44,7 @@ func TestSimilarityRatio(t *testing.T) {
 }
 
 func TestSimilarityRatio_Symmetric(t *testing.T) {
+	t.Parallel()
 	// Ratio must be symmetric to avoid clustering order artifacts.
 	a := "deep learning for neuroimaging"
 	b := "deep learning for neuro imaging"
@@ -51,6 +54,7 @@ func TestSimilarityRatio_Symmetric(t *testing.T) {
 }
 
 func TestSimilarityRatio_Threshold(t *testing.T) {
+	t.Parallel()
 	// Pairs that should cross a 0.85 threshold — genuine typo-level
 	// variants of the same title. Anything that changes meaningful words
 	// is intentionally NOT in this list; the title clusterer is for
@@ -93,6 +97,7 @@ func TestSimilarityRatio_Threshold(t *testing.T) {
 }
 
 func TestLevenshteinCapped(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		a, b string
 		cap  int

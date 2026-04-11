@@ -7,6 +7,7 @@ import (
 )
 
 func TestBetween(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name        string
 		left, right float64
@@ -29,6 +30,7 @@ func TestBetween(t *testing.T) {
 }
 
 func TestNeedsNormalize(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		pos  []float64
@@ -52,6 +54,7 @@ func TestNeedsNormalize(t *testing.T) {
 }
 
 func TestNormalize(t *testing.T) {
+	t.Parallel()
 	got := Normalize([]float64{0.001, 0.002, 0.003, 5.0})
 	want := []float64{1.0, 2.0, 3.0, 4.0}
 	if len(got) != len(want) {
@@ -65,6 +68,7 @@ func TestNormalize(t *testing.T) {
 }
 
 func TestNormalize_Empty(t *testing.T) {
+	t.Parallel()
 	if got := Normalize(nil); len(got) != 0 {
 		t.Errorf("Normalize(nil) = %v, want empty", got)
 	}
@@ -74,6 +78,7 @@ func TestNormalize_Empty(t *testing.T) {
 // insertions into a growing sorted list. Every result must be strictly
 // between its neighbors, positive, and unique across the full sequence.
 func TestBetween_PropertyNoDuplicates(t *testing.T) {
+	t.Parallel()
 	rng := rand.New(rand.NewPCG(42, 42))
 	positions := []float64{Between(0, 0)}
 	for i := 0; i < 1000; i++ {

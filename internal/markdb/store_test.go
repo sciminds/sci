@@ -18,6 +18,7 @@ func testStore(t *testing.T) *Store {
 }
 
 func TestOpenPragmas(t *testing.T) {
+	t.Parallel()
 	s := testStore(t)
 
 	var journalMode string
@@ -38,6 +39,7 @@ func TestOpenPragmas(t *testing.T) {
 }
 
 func TestInitSchema(t *testing.T) {
+	t.Parallel()
 	s := testStore(t)
 	if err := s.InitSchema(); err != nil {
 		t.Fatalf("InitSchema: %v", err)
@@ -66,6 +68,7 @@ func TestInitSchema(t *testing.T) {
 }
 
 func TestInitSchemaIdempotent(t *testing.T) {
+	t.Parallel()
 	s := testStore(t)
 	if err := s.InitSchema(); err != nil {
 		t.Fatalf("first InitSchema: %v", err)
@@ -76,6 +79,7 @@ func TestInitSchemaIdempotent(t *testing.T) {
 }
 
 func TestAddDynamicColumns(t *testing.T) {
+	t.Parallel()
 	s := testStore(t)
 	if err := s.InitSchema(); err != nil {
 		t.Fatal(err)
@@ -127,6 +131,7 @@ func TestAddDynamicColumns(t *testing.T) {
 }
 
 func TestAddDynamicColumnsIdempotent(t *testing.T) {
+	t.Parallel()
 	s := testStore(t)
 	if err := s.InitSchema(); err != nil {
 		t.Fatal(err)
@@ -145,6 +150,7 @@ func TestAddDynamicColumnsIdempotent(t *testing.T) {
 }
 
 func TestAddDynamicColumnsPopulatesSchema(t *testing.T) {
+	t.Parallel()
 	s := testStore(t)
 	if err := s.InitSchema(); err != nil {
 		t.Fatal(err)

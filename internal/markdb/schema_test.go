@@ -6,6 +6,7 @@ import (
 )
 
 func TestSanitizeColumnName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -39,6 +40,7 @@ func TestSanitizeColumnName(t *testing.T) {
 }
 
 func TestInferType(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		values []any
@@ -71,6 +73,7 @@ func TestInferType(t *testing.T) {
 }
 
 func TestDiscoverSchema(t *testing.T) {
+	t.Parallel()
 	parsed := []map[string]any{
 		{"title": "Post 1", "count": 10, "draft": true},
 		{"title": "Post 2", "count": 20, "tags": []any{"go", "sqlite"}},

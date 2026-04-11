@@ -7,18 +7,21 @@ import (
 )
 
 func TestBuildMuteArgs(t *testing.T) {
+	t.Parallel()
 	got := BuildMuteArgs("input.mp4", "out.mp4")
 	want := []string{"-i", "input.mp4", "-c", "copy", "-an", "out.mp4"}
 	assertArgs(t, got, want)
 }
 
 func TestBuildStripSubsArgs(t *testing.T) {
+	t.Parallel()
 	got := BuildStripSubsArgs("input.mp4", "out.mp4")
 	want := []string{"-i", "input.mp4", "-c", "copy", "-sn", "out.mp4"}
 	assertArgs(t, got, want)
 }
 
 func TestBuildSpeedArgs(t *testing.T) {
+	t.Parallel()
 	t.Run("basic 2x", func(t *testing.T) {
 		got := BuildSpeedArgs("in.mp4", "out.mp4", 2.0, SpeedOpts{})
 		assertContains(t, got, "-vf")
@@ -47,6 +50,7 @@ func TestBuildSpeedArgs(t *testing.T) {
 }
 
 func TestBuildCutArgs(t *testing.T) {
+	t.Parallel()
 	t.Run("fast stream copy", func(t *testing.T) {
 		got := BuildCutArgs("in.mp4", "out.mp4", 30, 60, CutOpts{})
 		// -ss before -i for fast seek
@@ -71,6 +75,7 @@ func TestBuildCutArgs(t *testing.T) {
 }
 
 func TestBuildResizeArgs(t *testing.T) {
+	t.Parallel()
 	t.Run("720p preset", func(t *testing.T) {
 		got, err := BuildResizeArgs("in.mp4", "out.mp4", "720p", "")
 		if err != nil {
@@ -113,6 +118,7 @@ func TestBuildResizeArgs(t *testing.T) {
 }
 
 func TestBuildExtractAudioArgs(t *testing.T) {
+	t.Parallel()
 	t.Run("mp3 default", func(t *testing.T) {
 		got, err := BuildExtractAudioArgs("in.mp4", "out.mp3", "mp3")
 		if err != nil {
@@ -139,6 +145,7 @@ func TestBuildExtractAudioArgs(t *testing.T) {
 }
 
 func TestBuildConvertArgs(t *testing.T) {
+	t.Parallel()
 	t.Run("mp4 medium", func(t *testing.T) {
 		got, err := BuildConvertArgs("in.webm", "out.mp4", "mp4", "medium", "")
 		if err != nil {
@@ -173,6 +180,7 @@ func TestBuildConvertArgs(t *testing.T) {
 }
 
 func TestBuildGifArgs(t *testing.T) {
+	t.Parallel()
 	t.Run("defaults", func(t *testing.T) {
 		got := BuildGifArgs("in.mp4", "out.gif", GifOpts{Width: 480, FPS: 12})
 		assertContains(t, got, "-filter_complex")
@@ -202,6 +210,7 @@ func TestBuildGifArgs(t *testing.T) {
 }
 
 func TestBuildCompressArgs(t *testing.T) {
+	t.Parallel()
 	t.Run("quality preset", func(t *testing.T) {
 		got, err := BuildCompressArgs("in.mp4", "out.mp4", CompressOpts{Quality: "medium"})
 		if err != nil {
@@ -290,6 +299,7 @@ func assertArgValue(t *testing.T, args []string, flag, want string) {
 // --- atempo ---
 
 func TestBuildAtempo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		speed float64
@@ -315,6 +325,7 @@ func TestBuildAtempo(t *testing.T) {
 }
 
 func TestBuildAtempoInvalid(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("BuildAtempo(0) should panic")

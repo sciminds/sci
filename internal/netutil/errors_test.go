@@ -8,12 +8,14 @@ import (
 )
 
 func TestWrap_nil(t *testing.T) {
+	t.Parallel()
 	if got := Wrap("upload", nil); got != nil {
 		t.Fatalf("expected nil, got %v", got)
 	}
 }
 
 func TestWrap_nonNetwork(t *testing.T) {
+	t.Parallel()
 	err := errors.New("file not found")
 	got := Wrap("upload", err)
 	if got == nil {
@@ -30,6 +32,7 @@ func TestWrap_nonNetwork(t *testing.T) {
 }
 
 func TestWrap_dnsError(t *testing.T) {
+	t.Parallel()
 	err := &net.DNSError{Err: "no such host", Name: "example.com"}
 	got := Wrap("checking for updates", err)
 	if !strings.Contains(got.Error(), "DNS lookup failed") {
@@ -41,6 +44,7 @@ func TestWrap_dnsError(t *testing.T) {
 }
 
 func TestWrap_connectionRefused(t *testing.T) {
+	t.Parallel()
 	err := &net.OpError{Op: "dial", Err: errors.New("connection refused")}
 	got := Wrap("upload", err)
 	if !strings.Contains(got.Error(), "could not connect") {
@@ -55,6 +59,7 @@ func (timeoutErr) Timeout() bool   { return true }
 func (timeoutErr) Temporary() bool { return true }
 
 func TestWrap_timeout(t *testing.T) {
+	t.Parallel()
 	got := Wrap("download", timeoutErr{})
 	if !strings.Contains(got.Error(), "timed out") {
 		t.Fatalf("expected timeout message, got %q", got)
@@ -62,6 +67,7 @@ func TestWrap_timeout(t *testing.T) {
 }
 
 func TestWrap_stringHeuristics(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		errMsg   string
 		wantSnip string

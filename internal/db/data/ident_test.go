@@ -5,6 +5,7 @@ import (
 )
 
 func TestIsSafeIdentifier(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  bool

@@ -34,6 +34,7 @@ func sampleItem() *local.Item {
 }
 
 func TestExport_CSLJSON(t *testing.T) {
+	t.Parallel()
 	out, err := ExportItem(sampleItem(), ExportCSLJSON)
 	if err != nil {
 		t.Fatal(err)
@@ -73,6 +74,7 @@ func TestExport_CSLJSON(t *testing.T) {
 }
 
 func TestExport_BibTeX(t *testing.T) {
+	t.Parallel()
 	out, err := ExportItem(sampleItem(), ExportBibTeX)
 	if err != nil {
 		t.Fatal(err)
@@ -99,6 +101,7 @@ func TestExport_BibTeX(t *testing.T) {
 }
 
 func TestExport_BibTeXFallsBackToZoteroKey(t *testing.T) {
+	t.Parallel()
 	it := sampleItem()
 	delete(it.Fields, "citationKey")
 	out, _ := ExportItem(it, ExportBibTeX)
@@ -108,12 +111,14 @@ func TestExport_BibTeXFallsBackToZoteroKey(t *testing.T) {
 }
 
 func TestExport_UnknownFormat(t *testing.T) {
+	t.Parallel()
 	if _, err := ExportItem(sampleItem(), ExportFormat("ris")); err == nil {
 		t.Error("expected error for unknown format")
 	}
 }
 
 func TestExport_YearFromDate(t *testing.T) {
+	t.Parallel()
 	tests := map[string]int{
 		"2024":                      2024,
 		"2024-03-15":                2024,
@@ -130,6 +135,7 @@ func TestExport_YearFromDate(t *testing.T) {
 }
 
 func TestExport_BibTeX_InstitutionalAuthor(t *testing.T) {
+	t.Parallel()
 	// Zotero stores institutional creators like "NASA" with fieldMode=1,
 	// which the local reader surfaces as Creator.Name (First/Last empty).
 	// BibTeX must wrap these in braces so BibTeX doesn't parse them as
@@ -149,6 +155,7 @@ func TestExport_BibTeX_InstitutionalAuthor(t *testing.T) {
 }
 
 func TestExport_BibTeX_EscapesBraces(t *testing.T) {
+	t.Parallel()
 	it := sampleItem()
 	title := `A {Curly} title with \backslash`
 	it.Title = title
@@ -168,6 +175,7 @@ func TestExport_BibTeX_EscapesBraces(t *testing.T) {
 }
 
 func TestExport_BibTeX_DualEncodedDateYear(t *testing.T) {
+	t.Parallel()
 	it := sampleItem()
 	it.Date = "2024-03-15 March 15, 2024"
 	out, _ := ExportItem(it, ExportBibTeX)
@@ -177,6 +185,7 @@ func TestExport_BibTeX_DualEncodedDateYear(t *testing.T) {
 }
 
 func TestExport_CSLJSON_SingleNameAuthor(t *testing.T) {
+	t.Parallel()
 	it := sampleItem()
 	it.Creators = []local.Creator{{Type: "author", Name: "NASA"}}
 	out, err := ExportItem(it, ExportCSLJSON)
