@@ -16,6 +16,7 @@ import "github.com/urfave/cli/v3"
 //
 //	setup                       configure API key + library
 //	stats                       library summary
+//	view                        interactive read-only table viewer
 //	search  <query>             cross-field search (supports --export)
 //	export                      full-library BibTeX / CSL-JSON export
 //	item    <subcommand>        per-item ops (read/add/update/delete/list/open/export)
@@ -31,6 +32,7 @@ func Commands() []*cli.Command {
 	return []*cli.Command{
 		setupCommand(),
 		statsCommand(),
+		viewCommand(),
 		searchCommand(),
 		libraryExportCommand(),
 		itemCommand(),

@@ -1,0 +1,333 @@
+package view
+
+import (
+	"database/sql"
+	"errors"
+	"path/filepath"
+	"testing"
+	"time"
+
+	_ "modernc.org/sqlite"
+
+	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/zot/local"
+)
+
+func TestStoreTableNames(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	names, err := store.TableNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 1 || names[0] != TableName {
+		t.Fatalf("TableNames = %v, want [%s]", names, TableName)
+	}
+}
+
+func TestStoreQueryItemsTable(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	cols, rows, nullFlags, rowIDs, err := store.QueryTable(TableName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantCols := []string{
+		"Author(s)",
+		"Year",
+		"Journal/Publication",
+		"Title",
+		"Date Added",
+		"Extra",
+	}
+	if !sliceEqual(cols, wantCols) {
+		t.Fatalf("columns = %v, want %v", cols, wantCols)
+	}
+
+	if len(rows) != 3 {
+		t.Fatalf("got %d rows, want 3 (attachments, notes, trashed items must be filtered)", len(rows))
+	}
+	if len(nullFlags) != len(rows) || len(rowIDs) != len(rows) {
+		t.Fatalf("nullFlags/rowIDs length mismatch: rows=%d nullFlags=%d rowIDs=%d",
+			len(rows), len(nullFlags), len(rowIDs))
+	}
+
+	// Row 0 — item 10, most recent dateAdded, 2 authors, journalArticle.
+	wantRow0 := []string{
+		"Smith, Alice; Jones, Bob",
+		"2024",
+		"NeuroImage",
+		"Transformers in fMRI Analysis",
+		"03/15/24, 10:00am",
+		"Citation Key: xyz",
+	}
+	if !sliceEqual(rows[0], wantRow0) {
+		t.Errorf("row 0 = %v,\nwant    %v", rows[0], wantRow0)
+	}
+	if rowIDs[0] != 10 {
+		t.Errorf("row 0 rowID = %d, want 10", rowIDs[0])
+	}
+
+	// Row 1 — item 20, institutional author, year-only date, no journal.
+	wantRow1 := []string{
+		"NASA",
+		"2023",
+		"",
+		"Deep Space Report",
+		"02/01/24, 10:00am",
+		"Citation Key: abc",
+	}
+	if !sliceEqual(rows[1], wantRow1) {
+		t.Errorf("row 1 = %v,\nwant    %v", rows[1], wantRow1)
+	}
+
+	// Row 2 — item 30, book, no date/journal/extra.
+	wantRow2 := []string{
+		"Curie, Marie",
+		"",
+		"",
+		"A Book About Radium",
+		"01/01/24, 10:00am",
+		"",
+	}
+	if !sliceEqual(rows[2], wantRow2) {
+		t.Errorf("row 2 = %v,\nwant    %v", rows[2], wantRow2)
+	}
+}
+
+func TestStoreEditorsExcludedFromAuthors(t *testing.T) {
+	// Item 10 has Eve Editor as creatorType='editor'; she must not appear
+	// in the Author(s) column. Guarded implicitly by TestStoreQueryItemsTable,
+	// but called out here so a regression is easy to diagnose.
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+	_, rows, _, _, err := store.QueryTable(TableName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rows[0][0]; got == "" || contains(got, "Editor") {
+		t.Errorf("row 0 authors = %q, editor must be excluded", got)
+	}
+}
+
+func TestStoreTableRowCount(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+	n, err := store.TableRowCount(TableName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 3 {
+		t.Errorf("TableRowCount = %d, want 3", n)
+	}
+}
+
+func TestStoreTableSummaries(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+	sums, err := store.TableSummaries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sums) != 1 {
+		t.Fatalf("TableSummaries = %d entries, want 1", len(sums))
+	}
+	if sums[0].Name != TableName || sums[0].Rows != 3 || sums[0].Columns != 6 {
+		t.Errorf("summary = %+v, want {items 3 6}", sums[0])
+	}
+}
+
+func TestStoreIsView(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+	var vl data.ViewLister = store // compile-time: Store must implement ViewLister
+	if !vl.IsView(TableName) {
+		t.Errorf("IsView(%q) = false, want true — dbtui uses this to force read-only", TableName)
+	}
+	if vl.IsView("something_else") {
+		t.Errorf("IsView(something_else) = true, should only match items")
+	}
+}
+
+func TestStoreWriteMethodsBlocked(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	checks := []struct {
+		name string
+		run  func() error
+	}{
+		{"UpdateCell", func() error { return store.UpdateCell(TableName, "Title", 1, nil, nil) }},
+		{"DeleteRows", func() error { _, err := store.DeleteRows(TableName, nil); return err }},
+		{"InsertRows", func() error { return store.InsertRows(TableName, nil, nil) }},
+		{"RenameTable", func() error { return store.RenameTable(TableName, "x") }},
+		{"DropTable", func() error { return store.DropTable(TableName) }},
+		{"CreateEmptyTable", func() error { return store.CreateEmptyTable("x") }},
+		{"ExportCSV", func() error { return store.ExportCSV(TableName, "/tmp/x.csv") }},
+	}
+	for _, c := range checks {
+		if err := c.run(); err == nil || !errors.Is(err, ErrReadOnly) {
+			t.Errorf("%s: err = %v, want ErrReadOnly", c.name, err)
+		}
+	}
+}
+
+// newTestStore builds a fresh fixture directory and returns a Store fixed to
+// UTC so Date Added formatting is deterministic regardless of host timezone.
+func newTestStore(t *testing.T) *Store {
+	t.Helper()
+	dir := seedViewFixture(t)
+	db, err := local.Open(dir)
+	if err != nil {
+		t.Fatalf("local.Open: %v", err)
+	}
+	return New(db, time.UTC)
+}
+
+// seedViewFixture writes a minimal zotero.sqlite tailored to the view tests.
+// It intentionally duplicates a small subset of local/fixture_test.go's schema
+// because that fixture lives in a _test.go file in another package and cannot
+// be imported from here. Keep this synchronised with any new columns the
+// view layer starts reading from the DB.
+func seedViewFixture(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "zotero.sqlite")
+
+	db, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	ddl := []string{
+		`CREATE TABLE version (schema TEXT PRIMARY KEY, version INTEGER)`,
+		`CREATE TABLE libraries (libraryID INTEGER PRIMARY KEY, type TEXT)`,
+		`CREATE TABLE itemTypes (itemTypeID INTEGER PRIMARY KEY, typeName TEXT UNIQUE)`,
+		`CREATE TABLE fields (fieldID INTEGER PRIMARY KEY, fieldName TEXT UNIQUE)`,
+		`CREATE TABLE itemDataValues (valueID INTEGER PRIMARY KEY, value TEXT UNIQUE)`,
+		`CREATE TABLE items (
+			itemID INTEGER PRIMARY KEY,
+			itemTypeID INTEGER,
+			libraryID INTEGER,
+			key TEXT,
+			dateAdded TEXT,
+			dateModified TEXT,
+			clientDateModified TEXT
+		)`,
+		`CREATE TABLE itemData (itemID INTEGER, fieldID INTEGER, valueID INTEGER, PRIMARY KEY (itemID, fieldID))`,
+		`CREATE TABLE deletedItems (itemID INTEGER PRIMARY KEY)`,
+		`CREATE TABLE creators (creatorID INTEGER PRIMARY KEY, firstName TEXT, lastName TEXT, fieldMode INTEGER)`,
+		`CREATE TABLE creatorTypes (creatorTypeID INTEGER PRIMARY KEY, creatorType TEXT)`,
+		`CREATE TABLE itemCreators (itemID INTEGER, creatorID INTEGER, creatorTypeID INTEGER, orderIndex INTEGER, PRIMARY KEY (itemID, orderIndex))`,
+	}
+	for _, s := range ddl {
+		if _, err := db.Exec(s); err != nil {
+			t.Fatalf("ddl %q: %v", s, err)
+		}
+	}
+
+	seed := []string{
+		`INSERT INTO version VALUES ('userdata', 125)`,
+		`INSERT INTO libraries VALUES (1, 'user')`,
+
+		`INSERT INTO itemTypes VALUES
+			(1,'journalArticle'),
+			(2,'book'),
+			(3,'attachment'),
+			(4,'note'),
+			(5,'report')`,
+
+		`INSERT INTO fields VALUES
+			(1,'title'),
+			(2,'date'),
+			(3,'publicationTitle'),
+			(4,'extra')`,
+
+		`INSERT INTO creatorTypes VALUES (1,'author'),(2,'editor')`,
+
+		`INSERT INTO creators VALUES
+			(1,'Alice','Smith',0),
+			(2,'Bob','Jones',0),
+			(3,'','NASA',1),
+			(4,'Marie','Curie',0),
+			(5,'Eve','Editor',0)`,
+
+		// Items:
+		//   10 — journalArticle, content, full metadata, 2 authors + 1 editor
+		//   20 — report, content, institutional author, year-only date
+		//   30 — book, content, single author, missing date/pub/extra
+		//   40 — attachment (must be excluded)
+		//   50 — note (must be excluded)
+		//   60 — journalArticle but trashed (must be excluded)
+		// dateAdded uses ISO-8601 with trailing Z — that's what current
+		// Zotero releases write. Item 30 is intentionally left on the older
+		// space-separated form so the store's dual-layout parser stays
+		// exercised.
+		`INSERT INTO items VALUES
+			(10, 1, 1, 'IT10', '2024-03-15T10:00:00Z', '', ''),
+			(20, 5, 1, 'IT20', '2024-02-01T10:00:00Z', '', ''),
+			(30, 2, 1, 'IT30', '2024-01-01 10:00:00',  '', ''),
+			(40, 3, 1, 'ATT',  '2024-03-20T10:00:00Z', '', ''),
+			(50, 4, 1, 'NTE',  '2024-03-20T10:00:00Z', '', ''),
+			(60, 1, 1, 'DEL',  '2024-04-01T10:00:00Z', '', '')`,
+
+		`INSERT INTO deletedItems VALUES (60)`,
+
+		`INSERT INTO itemDataValues VALUES
+			(1,'Transformers in fMRI Analysis'),
+			(2,'2024-03-15 March 15, 2024'),
+			(3,'NeuroImage'),
+			(4,'Citation Key: xyz'),
+			(5,'Deep Space Report'),
+			(6,'2023-00-00 2023'),
+			(7,'Citation Key: abc'),
+			(8,'A Book About Radium')`,
+
+		`INSERT INTO itemData VALUES
+			(10,1,1),(10,2,2),(10,3,3),(10,4,4),
+			(20,1,5),(20,2,6),(20,4,7),
+			(30,1,8)`,
+
+		// itemCreators: (itemID, creatorID, creatorTypeID, orderIndex)
+		// Item 10: Smith (author, order 0), Jones (author, order 1), Editor (editor, order 2 — must be filtered out)
+		// Item 20: NASA (author)
+		// Item 30: Curie (author)
+		`INSERT INTO itemCreators VALUES
+			(10,1,1,0),
+			(10,2,1,1),
+			(10,5,2,2),
+			(20,3,1,0),
+			(30,4,1,0)`,
+	}
+	for _, s := range seed {
+		if _, err := db.Exec(s); err != nil {
+			t.Fatalf("seed %q: %v", s, err)
+		}
+	}
+	return dir
+}
+
+func sliceEqual[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func contains(haystack, needle string) bool {
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		if haystack[i:i+len(needle)] == needle {
+			return true
+		}
+	}
+	return false
+}

@@ -22,6 +22,7 @@ type RunOption func(*runConfig)
 type runConfig struct {
 	colHints   map[string]ColHint
 	initialTab string
+	readOnly   bool
 }
 
 // WithInitialTab makes the viewer open on the named tab (if it exists).
@@ -34,6 +35,13 @@ func WithColHints(hints map[string]ColHint) RunOption {
 	return func(c *runConfig) { c.colHints = hints }
 }
 
+// WithReadOnly forces every tab into read-only mode regardless of the
+// underlying store type. Use for projection stores where no write path
+// makes sense (e.g. zot view).
+func WithReadOnly() RunOption {
+	return func(c *runConfig) { c.readOnly = true }
+}
+
 // Run launches the interactive database viewer with a pre-opened store.
 // The caller is responsible for closing the store.
 func Run(store data.DataStore, label string, opts ...RunOption) error {
@@ -42,7 +50,7 @@ func Run(store data.DataStore, label string, opts ...RunOption) error {
 		o(&cfg)
 	}
 
-	model, err := NewModel(store, label, false)
+	model, err := NewModel(store, label, cfg.readOnly)
 	if err != nil {
 		return err
 	}
