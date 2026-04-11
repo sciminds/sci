@@ -7,7 +7,10 @@ import (
 	"path/filepath"
 )
 
-const defaultBucket = "sci-public"
+const (
+	defaultBucket      = "sci-public"
+	defaultBoardBucket = "sci-board"
+)
 
 // DefaultConfigPath returns the path for the R2 credentials file.
 func DefaultConfigPath() string {
@@ -46,6 +49,19 @@ func LoadConfig() (*Config, error) {
 			SecretKey:  cfg.LegacySecretKey,
 			BucketName: bucket,
 			PublicURL:  cfg.LegacyPublicURL,
+		}
+	}
+
+	// Backfill the board bucket for users upgrading from a version that
+	// pre-dates the board feature. R2 tokens are account-scoped in our
+	// setup, so the same keys that work for sci-public also work for
+	// sci-board — no re-auth required. The migration persists on the
+	// next SaveConfig.
+	if cfg.Board == nil && cfg.Public != nil && cfg.Public.AccessKey != "" {
+		cfg.Board = &BucketConfig{
+			AccessKey:  cfg.Public.AccessKey,
+			SecretKey:  cfg.Public.SecretKey,
+			BucketName: defaultBoardBucket,
 		}
 	}
 
