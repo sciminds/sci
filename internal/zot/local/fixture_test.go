@@ -2,27 +2,66 @@ package local
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	_ "modernc.org/sqlite"
 )
 
-// buildFixture creates a minimal but schema-accurate zotero.sqlite in a temp
-// directory and returns the containing directory (suitable for Open).
+// sharedFixtureDir is lazily populated once per `go test` invocation.
+// The fixture is opened read-only/immutable by every test, so there is
+// no mutation risk in sharing it across subtests. Rebuilding it per test
+// adds ~70ms of DDL + seed work that dominates total local/ suite time.
+var (
+	sharedFixtureOnce sync.Once
+	sharedFixtureDir  string
+	sharedFixtureErr  error
+)
+
+// buildFixture returns a directory containing a populated zotero.sqlite
+// (see seed data below). The same fixture is shared across every test in
+// this package — t.TempDir cleanup runs at process exit via TestMain.
 //
 // The fixture intentionally uses the same table and column names as real
 // Zotero so our queries run unmodified. It does NOT claim to cover every
 // constraint — we only create what we query.
 func buildFixture(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	sharedFixtureOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "zot-local-fixture-*")
+		if err != nil {
+			sharedFixtureErr = err
+			return
+		}
+		sharedFixtureDir = dir
+		sharedFixtureErr = seedFixture(dir)
+	})
+	if sharedFixtureErr != nil {
+		t.Fatalf("shared fixture: %v", sharedFixtureErr)
+	}
+	return sharedFixtureDir
+}
+
+// TestMain cleans up the shared fixture directory after all tests finish.
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if sharedFixtureDir != "" {
+		_ = os.RemoveAll(sharedFixtureDir)
+	}
+	os.Exit(code)
+}
+
+// seedFixture builds the zotero.sqlite file inside dir. Split out from
+// buildFixture so the sync.Once initializer has a plain func to call.
+func seedFixture(dir string) error {
 	path := filepath.Join(dir, "zotero.sqlite")
 
 	db, err := sql.Open("sqlite", "file:"+path)
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 	defer func() { _ = db.Close() }()
 
@@ -86,7 +125,7 @@ func buildFixture(t *testing.T) string {
 	}
 	for _, stmt := range ddl {
 		if _, err := db.Exec(stmt); err != nil {
-			t.Fatalf("ddl %q: %v", stmt, err)
+			return fmt.Errorf("ddl %q: %w", stmt, err)
 		}
 	}
 
@@ -159,11 +198,11 @@ func buildFixture(t *testing.T) string {
 	}
 	for _, stmt := range seed {
 		if _, err := db.Exec(stmt); err != nil {
-			t.Fatalf("seed %q: %v", stmt, err)
+			return fmt.Errorf("seed %q: %w", stmt, err)
 		}
 	}
 
-	return dir
+	return nil
 }
 
 // sanityCheckFixture reports a brief summary — useful when debugging test drift.

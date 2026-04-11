@@ -48,6 +48,12 @@ func openRealDB(t *testing.T) *local.DB {
 }
 
 func TestMissing_RealLibrary(t *testing.T) {
+	// Gated behind SLOW=1 — the SQL itself is covered by the local
+	// package fixture test; this one is for eyeballing coverage numbers
+	// against a real library and catches ~nothing that the fixture misses.
+	if os.Getenv("SLOW") == "" {
+		t.Skip("set SLOW=1 to run real-library missing scan")
+	}
 	db := openRealDB(t)
 
 	rep, err := Missing(db, nil)

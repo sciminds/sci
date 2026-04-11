@@ -281,6 +281,12 @@ func TestTeatestResizeGrowFromTooSmall(t *testing.T) {
 	m := newTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(10, 5))
 
+	// Wait for the too-small state to commit before sending the grow.
+	// Without this barrier, the grow message can race against teatest's
+	// own initial WindowSizeMsg(10, 5) injected by WithInitialTermSize,
+	// letting the stale message clobber width back to 10 after we grew.
+	waitForOutput(t, tm, "Termi")
+
 	// Start too small, then grow to usable size.
 	tm.Send(tea.WindowSizeMsg{Width: 100, Height: 30})
 	waitForTable(t, tm)
