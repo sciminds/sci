@@ -113,7 +113,11 @@ func (m *Model) renderColumn(col engine.Column, cards []engine.Card, colIdx, wid
 		body = append(body, "")
 	}
 
-	return frame.Width(width - 2).Render(strings.Join(body, "\n"))
+	// frame.Width sets the *total* rendered width (border + padding + content),
+	// so pass width directly. Subtracting here would shrink the content area
+	// below innerW and wrap the header onto a second row, pushing the bottom
+	// border off the bottom of the screen.
+	return frame.Width(width).Render(strings.Join(body, "\n"))
 }
 
 // renderColumnHeader renders a single-line column header: uppercased,

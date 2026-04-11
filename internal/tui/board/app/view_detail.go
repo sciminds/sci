@@ -69,8 +69,11 @@ func (m *Model) viewDetail(width, height int) string {
 		}
 	}
 
-	// Clip/pad to bodyH - 2 (frame borders).
-	innerH := height - 2
+	// Clip/pad to interior height: subtract 2 borders + 2 vertical padding
+	// rows (DetailFrame uses Padding(1, 2)). lipgloss .Width sets the total
+	// rendered width, so pass width directly — see view_grid.go for the
+	// same gotcha.
+	innerH := height - 4
 	if innerH < 3 {
 		innerH = 3
 	}
@@ -81,5 +84,5 @@ func (m *Model) viewDetail(width, height int) string {
 		lines = append(lines, "")
 	}
 
-	return m.styles.DetailFrame.Width(width - 2).Render(strings.Join(lines, "\n"))
+	return m.styles.DetailFrame.Width(width).Render(strings.Join(lines, "\n"))
 }
