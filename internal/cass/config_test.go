@@ -7,6 +7,7 @@ import (
 )
 
 func TestParseCanvasURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		url      string
@@ -57,6 +58,7 @@ func TestParseCanvasURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			base, id, err := ParseCanvasURL(tt.url)
 			if tt.wantErr {
 				if err == nil {
@@ -78,6 +80,7 @@ func TestParseCanvasURL(t *testing.T) {
 }
 
 func TestParseClassroomURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		url     string
@@ -118,6 +121,7 @@ func TestParseClassroomURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			id, err := ParseClassroomURL(tt.url)
 			if tt.wantErr {
 				if err == nil {
@@ -136,9 +140,11 @@ func TestParseClassroomURL(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	t.Run("canvas only", func(t *testing.T) {
+		t.Parallel()
 		path := filepath.Join(dir, "canvas-only.yaml")
 		data := []byte("canvas:\n  url: https://canvas.ucsd.edu/courses/63653\n")
 		if err := os.WriteFile(path, data, 0o644); err != nil {
@@ -165,6 +171,7 @@ func TestLoadConfig(t *testing.T) {
 	})
 
 	t.Run("canvas plus classroom", func(t *testing.T) {
+		t.Parallel()
 		path := filepath.Join(dir, "both.yaml")
 		data := []byte("canvas:\n  url: https://canvas.ucsd.edu/courses/63653\nclassroom:\n  url: https://classroom.github.com/classrooms/299058\n")
 		if err := os.WriteFile(path, data, 0o644); err != nil {
@@ -188,6 +195,7 @@ func TestLoadConfig(t *testing.T) {
 	})
 
 	t.Run("missing file", func(t *testing.T) {
+		t.Parallel()
 		_, err := LoadConfig(filepath.Join(dir, "nope.yaml"))
 		if err == nil {
 			t.Fatal("expected error for missing file")
@@ -195,6 +203,7 @@ func TestLoadConfig(t *testing.T) {
 	})
 
 	t.Run("classroom with empty url", func(t *testing.T) {
+		t.Parallel()
 		path := filepath.Join(dir, "empty-classroom.yaml")
 		data := []byte("canvas:\n  url: https://canvas.ucsd.edu/courses/63653\nclassroom:\n  url: \"\"\n")
 		if err := os.WriteFile(path, data, 0o644); err != nil {
@@ -207,6 +216,7 @@ func TestLoadConfig(t *testing.T) {
 	})
 
 	t.Run("invalid yaml", func(t *testing.T) {
+		t.Parallel()
 		path := filepath.Join(dir, "bad.yaml")
 		if err := os.WriteFile(path, []byte(":::"), 0o644); err != nil {
 			t.Fatal(err)
@@ -219,6 +229,7 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestFindConfig(t *testing.T) {
+	t.Parallel()
 	// Create nested dirs with cass.yaml at the root level
 	root := t.TempDir()
 	sub := filepath.Join(root, "a", "b", "c")
@@ -233,6 +244,7 @@ func TestFindConfig(t *testing.T) {
 	}
 
 	t.Run("finds config walking up", func(t *testing.T) {
+		t.Parallel()
 		found, err := FindConfig(sub)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -243,6 +255,7 @@ func TestFindConfig(t *testing.T) {
 	})
 
 	t.Run("no config found", func(t *testing.T) {
+		t.Parallel()
 		empty := t.TempDir()
 		_, err := FindConfig(empty)
 		if err == nil {
@@ -252,9 +265,12 @@ func TestFindConfig(t *testing.T) {
 }
 
 func TestCanvasToken(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "credentials.json")
 
+	// Subtests below run sequentially: "file permissions" reads the file
+	// written by "save and load".
 	t.Run("save and load", func(t *testing.T) {
 		if err := SaveCanvasToken(path, "test-token-123"); err != nil {
 			t.Fatalf("save: %v", err)

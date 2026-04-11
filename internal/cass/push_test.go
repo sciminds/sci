@@ -12,6 +12,7 @@ import (
 )
 
 func TestPushGate_BlocksWhenMatchPending(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	_ = db.SetMeta("match_pending", "true")
 
@@ -22,6 +23,7 @@ func TestPushGate_BlocksWhenMatchPending(t *testing.T) {
 }
 
 func TestPushGate_BlocksWhenNeverPulled(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	err := CheckPushGates(db)
@@ -31,6 +33,7 @@ func TestPushGate_BlocksWhenNeverPulled(t *testing.T) {
 }
 
 func TestPushGate_AllowsWhenClean(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	_ = db.SetMeta("last_pull", time.Now().Format(time.RFC3339))
 
@@ -41,6 +44,7 @@ func TestPushGate_AllowsWhenClean(t *testing.T) {
 }
 
 func TestPollProgress_Completed(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(canvas.Progress{ID: 1, WorkflowState: "completed"})
 	}))
@@ -54,6 +58,7 @@ func TestPollProgress_Completed(t *testing.T) {
 }
 
 func TestPollProgress_Failed(t *testing.T) {
+	t.Parallel()
 	msg := "grades could not be posted"
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(canvas.Progress{ID: 1, WorkflowState: "failed", Message: &msg})
@@ -71,6 +76,7 @@ func TestPollProgress_Failed(t *testing.T) {
 }
 
 func TestPollProgress_FailedNoMessage(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(canvas.Progress{ID: 1, WorkflowState: "failed"})
 	}))
@@ -87,6 +93,10 @@ func TestPollProgress_FailedNoMessage(t *testing.T) {
 }
 
 func TestPollProgress_EventuallyCompletes(t *testing.T) {
+	// Not parallel: mutates the package-level pollProgressInterval.
+	prev := pollProgressInterval
+	pollProgressInterval = time.Millisecond
+	t.Cleanup(func() { pollProgressInterval = prev })
 	var callCount int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount++
@@ -110,6 +120,7 @@ func TestPollProgress_EventuallyCompletes(t *testing.T) {
 }
 
 func TestPollProgress_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(canvas.Progress{ID: 1, WorkflowState: "running"})
 	}))
@@ -126,6 +137,7 @@ func TestPollProgress_ContextCancellation(t *testing.T) {
 }
 
 func TestPushGrades_EndToEnd(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	// Mock Canvas: accept bulk grade POST, return progress, then complete.
@@ -162,6 +174,7 @@ func TestPushGrades_EndToEnd(t *testing.T) {
 }
 
 func TestSyncGrades(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	now := time.Now().Format(time.RFC3339)

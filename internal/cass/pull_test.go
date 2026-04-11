@@ -12,6 +12,7 @@ import (
 )
 
 func TestPullStudents_Changelog(t *testing.T) {
+	t.Parallel()
 	// Mock Canvas API returning 3 students.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		users := []map[string]any{
@@ -45,6 +46,7 @@ func TestPullStudents_Changelog(t *testing.T) {
 }
 
 func TestPullStudents_PreservesLocalFields(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		users := []map[string]any{
 			{"id": 1, "name": "Alice Chen", "sortable_name": "Chen, Alice", "email": "alice@test.com", "login_id": "alice"},
@@ -81,6 +83,7 @@ func TestPullStudents_PreservesLocalFields(t *testing.T) {
 }
 
 func TestResolveClassroomID_NotFound(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		classrooms := []map[string]any{
 			{"id": 1, "name": "Other Course", "url": "https://classroom.github.com/classrooms/111-other"},
@@ -102,6 +105,7 @@ func TestResolveClassroomID_NotFound(t *testing.T) {
 }
 
 func TestResolveClassroomID_EmptyList(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode([]map[string]any{})
 	}))
@@ -120,6 +124,7 @@ func TestResolveClassroomID_EmptyList(t *testing.T) {
 }
 
 func TestResolveClassroomID_Found(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		classrooms := []map[string]any{
 			{"id": 42, "name": "My Course", "url": "https://classroom.github.com/classrooms/999-my-course"},
@@ -141,6 +146,7 @@ func TestResolveClassroomID_Found(t *testing.T) {
 }
 
 func TestPullAssignments_Changelog(t *testing.T) {
+	t.Parallel()
 	callCount := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++

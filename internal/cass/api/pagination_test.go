@@ -3,6 +3,7 @@ package api
 import "testing"
 
 func TestParseNextLink(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		header string
@@ -37,6 +38,7 @@ func TestParseNextLink(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := ParseNextLink(tt.header)
 			if got != tt.want {
 				t.Errorf("ParseNextLink() = %q, want %q", got, tt.want)

@@ -10,6 +10,7 @@ import (
 )
 
 func TestDiffLocal_NoPendingChanges(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	result, err := DiffLocal(db)
 	if err != nil {
@@ -21,6 +22,7 @@ func TestDiffLocal_NoPendingChanges(t *testing.T) {
 }
 
 func TestDiffLocal_DetectsChanges(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	now := time.Now().Format(time.RFC3339)
@@ -60,6 +62,7 @@ func TestDiffLocal_DetectsChanges(t *testing.T) {
 }
 
 func TestDiffRemote_DetectsConflicts(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	now := time.Now().Format(time.RFC3339)
@@ -129,6 +132,7 @@ func TestDiffRemote_DetectsConflicts(t *testing.T) {
 }
 
 func TestDiffRemote_NoChanges(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	result, err := DiffRemote(context.Background(), db, "http://unused", "token", 1)
@@ -141,6 +145,7 @@ func TestDiffRemote_NoChanges(t *testing.T) {
 }
 
 func TestDiffLocal_NullBaseline(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	now := time.Now().Format(time.RFC3339)
 
@@ -167,6 +172,7 @@ func TestDiffLocal_NullBaseline(t *testing.T) {
 }
 
 func TestDiffResult_Human_NoChanges(t *testing.T) {
+	t.Parallel()
 	r := &DiffResult{}
 	out := r.Human()
 	if out == "" {
@@ -175,6 +181,7 @@ func TestDiffResult_Human_NoChanges(t *testing.T) {
 }
 
 func TestRevert(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	now := time.Now().Format(time.RFC3339)

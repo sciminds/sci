@@ -30,7 +30,7 @@ test-slow *ARGS:
 
 # Canvas + GitHub Classroom integration tests (requires CANVAS_TOKEN in .env and gh auth)
 test-canvas:
-    CANVAS_TEST_TOKEN=$CANVAS_TOKEN CANVAS_TEST_URL="https://canvas.ucsd.edu/courses/63653" GH_CLASSROOM_TEST_URL="https://classroom.github.com/classrooms/232475786-test-classroom" go test ./internal/cass/ -run Integration -v -timeout 2m -count=1
+    SLOW=1 CANVAS_TEST_TOKEN=$CANVAS_TOKEN CANVAS_TEST_URL="https://canvas.ucsd.edu/courses/63653" GH_CLASSROOM_TEST_URL="https://classroom.github.com/classrooms/232475786-test-classroom" go test ./internal/cass/ -run Integration -v -timeout 2m -count=1
 
 # Live R2 board tests (round-trip + privacy assertion)
 test-board-live:
@@ -82,18 +82,7 @@ docs:
 
 set dotenv-load
 
-# Deploy PocketBase hooks to PocketHost via FTP
-pb-deploy:
-    curl -u "$GOOSE_CLOUD_SUPERUSER_EMAIL:$GOOSE_CLOUD_SUPERUSER_PASS" --ftp-create-dirs \
-        -T pocketbase/pb_hooks/org_guard.pb.js \
-        ftp://ftp.pockethost.io/goose/pb_hooks/org_guard.pb.js
-    @echo "Deployed pb_hooks to PocketHost."
-
 # Deploy Cloudflare Worker (sci-auth)
 worker-deploy:
     cd worker && npx wrangler deploy
 
-# List deployed PocketBase hooks on PocketHost
-pb-status:
-    curl -u "$GOOSE_CLOUD_SUPERUSER_EMAIL:$GOOSE_CLOUD_SUPERUSER_PASS" --list-only \
-        ftp://ftp.pockethost.io/goose/pb_hooks/

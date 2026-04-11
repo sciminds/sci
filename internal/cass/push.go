@@ -62,6 +62,10 @@ func PushGrades(ctx context.Context, db *DB, canvasBaseURL, token string, course
 
 // pollProgress waits for a Canvas async operation to complete.
 // The 2-minute timeout applies per-assignment, not to the total push operation.
+// pollProgressInterval is how long pollProgress waits between polls. Overridable
+// from tests so we don't pay wall-clock seconds per iteration.
+var pollProgressInterval = time.Second
+
 func pollProgress(ctx context.Context, client *canvas.Client, progressID int) error {
 	path := fmt.Sprintf("/progress/%d", progressID)
 	timeout := time.After(2 * time.Minute)
@@ -91,7 +95,7 @@ func pollProgress(ctx context.Context, client *canvas.Client, progressID int) er
 			return fmt.Errorf("canvas operation failed: %s", msg)
 		}
 
-		time.Sleep(time.Second)
+		time.Sleep(pollProgressInterval)
 	}
 }
 

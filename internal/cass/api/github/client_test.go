@@ -11,6 +11,7 @@ import (
 )
 
 func TestClient_Get(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify required GitHub headers.
 		if r.Header.Get("Authorization") != "Bearer gh-token" {
@@ -39,6 +40,7 @@ func TestClient_Get(t *testing.T) {
 }
 
 func TestClient_GetPaginated(t *testing.T) {
+	t.Parallel()
 	page := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		page++
@@ -64,6 +66,7 @@ func TestClient_GetPaginated(t *testing.T) {
 }
 
 func TestClient_GetPaginated_SemaphoreSafety(t *testing.T) {
+	t.Parallel()
 	// Verifies semaphore is properly released even when requests error mid-pagination.
 	// First page succeeds, second page returns 500.
 	page := 0
@@ -109,6 +112,7 @@ func TestClient_GetPaginated_SemaphoreSafety(t *testing.T) {
 }
 
 func TestClient_NonOKStatus(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"message":"bad credentials"}`))
@@ -126,6 +130,7 @@ func TestClient_NonOKStatus(t *testing.T) {
 }
 
 func TestClient_GetPaginated_EmptyResponse(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode([]Assignment{})
 	}))
@@ -144,6 +149,7 @@ func TestClient_GetPaginated_EmptyResponse(t *testing.T) {
 }
 
 func TestClient_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode([]Assignment{{ID: 1}})
 	}))
@@ -163,6 +169,7 @@ func TestClient_ContextCancellation(t *testing.T) {
 }
 
 func TestClient_GetConcurrent(t *testing.T) {
+	t.Parallel()
 	var callCount atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount.Add(1)

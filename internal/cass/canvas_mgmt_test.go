@@ -11,6 +11,7 @@ import (
 )
 
 func TestListModules(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		mods := []canvas.Module{
 			{ID: 1, Name: "Week 1", Position: 1},
@@ -33,6 +34,7 @@ func TestListModules(t *testing.T) {
 }
 
 func TestCreateModule(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("method = %s", r.Method)
@@ -55,6 +57,7 @@ func TestCreateModule(t *testing.T) {
 }
 
 func TestListAssignmentsCanvas(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		assigns := []canvas.Assignment{
 			{ID: 101, Name: "Lab 1", PointsPossible: 20, Published: true},
@@ -74,6 +77,7 @@ func TestListAssignmentsCanvas(t *testing.T) {
 }
 
 func TestCreateAssignment(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
 		if r.Form.Get("assignment[name]") != "Lab 3" {
@@ -99,6 +103,7 @@ func TestCreateAssignment(t *testing.T) {
 }
 
 func TestPostAnnouncement(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
 		if r.Form.Get("title") != "Hello" {
@@ -121,6 +126,7 @@ func TestPostAnnouncement(t *testing.T) {
 }
 
 func TestFormatBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input int64
 		want  string
@@ -141,6 +147,7 @@ func TestFormatBytes(t *testing.T) {
 }
 
 func TestListFiles(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		files := []canvas.File{
 			{ID: 1, DisplayName: "syllabus.pdf", Size: 1024},

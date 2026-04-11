@@ -8,13 +8,24 @@ import (
 	"testing"
 )
 
-// Integration tests require:
+// Integration tests are gated behind SLOW=1 (they hit real Canvas/GitHub APIs)
+// and additionally require:
 //   CANVAS_TEST_TOKEN      — Canvas API token
 //   CANVAS_TEST_URL        — Full course URL (e.g. https://canvas.ucsd.edu/courses/63653)
 //   GH_CLASSROOM_TEST_URL  — GitHub Classroom URL (optional, for GH tests)
+//
+// Run: `just test-canvas` (sets SLOW=1 + the env vars from .env).
+
+func skipUnlessSlow(t *testing.T) {
+	t.Helper()
+	if os.Getenv("SLOW") == "" {
+		t.Skip("skipping integration test (set SLOW=1 to run)")
+	}
+}
 
 func skipUnlessIntegration(t *testing.T) (baseURL string, courseID int, token string) {
 	t.Helper()
+	skipUnlessSlow(t)
 	token = os.Getenv("CANVAS_TEST_TOKEN")
 	rawURL := os.Getenv("CANVAS_TEST_URL")
 	if token == "" || rawURL == "" {
@@ -30,6 +41,7 @@ func skipUnlessIntegration(t *testing.T) (baseURL string, courseID int, token st
 
 func skipUnlessGHClassroom(t *testing.T) (classroomURL string, ghToken string) {
 	t.Helper()
+	skipUnlessSlow(t)
 	classroomURL = os.Getenv("GH_CLASSROOM_TEST_URL")
 	if classroomURL == "" {
 		t.Skip("set GH_CLASSROOM_TEST_URL to run GitHub Classroom integration tests")

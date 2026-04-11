@@ -3,6 +3,7 @@ package cass
 import "testing"
 
 func TestNormalizeName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -18,6 +19,7 @@ func TestNormalizeName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got := NormalizeName(tt.input)
 			if got != tt.want {
 				t.Errorf("NormalizeName(%q) = %q, want %q", tt.input, got, tt.want)
@@ -27,6 +29,7 @@ func TestNormalizeName(t *testing.T) {
 }
 
 func TestSlugify(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -40,6 +43,7 @@ func TestSlugify(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got := Slugify(tt.input)
 			if got != tt.want {
 				t.Errorf("Slugify(%q) = %q, want %q", tt.input, got, tt.want)
@@ -49,6 +53,7 @@ func TestSlugify(t *testing.T) {
 }
 
 func TestFindCandidates(t *testing.T) {
+	t.Parallel()
 	canvas := []Student{
 		{CanvasID: 1, Name: "Alice Chen"},
 		{CanvasID: 2, Name: "Bob Park"},
@@ -57,6 +62,7 @@ func TestFindCandidates(t *testing.T) {
 	}
 
 	t.Run("exact match", func(t *testing.T) {
+		t.Parallel()
 		candidates := FindCandidates("Alice Chen", canvas)
 		if len(candidates) == 0 {
 			t.Fatal("expected candidates")
@@ -70,6 +76,7 @@ func TestFindCandidates(t *testing.T) {
 	})
 
 	t.Run("fuzzy match", func(t *testing.T) {
+		t.Parallel()
 		// GitHub names often have first+last tokens.
 		candidates := FindCandidates("Alice C", canvas)
 		if len(candidates) == 0 {
@@ -82,6 +89,7 @@ func TestFindCandidates(t *testing.T) {
 	})
 
 	t.Run("no match", func(t *testing.T) {
+		t.Parallel()
 		candidates := FindCandidates("xyz-unknown", canvas)
 		if len(candidates) != 0 {
 			t.Errorf("expected no candidates, got %d", len(candidates))
@@ -90,6 +98,7 @@ func TestFindCandidates(t *testing.T) {
 }
 
 func TestAutoMatch(t *testing.T) {
+	t.Parallel()
 	canvas := []Student{
 		{CanvasID: 1, Name: "Alice Chen"},
 		{CanvasID: 2, Name: "Bob Park"},
@@ -122,6 +131,7 @@ func TestAutoMatch(t *testing.T) {
 }
 
 func TestAutoMatch_AllAlreadyMatched(t *testing.T) {
+	t.Parallel()
 	// When all students are already matched, should return empty.
 	canvas := []Student{
 		{CanvasID: 1, Name: "Alice Chen"},
@@ -136,6 +146,7 @@ func TestAutoMatch_AllAlreadyMatched(t *testing.T) {
 }
 
 func TestAutoMatch_DuplicateCanvasStudent(t *testing.T) {
+	t.Parallel()
 	// Each Canvas student should only match once.
 	canvas := []Student{
 		{CanvasID: 1, Name: "Alice Chen"},
@@ -152,6 +163,7 @@ func TestAutoMatch_DuplicateCanvasStudent(t *testing.T) {
 }
 
 func TestScoreName_BoundaryConditions(t *testing.T) {
+	t.Parallel()
 	// Exactly 50% overlap.
 	score := scoreName("alice bob", []string{"alice", "bob"}, "alice charlie")
 	if score == 0 {
@@ -172,6 +184,7 @@ func TestScoreName_BoundaryConditions(t *testing.T) {
 }
 
 func TestAutoMatch_LastFirst(t *testing.T) {
+	t.Parallel()
 	canvas := []Student{
 		{CanvasID: 1, Name: "Smith, John"},
 	}

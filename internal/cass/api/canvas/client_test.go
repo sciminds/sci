@@ -13,6 +13,7 @@ import (
 )
 
 func TestClient_Get(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer test-token" {
 			t.Errorf("bad auth header: %q", r.Header.Get("Authorization"))
@@ -32,6 +33,7 @@ func TestClient_Get(t *testing.T) {
 }
 
 func TestClient_GetPaginated(t *testing.T) {
+	t.Parallel()
 	page := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		page++
@@ -58,6 +60,7 @@ func TestClient_GetPaginated(t *testing.T) {
 }
 
 func TestClient_RateLimitThrottle(t *testing.T) {
+	t.Parallel()
 	var callCount atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		callCount.Add(1)
@@ -85,6 +88,7 @@ func TestClient_RateLimitThrottle(t *testing.T) {
 }
 
 func TestClient_Retry429(t *testing.T) {
+	t.Parallel()
 	var callCount atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		n := callCount.Add(1)
@@ -113,6 +117,7 @@ func TestClient_Retry429(t *testing.T) {
 }
 
 func TestClient_PostForm(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("method = %s", r.Method)
@@ -149,6 +154,7 @@ func TestClient_PostForm(t *testing.T) {
 }
 
 func TestClient_ConcurrentThrottleSafety(t *testing.T) {
+	t.Parallel()
 	// Exercises concurrent requests that trigger rate-limit throttling.
 	// Run with -race to verify no data races on throttleUntil.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -175,6 +181,7 @@ func TestClient_ConcurrentThrottleSafety(t *testing.T) {
 }
 
 func TestClient_RetryExhaustion(t *testing.T) {
+	t.Parallel()
 	// All retries return 429 → should return error after MaxRetries.
 	var callCount atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -199,6 +206,7 @@ func TestClient_RetryExhaustion(t *testing.T) {
 }
 
 func TestClient_NonOKStatus(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
@@ -217,6 +225,7 @@ func TestClient_NonOKStatus(t *testing.T) {
 }
 
 func TestClient_GetPaginated_EmptyResponse(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode([]User{})
 	}))
@@ -233,6 +242,7 @@ func TestClient_GetPaginated_EmptyResponse(t *testing.T) {
 }
 
 func TestClient_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(100 * time.Millisecond)
 		_ = json.NewEncoder(w).Encode(Course{ID: 1})
@@ -251,6 +261,7 @@ func TestClient_ContextCancellation(t *testing.T) {
 }
 
 func TestClient_Delete(t *testing.T) {
+	t.Parallel()
 	var gotMethod string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
@@ -268,6 +279,7 @@ func TestClient_Delete(t *testing.T) {
 }
 
 func TestClient_BulkGradeFormat(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			t.Fatal(err)

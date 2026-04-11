@@ -7,6 +7,7 @@ import (
 )
 
 func TestCreateSchema(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "test.db")
 	db, err := OpenDB(path)
 	if err != nil {
@@ -39,6 +40,7 @@ func TestCreateSchema(t *testing.T) {
 }
 
 func TestSchemaVersionMismatch_Recreates(t *testing.T) {
+	t.Parallel()
 	path := filepath.Join(t.TempDir(), "test.db")
 	db, err := OpenDB(path)
 	if err != nil {
@@ -73,6 +75,7 @@ func TestSchemaVersionMismatch_Recreates(t *testing.T) {
 }
 
 func TestMetaGetSet(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	// Set and get.
@@ -110,6 +113,7 @@ func TestMetaGetSet(t *testing.T) {
 }
 
 func TestUpsertStudents(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	// Insert initial students.
@@ -164,6 +168,7 @@ func TestUpsertStudents(t *testing.T) {
 }
 
 func TestUpsertAssignments(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	assignments := []AssignmentRow{
@@ -200,6 +205,7 @@ func TestUpsertAssignments(t *testing.T) {
 }
 
 func TestReplaceSubmissions(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	subs := []SubmissionRow{
@@ -229,6 +235,7 @@ func TestReplaceSubmissions(t *testing.T) {
 }
 
 func TestUpsertStudents_PreservesExcluded(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	// Insert a student and mark as excluded.
@@ -251,6 +258,7 @@ func TestUpsertStudents_PreservesExcluded(t *testing.T) {
 }
 
 func TestUpsertSubmissions_Batch(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	subs := []SubmissionRow{
@@ -280,6 +288,7 @@ func TestUpsertSubmissions_Batch(t *testing.T) {
 }
 
 func TestUpsertStudents_Empty(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	if err := db.UpsertStudents(nil); err != nil {
 		t.Fatal(err)
@@ -287,6 +296,7 @@ func TestUpsertStudents_Empty(t *testing.T) {
 }
 
 func TestUpsertAssignments_Empty(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	if err := db.UpsertAssignments(nil); err != nil {
 		t.Fatal(err)
@@ -294,6 +304,7 @@ func TestUpsertAssignments_Empty(t *testing.T) {
 }
 
 func TestWriteLog(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	if err := db.WriteLog("pull", "42 students, 8 assignments", ""); err != nil {
@@ -317,6 +328,7 @@ func TestWriteLog(t *testing.T) {
 }
 
 func TestReadLog_Limit(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	for i := range 5 {
@@ -337,6 +349,7 @@ func TestReadLog_Limit(t *testing.T) {
 }
 
 func TestReplaceSubmissions_Empty(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 
 	// Insert some initial data.
@@ -357,6 +370,7 @@ func TestReplaceSubmissions_Empty(t *testing.T) {
 }
 
 func TestSetStudentGitHubUsername(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	_ = db.UpsertStudents([]Student{{CanvasID: 1, Name: "Alice"}})
 
