@@ -1,11 +1,13 @@
 /sci
 /dbtui
 /markdb
+/zot
 *.duckdb
 *.db
 *.db-*
 *.csv
 *.bib
+*.sqlite
 plan.md
 /tutorials/
 
@@ -21,3 +23,6 @@ plan.md
 paper-extract/
 tutorials/notebooks/my_figure*
 tutorials/my_figure*
+pyzotero*/
+zotero*/
+

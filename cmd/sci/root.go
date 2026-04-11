@@ -72,6 +72,7 @@ func buildRoot() *cli.Command {
 			// Experimental
 			cassCommand(),
 			markdbCommand(),
+			zotCommand(),
 		},
 	}
 	ui.SetupHelp(root)

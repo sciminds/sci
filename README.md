@@ -69,7 +69,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci cloud list` | List all shared files |
 | `sci cloud remove <name>` | Remove a shared file |
 
-### Lab storage (SFTP)
+### Lab storage (sftp)
 
 | Command | What it does |
 |---------|--------------|
@@ -96,7 +96,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci vid info` | Show video info (resolution, duration, codec, fps, size) |
 | `sci vid cut` | Trim a segment (e.g. `0:30 1:00`) |
 | `sci vid compress` | Shrink a video file (reduce file size) |
-| `sci vid convert` | Convert to another format (MP4, WebM, etc.) |
+| `sci vid convert` | Convert to another format (mp4, webm, etc.) |
 | `sci vid gif` | Convert to optimized GIF |
 | `sci vid resize` | Scale video (720p, 1080p, 4k, 50%, W:H) |
 | `sci vid speed` | Change playback speed (e.g. `2` = 2x faster) |
@@ -134,7 +134,7 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 | `sci markdb diff <dir> --db <db>` | Show what would change on next ingest |
 | `sci markdb export --db <db> --dir <dir>` | Reconstruct markdown files from the database |
 
-Ingests any folder of markdown files with YAML frontmatter into a single SQLite database. Frontmatter keys become real SQL columns (dynamically discovered), wikilinks and markdown links are tracked in a `links` table, and FTS5 enables full-text search. Export reconstructs byte-identical files from the database.
+Ingests any folder of markdown files with YAML front-matter into a single SQLite database. Front-matter keys become real SQL columns (dynamically discovered), wikilinks and markdown links are tracked in a `links` table, and FTS5 enables full-text search. Export reconstructs byte-identical files from the database.
 
 Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/markdb@latest`.
 
@@ -158,7 +158,7 @@ Prerequisites: [Go 1.26+](https://go.dev/dl/) and [just](https://github.com/case
 
 You'll also need [`asciicinema`](https://docs.asciinema.org/manual/cli/quick-start/#__tabbed_1_3) to create new terminal "casts" to place in `internal/guide/casts/`
 
-*This is also setup as a git pre-commit hook:*
+*This is also set up as a git pre-commit hook:*
 
 ```bash
 # Run the full check suite (fmt, vet, lint, test, build)

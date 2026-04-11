@@ -19,6 +19,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lrstanley/bubblezone/v2 v2.0.0
 	github.com/muesli/termenv v0.16.0
+	github.com/oapi-codegen/runtime v1.4.0
 	github.com/pocketbase/dbx v1.12.0
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/urfave/cli/v3 v3.7.0
@@ -29,6 +30,7 @@ require (
 
 require (
 	github.com/alecthomas/chroma/v2 v2.20.0 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.8 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.21 // indirect
@@ -74,10 +76,10 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/yuin/goldmark v1.7.13 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
-	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/term v0.36.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/term v0.38.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	modernc.org/libc v1.70.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

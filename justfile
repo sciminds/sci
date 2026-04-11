@@ -5,6 +5,7 @@ build:
     go build -ldflags="{{ldflags}}" -o sci ./cmd/sci
     go build -ldflags="-s -w" -o dbtui ./cmd/dbtui
     go build -ldflags="-s -w" -o markdb ./cmd/markdb
+    go build -ldflags="-s -w" -o zot ./cmd/zot
 
 tidy:
     go mod tidy
@@ -38,10 +39,27 @@ ok: check
     @echo "All checks passed."
 
 clean:
-    rm -f sci dbtui markdb
+    rm -f sci dbtui markdb zot
 
 run *ARGS:
     go run ./cmd/sci {{ARGS}}
+
+zot-spec := "/Users/esh/Documents/webapps/apis/zotero/openapi.yaml"
+
+# Regenerate the Zotero API Go client from the OpenAPI spec.
+# Downgrades 3.1 -> 3.0 on the fly (type:[T,null] -> nullable:true) because
+# oapi-codegen v2 does not yet support 3.1 union types.
+zot-gen:
+    @tmp=$(mktemp -t zotero-spec.XXXXXX.yaml); \
+    sd '^openapi: 3\.1\.0$' 'openapi: 3.0.3' < {{zot-spec}} \
+        | sd 'type: \[string, "null"\]' 'type: string\n          nullable: true' \
+        | sd 'type: \[integer, "null"\]' 'type: integer\n          nullable: true' \
+        | sd '^    tag:$' '    tagFilter:' \
+        | sd '#/components/parameters/tag"' '#/components/parameters/tagFilter"' \
+        > $tmp; \
+    (cd internal/zot/client && oapi-codegen -config config.yaml $tmp); \
+    rm -f $tmp
+    gofmt -w internal/zot/client/zotero.gen.go
 
 # Open package documentation in the browser
 docs:

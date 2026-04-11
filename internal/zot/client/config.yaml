@@ -1,0 +1,7 @@
+package: client
+generate:
+  models: true
+  client: true
+output: zotero.gen.go
+output-options:
+  skip-prune: true

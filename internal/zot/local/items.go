@@ -1,0 +1,450 @@
+package local
+
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+)
+
+// fieldValueSubquery is a reusable correlated subquery that pulls a single
+// EAV field value for the current items row. Kept as a raw string rather
+// than a prepared helper because it appears multiple times in the same
+// SELECT and sqlite is perfectly happy to reuse plans.
+const fieldValueSubquery = `
+	(SELECT idv.value
+	 FROM itemData id
+	 JOIN fields f ON id.fieldID = f.fieldID
+	 JOIN itemDataValues idv ON id.valueID = idv.valueID
+	 WHERE id.itemID = i.itemID AND f.fieldName = ?)
+`
+
+// baseSelect returns a SELECT that pulls common display columns for a list
+// of items. The result row order is:
+//
+//	itemID, key, typeName, dateAdded, dateModified, title, date, DOI, publicationTitle
+//
+// Callers append WHERE/ORDER BY/LIMIT.
+func baseSelect() string {
+	return `
+SELECT i.itemID, i.key, it.typeName, i.dateAdded, i.clientDateModified,
+	` + fieldValueSubquery + ` AS title,
+	` + fieldValueSubquery + ` AS date,
+	` + fieldValueSubquery + ` AS doi,
+	` + fieldValueSubquery + ` AS pub
+FROM items i
+JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+LEFT JOIN deletedItems di ON i.itemID = di.itemID
+`
+}
+
+// scanListRow scans a baseSelect() row into an Item.
+func scanListRow(rows *sql.Rows) (Item, error) {
+	var it Item
+	var title, date, doi, pub sql.NullString
+	if err := rows.Scan(
+		&it.ID, &it.Key, &it.Type, &it.DateAdded, &it.DateModified,
+		&title, &date, &doi, &pub,
+	); err != nil {
+		return it, err
+	}
+	it.Title = title.String
+	it.Date = date.String
+	it.DOI = doi.String
+	it.Publication = pub.String
+	return it, nil
+}
+
+// listArgs returns the 4 field-name params baseSelect() expects for its
+// correlated subqueries (one per fieldValueSubquery occurrence).
+func listArgs() []any { return []any{"title", "date", "DOI", "publicationTitle"} }
+
+// List returns items matching the filter, with metadata but no creators/tags/
+// collections/attachments (use Read for those).
+func (d *DB) List(f ListFilter) ([]Item, error) {
+	limit := f.Limit
+	if limit == 0 {
+		limit = 50
+	}
+
+	var (
+		where strings.Builder
+		args  []any
+	)
+	args = append(args, listArgs()...)
+	where.WriteString(" WHERE i.libraryID = ? AND di.itemID IS NULL ")
+	args = append(args, d.libraryID)
+	where.WriteString(contentItemTypeFilter)
+
+	if f.ItemType != "" {
+		where.WriteString(" AND it.typeName = ? ")
+		args = append(args, f.ItemType)
+	}
+	if f.CollectionKey != "" {
+		where.WriteString(` AND i.itemID IN (
+			SELECT ci.itemID FROM collectionItems ci
+			JOIN collections c ON ci.collectionID = c.collectionID
+			WHERE c.key = ? AND c.libraryID = ?
+		) `)
+		args = append(args, f.CollectionKey, d.libraryID)
+	}
+	if f.Tag != "" {
+		where.WriteString(` AND i.itemID IN (
+			SELECT it2.itemID FROM itemTags it2
+			JOIN tags tg ON it2.tagID = tg.tagID
+			WHERE tg.name = ?
+		) `)
+		args = append(args, f.Tag)
+	}
+
+	order := " ORDER BY i.dateAdded DESC "
+	switch f.OrderBy {
+	case OrderDateModifiedDesc:
+		order = " ORDER BY i.clientDateModified DESC "
+	case OrderTitleAsc:
+		// Sort by the pulled title subquery; NULLs last.
+		order = " ORDER BY title IS NULL, title COLLATE NOCASE ASC "
+	}
+
+	q := baseSelect() + where.String() + order + " LIMIT ? OFFSET ? "
+	args = append(args, limit, f.Offset)
+
+	rows, err := d.db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list items: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Item
+	for rows.Next() {
+		it, err := scanListRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
+// Search returns items whose title, DOI, or publication contains the query
+// (case-insensitive LIKE). Title matches rank above DOI/publication matches.
+// Zotero has no FTS index on EAV metadata — this is a table scan.
+func (d *DB) Search(query string, limit int) ([]Item, error) {
+	if limit == 0 {
+		limit = 50
+	}
+	like := "%" + strings.ToLower(query) + "%"
+
+	// Use a CTE so we can reference the pulled title/doi/pub columns in the
+	// outer WHERE/ORDER BY.
+	q := `
+WITH base AS (` + baseSelect() + `
+	WHERE i.libraryID = ? AND di.itemID IS NULL ` + contentItemTypeFilter + `
+)
+SELECT * FROM base
+WHERE lower(title) LIKE ? OR lower(doi) LIKE ? OR lower(pub) LIKE ?
+ORDER BY
+	CASE WHEN lower(title) LIKE ? THEN 0 ELSE 1 END,
+	dateAdded DESC
+LIMIT ?
+`
+	args := listArgs()
+	args = append(args, d.libraryID, like, like, like, like, limit)
+
+	rows, err := d.db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("search items: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Item
+	for rows.Next() {
+		it, err := scanListRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
+// Read returns a single item by 8-char Zotero key, fully hydrated with
+// creators, tags, collections, and attachments.
+func (d *DB) Read(key string) (*Item, error) {
+	args := listArgs()
+	args = append(args, d.libraryID, key)
+	q := baseSelect() + `
+WHERE i.libraryID = ? AND di.itemID IS NULL AND i.key = ?
+LIMIT 1
+`
+	row := d.db.QueryRow(q, args...)
+	var it Item
+	var title, date, doi, pub sql.NullString
+	if err := row.Scan(
+		&it.ID, &it.Key, &it.Type, &it.DateAdded, &it.DateModified,
+		&title, &date, &doi, &pub,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("item %s not found", key)
+		}
+		return nil, err
+	}
+	it.Title = title.String
+	it.Date = date.String
+	it.DOI = doi.String
+	it.Publication = pub.String
+
+	// Pull all fields into the Fields map.
+	fields, err := d.itemFields(it.ID)
+	if err != nil {
+		return nil, err
+	}
+	it.Fields = fields
+	it.URL = fields["url"]
+	it.Abstract = fields["abstractNote"]
+
+	creators, err := d.itemCreators(it.ID)
+	if err != nil {
+		return nil, err
+	}
+	it.Creators = creators
+
+	tags, err := d.itemTags(it.ID)
+	if err != nil {
+		return nil, err
+	}
+	it.Tags = tags
+
+	colls, err := d.itemCollectionKeys(it.ID)
+	if err != nil {
+		return nil, err
+	}
+	it.Collections = colls
+
+	atts, err := d.itemAttachments(it.ID)
+	if err != nil {
+		return nil, err
+	}
+	it.Attachments = atts
+
+	return &it, nil
+}
+
+// itemFields returns the complete EAV field map for an item.
+func (d *DB) itemFields(itemID int64) (map[string]string, error) {
+	rows, err := d.db.Query(`
+		SELECT f.fieldName, idv.value
+		FROM itemData id
+		JOIN fields f ON id.fieldID = f.fieldID
+		JOIN itemDataValues idv ON id.valueID = idv.valueID
+		WHERE id.itemID = ?
+	`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := map[string]string{}
+	for rows.Next() {
+		var name, val string
+		if err := rows.Scan(&name, &val); err != nil {
+			return nil, err
+		}
+		out[name] = val
+	}
+	return out, rows.Err()
+}
+
+func (d *DB) itemCreators(itemID int64) ([]Creator, error) {
+	rows, err := d.db.Query(`
+		SELECT ct.creatorType, c.firstName, c.lastName, c.fieldMode, ic.orderIndex
+		FROM itemCreators ic
+		JOIN creators c ON ic.creatorID = c.creatorID
+		JOIN creatorTypes ct ON ic.creatorTypeID = ct.creatorTypeID
+		WHERE ic.itemID = ?
+		ORDER BY ic.orderIndex
+	`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Creator
+	for rows.Next() {
+		var cr Creator
+		var first, last sql.NullString
+		var mode int
+		if err := rows.Scan(&cr.Type, &first, &last, &mode, &cr.OrderIdx); err != nil {
+			return nil, err
+		}
+		if mode == 1 {
+			cr.Name = last.String // Zotero stores single-name creators in lastName
+		} else {
+			cr.First = first.String
+			cr.Last = last.String
+		}
+		out = append(out, cr)
+	}
+	return out, rows.Err()
+}
+
+func (d *DB) itemTags(itemID int64) ([]string, error) {
+	rows, err := d.db.Query(`
+		SELECT tg.name
+		FROM itemTags it
+		JOIN tags tg ON it.tagID = tg.tagID
+		WHERE it.itemID = ?
+		ORDER BY tg.name
+	`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		out = append(out, name)
+	}
+	return out, rows.Err()
+}
+
+func (d *DB) itemCollectionKeys(itemID int64) ([]string, error) {
+	rows, err := d.db.Query(`
+		SELECT c.key
+		FROM collectionItems ci
+		JOIN collections c ON ci.collectionID = c.collectionID
+		WHERE ci.itemID = ?
+	`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []string
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			return nil, err
+		}
+		out = append(out, k)
+	}
+	return out, rows.Err()
+}
+
+func (d *DB) itemAttachments(parentID int64) ([]Attachment, error) {
+	rows, err := d.db.Query(`
+		SELECT ch.key, ia.contentType, ia.path, ia.linkMode
+		FROM itemAttachments ia
+		JOIN items ch ON ia.itemID = ch.itemID
+		WHERE ia.parentItemID = ?
+		ORDER BY ch.dateAdded
+	`, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Attachment
+	for rows.Next() {
+		var a Attachment
+		var ct, path sql.NullString
+		if err := rows.Scan(&a.Key, &ct, &path, &a.LinkMode); err != nil {
+			return nil, err
+		}
+		a.ContentType = ct.String
+		// Zotero stores attachment paths as "storage:filename.pdf".
+		p := path.String
+		if strings.HasPrefix(p, "storage:") {
+			a.Filename = strings.TrimPrefix(p, "storage:")
+		} else {
+			a.Filename = p
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+// Stats returns a library-wide summary.
+func (d *DB) Stats() (*Stats, error) {
+	s := &Stats{ByType: map[string]int{}}
+
+	// Total + by type (content items only).
+	rows, err := d.db.Query(`
+		SELECT it.typeName, COUNT(*)
+		FROM items i
+		JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+		LEFT JOIN deletedItems di ON i.itemID = di.itemID
+		WHERE i.libraryID = ? AND di.itemID IS NULL
+		  AND it.typeName NOT IN ('attachment','note')
+		GROUP BY it.typeName
+	`, d.libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var name string
+		var n int
+		if err := rows.Scan(&name, &n); err != nil {
+			return nil, err
+		}
+		s.ByType[name] = n
+		s.TotalItems += n
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// With DOI / abstract.
+	if err := d.countFieldPresent("DOI", &s.WithDOI); err != nil {
+		return nil, err
+	}
+	if err := d.countFieldPresent("abstractNote", &s.WithAbstract); err != nil {
+		return nil, err
+	}
+
+	// Items with at least one attachment.
+	if err := d.db.QueryRow(`
+		SELECT COUNT(DISTINCT ia.parentItemID)
+		FROM itemAttachments ia
+		JOIN items p ON ia.parentItemID = p.itemID
+		LEFT JOIN deletedItems di ON p.itemID = di.itemID
+		WHERE p.libraryID = ? AND di.itemID IS NULL
+	`, d.libraryID).Scan(&s.WithAttachment); err != nil {
+		return nil, err
+	}
+
+	// Collections + tags counts.
+	if err := d.db.QueryRow(
+		`SELECT COUNT(*) FROM collections WHERE libraryID = ?`, d.libraryID,
+	).Scan(&s.Collections); err != nil {
+		return nil, err
+	}
+	if err := d.db.QueryRow(`
+		SELECT COUNT(DISTINCT tg.tagID)
+		FROM tags tg
+		JOIN itemTags it ON tg.tagID = it.tagID
+		JOIN items i ON it.itemID = i.itemID
+		WHERE i.libraryID = ?
+	`, d.libraryID).Scan(&s.Tags); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func (d *DB) countFieldPresent(fieldName string, out *int) error {
+	return d.db.QueryRow(`
+		SELECT COUNT(DISTINCT i.itemID)
+		FROM items i
+		JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+		JOIN itemData id ON i.itemID = id.itemID
+		JOIN fields f ON id.fieldID = f.fieldID
+		LEFT JOIN deletedItems di ON i.itemID = di.itemID
+		WHERE i.libraryID = ? AND di.itemID IS NULL
+		  AND it.typeName NOT IN ('attachment','note')
+		  AND f.fieldName = ?
+	`, d.libraryID, fieldName).Scan(out)
+}
