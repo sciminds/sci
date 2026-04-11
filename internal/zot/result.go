@@ -7,6 +7,18 @@ import (
 	"github.com/sciminds/cli/internal/ui"
 )
 
+// JSON / Human implementations let Config be returned directly via cmdutil.Output
+// (used by `zot setup --json` to print the saved settings).
+func (c Config) JSON() any { return c }
+func (c Config) Human() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %s zot config\n", ui.SymOK)
+	fmt.Fprintf(&b, "    library:  %s\n", c.LibraryID)
+	fmt.Fprintf(&b, "    data dir: %s\n", c.DataDir)
+	fmt.Fprintf(&b, "    api key:  %s\n", c.APIKey)
+	return b.String()
+}
+
 // SetupResult is returned by `zot setup` / `sci zot setup`.
 type SetupResult struct {
 	OK        bool   `json:"ok"`

@@ -198,11 +198,12 @@ func listCommand() *cli.Command {
 	}
 }
 
-func statsCommand() *cli.Command {
+func infoCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "stats",
+		Name:        "info",
+		Aliases:     []string{"stats"},
 		Usage:       "Show library summary statistics",
-		Description: "$ zot stats",
+		Description: "$ zot info",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			cfg, db, err := openLocalDB()
 			if err != nil {

@@ -2,7 +2,9 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 
 	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cmdutil"
@@ -17,6 +19,7 @@ var (
 	setupLibraryID string
 	setupDataDir   string
 	setupLogout    bool
+	setupForce     bool
 )
 
 func setupCommand() *cli.Command {
@@ -32,6 +35,7 @@ func setupCommand() *cli.Command {
 			&cli.StringFlag{Name: "library", Usage: "Zotero numeric user ID (required in --json mode)", Destination: &setupLibraryID, Local: true},
 			&cli.StringFlag{Name: "data-dir", Usage: "path to directory containing zotero.sqlite (auto-detected if omitted)", Destination: &setupDataDir, Local: true},
 			&cli.BoolFlag{Name: "logout", Usage: "clear saved credentials", Destination: &setupLogout, Local: true},
+			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config without prompting", Destination: &setupForce, Local: true},
 		},
 		Action: runSetup,
 	}
@@ -52,6 +56,31 @@ func runSetup(_ context.Context, cmd *cli.Command) error {
 	dataDir := setupDataDir
 
 	jsonMode := cmdutil.IsJSON(cmd)
+	// `setup --json` with no creds → print the saved config and exit.
+	if jsonMode && apiKey == "" && libraryID == "" {
+		cfg, err := zot.LoadConfig()
+		if err != nil {
+			return err
+		}
+		if cfg == nil {
+			return fmt.Errorf("zot not configured — run 'zot setup' first")
+		}
+		cmdutil.Output(cmd, cfg)
+		return nil
+	}
+
+	// Interactive overwrite guard. In --json (non-interactive) mode the caller
+	// is expected to know what they're doing; --force bypasses the prompt.
+	if !jsonMode && !setupForce && zot.ConfigExists() {
+		if err := cmdutil.ConfirmYes("zot is already configured. Overwrite?"); err != nil {
+			if errors.Is(err, cmdutil.ErrCancelled) {
+				fmt.Fprintln(os.Stderr, "cancelled")
+				return nil
+			}
+			return err
+		}
+	}
+
 	if jsonMode {
 		if apiKey == "" || libraryID == "" {
 			return fmt.Errorf("--api and --library are required in --json mode")

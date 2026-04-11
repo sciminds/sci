@@ -91,6 +91,16 @@ func RequireConfig() (*Config, error) {
 	return cfg, nil
 }
 
+// ConfigExists reports whether a saved zot config file is present on disk.
+func ConfigExists() bool {
+	path, err := ConfigPath()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(path)
+	return err == nil
+}
+
 // ClearConfig removes the config file if it exists.
 func ClearConfig() error {
 	path, err := ConfigPath()

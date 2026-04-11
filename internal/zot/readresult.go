@@ -169,7 +169,7 @@ func (r TagListResult) Human() string {
 	return b.String()
 }
 
-// StatsResult is returned for `zot stats`.
+// StatsResult is returned for `zot info`.
 type StatsResult struct {
 	Stats   local.Stats `json:"stats"`
 	DataDir string      `json:"data_dir"`

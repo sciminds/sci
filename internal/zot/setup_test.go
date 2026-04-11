@@ -58,6 +58,27 @@ func TestSetup_InvalidInputs(t *testing.T) {
 	}
 }
 
+func TestConfigExists(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "zot.json")
+	t.Setenv("SCI_ZOT_CONFIG_PATH", path)
+	if ConfigExists() {
+		t.Fatal("expected ConfigExists=false before setup")
+	}
+	dir := mkDataDir(t)
+	if _, err := Setup("k", "1", dir); err != nil {
+		t.Fatal(err)
+	}
+	if !ConfigExists() {
+		t.Error("expected ConfigExists=true after setup")
+	}
+	if err := ClearConfig(); err != nil {
+		t.Fatal(err)
+	}
+	if ConfigExists() {
+		t.Error("expected ConfigExists=false after ClearConfig")
+	}
+}
+
 func TestLogout(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "zot.json")
 	t.Setenv("SCI_ZOT_CONFIG_PATH", path)
