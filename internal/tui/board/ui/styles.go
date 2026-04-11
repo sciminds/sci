@@ -21,7 +21,8 @@ const (
 	// ColumnGap is the horizontal gap between adjacent columns.
 	ColumnGap = 1
 
-	// CardPaddingX / CardPaddingY are the padding inside a card frame.
+	// CardPaddingX / CardPaddingY are the padding inside a card frame
+	// (interior of the card border).
 	CardPaddingX = 1
 	CardPaddingY = 0
 
@@ -81,6 +82,7 @@ var TUI = New(parentui.DetectDark())
 func New(isDark bool) *Styles {
 	p := parentui.NewPalette(isDark)
 	border := lipgloss.RoundedBorder()
+	cardBorder := lipgloss.RoundedBorder()
 
 	return &Styles{
 		palette: p,
@@ -120,24 +122,29 @@ func New(isDark bool) *Styles {
 
 		ColumnFrame: lipgloss.NewStyle().
 			Border(border).
-			BorderForeground(p.Border).
+			BorderForeground(p.TextDim).
 			Padding(0, 1),
 		ColumnFocus: lipgloss.NewStyle().
 			Border(border).
 			BorderForeground(p.Accent).
 			Padding(0, 1),
 		ColumnTitle: lipgloss.NewStyle().
-			Foreground(p.TextBright).
-			Bold(true),
+			Foreground(p.Accent).
+			Bold(true).
+			Underline(true),
 		ColumnCount: lipgloss.NewStyle().
-			Foreground(p.TextDim),
+			Foreground(p.TextDim).
+			Bold(true),
 
 		Card: lipgloss.NewStyle().
 			Foreground(p.TextBright).
+			Border(cardBorder).
+			BorderForeground(p.Border).
 			Padding(CardPaddingY, CardPaddingX),
 		CardSelected: lipgloss.NewStyle().
-			Foreground(p.OnAccent).
-			Background(p.Accent).
+			Foreground(p.TextBright).
+			Border(cardBorder).
+			BorderForeground(p.Accent).
 			Padding(CardPaddingY, CardPaddingX).
 			Bold(true),
 		CardTitle: lipgloss.NewStyle().

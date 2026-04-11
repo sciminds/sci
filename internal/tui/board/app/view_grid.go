@@ -89,11 +89,16 @@ func (m *Model) renderColumn(col engine.Column, cards []engine.Card, colIdx, wid
 	body = append(body, header)
 	body = append(body, "")
 
+	// Card outer width = interior width (each card carries its own border).
+	cardW := innerW
+	if cardW < 6 {
+		cardW = 6
+	}
+
 	for i, c := range cards {
 		sel := focus && i == m.cur.card
-		body = append(body, m.renderCard(c, innerW, sel))
+		body = append(body, strings.Split(m.renderCard(c, cardW, sel), "\n")...)
 		if i < len(cards)-1 {
-			body = append(body, strings.Repeat("", ui.CardGap)) // empty line as gap
 			for g := 0; g < ui.CardGap; g++ {
 				body = append(body, "")
 			}
@@ -111,24 +116,47 @@ func (m *Model) renderColumn(col engine.Column, cards []engine.Card, colIdx, wid
 	return frame.Width(width - 2).Render(strings.Join(body, "\n"))
 }
 
+// renderColumnHeader renders a single-line column header: uppercased,
+// underlined accent title on the left and a dim count (or count/WIP) on
+// the right. Plain text — no background fill.
 func (m *Model) renderColumnHeader(col engine.Column, count, innerW int) string {
-	title := truncate(col.Title, innerW-6)
-	countStr := fmt.Sprintf(" %d", count)
+	countStr := fmt.Sprintf("%d", count)
 	if col.WIP > 0 {
-		countStr = fmt.Sprintf(" %d/%d", count, col.WIP)
+		countStr = fmt.Sprintf("%d/%d", count, col.WIP)
 	}
-	return m.styles.ColumnTitle.Render(title) + m.styles.ColumnCount.Render(countStr)
+
+	// Reserve room for the count plus a one-cell gap before it.
+	countW := lipgloss.Width(countStr)
+	titleAvail := innerW - countW - 1
+	if titleAvail < 1 {
+		titleAvail = 1
+	}
+	title := truncate(strings.ToUpper(col.Title), titleAvail)
+
+	// Right-align the count by padding the gap between title and count.
+	gap := innerW - lipgloss.Width(title) - countW
+	if gap < 1 {
+		gap = 1
+	}
+
+	return m.styles.ColumnTitle.Render(title) +
+		strings.Repeat(" ", gap) +
+		m.styles.ColumnCount.Render(countStr)
 }
 
 func (m *Model) renderCard(c engine.Card, width int, selected bool) string {
-	titleStyle := m.styles.CardTitle
 	wrap := m.styles.Card
 	if selected {
-		titleStyle = m.styles.CardSelected
 		wrap = m.styles.CardSelected
 	}
-	title := truncate(c.Title, width-2)
-	parts := []string{titleStyle.Render(title)}
+	// Inner content width: subtract 2 borders + 2 horizontal padding cells.
+	contentW := width - 4
+	if contentW < 1 {
+		contentW = 1
+	}
+
+	title := truncate(c.Title, contentW)
+	parts := []string{m.styles.CardTitle.Render(title)}
 
 	var metaBits []string
 	if c.Priority != "" {
@@ -138,8 +166,8 @@ func (m *Model) renderCard(c engine.Card, width int, selected bool) string {
 		metaBits = append(metaBits, m.styles.CardLabel.Render(strings.Join(c.Labels, " ")))
 	}
 	if len(metaBits) > 0 {
-		parts = append(parts, truncate(strings.Join(metaBits, " "), width-2))
+		parts = append(parts, truncate(strings.Join(metaBits, " "), contentW))
 	}
 
-	return wrap.Width(width).Render(strings.Join(parts, "\n"))
+	return wrap.Width(contentW).Render(strings.Join(parts, "\n"))
 }
