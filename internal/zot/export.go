@@ -79,6 +79,16 @@ var cslTypeMap = map[string]string{
 }
 
 func exportCSLJSON(it *local.Item) (string, error) {
+	b, err := json.MarshalIndent([]cslItem{buildCSLItem(it)}, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// buildCSLItem projects a local.Item into the CSL-JSON shape. Split out from
+// exportCSLJSON so ExportLibrary can marshal a batch in one array.
+func buildCSLItem(it *local.Item) cslItem {
 	c := cslItem{
 		ID:             it.Key,
 		Type:           mapCSLType(it.Type),
@@ -104,11 +114,7 @@ func exportCSLJSON(it *local.Item) (string, error) {
 	if y := yearFromDate(it.Date); y > 0 {
 		c.Issued = &cslDate{DateParts: [][]int{{y}}}
 	}
-	b, err := json.MarshalIndent([]cslItem{c}, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
+	return c
 }
 
 func mapCSLType(t string) string {
@@ -133,17 +139,37 @@ func yearFromDate(date string) int {
 	return y
 }
 
-// exportBibTeX emits a minimal BibTeX entry. Uses citationKey (Better BibTeX)
-// if present, otherwise the Zotero key.
+// bibEntryOpts carries per-entry knobs for writeBibEntry. Populated by
+// ExportLibrary based on pinned/synthesized/drifted state; zero value yields
+// a plain entry with no alias or zotero:// round-trip URI.
+type bibEntryOpts struct {
+	CiteKey   string // resolved cite-key (pinned or synthesized)
+	IDsAlias  string // prior cite-key to emit as biblatex `ids = {...}`, or ""
+	ZoteroURI string // zotero:// URI to append to `note`, or ""
+}
+
+// exportBibTeX is the single-item entry point. Resolves the cite-key via
+// ResolveCiteKey (honoring pinned keys, then BBT-extra, then synthesis) and
+// always appends a zotero:// round-trip URI to pinned entries so callers can
+// round-trip back to the Zotero item regardless of cite-key drift.
 func exportBibTeX(it *local.Item) string {
-	cite := it.Fields["citationKey"]
-	if cite == "" {
-		cite = it.Key
+	key, synth := ResolveCiteKey(it)
+	opts := bibEntryOpts{CiteKey: key}
+	if !synth {
+		opts.ZoteroURI = zoteroSelectURI(it.Key)
 	}
+	return writeBibEntry(it, opts)
+}
+
+// writeBibEntry is the formatter shared by single-item and library export.
+func writeBibEntry(it *local.Item, opts bibEntryOpts) string {
 	entryType := bibTypeFor(it.Type)
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "@%s{%s,\n", entryType, cite)
+	fmt.Fprintf(&b, "@%s{%s,\n", entryType, opts.CiteKey)
+	if opts.IDsAlias != "" {
+		writeBibField(&b, "ids", opts.IDsAlias)
+	}
 	writeBibField(&b, "title", it.Title)
 	// Author/editor strings are already-structured BibTeX: they contain
 	// protective braces around institutional names like {NASA} that must
@@ -163,8 +189,25 @@ func exportBibTeX(it *local.Item) string {
 	writeBibField(&b, "publisher", it.Fields["publisher"])
 	writeBibField(&b, "doi", it.DOI)
 	writeBibField(&b, "url", it.URL)
+	// `note` combines any user-authored prose from the Zotero `extra`
+	// field with the zotero:// round-trip URI. User content always
+	// survives — we append, never overwrite.
+	noteBody := buildNoteField(it, opts.ZoteroURI)
+	writeBibField(&b, "note", noteBody)
 	b.WriteString("}\n")
 	return b.String()
+}
+
+func buildNoteField(it *local.Item, zoteroURI string) string {
+	user := extractExtraNote(it.Fields["extra"])
+	switch {
+	case user != "" && zoteroURI != "":
+		return user + "\n" + zoteroURI
+	case user != "":
+		return user
+	default:
+		return zoteroURI
+	}
 }
 
 func bibTypeFor(zt string) string {

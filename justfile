@@ -24,6 +24,10 @@ vet:
 test:
     go test ./... -count=1
 
+# Run tests for a single package (fast TDD iteration). `just test-pkg ./internal/zot`
+test-pkg PKG *ARGS:
+    go test {{PKG}} -count=1 {{ARGS}}
+
 # Integration tests needing external tools (pixi, uv, quarto, marimo, typst, node)
 test-slow *ARGS:
     SLOW=1 go test ./internal/proj/new -v -timeout 10m -count=1 {{ARGS}}

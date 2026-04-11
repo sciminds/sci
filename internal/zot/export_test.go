@@ -100,13 +100,17 @@ func TestExport_BibTeX(t *testing.T) {
 	}
 }
 
-func TestExport_BibTeXFallsBackToZoteroKey(t *testing.T) {
+func TestExport_BibTeXSynthesizesWhenUnpinned(t *testing.T) {
 	t.Parallel()
+	// With no pinned citationKey, ResolveCiteKey synthesizes a semantic
+	// key with a Zotero-key suffix for uniqueness. The suffix is what
+	// makes the result stable across drift and round-trippable to the
+	// source item; see citekey.go for the full rationale.
 	it := sampleItem()
 	delete(it.Fields, "citationKey")
 	out, _ := ExportItem(it, ExportBibTeX)
-	if !strings.Contains(out, "@article{ABC12345,") {
-		t.Errorf("expected zotero key fallback:\n%s", out)
+	if !strings.Contains(out, "@article{smith2024deep-ABC12345,") {
+		t.Errorf("expected synthesized key:\n%s", out)
 	}
 }
 

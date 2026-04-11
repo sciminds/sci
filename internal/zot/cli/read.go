@@ -47,12 +47,20 @@ func openLocalDB() (*zot.Config, *local.DB, error) {
 
 func searchCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "search",
-		Usage:       "Search your library by title, DOI, or publication",
-		Description: "$ zot search \"large language models\"\n$ zot search --limit 100 neuroimaging",
-		ArgsUsage:   "<query>",
+		Name:  "search",
+		Usage: "Search your library by title, DOI, or publication",
+		Description: "$ zot search \"large language models\"\n" +
+			"$ zot search --limit 100 neuroimaging\n" +
+			"$ zot search attention --export --out hits.bib",
+		ArgsUsage: "<query>",
 		Flags: []cli.Flag{
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max results", Destination: &searchLimit, Local: true},
+			// --export routes the hit list through the same pipeline as
+			// `zot export`. Bool flag — always emits bibtex, which is
+			// the format this feature exists to serve. Users who want
+			// CSL-JSON should use the top-level `zot export` command.
+			&cli.BoolFlag{Name: "export", Usage: "emit results as bibtex instead of the normal hit list", Destination: &searchExport, Local: true},
+			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -69,6 +77,20 @@ func searchCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			// Need full Fields + Creators hydration before export —
+			// Search() only returns list-view metadata.
+			if searchExport {
+				hydrated, err := hydrateSearchHits(db, items)
+				if err != nil {
+					return err
+				}
+				res, err := runLibraryExport(hydrated, "bibtex", searchExportOut)
+				if err != nil {
+					return err
+				}
+				cmdutil.Output(cmd, res)
+				return nil
+			}
 			cmdutil.Output(cmd, zot.ListResult{
 				Query:   query,
 				Count:   len(items),
@@ -78,6 +100,23 @@ func searchCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// hydrateSearchHits re-reads each search hit through db.Read to pull the
+// full Fields map and Creator list. Search() intentionally returns a
+// lightweight list-view row — exporting requires the full item. For a
+// typical search (≤50 hits) this is ~50 round-trips, cheap enough not to
+// warrant a dedicated bulk ListAll-by-id path.
+func hydrateSearchHits(db *local.DB, hits []local.Item) ([]local.Item, error) {
+	out := make([]local.Item, 0, len(hits))
+	for _, h := range hits {
+		full, err := db.Read(h.Key)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *full)
+	}
+	return out, nil
 }
 
 func readCommand() *cli.Command {

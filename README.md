@@ -129,18 +129,22 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 | Command | What it does |
 |---------|--------------|
 | `sci zot setup` | Save your Zotero API key + library ID |
-| `sci zot search <query>` | Search the local Zotero library |
-| `sci zot read <key>` | Show full metadata for an item |
-| `sci zot list` | List items / collections / tags |
 | `sci zot stats` | Library size and field-coverage summary |
-| `sci zot export <key>` | Export to CSL-JSON or minimal BibTeX |
-| `sci zot open <key>` | Open the item's PDF attachment |
-| `sci zot add` / `update` / `delete` | Create / patch / trash items via the Zotero Web API |
-| `sci zot collection` / `tag` | Manage collections and tags |
+| `sci zot search <query>` | Search the local Zotero library |
+| `sci zot search <q> --export -o hits.bib` | Route search results through the export pipeline |
+| `sci zot export -o refs.bib` | Full-library BibTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
+| `sci zot item read <key>` | Show full metadata for an item |
+| `sci zot item list` | List items with optional filters |
+| `sci zot item export <key>` | Export a single item to CSL-JSON or BibTeX |
+| `sci zot item open <key>` | Open the item's PDF attachment |
+| `sci zot item add` / `update` / `delete` | Create / patch / trash items via the Zotero Web API |
+| `sci zot collection` / `tags` | Manage collections and tags |
 | `sci zot doctor` | Run all hygiene checks (invalid → missing → orphans → duplicates) |
 | `sci zot doctor {invalid,missing,orphans,duplicates}` | Drill into individual hygiene reports |
 
 Reads the local `zotero.sqlite` (immutable, no contention with the running Zotero desktop app); writes go through the Zotero Web API. `zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds.
+
+**Library export details.** `zot export` honors user-pinned cite-keys (Zotero 7's native `citationKey` field, or legacy Better BibTeX `Citation Key:` lines in `extra`) and synthesizes semantic keys for everything else as `lastname{year}{firstword}-ZOTKEY`. The trailing 8-char Zotero key suffix guarantees uniqueness without collision arithmetic and keeps entries round-trippable back to the source item. Pinned entries also carry a `zotero://select/library/items/<KEY>` URI in the `note` field (appended to any existing user prose, never overwriting). A `.zotero-citekeymap.json` sidecar is written next to the output file; on the next run, any synthesized prefix that drifted (e.g. after a metadata typo fix) gets a biblatex `ids = {oldkey}` alias so manuscripts citing the old form still resolve.
 
 Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/zot@latest`.
 

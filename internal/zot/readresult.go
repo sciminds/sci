@@ -213,7 +213,7 @@ func (r StatsResult) Human() string {
 	return b.String()
 }
 
-// ExportResult is returned for `zot export`.
+// ExportResult is returned for `zot item export` (single-item).
 type ExportResult struct {
 	Key    string `json:"key"`
 	Format string `json:"format"`
@@ -222,6 +222,45 @@ type ExportResult struct {
 
 func (r ExportResult) JSON() any     { return r }
 func (r ExportResult) Human() string { return r.Body + "\n" }
+
+// LibraryExportResult is returned for `zot export` (full library) and for
+// `zot search --export` (filtered subset). Body holds the emitted document
+// when streaming to stdout; when the user passed -o, Body is empty and
+// OutPath/KeymapPath point at the on-disk artifacts.
+type LibraryExportResult struct {
+	Format     string      `json:"format"`
+	OutPath    string      `json:"out_path,omitempty"`
+	KeymapPath string      `json:"keymap_path,omitempty"`
+	Body       string      `json:"body,omitempty"`
+	Stats      ExportStats `json:"stats"`
+}
+
+func (r LibraryExportResult) JSON() any { return r }
+func (r LibraryExportResult) Human() string {
+	var b strings.Builder
+	if r.OutPath == "" {
+		// Streaming to stdout — body IS the output. Footer goes through
+		// the human renderer as a separate block so it lands on stderr
+		// via the caller's renderer pipeline. We emit it as a trailing
+		// comment-block here; callers that want clean stdout should
+		// always pass -o.
+		b.WriteString(r.Body)
+		b.WriteString("\n")
+	} else {
+		fmt.Fprintf(&b, "  %s wrote %s to %s\n", ui.SymOK, r.Format, r.OutPath)
+		if r.KeymapPath != "" {
+			fmt.Fprintf(&b, "    %s %s\n", ui.TUI.Dim().Render("keymap:"), r.KeymapPath)
+		}
+	}
+	fmt.Fprintf(&b, "    %s %d item(s): %d pinned, %d synthesized",
+		ui.TUI.Dim().Render("·"),
+		r.Stats.Total, r.Stats.Pinned, r.Stats.Synthesized)
+	if r.Stats.Drifted > 0 {
+		fmt.Fprintf(&b, ", %d drifted", r.Stats.Drifted)
+	}
+	b.WriteString("\n")
+	return b.String()
+}
 
 // OpenResult is returned for `zot open`.
 type OpenResult struct {
