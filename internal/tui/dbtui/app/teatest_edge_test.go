@@ -9,6 +9,7 @@ import (
 
 // TestTeatestReadOnlyEditBlocked verifies edit mode is blocked on forceRO model.
 func TestTeatestReadOnlyEditBlocked(t *testing.T) {
+	t.Parallel()
 	m := newReadOnlyTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	waitForTable(t, tm)
@@ -24,6 +25,7 @@ func TestTeatestReadOnlyEditBlocked(t *testing.T) {
 
 // TestTeatestEmptyDatabase verifies the TUI handles an empty database.
 func TestTeatestEmptyDatabase(t *testing.T) {
+	t.Parallel()
 	m := newEmptyTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 
@@ -50,6 +52,7 @@ func TestTeatestEmptyDatabase(t *testing.T) {
 
 // TestTeatestTerminalTooSmall verifies the too-small terminal message.
 func TestTeatestTerminalTooSmall(t *testing.T) {
+	t.Parallel()
 	m := newTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(10, 5))
 
@@ -62,6 +65,7 @@ func TestTeatestTerminalTooSmall(t *testing.T) {
 
 // TestTeatestWindowResize verifies the model handles resize messages.
 func TestTeatestWindowResize(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Send a resize message.
@@ -79,6 +83,7 @@ func TestTeatestWindowResize(t *testing.T) {
 
 // TestTeatestHelpOverlayClose verifies ? opens and Esc closes the help overlay.
 func TestTeatestHelpOverlayClose(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "?")
@@ -95,6 +100,7 @@ func TestTeatestHelpOverlayClose(t *testing.T) {
 
 // TestTeatestQuitSuppressedInEditMode verifies q does NOT quit when in edit mode.
 func TestTeatestQuitSuppressedInEditMode(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "i") // enter edit mode
@@ -109,6 +115,7 @@ func TestTeatestQuitSuppressedInEditMode(t *testing.T) {
 
 // TestTeatestQuitSuppressedInVisualMode verifies q does NOT quit when in visual mode.
 func TestTeatestQuitSuppressedInVisualMode(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "v") // enter visual mode
@@ -123,6 +130,7 @@ func TestTeatestQuitSuppressedInVisualMode(t *testing.T) {
 
 // TestTeatestQuitSuppressedWithOverlay verifies q does NOT quit when an overlay is open.
 func TestTeatestQuitSuppressedWithOverlay(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "?") // open help overlay — dispatchOverlayKey consumes q
@@ -141,6 +149,7 @@ func TestTeatestQuitSuppressedWithOverlay(t *testing.T) {
 
 // TestTeatestNKeyExitsEditMode verifies n exits edit mode.
 func TestTeatestNKeyExitsEditMode(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "i") // enter edit
@@ -155,6 +164,7 @@ func TestTeatestNKeyExitsEditMode(t *testing.T) {
 
 // TestTeatestNKeyExitsVisualMode verifies n exits visual mode.
 func TestTeatestNKeyExitsVisualMode(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "v") // enter visual
@@ -171,6 +181,7 @@ func TestTeatestNKeyExitsVisualMode(t *testing.T) {
 
 // TestTeatestColumnRenameBlockedReadOnly verifies r is blocked on read-only.
 func TestTeatestColumnRenameBlockedReadOnly(t *testing.T) {
+	t.Parallel()
 	m := newReadOnlyTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	waitForTable(t, tm)
@@ -186,6 +197,7 @@ func TestTeatestColumnRenameBlockedReadOnly(t *testing.T) {
 
 // TestTeatestColumnDropBlockedReadOnly verifies D does not drop columns on read-only tables.
 func TestTeatestColumnDropBlockedReadOnlyFull(t *testing.T) {
+	t.Parallel()
 	m := newReadOnlyTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	waitForTable(t, tm)
@@ -208,6 +220,7 @@ func TestTeatestColumnDropBlockedReadOnlyFull(t *testing.T) {
 
 // TestTeatestResizeDuringNotePreview verifies resize updates dimensions with preview open.
 func TestTeatestResizeDuringNotePreview(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Open note preview.
@@ -227,6 +240,7 @@ func TestTeatestResizeDuringNotePreview(t *testing.T) {
 
 // TestTeatestResizeDuringCellEditor verifies resize updates cell editor dimensions.
 func TestTeatestResizeDuringCellEditor(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "i")              // enter edit mode
@@ -245,6 +259,7 @@ func TestTeatestResizeDuringCellEditor(t *testing.T) {
 
 // TestTeatestResizeDuringDeriveOverlay verifies resize updates derive textarea dimensions.
 func TestTeatestResizeDuringDeriveOverlay(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "t") // open table list
@@ -263,6 +278,7 @@ func TestTeatestResizeDuringDeriveOverlay(t *testing.T) {
 
 // TestTeatestResizeShrinkToTooSmall verifies shrinking below minimum is handled.
 func TestTeatestResizeShrinkToTooSmall(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Shrink well below minimums.
@@ -278,6 +294,7 @@ func TestTeatestResizeShrinkToTooSmall(t *testing.T) {
 
 // TestTeatestResizeGrowFromTooSmall verifies recovering from a too-small terminal.
 func TestTeatestResizeGrowFromTooSmall(t *testing.T) {
+	t.Parallel()
 	m := newTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(10, 5))
 

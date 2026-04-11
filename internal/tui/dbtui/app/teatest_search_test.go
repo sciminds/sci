@@ -8,6 +8,7 @@ import (
 
 // TestTeatestSearchIncremental verifies typing a query filters rows.
 func TestTeatestSearchIncremental(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -30,6 +31,7 @@ func TestTeatestSearchIncremental(t *testing.T) {
 
 // TestTeatestSearchEnterKeeps verifies Enter closes search but keeps filter.
 func TestTeatestSearchEnterKeeps(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -59,6 +61,7 @@ func TestTeatestSearchEnterKeeps(t *testing.T) {
 
 // TestTeatestSearchEscRestores verifies Esc restores all rows.
 func TestTeatestSearchEscRestores(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -82,6 +85,7 @@ func TestTeatestSearchEscRestores(t *testing.T) {
 
 // TestTeatestSearchNavigation verifies up/down moves cursor in filtered results.
 func TestTeatestSearchNavigation(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -103,6 +107,7 @@ func TestTeatestSearchNavigation(t *testing.T) {
 
 // TestTeatestSearchReopenPreservesQuery verifies / after Enter reopens with previous query.
 func TestTeatestSearchReopenPreservesQuery(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -127,6 +132,7 @@ func TestTeatestSearchReopenPreservesQuery(t *testing.T) {
 
 // TestTeatestSearchColumnScoped verifies @col:value filtering via the TUI.
 func TestTeatestSearchColumnScoped(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -149,6 +155,7 @@ func TestTeatestSearchColumnScoped(t *testing.T) {
 
 // TestTeatestSearchNegation verifies -term exclusion via the TUI.
 func TestTeatestSearchNegation(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -178,6 +185,7 @@ func TestTeatestSearchNegation(t *testing.T) {
 
 // TestTeatestSearchBackspace verifies backspace removes characters from query.
 func TestTeatestSearchBackspace(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -203,6 +211,7 @@ func TestTeatestSearchBackspace(t *testing.T) {
 
 // TestTeatestSearchORSyntax verifies pipe-separated OR groups filter correctly.
 func TestTeatestSearchORSyntax(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -225,6 +234,7 @@ func TestTeatestSearchORSyntax(t *testing.T) {
 
 // TestTeatestSearchNoMatches verifies search with no results shows empty table.
 func TestTeatestSearchNoMatches(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")
@@ -246,6 +256,7 @@ func TestTeatestSearchNoMatches(t *testing.T) {
 
 // TestTeatestSearchNoMatchesThenEscRestores verifies Esc after zero-match search restores all rows.
 func TestTeatestSearchNoMatchesThenEscRestores(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "/")

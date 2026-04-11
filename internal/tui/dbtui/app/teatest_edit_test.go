@@ -9,6 +9,7 @@ import (
 
 // TestTeatestEditModeEnter verifies 'i' enters edit mode.
 func TestTeatestEditModeEnter(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "i")
@@ -22,6 +23,7 @@ func TestTeatestEditModeEnter(t *testing.T) {
 
 // TestTeatestEditModeBlockedReadOnly verifies 'i' is blocked on read-only tables.
 func TestTeatestEditModeBlockedReadOnly(t *testing.T) {
+	t.Parallel()
 	m := newReadOnlyTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	waitForTable(t, tm)
@@ -37,6 +39,7 @@ func TestTeatestEditModeBlockedReadOnly(t *testing.T) {
 
 // TestTeatestCellEditorSave verifies editing a cell and saving.
 func TestTeatestCellEditorSave(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	// Enter edit mode, open cell editor.
@@ -72,6 +75,7 @@ func TestTeatestCellEditorSave(t *testing.T) {
 
 // TestTeatestCellEditorCancel verifies Esc cancels without saving.
 func TestTeatestCellEditorCancel(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "i")
@@ -97,6 +101,7 @@ func TestTeatestCellEditorCancel(t *testing.T) {
 
 // TestTeatestEditModeExit verifies Esc exits edit mode to normal.
 func TestTeatestEditModeExit(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "i")
@@ -111,6 +116,7 @@ func TestTeatestEditModeExit(t *testing.T) {
 
 // TestTeatestCellEditorSaveEmpty verifies editing a cell to empty writes NULL.
 func TestTeatestCellEditorSaveEmpty(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	// Enter edit mode, open cell editor.

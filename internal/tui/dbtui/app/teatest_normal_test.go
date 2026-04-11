@@ -10,6 +10,7 @@ import (
 // ── Sort ────────────────────────────────────────────────────────────────
 
 func TestTeatestSortCycle(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Press 's' three times on the same column to cycle: none → asc → desc → none.
@@ -28,6 +29,7 @@ func TestTeatestSortCycle(t *testing.T) {
 }
 
 func TestTeatestSortOneThenClear(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "s") // add sort asc
@@ -46,6 +48,7 @@ func TestTeatestSortOneThenClear(t *testing.T) {
 // ── Pin & Filter ────────────────────────────────────────────────────────
 
 func TestTeatestPinAndFilter(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Pin the current cell value, then activate filter.
@@ -70,6 +73,7 @@ func TestTeatestPinAndFilter(t *testing.T) {
 }
 
 func TestTeatestFilterInvert(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, " ") // pin
@@ -87,6 +91,7 @@ func TestTeatestFilterInvert(t *testing.T) {
 }
 
 func TestTeatestClearPins(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Pin current cell value.
@@ -116,6 +121,7 @@ func TestTeatestClearPins(t *testing.T) {
 // ── Column Operations ───────────────────────────────────────────────────
 
 func TestTeatestColumnHide(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Initial cursor is on col 1 (name). Hide it.
@@ -137,6 +143,7 @@ func TestTeatestColumnHide(t *testing.T) {
 }
 
 func TestTeatestColumnExpand(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "e") // expand
@@ -151,6 +158,7 @@ func TestTeatestColumnExpand(t *testing.T) {
 }
 
 func TestTeatestColumnExpandToggle(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "e") // expand on
@@ -167,6 +175,7 @@ func TestTeatestColumnExpandToggle(t *testing.T) {
 }
 
 func TestTeatestColumnRenameConfirm(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	// Tab 0 is "products" (alphabetical). Cursor is on col 1 (title).
@@ -204,6 +213,7 @@ func TestTeatestColumnRenameConfirm(t *testing.T) {
 }
 
 func TestTeatestColumnRenameCancel(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "r")
@@ -229,6 +239,7 @@ func TestTeatestColumnRenameCancel(t *testing.T) {
 }
 
 func TestTeatestColumnDrop(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	// Tab 0 is "products". Cursor starts on col 1 (title). Drop it with 'D'.
@@ -255,6 +266,7 @@ func TestTeatestColumnDrop(t *testing.T) {
 // ── Cell Preview ────────────────────────────────────────────────────────
 
 func TestTeatestCellPreview(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Press Enter to preview the current cell.
@@ -278,6 +290,7 @@ func TestTeatestCellPreview(t *testing.T) {
 
 // TestTeatestGoToBottom verifies G moves cursor to last row.
 func TestTeatestGoToBottom(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "G")
@@ -295,6 +308,7 @@ func TestTeatestGoToBottom(t *testing.T) {
 
 // TestTeatestGoToTop verifies g moves cursor to first row.
 func TestTeatestGoToTop(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "j") // move down first
@@ -313,6 +327,7 @@ func TestTeatestGoToTop(t *testing.T) {
 
 // TestTeatestDollarGoesToLastCol verifies $ moves to last column.
 func TestTeatestDollarGoesToLastCol(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "$")
@@ -330,6 +345,7 @@ func TestTeatestDollarGoesToLastCol(t *testing.T) {
 
 // TestTeatestCaretGoesToFirstCol verifies ^ moves to first selectable column.
 func TestTeatestCaretGoesToFirstCol(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "$") // go to last col first
@@ -348,6 +364,7 @@ func TestTeatestCaretGoesToFirstCol(t *testing.T) {
 
 // TestTeatestHalfPageUpDown verifies u/d half-page navigation.
 func TestTeatestHalfPageUpDown(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "G") // go to bottom
@@ -369,6 +386,7 @@ func TestTeatestHalfPageUpDown(t *testing.T) {
 // ── Quit ────────────────────────────────────────────────────────────────
 
 func TestTeatestQuitNormal(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// 'q' in normal mode should quit.
@@ -383,6 +401,7 @@ func TestTeatestQuitNormal(t *testing.T) {
 
 // TestTeatestColumnPickerOpen verifies C opens the picker when multiple columns are hidden.
 func TestTeatestColumnPickerOpen(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Hide two columns: first the current (col 1 = title), then move right and hide next.
@@ -401,6 +420,7 @@ func TestTeatestColumnPickerOpen(t *testing.T) {
 
 // TestTeatestColumnPickerUnhide verifies selecting a column in the picker unhides it.
 func TestTeatestColumnPickerUnhide(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Hide two columns.
@@ -431,6 +451,7 @@ func TestTeatestColumnPickerUnhide(t *testing.T) {
 
 // TestTeatestColumnPickerClose verifies Esc closes the picker.
 func TestTeatestColumnPickerClose(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "c")               // hide col 1
@@ -447,6 +468,7 @@ func TestTeatestColumnPickerClose(t *testing.T) {
 
 // TestTeatestColumnPickerSingleAutoUnhide verifies C with one hidden column auto-unhides.
 func TestTeatestColumnPickerSingleAutoUnhide(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "c") // hide col 1 (only one hidden)
@@ -472,6 +494,7 @@ func TestTeatestColumnPickerSingleAutoUnhide(t *testing.T) {
 
 // TestTeatestColumnRenameInvalid verifies renaming to an invalid name is rejected.
 func TestTeatestColumnRenameInvalid(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "r") // open rename
@@ -511,6 +534,7 @@ func TestTeatestColumnRenameInvalid(t *testing.T) {
 
 // TestTeatestHalfPageWithLargeData verifies half-page up/down with data exceeding viewport.
 func TestTeatestHalfPageWithLargeData(t *testing.T) {
+	t.Parallel()
 	// Create a model with many rows.
 	m, _ := newTeatestModelWithSchema(t, []string{
 		`CREATE TABLE big (id INTEGER PRIMARY KEY, val TEXT)`,
@@ -545,6 +569,7 @@ func TestTeatestHalfPageWithLargeData(t *testing.T) {
 
 // TestTeatestColumnPickerNavigate verifies j/k moves through hidden columns in the picker.
 func TestTeatestColumnPickerNavigate(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Hide two columns so picker opens.
@@ -566,6 +591,7 @@ func TestTeatestColumnPickerNavigate(t *testing.T) {
 
 // TestTeatestColumnPickerNavigateAndUnhide verifies navigating to a specific column and unhiding it.
 func TestTeatestColumnPickerNavigateAndUnhide(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Hide two columns.

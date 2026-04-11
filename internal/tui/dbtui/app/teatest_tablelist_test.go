@@ -12,6 +12,7 @@ import (
 
 // TestTeatestTableListNavigate verifies j/k moves the cursor in the table list.
 func TestTeatestTableListNavigate(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "t") // open table list
@@ -29,6 +30,7 @@ func TestTeatestTableListNavigate(t *testing.T) {
 
 // TestTeatestTableListSwitch verifies Enter switches to the selected table.
 func TestTeatestTableListSwitch(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "t") // open table list
@@ -48,6 +50,7 @@ func TestTeatestTableListSwitch(t *testing.T) {
 
 // TestTeatestTableListRename verifies renaming a table through the overlay.
 func TestTeatestTableListRename(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "t")
@@ -82,6 +85,7 @@ func TestTeatestTableListRename(t *testing.T) {
 
 // TestTeatestTableListCreate verifies creating a new empty table.
 func TestTeatestTableListCreate(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "t")
@@ -104,6 +108,7 @@ func TestTeatestTableListCreate(t *testing.T) {
 
 // TestTeatestTableListDelete verifies deleting a table.
 func TestTeatestTableListDelete(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "t")
@@ -127,6 +132,7 @@ func TestTeatestTableListDelete(t *testing.T) {
 
 // TestTeatestTableListClose verifies Esc closes the table list.
 func TestTeatestTableListClose(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "t")
@@ -143,6 +149,7 @@ func TestTeatestTableListClose(t *testing.T) {
 
 // TestTeatestTableListDeriveTable verifies creating a derived table via SQL.
 func TestTeatestTableListDeriveTable(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "t") // open table list
@@ -177,6 +184,7 @@ func TestTeatestTableListDeriveTable(t *testing.T) {
 
 // TestTeatestTableListDeriveCancel verifies Esc cancels the derive overlay.
 func TestTeatestTableListDeriveCancel(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "t")
@@ -207,6 +215,7 @@ func TestTeatestTableListDeriveCancel(t *testing.T) {
 // ── Export ─────────────────────────────────────────────────────────────
 
 // TestTeatestTableListExport verifies exporting a table to CSV.
+// Not t.Parallel: uses os.Chdir, which is process-global.
 func TestTeatestTableListExport(t *testing.T) {
 	// Run in a temp dir so the export file lands there.
 	tmp := t.TempDir()
@@ -247,6 +256,7 @@ func TestTeatestTableListExport(t *testing.T) {
 
 // TestTeatestTableListDedup verifies dedup removes duplicate rows.
 func TestTeatestTableListDedup(t *testing.T) {
+	t.Parallel()
 	// Create a table without a PK so rows can be truly duplicate (all columns match).
 	stmts := []string{
 		`CREATE TABLE items (name TEXT)`,
@@ -282,6 +292,7 @@ func TestTeatestTableListDedup(t *testing.T) {
 
 // TestTeatestTableListDeriveView verifies creating a derived view via Shift+Enter.
 func TestTeatestTableListDeriveView(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "t") // open table list
@@ -315,6 +326,7 @@ func TestTeatestTableListDeriveView(t *testing.T) {
 
 // TestTeatestTableListCreateInvalidName verifies invalid names are rejected.
 func TestTeatestTableListCreateInvalidName(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "t")
@@ -345,6 +357,7 @@ func TestTeatestTableListCreateInvalidName(t *testing.T) {
 
 // TestTeatestTableListCreateDuplicate verifies duplicate names are rejected.
 func TestTeatestTableListCreateDuplicate(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "t")
@@ -366,6 +379,7 @@ func TestTeatestTableListCreateDuplicate(t *testing.T) {
 
 // TestTeatestRapidTabSwitch verifies rapid tab switching doesn't panic.
 func TestTeatestRapidTabSwitch(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	// Rapidly switch tabs multiple times before any async load completes.

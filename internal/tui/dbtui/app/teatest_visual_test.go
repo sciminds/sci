@@ -10,6 +10,7 @@ import (
 
 // TestTeatestVisualExtendJ verifies J extends selection downward.
 func TestTeatestVisualExtendJ(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "v") // enter visual
@@ -32,6 +33,7 @@ func TestTeatestVisualExtendJ(t *testing.T) {
 
 // TestTeatestVisualExtendK verifies K extends selection upward.
 func TestTeatestVisualExtendK(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "v")
@@ -52,6 +54,7 @@ func TestTeatestVisualExtendK(t *testing.T) {
 
 // TestTeatestVisualToggle verifies space toggles individual row selection.
 func TestTeatestVisualToggle(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "v")
@@ -69,6 +72,7 @@ func TestTeatestVisualToggle(t *testing.T) {
 
 // TestTeatestVisualYank verifies y copies to internal clipboard.
 func TestTeatestVisualYank(t *testing.T) {
+	t.Parallel()
 	tm, _ := startTeatest(t)
 
 	sendKey(tm, "v")
@@ -84,6 +88,7 @@ func TestTeatestVisualYank(t *testing.T) {
 
 // TestTeatestVisualDelete verifies d deletes selected rows from DB.
 func TestTeatestVisualDelete(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "v")
@@ -104,6 +109,7 @@ func TestTeatestVisualDelete(t *testing.T) {
 
 // TestTeatestVisualCut verifies x yanks and deletes.
 func TestTeatestVisualCut(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "v")
@@ -126,6 +132,7 @@ func TestTeatestVisualCut(t *testing.T) {
 
 // TestTeatestVisualPasteAfter verifies p pastes after cursor.
 func TestTeatestVisualPasteAfter(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	// Yank first, then paste.
@@ -146,6 +153,7 @@ func TestTeatestVisualPasteAfter(t *testing.T) {
 }
 
 // TestTeatestVisualExport verifies e exports selected rows to CSV.
+// Not t.Parallel: uses os.Chdir, which is process-global.
 func TestTeatestVisualExport(t *testing.T) {
 	tm, _ := startTeatest(t)
 
@@ -175,6 +183,7 @@ func TestTeatestVisualExport(t *testing.T) {
 
 // TestTeatestVisualPasteEmptyClipboard verifies paste with empty clipboard sets error.
 func TestTeatestVisualPasteEmptyClipboard(t *testing.T) {
+	t.Parallel()
 	tm, store := startTeatest(t)
 
 	sendKey(tm, "v")
@@ -198,6 +207,7 @@ func TestTeatestVisualPasteEmptyClipboard(t *testing.T) {
 
 // TestTeatestVisualBlockedReadOnly verifies visual mode is blocked on read-only.
 func TestTeatestVisualBlockedReadOnly(t *testing.T) {
+	t.Parallel()
 	m := newReadOnlyTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	waitForTable(t, tm)
