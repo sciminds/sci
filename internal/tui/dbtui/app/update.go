@@ -38,9 +38,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tl.DeriveSQL.SetHeight(taH)
 		}
 		return m, nil
-	case tea.BackgroundColorMsg:
-		m.styles = ui.NewStyles(msg.IsDark())
-		return m, nil
 	case tabLoadedMsg:
 		return m.handleTabLoaded(msg)
 	case spinner.TickMsg:

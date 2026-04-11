@@ -174,18 +174,32 @@ func startTeatest(t *testing.T) (*teatest.TestModel, *data.Store) {
 // ── Basic integration tests ─────────────────────────────────────────────
 
 // TestTeatestBasicRender verifies the TUI renders table data on startup.
+//
+// Mirrors the upstream teatest.TestApp pattern: capture the full output
+// stream from program start through clean teardown and golden-compare
+// it. We use io.TeeReader to snapshot bytes into our own buffer while
+// teatest.WaitFor drains the underlying bytes.Buffer — without the tee,
+// the drained bytes would be lost to FinalOutput, and the golden would
+// only contain the teardown tail (which is nondeterministic under race
+// because bubbletea's startup terminal probes can arrive late).
 func TestTeatestBasicRender(t *testing.T) {
 	m := newTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 
-	waitForTable(t, tm)
+	var transcript bytes.Buffer
+	tee := io.TeeReader(tm.Output(), &transcript)
+	teatest.WaitFor(t, tee, func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("products"))
+	}, teatest.WithDuration(testWait), teatest.WithCheckInterval(time.Millisecond))
 
 	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	out, err := io.ReadAll(tm.FinalOutput(t, teatest.WithFinalTimeout(testFinal)))
+	rest, err := io.ReadAll(tm.FinalOutput(t, teatest.WithFinalTimeout(testFinal)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	teatest.RequireEqualOutput(t, out)
+	transcript.Write(rest)
+
+	teatest.RequireEqualOutput(t, transcript.Bytes())
 }
 
 // TestTeatestCursorNavigation verifies j/k navigation moves the cursor.

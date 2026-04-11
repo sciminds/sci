@@ -187,7 +187,7 @@ func (m *Model) SelectTab(name string) {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(m.spinner.Tick, tea.RequestBackgroundColor)
+	return m.spinner.Tick
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────────
