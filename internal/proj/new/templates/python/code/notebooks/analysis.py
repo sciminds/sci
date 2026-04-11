@@ -22,6 +22,7 @@ def _(mo):
 
 @app.cell
 def _():
+    import marimo as mo
     import polars as pl
     import seaborn as sns
     from pathlib import Path
