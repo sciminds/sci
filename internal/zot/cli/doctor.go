@@ -23,17 +23,27 @@ $ zot doctor --deep          # enables fuzzy duplicate matching + uncollected-it
 $ zot doctor --check missing --check invalid
 $ zot doctor --json > health.json
 
-Runs every hygiene check in order — invalid, missing, orphans,
-duplicates — and prints a one-line summary per check plus an aggregate
-totals footer. Doctor is strictly read-only; use the per-check commands
-(zot invalid, zot missing, zot orphans, zot duplicates) for per-finding
-detail and --fix support.
+$ zot doctor invalid         # drill into a single check
+$ zot doctor missing --field title,creators
+$ zot doctor orphans --kind uncollected-item
+$ zot doctor duplicates --fuzzy
+
+Bare 'zot doctor' runs every hygiene check in order — invalid, missing,
+orphans, duplicates — and prints a one-line summary per check plus an
+aggregate totals footer. Doctor is strictly read-only; use the
+sub-commands ('zot doctor invalid', etc.) for per-finding detail.
 
 Deep mode flips the slow/accurate paths: duplicate detection adds the
 fuzzy title pass (~30s on a 5k-item library) and orphans additionally
 reports items that live in zero collections. It does NOT stat attachment
-files on disk — use 'zot orphans --kind missing-file --check-files' for
-that.`,
+files on disk — use 'zot doctor orphans --kind missing-file --check-files'
+for that.`,
+		Commands: []*cli.Command{
+			invalidCommand(),
+			missingCommand(),
+			orphansCommand(),
+			duplicatesCommand(),
+		},
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{
 				Name:  "check",

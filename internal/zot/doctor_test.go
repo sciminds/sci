@@ -118,7 +118,7 @@ func TestDoctorResult_TotalsAndRendering(t *testing.T) {
 		t.Errorf("Human() should not claim healthy:\n%s", out)
 	}
 	// Must point at the per-check commands for drilldown.
-	if !strings.Contains(out, "zot invalid") {
+	if !strings.Contains(out, "zot doctor invalid") {
 		t.Errorf("Human() should point at per-check commands:\n%s", out)
 	}
 }

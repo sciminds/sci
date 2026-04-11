@@ -33,10 +33,10 @@ func missingCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "missing",
 		Usage: "Scan the library for items missing common fields",
-		Description: `$ zot missing
-$ zot missing --field title,creators
-$ zot missing --field doi,abstract
-$ zot missing --limit 0 --json > coverage.json
+		Description: `$ zot doctor missing
+$ zot doctor missing --field title,creators
+$ zot doctor missing --field doi,abstract
+$ zot doctor missing --limit 0 --json > coverage.json
 
 Fields: title, creators, date, doi, abstract, url, pdf, tags. Defaults to all.
 Severity: title=error, creators/date=warn, others=info.`,
@@ -82,11 +82,11 @@ func duplicatesCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "duplicates",
 		Usage: "Find potential duplicate items (by DOI and/or title)",
-		Description: `$ zot duplicates                  # fast: DOI + exact-normalized title
-$ zot duplicates --fuzzy          # adds slow fuzzy title pass (~30s on 5k items)
-$ zot duplicates --strategy doi
-$ zot duplicates --fuzzy --threshold 0.9
-$ zot duplicates --limit 0 --json > dupes.json
+		Description: `$ zot doctor duplicates                  # fast: DOI + exact-normalized title
+$ zot doctor duplicates --fuzzy          # adds slow fuzzy title pass (~30s on 5k items)
+$ zot doctor duplicates --strategy doi
+$ zot doctor duplicates --fuzzy --threshold 0.9
+$ zot doctor duplicates --limit 0 --json > dupes.json
 
 Strategies: doi (strongest), title, both (default).
 
@@ -160,9 +160,9 @@ func invalidCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "invalid",
 		Usage: "Scan the library for malformed field values (DOI/ISBN/URL/date)",
-		Description: `$ zot invalid
-$ zot invalid --field doi,date
-$ zot invalid --limit 0 --json > invalid.json
+		Description: `$ zot doctor invalid
+$ zot doctor invalid --field doi,date
+$ zot doctor invalid --limit 0 --json > invalid.json
 
 Fields: doi, isbn, url, date. Defaults to all.
 All invalid findings are graded SevWarn (citation-affecting).`,
@@ -208,10 +208,10 @@ func orphansCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "orphans",
 		Usage: "Find structural orphans (empty collections, standalone attachments/notes, unused tags, uncollected items, missing files)",
-		Description: `$ zot orphans
-$ zot orphans --kind uncollected-item
-$ zot orphans --kind missing-file --check-files
-$ zot orphans --limit 0 --json > orphans.json
+		Description: `$ zot doctor orphans
+$ zot doctor orphans --kind uncollected-item
+$ zot doctor orphans --kind missing-file --check-files
+$ zot doctor orphans --limit 0 --json > orphans.json
 
 Default kinds: empty-collection, standalone-attachment,
 standalone-note, unused-tag.

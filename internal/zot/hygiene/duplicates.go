@@ -52,7 +52,7 @@ const (
 // windowed Levenshtein comparison over singletons left over from the
 // exact-normalized bucketing. It's off by default because on a 5k-item
 // library it takes ~30s, whereas the DOI + exact-title passes finish in
-// under a second. `zot duplicates --fuzzy` (and `zot doctor --deep`)
+// under a second. `zot doctor duplicates --fuzzy` (and `zot doctor --deep`)
 // enable it.
 //
 // Threshold is the minimum SimilarityRatio (in [0,1]) the fuzzy pass

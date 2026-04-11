@@ -9,7 +9,7 @@ import (
 
 // MissingField names a field the Missing check knows how to inspect. The
 // values double as the stable Kind emitted in Findings and on the command
-// line (`zot missing --field doi,abstract`).
+// line (`zot doctor missing --field doi,abstract`).
 type MissingField string
 
 const (

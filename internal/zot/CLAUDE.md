@@ -36,7 +36,7 @@ Zotero uses optimistic concurrency: writes carry `If-Unmodified-Since-Version` (
 
 ## Hygiene checks
 
-Read-only library-quality checks, each fronted by `zot <check>` and aggregated by `zot doctor`. SQL lives in `local/hygiene.go` and `local/orphans.go`; pure logic (validators, clusterers) in `hygiene/`. The split makes clustering and validation unit-testable without a DB.
+Read-only library-quality checks. All four checks (`invalid`, `missing`, `orphans`, `duplicates`) live as sub-commands of `zot doctor`; bare `zot doctor` runs every check and prints an aggregate dashboard, while `zot doctor <check>` drills into a single one with per-finding detail. The parent command has both `Action` (the aggregate run) and `Commands` (the four leaves) — urfave/cli v3 dispatches to a leaf when its name is the first positional arg, otherwise runs Action; `--help` is intercepted before either, so `zot doctor --help` prints the sub-command menu. SQL lives in `local/hygiene.go` and `local/orphans.go`; pure logic (validators, clusterers) in `hygiene/`. The split makes clustering and validation unit-testable without a DB.
 
 **Report shape.** Every check returns `*hygiene.Report{Check, Scanned, Findings, Clusters, Stats}`. `Stats` is a per-check struct (`MissingStats`, `DuplicatesStats`, `InvalidStats`, `OrphansStats`) read by renderers via type assertion.
 
@@ -55,7 +55,7 @@ Read-only library-quality checks, each fronted by `zot <check>` and aggregated b
 - `orphans --kind uncollected-item` — users without collections get thousands of findings
 - `orphans --kind missing-file --check-files` — stat's every imported attachment
 
-**Duplicate detection:** DOI pass (exact, score 1.0) subsumes title passes when members overlap. Title pass is two-stage: normalized-equality bucketing (always runs, ~free) and length-windowed fuzzy over singletons (gated behind `DuplicatesOptions.Fuzzy`). Fast mode ~300ms on 8.8k items; fuzzy adds ~12s. Both `zot duplicates` and `zot doctor` default to fast.
+**Duplicate detection:** DOI pass (exact, score 1.0) subsumes title passes when members overlap. Title pass is two-stage: normalized-equality bucketing (always runs, ~free) and length-windowed fuzzy over singletons (gated behind `DuplicatesOptions.Fuzzy`). Fast mode ~300ms on 8.8k items; fuzzy adds ~12s. Both `zot doctor duplicates` and `zot doctor` default to fast.
 
 ## Conventions
 

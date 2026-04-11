@@ -138,7 +138,7 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 | `sci zot add` / `update` / `delete` | Create / patch / trash items via the Zotero Web API |
 | `sci zot collection` / `tag` | Manage collections and tags |
 | `sci zot doctor` | Run all hygiene checks (invalid → missing → orphans → duplicates) |
-| `sci zot missing` / `duplicates` / `invalid` / `orphans` | Drill into individual hygiene reports |
+| `sci zot doctor {invalid,missing,orphans,duplicates}` | Drill into individual hygiene reports |
 
 Reads the local `zotero.sqlite` (immutable, no contention with the running Zotero desktop app); writes go through the Zotero Web API. `zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds.
 
