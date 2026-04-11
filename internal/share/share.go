@@ -87,6 +87,7 @@ func Auth() (*AuthResult, error) {
 		GitHubLogin: resp.GitHubLogin,
 		AccountID:   resp.AccountID,
 		Public:      resp.Public,
+		Board:       resp.Board,
 	}
 	if err := cloud.SaveConfig(newCfg); err != nil {
 		return nil, fmt.Errorf("saving credentials: %w", err)

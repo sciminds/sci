@@ -59,6 +59,21 @@ func Setup() (*Config, *Client, error) {
 	return cfg, NewClient(cfg.AccountID, cfg.Username, cfg.Public), nil
 }
 
+// SetupBoard loads config and returns a client for the private board bucket.
+// Returns a friendly error if the board credentials haven't been populated
+// yet — older credentials files predate the board bucket and need a fresh
+// login to pick it up.
+func SetupBoard() (*Config, *Client, error) {
+	cfg, err := RequireConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+	if cfg.Board == nil || cfg.Board.AccessKey == "" {
+		return nil, nil, fmt.Errorf("board bucket not configured — run 'sci cloud login' to refresh credentials")
+	}
+	return cfg, NewClient(cfg.AccountID, cfg.Username, cfg.Board), nil
+}
+
 // objectKey returns the full key for a file: "<username>/<filename>".
 func (c *Client) objectKey(filename string) string {
 	return c.Username + "/" + filename

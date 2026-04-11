@@ -21,6 +21,7 @@ type Config struct {
 	GitHubLogin string        `json:"github_login,omitempty"`
 	AccountID   string        `json:"account_id"`
 	Public      *BucketConfig `json:"public,omitempty"`
+	Board       *BucketConfig `json:"board,omitempty"`
 
 	// Legacy flat fields — populated only when reading old-format files.
 	// Deprecated: run "sci cloud setup" to migrate to the new format.
