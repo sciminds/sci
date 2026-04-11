@@ -19,6 +19,9 @@ var (
 	dupStrategy  string
 	dupThreshold float64
 	dupLimit     int
+
+	invalidFields string
+	invalidLimit  int
 )
 
 func missingCommand() *cli.Command {
@@ -132,6 +135,75 @@ DOI matches subsume title matches when both fire on the same items.`,
 			return nil
 		},
 	}
+}
+
+func invalidCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "invalid",
+		Usage: "Scan the library for malformed field values (DOI/ISBN/URL/date)",
+		Description: `$ zot invalid
+$ zot invalid --field doi,date
+$ zot invalid --limit 0 --json > invalid.json
+
+Fields: doi, isbn, url, date. Defaults to all.
+All invalid findings are graded SevWarn (citation-affecting).`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "field",
+				Aliases:     []string{"f"},
+				Usage:       "comma-separated fields to validate (doi,isbn,url,date)",
+				Destination: &invalidFields,
+				Local:       true,
+			},
+			&cli.IntFlag{
+				Name:        "limit",
+				Aliases:     []string{"n"},
+				Value:       25,
+				Usage:       "max findings to print (0 = all)",
+				Destination: &invalidLimit,
+				Local:       true,
+			},
+		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			fields, err := parseInvalidFieldList(invalidFields)
+			if err != nil {
+				return cmdutil.UsageErrorf(cmd, "%s", err.Error())
+			}
+			_, db, err := openLocalDB()
+			if err != nil {
+				return err
+			}
+			defer func() { _ = db.Close() }()
+
+			rep, err := hygiene.Invalid(db, fields)
+			if err != nil {
+				return err
+			}
+			cmdutil.Output(cmd, zot.InvalidResult{Report: rep, Limit: invalidLimit})
+			return nil
+		},
+	}
+}
+
+func parseInvalidFieldList(s string) ([]hygiene.InvalidField, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]hygiene.InvalidField, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		f, err := hygiene.ParseInvalidField(p)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, nil
 }
 
 func parseStrategy(s string) (hygiene.Strategy, error) {

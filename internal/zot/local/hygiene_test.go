@@ -74,6 +74,67 @@ func TestScanFieldPresence(t *testing.T) {
 	}
 }
 
+func TestScanFieldValues(t *testing.T) {
+	dir := buildFixture(t)
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Ask for DOI + date — only items that have those fields set
+	// should come back, one row per (item, field) pair.
+	rows, err := db.ScanFieldValues([]string{"DOI", "date"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Expected (from fixture seed):
+	//   AAAA1111 DOI=10.1000/abc123, date=2024-03-15 March 15, 2024
+	//   BBBB2222 date=2024-03-15 March 15, 2024
+	//   CCCC3333 date=2023
+	// → 4 rows total.
+	if len(rows) != 4 {
+		t.Fatalf("got %d rows, want 4: %+v", len(rows), rows)
+	}
+
+	type key struct{ k, f string }
+	by := map[key]FieldValue{}
+	for _, r := range rows {
+		by[key{r.Key, r.Field}] = r
+	}
+	if by[key{"AAAA1111", "DOI"}].Value != "10.1000/abc123" {
+		t.Errorf("AAAA1111 DOI = %q", by[key{"AAAA1111", "DOI"}].Value)
+	}
+	if by[key{"AAAA1111", "DOI"}].Title != "Deep Learning for Neuroimaging" {
+		t.Errorf("AAAA1111 title not carried: %q", by[key{"AAAA1111", "DOI"}].Title)
+	}
+	if by[key{"CCCC3333", "date"}].Value != "2023" {
+		t.Errorf("CCCC3333 date = %q", by[key{"CCCC3333", "date"}].Value)
+	}
+	// BBBB2222 has no DOI — must not appear for that field.
+	if _, ok := by[key{"BBBB2222", "DOI"}]; ok {
+		t.Error("BBBB2222 should not have a DOI row")
+	}
+}
+
+func TestScanFieldValues_EmptyFieldsReturnsNothing(t *testing.T) {
+	dir := buildFixture(t)
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	rows, err := db.ScanFieldValues(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 0 {
+		t.Errorf("empty fields should return nothing, got %d rows", len(rows))
+	}
+}
+
 func TestScanDuplicateCandidates(t *testing.T) {
 	dir := buildFixture(t)
 	db, err := Open(dir)

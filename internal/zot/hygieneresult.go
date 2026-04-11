@@ -114,6 +114,74 @@ func stableSortBySeverity(fs []hygiene.Finding) {
 	})
 }
 
+// InvalidResult wraps a hygiene.Report from the Invalid check. Limit
+// caps the human-mode findings list; JSON always returns everything.
+type InvalidResult struct {
+	Report *hygiene.Report `json:"report"`
+	Limit  int             `json:"-"`
+}
+
+func (r InvalidResult) JSON() any { return r.Report }
+
+func (r InvalidResult) Human() string {
+	if r.Report == nil {
+		return ""
+	}
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Field-value validation"))
+	fmt.Fprintf(&b, "  %s %d field values scanned\n\n",
+		ui.TUI.Dim().Render("·"), r.Report.Scanned)
+
+	if stats, ok := r.Report.Stats.(hygiene.InvalidStats); ok {
+		for _, c := range stats.PerField {
+			bar := coverageBar(c.PercentGood, 20)
+			fmt.Fprintf(&b, "    %-10s %s  %5d / %-5d good  %5.1f%%  %s\n",
+				c.Field, bar,
+				c.Scanned-c.Bad, c.Scanned, c.PercentGood,
+				ui.TUI.Dim().Render(fmt.Sprintf("(%d bad)", c.Bad)),
+			)
+		}
+	}
+
+	if len(r.Report.Findings) == 0 {
+		fmt.Fprintf(&b, "\n  %s no invalid values\n", ui.SymOK)
+		return b.String()
+	}
+
+	counts := r.Report.CountBySeverity()
+	fmt.Fprintf(&b, "\n  %s %s  %s %s\n",
+		ui.SymWarn, ui.TUI.Warn().Render(fmt.Sprintf("%d warn", counts[hygiene.SevWarn])),
+		ui.TUI.Dim().Render("·"), ui.TUI.Dim().Render(fmt.Sprintf("%d info", counts[hygiene.SevInfo])),
+	)
+
+	show := r.Report.Findings
+	truncated := 0
+	if r.Limit > 0 && len(show) > r.Limit {
+		truncated = len(show) - r.Limit
+		show = show[:r.Limit]
+	}
+
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("findings:"))
+	for _, f := range show {
+		title := f.Title
+		if title == "" {
+			title = ui.TUI.Dim().Render("(untitled)")
+		}
+		fmt.Fprintf(&b, "    %s  %s %s\n",
+			ui.TUI.Accent().Render(f.ItemKey),
+			styleSeverity(f.Severity, f.Message),
+			title,
+		)
+	}
+	if truncated > 0 {
+		fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
+			ui.TUI.Dim().Render("…"), truncated)
+	}
+	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", ui.SymArrow, len(r.Report.Findings))
+	return b.String()
+}
+
 // DuplicatesResult wraps a hygiene.Report from the Duplicates check.
 // Limit caps the number of clusters printed by Human() — JSON always
 // returns every cluster.

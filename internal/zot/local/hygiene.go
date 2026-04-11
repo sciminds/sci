@@ -1,6 +1,9 @@
 package local
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // DuplicateCandidate is the pared-down per-item view the duplicate
 // detector needs: just enough to bucket by DOI, compare titles, and show
@@ -12,6 +15,17 @@ type DuplicateCandidate struct {
 	DOI      string
 	Date     string
 	PDFCount int
+}
+
+// FieldValue is one (item, field, value) tuple produced by ScanFieldValues,
+// with the item's title attached for display. It's the generic shape the
+// `invalid` hygiene check iterates over — one FieldValue per field present
+// on each item, NOT one per item.
+type FieldValue struct {
+	Key   string
+	Title string
+	Field string
+	Value string
 }
 
 // ItemFieldPresence is a per-item report of which hygiene-relevant fields
@@ -160,6 +174,68 @@ ORDER BY i.dateAdded DESC
 			return nil, err
 		}
 		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// ScanFieldValues returns every non-empty (item, field, value) tuple for
+// the requested field names, scoped to content items in the user library
+// (trashed, attachment, and note rows excluded). Each row carries the
+// owning item's title for display.
+//
+// Fields are Zotero's internal names (case-sensitive): "DOI", "ISBN",
+// "url", "date", "title", "abstractNote", etc. Passing nil or empty
+// returns zero rows.
+//
+// The query uses a single IN-list against the fields table, so cost
+// scales with the number of matching itemData rows — much cheaper than
+// one correlated subquery per field.
+func (d *DB) ScanFieldValues(fields []string) ([]FieldValue, error) {
+	if len(fields) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, len(fields))
+	args := make([]any, 0, len(fields)+1)
+	for i, f := range fields {
+		placeholders[i] = "?"
+		args = append(args, f)
+	}
+	args = append(args, d.libraryID)
+
+	q := `
+SELECT i.key,
+	COALESCE((SELECT idv2.value FROM itemData id2
+	          JOIN fields f2 ON id2.fieldID = f2.fieldID
+	          JOIN itemDataValues idv2 ON id2.valueID = idv2.valueID
+	          WHERE id2.itemID = i.itemID AND f2.fieldName = 'title'), '') AS title,
+	f.fieldName,
+	idv.value
+FROM items i
+JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+JOIN itemData id ON i.itemID = id.itemID
+JOIN fields f ON id.fieldID = f.fieldID
+JOIN itemDataValues idv ON id.valueID = idv.valueID
+LEFT JOIN deletedItems di ON i.itemID = di.itemID
+WHERE f.fieldName IN (` + strings.Join(placeholders, ",") + `)
+  AND di.itemID IS NULL
+  AND i.libraryID = ?
+  AND TRIM(idv.value) <> ''
+` + contentItemTypeFilter + `
+ORDER BY i.key, f.fieldName
+`
+	rows, err := d.db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("scan field values: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []FieldValue
+	for rows.Next() {
+		var fv FieldValue
+		if err := rows.Scan(&fv.Key, &fv.Title, &fv.Field, &fv.Value); err != nil {
+			return nil, err
+		}
+		out = append(out, fv)
 	}
 	return out, rows.Err()
 }
