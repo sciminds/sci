@@ -207,14 +207,14 @@ func (s *splitView) viewSideBySide() string {
 	}
 
 	leftContent := s.viewer.View() + "\n" + s.viewerFooter(leftW)
-	leftBox := lipgloss.NewStyle().
+	leftBox := ui.TUI.Base().
 		Width(leftW).
 		Height(bodyH).
 		PaddingRight(1).
 		Render(leftContent)
 
 	rightContent := s.player.View() + "\n" + s.playerFooter(rightW)
-	rightBox := lipgloss.NewStyle().
+	rightBox := ui.TUI.Base().
 		Width(rightW).
 		Height(bodyH).
 		BorderLeft(true).
@@ -241,17 +241,16 @@ func (s *splitView) viewStacked() string {
 	botH := availH - topH
 
 	topContent := s.viewer.View() + "\n" + s.viewerFooter(s.width)
-	topBox := lipgloss.NewStyle().
+	topBox := ui.TUI.Base().
 		Width(s.width).
 		Height(topH).
 		Render(topContent)
 
-	divider := lipgloss.NewStyle().
-		Foreground(ui.TUI.Palette().Accent).
+	divider := ui.TUI.FgAccent().
 		Render(strings.Repeat("━", s.width))
 
 	botContent := s.player.View() + "\n" + s.playerFooter(s.width)
-	botBox := lipgloss.NewStyle().
+	botBox := ui.TUI.Base().
 		Width(s.width).
 		Height(botH).
 		Render(botContent)

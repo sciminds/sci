@@ -6,15 +6,13 @@ import (
 
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
+	"github.com/sciminds/cli/internal/ui"
 )
 
 const (
 	progressPadding  = 2
 	progressMaxWidth = 60
 )
-
-var dimStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262"))
 
 // ingestDoneMsg is sent when the background ingest completes.
 type ingestDoneMsg struct {
@@ -45,7 +43,8 @@ type ingestModel struct {
 }
 
 func newIngestModel(store *Store, root string) ingestModel {
-	p := progress.New(progress.WithColors(lipgloss.Color("#FF7CCB"), lipgloss.Color("#FDFF8C")), progress.WithScaled(true))
+	pal := ui.TUI.Palette()
+	p := progress.New(progress.WithColors(pal.Accent, pal.Secondary), progress.WithScaled(true))
 	return ingestModel{
 		store:    store,
 		root:     root,
@@ -115,7 +114,7 @@ func (m ingestModel) View() tea.View {
 	}
 
 	return tea.NewView("\n" + pad + m.progress.ViewAs(percent) + "\n" +
-		pad + dimStyle.Render(label) + "\n")
+		pad + ui.TUI.Dim().Render(label) + "\n")
 }
 
 // runIngest starts the ingest in a goroutine and sends the result back.

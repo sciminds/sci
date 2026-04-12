@@ -72,35 +72,33 @@ func (c *Client) getCollectionRaw(ctx context.Context, key string) (*client.Coll
 
 // DeleteCollection deletes a collection. Sub-collections become top-level;
 // items remain in the library. Handles 412 with one retry.
+//
+//nolint:dupl // 412-retry scaffolding is per-operation by design (see CLAUDE.md)
 func (c *Client) DeleteCollection(ctx context.Context, key string) error {
-	getVersion := func() (int, error) {
-		coll, err := c.getCollectionRaw(ctx, key)
-		if err != nil {
-			return 0, err
-		}
-		return coll.Version, nil
-	}
-	current, err := getVersion()
-	if err != nil {
-		return err
-	}
-
-	apply := func(ver int) error {
-		params := &client.DeleteCollectionParams{
-			IfUnmodifiedSinceVersion: (*client.IfUnmodifiedSinceVersion)(&ver),
-		}
-		resp, err := c.Gen.DeleteCollectionWithResponse(ctx, c.UserID, client.CollectionKeyPath(key), params)
-		if err != nil {
-			return err
-		}
-		switch resp.StatusCode() {
-		case http.StatusNoContent:
-			return nil
-		case http.StatusPreconditionFailed:
-			return &VersionConflictError{Path: "/collections/" + key}
-		default:
-			return fmt.Errorf("DELETE /collections/%s: %s", key, resp.Status())
-		}
-	}
-	return withVersionRetry(apply, getVersion, current)
+	return versionedDelete(
+		func() (int, error) {
+			coll, err := c.getCollectionRaw(ctx, key)
+			if err != nil {
+				return 0, err
+			}
+			return coll.Version, nil
+		},
+		func(ver int) error {
+			params := &client.DeleteCollectionParams{
+				IfUnmodifiedSinceVersion: (*client.IfUnmodifiedSinceVersion)(&ver),
+			}
+			resp, err := c.Gen.DeleteCollectionWithResponse(ctx, c.UserID, client.CollectionKeyPath(key), params)
+			if err != nil {
+				return err
+			}
+			switch resp.StatusCode() {
+			case http.StatusNoContent:
+				return nil
+			case http.StatusPreconditionFailed:
+				return &VersionConflictError{Path: "/collections/" + key}
+			default:
+				return fmt.Errorf("DELETE /collections/%s: %s", key, resp.Status())
+			}
+		},
+	)
 }

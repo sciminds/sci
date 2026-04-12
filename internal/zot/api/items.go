@@ -17,6 +17,17 @@ import (
 // middleware in retry.go intentionally does NOT handle 412 because recovering
 // from a version conflict requires re-building the request payload with the
 // new version — that's per-operation knowledge.
+// versionedDelete fetches the current version and runs a delete with one
+// 412-retry. Used by TrashItem and DeleteCollection — the two operations
+// whose scaffolding is structurally identical.
+func versionedDelete(getVersion func() (int, error), apply func(ver int) error) error {
+	current, err := getVersion()
+	if err != nil {
+		return err
+	}
+	return withVersionRetry(apply, getVersion, current)
+}
+
 func withVersionRetry(fn func(version int) error, getVersion func() (int, error), initial int) error {
 	err := fn(initial)
 	if err == nil {
@@ -138,37 +149,35 @@ func (c *Client) UpdateItem(ctx context.Context, key string, patch client.ItemDa
 
 // TrashItem moves a single item to the library trash via DELETE /items/{key}.
 // Handles 412 by refreshing the version once.
+//
+//nolint:dupl // 412-retry scaffolding is per-operation by design (see CLAUDE.md)
 func (c *Client) TrashItem(ctx context.Context, key string) error {
-	getVersion := func() (int, error) {
-		it, err := c.getItemRaw(ctx, key)
-		if err != nil {
-			return 0, err
-		}
-		return it.Version, nil
-	}
-	current, err := getVersion()
-	if err != nil {
-		return err
-	}
-
-	apply := func(ver int) error {
-		params := &client.DeleteItemParams{
-			IfUnmodifiedSinceVersion: (*client.IfUnmodifiedSinceVersion)(&ver),
-		}
-		resp, err := c.Gen.DeleteItemWithResponse(ctx, c.UserID, client.ItemKeyPath(key), params)
-		if err != nil {
-			return err
-		}
-		switch resp.StatusCode() {
-		case http.StatusNoContent:
-			return nil
-		case http.StatusPreconditionFailed:
-			return &VersionConflictError{Path: "/items/" + key}
-		default:
-			return fmt.Errorf("DELETE /items/%s: %s", key, resp.Status())
-		}
-	}
-	return withVersionRetry(apply, getVersion, current)
+	return versionedDelete(
+		func() (int, error) {
+			it, err := c.getItemRaw(ctx, key)
+			if err != nil {
+				return 0, err
+			}
+			return it.Version, nil
+		},
+		func(ver int) error {
+			params := &client.DeleteItemParams{
+				IfUnmodifiedSinceVersion: (*client.IfUnmodifiedSinceVersion)(&ver),
+			}
+			resp, err := c.Gen.DeleteItemWithResponse(ctx, c.UserID, client.ItemKeyPath(key), params)
+			if err != nil {
+				return err
+			}
+			switch resp.StatusCode() {
+			case http.StatusNoContent:
+				return nil
+			case http.StatusPreconditionFailed:
+				return &VersionConflictError{Path: "/items/" + key}
+			default:
+				return fmt.Errorf("DELETE /items/%s: %s", key, resp.Status())
+			}
+		},
+	)
 }
 
 // AddItemToCollection appends collKey to the item's Collections array.

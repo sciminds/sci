@@ -217,40 +217,7 @@ func (m *Model) updateModelSearch(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) applyModelSearch() {
-	if m.query == "" {
-		m.matchCount = 0
-		m.matchLines = nil
-		m.matchIdx = 0
-		m.vp.SetContent(m.rendered)
-		return
-	}
-
-	plain := ansi.Strip(m.rendered)
-	lowerPlain := strings.ToLower(plain)
-	lowerQuery := strings.ToLower(m.query)
-
-	m.matchLines = nil
-	start := 0
-	for {
-		idx := strings.Index(lowerPlain[start:], lowerQuery)
-		if idx < 0 {
-			break
-		}
-		begin := start + idx
-		line := strings.Count(lowerPlain[:begin], "\n")
-		m.matchLines = append(m.matchLines, line)
-		start = begin + len(m.query)
-	}
-
-	m.matchCount = len(m.matchLines)
-	m.matchIdx = 0
-
-	if m.matchCount > 0 {
-		m.vp.SetContent(HighlightMatches(m.rendered, m.query))
-		m.vp.SetYOffset(m.matchLines[0])
-	} else {
-		m.vp.SetContent(m.rendered)
-	}
+	m.matchLines, m.matchCount, m.matchIdx = applySearch(m.query, m.rendered, &m.vp)
 }
 
 func (m *Model) initViewport() {
@@ -457,7 +424,7 @@ func (v *Viewer) updateSearch(msg tea.Msg) (*Viewer, tea.Cmd) {
 		case "enter":
 			v.searching = false
 			v.query = v.searchInput.Value()
-			v.applySearch()
+			v.applyViewerSearch()
 			return v, nil
 		case "esc":
 			v.searching = false
@@ -477,25 +444,27 @@ func (v *Viewer) updateSearch(msg tea.Msg) (*Viewer, tea.Cmd) {
 	q := v.searchInput.Value()
 	if q != v.query {
 		v.query = q
-		v.applySearch()
+		v.applyViewerSearch()
 	}
 	return v, cmd
 }
 
-func (v *Viewer) applySearch() {
-	if v.query == "" {
-		v.matchCount = 0
-		v.matchLines = nil
-		v.matchIdx = 0
-		v.vp.SetContent(v.rendered)
-		return
+func (v *Viewer) applyViewerSearch() {
+	v.matchLines, v.matchCount, v.matchIdx = applySearch(v.query, v.rendered, &v.vp)
+}
+
+// applySearch finds all case-insensitive matches of query in rendered,
+// updates the viewport content with highlights, and returns the match state.
+func applySearch(query, rendered string, vp *viewport.Model) (matchLines []int, matchCount, matchIdx int) {
+	if query == "" {
+		vp.SetContent(rendered)
+		return nil, 0, 0
 	}
 
-	plain := ansi.Strip(v.rendered)
+	plain := ansi.Strip(rendered)
 	lowerPlain := strings.ToLower(plain)
-	lowerQuery := strings.ToLower(v.query)
+	lowerQuery := strings.ToLower(query)
 
-	v.matchLines = nil
 	start := 0
 	for {
 		idx := strings.Index(lowerPlain[start:], lowerQuery)
@@ -504,19 +473,18 @@ func (v *Viewer) applySearch() {
 		}
 		begin := start + idx
 		line := strings.Count(lowerPlain[:begin], "\n")
-		v.matchLines = append(v.matchLines, line)
-		start = begin + len(v.query)
+		matchLines = append(matchLines, line)
+		start = begin + len(query)
 	}
 
-	v.matchCount = len(v.matchLines)
-	v.matchIdx = 0
-
-	if v.matchCount > 0 {
-		v.vp.SetContent(HighlightMatches(v.rendered, v.query))
-		v.vp.SetYOffset(v.matchLines[0])
+	matchCount = len(matchLines)
+	if matchCount > 0 {
+		vp.SetContent(HighlightMatches(rendered, query))
+		vp.SetYOffset(matchLines[0])
 	} else {
-		v.vp.SetContent(v.rendered)
+		vp.SetContent(rendered)
 	}
+	return matchLines, matchCount, 0
 }
 
 // View renders the viewport content, with search input appended when active.

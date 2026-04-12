@@ -167,7 +167,7 @@ func TestViewerApplySearch(t *testing.T) {
 	// Directly set the search input value and call applySearch to test matching.
 	v.searchInput.SetValue("Hello")
 	v.query = "Hello"
-	v.applySearch()
+	v.applyViewerSearch()
 
 	if v.MatchCount() == 0 {
 		t.Error("should have matches for 'Hello'")
@@ -180,7 +180,7 @@ func TestViewerApplySearchCaseInsensitive(t *testing.T) {
 	v.SetSize(80, 20)
 
 	v.query = "hello"
-	v.applySearch()
+	v.applyViewerSearch()
 
 	if v.MatchCount() < 2 {
 		t.Errorf("case-insensitive search should find at least 2 matches, got %d", v.MatchCount())
@@ -193,7 +193,7 @@ func TestViewerApplySearchEmpty(t *testing.T) {
 	v.SetSize(80, 20)
 
 	v.query = ""
-	v.applySearch()
+	v.applyViewerSearch()
 
 	if v.MatchCount() != 0 {
 		t.Error("empty query should have 0 matches")
@@ -220,7 +220,7 @@ func TestViewerSearchScrollsToMatch(t *testing.T) {
 
 	// Search for TARGET — should scroll down.
 	v.query = "TARGET"
-	v.applySearch()
+	v.applyViewerSearch()
 
 	if v.MatchCount() != 1 {
 		t.Fatalf("expected 1 match, got %d", v.MatchCount())
@@ -243,7 +243,7 @@ func TestViewerNextPrevScrolls(t *testing.T) {
 	v.SetSize(80, 10)
 
 	v.query = "MATCH"
-	v.applySearch()
+	v.applyViewerSearch()
 
 	if v.MatchCount() != 2 {
 		t.Fatalf("expected 2 matches, got %d", v.MatchCount())
