@@ -197,22 +197,6 @@ Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd
 
 </details>
 
-### Ingest markdown into SQLite (Experimental)
-
-| Command | What it does |
-|---------|--------------|
-| `sci markdb ingest <dir>` | Ingest a directory of `.md` files into SQLite |
-| `sci markdb search --db <db> <query>` | Full-text search across files |
-| `sci markdb info --db <db>` | Show database summary statistics |
-| `sci markdb diff <dir> --db <db>` | Show what would change on next ingest |
-| `sci markdb export --db <db> --dir <dir>` | Reconstruct markdown files from the database |
-
-Ingests any folder of markdown files with YAML front-matter into a single SQLite database. Front-matter keys become real SQL columns (dynamically discovered), wikilinks and markdown links are tracked in a `links` table, and FTS5 enables full-text search. Export reconstructs byte-identical files from the database.
-
-Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/markdb@latest`.
-
-![sci markdb](docs/casts/sci-markdb.gif)
-
 ---
 
 ## Releases

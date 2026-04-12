@@ -24,13 +24,6 @@ var SciEntries = []Entry{
 		CastFile: "sci-db.cast",
 	},
 	{
-		Name:     "sci markdb",
-		Cmd:      "sci markdb — markdown to SQLite",
-		Desc:     "Ingest markdown files with frontmatter, FTS search, and diffing",
-		Category: "Data",
-		CastFile: "sci-markdb.cast",
-	},
-	{
 		Name:     "sci vid",
 		Cmd:      "sci vid — video editing",
 		Desc:     "Cut, compress, resize, and convert videos via ffmpeg",

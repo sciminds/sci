@@ -71,8 +71,6 @@ jobs:
             echo "==> Building dbtui-${SUFFIX}"
             GOOS="${OS}" GOARCH="${ARCH}" go build -ldflags="${LDFLAGS_PLAIN}" -o "dist/dbtui-${SUFFIX}" ./cmd/dbtui
 
-            echo "==> Building markdb-${SUFFIX}"
-            GOOS="${OS}" GOARCH="${ARCH}" go build -ldflags="${LDFLAGS_PLAIN}" -o "dist/markdb-${SUFFIX}" ./cmd/markdb
           done
 
           echo "==> Verify native build"

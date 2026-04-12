@@ -83,7 +83,6 @@ fi
 
 standalone_pkgs=(
   "internal/tui/dbtui"
-  "internal/markdb"
   "internal/zot/local"
   "internal/board"
 )
@@ -182,7 +181,6 @@ drain_exempt=(
   "internal/ui/spinner.go"
   "internal/tui/dbtui/"
   "internal/tui/board/"
-  "internal/markdb/"  # standalone — drains inline via TIOCFLUSH
 )
 
 # Find Go files (non-test) that import bubbletea and call .Run()
@@ -213,7 +211,7 @@ done
 # dbtui and markdb must not import any sciminds/cli/internal/* packages outside
 # their own subtree. zot may import shared infra and dbtui, but not markdb.
 
-isolated_pkgs=("internal/tui/dbtui" "internal/markdb")
+isolated_pkgs=("internal/tui/dbtui")
 for pkg in "${isolated_pkgs[@]}"; do
   # Find imports of internal/* that are NOT within the package's own subtree.
   own_import="github.com/sciminds/cli/${pkg}"
@@ -226,13 +224,6 @@ for pkg in "${isolated_pkgs[@]}"; do
   fi
 done
 
-# zot must not import markdb (wrong direction).
-zot_markdb=$(rg -n '"github\.com/sciminds/cli/internal/markdb' --type go internal/zot/ 2>/dev/null || true)
-if [[ -n "$zot_markdb" ]]; then
-  echo "FAIL [standalone-boundary] zot imports markdb (forbidden):"
-  echo "$zot_markdb"
-  fail "standalone-boundary"
-fi
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then

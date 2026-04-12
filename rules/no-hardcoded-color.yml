@@ -11,4 +11,3 @@ ignores:
   - "internal/ui/styles.go"
   - "internal/tui/*/ui/palette.go"
   - "internal/tui/*/ui/styles.go"
-  - "internal/markdb/*.go"  # standalone package — no access to ui.TUI.Palette()

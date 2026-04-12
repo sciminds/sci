@@ -71,7 +71,6 @@ func buildRoot() *cli.Command {
 			updateCommand(),
 			// Experimental
 			cassCommand(),
-			markdbCommand(),
 			zotCommand(),
 		},
 	}
