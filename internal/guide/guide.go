@@ -488,5 +488,6 @@ func Run(books []Book) error {
 	m := newModel(books)
 	p := tea.NewProgram(m)
 	_, err := p.Run()
+	ui.DrainStdin()
 	return err
 }

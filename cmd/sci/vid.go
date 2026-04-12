@@ -31,9 +31,9 @@ func vidCommand() *cli.Command {
 		Category:    "Commands",
 		// Shared flags — propagate to all subcommands. lint:no-local
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Usage: "custom output path", Destination: &vidOutput},   // lint:no-local
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "overwrite without asking", Destination: &vidYes},     // lint:no-local
-			&cli.BoolFlag{Name: "dry-run", Usage: "print ffmpeg command without executing", Destination: &vidDryRun},        // lint:no-local
+			&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Usage: "custom output path", Destination: &vidOutput}, // lint:no-local
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "overwrite without asking", Destination: &vidYes},   // lint:no-local
+			&cli.BoolFlag{Name: "dry-run", Usage: "print ffmpeg command without executing", Destination: &vidDryRun},      // lint:no-local
 		},
 		Commands: []*cli.Command{
 			vidInfoCommand(),

@@ -230,6 +230,7 @@ func runProjConfig(_ context.Context, cmd *cli.Command) error {
 	model := configTUI.New(configTUI.Options{Dir: dir, Files: files})
 	p := tea.NewProgram(model)
 	finalModel, err := p.Run()
+	ui.DrainStdin()
 	if err != nil {
 		return fmt.Errorf("config TUI: %w", err)
 	}

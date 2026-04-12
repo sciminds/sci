@@ -120,6 +120,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 	m := newReccsModel(entries, missing)
 	p := tea.NewProgram(m)
 	final, err := p.Run()
+	ui.DrainStdin()
 	if err != nil {
 		return OptionalSetupResult{}, err
 	}

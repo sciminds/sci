@@ -1,6 +1,7 @@
 package brew
 
 import (
+	"errors"
 	"fmt"
 
 	"charm.land/bubbles/v2/key"
@@ -8,6 +9,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/ui"
 )
+
+// ErrInterrupted signals the user interrupted the TUI (Ctrl-C).
+// Callers should exit with code 130.
+var ErrInterrupted = errors.New("interrupted")
 
 // listItem implements list.Item for the bubbles list component.
 type listItem struct {
@@ -48,7 +53,7 @@ type listModel struct {
 	list list.Model
 }
 
-func newListModel(packages []PackageInfo, width, height int) listModel {
+func newListModel(packages []PackageInfo) listModel {
 	items := make([]list.Item, len(packages))
 	for i, p := range packages {
 		items[i] = makeListItem(p)
@@ -56,7 +61,7 @@ func newListModel(packages []PackageInfo, width, height int) listModel {
 
 	title := fmt.Sprintf("Brewfile — %d packages", len(packages))
 	delegate := ui.NewListDelegate()
-	l := list.New(items, delegate, width, height)
+	l := list.New(items, delegate, 0, 0)
 	l.Title = title
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
@@ -101,8 +106,15 @@ func (m listModel) View() tea.View {
 
 // RunListTUI launches the interactive package list.
 func RunListTUI(packages []PackageInfo) error {
-	m := newListModel(packages, 80, 24)
+	m := newListModel(packages)
 	p := tea.NewProgram(m)
 	_, err := p.Run()
-	return err
+	ui.DrainStdin()
+	if err != nil {
+		if errors.Is(err, tea.ErrInterrupted) {
+			return ErrInterrupted
+		}
+		return err
+	}
+	return nil
 }

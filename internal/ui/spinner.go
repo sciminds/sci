@@ -303,7 +303,7 @@ func RunWithSpinnerStatus(title string, fn func(setStatus func(string)) error) e
 	}()
 
 	result, runErr := p.Run()
-	drainStdin()
+	DrainStdin()
 	if runErr != nil {
 		return runErr
 	}
@@ -331,7 +331,7 @@ func RunWithProgress(title string, fn func(t *ProgressTracker) error) error {
 	}()
 
 	result, runErr := p.Run()
-	drainStdin()
+	DrainStdin()
 	if runErr != nil {
 		return runErr
 	}

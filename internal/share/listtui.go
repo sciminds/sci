@@ -242,5 +242,6 @@ func RunCloudListTUI(entries []SharedEntry, client *cloud.Client) error {
 	m := newCloudListModel(entries, client, ui.FallbackWidth, ui.FallbackHeight+ui.PageChromeLines)
 	p := tea.NewProgram(m)
 	_, err := p.Run()
+	ui.DrainStdin()
 	return err
 }

@@ -30,6 +30,7 @@ func Run(path string) error {
 	}
 	p := tea.NewProgram(m)
 	_, err = p.Run()
+	ui.DrainStdin()
 	return err
 }
 

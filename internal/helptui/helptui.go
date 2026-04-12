@@ -340,6 +340,7 @@ func Run(groups []CommandGroup) error {
 	m := newModel(groups)
 	p := tea.NewProgram(m)
 	_, err := p.Run()
+	ui.DrainStdin()
 	return err
 }
 
@@ -349,5 +350,6 @@ func RunGroup(g *CommandGroup) error {
 	m := newModelForGroup(g)
 	p := tea.NewProgram(m)
 	_, err := p.Run()
+	ui.DrainStdin()
 	return err
 }
