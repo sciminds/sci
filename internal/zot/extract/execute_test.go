@@ -7,21 +7,24 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 // fakeExtractor writes a fixed markdown blob to opts.OutputDir and
 // returns a synthetic ExtractResult. No docling dependency.
+// Thread-safe: calls is incremented atomically since ExecuteBatch
+// may invoke ExtractBatch from multiple goroutines (parallel jobs).
 type fakeExtractor struct {
 	md      string
 	version string
 	err     error
-	calls   int
+	calls   int32 // use atomic ops
 }
 
 func (f *fakeExtractor) Extract(_ context.Context, opts ExtractOptions) (*ExtractResult, error) {
-	f.calls++
+	atomic.AddInt32(&f.calls, 1)
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -41,7 +44,7 @@ func (f *fakeExtractor) Extract(_ context.Context, opts ExtractOptions) (*Extrac
 }
 
 func (f *fakeExtractor) ExtractBatch(_ context.Context, opts ExtractOptions, pdfs []string, onProgress ProgressFunc) (*BatchExtractResult, error) {
-	f.calls++
+	atomic.AddInt32(&f.calls, 1)
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -140,8 +143,8 @@ func TestExecute_Create(t *testing.T) {
 	if res.NoteKey == "" || !strings.HasPrefix(res.NoteKey, "NOTE") {
 		t.Errorf("NoteKey = %q, want NOTE*", res.NoteKey)
 	}
-	if in.Extractor.(*fakeExtractor).calls != 1 {
-		t.Errorf("extractor calls = %d, want 1", in.Extractor.(*fakeExtractor).calls)
+	if atomic.LoadInt32(&in.Extractor.(*fakeExtractor).calls) != 1 {
+		t.Errorf("extractor calls = %d, want 1", atomic.LoadInt32(&in.Extractor.(*fakeExtractor).calls))
 	}
 	w := in.Writer.(*fakeNoteWriter)
 	if len(w.created) != 1 {
@@ -179,8 +182,8 @@ func TestExecute_Skip(t *testing.T) {
 	if res.NoteKey != "" {
 		t.Errorf("NoteKey = %q, want empty for skip", res.NoteKey)
 	}
-	if in.Extractor.(*fakeExtractor).calls != 0 {
-		t.Errorf("Skip must not invoke extractor; calls = %d", in.Extractor.(*fakeExtractor).calls)
+	if atomic.LoadInt32(&in.Extractor.(*fakeExtractor).calls) != 0 {
+		t.Errorf("Skip must not invoke extractor; calls = %d", atomic.LoadInt32(&in.Extractor.(*fakeExtractor).calls))
 	}
 	w := in.Writer.(*fakeNoteWriter)
 	if len(w.created) != 0 {
@@ -362,8 +365,8 @@ func TestExecute_CachePopulatedOnMiss(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if in.Extractor.(*fakeExtractor).calls != 1 {
-		t.Errorf("extractor calls = %d, want 1", in.Extractor.(*fakeExtractor).calls)
+	if atomic.LoadInt32(&in.Extractor.(*fakeExtractor).calls) != 1 {
+		t.Errorf("extractor calls = %d, want 1", atomic.LoadInt32(&in.Extractor.(*fakeExtractor).calls))
 	}
 	if res.Extraction.FromCache {
 		t.Error("FromCache=true on a cache miss")
@@ -393,8 +396,8 @@ func TestExecute_CacheHitSkipsExtractor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if in.Extractor.(*fakeExtractor).calls != 0 {
-		t.Errorf("extractor must not be called on cache hit; calls = %d", in.Extractor.(*fakeExtractor).calls)
+	if atomic.LoadInt32(&in.Extractor.(*fakeExtractor).calls) != 0 {
+		t.Errorf("extractor must not be called on cache hit; calls = %d", atomic.LoadInt32(&in.Extractor.(*fakeExtractor).calls))
 	}
 	if !res.Extraction.FromCache {
 		t.Error("FromCache=false on a cache hit")

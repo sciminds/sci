@@ -140,8 +140,8 @@ func TestExecuteBatch_HappyPath(t *testing.T) {
 		t.Errorf("counts = created=%d/skipped=%d/cached=%d/failed=%d; want 1/1/0/0", created, skipped, cached, failed)
 	}
 	// ExtractBatch called once (not per-item).
-	if ex.calls != 1 {
-		t.Errorf("extractor calls = %d, want 1 (single batch call)", ex.calls)
+	if atomic.LoadInt32(&ex.calls) != 1 {
+		t.Errorf("extractor calls = %d, want 1 (single batch call)", atomic.LoadInt32(&ex.calls))
 	}
 	if len(w.created) != 1 || w.created[0].parent != "PA" {
 		t.Errorf("CreateChildNote calls = %v", w.created)
@@ -317,8 +317,8 @@ func TestExecuteBatch_CacheHitSkipsExtractor(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Extractor should NOT be called — everything was cached.
-	if ex.calls != 0 {
-		t.Errorf("extractor calls = %d, want 0 (all cached)", ex.calls)
+	if atomic.LoadInt32(&ex.calls) != 0 {
+		t.Errorf("extractor calls = %d, want 0 (all cached)", atomic.LoadInt32(&ex.calls))
 	}
 	if res.Outcomes[0].Err != nil {
 		t.Errorf("unexpected error: %v", res.Outcomes[0].Err)
@@ -412,12 +412,13 @@ func TestExecuteBatch_OnProgressFires(t *testing.T) {
 	}
 }
 
-// TestExecuteBatch_ChunkedExtraction: with BatchSize=2 and 5 items
-// needing extraction, ExtractBatch should be called 3 times (2+2+1).
-func TestExecuteBatch_ChunkedExtraction(t *testing.T) {
+// TestExecuteBatch_ParallelJobs: with Jobs=3 and 6 items needing
+// extraction, ExtractBatch should be called 3 times (2+2+2) in
+// parallel.
+func TestExecuteBatch_ParallelJobs(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	const N = 5
+	const N = 6
 	items := make([]BatchItem, N)
 	for i := 0; i < N; i++ {
 		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
@@ -449,28 +450,28 @@ func TestExecuteBatch_ChunkedExtraction(t *testing.T) {
 		Extractor: ex,
 		Writer:    w,
 		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
-		BatchSize: 2,
+		Jobs:      3,
 		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 5 items / batch size 2 = 3 ExtractBatch calls (2+2+1).
-	if ex.calls != 3 {
-		t.Errorf("extractor calls = %d, want 3 (chunked 2+2+1)", ex.calls)
+	// 6 items / 3 jobs = 3 ExtractBatch calls with 2 PDFs each.
+	if atomic.LoadInt32(&ex.calls) != 3 {
+		t.Errorf("extractor calls = %d, want 3 (3 parallel jobs)", atomic.LoadInt32(&ex.calls))
 	}
 	created, _, _, failed := res.Counts()
-	if created != 5 || failed != 0 {
-		t.Errorf("created=%d failed=%d; want 5/0", created, failed)
+	if created != 6 || failed != 0 {
+		t.Errorf("created=%d failed=%d; want 6/0", created, failed)
 	}
-	if len(w.created) != 5 {
-		t.Errorf("notes posted = %d, want 5", len(w.created))
+	if len(w.created) != 6 {
+		t.Errorf("notes posted = %d, want 6", len(w.created))
 	}
 }
 
-// TestExecuteBatch_BatchSizeZeroMeansAll: BatchSize=0 (default) sends
-// all PDFs in a single ExtractBatch call.
-func TestExecuteBatch_BatchSizeZeroMeansAll(t *testing.T) {
+// TestExecuteBatch_SingleJobDefault: Jobs=0 (default) sends all PDFs
+// in a single ExtractBatch call.
+func TestExecuteBatch_SingleJobDefault(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	const N = 4
@@ -504,14 +505,58 @@ func TestExecuteBatch_BatchSizeZeroMeansAll(t *testing.T) {
 		Extractor: ex,
 		Writer:    &fakeNoteWriter{},
 		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
-		BatchSize: 0, // default — all in one call
+		Jobs:      0, // default — single process
 		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ex.calls != 1 {
-		t.Errorf("extractor calls = %d, want 1 (all in one batch)", ex.calls)
+	if atomic.LoadInt32(&ex.calls) != 1 {
+		t.Errorf("extractor calls = %d, want 1 (all in one batch)", atomic.LoadInt32(&ex.calls))
+	}
+}
+
+// TestChunkByJobs verifies the chunking arithmetic.
+func TestChunkByJobs(t *testing.T) {
+	t.Parallel()
+	s := []string{"a", "b", "c", "d", "e"}
+
+	// 1 job → single chunk with all items.
+	got := chunkByJobs(s, 1)
+	if len(got) != 1 || len(got[0]) != 5 {
+		t.Errorf("1 job: got %d chunks, want 1", len(got))
+	}
+
+	// 2 jobs → chunks of [3, 2].
+	got = chunkByJobs(s, 2)
+	if len(got) != 2 {
+		t.Fatalf("2 jobs: got %d chunks, want 2", len(got))
+	}
+	if len(got[0]) != 3 || len(got[1]) != 2 {
+		t.Errorf("2 jobs: chunk sizes = [%d, %d], want [3, 2]", len(got[0]), len(got[1]))
+	}
+
+	// 5 jobs → 5 chunks of 1 each.
+	got = chunkByJobs(s, 5)
+	if len(got) != 5 {
+		t.Fatalf("5 jobs: got %d chunks, want 5", len(got))
+	}
+	for i, c := range got {
+		if len(c) != 1 {
+			t.Errorf("5 jobs: chunk[%d] size = %d, want 1", i, len(c))
+		}
+	}
+
+	// More jobs than items → capped to len(s) chunks.
+	got = chunkByJobs(s, 10)
+	if len(got) != 5 {
+		t.Errorf("10 jobs on 5 items: got %d chunks, want 5", len(got))
+	}
+
+	// 0 jobs → single chunk.
+	got = chunkByJobs(s, 0)
+	if len(got) != 1 {
+		t.Errorf("0 jobs: got %d chunks, want 1", len(got))
 	}
 }
 

@@ -17,7 +17,7 @@ import (
 var (
 	extractLibDevice     string
 	extractLibNumThreads int
-	extractLibBatchSize  int
+	extractLibJobs       int
 	extractLibYes        bool
 	extractLibForce      bool
 	extractLibReextract  bool
@@ -48,7 +48,7 @@ func extractLibCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "mps", Destination: &extractLibDevice, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default)", Destination: &extractLibNumThreads, Local: true},
-			&cli.IntFlag{Name: "batch-size", Usage: "PDFs per docling process (0 = all in one process)", Destination: &extractLibBatchSize, Local: true},
+			&cli.IntFlag{Name: "jobs", Aliases: []string{"j"}, Usage: "parallel docling processes (0 = single process for all PDFs)", Destination: &extractLibJobs, Local: true},
 			&cli.BoolFlag{Name: "apply", Usage: "post extracted notes to Zotero (default is cache-only)", Destination: &extractLibApply, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &extractLibYes, Local: true},
 			&cli.BoolFlag{Name: "force", Usage: "create new notes even if docling note already exists", Destination: &extractLibForce, Local: true},
@@ -256,7 +256,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			Writer:      writer,
 			Cache:       cache,
 			ExtractOpts: opts,
-			BatchSize:   extractLibBatchSize,
+			Jobs:        extractLibJobs,
 			RenderHTML:  extractLibHTML,
 			OnProgress: func(ev *extract.DoclingEvent) {
 				switch ev.Kind {

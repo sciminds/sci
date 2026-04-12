@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -104,13 +105,12 @@ type BatchInput struct {
 	RenderHTML bool
 	// Tags applied to newly created notes. Nil → default ["docling"].
 	Tags []string
-	// BatchSize controls how many PDFs are passed to a single docling
-	// process. 0 (default) means all PDFs in one invocation — models
-	// load once. Positive values chunk the PDF list into groups of N,
-	// one docling process per chunk. Useful when GPU memory is tight
-	// (3-7 is the sweet spot on MPS before per-paper throughput
-	// degrades vs CPU).
-	BatchSize int
+	// Jobs controls how many parallel docling processes to run.
+	// 0 or 1 means a single process handles all PDFs (models load
+	// once). Higher values split PDFs evenly across N concurrent
+	// processes — each loads models independently but they run in
+	// parallel. On MPS, 1 is usually best; on CPU, 2-4 can help.
+	Jobs int
 	// OutputDir is where docling writes all its output for the batch.
 	// ExecuteBatch creates this if needed.
 	OutputDir string
@@ -241,7 +241,8 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	}
 
 	// ── Phase 2: run docling over un-cached PDFs ──
-	// Chunk the PDF list: BatchSize=0 means all in one call.
+	// Jobs controls parallelism: split PDFs across N concurrent
+	// docling processes. Jobs=0 or 1 → single process.
 	if len(pdfPaths) > 0 {
 		outputDir := in.OutputDir
 		if outputDir == "" {
@@ -253,28 +254,56 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 			outputDir = tmp
 		}
 
-		chunks := chunkStrings(pdfPaths, in.BatchSize)
-		// Parallel index map: needExtract[i] corresponds to pdfPaths[i].
+		jobs := in.Jobs
+		if jobs < 1 {
+			jobs = 1
+		}
+		chunks := chunkByJobs(pdfPaths, jobs)
+
 		// Build a pdfPath→needExtract index for result matching.
 		pdfToIdx := make(map[string]int, len(pdfPaths))
 		for pi, idx := range needExtract {
 			pdfToIdx[pdfPaths[pi]] = idx
 		}
 
-		for _, chunk := range chunks {
-			if ctx.Err() != nil {
-				break
-			}
+		// Run chunks in parallel, one goroutine per docling process.
+		type chunkResult struct {
+			chunk []string
+			res   *BatchExtractResult
+			err   error
+		}
+		chunkResults := make([]chunkResult, len(chunks))
+		var wg sync.WaitGroup
+		for ci, chunk := range chunks {
+			ci, chunk := ci, chunk
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if ctx.Err() != nil {
+					chunkResults[ci] = chunkResult{chunk: chunk, err: ctx.Err()}
+					return
+				}
+				opts := in.ExtractOpts
+				// Each job gets its own output subdirectory to avoid
+				// filename collisions when parallel processes write
+				// results for different PDFs with the same stem.
+				jobDir := outputDir
+				if len(chunks) > 1 {
+					jobDir = filepath.Join(outputDir, fmt.Sprintf("job-%d", ci))
+				}
+				opts.OutputDir = jobDir
+				res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, in.OnProgress)
+				chunkResults[ci] = chunkResult{chunk: chunk, res: res, err: err}
+			}()
+		}
+		wg.Wait()
 
-			opts := in.ExtractOpts
-			opts.OutputDir = outputDir
-
-			batchRes, err := in.Extractor.ExtractBatch(ctx, opts, chunk, in.OnProgress)
-			if err != nil {
-				// This chunk failed — mark its items as failed.
-				for _, pdf := range chunk {
+		// Process results from all chunks.
+		for _, cr := range chunkResults {
+			if cr.err != nil {
+				for _, pdf := range cr.chunk {
 					idx := pdfToIdx[pdf]
-					outcomes[idx].Err = fmt.Errorf("batch extract: %w", err)
+					outcomes[idx].Err = fmt.Errorf("batch extract: %w", cr.err)
 					if in.OnItemDone != nil {
 						in.OnItemDone(idx, outcomes[idx])
 					}
@@ -282,14 +311,14 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 				continue
 			}
 			if result.ToolVersion == "" {
-				result.ToolVersion = batchRes.ToolVersion
+				result.ToolVersion = cr.res.ToolVersion
 			}
 
 			// Populate cache for successfully extracted items in this chunk.
-			for _, pdf := range chunk {
+			for _, pdf := range cr.chunk {
 				idx := pdfToIdx[pdf]
 				item := in.Items[idx]
-				extRes, ok := batchRes.Results[pdf]
+				extRes, ok := cr.res.Results[pdf]
 				if !ok {
 					outcomes[idx].Err = fmt.Errorf("docling produced no output for %s", item.Request.PDFName)
 					if in.OnItemDone != nil {
@@ -378,15 +407,20 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	return result, nil
 }
 
-// chunkStrings splits s into groups of at most n. n ≤ 0 returns s as
-// a single chunk (all items in one batch).
-func chunkStrings(s []string, n int) [][]string {
-	if n <= 0 || n >= len(s) {
+// chunkByJobs splits s into exactly `jobs` roughly-equal chunks.
+// jobs ≤ 1 returns s as a single chunk. If jobs > len(s), returns
+// one chunk per element.
+func chunkByJobs(s []string, jobs int) [][]string {
+	if jobs <= 1 || len(s) == 0 {
 		return [][]string{s}
 	}
+	if jobs > len(s) {
+		jobs = len(s)
+	}
+	chunkSize := (len(s) + jobs - 1) / jobs // ceil division
 	var chunks [][]string
-	for i := 0; i < len(s); i += n {
-		end := i + n
+	for i := 0; i < len(s); i += chunkSize {
+		end := i + chunkSize
 		if end > len(s) {
 			end = len(s)
 		}
