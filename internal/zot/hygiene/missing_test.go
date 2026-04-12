@@ -32,7 +32,7 @@ func findRepoRoot(t *testing.T) string {
 // openRealDB opens sci-go/zotero.sqlite if it's present. The file is
 // gitignored and not shipped with the repo; the test skips when absent so
 // CI stays green.
-func openRealDB(t *testing.T) *local.DB {
+func openRealDB(t *testing.T) local.Reader {
 	t.Helper()
 	root := findRepoRoot(t)
 	path := filepath.Join(root, "zotero.sqlite")

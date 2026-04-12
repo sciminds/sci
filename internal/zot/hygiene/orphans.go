@@ -121,7 +121,7 @@ func orphanKindsSelected(kinds []OrphanKind) map[OrphanKind]struct{} {
 // Orphans runs the configured sub-checks and returns a Report with one
 // Finding per orphan record. Findings from different sub-kinds coexist
 // in a single slice; renderers group by Finding.Kind.
-func Orphans(db *local.DB, opts OrphansOptions) (*Report, error) {
+func Orphans(db local.Reader, opts OrphansOptions) (*Report, error) {
 	selected := orphanKindsSelected(opts.Kinds)
 	counts := map[string]int{}
 	var findings []Finding
@@ -270,7 +270,7 @@ func Orphans(db *local.DB, opts OrphansOptions) (*Report, error) {
 // Linked attachments (linkMode 2) are NOT checked — the path is user-
 // managed and often on external storage we don't own. Linked URLs
 // (linkMode 3) have no file.
-func scanMissingFiles(db *local.DB, dataDir string) ([]Finding, error) {
+func scanMissingFiles(db local.Reader, dataDir string) ([]Finding, error) {
 	if dataDir == "" {
 		return nil, fmt.Errorf("missing-file check requires a data directory")
 	}

@@ -128,7 +128,7 @@ func CitekeysFromRows(rows []local.CiteKeyRow) *Report {
 
 // Citekeys is the DB-backed orchestrator. Scans every content item's
 // stored cite-key fields and runs the pure check.
-func Citekeys(db *local.DB) (*Report, error) {
+func Citekeys(db local.Reader) (*Report, error) {
 	rows, err := db.ScanCiteKeys()
 	if err != nil {
 		return nil, err

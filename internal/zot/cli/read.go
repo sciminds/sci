@@ -31,7 +31,7 @@ var (
 
 // openLocalDB loads config, opens the local zotero.sqlite, and warns if the
 // schema version is outside the tested range.
-func openLocalDB() (*zot.Config, *local.DB, error) {
+func openLocalDB() (*zot.Config, local.Reader, error) {
 	cfg, err := zot.RequireConfig()
 	if err != nil {
 		return nil, nil, err
@@ -112,7 +112,7 @@ func searchCommand() *cli.Command {
 // lightweight list-view row — exporting requires the full item. For a
 // typical search (≤50 hits) this is ~50 round-trips, cheap enough not to
 // warrant a dedicated bulk ListAll-by-id path.
-func hydrateSearchHits(db *local.DB, hits []local.Item) ([]local.Item, error) {
+func hydrateSearchHits(db local.Reader, hits []local.Item) ([]local.Item, error) {
 	out := make([]local.Item, 0, len(hits))
 	for _, h := range hits {
 		full, err := db.Read(h.Key)

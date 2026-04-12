@@ -174,7 +174,7 @@ func knownField(field string) (InvalidField, bool) {
 // Invalid is the DB-backed orchestrator. It scans for the requested
 // fields (or all known fields if nil), validates each value, and returns
 // a Report.
-func Invalid(db *local.DB, fields []InvalidField) (*Report, error) {
+func Invalid(db local.Reader, fields []InvalidField) (*Report, error) {
 	if len(fields) == 0 {
 		fields = AllInvalidFields
 	}

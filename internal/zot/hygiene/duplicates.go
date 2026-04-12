@@ -120,7 +120,7 @@ func RunDuplicates(cands []DuplicateCandidate, opts DuplicatesOptions) []Cluster
 // Duplicates is the DB-backed orchestrator. It scans the local library
 // for candidates, runs RunDuplicates with the given options, and wraps
 // the result in a hygiene.Report.
-func Duplicates(db *local.DB, opts DuplicatesOptions) (*Report, error) {
+func Duplicates(db local.Reader, opts DuplicatesOptions) (*Report, error) {
 	cands, err := db.ScanDuplicateCandidates()
 	if err != nil {
 		return nil, err

@@ -78,7 +78,7 @@ type FieldCoverage struct {
 //
 // Findings are sorted by item key for stable output. The caller decides
 // whether to render them all, truncate, or JSON-dump.
-func Missing(db *local.DB, fields []MissingField) (*Report, error) {
+func Missing(db local.Reader, fields []MissingField) (*Report, error) {
 	if len(fields) == 0 {
 		fields = AllMissingFields
 	}

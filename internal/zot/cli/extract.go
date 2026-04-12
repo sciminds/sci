@@ -235,7 +235,7 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 
 // runExtractDelete finds docling-tagged child notes in the local DB
 // and trashes them via the Zotero Web API.
-func runExtractDelete(ctx context.Context, cmd *cli.Command, db *local.DB, parentKey string, att *local.PDFAttachment) error {
+func runExtractDelete(ctx context.Context, cmd *cli.Command, db local.Reader, parentKey string, att *local.PDFAttachment) error {
 	noteKeys, err := db.DoclingNoteKeys(parentKey)
 	if err != nil {
 		return err

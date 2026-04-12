@@ -53,7 +53,7 @@ type DoctorResult struct {
 //
 // The caller owns both db and cfg because orphans needs cfg.DataDir to
 // resolve attachment paths (even though --check-files stays off here).
-func Doctor(db *local.DB, cfg *Config, opts DoctorOptions) (*DoctorResult, error) {
+func Doctor(db local.Reader, cfg *Config, opts DoctorOptions) (*DoctorResult, error) {
 	run := selectedChecks(opts.Checks)
 	out := &DoctorResult{
 		Reports: map[string]*hygiene.Report{},

@@ -54,14 +54,14 @@ var ErrReadOnly = errors.New("zot view: read-only store")
 // Store takes ownership of the passed local.DB — calling Close on the
 // store closes the underlying connection.
 type Store struct {
-	db  *local.DB
+	db  local.Reader
 	loc *time.Location
 }
 
 // New wraps a local.DB as a read-only DataStore. loc controls the timezone
 // used to format the Date Added column; pass time.Local in production and
 // time.UTC from tests for deterministic output.
-func New(db *local.DB, loc *time.Location) *Store {
+func New(db local.Reader, loc *time.Location) *Store {
 	if loc == nil {
 		loc = time.Local
 	}
