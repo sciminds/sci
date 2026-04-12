@@ -583,6 +583,57 @@ func TestBatchJobsDefault(t *testing.T) {
 
 var _ = runtime.NumCPU
 
+// TestExecuteBatch_CachesAfterExtraction verifies that docling output
+// files are read and cached after ExtractBatch returns.
+func TestExecuteBatch_CachesAfterExtraction(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+
+	pdfA := filepath.Join(dir, "a.pdf")
+	pdfB := filepath.Join(dir, "b.pdf")
+	writeStubPDF(t, pdfA, "aaa")
+	writeStubPDF(t, pdfB, "bbb")
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+		{
+			Request: BatchRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFPath: pdfB},
+			Hash:    "hb",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFHash: "hb"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	ex := &fakeExtractor{md: "# body\n", version: "docling 2.86.0"}
+	_, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: ex,
+		Writer:    &fakeNoteWriter{},
+		Cache:     cache,
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := cache.Get("PDFA", "ha"); !ok {
+		t.Error("PDFA not cached")
+	}
+	if _, ok := cache.Get("PDFB", "hb"); !ok {
+		t.Error("PDFB not cached")
+	}
+}
+
 // TestChunkBySize verifies the fixed-size chunking.
 func TestChunkBySize(t *testing.T) {
 	t.Parallel()
