@@ -129,7 +129,7 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 | Command | What it does |
 |---------|--------------|
 | `sci zot setup` | Save your Zotero API key + library ID |
-| `sci zot stats` | Library size and field-coverage summary |
+| `sci zot info` | Library size and field-coverage summary |
 | `sci zot search <query>` | Search the local Zotero library |
 | `sci zot search <q> --export -o hits.bib` | Route search results through the export pipeline |
 | `sci zot export -o refs.bib` | Full-library BibTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
@@ -147,6 +147,31 @@ Reads the local `zotero.sqlite` (immutable, no contention with the running Zoter
 **Library export details.** `zot export` honors user-pinned cite-keys (Zotero 7's native `citationKey` field, or legacy Better BibTeX `Citation Key:` lines in `extra`) and synthesizes semantic keys for everything else as `lastname{year}{firstword}-ZOTKEY`. The trailing 8-char Zotero key suffix guarantees uniqueness without collision arithmetic and keeps entries round-trippable back to the source item. Pinned entries also carry a `zotero://select/library/items/<KEY>` URI in the `note` field (appended to any existing user prose, never overwriting). A `.zotero-citekeymap.json` sidecar is written next to the output file; on the next run, any synthesized prefix that drifted (e.g. after a metadata typo fix) gets a biblatex `ids = {oldkey}` alias so manuscripts citing the old form still resolve.
 
 Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/zot@latest`.
+
+<details>
+<summary><b>Demos</b> — click to expand</summary>
+
+#### Setup & library overview
+
+![zot setup](docs/casts/zot-setup.gif)
+![zot info](docs/casts/zot-info.gif)
+
+#### Browsing
+
+![zot search](docs/casts/zot-search.gif)
+![zot item list](docs/casts/zot-item-list.gif)
+![zot item read](docs/casts/zot-item-read.gif)
+
+#### Export
+
+![zot item export](docs/casts/zot-item-export.gif)
+
+#### Hygiene
+
+![zot doctor](docs/casts/zot-doctor.gif)
+![zot doctor duplicates](docs/casts/zot-doctor-duplicates.gif)
+
+</details>
 
 ### Ingest markdown into SQLite (Experimental)
 

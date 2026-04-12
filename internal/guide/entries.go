@@ -18,6 +18,7 @@ var Books = []Book{
 	{Name: "basic", Heading: "Terminal Guide", Desc: "Learn basic terminal commands (ls, cd, cp, mv, …)", Entries: BasicEntries},
 	{Name: "git", Heading: "Git Guide", Desc: "Learn essential Git commands (init, add, commit, push, …)", Entries: GitEntries},
 	{Name: "python", Heading: "Python Guide", Desc: "Python essentials: basics, Polars DataFrames, Seaborn viz", Entries: PythonEntries},
+	{Name: "zot", Heading: "Zotero Guide", Desc: "Manage your Zotero library from the terminal (setup, search, doctor, …)", Entries: ZotEntries},
 }
 
 // Entry holds a single guide item — a terminal command demo, a markdown page,

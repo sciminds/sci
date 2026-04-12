@@ -65,6 +65,31 @@ ok-slow: tidy fmt vet lint test test-slow build
 clean:
     rm -f sci dbtui markdb zot boarddemo
 
+# Render embedded asciicasts to GIFs under docs/casts/ using `agg`.
+# GIFs embed natively in GitHub-rendered markdown (no JS player needed).
+# Pass a filename stem (or glob) to limit the set:
+#     just casts-gif              # all casts
+#     just casts-gif zot-doctor   # just one
+#     just casts-gif 'zot-*'      # all zot casts (quote to protect from shell)
+casts-gif FILTER='*':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v agg >/dev/null || { echo "agg not found on PATH — install from https://github.com/asciinema/agg"; exit 1; }
+    mkdir -p docs/casts
+    shopt -s nullglob
+    casts=(internal/guide/casts/{{FILTER}}.cast)
+    if [[ ${#casts[@]} -eq 0 ]]; then
+        echo "no casts matched '{{FILTER}}'"
+        exit 1
+    fi
+    for cast in "${casts[@]}"; do
+        name=$(basename "$cast" .cast)
+        out="docs/casts/$name.gif"
+        echo "  → $out"
+        agg --theme github-dark --font-size 14 --speed 1.2 --idle-time-limit 1 "$cast" "$out"
+    done
+    echo "rendered ${#casts[@]} gif(s) to docs/casts/"
+
 run *ARGS:
     go run ./cmd/sci {{ARGS}}
 

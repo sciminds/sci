@@ -201,7 +201,6 @@ func listCommand() *cli.Command {
 func infoCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "info",
-		Aliases:     []string{"stats"},
 		Usage:       "Show library summary statistics",
 		Description: "$ zot info",
 		Action: func(_ context.Context, cmd *cli.Command) error {
