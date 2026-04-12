@@ -161,15 +161,34 @@ Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd
 ![zot search](docs/casts/zot-search.gif)
 ![zot item list](docs/casts/zot-item-list.gif)
 ![zot item read](docs/casts/zot-item-read.gif)
+![zot item open](docs/casts/zot-item-open.gif)
+
+#### Writing (Zotero Web API)
+
+![zot item add](docs/casts/zot-item-add.gif)
+![zot item update](docs/casts/zot-item-update.gif)
+![zot item delete](docs/casts/zot-item-delete.gif)
+
+#### Organize
+
+![zot collection list](docs/casts/zot-collection-list.gif)
+![zot collection create](docs/casts/zot-collection-create.gif)
+![zot tags list](docs/casts/zot-tags-list.gif)
 
 #### Export
 
 ![zot item export](docs/casts/zot-item-export.gif)
+![zot export (library)](docs/casts/zot-export.gif)
 
 #### Hygiene
 
 ![zot doctor](docs/casts/zot-doctor.gif)
+![zot doctor invalid](docs/casts/zot-doctor-invalid.gif)
+![zot doctor missing](docs/casts/zot-doctor-missing.gif)
+![zot doctor orphans](docs/casts/zot-doctor-orphans.gif)
 ![zot doctor duplicates](docs/casts/zot-doctor-duplicates.gif)
+![zot doctor citekeys](docs/casts/zot-doctor-citekeys.gif)
+![zot doctor citekeys --fix](docs/casts/zot-doctor-citekeys-fix.gif)
 
 </details>
 

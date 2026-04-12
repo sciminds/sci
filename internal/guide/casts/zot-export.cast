@@ -1,0 +1,8 @@
+{"version": 2, "width": 80, "height": 24}
+[0.3, "o", "$ "]
+[0.6, "o", "zot export -o refs.bib --tag llm"]
+[1.0, "o", "\r\n"]
+[1.4, "o", "  \u001b[32m✓\u001b[m wrote bibtex to refs.bib\r\n"]
+[1.5, "o", "    \u001b[90mkeymap:\u001b[m refs.bib.zotero-citekeymap.json\r\n"]
+[1.6, "o", "    \u001b[90m·\u001b[m 312 item(s): 48 pinned, 264 synthesized, 7 drifted\r\n"]
+[2.4, "o", "$ "]
