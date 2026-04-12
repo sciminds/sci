@@ -28,6 +28,15 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 
 `ARCHITECTURE.md` and `internal/README.md` are sketches and may be stale — trust the code.
 
+## Modern Go style
+
+Collaborators come from Python/JS backgrounds. Prefer expressive, low-boilerplate Go over verbose manual loops.
+
+- **`samber/lo` for transforms.** Use `lo.Map`, `lo.Filter`, `lo.FilterMap`, `lo.Find`, `lo.Reduce`, `lo.GroupBy`, `lo.KeyBy`, `lo.FlatMap`, `lo.Uniq`, `lo.Contains`, `lo.SliceToMap`, `lo.Intersect`, `lo.Difference`, etc. instead of hand-rolled `for`+`append` loops. Go's stdlib lacks generic Map/Filter/GroupBy — `lo` fills that gap and reads like the Python/JS equivalents collaborators already know.
+- **stdlib `slices`/`maps`/`cmp` when they suffice.** Use `slices.Sort`, `slices.SortFunc`, `slices.Clone`, `slices.Concat`, `slices.Contains`, `slices.Sorted(maps.Keys(m))`, `bytes.Clone`, `cmp.Compare`, `cmp.Or`. These cover sorting, cloning, and simple lookups without an external dep.
+- **No legacy `sort` package.** `sort.Strings`, `sort.Slice`, `sort.SliceStable`, `sort.Search` are banned by lint-guard rule 9. Use `slices.Sort` / `slices.SortFunc` / `slices.SortStableFunc` / `slices.BinarySearch` instead.
+- **Rule of thumb:** if stdlib has it, use stdlib. If it doesn't (Map, Filter, GroupBy, KeyBy, Find, Reduce, set ops), use `lo`. Never hand-roll what either provides.
+
 ## Cross-cutting design rules
 
 - **`cmdutil.Result`:** every command returns `JSON() any` + `Human() string`; emit via `cmdutil.Output(cmd, result)`.

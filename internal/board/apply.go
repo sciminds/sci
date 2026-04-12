@@ -1,6 +1,9 @@
 package board
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // Apply folds a single event into a board and returns the new state. It is
 // a pure function: the input board is not mutated, and the same (board,
@@ -66,7 +69,7 @@ func touch(b Board, e Event) Board {
 func applyBoardCreate(b Board, e Event, p BoardCreatePayload) Board {
 	b.Title = p.Title
 	b.Description = p.Description
-	b.Columns = append([]Column(nil), p.Columns...)
+	b.Columns = slices.Clone(p.Columns)
 	if b.CreatedAt.IsZero() {
 		b.CreatedAt = e.Ts
 		b.CreatedBy = e.Author
@@ -88,7 +91,7 @@ func applyColumnAdd(b Board, e Event, p ColumnAddPayload) Board {
 	if _, ok := findColumn(b.Columns, p.Column.ID); ok {
 		return b
 	}
-	cols := append([]Column(nil), b.Columns...)
+	cols := slices.Clone(b.Columns)
 	cols = append(cols, p.Column)
 	b.Columns = cols
 	return touch(b, e)
@@ -99,7 +102,7 @@ func applyColumnRename(b Board, e Event, p ColumnRenamePayload) Board {
 	if !ok {
 		return b
 	}
-	cols := append([]Column(nil), b.Columns...)
+	cols := slices.Clone(b.Columns)
 	cols[idx].Title = p.Title
 	if p.WIP != nil {
 		cols[idx].WIP = *p.WIP
@@ -160,7 +163,7 @@ func applyCardAdd(b Board, e Event, p CardAddPayload) Board {
 	}
 	card.UpdatedAt = e.Ts
 	card.UpdatedBy = e.Author
-	cards := append([]Card(nil), b.Cards...)
+	cards := slices.Clone(b.Cards)
 	cards = append(cards, card)
 	b.Cards = cards
 	return touch(b, e)
@@ -171,7 +174,7 @@ func applyCardPatch(b Board, e Event, p CardPatchPayload) Board {
 	if !ok {
 		return b
 	}
-	cards := append([]Card(nil), b.Cards...)
+	cards := slices.Clone(b.Cards)
 	c := &cards[idx]
 	if p.Title != nil {
 		c.Title = *p.Title
@@ -183,10 +186,10 @@ func applyCardPatch(b Board, e Event, p CardPatchPayload) Board {
 		c.Priority = *p.Priority
 	}
 	if p.Labels != nil {
-		c.Labels = append([]string(nil), (*p.Labels)...)
+		c.Labels = slices.Clone(*p.Labels)
 	}
 	if p.Assignees != nil {
-		c.Assignees = append([]string(nil), (*p.Assignees)...)
+		c.Assignees = slices.Clone(*p.Assignees)
 	}
 	if p.DueDate != nil {
 		t := *p.DueDate
@@ -207,7 +210,7 @@ func applyCardMove(b Board, e Event, p CardMovePayload) Board {
 	if !ok {
 		return b
 	}
-	cards := append([]Card(nil), b.Cards...)
+	cards := slices.Clone(b.Cards)
 	cards[idx].Column = p.Column
 	cards[idx].Position = p.Position
 	cards[idx].UpdatedAt = e.Ts
@@ -233,8 +236,8 @@ func applyCommentAdd(b Board, e Event, p CommentAddPayload) Board {
 	if !ok {
 		return b
 	}
-	cards := append([]Card(nil), b.Cards...)
-	comments := append([]Comment(nil), cards[idx].Comments...)
+	cards := slices.Clone(b.Cards)
+	comments := slices.Clone(cards[idx].Comments)
 	comment := p.Comment
 	if comment.Ts.IsZero() {
 		comment.Ts = e.Ts
@@ -255,8 +258,8 @@ func applyChecklistAdd(b Board, e Event, p ChecklistAddPayload) Board {
 	if !ok {
 		return b
 	}
-	cards := append([]Card(nil), b.Cards...)
-	items := append([]ChecklistItem(nil), cards[idx].Checklist...)
+	cards := slices.Clone(b.Cards)
+	items := slices.Clone(cards[idx].Checklist)
 	items = append(items, p.Item)
 	cards[idx].Checklist = items
 	cards[idx].UpdatedAt = e.Ts
@@ -280,8 +283,8 @@ func applyChecklistToggle(b Board, e Event, p ChecklistTogglePayload) Board {
 	if itemIdx < 0 {
 		return b
 	}
-	cards := append([]Card(nil), b.Cards...)
-	items := append([]ChecklistItem(nil), cards[cardIdx].Checklist...)
+	cards := slices.Clone(b.Cards)
+	items := slices.Clone(cards[cardIdx].Checklist)
 	items[itemIdx].Done = !items[itemIdx].Done
 	cards[cardIdx].Checklist = items
 	cards[cardIdx].UpdatedAt = e.Ts
@@ -305,7 +308,7 @@ func applyChecklistDelete(b Board, e Event, p ChecklistDeletePayload) Board {
 	if itemIdx < 0 {
 		return b
 	}
-	cards := append([]Card(nil), b.Cards...)
+	cards := slices.Clone(b.Cards)
 	old := cards[cardIdx].Checklist
 	items := make([]ChecklistItem, 0, len(old)-1)
 	items = append(items, old[:itemIdx]...)

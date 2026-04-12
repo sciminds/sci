@@ -1,6 +1,9 @@
 package ui
 
-import "unicode/utf8"
+import (
+	"slices"
+	"unicode/utf8"
+)
 
 // LineEditor is a reusable single-line rune buffer with cursor management.
 // Used by overlay text inputs that need simpler editing than a full textarea.
@@ -49,7 +52,7 @@ func (e *LineEditor) End() {
 // InsertRunes inserts one or more runes at the cursor position.
 func (e *LineEditor) InsertRunes(runes []rune) {
 	for _, rn := range runes {
-		e.Buf = append(e.Buf[:e.Cursor], append([]rune{rn}, e.Buf[e.Cursor:]...)...)
+		e.Buf = slices.Insert(e.Buf, e.Cursor, rn)
 		e.Cursor++
 	}
 }

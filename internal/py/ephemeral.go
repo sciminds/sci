@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -124,16 +125,16 @@ func BuildUVArgs(tool Tool, env EnvInfo, extraPkgs []string) []string {
 		for _, p := range extraPkgs {
 			args = append(args, "--with", p)
 		}
-		return append(args, append([]string{"--"}, tool.UVRun...)...)
+		return slices.Concat(args, []string{"--"}, tool.UVRun)
 
 	default: // EnvNone — ephemeral
-		allPkgs := append([]string{tool.Pkg}, tool.DefaultPkgs...)
+		allPkgs := slices.Concat([]string{tool.Pkg}, tool.DefaultPkgs)
 		allPkgs = append(allPkgs, extraPkgs...)
 		args := []string{"run"}
 		for _, p := range allPkgs {
 			args = append(args, "--with", p)
 		}
-		return append(args, append([]string{"--"}, tool.UVRun...)...)
+		return slices.Concat(args, []string{"--"}, tool.UVRun)
 	}
 }
 
@@ -172,12 +173,12 @@ func RunTool(dir string, tool Tool, extraPkgs []string, ignoreExisting bool) err
 	case EnvUV:
 		fmt.Printf("Detected uv project in %s\n\n", ui.TUI.Accent().Render(env.Dir))
 	default:
-		allPkgs := append([]string{tool.Pkg}, tool.DefaultPkgs...)
+		allPkgs := slices.Concat([]string{tool.Pkg}, tool.DefaultPkgs)
 		allPkgs = append(allPkgs, extraPkgs...)
 		fmt.Printf("Starting %s with: %s\n\n", tool.Label, ui.TUI.Accent().Render(strings.Join(allPkgs, ", ")))
 	}
 
-	return syscall.Exec(uvBin, append([]string{"uv"}, args...), os.Environ())
+	return syscall.Exec(uvBin, slices.Concat([]string{"uv"}, args), os.Environ())
 }
 
 func runPixiTool(dir string, tool Tool) error {

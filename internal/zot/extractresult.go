@@ -117,7 +117,7 @@ func (r ExtractArtifactResult) Human() string {
 		fmt.Fprintf(&b, "      json:   %s\n", r.JSONDoc)
 	}
 	if len(r.Images) > 0 {
-		sorted := append([]string(nil), r.Images...)
+		sorted := slices.Clone(r.Images)
 		slices.Sort(sorted)
 		fmt.Fprintf(&b, "      images: %d PNG(s)\n", len(sorted))
 	}

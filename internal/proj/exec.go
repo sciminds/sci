@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"syscall"
 )
 
@@ -27,9 +28,9 @@ func Add(dir string, pkgs []string) error {
 
 	switch proj.PkgManager {
 	case Pixi:
-		return execCmd("pixi", append([]string{"add"}, pkgs...))
+		return execCmd("pixi", slices.Concat([]string{"add"}, pkgs))
 	case UV:
-		return execCmd("uv", append([]string{"add"}, pkgs...))
+		return execCmd("uv", slices.Concat([]string{"add"}, pkgs))
 	default:
 		return fmt.Errorf("unknown package manager: %s", proj.PkgManager)
 	}
@@ -45,9 +46,9 @@ func Remove(dir string, pkgs []string) error {
 
 	switch proj.PkgManager {
 	case Pixi:
-		return execCmd("pixi", append([]string{"remove"}, pkgs...))
+		return execCmd("pixi", slices.Concat([]string{"remove"}, pkgs))
 	case UV:
-		return execCmd("uv", append([]string{"remove"}, pkgs...))
+		return execCmd("uv", slices.Concat([]string{"remove"}, pkgs))
 	default:
 		return fmt.Errorf("unknown package manager: %s", proj.PkgManager)
 	}
@@ -67,9 +68,9 @@ func RunTask(dir, task string, args []string) error {
 
 	switch proj.PkgManager {
 	case Pixi:
-		return execCmd("pixi", append([]string{"run", task}, args...))
+		return execCmd("pixi", slices.Concat([]string{"run", task}, args))
 	case UV:
-		return execCmd("uv", append([]string{"run", "poe", task}, args...))
+		return execCmd("uv", slices.Concat([]string{"run", "poe", task}, args))
 	default:
 		return fmt.Errorf("unknown package manager: %s", proj.PkgManager)
 	}
@@ -131,9 +132,9 @@ func Preview(dir string) error {
 func BuildRunTaskArgs(pm PkgManager, task string, args []string) []string {
 	switch pm {
 	case Pixi:
-		return append([]string{"pixi", "run", task}, args...)
+		return slices.Concat([]string{"pixi", "run", task}, args)
 	case UV:
-		return append([]string{"uv", "run", "poe", task}, args...)
+		return slices.Concat([]string{"uv", "run", "poe", task}, args)
 	default:
 		return nil
 	}
@@ -182,5 +183,5 @@ func execCmd(name string, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s not found in PATH", name)
 	}
-	return syscall.Exec(bin, append([]string{name}, args...), os.Environ())
+	return syscall.Exec(bin, slices.Concat([]string{name}, args), os.Environ())
 }

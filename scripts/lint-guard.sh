@@ -246,6 +246,38 @@ if [[ -n "$sort_hits" ]]; then
 	fail "no-legacy-sort"
 fi
 
+# ── Rule 10: No append-clone — use slices.Clone or slices.Concat ───────────
+# append([]T(nil), src...)  → slices.Clone(src)
+# append([]T{}, src...)     → slices.Clone(src)
+# append([]T{a,b}, src...)  → slices.Concat([]T{a,b}, src)
+# All have stdlib replacements since Go 1.21+.
+#
+# Suppress with "// lint:allow-append-clone" on the same line if truly needed.
+
+clone_hits=$(rg -n 'append\(\[\]\w+(\(nil\)|\{[^}]*\}), ' \
+	--type go --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null |
+	rg -v 'lint:allow-append-clone' || true)
+if [[ -n "$clone_hits" ]]; then
+	echo "FAIL [no-append-clone] use slices.Clone or slices.Concat instead of append([]T{}/nil, ...):"
+	echo "$clone_hits"
+	fail "no-append-clone"
+fi
+
+# ── Rule 11: No make+copy byte clone — use bytes.Clone ────────────────────
+# cp := make([]byte, len(x)); copy(cp, x) is a hand-rolled byte clone.
+# bytes.Clone(x) does the same in one call.
+#
+# Suppress with "// lint:allow-byte-clone" on the same line if truly needed.
+
+byte_clone_hits=$(rg -nU 'make\(\[\]byte, len\([^)]+\)\)\n\s*copy\(' \
+	--type go --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null |
+	rg -v 'lint:allow-byte-clone' || true)
+if [[ -n "$byte_clone_hits" ]]; then
+	echo "FAIL [no-byte-clone] use bytes.Clone instead of make([]byte, len(x)) + copy:"
+	echo "$byte_clone_hits"
+	fail "no-byte-clone"
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
 	echo ""

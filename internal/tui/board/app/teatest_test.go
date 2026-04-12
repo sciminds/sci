@@ -40,9 +40,7 @@ func newFakeObjectStore() *fakeObjectStore {
 func (f *fakeObjectStore) PutObject(_ context.Context, key string, body []byte, _ string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	cp := make([]byte, len(body))
-	copy(cp, body)
-	f.objects[key] = cp
+	f.objects[key] = bytes.Clone(body)
 	return nil
 }
 
@@ -53,9 +51,7 @@ func (f *fakeObjectStore) GetObject(_ context.Context, key string) ([]byte, erro
 	if !ok {
 		return nil, fmt.Errorf("not found: %s", key)
 	}
-	cp := make([]byte, len(b))
-	copy(cp, b)
-	return cp, nil
+	return bytes.Clone(b), nil
 }
 
 func (f *fakeObjectStore) DeleteObject(_ context.Context, key string) error {

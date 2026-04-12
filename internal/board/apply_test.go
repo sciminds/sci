@@ -270,7 +270,7 @@ func TestApplyDeterminism(t *testing.T) {
 
 	rng := rand.New(rand.NewPCG(1, 1))
 	for trial := 0; trial < 20; trial++ {
-		shuffled := append([]Event(nil), events...)
+		shuffled := slices.Clone(events)
 		rng.Shuffle(len(shuffled), func(i, j int) { shuffled[i], shuffled[j] = shuffled[j], shuffled[i] })
 		slices.SortFunc(shuffled, func(a, b Event) int { return cmp.Compare(a.ID, b.ID) })
 		got := foldAll(t, shuffled)

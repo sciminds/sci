@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/sciminds/cli/internal/zot/client"
 )
@@ -196,7 +197,7 @@ func (c *Client) AddItemToCollection(ctx context.Context, itemKey, collKey strin
 			return nil // already member
 		}
 	}
-	updated := append(append([]string{}, current...), collKey)
+	updated := append(slices.Clone(current), collKey)
 	return c.UpdateItem(ctx, itemKey, client.ItemData{
 		ItemType:    it.Data.ItemType,
 		Collections: &updated,
@@ -246,7 +247,7 @@ func (c *Client) AddTagToItem(ctx context.Context, itemKey, tag string) error {
 			return nil
 		}
 	}
-	updated := append(append([]client.Tag{}, current...), client.Tag{Tag: tag})
+	updated := append(slices.Clone(current), client.Tag{Tag: tag})
 	return c.UpdateItem(ctx, itemKey, client.ItemData{
 		ItemType: it.Data.ItemType,
 		Tags:     &updated,

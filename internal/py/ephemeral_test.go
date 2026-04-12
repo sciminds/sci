@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -82,7 +83,7 @@ func TestBuildUVArgs_IPython(t *testing.T) {
 		env := EnvInfo{Kind: EnvNone}
 		got := BuildUVArgs(tool, env, nil)
 
-		allPkgs := append([]string{tool.Pkg}, tool.DefaultPkgs...)
+		allPkgs := slices.Concat([]string{tool.Pkg}, tool.DefaultPkgs)
 		want := []string{"run"}
 		for _, p := range allPkgs {
 			want = append(want, "--with", p)
@@ -98,7 +99,7 @@ func TestBuildUVArgs_IPython(t *testing.T) {
 		env := EnvInfo{Kind: EnvNone}
 		got := BuildUVArgs(tool, env, []string{"pandas", "matplotlib"})
 
-		allPkgs := append([]string{tool.Pkg}, tool.DefaultPkgs...)
+		allPkgs := slices.Concat([]string{tool.Pkg}, tool.DefaultPkgs)
 		allPkgs = append(allPkgs, "pandas", "matplotlib")
 		want := []string{"run"}
 		for _, p := range allPkgs {
