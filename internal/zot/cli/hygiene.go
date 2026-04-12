@@ -27,6 +27,8 @@ var (
 	orphansKinds      string
 	orphansLimit      int
 	orphansCheckFiles bool
+
+	citekeysLimit int
 )
 
 func missingCommand() *cli.Command {
@@ -263,6 +265,50 @@ Opt-in kinds (pass via --kind):
 				return err
 			}
 			cmdutil.Output(cmd, zot.OrphansResult{Report: rep, Limit: orphansLimit})
+			return nil
+		},
+	}
+}
+
+func citekeysCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "citekeys",
+		Usage: "Validate stored cite-keys against the {author}{year}-{words}-{ZOTKEY} spec",
+		Description: `$ zot doctor citekeys
+$ zot doctor citekeys --limit 0 --json > citekeys.json
+
+Categories and severities:
+  invalid       SevError   structurally broken (whitespace, BibTeX-illegal chars)
+  collision     SevError   two or more items share the same cite-key
+  non-canonical SevWarn    BibTeX-legal but does not match our v2 spec
+                           (BBT camelCase, hand-authored, drifted v1)
+
+Items with no stored cite-key at all are counted as 'unstored' in the
+summary but emit no finding — a future ` + "`zot doctor citekeys --fix`" + ` will
+synthesize canonical keys for them and write them back through the
+Zotero Web API.`,
+		Flags: []cli.Flag{
+			&cli.IntFlag{
+				Name:        "limit",
+				Aliases:     []string{"n"},
+				Value:       25,
+				Usage:       "max findings to print (0 = all)",
+				Destination: &citekeysLimit,
+				Local:       true,
+			},
+		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			_, db, err := openLocalDB()
+			if err != nil {
+				return err
+			}
+			defer func() { _ = db.Close() }()
+
+			rep, err := hygiene.Citekeys(db)
+			if err != nil {
+				return err
+			}
+			cmdutil.Output(cmd, zot.CitekeysResult{Report: rep, Limit: citekeysLimit})
 			return nil
 		},
 	}

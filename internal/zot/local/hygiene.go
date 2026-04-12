@@ -17,6 +17,22 @@ type DuplicateCandidate struct {
 	PDFCount int
 }
 
+// CiteKeyRow is one row per content item surfacing the two places Zotero
+// can stash a cite-key: the native top-level `citationKey` field (Zotero 7+,
+// also where Better BibTeX writes in Z7) and the legacy `Citation Key:`
+// line inside the `extra` field (pre-Z7 BBT libraries).
+//
+// The row carries raw field values only — resolution and validation belong
+// in the hygiene check, which imports the zot package where ResolveCiteKey
+// and ValidateCiteKey live. Keeping the helper dumb here avoids an
+// import cycle (zot → local is fine, local → zot is not).
+type CiteKeyRow struct {
+	Key         string // 8-char Zotero item key
+	Title       string
+	CitationKey string // native citationKey field value ("" if unset)
+	Extra       string // raw extra field value ("" if unset)
+}
+
 // FieldValue is one (item, field, value) tuple produced by ScanFieldValues,
 // with the item's title attached for display. It's the generic shape the
 // `invalid` hygiene check iterates over — one FieldValue per field present
@@ -174,6 +190,53 @@ ORDER BY i.dateAdded DESC
 			return nil, err
 		}
 		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// ScanCiteKeys returns one row per content item with the stored
+// `citationKey` and `extra` field values. Empty strings mean "field not
+// present for this item" — the check layer treats both the same way.
+//
+// Scope matches the other hygiene scans: content items only (attachments
+// and notes excluded), trashed items excluded, scoped to the configured
+// library. One query with two correlated subqueries is adequate at the
+// 10k-item ceiling we care about.
+func (d *DB) ScanCiteKeys() ([]CiteKeyRow, error) {
+	q := `
+SELECT i.key,
+	COALESCE((SELECT idv.value FROM itemData id
+	          JOIN fields f ON id.fieldID = f.fieldID
+	          JOIN itemDataValues idv ON id.valueID = idv.valueID
+	          WHERE id.itemID = i.itemID AND f.fieldName = 'title'), '') AS title,
+	COALESCE((SELECT idv.value FROM itemData id
+	          JOIN fields f ON id.fieldID = f.fieldID
+	          JOIN itemDataValues idv ON id.valueID = idv.valueID
+	          WHERE id.itemID = i.itemID AND f.fieldName = 'citationKey'), '') AS citation_key,
+	COALESCE((SELECT idv.value FROM itemData id
+	          JOIN fields f ON id.fieldID = f.fieldID
+	          JOIN itemDataValues idv ON id.valueID = idv.valueID
+	          WHERE id.itemID = i.itemID AND f.fieldName = 'extra'), '') AS extra
+FROM items i
+JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+LEFT JOIN deletedItems di ON i.itemID = di.itemID
+WHERE i.libraryID = ? AND di.itemID IS NULL
+` + contentItemTypeFilter + `
+ORDER BY i.key
+`
+	rows, err := d.db.Query(q, d.libraryID)
+	if err != nil {
+		return nil, fmt.Errorf("scan cite-keys: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []CiteKeyRow
+	for rows.Next() {
+		var r CiteKeyRow
+		if err := rows.Scan(&r.Key, &r.Title, &r.CitationKey, &r.Extra); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
 	}
 	return out, rows.Err()
 }

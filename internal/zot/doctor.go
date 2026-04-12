@@ -12,7 +12,7 @@ import (
 // DoctorChecks is the full ordered list of checks Doctor knows how to
 // run. Order is deliberate: cheap and structural first, slow (duplicates)
 // last so the user sees the other three land immediately.
-var DoctorChecks = []string{"invalid", "missing", "orphans", "duplicates"}
+var DoctorChecks = []string{"invalid", "missing", "orphans", "duplicates", "citekeys"}
 
 // DoctorOptions configures Doctor. Checks narrows the run to a subset
 // (empty = all). Deep flips the slow/accurate paths inside the checks
@@ -89,6 +89,8 @@ func Doctor(db *local.DB, cfg *Config, opts DoctorOptions) (*DoctorResult, error
 				Fuzzy:     opts.Deep,
 				Threshold: 0.85,
 			})
+		case "citekeys":
+			rep, err = hygiene.Citekeys(db)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", check, err)
@@ -202,7 +204,7 @@ func (r *DoctorResult) Human() string {
 
 	fmt.Fprintf(&b, "\n  %s run %s for per-finding detail\n",
 		ui.SymArrow,
-		ui.TUI.Dim().Render("`zot doctor invalid`, `zot doctor missing`, `zot doctor orphans`, `zot doctor duplicates`"),
+		ui.TUI.Dim().Render("`zot doctor invalid`, `zot doctor missing`, `zot doctor orphans`, `zot doctor duplicates`, `zot doctor citekeys`"),
 	)
 	return b.String()
 }
@@ -213,6 +215,29 @@ func (r *DoctorResult) Human() string {
 func doctorSummaryLine(check string, rep *hygiene.Report) string {
 	counts := rep.CountBySeverity()
 	switch check {
+	case "citekeys":
+		// Show the per-bucket breakdown inline so the aggregate dashboard
+		// doesn't require drilling into the sub-command to see what's
+		// going on. A clean library has no findings; a BBT library has
+		// plenty of non-canonical.
+		stats, _ := rep.Stats.(hygiene.CitekeysStats)
+		if stats.Stored == 0 && stats.Unstored > 0 {
+			return ui.TUI.Dim().Render(fmt.Sprintf("%d unstored (will synthesize)", stats.Unstored))
+		}
+		if stats.Invalid == 0 && stats.NonCanonical == 0 && stats.Collisions == 0 {
+			return ui.TUI.Dim().Render(fmt.Sprintf("%d canonical", stats.Valid))
+		}
+		parts := []string{}
+		if stats.Invalid > 0 {
+			parts = append(parts, ui.TUI.Fail().Render(fmt.Sprintf("%d invalid", stats.Invalid)))
+		}
+		if stats.Collisions > 0 {
+			parts = append(parts, ui.TUI.Fail().Render(fmt.Sprintf("%d collision", stats.Collisions)))
+		}
+		if stats.NonCanonical > 0 {
+			parts = append(parts, ui.TUI.Warn().Render(fmt.Sprintf("%d non-canonical", stats.NonCanonical)))
+		}
+		return strings.Join(parts, "  ")
 	case "duplicates":
 		stats, _ := rep.Stats.(hygiene.DuplicatesStats)
 		if stats.ClusterCount == 0 {

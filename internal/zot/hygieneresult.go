@@ -379,6 +379,91 @@ func (r DuplicatesResult) Human() string {
 	return b.String()
 }
 
+// CitekeysResult wraps a hygiene.Report from the Citekeys check. Limit
+// caps the human-mode findings list; JSON always returns everything.
+type CitekeysResult struct {
+	Report *hygiene.Report `json:"report"`
+	Limit  int             `json:"-"`
+}
+
+func (r CitekeysResult) JSON() any { return r.Report }
+
+func (r CitekeysResult) Human() string {
+	if r.Report == nil {
+		return ""
+	}
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Cite-key validation"))
+	stats, _ := r.Report.Stats.(hygiene.CitekeysStats)
+	fmt.Fprintf(&b, "  %s %d items scanned  %s %d stored  %s %d unstored\n\n",
+		ui.TUI.Dim().Render("·"), stats.Scanned,
+		ui.TUI.Dim().Render("·"), stats.Stored,
+		ui.TUI.Dim().Render("·"), stats.Unstored,
+	)
+
+	// Coverage breakdown, scored against stored keys so Unstored items
+	// don't pollute the denominator. If nothing is stored yet, show the
+	// row but avoid a divide-by-zero.
+	pctValid := 0.0
+	if stats.Stored > 0 {
+		pctValid = 100 * float64(stats.Valid) / float64(stats.Stored)
+	}
+	bar := coverageBar(pctValid, 20)
+	fmt.Fprintf(&b, "    canonical  %s  %5d / %-5d  %5.1f%%\n",
+		bar, stats.Valid, stats.Stored, pctValid,
+	)
+	fmt.Fprintf(&b, "    %-10s %s %d non-canonical  %s %d invalid  %s %d collisions\n",
+		" ",
+		ui.TUI.Warn().Render("·"), stats.NonCanonical,
+		ui.TUI.Fail().Render("·"), stats.Invalid,
+		ui.TUI.Fail().Render("·"), stats.Collisions,
+	)
+
+	if len(r.Report.Findings) == 0 {
+		fmt.Fprintf(&b, "\n  %s every stored cite-key is canonical\n", ui.SymOK)
+		return b.String()
+	}
+
+	counts := r.Report.CountBySeverity()
+	fmt.Fprintf(&b, "\n  %s %s  %s %s\n",
+		ui.SymFail, ui.TUI.Fail().Render(fmt.Sprintf("%d error", counts[hygiene.SevError])),
+		ui.SymWarn, ui.TUI.Warn().Render(fmt.Sprintf("%d warn", counts[hygiene.SevWarn])),
+	)
+
+	sorted := make([]hygiene.Finding, len(r.Report.Findings))
+	copy(sorted, r.Report.Findings)
+	stableSortBySeverity(sorted)
+
+	show := sorted
+	truncated := 0
+	if r.Limit > 0 && len(show) > r.Limit {
+		truncated = len(show) - r.Limit
+		show = show[:r.Limit]
+	}
+
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("findings:"))
+	for _, f := range show {
+		title := f.Title
+		if title == "" {
+			title = ui.TUI.Dim().Render("(untitled)")
+		}
+		fmt.Fprintf(&b, "    %s  %s %-13s %s\n",
+			ui.TUI.Accent().Render(f.ItemKey),
+			severityIcon(f.Severity),
+			styleSeverity(f.Severity, f.Kind),
+			title,
+		)
+		fmt.Fprintf(&b, "      %s\n", ui.TUI.Dim().Render(f.Message))
+	}
+	if truncated > 0 {
+		fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
+			ui.TUI.Dim().Render("…"), truncated)
+	}
+	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", ui.SymArrow, len(r.Report.Findings))
+	return b.String()
+}
+
 // matchTypeBadge colorizes the match-type label so DOI matches (strongest)
 // pop visually above title-fuzzy matches (weakest).
 func matchTypeBadge(kind string) string {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -153,7 +154,7 @@ type bibEntryOpts struct {
 // always appends a zotero:// round-trip URI to pinned entries so callers can
 // round-trip back to the Zotero item regardless of cite-key drift.
 func exportBibTeX(it *local.Item) string {
-	key, synth := ResolveCiteKey(it)
+	key, synth := citekey.Resolve(it)
 	opts := bibEntryOpts{CiteKey: key}
 	if !synth {
 		opts.ZoteroURI = zoteroSelectURI(it.Key)
@@ -199,7 +200,7 @@ func writeBibEntry(it *local.Item, opts bibEntryOpts) string {
 }
 
 func buildNoteField(it *local.Item, zoteroURI string) string {
-	user := extractExtraNote(it.Fields["extra"])
+	user := citekey.ExtractNote(it.Fields["extra"])
 	switch {
 	case user != "" && zoteroURI != "":
 		return user + "\n" + zoteroURI

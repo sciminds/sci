@@ -71,7 +71,7 @@ func TestExportLibrary_EmitsSynthesizedKeyWithZoteroSuffix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(body, "@article{jones2019deep-SYNTH001,") {
+	if !strings.Contains(body, "@article{jones2019-deeplearfoun-SYNTH001,") {
 		t.Errorf("missing synthesized key header:\n%s", body)
 	}
 }
@@ -124,9 +124,9 @@ func TestExportLibrary_PreservesUserExtraNote(t *testing.T) {
 
 func TestExportLibrary_DriftDetectionEmitsIDs(t *testing.T) {
 	t.Parallel()
-	// Previous export synthesized "smith2020deep" for ABCD1234. Author
+	// Previous export synthesized "smith2020-deep" for ABCD1234. Author
 	// has since been corrected from "Smith" to "Smithson" — new
-	// synthesized prefix is "smithson2020deep". The old key should
+	// synthesized prefix is "smithson2020-deep". The old key should
 	// appear in biblatex `ids = {...}` for backward compatibility with
 	// manuscripts that already cite the old form.
 	items := []local.Item{{
@@ -136,7 +136,7 @@ func TestExportLibrary_DriftDetectionEmitsIDs(t *testing.T) {
 		Date:     "2020",
 		Creators: []local.Creator{{Type: "author", Last: "Smithson"}},
 	}}
-	prev := Keymap{"ABCD1234": "smith2020deep"}
+	prev := Keymap{"ABCD1234": "smith2020-deeplear"}
 	body, stats, err := ExportLibrary(items, ExportBibTeX, prev)
 	if err != nil {
 		t.Fatal(err)
@@ -144,10 +144,11 @@ func TestExportLibrary_DriftDetectionEmitsIDs(t *testing.T) {
 	if stats.Drifted != 1 {
 		t.Errorf("Drifted = %d, want 1", stats.Drifted)
 	}
-	if !strings.Contains(body, "@article{smithson2020deep-ABCD1234,") {
+	// v2 title tokens for "Deep Learning" → deep + lear → "deeplear".
+	if !strings.Contains(body, "@article{smithson2020-deeplear-ABCD1234,") {
 		t.Errorf("new key missing:\n%s", body)
 	}
-	if !strings.Contains(body, "ids = {smith2020deep-ABCD1234}") {
+	if !strings.Contains(body, "ids = {smith2020-deeplear-ABCD1234}") {
 		t.Errorf("drift alias missing:\n%s", body)
 	}
 }
@@ -161,7 +162,7 @@ func TestExportLibrary_NoDriftWhenPrefixUnchanged(t *testing.T) {
 		Date:     "2020",
 		Creators: []local.Creator{{Type: "author", Last: "Smith"}},
 	}}
-	prev := Keymap{"ABCD1234": "smith2020deep"}
+	prev := Keymap{"ABCD1234": "smith2020-deeplear"}
 	body, stats, _ := ExportLibrary(items, ExportBibTeX, prev)
 	if stats.Drifted != 0 {
 		t.Errorf("Drifted = %d, want 0", stats.Drifted)
@@ -180,8 +181,8 @@ func TestExportLibrary_ReturnedKeymapTracksSynthesizedPrefixes(t *testing.T) {
 	if len(got) != 1 {
 		t.Errorf("keymap len = %d, want 1 (synthesized only)", len(got))
 	}
-	if got["SYNTH001"] != "jones2019deep" {
-		t.Errorf("SYNTH001 = %q, want jones2019deep", got["SYNTH001"])
+	if got["SYNTH001"] != "jones2019-deeplearfoun" {
+		t.Errorf("SYNTH001 = %q, want jones2019-deeplearfoun", got["SYNTH001"])
 	}
 	if _, ok := got["PINNED01"]; ok {
 		t.Errorf("pinned entry should not be tracked in keymap: %v", got)

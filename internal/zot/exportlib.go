@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -60,7 +61,7 @@ func exportBibTeXLibrary(items []local.Item, prev Keymap, stats *ExportStats) st
 	var b strings.Builder
 	for i := range items {
 		it := &items[i]
-		key, synth := ResolveCiteKey(it)
+		key, synth := citekey.Resolve(it)
 		opts := bibEntryOpts{CiteKey: key}
 		if synth {
 			stats.Synthesized++
@@ -84,7 +85,7 @@ func exportCSLJSONLibrary(items []local.Item, stats *ExportStats) (string, error
 	out := make([]cslItem, 0, len(items))
 	for i := range items {
 		it := &items[i]
-		_, synth := ResolveCiteKey(it)
+		_, synth := citekey.Resolve(it)
 		if synth {
 			stats.Synthesized++
 		} else {

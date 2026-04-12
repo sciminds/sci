@@ -1,6 +1,7 @@
 package local
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -173,5 +174,60 @@ func TestScanDuplicateCandidates(t *testing.T) {
 	b := byKey["BBBB2222"]
 	if b.DOI != "" {
 		t.Errorf("B DOI = %q, want empty", b.DOI)
+	}
+}
+
+func TestScanCiteKeys(t *testing.T) {
+	t.Parallel()
+	dir := buildFixture(t)
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	rows, err := db.ScanCiteKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Content items only — attachments (40, 60), trashed (50), notes (70)
+	// must be excluded, matching every other hygiene scan.
+	if len(rows) != 3 {
+		t.Fatalf("got %d rows, want 3 content items", len(rows))
+	}
+
+	byKey := map[string]CiteKeyRow{}
+	for _, r := range rows {
+		byKey[r.Key] = r
+	}
+
+	// Item 10: canonical native citationKey, no extra.
+	a := byKey["AAAA1111"]
+	if a.CitationKey != "smith2024-deeplearneur-AAAA1111" {
+		t.Errorf("AAAA1111 citation_key = %q", a.CitationKey)
+	}
+	if a.Extra != "" {
+		t.Errorf("AAAA1111 extra should be empty, got %q", a.Extra)
+	}
+	if a.Title != "Deep Learning for Neuroimaging" {
+		t.Errorf("AAAA1111 title = %q", a.Title)
+	}
+
+	// Item 20: BBT-style camelCase native citationKey. ScanCiteKeys
+	// should surface it as-is; classification is the check layer's job.
+	b := byKey["BBBB2222"]
+	if b.CitationKey != "jonesTransformersFMRIAnalysis2024" {
+		t.Errorf("BBBB2222 citation_key = %q", b.CitationKey)
+	}
+
+	// Item 30: no native key but legacy BBT line inside extra — raw
+	// value returned verbatim so the check layer can parse it via
+	// ResolveCiteKey.
+	c := byKey["CCCC3333"]
+	if c.CitationKey != "" {
+		t.Errorf("CCCC3333 citation_key should be empty, got %q", c.CitationKey)
+	}
+	if !strings.Contains(c.Extra, "Citation Key: legacyBookKey1900") {
+		t.Errorf("CCCC3333 extra did not carry BBT line: %q", c.Extra)
 	}
 }

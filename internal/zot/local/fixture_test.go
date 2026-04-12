@@ -143,7 +143,7 @@ func seedFixture(dir string) error {
 		`INSERT INTO itemTypes VALUES (1,'journalArticle'),(2,'book'),(3,'attachment'),(4,'note'),(5,'conferencePaper')`,
 
 		// Minimal field set we actually query.
-		`INSERT INTO fields VALUES (1,'title'),(2,'date'),(3,'DOI'),(4,'publicationTitle'),(5,'url'),(6,'abstractNote')`,
+		`INSERT INTO fields VALUES (1,'title'),(2,'date'),(3,'DOI'),(4,'publicationTitle'),(5,'url'),(6,'abstractNote'),(7,'citationKey'),(8,'extra')`,
 
 		// Creators and types.
 		`INSERT INTO creatorTypes VALUES (1,'author'),(2,'editor')`,
@@ -182,13 +182,22 @@ func seedFixture(dir string) error {
 			(8,'NeuroImage'),
 			(9,'Nature'),
 			(10,'Abstract about brains.'),
-			(11,'https://example.org/abc')`,
+			(11,'https://example.org/abc'),
+			(12,'smith2024-deeplearneur-AAAA1111'),
+			(13,'jonesTransformersFMRIAnalysis2024'),
+			(14,'tldr: loose note\nCitation Key: legacyBookKey1900\n')`,
 
-		// Item 10 (journalArticle): title, date, DOI, pub, url, abstract.
+		// Item 10 (journalArticle): title, date, DOI, pub, url, abstract,
+		// plus a native citationKey matching our v2 spec (canonical).
+		// Item 20 (journalArticle): also has a native citationKey but in
+		// BBT camelCase style — ScanCiteKeys should surface it so the
+		// check layer can flag it as non-canonical.
+		// Item 30 (book): no native citationKey, but legacy BBT Citation
+		// Key line inside `extra` — exercises the extra-field path.
 		`INSERT INTO itemData VALUES
-			(10,1,1),(10,2,4),(10,3,6),(10,4,8),(10,5,11),(10,6,10),
-			(20,1,3),(20,2,4),(20,4,8),
-			(30,1,2),(30,2,5)`,
+			(10,1,1),(10,2,4),(10,3,6),(10,4,8),(10,5,11),(10,6,10),(10,7,12),
+			(20,1,3),(20,2,4),(20,4,8),(20,7,13),
+			(30,1,2),(30,2,5),(30,8,14)`,
 
 		`INSERT INTO itemCreators VALUES
 			(10,1,1,0),

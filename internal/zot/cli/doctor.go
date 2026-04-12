@@ -18,7 +18,7 @@ func doctorCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "doctor",
 		Usage: "Run every hygiene check and print a library-health dashboard",
-		Description: `$ zot doctor                 # fast aggregate across invalid/missing/orphans/duplicates
+		Description: `$ zot doctor                 # fast aggregate across every check
 $ zot doctor --deep          # enables fuzzy duplicate matching + uncollected-item orphan scan
 $ zot doctor --check missing --check invalid
 $ zot doctor --json > health.json
@@ -27,10 +27,11 @@ $ zot doctor invalid         # drill into a single check
 $ zot doctor missing --field title,creators
 $ zot doctor orphans --kind uncollected-item
 $ zot doctor duplicates --fuzzy
+$ zot doctor citekeys
 
 Bare 'zot doctor' runs every hygiene check in order — invalid, missing,
-orphans, duplicates — and prints a one-line summary per check plus an
-aggregate totals footer. Doctor is strictly read-only; use the
+orphans, duplicates, citekeys — and prints a one-line summary per check
+plus an aggregate totals footer. Doctor is strictly read-only; use the
 sub-commands ('zot doctor invalid', etc.) for per-finding detail.
 
 Deep mode flips the slow/accurate paths: duplicate detection adds the
@@ -43,11 +44,12 @@ for that.`,
 			missingCommand(),
 			orphansCommand(),
 			duplicatesCommand(),
+			citekeysCommand(),
 		},
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{
 				Name:  "check",
-				Usage: "limit run to specific checks (repeatable): invalid, missing, orphans, duplicates",
+				Usage: "limit run to specific checks (repeatable): invalid, missing, orphans, duplicates, citekeys",
 				Local: true,
 			},
 			&cli.BoolFlag{
