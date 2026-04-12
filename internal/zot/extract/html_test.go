@@ -30,7 +30,7 @@ func TestMarkdownToNoteHTML_RendersWithHeader(t *testing.T) {
 		"<h1>Webster et al. - 2017 - Chronic kidney disease.pdf</h1>",
 		"docling 2.86.0",
 		"2026-04-11",
-		"sha256:abc123def456",
+		"fp:abc123def456",
 		// Rendered body
 		"Abstract",
 		"<p>Chronic kidney disease is common.</p>",
@@ -99,7 +99,7 @@ func TestMarkdownToNoteRaw_YAMLFrontmatter(t *testing.T) {
 		`title: "CKD paper.pdf"`,
 		`doi: "10.1016/S0140-6736(16)32064-5"`,
 		"source: docling 2.86.0",
-		"hash: sha256:abc123def456",
+		"hash: abc123def456",
 		"generated: 2026-04-11",
 		"## Abstract",  // markdown preserved, not rendered
 		"<common>",     // raw markdown, not escaped

@@ -1,31 +1,31 @@
 package extract
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
-// TestHashPDF_FixedBytes locks the hash format: exactly 12 hex chars
-// (48 bits) of the sha256 digest. This is what gets embedded in the
-// sentinel comment so any change breaks drift detection across
-// extractions.
-func TestHashPDF_FixedBytes(t *testing.T) {
+// TestHashPDF_Format verifies the fingerprint is "<size>-<mtime>".
+func TestHashPDF_Format(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	p := filepath.Join(dir, "sample.pdf")
-	// Arbitrary fixed bytes — `echo -n "hello world"` — so the digest
-	// is a stable golden.
-	if err := os.WriteFile(p, []byte("hello world"), 0o644); err != nil {
+	content := []byte("hello world")
+	if err := os.WriteFile(p, content, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	fi, err := os.Stat(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := fmt.Sprintf("%d-%d", fi.Size(), fi.ModTime().Unix())
 	got, err := HashPDF(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// sha256("hello world") = b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
-	// First 12 hex chars:       b94d27b9934d
-	const want = "b94d27b9934d"
 	if got != want {
 		t.Errorf("HashPDF = %q, want %q", got, want)
 	}
@@ -39,23 +39,44 @@ func TestHashPDF_Missing(t *testing.T) {
 	}
 }
 
-// TestHashPDF_DifferentContentDifferentHash makes sure a 1-byte change
-// produces a different digest — guards against accidental truncation
-// of the input stream.
-func TestHashPDF_DifferentContentDifferentHash(t *testing.T) {
+// TestHashPDF_DifferentSizeDifferentHash verifies different file sizes
+// produce different fingerprints.
+func TestHashPDF_DifferentSizeDifferentHash(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := filepath.Join(dir, "a")
 	b := filepath.Join(dir, "b")
-	if err := os.WriteFile(a, []byte("version 1"), 0o644); err != nil {
+	if err := os.WriteFile(a, []byte("short"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(b, []byte("version 2"), 0o644); err != nil {
+	if err := os.WriteFile(b, []byte("much longer content"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	ha, _ := HashPDF(a)
 	hb, _ := HashPDF(b)
 	if ha == hb {
-		t.Errorf("distinct contents produced same hash %q", ha)
+		t.Errorf("distinct files produced same fingerprint %q", ha)
+	}
+}
+
+// TestHashPDF_DifferentMtimeDifferentHash verifies that touching a file
+// (changing mtime without changing content) changes the fingerprint.
+func TestHashPDF_DifferentMtimeDifferentHash(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	p := filepath.Join(dir, "file.pdf")
+	if err := os.WriteFile(p, []byte("same content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h1, _ := HashPDF(p)
+
+	// Shift mtime back by 10 seconds.
+	past := time.Now().Add(-10 * time.Second)
+	if err := os.Chtimes(p, past, past); err != nil {
+		t.Fatal(err)
+	}
+	h2, _ := HashPDF(p)
+	if h1 == h2 {
+		t.Errorf("different mtime produced same fingerprint %q", h1)
 	}
 }

@@ -65,7 +65,7 @@ func MarkdownToNoteHTML(md []byte, meta NoteMeta) string {
 	out.WriteString(htmlEscape(meta.Source))
 	out.WriteString(" · ")
 	out.WriteString(meta.Generated.UTC().Format("2006-01-02"))
-	out.WriteString(" · sha256:")
+	out.WriteString(" · fp:")
 	out.WriteString(htmlEscape(meta.Hash))
 	out.WriteString("</em></p>\n")
 	out.WriteString("<hr>\n")
@@ -86,7 +86,7 @@ func MarkdownToNoteRaw(md []byte, meta NoteMeta) string {
 		fmt.Fprintf(&out, "doi: %q\n", meta.DOI)
 	}
 	fmt.Fprintf(&out, "source: %s\n", meta.Source)
-	fmt.Fprintf(&out, "hash: sha256:%s\n", meta.Hash)
+	fmt.Fprintf(&out, "hash: %s\n", meta.Hash)
 	fmt.Fprintf(&out, "generated: %s\n", meta.Generated.UTC().Format("2006-01-02"))
 	out.WriteString("---\n\n")
 	out.Write(md)

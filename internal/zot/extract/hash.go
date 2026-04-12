@@ -1,31 +1,22 @@
 package extract
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
 )
 
-// HashLen is the number of hex chars kept from the sha256 digest when
-// embedding in sentinels and note headers. 12 hex chars is 48 bits —
-// enough to detect any practical drift on a single parent item while
-// keeping the sentinel comment short.
-const HashLen = 12
-
-// HashPDF returns the first HashLen hex chars of the sha256 digest of
-// the file at path. Used by the CLI layer to populate
-// PlanRequest.PDFHash and NoteMeta.Hash before calling PlanExtract.
+// HashPDF returns a fast fingerprint of the file at path based on its
+// size and modification time. This is used as a cache key and note
+// metadata tag — it only needs to change when the PDF changes, not be
+// cryptographically secure. A stat() call is orders of magnitude
+// faster than reading every byte for SHA-256, which matters when
+// planning extraction across thousands of PDFs.
+//
+// Format: "<size>-<unixMtime>" (e.g. "1048576-1718200000").
 func HashPDF(path string) (string, error) {
-	f, err := os.Open(path)
+	fi, err := os.Stat(path)
 	if err != nil {
-		return "", fmt.Errorf("open %s: %w", path, err)
+		return "", fmt.Errorf("stat %s: %w", path, err)
 	}
-	defer func() { _ = f.Close() }()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", fmt.Errorf("hash %s: %w", path, err)
-	}
-	return hex.EncodeToString(h.Sum(nil))[:HashLen], nil
+	return fmt.Sprintf("%d-%d", fi.Size(), fi.ModTime().Unix()), nil
 }
