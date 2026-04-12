@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/sciminds/cli/internal/tui/dbtui/match"
 )
 
 // fieldValueSubquery is a reusable correlated subquery that pulls a single
@@ -297,51 +299,66 @@ func inClause(ids []int64) (string, []any) {
 	return strings.Join(ph, ","), args
 }
 
-// Search returns items whose title, DOI, publication, or creator name
-// contains the query as a substring. Title matches rank above the rest.
-// Smartcase: an all-lowercase query matches case-insensitively; any uppercase
-// rune flips the match to case-sensitive (so "Smith" excludes "smith" but
-// "smith" still finds "Smith"). Zotero has no FTS on EAV metadata — table scan.
+// Search returns items matching the query. The query is parsed by
+// [match.ParseClauses], which supports:
+//
+//   - free text:        "neuroimaging"           (matches title/doi/pub/creator)
+//   - field scope:      "@author: jolly"
+//   - AND clauses:      "@author: jolly @title: gossip"   (comma optional)
+//   - OR groups:        "@type: book | @type: thesis"
+//   - negation:         "@author: -smith"
+//
+// Recognized fields: author/creator, title, doi, pub/publication, tag, type/
+// itemType, year. Smartcase applies per-clause: an all-lowercase needle is
+// matched case-insensitively, any uppercase flips it to case-sensitive.
+// Zotero has no FTS on EAV metadata — every clause is a table scan.
 func (d *DB) Search(query string, limit int) ([]Item, error) {
 	if limit == 0 {
 		limit = 50
 	}
-	needle := query
-	titleCol, doiCol, pubCol := "title", "doi", "pub"
-	creatorCol := "(c.firstName || ' ' || c.lastName)"
-	if query == strings.ToLower(query) {
-		needle = strings.ToLower(query)
-		titleCol = "lower(title)"
-		doiCol = "lower(doi)"
-		pubCol = "lower(pub)"
-		creatorCol = "lower(c.firstName || ' ' || c.lastName)"
+	groups := match.ParseClauses(query)
+	if len(groups) == 0 {
+		return nil, nil
 	}
 
-	// Use a CTE so we can reference the pulled title/doi/pub columns in the
-	// outer WHERE/ORDER BY. instr(...) > 0 is substring containment that
-	// honors the case of the haystack expression — unlike LIKE, which folds
-	// ASCII case unconditionally and would defeat smartcase.
+	var orParts []string
+	var clauseArgs []any
+	for _, group := range groups {
+		var andParts []string
+		for _, c := range group {
+			frag, fa, err := buildClauseSQL(c)
+			if err != nil {
+				return nil, err
+			}
+			if frag == "" {
+				continue
+			}
+			andParts = append(andParts, frag)
+			clauseArgs = append(clauseArgs, fa...)
+		}
+		if len(andParts) > 0 {
+			orParts = append(orParts, "("+strings.Join(andParts, " AND ")+")")
+		}
+	}
+	if len(orParts) == 0 {
+		return nil, nil
+	}
+
+	// Use a CTE so clause fragments can reference the pulled title/doi/pub/
+	// date/typeName columns directly via the `b` alias.
 	q := `
 WITH base AS (` + baseSelect() + `
 	WHERE i.libraryID = ? AND di.itemID IS NULL ` + contentItemTypeFilter + `
 )
 SELECT b.* FROM base b
-WHERE instr(` + titleCol + `, ?) > 0
-   OR instr(` + doiCol + `, ?) > 0
-   OR instr(` + pubCol + `, ?) > 0
-   OR EXISTS (
-        SELECT 1 FROM itemCreators ic
-        JOIN creators c ON ic.creatorID = c.creatorID
-        WHERE ic.itemID = b.itemID
-          AND instr(` + creatorCol + `, ?) > 0
-   )
-ORDER BY
-	CASE WHEN instr(` + titleCol + `, ?) > 0 THEN 0 ELSE 1 END,
-	dateAdded DESC
+WHERE ` + strings.Join(orParts, " OR ") + `
+ORDER BY b.dateAdded DESC
 LIMIT ?
 `
 	args := listArgs()
-	args = append(args, d.libraryID, needle, needle, needle, needle, needle, limit)
+	args = append(args, d.libraryID)
+	args = append(args, clauseArgs...)
+	args = append(args, limit)
 
 	rows, err := d.db.Query(q, args...)
 	if err != nil {
@@ -358,6 +375,87 @@ LIMIT ?
 		out = append(out, it)
 	}
 	return out, rows.Err()
+}
+
+// buildClauseSQL converts a single parsed clause into a SQL WHERE fragment
+// (with `?` placeholders) and the args to bind. The fragment is meant to be
+// composed under `SELECT b.* FROM base b` — column references go through the
+// `b` alias. Returns an error for unknown field names so typos surface
+// instead of silently expanding the result set.
+func buildClauseSQL(c match.Clause) (string, []any, error) {
+	if c.Terms == "" {
+		if c.Column == "" {
+			return "", nil, nil
+		}
+		return "", nil, fmt.Errorf("empty value for field %q", c.Column)
+	}
+
+	needle := c.Terms
+	smartcase := needle == strings.ToLower(needle)
+	if smartcase {
+		needle = strings.ToLower(needle)
+	}
+	fold := func(expr string) string {
+		if smartcase {
+			return "lower(" + expr + ")"
+		}
+		return expr
+	}
+
+	creatorExpr := "(c.firstName || ' ' || c.lastName)"
+	creatorExists := "EXISTS (SELECT 1 FROM itemCreators ic" +
+		" JOIN creators c ON ic.creatorID = c.creatorID" +
+		" WHERE ic.itemID = b.itemID AND instr(" + fold(creatorExpr) + ", ?) > 0)"
+
+	var frag string
+	var args []any
+	switch strings.ToLower(c.Column) {
+	case "":
+		frag = "(instr(" + fold("b.title") + ", ?) > 0" +
+			" OR instr(" + fold("b.doi") + ", ?) > 0" +
+			" OR instr(" + fold("b.pub") + ", ?) > 0" +
+			" OR " + creatorExists + ")"
+		args = []any{needle, needle, needle, needle}
+	case "title":
+		frag = "instr(" + fold("b.title") + ", ?) > 0"
+		args = []any{needle}
+	case "doi":
+		frag = "instr(" + fold("b.doi") + ", ?) > 0"
+		args = []any{needle}
+	case "pub", "publication":
+		frag = "instr(" + fold("b.pub") + ", ?) > 0"
+		args = []any{needle}
+	case "author", "creator":
+		frag = creatorExists
+		args = []any{needle}
+	case "tag":
+		frag = "EXISTS (SELECT 1 FROM itemTags ity" +
+			" JOIN tags tg ON ity.tagID = tg.tagID" +
+			" WHERE ity.itemID = b.itemID AND instr(" + fold("tg.name") + ", ?) > 0)"
+		args = []any{needle}
+	case "type", "itemtype":
+		// Type names are stable lowercase identifiers (journalArticle, book…);
+		// equality reads better than substring and avoids `book` matching
+		// `bookSection`.
+		frag = "lower(b.typeName) = ?"
+		args = []any{strings.ToLower(c.Terms)}
+	case "year":
+		// Zotero stores dates as "YYYY-MM-DD …" with a sortable prefix even
+		// when the user only typed a year (year-only is "YYYY-00-00 YYYY").
+		// First 4 chars are always the year.
+		frag = "substr(b.date, 1, 4) = ?"
+		args = []any{c.Terms}
+	default:
+		return "", nil, fmt.Errorf(
+			"unknown search field %q (valid: author, title, doi, pub, tag, type, year)",
+			c.Column,
+		)
+	}
+
+	if c.Negate {
+		frag = "NOT (" + frag + ")"
+	}
+	return frag, args, nil
 }
 
 // Read returns a single item by 8-char Zotero key, fully hydrated with

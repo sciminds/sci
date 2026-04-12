@@ -187,6 +187,137 @@ func TestSearch_Smartcase(t *testing.T) {
 	}
 }
 
+func TestSearch_TitleScope(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	items, err := db.Search("@title: neuroimaging", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Key != "AAAA1111" {
+		t.Errorf("title scope = %v", keysOf(items))
+	}
+	// "nasa" is in creators, not titles — title scope must NOT match.
+	items, err = db.Search("@title: nasa", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 0 {
+		t.Errorf("title scope leaked into creators: %v", keysOf(items))
+	}
+}
+
+func TestSearch_AuthorScope(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	items, err := db.Search("@author: smith", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Errorf("author scope = %v, want 2", keysOf(items))
+	}
+}
+
+func TestSearch_TagScope(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	items, err := db.Search("@tag: neuroimaging", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Key != "AAAA1111" {
+		t.Errorf("tag scope = %v", keysOf(items))
+	}
+}
+
+func TestSearch_TypeScope(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	items, err := db.Search("@type: book", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Key != "CCCC3333" {
+		t.Errorf("type scope = %v", keysOf(items))
+	}
+}
+
+func TestSearch_YearScope(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// AAAA1111 (date 2024-03-15) + BBBB2222 (also points at value 4 = 2024).
+	items, err := db.Search("@year: 2024", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Errorf("year=2024 = %v, want 2", keysOf(items))
+	}
+	items, err = db.Search("@year: 2023", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Key != "CCCC3333" {
+		t.Errorf("year=2023 = %v", keysOf(items))
+	}
+}
+
+func TestSearch_AndClauses(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// Smith authors AAAA1111 + CCCC3333; only AAAA1111 has "neuroimaging".
+	items, err := db.Search("@author: smith @title: neuroimaging", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Key != "AAAA1111" {
+		t.Errorf("AND scope = %v", keysOf(items))
+	}
+	// Comma form should produce the same result.
+	items, err = db.Search("@author: smith, @title: neuroimaging", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Key != "AAAA1111" {
+		t.Errorf("AND comma form = %v", keysOf(items))
+	}
+}
+
+func TestSearch_OrGroups(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// smith → AAAA1111+CCCC3333; nasa → BBBB2222 → all three items.
+	items, err := db.Search("@author: smith | @author: nasa", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 3 {
+		t.Errorf("OR groups = %v, want 3", keysOf(items))
+	}
+}
+
+func TestSearch_Negate(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// Exclude smith → only BBBB2222 (NASA) remains.
+	items, err := db.Search("@author: -smith", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Key != "BBBB2222" {
+		t.Errorf("negate = %v", keysOf(items))
+	}
+}
+
+func TestSearch_UnknownField(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	if _, err := db.Search("@foo: bar", 10); err == nil {
+		t.Error("expected error for unknown field")
+	}
+}
+
 func TestSearch_NoResults(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)

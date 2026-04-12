@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/ui"
@@ -66,7 +67,10 @@ func searchCommand() *cli.Command {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected a query")
 			}
-			query := cmd.Args().First()
+			// Join all positional args so unquoted multi-clause queries
+			// like `zot search @author: jolly @title: gossip` work without
+			// requiring the user to wrap the whole thing in shell quotes.
+			query := strings.Join(cmd.Args().Slice(), " ")
 			_, db, err := openLocalDB()
 			if err != nil {
 				return err
