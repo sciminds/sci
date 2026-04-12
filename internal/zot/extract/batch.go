@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -311,6 +312,20 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 			jobs = 1
 		}
 
+		// Build stem→(pdfPath, item index) so the progress callback
+		// can cache each document as soon as docling writes it.
+		stemToInfo := make(map[string]struct {
+			pdfPath string
+			idx     int
+		}, len(pdfPaths))
+		for pi, idx := range needExtract {
+			stem := stemFor(pdfPaths[pi])
+			stemToInfo[stem] = struct {
+				pdfPath string
+				idx     int
+			}{pdfPaths[pi], idx}
+		}
+
 		// Split into size-limited batches, then apply jobs parallelism
 		// within each batch.
 		batches := chunkBySize(pdfPaths, maxDoclingBatch)
@@ -341,18 +356,49 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 					jobDir := filepath.Join(outputDir, fmt.Sprintf("batch-%d-job-%d", batchNum, ci))
 					opts.OutputDir = jobDir
 
-					res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, in.OnProgress)
+					// Cache each document as docling writes it to
+					// disk for crash resilience. Docling logs the
+					// output path slightly before the file is
+					// flushed, so we queue the path and drain the
+					// queue on every subsequent event — by then the
+					// previous file is on disk.
+					var pending []string
+					cacheOnOutput := func(ev *DoclingEvent) {
+						// Drain: try to cache any queued paths.
+						still := pending[:0]
+						for _, p := range pending {
+							stem := strings.TrimSuffix(filepath.Base(p), ".md")
+							if info, ok := stemToInfo[stem]; ok {
+								if md, err := os.ReadFile(p); err == nil {
+									item := in.Items[info.idx]
+									_, _ = in.Cache.Put(item.Request.PDFKey, item.Hash, md)
+								} else {
+									still = append(still, p)
+								}
+							}
+						}
+						pending = still
+
+						// Enqueue new output path.
+						if ev.Kind == EventOutput && strings.HasSuffix(ev.OutputPath, ".md") {
+							pending = append(pending, ev.OutputPath)
+						}
+
+						if in.OnProgress != nil {
+							in.OnProgress(ev)
+						}
+					}
+
+					res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, cacheOnOutput)
 					chunkResults[ci] = chunkResult{chunk: chunk, res: res, err: err}
 				}()
 			}
 			wg.Wait()
 			batchNum++
 
-			// Process results — cache each document's markdown and
-			// mark errors for items docling couldn't convert.
-			// Files only exist on disk after ExtractBatch returns
-			// (docling buffers writes), so caching happens here
-			// rather than in the progress callback.
+			// Process results — cache anything the progress callback
+			// missed (e.g. single-doc batches where the file write
+			// races with the log line) and mark errors.
 			for _, cr := range chunkResults {
 				if cr.err != nil {
 					for _, pdf := range cr.chunk {
@@ -371,6 +417,10 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 				for _, pdf := range cr.chunk {
 					idx := pdfToIdx[pdf]
 					item := in.Items[idx]
+					// Already cached by the progress callback?
+					if _, ok := in.Cache.Get(item.Request.PDFKey, item.Hash); ok {
+						continue
+					}
 					res, ok := cr.res.Results[pdf]
 					if !ok {
 						outcomes[idx].Err = fmt.Errorf("docling produced no output for %s", item.Request.PDFName)
@@ -379,8 +429,7 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 						}
 						continue
 					}
-					// Read the markdown file docling wrote and
-					// populate the cache for the note-posting phase.
+					// Fallback: read the file now that docling has exited.
 					md, err := os.ReadFile(res.MarkdownPath)
 					if err != nil {
 						outcomes[idx].Err = fmt.Errorf("read docling output for %s: %w", item.Request.PDFName, err)

@@ -65,6 +65,7 @@ func (f *fakeExtractor) ExtractBatch(_ context.Context, opts ExtractOptions, pdf
 		}
 		if onProgress != nil {
 			onProgress(&DoclingEvent{Kind: EventFinished, Document: stem + ".pdf"})
+			onProgress(&DoclingEvent{Kind: EventOutput, OutputPath: mdPath})
 		}
 	}
 	return &BatchExtractResult{
