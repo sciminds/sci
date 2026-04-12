@@ -9,8 +9,11 @@ import (
 
 func helpCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "help",
-		Usage:     "Get-to-know what each sci command(s) does",
+		Name:  "help",
+		Usage: "Get-to-know what each sci command(s) does",
+		Description: "$ sci help\n" +
+			"$ sci help cloud\n" +
+			"$ sci help zot",
 		Category:  "What Can I Do?",
 		Aliases:   []string{"h"},
 		ArgsUsage: "[command]",

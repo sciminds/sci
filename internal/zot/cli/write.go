@@ -305,9 +305,10 @@ func collectionCommand() *cli.Command {
 				},
 			},
 			{
-				Name:      "create",
-				Usage:     "Create a new collection",
-				ArgsUsage: "<name>",
+				Name:        "create",
+				Usage:       "Create a new collection",
+				Description: "$ zot collection create \"Brain Papers\"\n$ zot collection create \"Sub-topic\" --parent COLLXXX1",
+				ArgsUsage:   "<name>",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "parent", Usage: "parent collection key", Destination: &collNewParent, Local: true},
 				},
@@ -330,9 +331,10 @@ func collectionCommand() *cli.Command {
 				},
 			},
 			{
-				Name:      "delete",
-				Usage:     "Delete a collection",
-				ArgsUsage: "<key>",
+				Name:        "delete",
+				Usage:       "Delete a collection",
+				Description: "$ zot collection delete COLLXXX1\n$ zot collection delete COLLXXX1 --yes",
+				ArgsUsage:   "<key>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &deleteYes, Local: true},
 				},
@@ -356,9 +358,10 @@ func collectionCommand() *cli.Command {
 				},
 			},
 			{
-				Name:      "add",
-				Usage:     "Add an item to a collection",
-				ArgsUsage: "<itemKey> <collectionKey>",
+				Name:        "add",
+				Usage:       "Add an item to a collection",
+				Description: "$ zot collection add ABC12345 COLLXXX1",
+				ArgsUsage:   "<itemKey> <collectionKey>",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					args := cmd.Args().Slice()
 					if len(args) != 2 {
@@ -379,9 +382,10 @@ func collectionCommand() *cli.Command {
 				},
 			},
 			{
-				Name:      "remove",
-				Usage:     "Remove an item from a collection",
-				ArgsUsage: "<itemKey> <collectionKey>",
+				Name:        "remove",
+				Usage:       "Remove an item from a collection",
+				Description: "$ zot collection remove ABC12345 COLLXXX1",
+				ArgsUsage:   "<itemKey> <collectionKey>",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					args := cmd.Args().Slice()
 					if len(args) != 2 {
@@ -431,9 +435,10 @@ func tagsCommand() *cli.Command {
 				},
 			},
 			{
-				Name:      "add",
-				Usage:     "Attach a tag to an item",
-				ArgsUsage: "<itemKey> <tag>",
+				Name:        "add",
+				Usage:       "Attach a tag to an item",
+				Description: "$ zot tags add ABC12345 neuroimaging",
+				ArgsUsage:   "<itemKey> <tag>",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					args := cmd.Args().Slice()
 					if len(args) != 2 {
@@ -454,9 +459,10 @@ func tagsCommand() *cli.Command {
 				},
 			},
 			{
-				Name:      "remove",
-				Usage:     "Remove a tag from a single item",
-				ArgsUsage: "<itemKey> <tag>",
+				Name:        "remove",
+				Usage:       "Remove a tag from a single item",
+				Description: "$ zot tags remove ABC12345 deprecated\n$ zot tags remove ABC12345 deprecated --yes",
+				ArgsUsage:   "<itemKey> <tag>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Destination: &tagRemoveYes, Local: true},
 				},
@@ -484,9 +490,10 @@ func tagsCommand() *cli.Command {
 				},
 			},
 			{
-				Name:      "delete",
-				Usage:     "Delete a tag from ALL items in the library",
-				ArgsUsage: "<tag>",
+				Name:        "delete",
+				Usage:       "Delete a tag from ALL items in the library",
+				Description: "$ zot tags delete deprecated\n$ zot tags delete deprecated --yes\nRemoves the tag from every item in the library in one API call.",
+				ArgsUsage:   "<tag>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Destination: &tagDeleteYes, Local: true},
 				},

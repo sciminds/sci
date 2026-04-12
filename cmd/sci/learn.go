@@ -9,8 +9,10 @@ import (
 
 func learnCommand() *cli.Command {
 	return &cli.Command{
-		Name:     "learn",
-		Usage:    "Learn the command-line, Python, & more with interactive demos!",
+		Name:  "learn",
+		Usage: "Learn the command-line, Python, & more with interactive demos!",
+		Description: "$ sci learn\n" +
+			"Launches an interactive browser of guided tutorials and demos.",
 		Category: "Getting Started",
 		Aliases:  []string{"l"},
 		Action: func(_ context.Context, _ *cli.Command) error {

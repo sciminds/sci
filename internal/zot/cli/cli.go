@@ -50,6 +50,11 @@ func itemCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "item",
 		Usage: "Work with individual items (read, add, update, delete, list, open, export, extract)",
+		Description: "$ zot item read ABC12345\n" +
+			"$ zot item add --type journalArticle --title \"My Paper\"\n" +
+			"$ zot item list --limit 20\n" +
+			"$ zot item export ABC12345\n" +
+			"$ zot item extract ABC12345 --apply",
 		Commands: []*cli.Command{
 			readCommand(),
 			addCommand(),

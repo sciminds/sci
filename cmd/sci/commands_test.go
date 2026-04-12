@@ -253,6 +253,39 @@ func findCmd(cmds []*cli.Command, name string) *cli.Command {
 	return nil
 }
 
+// TestCommandHelpContent walks the entire command tree and fails if any command
+// is missing Usage (one-line summary) or Description (examples/details).
+// This prevents shipping commands with empty help screens.
+func TestCommandHelpContent(t *testing.T) {
+	root := buildRoot()
+
+	var missing []string
+	walkCommands(root.Commands, "sci", func(path string, cmd *cli.Command) {
+		if cmd.Usage == "" {
+			missing = append(missing, path+": missing Usage")
+		}
+		if cmd.Description == "" && !cmd.Hidden {
+			missing = append(missing, path+": missing Description")
+		}
+	})
+
+	for _, m := range missing {
+		t.Error(m)
+	}
+}
+
+// walkCommands recursively visits every command in the tree, calling fn with
+// the full dot-separated path (e.g. "sci.zot.item.extract") and the command.
+func walkCommands(cmds []*cli.Command, prefix string, fn func(path string, cmd *cli.Command)) {
+	for _, cmd := range cmds {
+		path := prefix + " " + cmd.Name
+		fn(path, cmd)
+		if len(cmd.Commands) > 0 {
+			walkCommands(cmd.Commands, path, fn)
+		}
+	}
+}
+
 // hasFlag returns true if cmd has a flag with the given name.
 func hasFlag(cmd *cli.Command, name string) bool {
 	for _, f := range cmd.Flags {
