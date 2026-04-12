@@ -152,11 +152,7 @@ func (s *splitView) Update(msg tea.Msg) (*splitView, tea.Cmd) {
 
 		// Player controls.
 		switch msg.String() {
-		case "space":
-			var cmd tea.Cmd
-			s.player, cmd = s.player.Update(msg)
-			return s, cmd
-		case "r":
+		case "space", "r":
 			var cmd tea.Cmd
 			s.player, cmd = s.player.Update(msg)
 			return s, cmd

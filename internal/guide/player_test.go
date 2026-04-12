@@ -1,6 +1,7 @@
 package guide
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -244,13 +245,13 @@ func TestPlayerViewContainsOutput(t *testing.T) {
 	p, _ = p.Update(TickMsg{Index: 1})
 
 	view := p.View()
-	if !contains(view, "ls") {
+	if !strings.Contains(view, "ls") {
 		t.Error("view should contain 'ls'")
 	}
-	if !contains(view, "playing") {
+	if !strings.Contains(view, "playing") {
 		t.Error("view should show 'playing' status")
 	}
-	if !contains(view, "2/3") {
+	if !strings.Contains(view, "2/3") {
 		t.Errorf("view should show progress '2/3', got:\n%s", view)
 	}
 }
@@ -268,27 +269,10 @@ func TestPlayerViewTailCap(t *testing.T) {
 	view := p.View()
 
 	// Should show only the last 3 lines of output (+ status)
-	if contains(view, "line1\n") {
+	if strings.Contains(view, "line1\n") {
 		t.Error("line1 should be scrolled off with height=3")
 	}
-	if !contains(view, "line10") {
+	if !strings.Contains(view, "line10") {
 		t.Error("line10 should be visible")
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && stringContains(s, substr)
-}
-
-func stringContains(s, sub string) bool {
-	return len(s) >= len(sub) && searchString(s, sub)
-}
-
-func searchString(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
 }

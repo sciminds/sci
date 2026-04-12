@@ -137,7 +137,7 @@ func TestSplitViewResizePreservesState(t *testing.T) {
 
 	// Player state should be preserved
 	view := s.View()
-	if !contains(view, "paused") {
+	if !strings.Contains(view, "paused") {
 		t.Error("player should still be paused after resizes")
 	}
 }
@@ -181,21 +181,21 @@ func TestSplitViewPlayerControls(t *testing.T) {
 	// Advance the player
 	s, _ = s.Update(TickMsg{Index: 0})
 	view := s.View()
-	if !contains(view, "playing") {
+	if !strings.Contains(view, "playing") {
 		t.Error("view should show playing status")
 	}
 
 	// Pause
 	s, _ = s.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	view = s.View()
-	if !contains(view, "paused") {
+	if !strings.Contains(view, "paused") {
 		t.Error("view should show paused status after space")
 	}
 
 	// Restart
 	s, _ = s.Update(tea.KeyPressMsg{Text: "r"})
 	view = s.View()
-	if contains(view, "paused") {
+	if strings.Contains(view, "paused") {
 		t.Error("view should not show paused after restart")
 	}
 }
@@ -223,16 +223,16 @@ func TestSplitViewContainsBothPanels(t *testing.T) {
 	s, _ = s.Update(TickMsg{Index: 0})
 
 	view := s.View()
-	if !contains(view, "test entry") {
+	if !strings.Contains(view, "test entry") {
 		t.Error("view should contain the title")
 	}
-	if !contains(view, "┃") {
+	if !strings.Contains(view, "┃") {
 		t.Error("view should contain the thick border divider")
 	}
-	if !contains(view, "scroll") {
+	if !strings.Contains(view, "scroll") {
 		t.Error("view should contain scroll hint")
 	}
-	if !contains(view, "pause/play") {
+	if !strings.Contains(view, "pause/play") {
 		t.Error("view should contain pause/play hint")
 	}
 }
@@ -246,13 +246,13 @@ func TestSplitViewStackedAtNarrowWidth(t *testing.T) {
 	s, _ = s.Update(TickMsg{Index: 0})
 
 	view := s.View()
-	if !contains(view, "━") {
+	if !strings.Contains(view, "━") {
 		t.Error("narrow view should contain horizontal divider ━")
 	}
-	if contains(view, "┃") {
+	if strings.Contains(view, "┃") {
 		t.Error("narrow view should not contain vertical thick border ┃")
 	}
-	if !contains(view, "test entry") {
+	if !strings.Contains(view, "test entry") {
 		t.Error("stacked view should still contain the title")
 	}
 }
@@ -262,7 +262,7 @@ func TestSplitViewSideBySideAtWideWidth(t *testing.T) {
 	s, _ = s.Update(TickMsg{Index: 0})
 
 	view := s.View()
-	if !contains(view, "┃") {
+	if !strings.Contains(view, "┃") {
 		t.Error("wide view should contain vertical thick border ┃")
 	}
 }
@@ -274,24 +274,24 @@ func TestSplitViewLayoutTransition(t *testing.T) {
 
 	// Wide → side-by-side
 	view := s.View()
-	if !contains(view, "┃") {
+	if !strings.Contains(view, "┃") {
 		t.Error("120-wide should be side-by-side")
 	}
 
 	// Narrow → stacked
 	s.SetSize(60, 30)
 	view = s.View()
-	if !contains(view, "━") {
+	if !strings.Contains(view, "━") {
 		t.Error("60-wide should be stacked")
 	}
-	if contains(view, "┃") {
+	if strings.Contains(view, "┃") {
 		t.Error("60-wide should not have vertical divider")
 	}
 
 	// Back to wide → side-by-side again
 	s.SetSize(120, 40)
 	view = s.View()
-	if !contains(view, "┃") {
+	if !strings.Contains(view, "┃") {
 		t.Error("back to 120-wide should be side-by-side again")
 	}
 }
@@ -303,20 +303,20 @@ func TestSplitViewFooterAdaptive(t *testing.T) {
 	s := newTestSplitAt(120, 40)
 	s, _ = s.Update(TickMsg{Index: 0})
 	view := s.View()
-	if !contains(view, "pause/play") {
+	if !strings.Contains(view, "pause/play") {
 		t.Error("wide footer should contain pause/play hint")
 	}
-	if !contains(view, "scroll") {
+	if !strings.Contains(view, "scroll") {
 		t.Error("wide footer should contain scroll hint")
 	}
-	if !contains(view, "esc close") {
+	if !strings.Contains(view, "esc close") {
 		t.Error("wide footer should always contain esc close")
 	}
 
 	// At very narrow width some hints should be dropped but esc always present.
 	s.SetSize(40, 15)
 	view = s.View()
-	if !contains(view, "esc close") {
+	if !strings.Contains(view, "esc close") {
 		t.Error("narrow footer should still contain esc close")
 	}
 }
