@@ -26,10 +26,10 @@ import (
 )
 
 //go:embed Brewfile
-var Brewfile string
+var Brewfile string //nolint:revive // go:embed requires exported var
 
 //go:embed BrewfileOptional
-var BrewfileOptional string
+var BrewfileOptional string //nolint:revive // go:embed requires exported var
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,6 +38,7 @@ var BrewfileOptional string
 // Status represents the outcome of a single check.
 type Status string
 
+// Check outcome statuses.
 const (
 	StatusPass Status = "pass"
 	StatusFail Status = "fail"

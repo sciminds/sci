@@ -56,9 +56,12 @@ func (f fileEntry) statusLabel() string {
 
 type doneKeys struct{}
 
+// ShortHelp implements help.KeyMap.
 func (k doneKeys) ShortHelp() []key.Binding {
 	return []key.Binding{ui.BindEnter, ui.BindQuit}
 }
+
+// FullHelp implements help.KeyMap.
 func (k doneKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
 // ── Model ────────────────────────────────────────────────────────────────────
@@ -126,12 +129,14 @@ func renderFileItem(item ui.SelectItem, selected, isCursor bool) string {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
+// Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
 	return nil
 }
 
 // ── Update ───────────────────────────────────────────────────────────────────
 
+// Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:

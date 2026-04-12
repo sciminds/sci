@@ -53,6 +53,7 @@ func DetectDark() bool {
 
 // ── Pre-rendered symbols for non-TUI CLI output ─────────────────────────────
 
+// Pre-rendered symbols for non-TUI CLI output.
 var (
 	SymOK    = TUI.Pass().Render(IconPass)
 	SymFail  = TUI.Fail().Render(IconFail)

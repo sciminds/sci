@@ -14,7 +14,10 @@ type SetupResult struct {
 	Message string `json:"message"`
 }
 
+// JSON implements cmdutil.Result.
 func (r SetupResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r SetupResult) Human() string {
 	var b strings.Builder
 	if r.OK {
@@ -31,7 +34,10 @@ type LsResult struct {
 	Raw  string `json:"listing"`
 }
 
+// JSON implements cmdutil.Result.
 func (r LsResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r LsResult) Human() string {
 	if r.Raw == "" {
 		return fmt.Sprintf("  %s empty directory: %s\n", ui.TUI.Dim().Render("·"), r.Path)

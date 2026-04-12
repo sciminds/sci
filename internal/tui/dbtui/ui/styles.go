@@ -281,74 +281,179 @@ func (s *Styles) Keycap() lipgloss.Style { return s.keycap }
 
 // ── Accessors — fine-grained foreground ─────────────────────────────────────
 
-func (s *Styles) TextDim() lipgloss.Style     { return s.fgTextDim }
-func (s *Styles) TextMid() lipgloss.Style     { return s.fgTextMid }
-func (s *Styles) TextBright() lipgloss.Style  { return s.fgTextBright }
-func (s *Styles) FgAccent() lipgloss.Style    { return s.fgAccent }
+// TextDim returns the dim foreground style.
+func (s *Styles) TextDim() lipgloss.Style { return s.fgTextDim }
+
+// TextMid returns the mid-brightness foreground style.
+func (s *Styles) TextMid() lipgloss.Style { return s.fgTextMid }
+
+// TextBright returns the bright foreground style.
+func (s *Styles) TextBright() lipgloss.Style { return s.fgTextBright }
+
+// FgAccent returns the accent foreground style.
+func (s *Styles) FgAccent() lipgloss.Style { return s.fgAccent }
+
+// FgSecondary returns the secondary foreground style.
 func (s *Styles) FgSecondary() lipgloss.Style { return s.fgSecondary }
-func (s *Styles) FgSuccess() lipgloss.Style   { return s.fgSuccess }
-func (s *Styles) FgDanger() lipgloss.Style    { return s.fgDanger }
-func (s *Styles) FgMuted() lipgloss.Style     { return s.fgMuted }
-func (s *Styles) FgBorder() lipgloss.Style    { return s.fgBorder }
+
+// FgSuccess returns the success foreground style.
+func (s *Styles) FgSuccess() lipgloss.Style { return s.fgSuccess }
+
+// FgDanger returns the danger foreground style.
+func (s *Styles) FgDanger() lipgloss.Style { return s.fgDanger }
+
+// FgMuted returns the muted foreground style.
+func (s *Styles) FgMuted() lipgloss.Style { return s.fgMuted }
+
+// FgBorder returns the border foreground style.
+func (s *Styles) FgBorder() lipgloss.Style { return s.fgBorder }
 
 // ── Accessors — bold/italic variants ────────────────────────────────────────
 
-func (s *Styles) AccentBold() lipgloss.Style      { return s.fgAccentBold }
-func (s *Styles) AccentItalic() lipgloss.Style    { return s.fgAccentItalic }
-func (s *Styles) SecondaryBold() lipgloss.Style   { return s.fgSecondaryBold }
+// AccentBold returns the bold accent style.
+func (s *Styles) AccentBold() lipgloss.Style { return s.fgAccentBold }
+
+// AccentItalic returns the italic accent style.
+func (s *Styles) AccentItalic() lipgloss.Style { return s.fgAccentItalic }
+
+// SecondaryBold returns the bold secondary style.
+func (s *Styles) SecondaryBold() lipgloss.Style { return s.fgSecondaryBold }
+
+// SecondaryItalic returns the italic secondary style.
 func (s *Styles) SecondaryItalic() lipgloss.Style { return s.fgSecondaryItalic }
-func (s *Styles) SuccessBold() lipgloss.Style     { return s.fgSuccessBold }
-func (s *Styles) MutedBold() lipgloss.Style       { return s.fgMutedBold }
-func (s *Styles) DangerBold() lipgloss.Style      { return s.fgDangerBold }
-func (s *Styles) TextDimBold() lipgloss.Style     { return s.fgTextDimBold }
-func (s *Styles) TextDimItalic() lipgloss.Style   { return s.fgTextDimItalic }
+
+// SuccessBold returns the bold success style.
+func (s *Styles) SuccessBold() lipgloss.Style { return s.fgSuccessBold }
+
+// MutedBold returns the bold muted style.
+func (s *Styles) MutedBold() lipgloss.Style { return s.fgMutedBold }
+
+// DangerBold returns the bold danger style.
+func (s *Styles) DangerBold() lipgloss.Style { return s.fgDangerBold }
+
+// TextDimBold returns the bold dim text style.
+func (s *Styles) TextDimBold() lipgloss.Style { return s.fgTextDimBold }
+
+// TextDimItalic returns the italic dim text style.
+func (s *Styles) TextDimItalic() lipgloss.Style { return s.fgTextDimItalic }
 
 // ── Accessors — semantic aliases (db TUI) ───────────────────────────────────
 
-func (s *Styles) Readonly() lipgloss.Style        { return s.fgTextDim }
-func (s *Styles) Empty() lipgloss.Style           { return s.fgTextDim }
-func (s *Styles) CellDim() lipgloss.Style         { return s.fgTextDim }
-func (s *Styles) HeaderHint() lipgloss.Style      { return s.fgTextMid }
-func (s *Styles) TabUnderline() lipgloss.Style    { return s.fgAccent }
-func (s *Styles) AccentText() lipgloss.Style      { return s.fgAccent }
-func (s *Styles) SortArrow() lipgloss.Style       { return s.fgSecondary }
-func (s *Styles) SecondaryText() lipgloss.Style   { return s.fgSecondary }
-func (s *Styles) Pinned() lipgloss.Style          { return s.fgMuted }
-func (s *Styles) FilterMark() lipgloss.Style      { return s.fgMuted }
-func (s *Styles) TableSeparator() lipgloss.Style  { return s.fgBorder }
-func (s *Styles) TableHeader() lipgloss.Style     { return s.fgTextDimBold }
-func (s *Styles) Null() lipgloss.Style            { return s.fgTextDimItalic }
+// Readonly returns the read-only cell style.
+func (s *Styles) Readonly() lipgloss.Style { return s.fgTextDim }
+
+// Empty returns the empty cell style.
+func (s *Styles) Empty() lipgloss.Style { return s.fgTextDim }
+
+// CellDim returns the dimmed cell style.
+func (s *Styles) CellDim() lipgloss.Style { return s.fgTextDim }
+
+// HeaderHint returns the header hint style.
+func (s *Styles) HeaderHint() lipgloss.Style { return s.fgTextMid }
+
+// TabUnderline returns the tab underline style.
+func (s *Styles) TabUnderline() lipgloss.Style { return s.fgAccent }
+
+// AccentText returns the accent text style.
+func (s *Styles) AccentText() lipgloss.Style { return s.fgAccent }
+
+// SortArrow returns the sort arrow style.
+func (s *Styles) SortArrow() lipgloss.Style { return s.fgSecondary }
+
+// SecondaryText returns the secondary text style.
+func (s *Styles) SecondaryText() lipgloss.Style { return s.fgSecondary }
+
+// Pinned returns the pinned cell style.
+func (s *Styles) Pinned() lipgloss.Style { return s.fgMuted }
+
+// FilterMark returns the filter mark style.
+func (s *Styles) FilterMark() lipgloss.Style { return s.fgMuted }
+
+// TableSeparator returns the table separator style.
+func (s *Styles) TableSeparator() lipgloss.Style { return s.fgBorder }
+
+// TableHeader returns the table header style.
+func (s *Styles) TableHeader() lipgloss.Style { return s.fgTextDimBold }
+
+// Null returns the null value style.
+func (s *Styles) Null() lipgloss.Style { return s.fgTextDimItalic }
+
+// ColActiveHeader returns the active column header style.
 func (s *Styles) ColActiveHeader() lipgloss.Style { return s.colActiveHeader }
-func (s *Styles) HiddenLeft() lipgloss.Style      { return s.fgSecondaryItalic }
-func (s *Styles) HiddenRight() lipgloss.Style     { return s.fgAccentItalic }
-func (s *Styles) Info() lipgloss.Style            { return s.fgSuccessBold }
-func (s *Styles) Error() lipgloss.Style           { return s.fgDangerBold }
+
+// HiddenLeft returns the hidden-left indicator style.
+func (s *Styles) HiddenLeft() lipgloss.Style { return s.fgSecondaryItalic }
+
+// HiddenRight returns the hidden-right indicator style.
+func (s *Styles) HiddenRight() lipgloss.Style { return s.fgAccentItalic }
+
+// Info returns the info message style.
+func (s *Styles) Info() lipgloss.Style  { return s.fgSuccessBold }
+func (s *Styles) Error() lipgloss.Style { return s.fgDangerBold }
 
 // ── Accessors — composite / badge styles ────────────────────────────────────
 
-func (s *Styles) Base() lipgloss.Style           { return s.base }
-func (s *Styles) Header() lipgloss.Style         { return s.bold }
-func (s *Styles) AccentPill() lipgloss.Style     { return s.accentPill }
-func (s *Styles) TabActive() lipgloss.Style      { return s.accentPill }
-func (s *Styles) ModeNormal() lipgloss.Style     { return s.accentPill }
-func (s *Styles) HeaderSection() lipgloss.Style  { return s.headerSection }
-func (s *Styles) TabInactive() lipgloss.Style    { return s.tabInactive }
-func (s *Styles) TabLocked() lipgloss.Style      { return s.tabLocked }
-func (s *Styles) TableSelected() lipgloss.Style  { return s.tableSelected }
-func (s *Styles) ModeEdit() lipgloss.Style       { return s.modeEdit }
-func (s *Styles) ModeVisual() lipgloss.Style     { return s.modeVisualBadge }
-func (s *Styles) NormalCursor() lipgloss.Style   { return s.normalCursor }
-func (s *Styles) EditCursor() lipgloss.Style     { return s.editCursor }
+// Base returns the base style.
+func (s *Styles) Base() lipgloss.Style { return s.base }
+
+// Header returns the header (bold) style.
+func (s *Styles) Header() lipgloss.Style { return s.bold }
+
+// AccentPill returns the accent pill badge style.
+func (s *Styles) AccentPill() lipgloss.Style { return s.accentPill }
+
+// TabActive returns the active tab style.
+func (s *Styles) TabActive() lipgloss.Style { return s.accentPill }
+
+// ModeNormal returns the normal-mode badge style.
+func (s *Styles) ModeNormal() lipgloss.Style { return s.accentPill }
+
+// HeaderSection returns the header section style.
+func (s *Styles) HeaderSection() lipgloss.Style { return s.headerSection }
+
+// TabInactive returns the inactive tab style.
+func (s *Styles) TabInactive() lipgloss.Style { return s.tabInactive }
+
+// TabLocked returns the locked tab style.
+func (s *Styles) TabLocked() lipgloss.Style { return s.tabLocked }
+
+// TableSelected returns the selected table row style.
+func (s *Styles) TableSelected() lipgloss.Style { return s.tableSelected }
+
+// ModeEdit returns the edit-mode badge style.
+func (s *Styles) ModeEdit() lipgloss.Style { return s.modeEdit }
+
+// ModeVisual returns the visual-mode badge style.
+func (s *Styles) ModeVisual() lipgloss.Style { return s.modeVisualBadge }
+
+// NormalCursor returns the normal-mode cursor style.
+func (s *Styles) NormalCursor() lipgloss.Style { return s.normalCursor }
+
+// EditCursor returns the edit-mode cursor style.
+func (s *Styles) EditCursor() lipgloss.Style { return s.editCursor }
+
+// VisualSelected returns the visual-mode selected row style.
 func (s *Styles) VisualSelected() lipgloss.Style { return s.visualSelected }
-func (s *Styles) VisualCursor() lipgloss.Style   { return s.visualCursor }
-func (s *Styles) OverlayBox() lipgloss.Style     { return s.overlayBox }
+
+// VisualCursor returns the visual-mode cursor style.
+func (s *Styles) VisualCursor() lipgloss.Style { return s.visualCursor }
+
+// OverlayBox returns the overlay box style.
+func (s *Styles) OverlayBox() lipgloss.Style { return s.overlayBox }
 
 // ── Accessors — help rendering ───────────────────────────────────────────────
 
-func (s *Styles) HelpDesc() lipgloss.Style    { return s.helpDesc }
+// HelpDesc returns the help description style.
+func (s *Styles) HelpDesc() lipgloss.Style { return s.helpDesc }
+
+// HelpSection returns the help section heading style.
 func (s *Styles) HelpSection() lipgloss.Style { return s.helpSection }
-func (s *Styles) HelpHint() lipgloss.Style    { return s.helpHint }
-func (s *Styles) HelpUsage() lipgloss.Style   { return s.helpUsage }
+
+// HelpHint returns the help hint style.
+func (s *Styles) HelpHint() lipgloss.Style { return s.helpHint }
+
+// HelpUsage returns the help usage style.
+func (s *Styles) HelpUsage() lipgloss.Style { return s.helpUsage }
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 

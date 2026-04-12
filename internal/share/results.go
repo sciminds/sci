@@ -19,7 +19,10 @@ type CloudResult struct {
 	URL     string `json:"url,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r CloudResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r CloudResult) Human() string {
 	var b strings.Builder
 	if r.OK {
@@ -42,7 +45,10 @@ type AuthResult struct {
 	Message  string `json:"message"`
 }
 
+// JSON implements cmdutil.Result.
 func (r AuthResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r AuthResult) Human() string {
 	var b strings.Builder
 	if r.OK {
@@ -74,7 +80,10 @@ type SharedEntry struct {
 	Description string `json:"description,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r SharedListResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r SharedListResult) Human() string {
 	if len(r.Datasets) == 0 {
 		return fmt.Sprintf("  %s no files shared\n", ui.TUI.Dim().Render("·"))
@@ -125,7 +134,10 @@ type DatasetListEntry struct {
 	Size    int64  `json:"size"`
 }
 
+// JSON implements cmdutil.Result.
 func (r DatasetListResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r DatasetListResult) Human() string {
 	if len(r.Datasets) == 0 {
 		return fmt.Sprintf("  %s no files found\n", ui.TUI.Dim().Render("·"))

@@ -18,8 +18,10 @@ type MissingResult struct {
 	Limit  int             `json:"-"` // 0 = show all findings
 }
 
+// JSON implements cmdutil.Result.
 func (r MissingResult) JSON() any { return r.Report }
 
+// Human implements cmdutil.Result.
 func (r MissingResult) Human() string {
 	if r.Report == nil {
 		return ""
@@ -123,8 +125,10 @@ type InvalidResult struct {
 	Limit  int             `json:"-"`
 }
 
+// JSON implements cmdutil.Result.
 func (r InvalidResult) JSON() any { return r.Report }
 
+// Human implements cmdutil.Result.
 func (r InvalidResult) Human() string {
 	if r.Report == nil {
 		return ""
@@ -192,8 +196,10 @@ type OrphansResult struct {
 	Limit  int             `json:"-"`
 }
 
+// JSON implements cmdutil.Result.
 func (r OrphansResult) JSON() any { return r.Report }
 
+// Human implements cmdutil.Result.
 func (r OrphansResult) Human() string {
 	if r.Report == nil {
 		return ""
@@ -299,8 +305,10 @@ type DuplicatesResult struct {
 	Limit  int             `json:"-"`
 }
 
+// JSON implements cmdutil.Result.
 func (r DuplicatesResult) JSON() any { return r.Report }
 
+// Human implements cmdutil.Result.
 func (r DuplicatesResult) Human() string {
 	if r.Report == nil {
 		return ""
@@ -387,8 +395,10 @@ type CitekeysResult struct {
 	Limit  int             `json:"-"`
 }
 
+// JSON implements cmdutil.Result.
 func (r CitekeysResult) JSON() any { return r.Report }
 
+// Human implements cmdutil.Result.
 func (r CitekeysResult) Human() string {
 	if r.Report == nil {
 		return ""

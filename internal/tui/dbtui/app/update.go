@@ -11,6 +11,7 @@ import (
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 )
 
+// Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:

@@ -14,6 +14,7 @@ import (
 // line (`zot doctor missing --field doi,abstract`).
 type MissingField string
 
+// MissingField constants for each field the Missing check can inspect.
 const (
 	FieldTitle    MissingField = "title"
 	FieldCreators MissingField = "creators"

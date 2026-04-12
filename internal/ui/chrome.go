@@ -30,6 +30,7 @@ func FooterBar(left, right string, width int) string {
 // SummaryKind controls how a summary part is styled.
 type SummaryKind int
 
+// SummaryKind constants for styling summary line segments.
 const (
 	SummarySuccess SummaryKind = iota // green bold
 	SummaryDanger                     // red bold

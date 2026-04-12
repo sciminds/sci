@@ -17,7 +17,10 @@ type ListResult struct {
 	Library int64        `json:"library_id"`
 }
 
+// JSON implements cmdutil.Result.
 func (r ListResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r ListResult) Human() string {
 	if r.Count == 0 {
 		if r.Query != "" {
@@ -62,7 +65,10 @@ type ItemResult struct {
 	Item local.Item `json:"item"`
 }
 
+// JSON implements cmdutil.Result.
 func (r ItemResult) JSON() any { return r.Item }
+
+// Human implements cmdutil.Result.
 func (r ItemResult) Human() string {
 	var b strings.Builder
 	it := r.Item
@@ -148,7 +154,10 @@ type ChildrenListResult struct {
 	Children  []ChildItemView `json:"children"`
 }
 
+// JSON implements cmdutil.Result.
 func (r ChildrenListResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r ChildrenListResult) Human() string {
 	var b strings.Builder
 	if r.Count == 0 {
@@ -237,7 +246,10 @@ type CollectionListResult struct {
 	Collections []local.Collection `json:"collections"`
 }
 
+// JSON implements cmdutil.Result.
 func (r CollectionListResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r CollectionListResult) Human() string {
 	if r.Count == 0 {
 		return fmt.Sprintf("  %s no collections\n", ui.TUI.Dim().Render("·"))
@@ -260,7 +272,10 @@ type TagListResult struct {
 	Tags  []local.Tag `json:"tags"`
 }
 
+// JSON implements cmdutil.Result.
 func (r TagListResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r TagListResult) Human() string {
 	if r.Count == 0 {
 		return fmt.Sprintf("  %s no tags\n", ui.TUI.Dim().Render("·"))
@@ -283,7 +298,10 @@ type StatsResult struct {
 	Schema  int         `json:"schema_version"`
 }
 
+// JSON implements cmdutil.Result.
 func (r StatsResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r StatsResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Library stats"))
@@ -327,7 +345,10 @@ type ExportResult struct {
 	Body   string `json:"body"`
 }
 
-func (r ExportResult) JSON() any     { return r }
+// JSON implements cmdutil.Result.
+func (r ExportResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r ExportResult) Human() string { return r.Body + "\n" }
 
 // LibraryExportResult is returned for `zot export` (full library) and for
@@ -342,7 +363,10 @@ type LibraryExportResult struct {
 	Stats      ExportStats `json:"stats"`
 }
 
+// JSON implements cmdutil.Result.
 func (r LibraryExportResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r LibraryExportResult) Human() string {
 	var b strings.Builder
 	if r.OutPath == "" {
@@ -377,7 +401,10 @@ type OpenResult struct {
 	Message  string `json:"message"`
 }
 
+// JSON implements cmdutil.Result.
 func (r OpenResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r OpenResult) Human() string {
 	sym := ui.SymOK
 	if !r.Launched {

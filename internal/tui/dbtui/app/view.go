@@ -29,6 +29,7 @@ const (
 	helpOverlayMaxW = 70
 )
 
+// View implements tea.Model.
 func (m *Model) View() tea.View {
 	v := tea.NewView(m.zones.Scan(m.buildView()))
 	v.AltScreen = true

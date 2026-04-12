@@ -37,8 +37,13 @@ type reccsItem struct {
 	desc  string
 }
 
-func (i reccsItem) Title() string       { return i.entry.Name }
+// Title implements list.DefaultItem.
+func (i reccsItem) Title() string { return i.entry.Name }
+
+// Description implements list.DefaultItem.
 func (i reccsItem) Description() string { return i.desc }
+
+// FilterValue implements list.DefaultItem.
 func (i reccsItem) FilterValue() string { return i.entry.Name + " " + i.desc }
 
 // reccsModel is the Bubble Tea model for the recommendations list.
@@ -82,10 +87,12 @@ func newReccsModel(entries []brew.BrewfileEntry, missing map[string]bool) reccsM
 	return reccsModel{list: l, entries: filtered, chosen: -1}
 }
 
+// Init implements tea.Model.
 func (m reccsModel) Init() tea.Cmd {
 	return nil
 }
 
+// Update implements tea.Model.
 func (m reccsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -117,6 +124,7 @@ func (m reccsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View implements tea.Model.
 func (m reccsModel) View() tea.View {
 	v := tea.NewView(m.list.View())
 	v.AltScreen = true

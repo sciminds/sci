@@ -49,6 +49,7 @@ func (m Model) viewDone() string {
 
 // ── View ─────────────────────────────────────────────────────────────────────
 
+// View implements tea.Model.
 func (m Model) View() tea.View {
 	var body string
 	switch m.phase {

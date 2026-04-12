@@ -13,6 +13,7 @@ import (
 	"regexp"
 )
 
+// Lab server connection defaults.
 const (
 	Host      = "ssrde.ucsd.edu"
 	ReadRoot  = "/labs/sciminds"

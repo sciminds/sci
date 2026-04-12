@@ -19,7 +19,10 @@ type WriteResult struct {
 	Message string `json:"message,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r WriteResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r WriteResult) Human() string {
 	msg := r.Message
 	if msg == "" {
@@ -39,7 +42,10 @@ type BulkWriteResult struct {
 	Failed  map[string]string `json:"failed,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r BulkWriteResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r BulkWriteResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s %s %d/%d %s(s)\n",

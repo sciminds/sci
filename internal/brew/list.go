@@ -20,8 +20,13 @@ type listItem struct {
 	title, desc, filter string
 }
 
-func (i listItem) Title() string       { return i.title }
+// Title implements list.DefaultItem.
+func (i listItem) Title() string { return i.title }
+
+// Description implements list.DefaultItem.
 func (i listItem) Description() string { return i.desc }
+
+// FilterValue implements list.DefaultItem.
 func (i listItem) FilterValue() string { return i.filter }
 
 func makeListItem(p PackageInfo) listItem {
@@ -74,10 +79,12 @@ func newListModel(packages []PackageInfo) listModel {
 	return listModel{list: l}
 }
 
+// Init implements tea.Model.
 func (m listModel) Init() tea.Cmd {
 	return nil
 }
 
+// Update implements tea.Model.
 func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -98,6 +105,7 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View implements tea.Model.
 func (m listModel) View() tea.View {
 	v := tea.NewView(m.list.View())
 	v.AltScreen = true

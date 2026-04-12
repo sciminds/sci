@@ -81,6 +81,7 @@ type ListFilter struct {
 // OrderBy selects the sort order for listings.
 type OrderBy int
 
+// Supported sort orders for item listings.
 const (
 	OrderDateAddedDesc OrderBy = iota
 	OrderDateModifiedDesc

@@ -12,6 +12,7 @@ import (
 // ExportFormat selects the output format for ExportItem.
 type ExportFormat string
 
+// Supported export formats.
 const (
 	ExportCSLJSON ExportFormat = "csl-json"
 	ExportBibTeX  ExportFormat = "bibtex"

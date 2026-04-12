@@ -29,6 +29,7 @@ import (
 // PkgManager identifies the Python package manager used by a project.
 type PkgManager string
 
+// Supported package managers.
 const (
 	Pixi PkgManager = "pixi"
 	UV   PkgManager = "uv"
@@ -37,6 +38,7 @@ const (
 // DocSystem identifies the documentation system used by a project.
 type DocSystem string
 
+// Supported documentation systems.
 const (
 	Quarto DocSystem = "quarto"
 	Myst   DocSystem = "myst"

@@ -26,6 +26,7 @@ func NewCloudAdapter(c *cloud.Client) *CloudAdapter {
 	return &CloudAdapter{client: c}
 }
 
+// PutObject implements ObjectStore.
 func (a *CloudAdapter) PutObject(ctx context.Context, key string, body []byte, contentType string) error {
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(a.client.Bucket),
@@ -39,6 +40,7 @@ func (a *CloudAdapter) PutObject(ctx context.Context, key string, body []byte, c
 	return err
 }
 
+// GetObject implements ObjectStore.
 func (a *CloudAdapter) GetObject(ctx context.Context, key string) ([]byte, error) {
 	resp, err := a.client.S3.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(a.client.Bucket),
@@ -55,6 +57,7 @@ func (a *CloudAdapter) GetObject(ctx context.Context, key string) ([]byte, error
 	return io.ReadAll(resp.Body)
 }
 
+// DeleteObject implements ObjectStore.
 func (a *CloudAdapter) DeleteObject(ctx context.Context, key string) error {
 	_, err := a.client.S3.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(a.client.Bucket),
@@ -63,6 +66,7 @@ func (a *CloudAdapter) DeleteObject(ctx context.Context, key string) error {
 	return err
 }
 
+// ListObjects implements ObjectStore.
 func (a *CloudAdapter) ListObjects(ctx context.Context, prefix, startAfter string) ([]string, error) {
 	input := &s3.ListObjectsV2Input{
 		Bucket: aws.String(a.client.Bucket),
@@ -85,6 +89,7 @@ func (a *CloudAdapter) ListObjects(ctx context.Context, prefix, startAfter strin
 	return out, nil
 }
 
+// ListCommonPrefixes implements ObjectStore.
 func (a *CloudAdapter) ListCommonPrefixes(ctx context.Context, prefix, delimiter string) ([]string, error) {
 	input := &s3.ListObjectsV2Input{
 		Bucket:    aws.String(a.client.Bucket),

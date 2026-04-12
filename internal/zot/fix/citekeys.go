@@ -30,6 +30,7 @@ import (
 // where non-canonical is 100% of rows by design).
 type CitekeyKind int
 
+// Cite-key issue categories (bit flags for --kind filtering).
 const (
 	CitekeyInvalid CitekeyKind = 1 << iota
 	CitekeyCollision

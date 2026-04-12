@@ -40,6 +40,7 @@ type Cluster struct {
 // Strategy selects which pass(es) the duplicate check runs.
 type Strategy string
 
+// Strategy constants for selecting duplicate-detection passes.
 const (
 	StrategyDOI   Strategy = "doi"
 	StrategyTitle Strategy = "title"

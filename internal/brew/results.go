@@ -13,7 +13,10 @@ type AddResult struct {
 	Type    string `json:"type,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r AddResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r AddResult) Human() string {
 	if r.Type != "" {
 		return fmt.Sprintf("Added %s (%s)\n", r.Package, r.Type)
@@ -27,7 +30,10 @@ type RemoveResult struct {
 	Type    string `json:"type,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r RemoveResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r RemoveResult) Human() string {
 	if r.Type != "" {
 		return fmt.Sprintf("Removed %s (%s)\n", r.Package, r.Type)
@@ -40,7 +46,10 @@ type InstallResult struct {
 	Output string `json:"output"`
 }
 
+// JSON implements cmdutil.Result.
 func (r InstallResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r InstallResult) Human() string {
 	if r.Output == "" {
 		return "Everything up to date.\n"
@@ -55,7 +64,10 @@ type UpdateResult struct {
 	UpgradeOutput string            `json:"upgrade_output,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r UpdateResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r UpdateResult) Human() string {
 	if len(r.Outdated) == 0 {
 		return "Everything is up to date.\n"
@@ -83,7 +95,10 @@ type SyncResult struct {
 	RemovedNames []string `json:"removed_names,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r SyncResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r SyncResult) Human() string {
 	if r.Added == 0 && r.Removed == 0 {
 		return ""
@@ -104,7 +119,10 @@ type ListResult struct {
 	Type     string   `json:"type,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r ListResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r ListResult) Human() string {
 	if len(r.Packages) == 0 {
 		return "No packages found.\n"

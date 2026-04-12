@@ -35,6 +35,8 @@ const (
 
 type sortEntry = tabstate.SortEntry
 type filterPin = tabstate.FilterPin
+
+// Tab is a type alias for tabstate.Tab.
 type Tab = tabstate.Tab
 type cell = tabstate.Cell
 type cellKind = tabstate.CellKind

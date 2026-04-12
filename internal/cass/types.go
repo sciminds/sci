@@ -12,8 +12,10 @@ type PullResult struct {
 	Changelogs []*Changelog `json:"changelogs"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *PullResult) JSON() any { return r }
 
+// Human implements cmdutil.Result.
 func (r *PullResult) Human() string {
 	var b strings.Builder
 	for i, cl := range r.Changelogs {
@@ -63,8 +65,10 @@ type Discrepancy struct {
 	GitHub     string `json:"github"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *StatusResult) JSON() any { return r }
 
+// Human implements cmdutil.Result.
 func (r *StatusResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s %s\n", ui.TUI.Bold().Render("Course:"), r.CanvasURL)
@@ -100,8 +104,10 @@ type LogResult struct {
 	Entries []LogEntry `json:"entries"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *LogResult) JSON() any { return r }
 
+// Human implements cmdutil.Result.
 func (r *LogResult) Human() string {
 	if len(r.Entries) == 0 {
 		return "  No operations logged yet.\n"

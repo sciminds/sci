@@ -71,6 +71,7 @@ var MarimoTool = Tool{
 // EnvKind describes which Python environment was detected.
 type EnvKind int
 
+// Supported environment kinds.
 const (
 	EnvNone EnvKind = iota // no environment found
 	EnvPixi                // .pixi directory present

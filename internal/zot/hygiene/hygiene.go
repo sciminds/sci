@@ -13,6 +13,7 @@ package hygiene
 // Error for corruption-adjacent problems.
 type Severity int
 
+// Severity constants ranking findings by impact.
 const (
 	SevInfo Severity = iota
 	SevWarn

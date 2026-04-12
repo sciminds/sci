@@ -17,6 +17,7 @@ import (
 // carry the kind as Finding.Kind so the renderer can group them.
 type OrphanKind string
 
+// OrphanKind constants for each sub-check in the Orphans umbrella.
 const (
 	OrphanEmptyCollection      OrphanKind = "empty-collection"
 	OrphanStandaloneAttachment OrphanKind = "standalone-attachment"

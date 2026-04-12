@@ -8,9 +8,13 @@ type Book struct {
 	Entries []Entry // items inside this book
 }
 
-// list.DefaultItem interface for bubbles/list.
-func (b Book) Title() string       { return b.Heading }
+// Title implements list.DefaultItem.
+func (b Book) Title() string { return b.Heading }
+
+// Description implements list.DefaultItem.
 func (b Book) Description() string { return b.Desc }
+
+// FilterValue implements list.DefaultItem.
 func (b Book) FilterValue() string { return b.Name + " " + b.Heading + " " + b.Desc }
 
 // Books is the registry of all guide books.
@@ -36,9 +40,13 @@ type Entry struct {
 	PageFile string // filename in pages/, e.g. "python-basics.md"
 }
 
-// list.Item interface for bubbles/list.
-func (e Entry) Title() string       { return e.Cmd }
+// Title implements list.DefaultItem.
+func (e Entry) Title() string { return e.Cmd }
+
+// Description implements list.DefaultItem.
 func (e Entry) Description() string { return e.Desc }
+
+// FilterValue implements list.DefaultItem.
 func (e Entry) FilterValue() string { return e.Name + " " + e.Cmd + " " + e.Desc }
 
 // BasicEntries is the full list of basic terminal guide items.

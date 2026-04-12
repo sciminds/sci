@@ -192,6 +192,7 @@ func importJSONRecords(store *SQLiteStore, records []map[string]any, tableName s
 	return store.InsertRows(tableName, keys, rows)
 }
 
+// Close implements DataStore.
 func (s *FileViewStore) Close() error {
 	if s.dirty {
 		if err := s.inner.ExportCSV(s.tableName, s.filePath); err != nil {
@@ -202,23 +203,34 @@ func (s *FileViewStore) Close() error {
 	return s.inner.Close()
 }
 
+// TableNames implements DataStore.
 func (s *FileViewStore) TableNames() ([]string, error) { return s.inner.TableNames() }
+
+// TableColumns implements DataStore.
 func (s *FileViewStore) TableColumns(t string) ([]PragmaColumn, error) {
 	return s.inner.TableColumns(t)
 }
+
+// TableRowCount implements DataStore.
 func (s *FileViewStore) TableRowCount(t string) (int, error) { return s.inner.TableRowCount(t) }
 
+// QueryTable implements DataStore.
 func (s *FileViewStore) QueryTable(t string) ([]string, [][]string, [][]bool, []int64, error) {
 	return s.inner.QueryTable(t)
 }
 
+// ReadOnlyQuery implements DataStore.
 func (s *FileViewStore) ReadOnlyQuery(q string) ([]string, [][]string, error) {
 	return s.inner.ReadOnlyQuery(q)
 }
 
+// TableSummaries implements DataStore.
 func (s *FileViewStore) TableSummaries() ([]TableSummary, error) { return s.inner.TableSummaries() }
-func (s *FileViewStore) ExportCSV(t, p string) error             { return s.inner.ExportCSV(t, p) }
 
+// ExportCSV implements DataStore.
+func (s *FileViewStore) ExportCSV(t, p string) error { return s.inner.ExportCSV(t, p) }
+
+// UpdateCell implements DataStore.
 func (s *FileViewStore) UpdateCell(table, column string, rowID int64, pkValues map[string]string, value *string) error {
 	if err := s.inner.UpdateCell(table, column, rowID, pkValues, value); err != nil {
 		return err
@@ -227,6 +239,7 @@ func (s *FileViewStore) UpdateCell(table, column string, rowID int64, pkValues m
 	return nil
 }
 
+// DeleteRows implements DataStore.
 func (s *FileViewStore) DeleteRows(table string, ids []RowIdentifier) (int64, error) {
 	n, err := s.inner.DeleteRows(table, ids)
 	if err != nil {
@@ -238,6 +251,7 @@ func (s *FileViewStore) DeleteRows(table string, ids []RowIdentifier) (int64, er
 	return n, nil
 }
 
+// InsertRows implements DataStore.
 func (s *FileViewStore) InsertRows(table string, columns []string, rows [][]string) error {
 	if err := s.inner.InsertRows(table, columns, rows); err != nil {
 		return err
@@ -246,18 +260,27 @@ func (s *FileViewStore) InsertRows(table string, columns []string, rows [][]stri
 	return nil
 }
 
+// RenameTable implements DataStore (not supported for file views).
 func (s *FileViewStore) RenameTable(_, _ string) error {
 	return fmt.Errorf("rename not supported for file view")
 }
+
+// DropTable implements DataStore (not supported for file views).
 func (s *FileViewStore) DropTable(_ string) error {
 	return fmt.Errorf("drop not supported for file view")
 }
+
+// ImportCSV implements DataStore (not supported for file views).
 func (s *FileViewStore) ImportCSV(_, _ string) error {
 	return fmt.Errorf("import not supported for file view")
 }
+
+// ImportFile implements DataStore (not supported for file views).
 func (s *FileViewStore) ImportFile(_, _ string) error {
 	return fmt.Errorf("import not supported for file view")
 }
+
+// CreateEmptyTable implements DataStore (not supported for file views).
 func (s *FileViewStore) CreateEmptyTable(_ string) error {
 	return fmt.Errorf("create table not supported for file view")
 }

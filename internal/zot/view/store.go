@@ -71,10 +71,12 @@ func New(db local.Reader, loc *time.Location) *Store {
 
 // ── DataStore: reads ────────────────────────────────────────────────────
 
+// TableNames implements data.DataStore.
 func (s *Store) TableNames() ([]string, error) {
 	return []string{TableName}, nil
 }
 
+// TableColumns implements data.DataStore.
 func (s *Store) TableColumns(table string) ([]data.PragmaColumn, error) {
 	if table != TableName {
 		return nil, fmt.Errorf("unknown table %q", table)
@@ -85,6 +87,7 @@ func (s *Store) TableColumns(table string) ([]data.PragmaColumn, error) {
 	return cols, nil
 }
 
+// TableRowCount implements data.DataStore.
 func (s *Store) TableRowCount(table string) (int, error) {
 	if table != TableName {
 		return 0, fmt.Errorf("unknown table %q", table)
@@ -92,6 +95,7 @@ func (s *Store) TableRowCount(table string) (int, error) {
 	return s.db.CountViewRows()
 }
 
+// QueryTable implements data.DataStore.
 func (s *Store) QueryTable(table string) (
 	colNames []string, rows [][]string, nullFlags [][]bool, rowIDs []int64, err error,
 ) {
@@ -124,10 +128,12 @@ func (s *Store) QueryTable(table string) (
 	return colNames, rows, nullFlags, rowIDs, nil
 }
 
+// ReadOnlyQuery implements data.DataStore.
 func (s *Store) ReadOnlyQuery(query string) ([]string, [][]string, error) {
 	return nil, nil, ErrReadOnly
 }
 
+// TableSummaries implements data.DataStore.
 func (s *Store) TableSummaries() ([]data.TableSummary, error) {
 	n, err := s.db.CountViewRows()
 	if err != nil {
@@ -141,27 +147,41 @@ func (s *Store) IsView(name string) bool { return name == TableName }
 
 // ── DataStore: writes (all blocked) ─────────────────────────────────────
 
+// UpdateCell implements data.DataStore (always returns ErrReadOnly).
 func (s *Store) UpdateCell(table, column string, rowID int64, pkValues map[string]string, value *string) error {
 	return ErrReadOnly
 }
 
+// DeleteRows implements data.DataStore (always returns ErrReadOnly).
 func (s *Store) DeleteRows(table string, ids []data.RowIdentifier) (int64, error) {
 	return 0, ErrReadOnly
 }
 
+// InsertRows implements data.DataStore (always returns ErrReadOnly).
 func (s *Store) InsertRows(table string, columns []string, rows [][]string) error {
 	return ErrReadOnly
 }
 
+// RenameTable implements data.DataStore (always returns ErrReadOnly).
 func (s *Store) RenameTable(oldName, newName string) error { return ErrReadOnly }
-func (s *Store) DropTable(table string) error              { return ErrReadOnly }
-func (s *Store) ExportCSV(table, csvPath string) error     { return ErrReadOnly }
+
+// DropTable implements data.DataStore (always returns ErrReadOnly).
+func (s *Store) DropTable(table string) error { return ErrReadOnly }
+
+// ExportCSV implements data.DataStore (always returns ErrReadOnly).
+func (s *Store) ExportCSV(table, csvPath string) error { return ErrReadOnly }
+
+// ImportCSV implements data.DataStore (always returns ErrImportNotSupported).
 func (s *Store) ImportCSV(csvPath, tableName string) error {
 	return data.ErrImportNotSupported
 }
+
+// ImportFile implements data.DataStore (always returns ErrImportNotSupported).
 func (s *Store) ImportFile(filePath, tableName string) error {
 	return data.ErrImportNotSupported
 }
+
+// CreateEmptyTable implements data.DataStore (always returns ErrReadOnly).
 func (s *Store) CreateEmptyTable(tableName string) error { return ErrReadOnly }
 
 // Close releases the underlying local.DB handle.

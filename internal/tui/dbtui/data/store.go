@@ -16,6 +16,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// DateLayout is the Go time layout for ISO date formatting.
 const DateLayout = "2006-01-02"
 
 // Store wraps a raw database/sql connection to any SQLite file.

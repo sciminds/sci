@@ -50,12 +50,14 @@ func OpenMemoryStore() (*SQLiteStore, error) {
 	return &SQLiteStore{db: db}, nil
 }
 
+// Close implements DataStore.
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()
 }
 
 // ---------- introspection ----------
 
+// TableNames implements DataStore.
 func (s *SQLiteStore) TableNames() ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -136,6 +138,7 @@ type pragmaInfoRow struct {
 	PK        int     `db:"pk"`
 }
 
+// TableColumns implements DataStore.
 func (s *SQLiteStore) TableColumns(table string) ([]PragmaColumn, error) {
 	if !IsSafeIdentifier(table) {
 		return nil, fmt.Errorf("invalid table name: %q", table)
@@ -164,6 +167,7 @@ func (s *SQLiteStore) TableColumns(table string) ([]PragmaColumn, error) {
 	return cols, nil
 }
 
+// TableRowCount implements DataStore.
 func (s *SQLiteStore) TableRowCount(table string) (int, error) {
 	if !IsSafeIdentifier(table) {
 		return 0, fmt.Errorf("invalid table name: %q", table)
@@ -181,6 +185,7 @@ func (s *SQLiteStore) TableRowCount(table string) (int, error) {
 	return count, nil
 }
 
+// TableSummaries implements DataStore.
 func (s *SQLiteStore) TableSummaries() ([]TableSummary, error) {
 	names, err := s.TableNames()
 	if err != nil {
@@ -224,6 +229,7 @@ func (s *SQLiteStore) TableSummaries() ([]TableSummary, error) {
 
 // ---------- dynamic queries ----------
 
+// QueryTable implements DataStore.
 func (s *SQLiteStore) QueryTable(table string) ([]string, [][]string, [][]bool, []int64, error) {
 	if !IsSafeIdentifier(table) {
 		return nil, nil, nil, nil, fmt.Errorf("invalid table name: %q", table)
@@ -321,6 +327,7 @@ func (s *SQLiteStore) queryView(view string) ([]string, [][]string, [][]bool, []
 	return colNames, rows, nullFlags, rowIDs, nil
 }
 
+// ReadOnlyQuery implements DataStore.
 func (s *SQLiteStore) ReadOnlyQuery(query string) ([]string, [][]string, error) {
 	trimmed, err := ValidateReadOnlySQL(query)
 	if err != nil {
@@ -347,6 +354,7 @@ func (s *SQLiteStore) ReadOnlyQuery(query string) ([]string, [][]string, error) 
 
 // ---------- mutations ----------
 
+// UpdateCell implements DataStore.
 func (s *SQLiteStore) UpdateCell(table, column string, rowID int64, pkValues map[string]string, value *string) error {
 	if !IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
@@ -383,6 +391,7 @@ func (s *SQLiteStore) UpdateCell(table, column string, rowID int64, pkValues map
 	return nil
 }
 
+// DeleteRows implements DataStore.
 func (s *SQLiteStore) DeleteRows(table string, ids []RowIdentifier) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -438,6 +447,7 @@ func (s *SQLiteStore) DeleteRows(table string, ids []RowIdentifier) (int64, erro
 	return n, nil
 }
 
+// InsertRows implements DataStore.
 func (s *SQLiteStore) InsertRows(table string, columns []string, rows [][]string) error {
 	if len(rows) == 0 {
 		return nil
@@ -461,6 +471,7 @@ func (s *SQLiteStore) InsertRows(table string, columns []string, rows [][]string
 
 // ---------- DDL + file I/O ----------
 
+// RenameTable implements DataStore.
 func (s *SQLiteStore) RenameTable(oldName, newName string) error {
 	if !IsSafeIdentifier(oldName) {
 		return fmt.Errorf("invalid table name: %q", oldName)
@@ -476,6 +487,7 @@ func (s *SQLiteStore) RenameTable(oldName, newName string) error {
 	return err
 }
 
+// DropTable implements DataStore.
 func (s *SQLiteStore) DropTable(table string) error {
 	if !IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
@@ -488,6 +500,7 @@ func (s *SQLiteStore) DropTable(table string) error {
 	return err
 }
 
+// ExportCSV implements DataStore.
 func (s *SQLiteStore) ExportCSV(table, csvPath string) error {
 	if !IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
@@ -546,6 +559,7 @@ func (s *SQLiteStore) ExportCSV(table, csvPath string) error {
 	return sqlRows.Err()
 }
 
+// ImportCSV implements DataStore.
 func (s *SQLiteStore) ImportCSV(csvPath, tableName string) error {
 	if !IsSafeIdentifier(tableName) {
 		return fmt.Errorf("invalid table name: %q", tableName)
@@ -662,10 +676,12 @@ func (s *SQLiteStore) insertBatch(table, colList string, columns []string, rows 
 	})
 }
 
+// ImportFile implements DataStore (not supported; use ImportCSV).
 func (s *SQLiteStore) ImportFile(filePath, tableName string) error {
 	return fmt.Errorf("ImportFile not supported on SQLiteStore — use ImportCSV for CSV files")
 }
 
+// CreateEmptyTable implements DataStore.
 func (s *SQLiteStore) CreateEmptyTable(tableName string) error {
 	if !IsSafeIdentifier(tableName) {
 		return fmt.Errorf("invalid table name: %q", tableName)

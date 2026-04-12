@@ -25,7 +25,10 @@ type ExtractPlanResult struct {
 	FullMode  bool   `json:"full_mode"`            // true when --out was passed
 }
 
+// JSON implements cmdutil.Result.
 func (r ExtractPlanResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r ExtractPlanResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s would %s note for %s\n", ui.SymArrow, r.Action, r.PDFName)
@@ -61,7 +64,10 @@ type ExtractApplyResult struct {
 	Tables    []string `json:"tables,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r ExtractApplyResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r ExtractApplyResult) Human() string {
 	var b strings.Builder
 	switch r.Action {
@@ -109,7 +115,10 @@ type ExtractArtifactResult struct {
 	Duration    time.Duration `json:"duration_ns"`
 }
 
+// JSON implements cmdutil.Result.
 func (r ExtractArtifactResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r ExtractArtifactResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s extracted %s → %s\n", ui.SymOK, r.PDFName, r.OutputDir)
@@ -139,7 +148,10 @@ type ExtractDeleteResult struct {
 	Failed    map[string]string `json:"failed,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r ExtractDeleteResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r ExtractDeleteResult) Human() string {
 	var b strings.Builder
 	if len(r.Trashed) == 0 && len(r.Failed) == 0 {
@@ -170,7 +182,10 @@ type ExtractLibResult struct {
 	Duration time.Duration     `json:"duration_ns"`
 }
 
+// JSON implements cmdutil.Result.
 func (r ExtractLibResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r ExtractLibResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n  %s extract-lib complete\n", ui.SymOK)

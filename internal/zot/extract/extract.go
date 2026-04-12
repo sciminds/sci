@@ -22,6 +22,7 @@ import (
 // (DoclingDocument, needed for table post-processing).
 type OutputFormat string
 
+// Supported output formats.
 const (
 	FormatMarkdown OutputFormat = "md"
 	FormatJSON     OutputFormat = "json"
@@ -31,6 +32,7 @@ const (
 // ImagePlaceholder; vault-export flow uses ImageReferenced.
 type ImageMode string
 
+// Supported image export modes.
 const (
 	ImagePlaceholder ImageMode = "placeholder"
 	ImageReferenced  ImageMode = "referenced"
@@ -40,6 +42,7 @@ const (
 // TableMode mirrors docling's `--table-mode`.
 type TableMode string
 
+// Supported table extraction modes.
 const (
 	TableAccurate TableMode = "accurate"
 	TableFast     TableMode = "fast"
@@ -54,7 +57,7 @@ const (
 //     extraction mode, writes JSON + referenced image artifacts + CSVs.
 //
 // Advanced programmatic callers can mix and match freely.
-type ExtractOptions struct {
+type ExtractOptions struct { //nolint:revive // name is established in the API
 	// Required
 	PDFPath   string
 	OutputDir string
@@ -110,7 +113,7 @@ func FullDefaults() ExtractOptions {
 
 // ExtractResult is what the Extractor returns on success. All paths are
 // absolute. Fields that weren't requested are zero-valued.
-type ExtractResult struct {
+type ExtractResult struct { //nolint:revive // name is established in the API
 	MarkdownPath string
 	JSONPath     string
 	ImagePaths   []string

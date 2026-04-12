@@ -5,7 +5,7 @@ import "time"
 // BoardMeta is the non-card metadata of a board. It lives in meta.json and
 // changes rarely (create, rename, column add/remove). Separated from [Board]
 // so the on-disk meta file stays small regardless of card count.
-type BoardMeta struct {
+type BoardMeta struct { //nolint:revive // name is established in the API
 	ID          string    `json:"id"`
 	Title       string    `json:"title"`
 	Description string    `json:"description,omitempty"`

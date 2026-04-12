@@ -11,6 +11,7 @@ import (
 // the fold — see apply.go for resolution semantics.
 type Op string
 
+// Event operation types.
 const (
 	OpBoardCreate Op = "board.create"
 	OpBoardUpdate Op = "board.update"
@@ -49,23 +50,28 @@ type Event struct {
 // Payload types. One per Op. Nil pointer fields in patch payloads mean
 // "no change" — clearing a field is not supported in v1.
 
-type BoardCreatePayload struct {
+// BoardCreatePayload is the payload for OpBoardCreate.
+type BoardCreatePayload struct { //nolint:revive // name is established in the API
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
 	Columns     []Column `json:"columns"`
 }
 
-type BoardUpdatePayload struct {
+// BoardUpdatePayload is the payload for OpBoardUpdate.
+type BoardUpdatePayload struct { //nolint:revive // name is established in the API
 	Title       *string `json:"title,omitempty"`
 	Description *string `json:"description,omitempty"`
 }
 
-type BoardDeletePayload struct{}
+// BoardDeletePayload is the payload for OpBoardDelete.
+type BoardDeletePayload struct{} //nolint:revive // name is established in the API
 
+// ColumnAddPayload is the payload for OpColumnAdd.
 type ColumnAddPayload struct {
 	Column Column `json:"column"`
 }
 
+// ColumnRenamePayload is the payload for OpColumnRename.
 type ColumnRenamePayload struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
@@ -78,10 +84,12 @@ type ColumnReorderPayload struct {
 	ColumnIDs []string `json:"column_ids"`
 }
 
+// ColumnDeletePayload is the payload for OpColumnDelete.
 type ColumnDeletePayload struct {
 	ID string `json:"id"`
 }
 
+// CardAddPayload is the payload for OpCardAdd.
 type CardAddPayload struct {
 	Card Card `json:"card"`
 }
@@ -100,31 +108,37 @@ type CardPatchPayload struct {
 	Deadline    *time.Time `json:"deadline,omitempty"`
 }
 
+// CardMovePayload is the payload for OpCardMove.
 type CardMovePayload struct {
 	ID       string  `json:"id"`
 	Column   string  `json:"column"`
 	Position float64 `json:"position"`
 }
 
+// CardDeletePayload is the payload for OpCardDelete.
 type CardDeletePayload struct {
 	ID string `json:"id"`
 }
 
+// CommentAddPayload is the payload for OpCommentAdd.
 type CommentAddPayload struct {
 	CardID  string  `json:"card_id"`
 	Comment Comment `json:"comment"`
 }
 
+// ChecklistAddPayload is the payload for OpChecklistAdd.
 type ChecklistAddPayload struct {
 	CardID string        `json:"card_id"`
 	Item   ChecklistItem `json:"item"`
 }
 
+// ChecklistTogglePayload is the payload for OpChecklistToggle.
 type ChecklistTogglePayload struct {
 	CardID string `json:"card_id"`
 	ItemID string `json:"item_id"`
 }
 
+// ChecklistDeletePayload is the payload for OpChecklistDelete.
 type ChecklistDeletePayload struct {
 	CardID string `json:"card_id"`
 	ItemID string `json:"item_id"`

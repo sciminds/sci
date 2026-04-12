@@ -15,8 +15,10 @@ type InfoResult struct {
 	Info ProbeInfo `json:"info"`
 }
 
+// JSON implements cmdutil.Result.
 func (r InfoResult) JSON() any { return r }
 
+// Human implements cmdutil.Result.
 func (r InfoResult) Human() string {
 	sizeMB := float64(r.Info.Size) / 1024 / 1024
 	hasAudio := "no"

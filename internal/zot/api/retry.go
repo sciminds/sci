@@ -24,6 +24,7 @@ type retryDoer struct {
 	honorWait time.Duration // carried forward from a previous Backoff header
 }
 
+// Do implements HTTPDoer with retry and backoff handling.
 func (r *retryDoer) Do(req *http.Request) (*http.Response, error) {
 	// If the server previously asked us to back off, honor it BEFORE sending.
 	if r.honorWait > 0 {

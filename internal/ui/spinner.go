@@ -161,10 +161,12 @@ func newRunnerModel(title string, progress bool) runnerModel {
 	}
 }
 
+// Init implements tea.Model.
 func (m runnerModel) Init() tea.Cmd {
 	return m.spinner.Tick
 }
 
+// Update implements tea.Model.
 func (m runnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case titleMsg:
@@ -210,6 +212,7 @@ func (m runnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View implements tea.Model.
 func (m runnerModel) View() tea.View {
 	if m.done {
 		return tea.NewView("")

@@ -113,7 +113,7 @@ func AuthLogout() (*AuthResult, error) {
 const MaxUploadSize int64 = 10 * 1024 * 1024 * 1024
 
 // ShareOpts controls Share behavior.
-type ShareOpts struct {
+type ShareOpts struct { //nolint:revive // name is established in the API
 	// Name is the object name in R2 (e.g. "my-results.csv").
 	// If empty, defaults to the base filename.
 	Name string

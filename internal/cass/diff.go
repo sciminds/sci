@@ -27,8 +27,10 @@ type DiffResult struct {
 	Changes []GradeChange `json:"changes"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *DiffResult) JSON() any { return r }
 
+// Human implements cmdutil.Result.
 func (r *DiffResult) Human() string {
 	if len(r.Changes) == 0 {
 		return fmt.Sprintf("  %s No pending grade changes.\n", ui.SymOK)
@@ -138,8 +140,10 @@ type RemoteDiffResult struct {
 	Conflicts int                 `json:"conflicts"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *RemoteDiffResult) JSON() any { return r }
 
+// Human implements cmdutil.Result.
 func (r *RemoteDiffResult) Human() string {
 	if len(r.Changes) == 0 {
 		return fmt.Sprintf("  %s No pending grade changes.\n", ui.SymOK)

@@ -11,6 +11,7 @@ import (
 // ── Shared key bindings ─────────────────────────────────────────────────────
 // Reusable across all TUIs. Each TUI composes these into its own KeyMap.
 
+// Shared key bindings reusable across all TUIs.
 var (
 	BindQuit = key.NewBinding(
 		key.WithKeys("q", "ctrl+c", "esc"),

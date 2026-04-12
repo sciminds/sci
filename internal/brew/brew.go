@@ -62,6 +62,7 @@ type Runner interface {
 // BundleRunner shells out to brew bundle.
 type BundleRunner struct{}
 
+// BundleAdd implements Runner.
 func (BundleRunner) BundleAdd(file, pkg, pkgType string) error {
 	args := []string{"bundle", "add", "--file=" + file}
 	if pkgType != "" {
@@ -72,6 +73,7 @@ func (BundleRunner) BundleAdd(file, pkg, pkgType string) error {
 	return err
 }
 
+// BundleRemove implements Runner.
 func (BundleRunner) BundleRemove(file, pkg, pkgType string) error {
 	args := []string{"bundle", "remove", "--file=" + file}
 	if pkgType != "" {
@@ -82,6 +84,7 @@ func (BundleRunner) BundleRemove(file, pkg, pkgType string) error {
 	return err
 }
 
+// BundleInstall implements Runner.
 func (BundleRunner) BundleInstall(file string) (string, error) {
 	return runBrewLive("bundle", "install", "--verbose", "--file="+file)
 }
@@ -118,10 +121,12 @@ func (BundleRunner) BundleDumpLive(file string) error {
 	return err
 }
 
+// BundleCleanup implements Runner.
 func (BundleRunner) BundleCleanup(file string) (string, error) {
 	return runBrewLive("bundle", "cleanup", "--force", "--file="+file)
 }
 
+// BundleList implements Runner.
 func (BundleRunner) BundleList(file, pkgType string) ([]string, error) {
 	args := []string{"bundle", "list", "--file=" + file}
 	if pkgType != "" {
@@ -198,11 +203,13 @@ type OutdatedPackage struct {
 	Pinned           bool   `json:"pinned"`
 }
 
+// Update implements Runner.
 func (BundleRunner) Update() error {
 	_, err := runBrewLive("update")
 	return err
 }
 
+// Outdated implements Runner.
 func (BundleRunner) Outdated() ([]OutdatedPackage, error) {
 	out, err := runBrewOutput("outdated", "--json=v2")
 	if err != nil {
@@ -211,10 +218,12 @@ func (BundleRunner) Outdated() ([]OutdatedPackage, error) {
 	return parseOutdated(out)
 }
 
+// Upgrade implements Runner.
 func (BundleRunner) Upgrade() (string, error) {
 	return runBrewLive("upgrade")
 }
 
+// UVOutdated implements Runner.
 func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
 	cmd := exec.Command("uv", "tool", "list", "--outdated")
 	out, err := cmd.CombinedOutput()
@@ -224,6 +233,7 @@ func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
 	return parseUVOutdated(string(out)), nil
 }
 
+// UVUpgrade implements Runner.
 func (BundleRunner) UVUpgrade(names []string) (string, error) {
 	var out strings.Builder
 	for _, name := range names {
@@ -238,6 +248,7 @@ func (BundleRunner) UVUpgrade(names []string) (string, error) {
 	return out.String(), nil
 }
 
+// UVToolList implements Runner.
 func (BundleRunner) UVToolList() ([]string, error) {
 	cmd := exec.Command("uv", "tool", "list")
 	out, err := cmd.CombinedOutput()

@@ -27,6 +27,7 @@ import (
 // Mode is the top-level TUI interaction state.
 type Mode int
 
+// Mode constants for TUI interaction states.
 const (
 	ModeNormal Mode = iota
 	ModeEdit
@@ -43,6 +44,7 @@ type RowMeta struct {
 // SortDir indicates ascending or descending sort order.
 type SortDir int
 
+// SortDir constants for ascending and descending sort order.
 const (
 	SortAsc SortDir = iota
 	SortDesc
@@ -104,6 +106,7 @@ func (t *Tab) InvalidateVP() { t.CachedVP = nil }
 // AlignKind controls horizontal text alignment within a column.
 type AlignKind int
 
+// AlignKind constants for horizontal text alignment.
 const (
 	AlignLeft AlignKind = iota
 	AlignRight
@@ -112,6 +115,7 @@ const (
 // CellKind categorizes a cell for sorting and edit behavior.
 type CellKind int
 
+// CellKind constants categorizing cells for sorting and edit behavior.
 const (
 	CellText     CellKind = iota
 	CellInteger           // INTEGER columns
@@ -142,6 +146,7 @@ type ColumnSpec struct {
 // StatusKind distinguishes informational from error status messages.
 type StatusKind int
 
+// StatusKind constants for status bar message types.
 const (
 	StatusInfo StatusKind = iota
 	StatusError

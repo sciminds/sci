@@ -146,9 +146,12 @@ func NewSelectListKeys() SelectListKeys {
 	}
 }
 
+// ShortHelp implements help.KeyMap.
 func (k SelectListKeys) ShortHelp() []key.Binding {
 	return []key.Binding{BindUp, BindDown, k.Toggle, k.All, BindEnter, BindQuit}
 }
+
+// FullHelp implements help.KeyMap.
 func (k SelectListKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
 // ── Update ──────────────────────────────────────────────────────────────────

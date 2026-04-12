@@ -64,6 +64,7 @@ func Detect(p Prober, pkg string) ([]DetectedPackage, error) {
 // LiveProber implements Prober by shelling out to brew and hitting PyPI.
 type LiveProber struct{}
 
+// ProbeFormula implements Prober.
 func (LiveProber) ProbeFormula(pkg string) (bool, error) {
 	err := exec.Command("brew", "info", "--json=v2", pkg).Run()
 	if err != nil {
@@ -72,6 +73,7 @@ func (LiveProber) ProbeFormula(pkg string) (bool, error) {
 	return true, nil
 }
 
+// ProbeCask implements Prober.
 func (LiveProber) ProbeCask(pkg string) (bool, error) {
 	err := exec.Command("brew", "info", "--json=v2", "--cask", pkg).Run()
 	if err != nil {
@@ -80,6 +82,7 @@ func (LiveProber) ProbeCask(pkg string) (bool, error) {
 	return true, nil
 }
 
+// ProbePyPI implements Prober.
 func (LiveProber) ProbePyPI(pkg string) (bool, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Head(fmt.Sprintf("https://pypi.org/pypi/%s/json", pkg))

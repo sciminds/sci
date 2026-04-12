@@ -21,9 +21,13 @@ type Page struct {
 	Content string // raw markdown
 }
 
-// list.DefaultItem for the file picker.
-func (p Page) Title() string       { return p.Name }
+// Title implements list.DefaultItem.
+func (p Page) Title() string { return p.Name }
+
+// Description implements list.DefaultItem.
 func (p Page) Description() string { return "" }
+
+// FilterValue implements list.DefaultItem.
 func (p Page) FilterValue() string { return p.Name }
 
 // level tracks navigation state.
@@ -151,10 +155,12 @@ func New(pages []Page) *Model {
 	return m
 }
 
+// Init implements tea.Model.
 func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
+// Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -291,6 +297,7 @@ func (m *Model) initViewport() {
 	m.ready = true
 }
 
+// View implements tea.Model.
 func (m *Model) View() tea.View {
 	if m.quitting {
 		return tea.NewView("")

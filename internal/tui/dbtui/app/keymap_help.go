@@ -57,10 +57,12 @@ func newNavKeyMap() navKeyMap {
 	}
 }
 
+// ShortHelp implements help.KeyMap.
 func (k navKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Help, k.Quit}
 }
 
+// FullHelp implements help.KeyMap.
 func (k navKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Rows, k.Cols, k.TopBottom, k.FirstLast, k.HalfPage, k.Tabs},
@@ -97,10 +99,12 @@ func newVisualKeyMap() visualKeyMap {
 	}
 }
 
+// ShortHelp implements help.KeyMap.
 func (k visualKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Exit}
 }
 
+// FullHelp implements help.KeyMap.
 func (k visualKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Enter, k.Toggle, k.Extend, k.Delete, k.Cut, k.Yank, k.Copy, k.Paste, k.Exit},
@@ -121,10 +125,12 @@ func newEditKeyMap() editKeyMap {
 	}
 }
 
+// ShortHelp implements help.KeyMap.
 func (k editKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Exit}
 }
 
+// FullHelp implements help.KeyMap.
 func (k editKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Edit, k.Exit},

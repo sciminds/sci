@@ -11,15 +11,15 @@ import (
 type EventKind int
 
 const (
-	// EventProcessing: docling started processing a document.
+	// EventProcessing indicates docling started processing a document.
 	EventProcessing EventKind = iota
-	// EventFinished: docling finished converting a document.
+	// EventFinished indicates docling finished converting a document.
 	EventFinished
-	// EventOutput: docling wrote an output file.
+	// EventOutput indicates docling wrote an output file.
 	EventOutput
-	// EventFailed: a document failed to convert.
+	// EventFailed indicates a document failed to convert.
 	EventFailed
-	// EventSummary: the final "Processed N docs, of which M failed" line.
+	// EventSummary is the final "Processed N docs, of which M failed" line.
 	EventSummary
 )
 

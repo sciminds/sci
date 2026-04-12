@@ -52,10 +52,12 @@ func newModelForGroup(g *CommandGroup) *model {
 	return m
 }
 
+// Init implements tea.Model.
 func (m *model) Init() tea.Cmd {
 	return nil
 }
 
+// Update implements tea.Model.
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -252,6 +254,7 @@ func (m *model) descHeight() int {
 
 // ── View ───────────────────────────────────────────────────────────────────
 
+// View implements tea.Model.
 func (m *model) View() tea.View {
 	if m.quitting {
 		return tea.NewView("")

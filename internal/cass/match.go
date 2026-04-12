@@ -186,7 +186,10 @@ type MatchResult struct {
 	Details   []string `json:"details,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *MatchResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r *MatchResult) Human() string {
 	var b strings.Builder
 	for _, d := range r.Details {

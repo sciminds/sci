@@ -17,8 +17,13 @@ type CommandGroup struct {
 	Subs     []SubCommand // empty for leaf commands
 }
 
-func (g CommandGroup) Title() string       { return g.Name }
+// Title implements list.DefaultItem.
+func (g CommandGroup) Title() string { return g.Name }
+
+// Description implements list.DefaultItem.
 func (g CommandGroup) Description() string { return g.Desc }
+
+// FilterValue implements list.DefaultItem.
 func (g CommandGroup) FilterValue() string { return g.Name + " " + g.Desc }
 
 // SubCommand represents a subcommand entry shown in the level 1 list.
@@ -32,8 +37,13 @@ type SubCommand struct {
 	CastFile  string // empty if no cast available
 }
 
-func (s SubCommand) Title() string       { return s.Name }
+// Title implements list.DefaultItem.
+func (s SubCommand) Title() string { return s.Name }
+
+// Description implements list.DefaultItem.
 func (s SubCommand) Description() string { return s.Usage }
+
+// FilterValue implements list.DefaultItem.
 func (s SubCommand) FilterValue() string { return s.Name + " " + s.Usage }
 
 // Flag holds simplified flag info for the detail pane.

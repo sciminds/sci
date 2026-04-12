@@ -16,6 +16,7 @@ import (
 // Values are Zotero's internal field names (case-sensitive).
 type InvalidField string
 
+// InvalidField constants for each field the Invalid check can validate.
 const (
 	InvalidFieldDOI  InvalidField = "DOI"
 	InvalidFieldISBN InvalidField = "ISBN"

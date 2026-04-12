@@ -50,10 +50,12 @@ func newModel(books []Book) *model {
 	return &model{allBooks: books, books: lp, level: levelBooks}
 }
 
+// Init implements tea.Model.
 func (m *model) Init() tea.Cmd {
 	return nil
 }
 
+// Update implements tea.Model.
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -331,6 +333,7 @@ func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View implements tea.Model.
 func (m *model) View() tea.View {
 	if m.quitting {
 		return tea.NewView("")

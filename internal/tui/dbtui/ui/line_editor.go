@@ -18,10 +18,12 @@ func NewLineEditor(text string) LineEditor {
 	return LineEditor{Buf: runes, Cursor: len(runes)}
 }
 
+// Text returns the current buffer contents as a string.
 func (e *LineEditor) Text() string {
 	return string(e.Buf)
 }
 
+// Backspace deletes the rune before the cursor.
 func (e *LineEditor) Backspace() {
 	if e.Cursor > 0 {
 		e.Buf = append(e.Buf[:e.Cursor-1], e.Buf[e.Cursor:]...)
@@ -29,22 +31,26 @@ func (e *LineEditor) Backspace() {
 	}
 }
 
+// Left moves the cursor one position to the left.
 func (e *LineEditor) Left() {
 	if e.Cursor > 0 {
 		e.Cursor--
 	}
 }
 
+// Right moves the cursor one position to the right.
 func (e *LineEditor) Right() {
 	if e.Cursor < len(e.Buf) {
 		e.Cursor++
 	}
 }
 
+// Home moves the cursor to the beginning of the buffer.
 func (e *LineEditor) Home() {
 	e.Cursor = 0
 }
 
+// End moves the cursor to the end of the buffer.
 func (e *LineEditor) End() {
 	e.Cursor = len(e.Buf)
 }

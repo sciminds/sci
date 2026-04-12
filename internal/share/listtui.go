@@ -34,7 +34,10 @@ type fileItem struct {
 	entry SharedEntry
 }
 
+// Title implements list.DefaultItem.
 func (i fileItem) Title() string { return i.entry.Name }
+
+// Description implements list.DefaultItem.
 func (i fileItem) Description() string {
 	sizeType := ui.TUI.Dim().Render(fmt.Sprintf("%s  %s", i.entry.Type, humanize.Bytes(uint64(i.entry.Size))))
 	if i.entry.Description != "" {
@@ -42,6 +45,8 @@ func (i fileItem) Description() string {
 	}
 	return sizeType
 }
+
+// FilterValue implements list.Item.
 func (i fileItem) FilterValue() string { return i.entry.Name + " " + i.entry.Type }
 
 // ── Delegate key map ───────────────────────────────────────────────────────
@@ -213,8 +218,10 @@ func newCloudListModel(entries []SharedEntry, client *cloud.Client) cloudListMod
 	return cloudListModel{list: l, keys: keys, pendingDelete: pending}
 }
 
+// Init implements tea.Model.
 func (m cloudListModel) Init() tea.Cmd { return nil }
 
+// Update implements tea.Model.
 func (m cloudListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -244,6 +251,7 @@ func (m cloudListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View implements tea.Model.
 func (m cloudListModel) View() tea.View {
 	v := tea.NewView(m.list.View())
 	v.AltScreen = true

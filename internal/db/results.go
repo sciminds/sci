@@ -18,7 +18,10 @@ type InfoResult struct {
 	Tables []TableEntry `json:"tables"`
 }
 
+// JSON implements cmdutil.Result.
 func (r InfoResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r InfoResult) Human() string {
 	nTables, nViews, nVirtual := r.counts()
 	var b strings.Builder
@@ -88,7 +91,10 @@ type TableEntry struct {
 	IsVirtual bool   `json:"is_virtual,omitempty"`
 }
 
+// JSON implements cmdutil.Result.
 func (r TablesResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r TablesResult) Human() string {
 	hasViews, hasVirtual := false, false
 	for _, t := range r.Tables {
@@ -214,7 +220,10 @@ type MutationResult struct {
 	Message string `json:"message"`
 }
 
+// JSON implements cmdutil.Result.
 func (r MutationResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r MutationResult) Human() string {
 	if r.OK {
 		return fmt.Sprintf("  %s %s\n", ui.SymOK, r.Message)

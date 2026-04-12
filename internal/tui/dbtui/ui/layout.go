@@ -40,6 +40,7 @@ const (
 
 // ── Spacing tokens ──────────────────────────────────────────────────────────
 
+// Spacing tokens for dividers and indentation.
 const (
 	DividerLeadingSpaces = "  "
 	DividerInset         = 6
@@ -71,6 +72,7 @@ const (
 
 // ── Component defaults ──────────────────────────────────────────────────────
 
+// Component default dimensions.
 const (
 	ProgressBarWidth     = 40
 	FallbackDividerWidth = 50

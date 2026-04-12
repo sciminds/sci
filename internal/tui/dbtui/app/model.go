@@ -186,6 +186,7 @@ func (m *Model) SelectTab(name string) {
 	}
 }
 
+// Init implements tea.Model.
 func (m *Model) Init() tea.Cmd {
 	return m.spinner.Tick
 }

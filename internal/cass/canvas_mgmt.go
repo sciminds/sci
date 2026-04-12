@@ -17,7 +17,10 @@ type ModulesResult struct {
 	Modules []canvas.Module `json:"modules"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *ModulesResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r *ModulesResult) Human() string {
 	if len(r.Modules) == 0 {
 		return "  No modules.\n"
@@ -49,7 +52,10 @@ type ModuleResult struct {
 	Module canvas.Module `json:"module"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *ModuleResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r *ModuleResult) Human() string {
 	return fmt.Sprintf("  %s Created module: %s\n", ui.SymOK, r.Module.Name)
 }
@@ -96,7 +102,10 @@ type AssignmentsResult struct {
 	Assignments []canvas.Assignment `json:"assignments"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *AssignmentsResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r *AssignmentsResult) Human() string {
 	if len(r.Assignments) == 0 {
 		return "  No assignments.\n"
@@ -144,7 +153,10 @@ type AssignmentResult struct {
 	Assignment canvas.Assignment `json:"assignment"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *AssignmentResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r *AssignmentResult) Human() string {
 	return fmt.Sprintf("  %s Created assignment: %s (%.0f pts)\n", ui.SymOK, r.Assignment.Name, r.Assignment.PointsPossible)
 }
@@ -219,7 +231,10 @@ type AnnouncementResult struct {
 	Announcement canvas.Announcement `json:"announcement"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *AnnouncementResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r *AnnouncementResult) Human() string {
 	return fmt.Sprintf("  %s Posted announcement: %s\n", ui.SymOK, r.Announcement.Title)
 }
@@ -229,7 +244,10 @@ type AnnouncementsResult struct {
 	Announcements []canvas.Announcement `json:"announcements"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *AnnouncementsResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r *AnnouncementsResult) Human() string {
 	if len(r.Announcements) == 0 {
 		return "  No announcements.\n"
@@ -287,7 +305,10 @@ type FilesResult struct {
 	Files []canvas.File `json:"files"`
 }
 
+// JSON implements cmdutil.Result.
 func (r *FilesResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r *FilesResult) Human() string {
 	if len(r.Files) == 0 {
 		return "  No files.\n"

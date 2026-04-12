@@ -26,6 +26,7 @@ import (
 // Format represents a notebook format.
 type Format string
 
+// Supported notebook formats.
 const (
 	Marimo Format = "marimo"
 	MyST   Format = "myst"
@@ -47,7 +48,7 @@ func InferFormat(path string) (Format, error) {
 }
 
 // ConvertResult holds the output of a conversion.
-type ConvertResult struct {
+type ConvertResult struct { //nolint:revive // name is established in the API
 	Input      string `json:"input"`
 	Output     string `json:"output"`
 	FromFormat string `json:"from"`

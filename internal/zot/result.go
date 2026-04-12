@@ -7,9 +7,10 @@ import (
 	"github.com/sciminds/cli/internal/ui"
 )
 
-// JSON / Human implementations let Config be returned directly via cmdutil.Output
-// (used by `zot setup --json` to print the saved settings).
+// JSON implements cmdutil.Result.
 func (c Config) JSON() any { return c }
+
+// Human implements cmdutil.Result.
 func (c Config) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s zot config\n", ui.SymOK)
@@ -27,7 +28,10 @@ type SetupResult struct {
 	Message   string `json:"message"`
 }
 
+// JSON implements cmdutil.Result.
 func (r SetupResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
 func (r SetupResult) Human() string {
 	var b strings.Builder
 	sym := ui.SymOK

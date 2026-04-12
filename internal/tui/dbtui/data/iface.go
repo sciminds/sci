@@ -81,7 +81,7 @@ type TableSummary struct {
 }
 
 // DataStore abstracts database access for the SQLite backend.
-type DataStore interface {
+type DataStore interface { //nolint:revive // name is established in the API
 	// TableNames returns all user table names, alphabetically.
 	TableNames() ([]string, error)
 
