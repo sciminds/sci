@@ -2,6 +2,7 @@ package app
 
 import (
 	tea "charm.land/bubbletea/v2"
+	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/kit"
 )
 
@@ -14,12 +15,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 
-	case boardsLoadedMsg:
-		if msg.err != nil {
-			m.setStatusError("list boards: " + msg.err.Error())
+	case kit.Result[[]string]: // listBoardsCmd result
+		if msg.Err != nil {
+			m.setStatusError("list boards: " + msg.Err.Error())
 			return m, nil
 		}
-		m.boards = msg.ids
+		m.boards = msg.Value
 		if m.pickerCursor >= len(m.boards) {
 			m.pickerCursor = 0
 		}
@@ -33,12 +34,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case boardLoadedMsg:
-		if msg.err != nil {
-			m.setStatusError("load board: " + msg.err.Error())
+	case kit.Result[engine.Board]: // loadBoardCmd result
+		if msg.Err != nil {
+			m.setStatusError("load board: " + msg.Err.Error())
 			return m, nil
 		}
-		m.current = msg.board
+		m.current = msg.Value
 		m.screen = screenGrid
 		m.cur = kit.Grid2D{Col: 0, Row: -1}
 		m.gridScroll = 0
@@ -46,7 +47,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// One-shot: apply initialGridCol on the next board load (the
 		// initial one, since the field is reset below).
 		if m.initialGridCol > 0 {
-			n := len(msg.board.Columns)
+			n := len(msg.Value.Columns)
 			if m.initialGridCol < n {
 				m.cur.Col = m.initialGridCol
 				m.gridScroll = m.initialGridCol
@@ -54,12 +55,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.initialGridCol = -1
-		m.setStatusInfo("loaded " + msg.board.Title)
-		return m, pollCmd(m.store, msg.board.ID, m.lastSeen)
+		m.setStatusInfo("loaded " + msg.Value.Title)
+		return m, pollCmd(m.store, msg.Value.ID, m.lastSeen)
 
-	case appendDoneMsg:
-		if msg.err != nil {
-			m.setStatusError("sync: " + msg.err.Error())
+	case kit.Result[struct{}]: // AppendCmd result
+		if msg.Err != nil {
+			m.setStatusError("sync: " + msg.Err.Error())
 		}
 		return m, nil
 

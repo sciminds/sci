@@ -297,19 +297,11 @@ func (m *model) renderOverlay() string {
 
 // Run launches the interactive help TUI showing all command groups.
 func Run(groups []CommandGroup) error {
-	m := newModel(groups)
-	p := tea.NewProgram(m)
-	_, err := p.Run()
-	ui.DrainStdin()
-	return err
+	return kit.Run(newModel(groups))
 }
 
 // RunGroup launches the help TUI for a single command group, skipping the
 // top-level picker.
 func RunGroup(g *CommandGroup) error {
-	m := newModelForGroup(g)
-	p := tea.NewProgram(m)
-	_, err := p.Run()
-	ui.DrainStdin()
-	return err
+	return kit.Run(newModelForGroup(g))
 }

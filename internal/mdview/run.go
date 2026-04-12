@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/list"
-	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/tui/kit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -30,10 +30,7 @@ func Run(path string) error {
 	if m.multi {
 		m.initPicker()
 	}
-	p := tea.NewProgram(m)
-	_, err = p.Run()
-	ui.DrainStdin()
-	return err
+	return kit.Run(m)
 }
 
 func (m *Model) initPicker() {

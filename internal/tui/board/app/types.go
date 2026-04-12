@@ -1,9 +1,5 @@
 package app
 
-import (
-	engine "github.com/sciminds/cli/internal/board"
-)
-
 // screen is the top-level view the Model is currently rendering.
 type screen int
 
@@ -15,26 +11,9 @@ const (
 
 // ── Messages ────────────────────────────────────────────────────────────
 
-// boardsLoadedMsg is emitted when Store.ListBoards completes.
-type boardsLoadedMsg struct {
-	ids []string
-	err error
-}
-
-// boardLoadedMsg is emitted when Store.Load completes for a single board.
-type boardLoadedMsg struct {
-	board engine.Board
-	err   error
-}
-
-// appendDoneMsg is emitted after an optimistic Store.Append completes.
-// The event has already been durably queued so err is informational only —
-// the UI does not need to roll back on failure.
-type appendDoneMsg struct {
-	err error
-}
-
 // pollMsg is emitted when Store.Poll returns new remote event IDs.
+// Kept as a custom type because pollCmd uses tea.Tick, which doesn't
+// fit kit.AsyncCmdCtx.
 type pollMsg struct {
 	newIDs []string
 	err    error

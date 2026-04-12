@@ -456,9 +456,5 @@ func (m *model) preRenderPages() tea.Cmd {
 // Run launches the interactive guide TUI with the given books.
 func Run(books []Book) error {
 	mdview.DetectStyle() // probe terminal before bubbletea takes over stdin
-	m := newModel(books)
-	p := tea.NewProgram(m)
-	_, err := p.Run()
-	ui.DrainStdin()
-	return err
+	return kit.Run(newModel(books))
 }

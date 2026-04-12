@@ -18,6 +18,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/dustin/go-humanize"
 	"github.com/sciminds/cli/internal/cloud"
+	"github.com/sciminds/cli/internal/tui/kit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -74,18 +75,11 @@ func newCloudDelegateKeyMap() *cloudDelegateKeyMap {
 	}
 }
 
-// ── Async result messages ──────────────────────────────────────────────────
+// ── Async result types ────────────────────────────────────────────────────
+// Used with kit.AsyncCmdCtx → kit.Result[T] for type-safe dispatch.
 
-type deleteResultMsg struct {
-	name string
-	err  error
-}
-
-type downloadResultMsg struct {
-	name string
-	path string
-	err  error
-}
+type deleteOK struct{ name string }
+type downloadOK struct{ name, path string }
 
 // ── Delegate ───────────────────────────────────────────────────────────────
 
@@ -152,29 +146,24 @@ func newCloudDelegate(keys *cloudDelegateKeyMap, client *cloud.Client, pendingDe
 // ── Async commands ─────────────────────────────────────────────────────────
 
 func deleteFile(client *cloud.Client, name string) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
-		defer cancel()
-		err := client.Delete(ctx, name)
-		return deleteResultMsg{name: name, err: err}
-	}
+	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (deleteOK, error) {
+		return deleteOK{name: name}, client.Delete(ctx, name)
+	})
 }
 
 func downloadFile(client *cloud.Client, name string) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
-		defer cancel()
+	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (downloadOK, error) {
 		outPath := filepath.Base(name)
 		f, err := os.Create(outPath)
 		if err != nil {
-			return downloadResultMsg{name: name, err: err}
+			return downloadOK{name: name}, err
 		}
 		defer func() { _ = f.Close() }()
 		if err := client.Download(ctx, name, f); err != nil {
-			return downloadResultMsg{name: name, err: err}
+			return downloadOK{name: name}, err
 		}
-		return downloadResultMsg{name: name, path: outPath}
-	}
+		return downloadOK{name: name, path: outPath}, nil
+	})
 }
 
 // ── Model ──────────────────────────────────────────────────────────────────
@@ -234,16 +223,16 @@ func (m cloudListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(msg.Width, msg.Height)
 		return m, nil
-	case deleteResultMsg:
-		if msg.err != nil {
-			return m, m.list.NewStatusMessage(ui.TUI.Fail().Render("Delete failed: " + msg.err.Error()))
+	case kit.Result[deleteOK]:
+		if msg.Err != nil {
+			return m, m.list.NewStatusMessage(ui.TUI.Fail().Render("Delete failed: " + msg.Err.Error()))
 		}
-		return m, m.list.NewStatusMessage(ui.TUI.Pass().Render("Deleted " + msg.name))
-	case downloadResultMsg:
-		if msg.err != nil {
-			return m, m.list.NewStatusMessage(ui.TUI.Fail().Render("Download failed: " + msg.err.Error()))
+		return m, m.list.NewStatusMessage(ui.TUI.Pass().Render("Deleted " + msg.Value.name))
+	case kit.Result[downloadOK]:
+		if msg.Err != nil {
+			return m, m.list.NewStatusMessage(ui.TUI.Fail().Render("Download failed: " + msg.Err.Error()))
 		}
-		return m, m.list.NewStatusMessage(ui.TUI.Pass().Render("Downloaded " + msg.path))
+		return m, m.list.NewStatusMessage(ui.TUI.Pass().Render("Downloaded " + msg.Value.path))
 	}
 
 	var cmd tea.Cmd
@@ -260,11 +249,7 @@ func (m cloudListModel) View() tea.View {
 
 // RunCloudListTUI launches the interactive cloud file manager.
 func RunCloudListTUI(entries []SharedEntry, client *cloud.Client) error {
-	m := newCloudListModel(entries, client)
-	p := tea.NewProgram(m)
-	_, err := p.Run()
-	ui.DrainStdin()
-	if err != nil {
+	if err := kit.Run(newCloudListModel(entries, client)); err != nil {
 		if errors.Is(err, tea.ErrInterrupted) {
 			return ErrInterrupted
 		}

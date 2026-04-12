@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	engine "github.com/sciminds/cli/internal/board"
+	"github.com/sciminds/cli/internal/tui/kit"
 )
 
 // pollInterval is how often the TUI asks Store.Poll for new remote events.
@@ -18,21 +19,15 @@ var pollInterval = 30 * time.Second
 var cmdTimeout = 10 * time.Second
 
 func listBoardsCmd(store *engine.Store) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
-		defer cancel()
-		ids, err := store.ListBoards(ctx)
-		return boardsLoadedMsg{ids: ids, err: err}
-	}
+	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) ([]string, error) {
+		return store.ListBoards(ctx)
+	})
 }
 
 func loadBoardCmd(store *engine.Store, id string) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
-		defer cancel()
-		b, err := store.Load(ctx, id)
-		return boardLoadedMsg{board: b, err: err}
-	}
+	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (engine.Board, error) {
+		return store.Load(ctx, id)
+	})
 }
 
 // AppendCmd queues and uploads a single event. The optimistic update is
@@ -42,12 +37,10 @@ func loadBoardCmd(store *engine.Store, id string) tea.Cmd {
 // Exposed (uppercase) because no edit UX wires it yet; keeping it public
 // signals it as the entry point the first edit operation should reach for.
 func AppendCmd(store *engine.Store, boardID string, op engine.Op, payload any) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
-		defer cancel()
+	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (struct{}, error) {
 		_, err := store.Append(ctx, boardID, op, payload)
-		return appendDoneMsg{err: err}
-	}
+		return struct{}{}, err
+	})
 }
 
 // pollCmd runs Store.Poll once and schedules itself again via a

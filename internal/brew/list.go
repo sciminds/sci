@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/tui/kit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -114,11 +115,7 @@ func (m listModel) View() tea.View {
 
 // RunListTUI launches the interactive package list.
 func RunListTUI(packages []PackageInfo) error {
-	m := newListModel(packages)
-	p := tea.NewProgram(m)
-	_, err := p.Run()
-	ui.DrainStdin()
-	if err != nil {
+	if err := kit.Run(newListModel(packages)); err != nil {
 		if errors.Is(err, tea.ErrInterrupted) {
 			return ErrInterrupted
 		}

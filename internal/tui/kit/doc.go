@@ -10,6 +10,8 @@
 //   - [ListPicker] — pre-styled filterable list with one-line construction.
 //   - [OverlayBox] — modal overlay with title, body, and hint footer.
 //   - [AsyncCmd] / [AsyncCmdCtx] — generic async tea.Cmd with [Result].
+//   - [Run] / [RunModel] — launch a Bubbletea program with stdin drain;
+//     RunModel returns the final model for post-TUI inspection.
 //
 // All types are designed for unit testing without teatest (plain structs,
 // no tea.Model dependency) and for integration testing with teatest

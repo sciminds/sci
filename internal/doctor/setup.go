@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/cli/internal/tui/kit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -117,15 +117,10 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 	}
 
 	// Launch list TUI — only uninstalled tools are shown.
-	m := newReccsModel(entries, missing)
-	p := tea.NewProgram(m)
-	final, err := p.Run()
-	ui.DrainStdin()
+	model, err := kit.RunModel(newReccsModel(entries, missing))
 	if err != nil {
 		return OptionalSetupResult{}, err
 	}
-
-	model := final.(reccsModel)
 	if model.quitting || model.chosen < 0 {
 		return OptionalSetupResult{}, nil
 	}
