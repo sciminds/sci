@@ -9,11 +9,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -195,9 +197,7 @@ func newMemObjectStore() *memObjectStore {
 func (m *memObjectStore) PutObject(_ context.Context, key string, body []byte, _ string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	cp := make([]byte, len(body))
-	copy(cp, body)
-	m.objects[key] = cp
+	m.objects[key] = bytes.Clone(body)
 	return nil
 }
 
@@ -208,9 +208,7 @@ func (m *memObjectStore) GetObject(_ context.Context, key string) ([]byte, error
 	if !ok {
 		return nil, fmt.Errorf("not found: %s", key)
 	}
-	cp := make([]byte, len(b))
-	copy(cp, b)
-	return cp, nil
+	return bytes.Clone(b), nil
 }
 
 func (m *memObjectStore) DeleteObject(_ context.Context, key string) error {
@@ -233,14 +231,14 @@ func (m *memObjectStore) ListObjects(_ context.Context, prefix, startAfter strin
 		}
 		out = append(out, k)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 
 func (m *memObjectStore) ListCommonPrefixes(_ context.Context, prefix, delimiter string) ([]string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	seen := map[string]bool{}
+	seen := map[string]struct{}{}
 	for k := range m.objects {
 		if !strings.HasPrefix(k, prefix) {
 			continue
@@ -250,12 +248,7 @@ func (m *memObjectStore) ListCommonPrefixes(_ context.Context, prefix, delimiter
 		if idx < 0 {
 			continue
 		}
-		seen[prefix+rest[:idx+1]] = true
+		seen[prefix+rest[:idx+1]] = struct{}{}
 	}
-	out := make([]string, 0, len(seen))
-	for p := range seen {
-		out = append(out, p)
-	}
-	sort.Strings(out)
-	return out, nil
+	return slices.Sorted(maps.Keys(seen)), nil
 }
