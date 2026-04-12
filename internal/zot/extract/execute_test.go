@@ -40,25 +40,17 @@ func (f *fakeExtractor) Extract(_ context.Context, opts ExtractOptions) (*Extrac
 	}, nil
 }
 
-// fakeNoteWriter records every CreateChildNote / UpdateChildNote call.
-// Errors can be injected per-method.
+// fakeNoteWriter records every CreateChildNote call.
 type fakeNoteWriter struct {
 	created   []createCall
-	updated   []updateCall
 	nextKey   int
 	createErr error
-	updateErr error
 }
 
 type createCall struct {
 	parent string
 	body   string
 	tags   []string
-}
-
-type updateCall struct {
-	key  string
-	body string
 }
 
 func (f *fakeNoteWriter) CreateChildNote(_ context.Context, parent, body string, tags []string) (string, error) {
@@ -69,14 +61,6 @@ func (f *fakeNoteWriter) CreateChildNote(_ context.Context, parent, body string,
 	key := fmt.Sprintf("NOTE%04d", f.nextKey)
 	f.created = append(f.created, createCall{parent: parent, body: body, tags: tags})
 	return key, nil
-}
-
-func (f *fakeNoteWriter) UpdateChildNote(_ context.Context, key, body string) error {
-	if f.updateErr != nil {
-		return f.updateErr
-	}
-	f.updated = append(f.updated, updateCall{key: key, body: body})
-	return nil
 }
 
 // baseInput builds a reusable ExecuteInput — each test copies and
@@ -102,8 +86,8 @@ func baseInput(t *testing.T, plan *Plan) ExecuteInput {
 	}
 }
 
-// TestExecute_Create: ActionCreate runs the extractor, renders HTML,
-// posts via CreateChildNote with the default docling tag.
+// TestExecute_Create: ActionCreate runs the extractor, renders the
+// body, and posts via CreateChildNote with the default docling tag.
 func TestExecute_Create(t *testing.T) {
 	t.Parallel()
 	plan := &Plan{
@@ -114,7 +98,7 @@ func TestExecute_Create(t *testing.T) {
 			PDFHash:   "abc123",
 		},
 		Action: ActionCreate,
-		Reason: "no existing note",
+		Reason: "no existing docling note",
 	}
 	in := baseInput(t, plan)
 
@@ -132,75 +116,28 @@ func TestExecute_Create(t *testing.T) {
 	if len(w.created) != 1 {
 		t.Fatalf("CreateChildNote calls = %d, want 1", len(w.created))
 	}
-	if len(w.updated) != 0 {
-		t.Errorf("UpdateChildNote called %d times, want 0", len(w.updated))
-	}
 	call := w.created[0]
 	if call.parent != "PARENT01" {
 		t.Errorf("parent = %q", call.parent)
-	}
-	// Body must be the rendered HTML with the sentinel.
-	if !strings.Contains(call.body, "<!-- sci-extract:PDF1:abc123 -->") {
-		t.Errorf("body missing sentinel:\n%s", call.body)
 	}
 	// Default tag applied.
 	if len(call.tags) != 1 || call.tags[0] != "docling" {
 		t.Errorf("tags = %v, want [docling]", call.tags)
 	}
-	// Result HTML should match what was posted.
-	if res.HTMLBody != call.body {
-		t.Error("result HTMLBody differs from posted body")
-	}
-}
-
-// TestExecute_Replace: ActionReplace runs the extractor and PATCHes
-// the existing note key in place — no CreateChildNote call.
-func TestExecute_Replace(t *testing.T) {
-	t.Parallel()
-	plan := &Plan{
-		Request: PlanRequest{
-			ParentKey: "PARENT01",
-			PDFKey:    "PDF1",
-			PDFName:   "paper.pdf",
-			PDFHash:   "NEWHASH",
-		},
-		Action:       ActionReplace,
-		Reason:       "pdf hash changed",
-		ExistingNote: "OLDNOTE1",
-	}
-	in := baseInput(t, plan)
-
-	res, err := Execute(context.Background(), in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.NoteKey != "OLDNOTE1" {
-		t.Errorf("NoteKey = %q, want OLDNOTE1", res.NoteKey)
-	}
-	w := in.Writer.(*fakeNoteWriter)
-	if len(w.created) != 0 {
-		t.Errorf("CreateChildNote calls = %d, want 0", len(w.created))
-	}
-	if len(w.updated) != 1 {
-		t.Fatalf("UpdateChildNote calls = %d, want 1", len(w.updated))
-	}
-	if w.updated[0].key != "OLDNOTE1" {
-		t.Errorf("updated key = %q", w.updated[0].key)
-	}
-	if !strings.Contains(w.updated[0].body, "<!-- sci-extract:PDF1:NEWHASH -->") {
-		t.Error("update body missing new-hash sentinel")
+	// Result body should match what was posted.
+	if res.Body != call.body {
+		t.Error("result Body differs from posted body")
 	}
 }
 
 // TestExecute_Skip: ActionSkip must short-circuit — no extractor run,
-// no writer calls, result carries the existing note key.
+// no writer calls.
 func TestExecute_Skip(t *testing.T) {
 	t.Parallel()
 	plan := &Plan{
-		Request:      PlanRequest{ParentKey: "PARENT01", PDFKey: "PDF1", PDFHash: "abc123"},
-		Action:       ActionSkip,
-		Reason:       "up-to-date",
-		ExistingNote: "UPTODATE1",
+		Request: PlanRequest{ParentKey: "PARENT01", PDFKey: "PDF1", PDFHash: "abc123"},
+		Action:  ActionSkip,
+		Reason:  "docling note already exists",
 	}
 	in := baseInput(t, plan)
 
@@ -208,18 +145,118 @@ func TestExecute_Skip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.NoteKey != "UPTODATE1" {
-		t.Errorf("NoteKey = %q, want UPTODATE1", res.NoteKey)
+	if res.NoteKey != "" {
+		t.Errorf("NoteKey = %q, want empty for skip", res.NoteKey)
 	}
 	if in.Extractor.(*fakeExtractor).calls != 0 {
 		t.Errorf("Skip must not invoke extractor; calls = %d", in.Extractor.(*fakeExtractor).calls)
 	}
 	w := in.Writer.(*fakeNoteWriter)
-	if len(w.created)+len(w.updated) != 0 {
-		t.Errorf("Skip must not call writer; created=%d updated=%d", len(w.created), len(w.updated))
+	if len(w.created) != 0 {
+		t.Errorf("Skip must not call writer; created=%d", len(w.created))
 	}
-	if res.HTMLBody != "" {
-		t.Errorf("Skip should leave HTMLBody empty; got %q", res.HTMLBody)
+	if res.Body != "" {
+		t.Errorf("Skip should leave Body empty; got %q", res.Body)
+	}
+}
+
+// TestExecute_DefaultIsMarkdown: the default (RenderHTML=false) stores
+// raw markdown with YAML frontmatter in the note body.
+func TestExecute_DefaultIsMarkdown(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "h"},
+		Action:  ActionCreate,
+	}
+	in := baseInput(t, plan)
+
+	_, err := Execute(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := in.Writer.(*fakeNoteWriter).created[0].body
+	if !strings.Contains(body, "---\n") {
+		t.Errorf("body missing YAML frontmatter:\n%s", body)
+	}
+	if !strings.Contains(body, "pdf_key: PDF1") {
+		t.Errorf("body missing pdf_key in frontmatter:\n%s", body)
+	}
+	if !strings.Contains(body, "## Heading") {
+		t.Errorf("body missing raw markdown:\n%s", body)
+	}
+}
+
+// TestExecute_RenderHTML: when RenderHTML is true, the posted body
+// contains goldmark-rendered HTML instead of raw markdown.
+func TestExecute_RenderHTML(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "h"},
+		Action:  ActionCreate,
+	}
+	in := baseInput(t, plan)
+	in.RenderHTML = true
+
+	_, err := Execute(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := in.Writer.(*fakeNoteWriter).created[0].body
+	// goldmark renders ## Heading as <h2>
+	if !strings.Contains(body, "<h2") {
+		t.Errorf("body missing rendered <h2>:\n%s", body)
+	}
+	if strings.Contains(body, "## Heading") {
+		t.Errorf("body should not contain raw markdown when RenderHTML=true:\n%s", body)
+	}
+}
+
+// TestExecute_FrontmatterIncludesDOI: when DOI is set, it appears
+// in the YAML frontmatter.
+func TestExecute_FrontmatterIncludesDOI(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{
+			ParentKey: "P",
+			PDFKey:    "PDF1",
+			PDFName:   "p.pdf",
+			PDFHash:   "h",
+			DOI:       "10.1234/test.2026",
+		},
+		Action: ActionCreate,
+	}
+	in := baseInput(t, plan)
+
+	_, err := Execute(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := in.Writer.(*fakeNoteWriter).created[0].body
+	if !strings.Contains(body, "doi: \"10.1234/test.2026\"") {
+		t.Errorf("body missing DOI in frontmatter:\n%s", body)
+	}
+	if !strings.Contains(body, "zotero_key: P") {
+		t.Errorf("body missing zotero_key in frontmatter:\n%s", body)
+	}
+}
+
+// TestExecute_FrontmatterOmitsDOIWhenEmpty: when DOI is empty,
+// the doi field should not appear in frontmatter.
+func TestExecute_FrontmatterOmitsDOIWhenEmpty(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "h"},
+		Action:  ActionCreate,
+	}
+	in := baseInput(t, plan)
+
+	_, err := Execute(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := in.Writer.(*fakeNoteWriter).created[0].body
+	if strings.Contains(body, "doi:") {
+		t.Errorf("body should not contain doi when empty:\n%s", body)
 	}
 }
 
@@ -258,7 +295,7 @@ func TestExecute_PropagatesExtractorError(t *testing.T) {
 		t.Errorf("err = %v, want wraps %v", err, boom)
 	}
 	w := in.Writer.(*fakeNoteWriter)
-	if len(w.created)+len(w.updated) != 0 {
+	if len(w.created) != 0 {
 		t.Error("writer must not be called after extractor failure")
 	}
 }
@@ -306,8 +343,7 @@ func TestExecute_CachePopulatedOnMiss(t *testing.T) {
 }
 
 // TestExecute_CacheHitSkipsExtractor: a warm cache short-circuits the
-// extractor entirely, but the Zotero post still happens. Models the
-// "docling succeeded last run, post failed, now retry" path.
+// extractor entirely, but the Zotero post still happens.
 func TestExecute_CacheHitSkipsExtractor(t *testing.T) {
 	t.Parallel()
 	cache := &MarkdownCache{Dir: filepath.Join(t.TempDir(), "cache")}
@@ -343,8 +379,7 @@ func TestExecute_CacheHitSkipsExtractor(t *testing.T) {
 
 // TestExecute_CachePreservedOnWriterError: if docling succeeds but the
 // note post fails, the cache entry must survive so a retry picks up
-// the work instead of re-extracting. This is the reason the cache
-// exists.
+// the work instead of re-extracting.
 func TestExecute_CachePreservedOnWriterError(t *testing.T) {
 	t.Parallel()
 	plan := &Plan{
@@ -363,36 +398,8 @@ func TestExecute_CachePreservedOnWriterError(t *testing.T) {
 	}
 }
 
-// TestExecute_RawMarkdown: when RawMarkdown is true, the posted body
-// contains the original markdown inside <pre> and still has the
-// sentinel for dedupe.
-func TestExecute_RawMarkdown(t *testing.T) {
-	t.Parallel()
-	plan := &Plan{
-		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "h"},
-		Action:  ActionCreate,
-	}
-	in := baseInput(t, plan)
-	in.RawMarkdown = true
-
-	_, err := Execute(context.Background(), in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := in.Writer.(*fakeNoteWriter).created[0].body
-	if !strings.Contains(body, "<pre>") {
-		t.Errorf("body missing <pre> tag:\n%s", body)
-	}
-	if !strings.Contains(body, "## Heading") {
-		t.Errorf("body missing raw markdown:\n%s", body)
-	}
-	if !strings.Contains(body, "<!-- sci-extract:PDF1:h -->") {
-		t.Errorf("body missing sentinel:\n%s", body)
-	}
-}
-
-// TestExecute_UsesToolVersionFromExtractor: the rendered HTML must
-// reflect the ToolVersion reported by the extractor (not a hardcode).
+// TestExecute_UsesToolVersionFromExtractor: the rendered body must
+// reflect the ToolVersion reported by the extractor.
 func TestExecute_UsesToolVersionFromExtractor(t *testing.T) {
 	t.Parallel()
 	plan := &Plan{

@@ -14,15 +14,14 @@ import (
 // what would happen if `--apply` were set. No docling invocation, no
 // API write.
 type ExtractPlanResult struct {
-	ParentKey    string `json:"parent_key"`
-	PDFKey       string `json:"pdf_key"`
-	PDFName      string `json:"pdf_name"`
-	PDFHash      string `json:"pdf_hash"`
-	Action       string `json:"action"` // "create" | "replace" | "skip"
-	Reason       string `json:"reason"`
-	ExistingNote string `json:"existing_note,omitempty"`
-	OutputDir    string `json:"output_dir,omitempty"` // set only when --out was passed
-	FullMode     bool   `json:"full_mode"`            // true when --out was passed
+	ParentKey string `json:"parent_key"`
+	PDFKey    string `json:"pdf_key"`
+	PDFName   string `json:"pdf_name"`
+	PDFHash   string `json:"pdf_hash"`
+	Action    string `json:"action"` // "create" | "skip"
+	Reason    string `json:"reason"`
+	OutputDir string `json:"output_dir,omitempty"` // set only when --out was passed
+	FullMode  bool   `json:"full_mode"`            // true when --out was passed
 }
 
 func (r ExtractPlanResult) JSON() any { return r }
@@ -32,21 +31,17 @@ func (r ExtractPlanResult) Human() string {
 	fmt.Fprintf(&b, "      parent:   %s\n", r.ParentKey)
 	fmt.Fprintf(&b, "      pdf:      %s (sha256:%s)\n", r.PDFKey, r.PDFHash)
 	fmt.Fprintf(&b, "      reason:   %s\n", r.Reason)
-	if r.ExistingNote != "" {
-		fmt.Fprintf(&b, "      existing: %s\n", r.ExistingNote)
-	}
 	if r.FullMode {
 		fmt.Fprintf(&b, "      mode:     full extraction (md + json + images + csv tables)\n")
 		fmt.Fprintf(&b, "      out:      %s\n", r.OutputDir)
 	} else {
-		fmt.Fprintf(&b, "      mode:     zotero (clean markdown note, temp dir)\n")
+		fmt.Fprintf(&b, "      mode:     zotero (markdown note, temp dir)\n")
 	}
 	fmt.Fprintln(&b, "      run with --apply to execute")
 	return b.String()
 }
 
-// ExtractApplyResult describes the outcome of a completed extract
-// action (Create, Replace, or Skip).
+// ExtractApplyResult describes the outcome of a completed extract action.
 type ExtractApplyResult struct {
 	ParentKey   string        `json:"parent_key"`
 	PDFKey      string        `json:"pdf_key"`
@@ -70,12 +65,10 @@ func (r ExtractApplyResult) Human() string {
 	var b strings.Builder
 	switch r.Action {
 	case string(actionSkip):
-		fmt.Fprintf(&b, "  %s skipped %s — %s (note %s)\n", ui.SymArrow, r.PDFName, r.Reason, r.NoteKey)
+		fmt.Fprintf(&b, "  %s skipped %s — %s\n", ui.SymArrow, r.PDFName, r.Reason)
 		return b.String()
 	case string(actionCreate):
 		fmt.Fprintf(&b, "  %s created note %s for %s\n", ui.SymOK, r.NoteKey, r.PDFName)
-	case string(actionReplace):
-		fmt.Fprintf(&b, "  %s updated note %s for %s (%s)\n", ui.SymOK, r.NoteKey, r.PDFName, r.Reason)
 	default:
 		fmt.Fprintf(&b, "  %s %s %s (%s)\n", ui.SymOK, r.Action, r.NoteKey, r.PDFName)
 	}
@@ -135,11 +128,8 @@ func (r ExtractArtifactResult) Human() string {
 	return b.String()
 }
 
-// ExtractDeleteResult is emitted by `zot item extract --delete`: the
-// surgical undo of a prior extraction. Matches sci-extract notes by
-// their embedded sentinel (pdfKey), NOT by tag — tags can be stripped
-// or added by users, but the sentinel comment is load-bearing for
-// our dedupe and is less likely to be hand-edited.
+// ExtractDeleteResult is emitted by `zot item extract --delete`: trashes
+// child notes tagged "docling" for the given parent.
 type ExtractDeleteResult struct {
 	ParentKey string            `json:"parent_key"`
 	PDFKey    string            `json:"pdf_key"`
@@ -152,7 +142,7 @@ func (r ExtractDeleteResult) JSON() any { return r }
 func (r ExtractDeleteResult) Human() string {
 	var b strings.Builder
 	if len(r.Trashed) == 0 && len(r.Failed) == 0 {
-		fmt.Fprintf(&b, "  %s no sci-extract notes found for %s\n", ui.SymArrow, r.PDFName)
+		fmt.Fprintf(&b, "  %s no docling notes found for %s\n", ui.SymArrow, r.PDFName)
 		return b.String()
 	}
 	for _, k := range r.Trashed {
@@ -176,7 +166,6 @@ func (r ExtractDeleteResult) Human() string {
 type ExtractLibResult struct {
 	Total    int               `json:"total"`
 	Created  int               `json:"created"`
-	Replaced int               `json:"replaced"`
 	Skipped  int               `json:"skipped"`
 	Cached   int               `json:"cached"`
 	Failed   int               `json:"failed"`
@@ -191,8 +180,7 @@ func (r ExtractLibResult) Human() string {
 	fmt.Fprintf(&b, "\n  %s extract-lib complete\n", ui.SymOK)
 	fmt.Fprintf(&b, "      total:    %d\n", r.Total)
 	fmt.Fprintf(&b, "      created:  %d\n", r.Created)
-	fmt.Fprintf(&b, "      replaced: %d\n", r.Replaced)
-	fmt.Fprintf(&b, "      skipped:  %d (already up-to-date)\n", r.Skipped)
+	fmt.Fprintf(&b, "      skipped:  %d (docling note exists)\n", r.Skipped)
 	if r.Cached > 0 {
 		fmt.Fprintf(&b, "      cached:   %d (docling skipped, note re-posted)\n", r.Cached)
 	}
@@ -221,9 +209,8 @@ func (r ExtractLibResult) Human() string {
 type actionLabel string
 
 const (
-	actionCreate  actionLabel = "create"
-	actionReplace actionLabel = "replace"
-	actionSkip    actionLabel = "skip"
+	actionCreate actionLabel = "create"
+	actionSkip   actionLabel = "skip"
 )
 
 // ActionLabel maps an extract.Action enum to its stable string name
@@ -233,8 +220,6 @@ func ActionLabel(a extract.Action) string {
 	switch a {
 	case extract.ActionCreate:
 		return string(actionCreate)
-	case extract.ActionReplace:
-		return string(actionReplace)
 	case extract.ActionSkip:
 		return string(actionSkip)
 	}

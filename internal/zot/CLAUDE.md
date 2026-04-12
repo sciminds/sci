@@ -59,29 +59,46 @@ Read-only library-quality checks. All four checks (`invalid`, `missing`, `orphan
 
 ## PDF extraction (`internal/zot/extract/` + `zot item extract`)
 
-Converts a parent item's PDF attachment into a Zotero child note via `docling`, rendered as HTML so the Zotero note pane displays headings/lists/code cleanly. Same "reads local, writes cloud" split as the rest of zot — local sqlite resolves the attachment, Web API posts the note.
+Converts a parent item's PDF attachment into a Zotero child note via `docling`. Default format is raw markdown with YAML frontmatter (better for LLM tools and search); `--html` renders as HTML instead. Same "reads local, writes cloud" split as the rest of zot — local sqlite resolves the attachment, Web API posts the note.
 
 **Pipeline:**
 
 ```
 local.ResolvePDFAttachment → extract.HashPDF → extract.PlanExtract
-  → extract.Execute (DoclingExtractor → MarkdownToNoteHTML → api.CreateChildNote / api.UpdateChildNote)
+  → extract.Execute (DoclingExtractor → MarkdownToNoteRaw/HTML → api.CreateChildNote)
 ```
 
-`local.ResolvePDFAttachment` returns `{Key, Filename, Title}` where **`Title` comes from the PARENT item's title field**, not the attachment's. The attachment's own title is an import-time artifact (often a source URL for scraped PDFs — tested against the CKD paper whose attachment title is a 600-char Academia.edu link). Zotero stores canonical bibliographic titles on the parent; we use those.
+`local.ResolvePDFAttachment` returns `{Key, Filename, Title, DOI}` where **`Title` and `DOI` come from the PARENT item's fields**, not the attachment's. The attachment's own title is an import-time artifact (often a source URL for scraped PDFs). Zotero stores canonical bibliographic metadata on the parent; we use those.
 
-**Dedupe via sentinel.** Every extracted note carries an `<!-- sci-extract:<pdfKey>:<hash> -->` HTML comment in its body. `extract.FindSentinel` parses it. `PlanExtract` walks `api.ListNoteChildren`, looks for a sentinel matching the current `pdfKey`, and decides:
+**Skip detection via local DB.** `local.ParentsWithDoclingNotes()` queries the local sqlite for parent items that already have a non-trashed child note tagged "docling". `PlanExtract` uses this boolean to decide Create or Skip — no API calls needed for planning.
 
-- no sentinel for this pdfKey → **Create**
-- sentinel hash == current PDF hash → **Skip** (up-to-date)
-- sentinel hash != current PDF hash → **Replace** (drift)
-- `--force` + matching sentinel → **Replace** (never Skip)
+- no existing docling note → **Create**
+- existing docling note, no `--force` → **Skip**
+- `--force` → **Create** (new note alongside existing)
 
-**PATCH-in-place on Replace.** Consistent with the "never hard-delete" rule: Replace uses `api.UpdateChildNote`, which keeps the note key stable and the Zotero-side history intact. No trash churn, no dangling sentinels.
+Always creates a new child note — never patches in-place. Zotero natively supports multiple child items.
+
+**Note format (default: raw markdown with YAML frontmatter):**
+
+```yaml
+---
+zotero_key: PARENT01
+pdf_key: 7T798XVD
+title: "Webster et al. - 2017 - CKD.pdf"
+doi: "10.1016/S0140-6736(16)32064-5"
+source: docling 2.86.0
+hash: sha256:abc123
+generated: 2026-04-11
+---
+
+[markdown body]
+```
+
+The `--html` flag renders the markdown as HTML via goldmark instead, with an HTML header block (no YAML frontmatter in HTML mode).
 
 **Two CLI modes, distinguished by `--out`:**
 
-- **Zotero mode (default)**: `docling --to md --image-export-mode placeholder --table-mode accurate`. Temp dir, cleaned on exit. Clean markdown → `MarkdownToNoteHTML` → child note. Image placeholders are rewritten to `<em>(figure)</em>` so Zotero's note renderer (which strips HTML comments) shows them.
+- **Zotero mode (default)**: `docling --to md --image-export-mode placeholder --table-mode accurate`. Temp dir, cleaned on exit. Raw markdown with YAML frontmatter (or `--html` for rendered HTML) → child note. Image placeholders: `*(figure)*` in HTML mode.
 - **Full mode (`--out DIR`)**: `docling --to md --to json --image-export-mode referenced --table-mode accurate`. Persisted to DIR. Produces md + json + `<stem>_artifacts/*.png` + `<stem>_tables/table-NNN.csv`. Still posts the note unless `--no-note`.
 
 **Perf knobs on the CLI:** only `--device`, `--num-threads`. Everything else is hardwired per mode.
@@ -90,19 +107,18 @@ local.ResolvePDFAttachment → extract.HashPDF → extract.PlanExtract
 
 **Tables come from docling's always-on TableFormer**, not enrichments. `extract.writeTablesAsCSV` walks the DoclingDocument JSON (`tables[i].data.grid[row][col].text`) and emits one CSV per table through `encoding/csv` — commas/quotes escaped correctly.
 
-**The `--delete` path** is the surgical undo: it does NOT touch docling or the PDF. Walks `api.ListNoteChildren`, filters by `FindSentinel(body).pdfKey == resolvedPDF.Key`, trashes each match via the standard `api.TrashItem`. Matches the **sentinel, not the tag** — users can strip or add the `docling` tag freely, but the comment is load-bearing. Idempotent: re-running `--delete` with nothing to match prints "no sci-extract notes found" and exits 0.
+**The `--delete` path** is the surgical undo: it does NOT touch docling or the PDF. Queries `local.DoclingNoteKeys(parentKey)` for child notes tagged "docling", trashes each via `api.TrashItem`. Idempotent: re-running `--delete` with nothing to match prints "no docling notes found" and exits 0.
 
 `zot item children <KEY>` is the companion read-side command. Returns both attachments and notes (unlike `api.ListNoteChildren` which filters). Uses `zot.ChildItemView` as a mirror type because `api` already imports `zot` for `Config` — importing `api` from `zot` would cycle.
 
-**Bulk extraction (`zot extract-lib`).** No-args command that processes every parent item with a PDF attachment. Resumes where it left off via three layers:
+**Bulk extraction (`zot extract-lib`).** No-args command that processes every parent item with a PDF attachment. Resumes where it left off via two layers:
 
-1. **Sentinel** in Zotero note body — `PlanExtract` returns Skip. Covers items fully extracted.
+1. **Local DB tag check** — `local.ParentsWithDoclingNotes()` returns parents that already have a docling-tagged child note → `PlanExtract` returns Skip. Covers items fully extracted.
 2. **Local markdown cache** at `os.UserCacheDir()/sci/zot/extract/<pdfKey>-<hash>.md` — covers items where docling succeeded but the note post failed. Re-run skips docling and retries the upload only.
-3. **Docling** — only runs on true cache misses.
 
-Pipeline: `local.ListAllPDFAttachments` → `extract.PlanBatch` (concurrent) → confirm → `extract.ExecuteBatch` (worker pool). Workers each own a temp dir cleaned per-item. The circuit breaker aborts after 10 consecutive failures.
+Pipeline: `local.ListAllPDFAttachments` + `local.ParentsWithDoclingNotes` → `extract.PlanBatch` (concurrent) → confirm → `extract.ExecuteBatch` (worker pool). Workers each own a temp dir cleaned per-item. The circuit breaker aborts after 10 consecutive failures.
 
-`--jobs N` controls worker count (0 = auto: 1 for GPU, NumCPU/4 for CPU). `--limit N` caps the candidate list for smoke testing. `--force` re-extracts even when sentinels match.
+`--jobs N` controls worker count (0 = auto: 1 for GPU, NumCPU/4 for CPU). `--limit N` caps the candidate list for smoke testing. `--force` creates new notes even where docling notes already exist.
 
 Progress is shown via an inline bubbletea progress bar (`ui.RunWithProgress`). In `--json` / quiet mode, the TUI is skipped and the final `ExtractLibResult` is emitted.
 
@@ -122,7 +138,7 @@ Progress is shown via an inline bubbletea progress bar (`ui.RunWithProgress`). I
 - **Schema version drift**: `SchemaOutOfRange()` warns if `version.userdata` is outside `[MinTestedSchemaVersion, MaxTestedSchemaVersion]`. Current tested 120–130 (live DB is 125 as of 2026-04-11). Widen only after verifying every query in `items.go` / `collections.go` / `tags.go`.
 - **`tagFilter` vs `tag`**: `DeleteTagsParams.Tag` is a pipe-separated string (`"a || b || c"`), NOT a slice. API caps 50 tags per request — see `DeleteTagsFromLibrary`'s batching.
 - **BibTeX export** (`export.go` + `exportlib.go` + `citekey/`): cite-key policy lives in the `citekey` sub-package (split out to break the `zot → zot/hygiene` import cycle so `hygiene.Citekeys` can also call `citekey.Validate`). The v2 synthesized format is `{author}{year}-{words}-{ZOTKEY}` where `{words}` is up to three non-stopword title tokens each truncated to 4 chars (see citekey/citekey.go for the stopword list / ASCII-fold / wordCount/wordMaxLen constants — changing either rewrites every synthesized key so treat as breaking). `citekey.Resolve` walks: native `citationKey` → legacy BBT `Citation Key:` in `extra` → `citekey.Synthesize`. Single-item writer `writeBibEntry` is shared by `zot item export` and the library exporter `ExportLibrary`. Pinned entries append `zotero://select/library/items/<KEY>` to the `note` field; user-authored `extra` prose is preserved via `citekey.ExtractNote` (strips `Citation Key:` lines). Drift detection: `ExportLibrary` takes a prior `Keymap` and emits biblatex `ids = {oldkey}` when a synthesized prefix changed between runs. `cli/export.go` persists `.zotero-citekeymap.json` next to `-o FILE` and skips the sidecar write when `len(stats.Keymap) == 0` to avoid clobbering an existing file from a different export. Only `{`/`\` are escaped — for full LaTeX escaping users should use Better BibTeX's own export.
-- **Extract subpackage cycle** (`internal/zot/extract/`): the CLI layer (`internal/zot/cli/extract.go`) wires an `apiChildListerAdapter` so `*api.Client` satisfies `extract.ChildLister`. `*api.Client` ALREADY satisfies `extract.NoteWriter` directly — the method signatures match exactly. Don't duplicate. `extract` itself imports nothing from `api` or `zot`, so the test suite can fake everything.
+- **Extract subpackage cycle** (`internal/zot/extract/`): `*api.Client` satisfies `extract.NoteWriter` directly via its `CreateChildNote` method — the signature matches exactly. `extract` itself imports nothing from `api` or `zot`, so the test suite can fake everything. Skip detection uses `local.ParentsWithDoclingNotes()` / `local.DoclingNoteKeys()` — both query the local sqlite for child notes tagged "docling".
 - **Mirror types** for children listing: `zot.ChildItemView` is a verbatim copy of `api.ChildItem` because `api` imports `zot` (for `Config`), so `zot` can't import `api`. The CLI does the projection in `toChildItemView`. If this gets duplicated for more types, it's a signal to pull `Config` into its own subpackage and break the cycle properly.
 - **Cite-key hygiene** (`hygiene/citekeys.go`): read-only check that grades every stored cite-key against `citekey.Validate`. Findings bucket into `invalid` (SevError — empty, whitespace, or BibTeX-illegal chars like `{}%#~,=\"\\`), `non-canonical` (SevWarn — legal but doesn't match the v2 regex, expected for BBT-managed libraries), and `collision` (SevError — two items share a cite-key). Items with no stored key contribute to `Unstored` in stats but emit no finding — they're materialized by `--fix` instead. Wired into `zot doctor` as the last check (touches every row).
 - **Cite-key fix** (`fix/citekeys.go` + `fix/result.go`): write-side repair for the citekeys check. Lives in `internal/zot/fix` (new subpackage) because the orchestrator must import both `internal/zot/api` (the Web API batch writer) and `internal/zot/citekey` (synth + validate); keeping it in the parent `zot` package would cycle via `api → zot`. Pipeline: `fix.PlanCitekeys(items, opts)` walks hydrated items (pure, no DB/API — call `db.ListAll` once in the CLI layer and pass the result in), classifies each into a single reason with priority `invalid > collision > non-canonical > unstored`, returns `[]CitekeyTarget` with every item's synthesized new key. `fix.ApplyCitekeys(ctx, writer, targets)` batches the patches through `api.UpdateItemsBatch` and returns a per-item `CitekeyOutcome`; a narrow `CitekeyWriter` interface keeps tests HTTP-free (real `*api.Client` satisfies it via `UpdateItemsBatch`). `fix.DryRunCitekeys(targets)` is the no-op preview path — same result shape, `Applied=false`, no writer touched. CLI surface: `zot doctor citekeys --fix` is dry-run by default; `--apply` is required to write; `--kind` filters buckets (default `CitekeyAll`); `--item` is a per-key allow-list for smoke-testing single writes. Confirmation via `cmdutil.ConfirmOrSkip` with `--yes` bypass — required because overwriting `citationKey` is destructive against BBT's bookkeeping on managed libraries.

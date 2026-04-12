@@ -13,31 +13,23 @@ import (
 )
 
 // NoteMeta is the metadata block rendered into an extracted note's header
-// and embedded into the sentinel comment used for dedupe / drift detection.
+// and YAML frontmatter (for raw markdown mode).
 type NoteMeta struct {
+	// ParentKey is the Zotero item key of the parent item.
+	ParentKey string
 	// PDFKey is the Zotero item key of the attachment PDF (not the parent).
 	PDFKey string
 	// PDFName is the human-readable filename (Zotero auto-renames attachments
 	// per user settings; we prefer the attachment item's `title` field).
 	PDFName string
+	// DOI is the parent item's DOI, if available. Empty string when absent.
+	DOI string
 	// Source identifies the converter + version, e.g. "docling 2.86.0".
 	Source string
-	// Hash is a short hex-encoded digest of the PDF bytes. Used both for
-	// display in the header and for drift detection via the sentinel.
+	// Hash is a short hex-encoded digest of the PDF bytes.
 	Hash string
 	// Generated is the wall-clock time at which the note was produced.
 	Generated time.Time
-}
-
-// sentinelPrefix is the marker embedded in every extracted note's HTML.
-// Format: `<!-- sci-extract:<pdfKey>:<hash> -->`. Any comment matching
-// this prefix is treated as an sci-generated extraction.
-const sentinelPrefix = "sci-extract:"
-
-// sentinel returns the full HTML comment line for the given pdfKey + hash.
-// Exposed via FindSentinel for parsing; emitting is internal to this file.
-func sentinel(pdfKey, hash string) string {
-	return fmt.Sprintf("<!-- %s%s:%s -->", sentinelPrefix, pdfKey, hash)
 }
 
 // figurePlaceholder is the markdown we substitute in for docling's
@@ -54,16 +46,12 @@ const figurePlaceholder = "*(figure)*"
 //   - `<!-- image -->` placeholders are replaced with *(figure)* so they
 //     render as visible italic text.
 //   - A header block (filename, source, date, short hash) is prepended.
-//   - The dedupe sentinel is emitted right before the body separator so
-//     PlanExtract can find it via FindSentinel.
 func MarkdownToNoteHTML(md []byte, meta NoteMeta) string {
 	cleaned := bytes.ReplaceAll(md, []byte("<!-- image -->"), []byte(figurePlaceholder))
 
 	gm := goldmark.New(
 		goldmark.WithExtensions(extension.GFM),
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-		// WithUnsafe trusts the input HTML — safe here because the only
-		// raw HTML is what we produce above (header + sentinel).
 		goldmark.WithRendererOptions(html.WithUnsafe()),
 	)
 	var body bytes.Buffer
@@ -80,58 +68,28 @@ func MarkdownToNoteHTML(md []byte, meta NoteMeta) string {
 	out.WriteString(" · sha256:")
 	out.WriteString(htmlEscape(meta.Hash))
 	out.WriteString("</em></p>\n")
-	out.WriteString(sentinel(meta.PDFKey, meta.Hash))
-	out.WriteString("\n<hr>\n")
+	out.WriteString("<hr>\n")
 	out.WriteString(body.String())
 	return out.String()
 }
 
-// FindSentinel scans htmlBody for an sci-extract sentinel comment and
-// returns the embedded pdfKey and hash. Returns ok=false if no sentinel
-// is present or the payload is malformed (missing colon separator).
-func FindSentinel(htmlBody string) (pdfKey, hash string, ok bool) {
-	const open = "<!-- " + sentinelPrefix
-	i := strings.Index(htmlBody, open)
-	if i < 0 {
-		return "", "", false
-	}
-	rest := htmlBody[i+len(open):]
-	end := strings.Index(rest, " -->")
-	if end < 0 {
-		return "", "", false
-	}
-	payload := rest[:end]
-	colon := strings.Index(payload, ":")
-	if colon < 0 {
-		return "", "", false
-	}
-	return payload[:colon], payload[colon+1:], true
-}
-
-// MarkdownToNoteRaw renders the same header/sentinel structure as
-// MarkdownToNoteHTML, but wraps the markdown body in <pre> instead of
-// converting it to HTML. This preserves the original formatting in
-// Zotero's note viewer (monospaced, whitespace-preserved).
-//
-// Used by `zot item extract --save-md`.
+// MarkdownToNoteRaw renders the note body as raw markdown with YAML
+// frontmatter. This is the default note format — better for LLM tools
+// and search than rendered HTML.
 func MarkdownToNoteRaw(md []byte, meta NoteMeta) string {
 	var out strings.Builder
-	out.WriteString("<h1>")
-	out.WriteString(htmlEscape(meta.PDFName))
-	out.WriteString("</h1>\n")
-	out.WriteString("<p><em>")
-	out.WriteString(htmlEscape(meta.Source))
-	out.WriteString(" · ")
-	out.WriteString(meta.Generated.UTC().Format("2006-01-02"))
-	out.WriteString(" · sha256:")
-	out.WriteString(htmlEscape(meta.Hash))
-	out.WriteString(" · markdown")
-	out.WriteString("</em></p>\n")
-	out.WriteString(sentinel(meta.PDFKey, meta.Hash))
-	out.WriteString("\n<hr>\n")
-	out.WriteString("<pre>\n")
-	out.WriteString(htmlEscape(string(md)))
-	out.WriteString("</pre>\n")
+	out.WriteString("---\n")
+	fmt.Fprintf(&out, "zotero_key: %s\n", meta.ParentKey)
+	fmt.Fprintf(&out, "pdf_key: %s\n", meta.PDFKey)
+	fmt.Fprintf(&out, "title: %q\n", meta.PDFName)
+	if meta.DOI != "" {
+		fmt.Fprintf(&out, "doi: %q\n", meta.DOI)
+	}
+	fmt.Fprintf(&out, "source: %s\n", meta.Source)
+	fmt.Fprintf(&out, "hash: sha256:%s\n", meta.Hash)
+	fmt.Fprintf(&out, "generated: %s\n", meta.Generated.UTC().Format("2006-01-02"))
+	out.WriteString("---\n\n")
+	out.Write(md)
 	return out.String()
 }
 

@@ -7,9 +7,9 @@
 // (the read-only library reader) without cycling through the parent
 // zot package. Same split rationale as internal/zot/fix.
 //
-// Shape mirrors fix: a pure PlanExtract computes what would happen
-// (Create / Replace / Skip) against a ChildLister interface, and
-// Execute (added alongside extract.go) runs the converter and posts
-// via a narrow NoteWriter interface. Both interfaces are satisfied by
-// *api.Client but tests use fakes so the package has no HTTP dep.
+// Shape: a pure PlanExtract decides Create or Skip based on whether the
+// parent already has a docling-tagged child note (queried from the local
+// DB). Execute runs the converter and posts via a narrow NoteWriter
+// interface. NoteWriter is satisfied by *api.Client but tests use fakes
+// so the package has no HTTP dep.
 package extract

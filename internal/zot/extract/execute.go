@@ -8,12 +8,11 @@ import (
 )
 
 // NoteWriter is the narrow interface Execute needs from the Zotero Web
-// API layer. Implemented by *api.Client via its CreateChildNote +
-// UpdateChildNote methods. Tests substitute a fake so the extract
-// package has no direct HTTP dependency.
+// API layer. Implemented by *api.Client via its CreateChildNote method.
+// Tests substitute a fake so the extract package has no direct HTTP
+// dependency.
 type NoteWriter interface {
-	CreateChildNote(ctx context.Context, parentKey, htmlBody string, tags []string) (string, error)
-	UpdateChildNote(ctx context.Context, noteKey, htmlBody string) error
+	CreateChildNote(ctx context.Context, parentKey, body string, tags []string) (string, error)
 }
 
 // ExecuteInput bundles everything Execute needs in one struct so
@@ -24,7 +23,7 @@ type ExecuteInput struct {
 	Plan *Plan
 	// Extractor runs docling (or a fake in tests).
 	Extractor Extractor
-	// Writer posts / patches the resulting note.
+	// Writer posts the resulting note.
 	Writer NoteWriter
 	// PDFPath is the on-disk location of the PDF to convert.
 	PDFPath string
@@ -39,11 +38,11 @@ type ExecuteInput struct {
 	// Now returns the wall time stamped into NoteMeta.Generated. Nil
 	// means time.Now — tests inject a fixed clock.
 	Now func() time.Time
-	// RawMarkdown, when true, stores the original docling markdown
-	// wrapped in <pre> instead of rendering it as HTML. The header and
-	// sentinel are identical either way, so FindSentinel and the
-	// plan/dedupe logic work unchanged.
-	RawMarkdown bool
+	// RenderHTML, when true, renders the docling markdown as HTML via
+	// goldmark before posting. The default (false) stores the original
+	// markdown with YAML frontmatter — better for LLM consumption and
+	// search. The header metadata is present either way.
+	RenderHTML bool
 	// Cache, if non-nil, is consulted before invoking the extractor
 	// and populated after a successful extraction. Keyed by
 	// (Plan.Request.PDFKey, Plan.Request.PDFHash). On a hit the
@@ -55,16 +54,16 @@ type ExecuteInput struct {
 }
 
 // ExecuteResult describes what Execute did. For ActionSkip the
-// Extraction and HTMLBody fields are zero.
+// Extraction and Body fields are zero.
 type ExecuteResult struct {
 	// Plan is the plan that was executed (verbatim copy of the input).
 	Plan *Plan
 	// NoteKey is the Zotero item key of the note that now holds the
-	// extraction. On Create it's the newly assigned key; on Replace or
-	// Skip it's Plan.ExistingNote.
+	// extraction. On Create it's the newly assigned key; on Skip it's
+	// empty.
 	NoteKey string
-	// HTMLBody is the rendered note body posted to Zotero. Empty on Skip.
-	HTMLBody string
+	// Body is the rendered note body posted to Zotero. Empty on Skip.
+	Body string
 	// Extraction is the docling result. Nil on Skip.
 	Extraction *ExtractResult
 }
@@ -75,12 +74,8 @@ type ExecuteResult struct {
 var defaultTags = []string{"docling"}
 
 // Execute runs the action described by in.Plan: calls the extractor
-// (unless Action is Skip), renders the HTML body with
-// MarkdownToNoteHTML, and posts the result via in.Writer.
-//
-// PATCH-in-place is used for Replace so the note key and Zotero's
-// internal history stay stable — consistent with the "never
-// hard-delete" rule.
+// (unless Action is Skip), renders the note body, and posts the result
+// via in.Writer.
 func Execute(ctx context.Context, in ExecuteInput) (*ExecuteResult, error) {
 	if in.Plan == nil {
 		return nil, fmt.Errorf("execute: Plan required")
@@ -95,8 +90,7 @@ func Execute(ctx context.Context, in ExecuteInput) (*ExecuteResult, error) {
 	// Skip: short-circuit before touching the extractor.
 	if in.Plan.Action == ActionSkip {
 		return &ExecuteResult{
-			Plan:    in.Plan,
-			NoteKey: in.Plan.ExistingNote,
+			Plan: in.Plan,
 		}, nil
 	}
 
@@ -149,17 +143,19 @@ func Execute(ctx context.Context, in ExecuteInput) (*ExecuteResult, error) {
 		now = in.Now
 	}
 	meta := NoteMeta{
+		ParentKey: in.Plan.Request.ParentKey,
 		PDFKey:    in.Plan.Request.PDFKey,
 		PDFName:   in.Plan.Request.PDFName,
+		DOI:       in.Plan.Request.DOI,
 		Source:    extRes.ToolVersion,
 		Hash:      in.Plan.Request.PDFHash,
 		Generated: now(),
 	}
-	var html string
-	if in.RawMarkdown {
-		html = MarkdownToNoteRaw(md, meta)
+	var body string
+	if in.RenderHTML {
+		body = MarkdownToNoteHTML(md, meta)
 	} else {
-		html = MarkdownToNoteHTML(md, meta)
+		body = MarkdownToNoteRaw(md, meta)
 	}
 
 	tags := in.Tags
@@ -169,28 +165,14 @@ func Execute(ctx context.Context, in ExecuteInput) (*ExecuteResult, error) {
 
 	result := &ExecuteResult{
 		Plan:       in.Plan,
-		HTMLBody:   html,
+		Body:       body,
 		Extraction: extRes,
 	}
 
-	switch in.Plan.Action {
-	case ActionCreate:
-		key, err := in.Writer.CreateChildNote(ctx, in.Plan.Request.ParentKey, html, tags)
-		if err != nil {
-			return nil, fmt.Errorf("execute: create note: %w", err)
-		}
-		result.NoteKey = key
-	case ActionReplace:
-		if in.Plan.ExistingNote == "" {
-			return nil, fmt.Errorf("execute: ActionReplace requires ExistingNote")
-		}
-		if err := in.Writer.UpdateChildNote(ctx, in.Plan.ExistingNote, html); err != nil {
-			return nil, fmt.Errorf("execute: update note: %w", err)
-		}
-		result.NoteKey = in.Plan.ExistingNote
-	default:
-		return nil, fmt.Errorf("execute: unknown action %v", in.Plan.Action)
+	key, err := in.Writer.CreateChildNote(ctx, in.Plan.Request.ParentKey, body, tags)
+	if err != nil {
+		return nil, fmt.Errorf("execute: create note: %w", err)
 	}
-
+	result.NoteKey = key
 	return result, nil
 }

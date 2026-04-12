@@ -23,6 +23,7 @@ var (
 	extractLibReextract  bool
 	extractLibLimit      int
 	extractLibApply      bool
+	extractLibHTML       bool
 )
 
 const defaultConsecutiveFailureLimit = 10
@@ -34,10 +35,10 @@ func extractLibCommand() *cli.Command {
 		Description: "Runs `docling` on every parent item that has a PDF attachment.\n" +
 			"\n" +
 			"By default, extracted markdown is cached locally but NOT posted to Zotero.\n" +
-			"Pass --apply to also create/update child notes in Zotero.\n" +
+			"Pass --apply to also create child notes in Zotero.\n" +
 			"\n" +
 			"Re-running after a failure resumes where it left off:\n" +
-			"  1. Items whose note already landed in Zotero are skipped (sentinel check, --apply only).\n" +
+			"  1. Items whose docling-tagged note already exists in Zotero are skipped (--apply only).\n" +
 			"  2. Items whose docling output was cached locally skip re-extraction.\n" +
 			"\n" +
 			"$ zot extract-lib                  # extract all PDFs to local cache\n" +
@@ -45,7 +46,7 @@ func extractLibCommand() *cli.Command {
 			"$ zot extract-lib --apply --yes    # skip confirmation\n" +
 			"$ zot extract-lib --jobs 4         # 4 parallel workers (CPU mode)\n" +
 			"$ zot extract-lib --reextract      # re-run docling, ignore cached output\n" +
-			"$ zot extract-lib --force --apply  # re-post notes even if sentinel matches\n" +
+			"$ zot extract-lib --force --apply  # create new notes even where docling note exists\n" +
 			"$ zot extract-lib --limit 5        # extract at most 5 items (smoke test)",
 		Flags: []cli.Flag{
 			&cli.IntFlag{Name: "jobs", Aliases: []string{"j"}, Usage: "parallel docling workers (0 = auto: 1 for GPU, NumCPU/4 for CPU)", Destination: &extractLibJobs, Local: true},
@@ -53,21 +54,13 @@ func extractLibCommand() *cli.Command {
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads per worker (0 = docling default)", Destination: &extractLibNumThreads, Local: true},
 			&cli.BoolFlag{Name: "apply", Usage: "post extracted notes to Zotero (default is cache-only)", Destination: &extractLibApply, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &extractLibYes, Local: true},
-			&cli.BoolFlag{Name: "force", Usage: "re-post notes even if sentinel says up-to-date", Destination: &extractLibForce, Local: true},
+			&cli.BoolFlag{Name: "force", Usage: "create new notes even if docling note already exists", Destination: &extractLibForce, Local: true},
 			&cli.BoolFlag{Name: "reextract", Usage: "discard cached docling output and re-run extraction from scratch", Destination: &extractLibReextract, Local: true},
 			&cli.IntFlag{Name: "limit", Usage: "extract at most N items (for smoke testing)", Destination: &extractLibLimit, Local: true},
+			&cli.BoolFlag{Name: "html", Usage: "render markdown as HTML before posting (default is raw markdown)", Destination: &extractLibHTML, Local: true},
 		},
 		Action: extractLibAction,
 	}
-}
-
-// noopChildLister returns no children for any parent, so PlanBatch
-// always produces ActionCreate. Used in the default cache-only mode
-// where we skip the Zotero API entirely.
-type noopChildLister struct{}
-
-func (noopChildLister) ListNoteChildren(context.Context, string) ([]extract.ChildNote, error) {
-	return nil, nil
 }
 
 // noopNoteWriter accepts every write and discards it. Used in the
@@ -77,10 +70,6 @@ type noopNoteWriter struct{}
 
 func (noopNoteWriter) CreateChildNote(context.Context, string, string, []string) (string, error) {
 	return "CACHE_ONLY", nil
-}
-
-func (noopNoteWriter) UpdateChildNote(context.Context, string, string) error {
-	return nil
 }
 
 func extractLibAction(ctx context.Context, cmd *cli.Command) error {
@@ -101,6 +90,12 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 
 	if extractLibLimit > 0 && extractLibLimit < len(all) {
 		all = all[:extractLibLimit]
+	}
+
+	// Query local DB for parents that already have docling notes.
+	hasExisting, err := db.ParentsWithDoclingNotes()
+	if err != nil {
+		return err
 	}
 
 	reqs := make([]extract.BatchRequest, len(all))
@@ -131,24 +126,21 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	cache := &extract.MarkdownCache{Dir: cacheDir}
 
 	// Default is cache-only (noops); --apply wires the real Zotero API.
-	var lister extract.ChildLister
 	var writer extract.NoteWriter
 	if extractLibApply {
 		apiClient, err := requireAPIClient()
 		if err != nil {
 			return err
 		}
-		lister = &apiChildListerAdapter{c: apiClient}
 		writer = apiClient
 	} else {
-		lister = noopChildLister{}
 		writer = noopNoteWriter{}
 	}
 
 	// Plan phase — concurrent, shows a spinner.
 	var items []extract.BatchItem
 	err = ui.RunWithSpinner("Planning extraction...", func() error {
-		items = extract.PlanBatch(ctx, lister, reqs, jobs, extractLibForce)
+		items = extract.PlanBatch(ctx, reqs, jobs, extractLibForce, hasExisting)
 		return nil
 	})
 	if err != nil {
@@ -156,7 +148,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Tally the plan for confirmation.
-	var nCreate, nReplace, nSkip, nErr int
+	var nCreate, nSkip, nErr int
 	for _, it := range items {
 		if it.Err != nil {
 			nErr++
@@ -165,8 +157,6 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		switch it.Plan.Action {
 		case extract.ActionCreate:
 			nCreate++
-		case extract.ActionReplace:
-			nReplace++
 		case extract.ActionSkip:
 			nSkip++
 		}
@@ -182,8 +172,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Check if there's anything to do.
-	needWork := nCreate + nReplace
-	if needWork == 0 && nErr == 0 {
+	if nCreate == 0 && nErr == 0 {
 		cmdutil.Output(cmd, zot.ExtractLibResult{
 			Total:   len(items),
 			Skipped: nSkip,
@@ -196,8 +185,8 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	if extractLibApply {
 		mode = " (apply: posting notes to Zotero)"
 	}
-	msg := fmt.Sprintf("Extract %d items (%d create, %d replace, %d skip",
-		len(items), nCreate, nReplace, nSkip)
+	msg := fmt.Sprintf("Extract %d items (%d create, %d skip",
+		len(items), nCreate, nSkip)
 	if nErr > 0 {
 		msg += fmt.Sprintf(", %d plan errors", nErr)
 	}
@@ -231,6 +220,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			Writer:                  writer,
 			Cache:                   cache,
 			ExtractOpts:             opts,
+			RenderHTML:              extractLibHTML,
 			Jobs:                    jobs,
 			ConsecutiveFailureLimit: defaultConsecutiveFailureLimit,
 			OnItemStart: func(i int, item extract.BatchItem) {
@@ -251,13 +241,6 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 							counter = "created"
 						}
 						event = fmt.Sprintf("%s %s %s", ui.SymOK, outcome.Action, outcome.Item.Request.PDFName)
-					case extract.ActionReplace:
-						if outcome.FromCache {
-							counter = "cached"
-						} else {
-							counter = "replaced"
-						}
-						event = fmt.Sprintf("%s %s %s", ui.SymOK, outcome.Action, outcome.Item.Request.PDFName)
 					case extract.ActionSkip:
 						event = fmt.Sprintf("%s skipped %s", ui.SymArrow, outcome.Item.Request.PDFName)
 					}
@@ -272,11 +255,10 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	created, replaced, skipped, cached, failed := batchResult.Counts()
+	created, skipped, cached, failed := batchResult.Counts()
 	result := zot.ExtractLibResult{
 		Total:    len(items),
 		Created:  created,
-		Replaced: replaced,
 		Skipped:  skipped,
 		Cached:   cached,
 		Failed:   failed,

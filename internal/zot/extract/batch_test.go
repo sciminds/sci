@@ -13,20 +13,6 @@ import (
 	"time"
 )
 
-// fakeChildLister serves a fixed response per parent key so PlanBatch
-// can be tested without an HTTP client.
-type fakeChildLister struct {
-	children map[string][]ChildNote
-	err      error
-}
-
-func (f *fakeChildLister) ListNoteChildren(_ context.Context, parentKey string) ([]ChildNote, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-	return f.children[parentKey], nil
-}
-
 // writeStubPDF drops a minimal file at path so HashPDF has something
 // deterministic to hash.
 func writeStubPDF(t *testing.T, path string, body string) {
@@ -40,8 +26,7 @@ func writeStubPDF(t *testing.T, path string, body string) {
 }
 
 // TestPlanBatch_MixedOutcomes: the batch contains one Create, one
-// Skip (matching sentinel), and one planning failure (bad PDF path).
-// PlanBatch must return all three in order, each with the right shape.
+// Skip (existing docling note), and one planning failure (bad PDF path).
 func TestPlanBatch_MixedOutcomes(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -54,27 +39,20 @@ func TestPlanBatch_MixedOutcomes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Paper B: existing note already matches → Skip.
+	// Paper B: existing docling note → Skip.
 	pdfB := filepath.Join(dir, "B", "b.pdf")
 	writeStubPDF(t, pdfB, "bbb")
-	hashB, err := HashPDF(pdfB)
-	if err != nil {
-		t.Fatal(err)
-	}
-	existingBody := "<p>hi</p><!-- sci-extract:PDFB:" + hashB + " -->"
 
 	// Paper C: PDF missing on disk → plan error.
 	pdfC := filepath.Join(dir, "C", "missing.pdf")
 
-	lister := &fakeChildLister{children: map[string][]ChildNote{
-		"PB": {{Key: "NOTE_B_OLD", Body: existingBody}},
-	}}
+	hasExisting := map[string]bool{"PB": true}
 	reqs := []BatchRequest{
 		{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
 		{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFPath: pdfB},
 		{ParentKey: "PC", PDFKey: "PDFC", PDFName: "c.pdf", PDFPath: pdfC},
 	}
-	items := PlanBatch(context.Background(), lister, reqs, 2, false)
+	items := PlanBatch(context.Background(), reqs, 2, false, hasExisting)
 	if len(items) != 3 {
 		t.Fatalf("got %d items, want 3", len(items))
 	}
@@ -111,15 +89,14 @@ func TestPlanBatch_MixedOutcomes(t *testing.T) {
 	}
 }
 
-// TestExecuteBatch_HappyPath: 3 items, 1 Create + 1 Replace + 1 Skip,
-// with 2 workers. Skip never calls extractor; the others do and post.
+// TestExecuteBatch_HappyPath: 2 items, 1 Create + 1 Skip, with 2
+// workers. Skip never calls extractor; the create does and posts.
 func TestExecuteBatch_HappyPath(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	pdfA := filepath.Join(dir, "a.pdf")
 	pdfB := filepath.Join(dir, "b.pdf")
-	pdfC := filepath.Join(dir, "c.pdf")
-	for _, p := range []string{pdfA, pdfB, pdfC} {
+	for _, p := range []string{pdfA, pdfB} {
 		writeStubPDF(t, p, filepath.Base(p))
 	}
 
@@ -136,18 +113,8 @@ func TestExecuteBatch_HappyPath(t *testing.T) {
 			Request: BatchRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFPath: pdfB},
 			Hash:    "hb",
 			Plan: &Plan{
-				Request:      PlanRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFHash: "hb"},
-				Action:       ActionReplace,
-				ExistingNote: "OLDB",
-			},
-		},
-		{
-			Request: BatchRequest{ParentKey: "PC", PDFKey: "PDFC", PDFName: "c.pdf", PDFPath: pdfC},
-			Hash:    "hc",
-			Plan: &Plan{
-				Request:      PlanRequest{ParentKey: "PC", PDFKey: "PDFC", PDFName: "c.pdf", PDFHash: "hc"},
-				Action:       ActionSkip,
-				ExistingNote: "CURRENTC",
+				Request: PlanRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFHash: "hb"},
+				Action:  ActionSkip,
 			},
 		},
 	}
@@ -170,32 +137,25 @@ func TestExecuteBatch_HappyPath(t *testing.T) {
 		t.Errorf("batch should not be aborted: %s", res.AbortReason)
 	}
 
-	created, replaced, skipped, cached, failed := res.Counts()
-	if created != 1 || replaced != 1 || skipped != 1 || failed != 0 {
-		t.Errorf("counts = %d/%d/%d/cached=%d/failed=%d; want 1/1/1/0/0", created, replaced, skipped, cached, failed)
+	created, skipped, cached, failed := res.Counts()
+	if created != 1 || skipped != 1 || failed != 0 {
+		t.Errorf("counts = created=%d/skipped=%d/cached=%d/failed=%d; want 1/1/0/0", created, skipped, cached, failed)
 	}
-	if ex.calls != 2 {
-		t.Errorf("extractor calls = %d, want 2 (Skip must not trigger)", ex.calls)
+	if ex.calls != 1 {
+		t.Errorf("extractor calls = %d, want 1 (Skip must not trigger)", ex.calls)
 	}
 	if len(w.created) != 1 || w.created[0].parent != "PA" {
 		t.Errorf("CreateChildNote calls = %v", w.created)
 	}
-	if len(w.updated) != 1 || w.updated[0].key != "OLDB" {
-		t.Errorf("UpdateChildNote calls = %v", w.updated)
-	}
 
-	// Cache populated for the non-skip items.
+	// Cache populated for the non-skip item.
 	if _, ok := cache.Get("PDFA", "ha"); !ok {
 		t.Error("cache missing PDFA")
-	}
-	if _, ok := cache.Get("PDFB", "hb"); !ok {
-		t.Error("cache missing PDFB")
 	}
 }
 
 // TestExecuteBatch_PerItemErrorsContinue: one item fails (plan
-// carried an error) — the batch keeps running and reports the failure
-// in its outcome without aborting.
+// carried an error) — the batch keeps running.
 func TestExecuteBatch_PerItemErrorsContinue(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -230,15 +190,14 @@ func TestExecuteBatch_PerItemErrorsContinue(t *testing.T) {
 	if res.Outcomes[1].Err != nil {
 		t.Errorf("PA: unexpected error %v", res.Outcomes[1].Err)
 	}
-	created, _, _, _, failed := res.Counts()
+	created, _, _, failed := res.Counts()
 	if created != 1 || failed != 1 {
 		t.Errorf("created=%d failed=%d; want 1/1", created, failed)
 	}
 }
 
 // TestExecuteBatch_CircuitBreakerAborts: every item fails, the
-// consecutive-failure limit trips, and the remaining unprocessed
-// items get a cancellation error.
+// consecutive-failure limit trips.
 func TestExecuteBatch_CircuitBreakerAborts(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -272,7 +231,7 @@ func TestExecuteBatch_CircuitBreakerAborts(t *testing.T) {
 		Extractor:               &fakeExtractor{err: errors.New("docling exploded")},
 		Writer:                  &fakeNoteWriter{},
 		Cache:                   &MarkdownCache{Dir: filepath.Join(dir, "cache")},
-		Jobs:                    1, // serial so "consecutive" is well-defined
+		Jobs:                    1,
 		ConsecutiveFailureLimit: 3,
 	})
 	if err != nil {
@@ -281,8 +240,6 @@ func TestExecuteBatch_CircuitBreakerAborts(t *testing.T) {
 	if !res.Aborted {
 		t.Error("expected Aborted=true after circuit breaker trip")
 	}
-	// Every outcome should carry an error — the first few from the
-	// extractor explosion, the rest from the cancellation.
 	for i, o := range res.Outcomes {
 		if o.Err == nil {
 			t.Errorf("outcome[%d] succeeded; expected failure or cancel", i)
@@ -291,7 +248,7 @@ func TestExecuteBatch_CircuitBreakerAborts(t *testing.T) {
 }
 
 // TestExecuteBatch_FiresCallbacks: OnItemStart / OnItemDone fire once
-// per item and the completion count matches Items.
+// per item.
 func TestExecuteBatch_FiresCallbacks(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -361,7 +318,4 @@ func TestBatchJobsDefault(t *testing.T) {
 	}
 }
 
-// Compile-time guard: runtime.NumCPU is used by the CLI layer for the
-// default jobs computation; keep the import tangible so a future
-// refactor doesn't silently drop it.
 var _ = runtime.NumCPU

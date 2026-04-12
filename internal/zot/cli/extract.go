@@ -8,7 +8,6 @@ import (
 
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/extract"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
@@ -20,7 +19,7 @@ var (
 	extractApply      bool
 	extractForce      bool
 	extractReextract  bool
-	extractSaveMD     bool
+	extractHTML       bool
 	extractOut        string
 	extractNoNote     bool
 	extractDelete     bool
@@ -29,50 +28,32 @@ var (
 	extractNumThreads int
 )
 
-// apiChildListerAdapter bridges *api.Client → extract.ChildLister.
-// The api package returns []api.NoteChild, extract wants
-// []extract.ChildNote — identical shape, one-field projection.
-type apiChildListerAdapter struct {
-	c *api.Client
-}
-
-func (a *apiChildListerAdapter) ListNoteChildren(ctx context.Context, parentKey string) ([]extract.ChildNote, error) {
-	items, err := a.c.ListNoteChildren(ctx, parentKey)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]extract.ChildNote, len(items))
-	for i, it := range items {
-		out[i] = extract.ChildNote{Key: it.Key, Body: it.Body}
-	}
-	return out, nil
-}
-
 func extractCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "extract",
 		Usage: "Convert a PDF attachment into a Zotero child note (via docling)",
 		Description: "$ zot item extract 6R45EVSB                           # dry-run preview\n" +
-			"$ zot item extract 6R45EVSB --apply                    # post clean note to Zotero\n" +
+			"$ zot item extract 6R45EVSB --apply                    # post markdown note to Zotero\n" +
+			"$ zot item extract 6R45EVSB --html --apply             # post rendered HTML note\n" +
 			"$ zot item extract 6R45EVSB --out ./vault/ckd --apply  # full extraction + note\n" +
 			"$ zot item extract 6R45EVSB --out ./vault/ckd --no-note --apply  # artifacts only\n" +
-			"$ zot item extract 6R45EVSB --delete                   # undo: trash sci-extract note\n" +
+			"$ zot item extract 6R45EVSB --delete                   # undo: trash docling notes\n" +
 			"\n" +
-			"Zotero mode (default): clean markdown posted as a child note.\n" +
+			"Zotero mode (default): raw markdown with YAML frontmatter posted as a child note (--html for rendered HTML).\n" +
 			"Full mode (--out):     md + json + referenced PNGs + CSV tables written to DIR.\n" +
-			"Delete mode (--delete): trash any child note carrying this PDF's sci-extract sentinel.\n" +
+			"Delete mode (--delete): trash any child note tagged 'docling' for this parent.\n" +
 			"\n" +
 			"Uses the existing PDF attachment's contentType + path from the local zotero.sqlite.\n" +
 			"The Plan step is pure (no docling run); pass --apply to actually extract and post.",
 		ArgsUsage: "<parent-item-key>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "apply", Usage: "run docling and create/replace the note (default is dry-run)", Destination: &extractApply, Local: true},
-			&cli.BoolFlag{Name: "force", Usage: "replace an existing note even if the PDF hash hasn't changed", Destination: &extractForce, Local: true},
+			&cli.BoolFlag{Name: "apply", Usage: "run docling and create the note (default is dry-run)", Destination: &extractApply, Local: true},
+			&cli.BoolFlag{Name: "force", Usage: "create a new note even if a docling note already exists", Destination: &extractForce, Local: true},
 			&cli.BoolFlag{Name: "reextract", Usage: "discard cached docling output and re-run extraction from scratch", Destination: &extractReextract, Local: true},
-			&cli.BoolFlag{Name: "save-md", Usage: "store raw markdown in the note instead of rendered HTML", Destination: &extractSaveMD, Local: true},
+			&cli.BoolFlag{Name: "html", Usage: "render markdown as HTML before posting (default is raw markdown)", Destination: &extractHTML, Local: true},
 			&cli.StringFlag{Name: "out", Usage: "write docling artifacts (md/json/PNGs/CSVs) to DIR; enables full-extraction mode", Destination: &extractOut, Local: true},
 			&cli.BoolFlag{Name: "no-note", Usage: "skip the Zotero note post — requires --out (artifacts only)", Destination: &extractNoNote, Local: true},
-			&cli.BoolFlag{Name: "delete", Usage: "trash any child note whose sci-extract sentinel matches this PDF (undo a prior extraction)", Destination: &extractDelete, Local: true},
+			&cli.BoolFlag{Name: "delete", Usage: "trash any child notes tagged 'docling' for this parent (undo a prior extraction)", Destination: &extractDelete, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &extractYes, Local: true},
 			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "auto", Destination: &extractDevice, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default, usually 4)", Destination: &extractNumThreads, Local: true},
@@ -105,9 +86,9 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	// ── --delete: surgical undo, no PDF on disk needed ──
+	// ── --delete: find docling-tagged notes in local DB, trash via API ──
 	if extractDelete {
-		return runExtractDelete(ctx, cmd, parentKey, att)
+		return runExtractDelete(ctx, cmd, db, parentKey, att)
 	}
 
 	pdfPath := filepath.Join(cfg.DataDir, "storage", att.Key, att.Filename)
@@ -120,8 +101,13 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("hash PDF: %w", err)
 	}
 
-	// Resolve the output directory. --out is persisted; otherwise a
-	// hidden temp dir that gets cleaned up on return.
+	// Check local DB for existing docling notes.
+	hasExisting, err := db.ParentsWithDoclingNotes()
+	if err != nil {
+		return err
+	}
+
+	// Resolve the output directory.
 	outputDir := extractOut
 	cleanup := func() {}
 	if outputDir == "" {
@@ -142,8 +128,6 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		opts = extract.ZoteroDefaults()
 	}
 	if extractDevice != "" && extractDevice != "auto" {
-		// Only pass through non-default devices; docling treats
-		// missing --device as "auto" already.
 		opts.Device = extractDevice
 	}
 	opts.NumThreads = extractNumThreads
@@ -153,43 +137,31 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		return runExtractOnly(ctx, cmd, parentKey, att, pdfPath, outputDir, opts)
 	}
 
-	// ── Plan path: hit the API to enumerate existing note children ──
-	apiClient, err := requireAPIClient()
-	if err != nil {
-		return err
-	}
-	lister := &apiChildListerAdapter{c: apiClient}
-
-	plan, err := extract.PlanExtract(ctx, lister, extract.PlanRequest{
+	plan := extract.PlanExtract(extract.PlanRequest{
 		ParentKey: parentKey,
 		PDFKey:    att.Key,
 		PDFName:   att.Title,
 		PDFHash:   hash,
+		DOI:       att.DOI,
 		Force:     extractForce,
-	})
-	if err != nil {
-		return err
-	}
+	}, hasExisting[parentKey])
 
 	// Dry-run: print the plan and stop.
 	if !extractApply {
 		cmdutil.Output(cmd, zot.ExtractPlanResult{
-			ParentKey:    plan.Request.ParentKey,
-			PDFKey:       plan.Request.PDFKey,
-			PDFName:      plan.Request.PDFName,
-			PDFHash:      plan.Request.PDFHash,
-			Action:       zot.ActionLabel(plan.Action),
-			Reason:       plan.Reason,
-			ExistingNote: plan.ExistingNote,
-			OutputDir:    outputDir,
-			FullMode:     extractOut != "",
+			ParentKey: plan.Request.ParentKey,
+			PDFKey:    plan.Request.PDFKey,
+			PDFName:   plan.Request.PDFName,
+			PDFHash:   plan.Request.PDFHash,
+			Action:    zot.ActionLabel(plan.Action),
+			Reason:    plan.Reason,
+			OutputDir: outputDir,
+			FullMode:  extractOut != "",
 		})
-		// If caller kept the temp dir for dry-run inspection, suppress cleanup.
-		// (Not currently exposed; left intentional.)
 		return nil
 	}
 
-	// Apply path — confirm destructive actions.
+	// Apply path — confirm.
 	if plan.Action != extract.ActionSkip {
 		verb := zot.ActionLabel(plan.Action)
 		if done, err := cmdutil.ConfirmOrSkip(extractYes,
@@ -214,6 +186,11 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
+	apiClient, err := requireAPIClient()
+	if err != nil {
+		return err
+	}
+
 	ex, err := extract.NewDoclingExtractor()
 	if err != nil {
 		return err
@@ -226,7 +203,7 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		OutputDir:   outputDir,
 		ExtractOpts: opts,
 		Cache:       cache,
-		RawMarkdown: extractSaveMD,
+		RenderHTML:  extractHTML,
 	})
 	if err != nil {
 		return err
@@ -256,36 +233,15 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-// runExtractDelete handles the `--delete` path: find child notes
-// whose sci-extract sentinel matches this PDF's key and trash each
-// one via the standard TrashItem call. Trash-only (never hard-delete)
-// — users can restore from Zotero's trash if they change their mind.
-//
-// Sentinel matching is strict: a note must carry
-// `<!-- sci-extract:<PDF_KEY>:<HASH> -->` for us to touch it. Notes
-// merely tagged `docling` without the sentinel are left alone — tags
-// can be sprayed around by users, but the sentinel comment is
-// load-bearing and unlikely to be hand-edited.
-func runExtractDelete(ctx context.Context, cmd *cli.Command, parentKey string, att *local.PDFAttachment) error {
-	apiClient, err := requireAPIClient()
-	if err != nil {
-		return err
-	}
-	children, err := apiClient.ListNoteChildren(ctx, parentKey)
+// runExtractDelete finds docling-tagged child notes in the local DB
+// and trashes them via the Zotero Web API.
+func runExtractDelete(ctx context.Context, cmd *cli.Command, db *local.DB, parentKey string, att *local.PDFAttachment) error {
+	noteKeys, err := db.DoclingNoteKeys(parentKey)
 	if err != nil {
 		return err
 	}
 
-	var matching []api.NoteChild
-	for _, nc := range children {
-		pdfKey, _, ok := extract.FindSentinel(nc.Body)
-		if !ok || pdfKey != att.Key {
-			continue
-		}
-		matching = append(matching, nc)
-	}
-
-	if len(matching) == 0 {
+	if len(noteKeys) == 0 {
 		cmdutil.Output(cmd, zot.ExtractDeleteResult{
 			ParentKey: parentKey,
 			PDFKey:    att.Key,
@@ -294,8 +250,13 @@ func runExtractDelete(ctx context.Context, cmd *cli.Command, parentKey string, a
 		return nil
 	}
 
-	msg := fmt.Sprintf("Trash %d sci-extract note(s) for %s?", len(matching), att.Title)
+	msg := fmt.Sprintf("Trash %d docling note(s) for %s?", len(noteKeys), att.Title)
 	if done, err := cmdutil.ConfirmOrSkip(extractYes, msg); done || err != nil {
+		return err
+	}
+
+	apiClient, err := requireAPIClient()
+	if err != nil {
 		return err
 	}
 
@@ -304,15 +265,15 @@ func runExtractDelete(ctx context.Context, cmd *cli.Command, parentKey string, a
 		PDFKey:    att.Key,
 		PDFName:   att.Title,
 	}
-	for _, nc := range matching {
-		if err := apiClient.TrashItem(ctx, nc.Key); err != nil {
+	for _, key := range noteKeys {
+		if err := apiClient.TrashItem(ctx, key); err != nil {
 			if result.Failed == nil {
 				result.Failed = map[string]string{}
 			}
-			result.Failed[nc.Key] = err.Error()
+			result.Failed[key] = err.Error()
 			continue
 		}
-		result.Trashed = append(result.Trashed, nc.Key)
+		result.Trashed = append(result.Trashed, key)
 	}
 	cmdutil.Output(cmd, result)
 	return nil
@@ -320,7 +281,6 @@ func runExtractDelete(ctx context.Context, cmd *cli.Command, parentKey string, a
 
 // runExtractOnly handles the `--no-note` path: run docling against the
 // PDF, write everything to outputDir, and print the artifact paths.
-// No Zotero API calls, no plan, no note.
 func runExtractOnly(
 	ctx context.Context,
 	cmd *cli.Command,
@@ -330,8 +290,6 @@ func runExtractOnly(
 	opts extract.ExtractOptions,
 ) error {
 	if !extractApply {
-		// In dry-run we tell the user what would happen — useful for
-		// confirming the output path before committing to a 15s run.
 		cmdutil.Output(cmd, zot.ExtractPlanResult{
 			ParentKey: parentKey,
 			PDFKey:    att.Key,

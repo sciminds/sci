@@ -21,6 +21,7 @@ type PDFAttachment struct {
 	Key      string // 8-char attachment item key
 	Filename string // basename under storage/<Key>/ (no "storage:" prefix)
 	Title    string // parent item's title (paper name), not the attachment's
+	DOI      string // parent item's DOI, empty when absent
 }
 
 // ResolvePDFAttachment returns the first PDF attachment of parentKey.
@@ -46,7 +47,14 @@ SELECT ch.key, COALESCE(ia.path, ''),
          JOIN fields f ON f.fieldID = id.fieldID
          JOIN itemDataValues idv ON idv.valueID = id.valueID
          WHERE id.itemID = p.itemID AND f.fieldName = 'title'
-       ), '') AS title
+       ), '') AS title,
+       COALESCE((
+         SELECT idv.value
+         FROM itemData id
+         JOIN fields f ON f.fieldID = id.fieldID
+         JOIN itemDataValues idv ON idv.valueID = id.valueID
+         WHERE id.itemID = p.itemID AND f.fieldName = 'DOI'
+       ), '') AS doi
 FROM items p
 JOIN itemAttachments ia ON ia.parentItemID = p.itemID
 JOIN items ch ON ch.itemID = ia.itemID
@@ -61,8 +69,8 @@ WHERE p.libraryID = ?
 ORDER BY ch.dateAdded
 LIMIT 1
 `
-	var key, path, title string
-	err := d.db.QueryRow(q, d.libraryID, parentKey).Scan(&key, &path, &title)
+	var key, path, title, doi string
+	err := d.db.QueryRow(q, d.libraryID, parentKey).Scan(&key, &path, &title, &doi)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("no PDF attachment for parent %s (parent may be missing, trashed, or have no PDF child)", parentKey)
@@ -73,6 +81,7 @@ LIMIT 1
 		Key:      key,
 		Filename: strings.TrimPrefix(path, "storage:"),
 		Title:    title,
+		DOI:      doi,
 	}, nil
 }
 
@@ -101,7 +110,14 @@ SELECT p.key, ch.key, COALESCE(ia.path, ''),
          JOIN fields f ON f.fieldID = id.fieldID
          JOIN itemDataValues idv ON idv.valueID = id.valueID
          WHERE id.itemID = p.itemID AND f.fieldName = 'title'
-       ), '') AS title
+       ), '') AS title,
+       COALESCE((
+         SELECT idv.value
+         FROM itemData id
+         JOIN fields f ON f.fieldID = id.fieldID
+         JOIN itemDataValues idv ON idv.valueID = id.valueID
+         WHERE id.itemID = p.itemID AND f.fieldName = 'DOI'
+       ), '') AS doi
 FROM items p
 JOIN itemAttachments ia ON ia.parentItemID = p.itemID
 JOIN items ch ON ch.itemID = ia.itemID
@@ -124,8 +140,8 @@ ORDER BY p.key
 
 	var out []PDFParent
 	for rows.Next() {
-		var parentKey, attKey, path, title string
-		if err := rows.Scan(&parentKey, &attKey, &path, &title); err != nil {
+		var parentKey, attKey, path, title, doi string
+		if err := rows.Scan(&parentKey, &attKey, &path, &title, &doi); err != nil {
 			return nil, fmt.Errorf("scan PDF attachment row: %w", err)
 		}
 		out = append(out, PDFParent{
@@ -134,8 +150,81 @@ ORDER BY p.key
 				Key:      attKey,
 				Filename: strings.TrimPrefix(path, "storage:"),
 				Title:    title,
+				DOI:      doi,
 			},
 		})
+	}
+	return out, rows.Err()
+}
+
+// ParentsWithDoclingNotes returns the set of parent item keys that
+// have at least one non-trashed child note tagged "docling". Used by
+// extract-lib to skip parents that already have an extraction.
+func (d *DB) ParentsWithDoclingNotes() (map[string]bool, error) {
+	const q = `
+SELECT DISTINCT p.key
+FROM items p
+JOIN itemNotes n ON n.parentItemID = p.itemID
+JOIN items ni ON ni.itemID = n.itemID
+JOIN itemTags it ON ni.itemID = it.itemID
+JOIN tags t ON it.tagID = t.tagID
+LEFT JOIN deletedItems pdi ON p.itemID = pdi.itemID
+LEFT JOIN deletedItems ndi ON ni.itemID = ndi.itemID
+WHERE p.libraryID = ?
+  AND t.name = 'docling'
+  AND pdi.itemID IS NULL
+  AND ndi.itemID IS NULL
+`
+	rows, err := d.db.Query(q, d.libraryID)
+	if err != nil {
+		return nil, fmt.Errorf("parents with docling notes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make(map[string]bool)
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, fmt.Errorf("scan docling parent: %w", err)
+		}
+		out[key] = true
+	}
+	return out, rows.Err()
+}
+
+// DoclingNoteKeys returns the Zotero item keys of all non-trashed
+// child notes of parentKey that are tagged "docling". Used by
+// `zot item extract --delete` to find notes to trash.
+func (d *DB) DoclingNoteKeys(parentKey string) ([]string, error) {
+	const q = `
+SELECT ni.key
+FROM items p
+JOIN itemNotes n ON n.parentItemID = p.itemID
+JOIN items ni ON ni.itemID = n.itemID
+JOIN itemTags it ON ni.itemID = it.itemID
+JOIN tags t ON it.tagID = t.tagID
+LEFT JOIN deletedItems pdi ON p.itemID = pdi.itemID
+LEFT JOIN deletedItems ndi ON ni.itemID = ndi.itemID
+WHERE p.libraryID = ?
+  AND p.key = ?
+  AND t.name = 'docling'
+  AND pdi.itemID IS NULL
+  AND ndi.itemID IS NULL
+ORDER BY ni.dateAdded
+`
+	rows, err := d.db.Query(q, d.libraryID, parentKey)
+	if err != nil {
+		return nil, fmt.Errorf("docling note keys for %s: %w", parentKey, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, fmt.Errorf("scan docling note key: %w", err)
+		}
+		out = append(out, key)
 	}
 	return out, rows.Err()
 }
