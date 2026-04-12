@@ -206,12 +206,8 @@ func updateCommand() *cli.Command {
 			}
 
 			if len(keys) == 1 {
-				// Fast path: single PATCH. Fetch current to supply itemType.
-				cur, err := c.GetItemRaw(ctx, keys[0])
-				if err != nil {
-					return err
-				}
-				patch.ItemType = cur.Data.ItemType
+				// Fast path: single PATCH. UpdateItem fills in
+				// ItemType internally if not supplied.
 				if err := c.UpdateItem(ctx, keys[0], patch); err != nil {
 					return err
 				}

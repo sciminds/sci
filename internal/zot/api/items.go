@@ -71,8 +71,9 @@ func (c *Client) CreateItem(ctx context.Context, data client.ItemData) (string, 
 	return k, nil
 }
 
-// GetItemRaw fetches an item by key and returns its parsed form + version.
-func (c *Client) GetItemRaw(ctx context.Context, key string) (*client.Item, error) {
+// getItemRaw fetches an item by key and returns its parsed form + version.
+// Used internally for 412 version-retry and to fill in ItemType on patches.
+func (c *Client) getItemRaw(ctx context.Context, key string) (*client.Item, error) {
 	resp, err := c.Gen.GetItemWithResponse(ctx, c.UserID, client.ItemKeyPath(key), nil)
 	if err != nil {
 		return nil, err
@@ -90,22 +91,28 @@ func (c *Client) GetItemRaw(ctx context.Context, key string) (*client.Item, erro
 }
 
 // UpdateItem patches a single item by key. The patch should contain only
-// fields you want to change. Handles 412 by fetching the latest version and
-// retrying the patch once.
+// fields you want to change. If patch.ItemType is empty, it is filled in
+// from the current item state (avoiding an extra GET by the caller).
+// Handles 412 by fetching the latest version and retrying the patch once.
 func (c *Client) UpdateItem(ctx context.Context, key string, patch client.ItemData) error {
 	getVersion := func() (int, error) {
-		it, err := c.GetItemRaw(ctx, key)
+		it, err := c.getItemRaw(ctx, key)
 		if err != nil {
 			return 0, err
 		}
 		return it.Version, nil
 	}
 
-	// Initial version probe. We always need a starting version — PATCH
-	// requires it in the body.
-	current, err := getVersion()
+	// Initial fetch: we always need a starting version — PATCH requires
+	// it in the body. Also fill in ItemType if the caller didn't supply
+	// it, so callers don't need a separate GET.
+	cur, err := c.getItemRaw(ctx, key)
 	if err != nil {
 		return err
+	}
+	current := cur.Version
+	if patch.ItemType == "" {
+		patch.ItemType = cur.Data.ItemType
 	}
 
 	apply := func(ver int) error {
@@ -133,7 +140,7 @@ func (c *Client) UpdateItem(ctx context.Context, key string, patch client.ItemDa
 // Handles 412 by refreshing the version once.
 func (c *Client) TrashItem(ctx context.Context, key string) error {
 	getVersion := func() (int, error) {
-		it, err := c.GetItemRaw(ctx, key)
+		it, err := c.getItemRaw(ctx, key)
 		if err != nil {
 			return 0, err
 		}
@@ -167,7 +174,7 @@ func (c *Client) TrashItem(ctx context.Context, key string) error {
 // AddItemToCollection appends collKey to the item's Collections array.
 // No-op if the collection is already present.
 func (c *Client) AddItemToCollection(ctx context.Context, itemKey, collKey string) error {
-	it, err := c.GetItemRaw(ctx, itemKey)
+	it, err := c.getItemRaw(ctx, itemKey)
 	if err != nil {
 		return err
 	}
@@ -189,7 +196,7 @@ func (c *Client) AddItemToCollection(ctx context.Context, itemKey, collKey strin
 
 // RemoveItemFromCollection removes collKey from the item's Collections array.
 func (c *Client) RemoveItemFromCollection(ctx context.Context, itemKey, collKey string) error {
-	it, err := c.GetItemRaw(ctx, itemKey)
+	it, err := c.getItemRaw(ctx, itemKey)
 	if err != nil {
 		return err
 	}
@@ -217,7 +224,7 @@ func (c *Client) RemoveItemFromCollection(ctx context.Context, itemKey, collKey 
 
 // AddTagToItem appends a tag to an item. No-op if already present.
 func (c *Client) AddTagToItem(ctx context.Context, itemKey, tag string) error {
-	it, err := c.GetItemRaw(ctx, itemKey)
+	it, err := c.getItemRaw(ctx, itemKey)
 	if err != nil {
 		return err
 	}
@@ -239,7 +246,7 @@ func (c *Client) AddTagToItem(ctx context.Context, itemKey, tag string) error {
 
 // RemoveTagFromItem removes a tag from a single item.
 func (c *Client) RemoveTagFromItem(ctx context.Context, itemKey, tag string) error {
-	it, err := c.GetItemRaw(ctx, itemKey)
+	it, err := c.getItemRaw(ctx, itemKey)
 	if err != nil {
 		return err
 	}
@@ -326,7 +333,7 @@ func (c *Client) UpdateItemsBatch(ctx context.Context, patches []ItemPatch) (map
 			body.ItemType = client.ItemDataItemType(p.ItemType)
 		} else {
 			// Slow path: fetch version + itemType from the API.
-			cur, err := c.GetItemRaw(ctx, p.Key)
+			cur, err := c.getItemRaw(ctx, p.Key)
 			if err != nil {
 				results[p.Key] = err
 				continue
@@ -408,7 +415,7 @@ func (c *Client) UpdateItemsBatch(ctx context.Context, patches []ItemPatch) (map
 	if len(retry) > 0 {
 		refreshed := make([]built, 0, len(retry))
 		for _, b := range retry {
-			cur, gerr := c.GetItemRaw(ctx, b.patch.Key)
+			cur, gerr := c.getItemRaw(ctx, b.patch.Key)
 			if gerr != nil {
 				results[b.patch.Key] = fmt.Errorf("refresh after 412: %w", gerr)
 				continue

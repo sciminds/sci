@@ -9,7 +9,6 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
 )
@@ -277,19 +276,21 @@ func childrenCommand() *cli.Command {
 		Description: "$ zot item children 6R45EVSB\n" +
 			"$ zot --json item children 6R45EVSB | jq '.children[] | select(.item_type==\"note\") | .key'\n" +
 			"\n" +
-			"Shows every child reported by GET /items/<KEY>/children. Use together with\n" +
+			"Lists every child from the local Zotero database. Use together with\n" +
 			"`zot item delete` to prune specific notes or attachments.",
 		ArgsUsage: "<parent-item-key>",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return cmdutil.UsageErrorf(cmd, "expected exactly one item key")
 			}
 			parentKey := cmd.Args().First()
-			c, err := requireAPIClient()
+			_, db, err := openLocalDB()
 			if err != nil {
 				return err
 			}
-			children, err := c.ListChildren(ctx, parentKey)
+			defer func() { _ = db.Close() }()
+
+			children, err := db.ListChildren(parentKey)
 			if err != nil {
 				return err
 			}
@@ -307,10 +308,10 @@ func childrenCommand() *cli.Command {
 	}
 }
 
-// toChildItemView projects an api.ChildItem into the zot-package
+// toChildItemView projects a local.ChildItem into the zot-package
 // mirror type used by ChildrenListResult. The duplication exists to
-// break the api → zot import cycle; see zot.ChildItemView's doc.
-func toChildItemView(ch api.ChildItem) zot.ChildItemView {
+// break the local → zot import cycle; see zot.ChildItemView's doc.
+func toChildItemView(ch local.ChildItem) zot.ChildItemView {
 	return zot.ChildItemView{
 		Key:         ch.Key,
 		ItemType:    ch.ItemType,

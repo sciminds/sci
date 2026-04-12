@@ -155,7 +155,7 @@ func TestGetCollection_NotFound(t *testing.T) {
 	h := newCollHandler(t)
 	c, _ := newTestClient(t, h)
 
-	_, err := c.GetCollectionRaw(context.Background(), "MISSING1")
+	_, err := c.getCollectionRaw(context.Background(), "MISSING1")
 	if err == nil {
 		t.Fatal("expected not found error")
 	}

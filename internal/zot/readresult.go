@@ -125,10 +125,9 @@ func writeField(b *strings.Builder, label, value string) {
 }
 
 // ChildItemView is the zot-package-facing view of a child item as
-// returned by `zot item children`. Mirrors api.ChildItem verbatim —
-// duplicated instead of aliased because api imports zot (for Config),
-// so zot importing api would cycle. The CLI layer converts from
-// api.ChildItem at the call site.
+// returned by `zot item children`. Mirrors local.ChildItem verbatim —
+// duplicated instead of aliased because local → zot would cycle.
+// The CLI layer converts from local.ChildItem at the call site.
 type ChildItemView struct {
 	Key         string   `json:"key"`
 	ItemType    string   `json:"item_type"`

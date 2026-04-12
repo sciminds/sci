@@ -154,7 +154,8 @@ func seedFixture(dir string) error {
 			(3,'','NASA',1)`,
 
 		// Content items (10, 20, 30) + attachment child (40) + trashed item
-		// (50) + standalone attachment (60) + standalone note (70).
+		// (50) + standalone attachment (60) + standalone note (70) +
+		// note child of item 10 (90).
 		// Item 30 is intentionally left uncollected to exercise the
 		// uncollected-item orphan check.
 		`INSERT INTO items (itemID, itemTypeID, libraryID, key, version, dateAdded, dateModified, clientDateModified) VALUES
@@ -166,7 +167,8 @@ func seedFixture(dir string) error {
 			(60, 3, 1, 'ORPHANATT', 2, '2024-05-01 10:00:00', '2024-05-01 10:00:00', '2024-05-01 10:00:00'),
 			(70, 4, 1, 'ORPHNNOTE', 1, '2024-05-02 10:00:00', '2024-05-02 10:00:00', '2024-05-02 10:00:00'),
 			(80, 1, 1, 'GGGG7777', 5,  '2024-06-01 10:00:00', '2024-06-01 10:00:00', '2024-06-01 10:00:00'),
-			(81, 3, 1, 'HHHH8888', 4,  '2024-06-01 10:05:00', '2024-06-01 10:05:00', '2024-06-01 10:05:00')`,
+			(81, 3, 1, 'HHHH8888', 4,  '2024-06-01 10:05:00', '2024-06-01 10:05:00', '2024-06-01 10:05:00'),
+			(90, 4, 1, 'NOTECH10', 6,  '2024-01-02 10:00:00', '2024-01-02 10:00:00', '2024-01-02 10:00:00')`,
 
 		// Item 50 is trashed.
 		`INSERT INTO deletedItems VALUES (50)`,
@@ -233,7 +235,15 @@ func seedFixture(dir string) error {
 			(81,80,1,'application/pdf','storage:transformers.pdf')`,
 
 		// Item 70 is a standalone note with no parent.
-		`INSERT INTO itemNotes VALUES (70,NULL,'<p>Loose thoughts on attention.</p>','Attention Notes')`,
+		// Item 90 is a note child of item 10 (tagged "docling").
+		`INSERT INTO itemNotes VALUES
+			(70,NULL,'<p>Loose thoughts on attention.</p>','Attention Notes'),
+			(90,10,'<p>Extracted via docling.</p>','Extraction Note')`,
+
+		// Tag item 90 with "docling" (exercises ListChildren tag path +
+		// DoclingNoteKeys).
+		`INSERT INTO itemTags VALUES (90,5,0)`,
+		`INSERT INTO tags VALUES (5,'docling',0)`,
 	}
 	for _, stmt := range seed {
 		if _, err := db.Exec(stmt); err != nil {

@@ -31,6 +31,9 @@ type Reader interface {
 	ListCollections() ([]Collection, error)
 	ListTags() ([]Tag, error)
 
+	// Children
+	ListChildren(parentKey string) ([]ChildItem, error)
+
 	// PDF Resolution
 	ResolvePDFAttachment(parentKey string) (*PDFAttachment, error)
 	ListAllPDFAttachments() ([]PDFParent, error)

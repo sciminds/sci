@@ -51,8 +51,9 @@ func (c *Client) CreateCollection(ctx context.Context, name, parentKey string) (
 	return k, nil
 }
 
-// GetCollectionRaw fetches a collection by key.
-func (c *Client) GetCollectionRaw(ctx context.Context, key string) (*client.Collection, error) {
+// getCollectionRaw fetches a collection by key. Used internally for
+// 412 version-retry in DeleteCollection.
+func (c *Client) getCollectionRaw(ctx context.Context, key string) (*client.Collection, error) {
 	resp, err := c.Gen.GetCollectionWithResponse(ctx, c.UserID, client.CollectionKeyPath(key))
 	if err != nil {
 		return nil, err
@@ -73,7 +74,7 @@ func (c *Client) GetCollectionRaw(ctx context.Context, key string) (*client.Coll
 // items remain in the library. Handles 412 with one retry.
 func (c *Client) DeleteCollection(ctx context.Context, key string) error {
 	getVersion := func() (int, error) {
-		coll, err := c.GetCollectionRaw(ctx, key)
+		coll, err := c.getCollectionRaw(ctx, key)
 		if err != nil {
 			return 0, err
 		}
