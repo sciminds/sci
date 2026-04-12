@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/ui"
+	"github.com/sciminds/cli/internal/tui/kit"
 )
 
 // fixtureGridModel builds a Model with a synthetic two-column board ready
@@ -16,10 +17,11 @@ func fixtureGridModel(width, height int) *Model {
 	m := &Model{
 		styles:    ui.TUI,
 		screen:    screenGrid,
-		cur:       cursor{col: 0, card: -1},
+		cur:       kit.Grid2D{Col: 0, Row: -1},
 		width:     width,
 		height:    height,
 		collapsed: map[string]bool{},
+		router:    buildRouter(),
 		current: engine.Board{
 			BoardMeta: engine.BoardMeta{
 				ID:    "alpha",
@@ -50,10 +52,11 @@ func fixtureCalendarModel(width, height int) *Model {
 	m := &Model{
 		styles:    ui.TUI,
 		screen:    screenGrid,
-		cur:       cursor{col: 0, card: -1},
+		cur:       kit.Grid2D{Col: 0, Row: -1},
 		width:     width,
 		height:    height,
 		collapsed: map[string]bool{},
+		router:    buildRouter(),
 		current: engine.Board{
 			BoardMeta: engine.BoardMeta{
 				ID:      "calendar",
@@ -116,7 +119,7 @@ func TestDetailFitsTerminalHeight(t *testing.T) {
 	for _, tc := range cases {
 		m := fixtureGridModel(tc.w, tc.h)
 		m.screen = screenDetail
-		m.cur = cursor{col: 0, card: 0}
+		m.cur = kit.Grid2D{Col: 0, Row: 0}
 		out := m.buildView()
 		if got := lipgloss.Height(out); got != tc.h {
 			t.Errorf("detail term %dx%d: rendered height = %d, want %d", tc.w, tc.h, got, tc.h)
@@ -195,7 +198,7 @@ func TestVisibleColumnRangeWindows(t *testing.T) {
 // of the window bumps gridScroll so the cursor lands in view.
 func TestEnsureCursorVisibleScrollsRight(t *testing.T) {
 	m := fixtureCalendarModel(80, 30)
-	m.cur.col = 8
+	m.cur.Col = 8
 	m.ensureCursorVisible(80)
 	start, end := m.visibleColumnRange(80)
 	if start > 8 || end <= 8 {
@@ -208,7 +211,7 @@ func TestEnsureCursorVisibleScrollsRight(t *testing.T) {
 func TestEnsureCursorVisibleScrollsLeft(t *testing.T) {
 	m := fixtureCalendarModel(80, 30)
 	m.gridScroll = 6
-	m.cur.col = 1
+	m.cur.Col = 1
 	m.ensureCursorVisible(80)
 	start, end := m.visibleColumnRange(80)
 	if start > 1 || end <= 1 {
@@ -219,7 +222,7 @@ func TestEnsureCursorVisibleScrollsLeft(t *testing.T) {
 // TestToggleCollapseCurrent: `c` toggles collapse for the focused column.
 func TestToggleCollapseCurrent(t *testing.T) {
 	m := fixtureCalendarModel(80, 30)
-	m.cur.col = 2 // Mar
+	m.cur.Col = 2 // Mar
 	m.toggleCollapseCurrent()
 	if !m.collapsed["mar"] {
 		t.Errorf("expected mar collapsed after toggle")
@@ -269,10 +272,10 @@ func pressKey(m *Model, k string) {
 // first. fixtureGridModel's "todo" column has two cards (c1, c2).
 func TestGridJWrapsAtLastCard(t *testing.T) {
 	m := fixtureGridModel(100, 30)
-	m.cur = cursor{col: 0, card: 1} // on c2 (last)
+	m.cur = kit.Grid2D{Col: 0, Row: 1} // on c2 (last)
 	pressKey(m, "j")
-	if m.cur.card != 0 {
-		t.Errorf("cur.card=%d after j-wrap, want 0", m.cur.card)
+	if m.cur.Row != 0 {
+		t.Errorf("cur.card=%d after j-wrap, want 0", m.cur.Row)
 	}
 }
 
@@ -280,10 +283,10 @@ func TestGridJWrapsAtLastCard(t *testing.T) {
 // the last.
 func TestGridKWrapsAtFirstCard(t *testing.T) {
 	m := fixtureGridModel(100, 30)
-	m.cur = cursor{col: 0, card: 0} // on c1 (first)
+	m.cur = kit.Grid2D{Col: 0, Row: 0} // on c1 (first)
 	pressKey(m, "k")
-	if m.cur.card != 1 {
-		t.Errorf("cur.card=%d after k-wrap, want 1", m.cur.card)
+	if m.cur.Row != 1 {
+		t.Errorf("cur.card=%d after k-wrap, want 1", m.cur.Row)
 	}
 }
 
@@ -292,10 +295,10 @@ func TestGridKWrapsAtFirstCard(t *testing.T) {
 // a no-op.
 func TestGridKFromUnfocusedGoesToLast(t *testing.T) {
 	m := fixtureGridModel(100, 30)
-	m.cur = cursor{col: 0, card: -1}
+	m.cur = kit.Grid2D{Col: 0, Row: -1}
 	pressKey(m, "k")
-	if m.cur.card != 1 {
-		t.Errorf("cur.card=%d after k-from-unfocused, want 1", m.cur.card)
+	if m.cur.Row != 1 {
+		t.Errorf("cur.card=%d after k-from-unfocused, want 1", m.cur.Row)
 	}
 }
 
@@ -305,11 +308,11 @@ func TestGridJKEmptyColumnNoop(t *testing.T) {
 	m := fixtureGridModel(100, 30)
 	// Drop all cards so both columns are empty.
 	m.current.Cards = nil
-	m.cur = cursor{col: 0, card: -1}
+	m.cur = kit.Grid2D{Col: 0, Row: -1}
 	pressKey(m, "j")
 	pressKey(m, "k")
-	if m.cur.card != -1 {
-		t.Errorf("cur.card=%d on empty column, want -1", m.cur.card)
+	if m.cur.Row != -1 {
+		t.Errorf("cur.card=%d on empty column, want -1", m.cur.Row)
 	}
 }
 

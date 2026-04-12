@@ -13,13 +13,6 @@ const (
 	screenDetail
 )
 
-// cursor tracks the focused column/card within the grid view.
-// -1 for card means "column selected, no card highlighted".
-type cursor struct {
-	col  int
-	card int
-}
-
 // ── Messages ────────────────────────────────────────────────────────────
 
 // boardsLoadedMsg is emitted when Store.ListBoards completes.

@@ -1,11 +1,9 @@
 package app
 
 import (
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/sciminds/cli/internal/tui/board/ui"
+	"github.com/sciminds/cli/internal/tui/kit"
 )
 
 // View is the top-level render. It composes chrome (title + body + status)
@@ -21,82 +19,28 @@ func (m *Model) buildView() string {
 		return ""
 	}
 
-	body := m.renderBody()
-	title := m.renderTitle()
-	status := m.renderStatus()
-
-	return lipgloss.JoinVertical(lipgloss.Left, title, body, status)
-}
-
-func (m *Model) renderTitle() string {
-	var title string
-	switch m.screen {
-	case screenPicker:
-		title = "sci board"
-	case screenGrid:
-		title = "sci board · " + m.current.Title
-	case screenDetail:
-		if c := m.focusedCard(); c != nil {
-			title = "sci board · " + m.current.Title + " · " + c.Title
-		} else {
-			title = "sci board · " + m.current.Title
-		}
-	}
-	title = truncate(title, m.width-2)
-	return m.styles.Title.Render(title)
-}
-
-func (m *Model) renderStatus() string {
-	text := m.status.text
-	if text == "" {
-		text = m.renderHelpHint()
-	}
-	style := m.styles.Status
-	if m.status.kind == statusError && m.status.text != "" {
-		style = m.styles.StatusErr
-	}
-	return style.Render(truncate(text, m.width-2))
-}
-
-func (m *Model) renderHelpHint() string {
-	switch m.screen {
-	case screenPicker:
-		return "j/k move  ↵ open  r reload  q quit"
-	case screenGrid:
-		return "hjkl move  c collapse  C expand  tab switch board  ↵ detail  esc back  q quit"
-	case screenDetail:
-		return "esc back  q grid"
-	}
-	return ""
-}
-
-func (m *Model) renderBody() string {
-	// Reserve space for chrome: title + status bars.
-	bodyH := m.height - ui.TitleLines - ui.StatusLines
-	if bodyH < 1 {
-		bodyH = 1
-	}
-	bodyW := m.width
-
-	var raw string
-	switch m.screen {
-	case screenPicker:
-		raw = m.viewPicker(bodyW, bodyH)
-	case screenGrid:
-		raw = m.viewGrid(bodyW, bodyH)
-	case screenDetail:
-		raw = m.viewDetail(bodyW, bodyH)
+	chrome := kit.Chrome{
+		Title: func(w int) string {
+			raw := m.router.Title(m.screen, m, w)
+			return m.styles.Title.Render(truncate(raw, w-2))
+		},
+		Status: func(w int) string {
+			text := m.status.text
+			if text == "" {
+				text = m.router.Help(m.screen)
+			}
+			style := m.styles.Status
+			if m.status.kind == statusError && m.status.text != "" {
+				style = m.styles.StatusErr
+			}
+			return style.Render(truncate(text, w-2))
+		},
+		Body: func(w, h int) string {
+			return m.router.View(m.screen, m, w, h)
+		},
 	}
 
-	// Pad/truncate body to exact height so status bar lands on the last row.
-	lines := strings.Split(raw, "\n")
-	if len(lines) > bodyH {
-		lines = lines[:bodyH]
-	}
-	for len(lines) < bodyH {
-		lines = append(lines, "")
-	}
-	return strings.Join(lines, "\n")
+	return chrome.Render(m.width, m.height)
 }
 
 // truncate cuts s to at most n visible cells, appending … if it overflowed.

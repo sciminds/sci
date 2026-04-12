@@ -64,6 +64,11 @@ check: tidy fmt vet lint lint-style lint-guard test build
 ok: check
     @echo "All checks passed."
 
+# Like `ok` but skips lint-style (semgrep/ast-grep). Use when semgrep
+# rules are temporarily broken or being updated.
+ok-legacy: tidy fmt vet lint lint-guard test build
+    @echo "All checks (no semgrep) passed."
+
 # Like `ok` but also runs proj/new integration tests (SLOW=1).
 # Requires pixi, uv, quarto, marimo, typst, node on PATH.
 # Does NOT run test-canvas / test-board-live / test-zot-real — those need

@@ -100,8 +100,8 @@ func TestCalendarNavigateScrollsWindow(t *testing.T) {
 		sendKey(tm, "l")
 	}
 	fm := finalModel(t, tm)
-	if fm.cur.col != 10 {
-		t.Errorf("cur.col=%d, want 10", fm.cur.col)
+	if fm.cur.Col != 10 {
+		t.Errorf("cur.col=%d, want 10", fm.cur.Col)
 	}
 	if fm.gridScroll == 0 {
 		t.Errorf("gridScroll=0, expected scroll after 10 l-presses")

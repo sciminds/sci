@@ -5,7 +5,7 @@ import (
 )
 
 // handleKey routes a single key press based on the active screen.
-// Global keys (quit, help) are handled before the per-screen switch.
+// Global keys (quit, help) are handled before the per-screen dispatch.
 func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// Global.
 	switch msg.String() {
@@ -24,15 +24,7 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	switch m.screen {
-	case screenPicker:
-		return m.handlePickerKey(msg)
-	case screenGrid:
-		return m.handleGridKey(msg)
-	case screenDetail:
-		return m.handleDetailKey(msg)
-	}
-	return m, nil
+	return m.router.Keys(m.screen, m, msg)
 }
 
 func (m *Model) handlePickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -62,41 +54,24 @@ func (m *Model) handleGridKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	byCol := m.cardsByColumn()
-	curCards := byCol[cols[m.cur.col].ID]
+	rowsIn := func(col int) int {
+		if col < 0 || col >= len(cols) {
+			return 0
+		}
+		return len(byCol[cols[col].ID])
+	}
 
 	switch msg.String() {
 	case "h", "left":
-		if m.cur.col > 0 {
-			m.cur.col--
-			// Clamp card index to new column's length.
-			n := len(byCol[cols[m.cur.col].ID])
-			if m.cur.card >= n {
-				m.cur.card = n - 1
-			}
-			m.ensureCursorVisible(m.width)
-		}
+		m.cur.Move(-1, 0, len(cols), rowsIn)
+		m.ensureCursorVisible(m.width)
 	case "l", "right":
-		if m.cur.col < len(cols)-1 {
-			m.cur.col++
-			n := len(byCol[cols[m.cur.col].ID])
-			if m.cur.card >= n {
-				m.cur.card = n - 1
-			}
-			m.ensureCursorVisible(m.width)
-		}
+		m.cur.Move(1, 0, len(cols), rowsIn)
+		m.ensureCursorVisible(m.width)
 	case "j", "down":
-		if n := len(curCards); n > 0 {
-			m.cur.card = (m.cur.card + 1) % n
-		}
+		m.cur.Move(0, 1, len(cols), rowsIn)
 	case "k", "up":
-		if n := len(curCards); n > 0 {
-			// cur.card may be -1 (unfocused) — normalize before wrapping.
-			prev := m.cur.card - 1
-			if m.cur.card <= 0 {
-				prev = n - 1
-			}
-			m.cur.card = prev
-		}
+		m.cur.Move(0, -1, len(cols), rowsIn)
 	case "c":
 		m.toggleCollapseCurrent()
 		m.ensureCursorVisible(m.width)

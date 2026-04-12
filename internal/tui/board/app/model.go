@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/ui"
+	"github.com/sciminds/cli/internal/tui/kit"
 )
 
 // Model is the single Bubble Tea model for the board TUI. See doc.go for
@@ -23,11 +24,14 @@ type Model struct {
 
 	// Grid / Detail
 	current        engine.Board // folded state of the currently-open board
-	cur            cursor
+	cur            kit.Grid2D
 	lastSeen       string          // last event ID seen (for Poll)
 	gridScroll     int             // leftmost visible column in windowed mode
 	collapsed      map[string]bool // column IDs currently rendered as collapsed strips
 	initialGridCol int             // cursor column to apply when initialBoard first loads
+
+	// ── Routing ─────────────────────────────────────────
+	router kit.Router[screen, *Model]
 
 	// ── Layout ───────────────────────────────────────────
 	width  int
@@ -38,15 +42,49 @@ type Model struct {
 // NewModel constructs the Model. If initialBoard is non-empty the TUI
 // fast-paths into that board's grid view on first render.
 func NewModel(store *engine.Store, initialBoard string) *Model {
-	return &Model{
+	m := &Model{
 		store:          store,
 		initialBoard:   initialBoard,
 		screen:         screenPicker,
 		styles:         ui.TUI,
-		cur:            cursor{col: 0, card: -1},
+		cur:            kit.Grid2D{Col: 0, Row: -1},
 		collapsed:      map[string]bool{},
 		initialGridCol: -1,
 	}
+	m.router = buildRouter()
+	return m
+}
+
+// buildRouter wires each screen to its View / Keys / Title / Help.
+// Called once at construction time.
+func buildRouter() kit.Router[screen, *Model] {
+	return kit.NewRouter(map[screen]kit.Screen[*Model]{
+		screenPicker: {
+			View:  (*Model).viewPicker,
+			Keys:  (*Model).handlePickerKey,
+			Title: func(_ *Model, _ int) string { return "sci board" },
+			Help:  "j/k move  ↵ open  r reload  q quit",
+		},
+		screenGrid: {
+			View: (*Model).viewGrid,
+			Keys: (*Model).handleGridKey,
+			Title: func(m *Model, _ int) string {
+				return "sci board · " + m.current.Title
+			},
+			Help: "hjkl move  c collapse  C expand  tab switch board  ↵ detail  esc back  q quit",
+		},
+		screenDetail: {
+			View: (*Model).viewDetail,
+			Keys: (*Model).handleDetailKey,
+			Title: func(m *Model, _ int) string {
+				if c := m.focusedCard(); c != nil {
+					return "sci board · " + m.current.Title + " · " + c.Title
+				}
+				return "sci board · " + m.current.Title
+			},
+			Help: "esc back  q grid",
+		},
+	})
 }
 
 // SetInitialGridCursor places the grid cursor on the given column the
@@ -87,15 +125,15 @@ func (m *Model) cardsByColumn() map[string][]engine.Card {
 
 // focusedCard returns the card pointed at by m.cur, or nil if none.
 func (m *Model) focusedCard() *engine.Card {
-	if m.cur.col < 0 || m.cur.col >= len(m.current.Columns) {
+	if m.cur.Col < 0 || m.cur.Col >= len(m.current.Columns) {
 		return nil
 	}
-	colID := m.current.Columns[m.cur.col].ID
+	colID := m.current.Columns[m.cur.Col].ID
 	cards := m.cardsByColumn()[colID]
-	if m.cur.card < 0 || m.cur.card >= len(cards) {
+	if m.cur.Row < 0 || m.cur.Row >= len(cards) {
 		return nil
 	}
-	return &cards[m.cur.card]
+	return &cards[m.cur.Row]
 }
 
 func (m *Model) setStatusInfo(text string) {

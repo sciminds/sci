@@ -125,21 +125,21 @@ func (m *Model) visibleColumnRange(width int) (start, end int) {
 	return l.start, l.end
 }
 
-// ensureCursorVisible adjusts m.gridScroll so m.cur.col lands inside the
+// ensureCursorVisible adjusts m.gridScroll so m.cur.Col lands inside the
 // visible window at the given width. Called after any h/l navigation.
 func (m *Model) ensureCursorVisible(width int) {
 	n := len(m.current.Columns)
-	if n == 0 || m.cur.col < 0 || m.cur.col >= n {
+	if n == 0 || m.cur.Col < 0 || m.cur.Col >= n {
 		return
 	}
 	start, end := m.visibleColumnRange(width)
-	if m.cur.col < start {
-		m.gridScroll = m.cur.col
+	if m.cur.Col < start {
+		m.gridScroll = m.cur.Col
 		return
 	}
 	// Advance gridScroll one column at a time until cursor is visible.
 	guard := n
-	for m.cur.col >= end && m.gridScroll < n-1 && guard > 0 {
+	for m.cur.Col >= end && m.gridScroll < n-1 && guard > 0 {
 		m.gridScroll++
 		_, end = m.visibleColumnRange(width)
 		guard--
@@ -149,10 +149,10 @@ func (m *Model) ensureCursorVisible(width int) {
 // toggleCollapseCurrent toggles collapse state for the column under the
 // cursor. View-only — not persisted to the event log.
 func (m *Model) toggleCollapseCurrent() {
-	if m.cur.col < 0 || m.cur.col >= len(m.current.Columns) {
+	if m.cur.Col < 0 || m.cur.Col >= len(m.current.Columns) {
 		return
 	}
-	id := m.current.Columns[m.cur.col].ID
+	id := m.current.Columns[m.cur.Col].ID
 	if m.collapsed == nil {
 		m.collapsed = map[string]bool{}
 	}
@@ -233,7 +233,7 @@ func (m *Model) renderScrollGutter(show bool, glyph string, interiorH int) strin
 // abbreviated column title and card count — the hidden-column
 // counterpart to renderColumn.
 func (m *Model) renderCollapsedColumn(col engine.Column, count, colIdx, width, height int) string {
-	focus := colIdx == m.cur.col
+	focus := colIdx == m.cur.Col
 	frame := m.styles.ColumnCollapsed
 	if focus {
 		frame = m.styles.ColumnFocus
@@ -280,7 +280,7 @@ func centerPad(s string, w int) string {
 }
 
 func (m *Model) renderColumn(col engine.Column, cards []engine.Card, colIdx, width, height int) string {
-	focus := colIdx == m.cur.col
+	focus := colIdx == m.cur.Col
 	frame := m.styles.ColumnFrame
 	if focus {
 		frame = m.styles.ColumnFocus
@@ -304,7 +304,7 @@ func (m *Model) renderColumn(col engine.Column, cards []engine.Card, colIdx, wid
 	}
 
 	for i, c := range cards {
-		sel := focus && i == m.cur.card
+		sel := focus && i == m.cur.Row
 		body = append(body, strings.Split(m.renderCard(c, cardW, sel), "\n")...)
 		if i < len(cards)-1 {
 			for g := 0; g < ui.CardGap; g++ {

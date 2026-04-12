@@ -2,6 +2,7 @@ package app
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/sciminds/cli/internal/tui/kit"
 )
 
 // Update is the top-level message dispatcher. Window resizes and async
@@ -39,7 +40,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.current = msg.board
 		m.screen = screenGrid
-		m.cur = cursor{col: 0, card: -1}
+		m.cur = kit.Grid2D{Col: 0, Row: -1}
 		m.gridScroll = 0
 		m.collapsed = map[string]bool{}
 		// One-shot: apply initialGridCol on the next board load (the
@@ -47,7 +48,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.initialGridCol > 0 {
 			n := len(msg.board.Columns)
 			if m.initialGridCol < n {
-				m.cur.col = m.initialGridCol
+				m.cur.Col = m.initialGridCol
 				m.gridScroll = m.initialGridCol
 				m.ensureCursorVisible(m.width)
 			}
