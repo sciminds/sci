@@ -4,14 +4,12 @@ package helptui
 
 import (
 	"fmt"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/guide"
+	"github.com/sciminds/cli/internal/tui/kit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -27,8 +25,8 @@ const (
 // model is the Bubble Tea model for the interactive help TUI.
 type model struct {
 	groups   []CommandGroup
-	commands list.Model // level 0: command picker
-	subs     list.Model // level 1: subcommand list
+	commands kit.ListPicker // level 0: command picker
+	subs     kit.ListPicker // level 1: subcommand list
 	player   *guide.Player
 	level    level
 	group    *CommandGroup // current group at level 1+
@@ -38,22 +36,11 @@ type model struct {
 }
 
 func newModel(groups []CommandGroup) *model {
-	items := lo.Map(groups, func(g CommandGroup, _ int) list.Item { return g })
-
-	d := ui.NewListDelegate()
-	l := list.New(items, d, 0, 0)
-	l.Title = "Commands"
-	l.Styles.Title = ui.TUI.AccentBold()
-	l.SetFilteringEnabled(true)
-	l.SetShowStatusBar(true)
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
-			key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
-		}
-	}
-
-	return &model{groups: groups, commands: l, level: levelCommands}
+	lp := kit.NewListPicker("Commands", kit.Items(groups),
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
+		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+	)
+	return &model{groups: groups, commands: lp, level: levelCommands}
 }
 
 func newModelForGroup(g *CommandGroup) *model {
@@ -123,12 +110,12 @@ func (m *model) updateCommands(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.quitting = true
 		return m, tea.Quit
 	case "q":
-		if m.commands.FilterState() != list.Filtering {
+		if !m.commands.IsFiltering() {
 			m.quitting = true
 			return m, tea.Quit
 		}
 	case "enter":
-		if m.commands.FilterState() == list.Filtering {
+		if m.commands.IsFiltering() {
 			break
 		}
 		g, ok := m.commands.SelectedItem().(CommandGroup)
@@ -145,22 +132,12 @@ func (m *model) updateCommands(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) openGroup(g CommandGroup) {
-	items := lo.Map(g.Subs, func(s SubCommand, _ int) list.Item { return s })
 	m.group = &g
-	d := ui.NewListDelegate()
-	listH := m.height - m.descHeight()
-	l := list.New(items, d, m.width, listH)
-	l.Title = g.Name
-	l.Styles.Title = ui.TUI.AccentBold()
-	l.SetFilteringEnabled(true)
-	l.SetShowStatusBar(true)
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play demo")),
-			key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
-		}
-	}
-	m.subs = l
+	m.subs = kit.NewListPicker(g.Name, kit.Items(g.Subs),
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play demo")),
+		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+	)
+	m.subs.SetSize(m.width, m.height-m.descHeight())
 	m.level = levelSubs
 }
 
@@ -172,30 +149,30 @@ func (m *model) updateSubs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.quitting = true
 		return m, tea.Quit
 	case "q":
-		if m.subs.FilterState() != list.Filtering {
+		if !m.subs.IsFiltering() {
 			return m.goBack()
 		}
 	case "esc":
-		if m.subs.FilterState() != list.Filtering {
+		if !m.subs.IsFiltering() {
 			return m.goBack()
 		}
 	case "enter":
-		if m.subs.FilterState() == list.Filtering {
+		if m.subs.IsFiltering() {
 			break
 		}
 		sub, ok := m.subs.SelectedItem().(SubCommand)
 		if !ok || sub.CastFile == "" {
-			m.subs.NewStatusMessage("no demo available")
+			m.subs.StatusMessage("no demo available")
 			break
 		}
 		data, err := loadCast(sub.CastFile)
 		if err != nil {
-			m.subs.NewStatusMessage(fmt.Sprintf("error: %v", err))
+			m.subs.StatusMessage(fmt.Sprintf("error: %v", err))
 			break
 		}
 		cast, err := guide.ParseCast(data)
 		if err != nil {
-			m.subs.NewStatusMessage(fmt.Sprintf("error: %v", err))
+			m.subs.StatusMessage(fmt.Sprintf("error: %v", err))
 			break
 		}
 		visH := ui.OverlayBodyHeight(m.height, 4)
@@ -305,27 +282,12 @@ func (m *model) View() tea.View {
 }
 
 func (m *model) renderOverlay() string {
-	w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW)
-
-	var b strings.Builder
-
 	sub, _ := m.subs.SelectedItem().(SubCommand)
-	b.WriteString(ui.TUI.HeaderSection().Render(" " + sub.Name + " "))
-	b.WriteString("\n\n")
-
-	b.WriteString(m.player.View())
-	b.WriteString("\n\n")
-
-	hints := []string{
-		ui.TUI.HeaderHint().Render("space pause/play"),
-		ui.TUI.HeaderHint().Render("r restart"),
-		ui.TUI.HeaderHint().Render("esc close"),
-	}
-	b.WriteString(strings.Join(hints, "  "))
-
-	return ui.TUI.OverlayBox().
-		Width(w).
-		Render(b.String())
+	return kit.OverlayBox{
+		Title: sub.Name,
+		Body:  m.player.View(),
+		Hints: []string{"space pause/play", "r restart", "esc close"},
+	}.Render(m.width)
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────

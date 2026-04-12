@@ -25,6 +25,7 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 | `internal/tui/board/` (kanban TUI) | `internal/tui/board/CLAUDE.md` |
 | `internal/tui/dbtui/` (SQLite browser) | `internal/tui/dbtui/CLAUDE.md` + `app/TESTING.md` |
 | `internal/zot/` (Zotero CLI + hygiene) | `internal/zot/CLAUDE.md` |
+| `internal/tui/kit/` (shared TUI primitives) | `kit/doc.go` + `kit/README.md` |
 
 `ARCHITECTURE.md` and `internal/README.md` are sketches and may be stale — trust the code.
 
@@ -55,8 +56,16 @@ Collaborators come from Python/JS backgrounds. Prefer expressive, low-boilerplat
 - **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/`, `internal/markdb/`, `internal/zot/local/`, `internal/board/` LocalCache. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
 - **Bubbletea v2 + bubbles v2** everywhere. No v1 imports.
 - **No inline `lipgloss.NewStyle()`** outside `internal/ui/` or `internal/tui/*/ui/`. Access via the `ui.TUI` singleton. `huh` forms use `ui.HuhTheme()` + `ui.HuhKeyMap()`.
+- **`kit` first for TUI components.** `internal/tui/kit/` provides pre-styled, low-boilerplate primitives that sit on top of Bubbletea. Prefer kit over hand-wiring bubbles directly:
+  - **Filterable lists →** `kit.NewListPicker(title, kit.Items(slice), hints…)` — replaces the 10-line `list.New` + delegate + styling + filtering-enable boilerplate. Use `lp.IsFiltering()` instead of `FilterState() != list.Filtering`.
+  - **Modal overlays →** `kit.OverlayBox{Title, Body, Hints}.Render(termW)` — replaces manual HeaderSection + HeaderHint + OverlayBox assembly. Use for simple title+body+hints overlays; keep manual rendering only when the footer has conditional/mixed-style content.
+  - **Async tea.Cmd →** `kit.AsyncCmd(fn)` / `kit.AsyncCmdCtx(ctx, timeout, fn)` returning `kit.Result[T]` — replaces the repeated `func() tea.Msg { ctx, cancel := …; defer cancel(); … }` pattern. Type-switch on `kit.Result[ConcreteType]` in Update.
+  - **Screen routing →** `kit.Screen` / `kit.Router` — dispatch table replacing switch-on-screen in View/Update/Keys.
+  - **Chrome layout →** `kit.Chrome{Title, Status, Body}.Render(w, h)` — three-part vertical layout with automatic height math.
+  - **2-D cursor →** `kit.Grid2D` — reusable cursor with move/clamp/wrap for grids.
+  - **When to extend kit:** if a Bubbletea pattern appears in ≥ 2 TUIs (or is clearly headed that way), abstract it into kit rather than copy-pasting. Kit types should be plain structs testable without teatest; they compose inside a Bubbletea Model but don't replace it.
 - **Process-replacing exec** (REPL, marimo, quarto) via `syscall.Exec`, not `exec.Command`. Export `Build*Args` helpers for tests.
-- **Reuse shared infra** (`cmdutil`, `ui`, `netutil`) — don't re-implement spinners, confirms, or styling per-package.
+- **Reuse shared infra** (`cmdutil`, `ui`, `kit`, `netutil`) — don't re-implement spinners, confirms, lists, or styling per-package.
 - **New TUI apps** go under `internal/tui/<name>/` and follow the dbtui split (`app/`, `ui/`, root-pkg `Run` entry).
 - **Two-surface CLIs** (e.g. `zot`): full command tree lives in `internal/<pkg>/cli.Commands()`; both `cmd/<pkg>/main.go` and `cmd/sci/<pkg>.go` import it. Never duplicate wiring.
 

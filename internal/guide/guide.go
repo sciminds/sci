@@ -8,10 +8,9 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
-	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/mdview"
+	"github.com/sciminds/cli/internal/tui/kit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -30,9 +29,9 @@ type pagesWarmedMsg struct{}
 
 // model is the top-level Bubble Tea model for the guide TUI.
 type model struct {
-	allBooks []Book     // original book data (for pre-rendering)
-	books    list.Model // top-level book picker
-	entries  list.Model // entry list for the selected book
+	allBooks []Book         // original book data (for pre-rendering)
+	books    kit.ListPicker // top-level book picker
+	entries  kit.ListPicker // entry list for the selected book
 	player   *Player
 	viewer   *mdview.Viewer // markdown page viewer
 	split    *splitView     // side-by-side markdown + cast
@@ -44,22 +43,11 @@ type model struct {
 }
 
 func newModel(books []Book) *model {
-	items := lo.Map(books, func(b Book, _ int) list.Item { return b })
-
-	d := ui.NewListDelegate()
-	l := list.New(items, d, 0, 0)
-	l.Title = "Guides"
-	l.Styles.Title = ui.TUI.AccentBold()
-	l.SetFilteringEnabled(true)
-	l.SetShowStatusBar(true)
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
-			key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
-		}
-	}
-
-	return &model{allBooks: books, books: l, level: levelBooks}
+	lp := kit.NewListPicker("Guides", kit.Items(books),
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
+		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+	)
+	return &model{allBooks: books, books: lp, level: levelBooks}
 }
 
 func (m *model) Init() tea.Cmd {
@@ -97,9 +85,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case exportedMsg:
 		if msg.err != nil {
-			m.entries.NewStatusMessage(fmt.Sprintf("Export failed: %v", msg.err))
+			m.entries.StatusMessage(fmt.Sprintf("Export failed: %v", msg.err))
 		} else {
-			m.entries.NewStatusMessage(fmt.Sprintf("Exported to %s", msg.path))
+			m.entries.StatusMessage(fmt.Sprintf("Exported to %s", msg.path))
 		}
 		return m, nil
 
@@ -146,12 +134,12 @@ func (m *model) updateBooks(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.quitting = true
 		return m, tea.Quit
 	case "q":
-		if m.books.FilterState() != list.Filtering {
+		if !m.books.IsFiltering() {
 			m.quitting = true
 			return m, tea.Quit
 		}
 	case "enter":
-		if m.books.FilterState() == list.Filtering {
+		if m.books.IsFiltering() {
 			break
 		}
 		book, ok := m.books.SelectedItem().(Book)
@@ -168,20 +156,11 @@ func (m *model) updateBooks(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) openBook(book Book) {
-	items := lo.Map(book.Entries, func(e Entry, _ int) list.Item { return e })
-	d := ui.NewListDelegate()
-	l := list.New(items, d, m.width, m.height)
-	l.Title = book.Heading
-	l.Styles.Title = ui.TUI.AccentBold()
-	l.SetFilteringEnabled(true)
-	l.SetShowStatusBar(true)
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
-			key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
-		}
-	}
-	m.entries = l
+	m.entries = kit.NewListPicker(book.Heading, kit.Items(book.Entries),
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
+		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
+	)
+	m.entries.SetSize(m.width, m.height)
 	m.level = levelEntries
 }
 
@@ -191,17 +170,17 @@ func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.quitting = true
 		return m, tea.Quit
 	case "q":
-		if m.entries.FilterState() != list.Filtering {
+		if !m.entries.IsFiltering() {
 			m.level = levelBooks
 			return m, nil
 		}
 	case "esc":
-		if m.entries.FilterState() != list.Filtering {
+		if !m.entries.IsFiltering() {
 			m.level = levelBooks
 			return m, nil
 		}
 	case "enter":
-		if m.entries.FilterState() == list.Filtering {
+		if m.entries.IsFiltering() {
 			break
 		}
 		item, ok := m.entries.SelectedItem().(Entry)
@@ -219,12 +198,12 @@ func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		// Cast only → player overlay.
 		data, err := LoadCast(item.CastFile)
 		if err != nil {
-			m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.CastFile, err))
+			m.entries.StatusMessage(fmt.Sprintf("Error loading %s: %v", item.CastFile, err))
 			break
 		}
 		cast, err := ParseCast(data)
 		if err != nil {
-			m.entries.NewStatusMessage(fmt.Sprintf("Error parsing %s: %v", item.CastFile, err))
+			m.entries.StatusMessage(fmt.Sprintf("Error parsing %s: %v", item.CastFile, err))
 			break
 		}
 		visH := ui.OverlayBodyHeight(m.height, 4)
@@ -243,7 +222,7 @@ func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m *model) openPage(item Entry) (tea.Model, tea.Cmd) {
 	data, err := LoadPage(item.PageFile)
 	if err != nil {
-		m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.PageFile, err))
+		m.entries.StatusMessage(fmt.Sprintf("Error loading %s: %v", item.PageFile, err))
 		return m, nil
 	}
 	v := mdview.NewViewer(item.Cmd, string(data))
@@ -257,17 +236,17 @@ func (m *model) openPage(item Entry) (tea.Model, tea.Cmd) {
 func (m *model) openSplit(item Entry) (tea.Model, tea.Cmd) {
 	pageData, err := LoadPage(item.PageFile)
 	if err != nil {
-		m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.PageFile, err))
+		m.entries.StatusMessage(fmt.Sprintf("Error loading %s: %v", item.PageFile, err))
 		return m, nil
 	}
 	castData, err := LoadCast(item.CastFile)
 	if err != nil {
-		m.entries.NewStatusMessage(fmt.Sprintf("Error loading %s: %v", item.CastFile, err))
+		m.entries.StatusMessage(fmt.Sprintf("Error loading %s: %v", item.CastFile, err))
 		return m, nil
 	}
 	cast, err := ParseCast(castData)
 	if err != nil {
-		m.entries.NewStatusMessage(fmt.Sprintf("Error parsing %s: %v", item.CastFile, err))
+		m.entries.StatusMessage(fmt.Sprintf("Error parsing %s: %v", item.CastFile, err))
 		return m, nil
 	}
 
@@ -385,49 +364,43 @@ func (m *model) View() tea.View {
 }
 
 func (m *model) renderOverlay() string {
+	entry, _ := m.entries.SelectedItem().(Entry)
+
+	// Player-only overlay: clean fit for OverlayBox.
+	if m.viewer == nil {
+		return kit.OverlayBox{
+			Title: entry.Cmd,
+			Body:  m.player.View(),
+			Hints: []string{"space pause/play", "r restart", "esc close"},
+		}.Render(m.width)
+	}
+
+	// Viewer overlay has conditional hints (search mode, match count,
+	// scroll percentage with dim styling) — render manually.
 	w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW)
 
 	var b strings.Builder
-
-	// Title
-	entry, _ := m.entries.SelectedItem().(Entry)
-	title := entry.Cmd
-	b.WriteString(ui.TUI.HeaderSection().Render(" " + title + " "))
+	b.WriteString(ui.TUI.HeaderSection().Render(" " + entry.Cmd + " "))
 	b.WriteString("\n\n")
+	b.WriteString(m.viewer.View())
 
-	if m.viewer != nil {
-		b.WriteString(m.viewer.View())
+	if !m.viewer.Searching() {
 		b.WriteString("\n\n")
-
-		if m.viewer.Searching() {
-			// No footer during search — the input is visible in the viewer.
-		} else {
-			pct := fmt.Sprintf("%d%%", m.viewer.ScrollPercent())
-			hints := ui.TUI.HeaderHint().Render("↑/↓ scroll") + "  " +
-				ui.TUI.HeaderHint().Render("/ search") + "  " +
-				ui.TUI.HeaderHint().Render("e export") + "  " +
-				ui.TUI.HeaderHint().Render("q/esc close")
-			if m.viewer.Query() != "" {
-				hints += "  " + ui.TUI.HeaderHint().Render(
-					fmt.Sprintf("n/N next/prev (%d matches)", m.viewer.MatchCount()),
-				)
-			}
-			hints += "  " + ui.TUI.Dim().Render(pct)
-			b.WriteString(hints)
+		pct := fmt.Sprintf("%d%%", m.viewer.ScrollPercent())
+		hints := ui.TUI.HeaderHint().Render("↑/↓ scroll") + "  " +
+			ui.TUI.HeaderHint().Render("/ search") + "  " +
+			ui.TUI.HeaderHint().Render("e export") + "  " +
+			ui.TUI.HeaderHint().Render("q/esc close")
+		if m.viewer.Query() != "" {
+			hints += "  " + ui.TUI.HeaderHint().Render(
+				fmt.Sprintf("n/N next/prev (%d matches)", m.viewer.MatchCount()),
+			)
 		}
-	} else {
-		b.WriteString(m.player.View())
-		b.WriteString("\n\n")
-
-		footer := ui.TUI.HeaderHint().Render("space pause/play") + "  " +
-			ui.TUI.HeaderHint().Render("r restart") + "  " +
-			ui.TUI.HeaderHint().Render("esc close")
-		b.WriteString(footer)
+		hints += "  " + ui.TUI.Dim().Render(pct)
+		b.WriteString(hints)
 	}
 
-	return ui.TUI.OverlayBox().
-		Width(w).
-		Render(b.String())
+	return ui.TUI.OverlayBox().Width(w).Render(b.String())
 }
 
 // exportedMsg carries the result of an export attempt.
