@@ -1,5 +1,5 @@
 rules:
-  # ── no-manual-map (44 hits) ────────────────────────────────────────────────
+  # ── no-manual-map (43 hits) ────────────────────────────────────────────────
   # make([]T, len(src)) + for-range index-assignment → lo.Map
   #
   # Before:
@@ -20,7 +20,7 @@ rules:
     severity: WARNING
     languages: [go]
 
-  # ── no-manual-filter (8 hits) ──────────────────────────────────────────────
+  # ── no-manual-filter (8 hits — identity append only; see filtermap) ────────
   # for _, x := range src { if cond { out = append(out, x) } } → lo.Filter
   - id: no-manual-filter
     patterns:
@@ -36,7 +36,7 @@ rules:
     severity: WARNING
     languages: [go]
 
-  # ── no-manual-keyby (21 hits total) ────────────────────────────────────────
+  # ── no-manual-keyby (6 + 13 hits) ──────────────────────────────────────────
   # make(map[K]V) + for-range assignment → lo.KeyBy or lo.SliceToMap
   - id: no-manual-keyby
     patterns:
@@ -64,7 +64,7 @@ rules:
     severity: WARNING
     languages: [go]
 
-  # ── no-manual-find (5 hits) ────────────────────────────────────────────────
+  # ── no-manual-find (4 hits) ────────────────────────────────────────────────
   # for _, x := range src { if cond { return x, ... } } → lo.Find
   - id: no-manual-find
     patterns:
@@ -80,7 +80,7 @@ rules:
     severity: WARNING
     languages: [go]
 
-  # ── no-manual-countby (5 hits) ─────────────────────────────────────────────
+  # ── no-manual-countby (5 hits) ──────────────────────────────────────────────
   # count := 0; for _, x := range src { if cond { count++ } } → lo.CountBy
   - id: no-manual-countby
     patterns:
@@ -97,7 +97,7 @@ rules:
     severity: WARNING
     languages: [go]
 
-  # ── no-manual-contains (3 hits) ────────────────────────────────────────────
+  # ── no-manual-contains (3 hits) ─────────────────────────────────────────────
   # for _, x := range src { if x == target { return true } }; return false
   # → slices.Contains
   - id: no-manual-contains
@@ -115,7 +115,7 @@ rules:
     severity: WARNING
     languages: [go]
 
-  # ── no-manual-sum (3 hits) ─────────────────────────────────────────────────
+  # ── no-manual-sum (3 hits) ──────────────────────────────────────────────────
   # acc := 0; for _, x := range src { acc += expr } → lo.SumBy or lo.Reduce
   - id: no-manual-sum
     patterns:
@@ -130,7 +130,7 @@ rules:
     severity: WARNING
     languages: [go]
 
-  # ── no-manual-groupby (2 hits) ─────────────────────────────────────────────
+  # ── no-manual-groupby (2 hits) ──────────────────────────────────────────────
   # make(map[K][]V) + for-range append → lo.GroupBy
   - id: no-manual-groupby
     patterns:
@@ -142,5 +142,226 @@ rules:
     message: >-
       Use lo.GroupBy($SRC, func(...) $K { ... }) instead of manual group loop.
       See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-chunk (6 hits) ────────────────────────────────────────────────
+  # for i := 0; i < len(s); i += n { ... s[i:...] } → lo.Chunk
+  #
+  # Before:
+  #   for i := 0; i < len(items); i += batchSize {
+  #       end := min(i+batchSize, len(items))
+  #       chunk := items[i:end]
+  #   }
+  # After:
+  #   for _, chunk := range lo.Chunk(items, batchSize) { ... }
+  - id: no-manual-chunk
+    patterns:
+      - pattern: |
+          for $I := 0; $I < len($SRC); $I += $SIZE {
+              ...
+          }
+    message: >-
+      Use lo.Chunk($SRC, $SIZE) instead of manual step-based chunking loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-filtermap (11 hits) ───────────────────────────────────────────
+  # for _, v := range src { if cond { out = append(out, transform(v)) } }
+  # → lo.FilterMap
+  #
+  # Before:
+  #   for _, v := range items {
+  #       if v.Active {
+  #           out = append(out, v.Name)
+  #       }
+  #   }
+  # After:
+  #   out := lo.FilterMap(items, func(v Item, _ int) (string, bool) {
+  #       return v.Name, v.Active
+  #   })
+  - id: no-manual-filtermap
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              if $COND {
+                  $DST = append($DST, $EXPR)
+              }
+          }
+      - metavariable-comparison:
+          metavariable: $EXPR
+          comparison: str($EXPR) != str($V)
+    message: >-
+      Use lo.FilterMap($SRC, func($V T, _ int) (U, bool) { ... })
+      instead of manual filter+transform loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-set-build (3 + 7 hits) ────────────────────────────────────────
+  # make(map[T]bool) + for { m[key] = true } → lo.Keyify / lo.SliceToMap
+  #
+  # Before:
+  #   s := make(map[string]bool)
+  #   for _, v := range items { s[v] = true }
+  # After:
+  #   s := lo.Keyify(items) // map[string]struct{}
+  #   -- or, when key is derived from loop var --
+  #   s := lo.SliceToMap(items, func(v T) (K, bool) { ... })
+  - id: no-manual-set-build
+    patterns:
+      - pattern: |
+          $DST := make(map[$K]bool)
+          for _, $V := range $SRC {
+              $DST[$KEY] = true
+          }
+    message: >-
+      Use lo.Keyify($SRC) (when key == element) or lo.SliceToMap (when key
+      is derived) instead of manual set-building loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # variant with pre-allocated capacity
+  - id: no-manual-set-build-len
+    patterns:
+      - pattern: |
+          $DST := make(map[$K]bool, len($SRC))
+          for _, $V := range $SRC {
+              $DST[$KEY] = true
+          }
+    message: >-
+      Use lo.Keyify($SRC) (when key == element) or lo.SliceToMap (when key
+      is derived) instead of manual set-building loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-set-build-struct ─────────────────────────────────────────────
+  # Same pattern but with map[T]struct{} instead of map[T]bool
+  - id: no-manual-set-build-struct
+    patterns:
+      - pattern: |
+          $DST := make(map[$K]struct{})
+          for _, $V := range $SRC {
+              $DST[$KEY] = struct{}{}
+          }
+    message: >-
+      Use lo.Keyify($SRC) instead of manual set-building loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-uniq (0 structural hits — real instances interleave extra logic) ──
+  # seen := map[T]bool{}; for { if !seen[x] { seen[x]=true; append } }
+  # → lo.UniqBy
+  #
+  # Before:
+  #   seen := make(map[string]bool)
+  #   for _, v := range items {
+  #       if !seen[v.Key] { seen[v.Key] = true; out = append(out, v) }
+  #   }
+  # After:
+  #   out := lo.UniqBy(items, func(v Item) string { return v.Key })
+  - id: no-manual-uniq
+    patterns:
+      - pattern: |
+          $SEEN := make(map[$K]bool)
+          for _, $V := range $SRC {
+              if !$SEEN[$KEY] {
+                  $SEEN[$KEY] = true
+                  $DST = append($DST, $EXPR)
+              }
+          }
+    message: >-
+      Use lo.UniqBy($SRC, func(...) $K { ... }) instead of manual
+      seen-map dedup loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-flatten (0 structural hits — most use slices.Concat already) ──
+  # for _, sub := range nested { out = append(out, sub...) } → lo.Flatten
+  #
+  # Before:
+  #   for _, sub := range nested { out = append(out, sub...) }
+  # After:
+  #   out := lo.Flatten(nested)
+  - id: no-manual-flatten
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              $DST = append($DST, $V...)
+          }
+    message: >-
+      Use lo.Flatten($SRC) instead of manual flatten loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-keys (5 hits) ─────────────────────────────────────────────────
+  # keys := []; for k := range m { keys = append(keys, k) }
+  # → slices.Sorted(maps.Keys(m)) or lo.Keys
+  #
+  # Before:
+  #   keys := make([]string, 0, len(m))
+  #   for k := range m { keys = append(keys, k) }
+  # After:
+  #   keys := slices.Sorted(maps.Keys(m))
+  - id: no-manual-keys
+    patterns:
+      - pattern: |
+          for $K := range $SRC {
+              $DST = append($DST, $K)
+          }
+    message: >-
+      Use slices.Sorted(maps.Keys($SRC)) or slices.Collect(maps.Keys($SRC))
+      instead of manual key-extraction loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-compact (0 structural — real code uses TrimSpace != "") ──────
+  # for _, v := range src { if v != "" { out = append(out, v) } }
+  # → lo.Compact or lo.WithoutEmpty
+  - id: no-manual-compact-string
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              if $V != "" {
+                  $DST = append($DST, $V)
+              }
+          }
+    message: >-
+      Use lo.Compact($SRC) or lo.WithoutEmpty($SRC) instead of manual
+      empty-string filter loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-map-merge (7 hits) ────────────────────────────────────────────
+  # for k, v := range src { dst[k] = v } → maps.Copy(dst, src)
+  - id: no-manual-map-merge
+    patterns:
+      - pattern: |
+          for $K, $V := range $SRC {
+              $DST[$K] = $V
+          }
+    message: >-
+      Use maps.Copy($DST, $SRC) instead of manual map merge loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-reject (5 hits) ───────────────────────────────────────────────
+  # for _, v := range src { if !cond { out = append(out, v) } } → lo.Reject
+  - id: no-manual-reject
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              if !$COND {
+                  $DST = append($DST, $V)
+              }
+          }
+    message: >-
+      Use lo.Reject($SRC, func($V T, _ int) bool { ... }) instead of
+      manual negated-filter loop. See CLAUDE.md "Modern Go style".
     severity: WARNING
     languages: [go]

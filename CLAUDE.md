@@ -32,10 +32,20 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 
 Collaborators come from Python/JS backgrounds. Prefer expressive, low-boilerplate Go over verbose manual loops.
 
-- **`samber/lo` for transforms.** Use `lo.Map`, `lo.Filter`, `lo.FilterMap`, `lo.Find`, `lo.Reduce`, `lo.GroupBy`, `lo.KeyBy`, `lo.FlatMap`, `lo.Uniq`, `lo.Contains`, `lo.SliceToMap`, `lo.Intersect`, `lo.Difference`, etc. instead of hand-rolled `for`+`append` loops. Go's stdlib lacks generic Map/Filter/GroupBy — `lo` fills that gap and reads like the Python/JS equivalents collaborators already know.
-- **stdlib `slices`/`maps`/`cmp` when they suffice.** Use `slices.Sort`, `slices.SortFunc`, `slices.Clone`, `slices.Concat`, `slices.Contains`, `slices.Sorted(maps.Keys(m))`, `bytes.Clone`, `cmp.Compare`, `cmp.Or`. These cover sorting, cloning, and simple lookups without an external dep.
+- **`samber/lo` for transforms.** Use `lo.Map`, `lo.Filter`, `lo.FilterMap`, `lo.Find`, `lo.Reduce`, `lo.GroupBy`, `lo.KeyBy`, `lo.FlatMap`, `lo.Uniq`/`lo.UniqBy`, `lo.Contains`, `lo.SliceToMap`, `lo.Intersect`, `lo.Difference`, etc. instead of hand-rolled `for`+`append` loops. Go's stdlib lacks generic Map/Filter/GroupBy — `lo` fills that gap and reads like the Python/JS equivalents collaborators already know.
+- **Additional `lo` helpers to prefer over manual loops:**
+  - **Chunking:** `lo.Chunk(slice, n)` — replaces `for i := 0; i < len(s); i += n` step-loops.
+  - **Reject:** `lo.Reject` — inverse of Filter (negated condition). Replaces `if !cond { append }`.
+  - **Set building:** `lo.Keyify(slice)` → `map[T]struct{}`. Replaces `m := map[T]bool{}; for { m[v]=true }`.
+  - **Flatten:** `lo.Flatten(nested)` — replaces `for { out = append(out, sub...) }`.
+  - **Compact:** `lo.Compact(slice)` — removes zero-value elements (empty strings, nils, 0s).
+  - **CountValues:** `lo.CountValues(slice)` — frequency map. Replaces `m[v]++` loops.
+  - **`*Err` variants:** `lo.MapErr`, `lo.FilterErr`, `lo.ReduceErr`, `lo.GroupByErr`, etc. — callbacks return `(T, error)` and short-circuit on first error. Use when transforms touch I/O.
+  - **Ternary:** `lo.Ternary(cond, a, b)` — for simple one-liner `if/else` value assignments.
+- **stdlib `slices`/`maps`/`cmp` when they suffice.** Use `slices.Sort`, `slices.SortFunc`, `slices.Clone`, `slices.Concat`, `slices.Contains`, `slices.Sorted(maps.Keys(m))`, `bytes.Clone`, `cmp.Compare`, `cmp.Or`. These cover sorting, cloning, and simple lookups without an external dep. Use `maps.Copy(dst, src)` instead of manual map-merge loops.
 - **No legacy `sort` package.** `sort.Strings`, `sort.Slice`, `sort.SliceStable`, `sort.Search` are banned by lint-guard rule 9. Use `slices.Sort` / `slices.SortFunc` / `slices.SortStableFunc` / `slices.BinarySearch` instead.
-- **Rule of thumb:** if stdlib has it, use stdlib. If it doesn't (Map, Filter, GroupBy, KeyBy, Find, Reduce, set ops), use `lo`. Never hand-roll what either provides.
+- **Rule of thumb:** if stdlib has it, use stdlib. If it doesn't (Map, Filter, GroupBy, KeyBy, Find, Reduce, Chunk, set ops), use `lo`. Never hand-roll what either provides.
+- **Semgrep enforces this.** `.semgrep/go-modern.yml` has 20 rules (136 current hits) that flag manual loops replaceable by `lo` or stdlib. Run via `just lint-style`. When adding new code, prefer `lo`/stdlib from the start — don't create new semgrep debt.
 
 ## Cross-cutting design rules
 
