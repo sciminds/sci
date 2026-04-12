@@ -2,6 +2,7 @@ package zot
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -149,11 +150,7 @@ func (r ExtractDeleteResult) Human() string {
 		fmt.Fprintf(&b, "  %s trashed note %s (%s)\n", ui.SymOK, k, r.PDFName)
 	}
 	if len(r.Failed) > 0 {
-		keys := make([]string, 0, len(r.Failed))
-		for k := range r.Failed {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
+		keys := slices.Sorted(maps.Keys(r.Failed))
 		for _, k := range keys {
 			fmt.Fprintf(&b, "  %s %s: %s\n", ui.SymFail, k, r.Failed[k])
 		}
@@ -187,11 +184,7 @@ func (r ExtractLibResult) Human() string {
 		fmt.Fprintf(&b, "      %s failed:  %d\n", ui.SymFail, r.Failed)
 	}
 	if len(r.Errors) > 0 {
-		keys := make([]string, 0, len(r.Errors))
-		for k := range r.Errors {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
+		keys := slices.Sorted(maps.Keys(r.Errors))
 		for _, k := range keys {
 			fmt.Fprintf(&b, "      %s %s: %s\n", ui.SymFail, k, r.Errors[k])
 		}

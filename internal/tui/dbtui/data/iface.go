@@ -3,6 +3,7 @@ package data
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -167,13 +168,7 @@ func ImportableExtensions() []string {
 
 // IsImportableExt returns true if ext (including the dot) is importable.
 func IsImportableExt(ext string) bool {
-	ext = strings.ToLower(ext)
-	for _, e := range importableExts {
-		if e == ext {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(importableExts, strings.ToLower(ext))
 }
 
 // TableNameFromFile derives a SQL-safe table name from a filename.

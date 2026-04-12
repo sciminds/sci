@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 // BatchRequest describes a single parent item to extract in a bulk
@@ -550,15 +552,7 @@ func chunkBySize(s []string, n int) [][]string {
 	if n <= 0 || len(s) == 0 {
 		return [][]string{s}
 	}
-	var chunks [][]string
-	for i := 0; i < len(s); i += n {
-		end := i + n
-		if end > len(s) {
-			end = len(s)
-		}
-		chunks = append(chunks, s[i:end])
-	}
-	return chunks
+	return lo.Chunk(s, n)
 }
 
 // chunkByJobs splits s into exactly `jobs` roughly-equal chunks.
@@ -572,15 +566,7 @@ func chunkByJobs(s []string, jobs int) [][]string {
 		jobs = len(s)
 	}
 	chunkSize := (len(s) + jobs - 1) / jobs // ceil division
-	var chunks [][]string
-	for i := 0; i < len(s); i += chunkSize {
-		end := i + chunkSize
-		if end > len(s) {
-			end = len(s)
-		}
-		chunks = append(chunks, s[i:end])
-	}
-	return chunks
+	return lo.Chunk(s, chunkSize)
 }
 
 // BatchJobsDefault suggests a worker count for the PlanBatch hashing

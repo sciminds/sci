@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/ui"
@@ -105,12 +106,9 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	}
 	result.Tools = tools
 
-	var missingTools []string
-	for _, t := range result.Tools {
-		if !t.Installed {
-			missingTools = append(missingTools, t.Name)
-		}
-	}
+	missingTools := lo.FilterMap(result.Tools, func(t ToolInfo, _ int) (string, bool) {
+		return t.Name, !t.Installed
+	})
 
 	if len(missingTools) > 0 {
 		// Install missing tools.
@@ -190,10 +188,9 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 		}
 	}
 	if len(uvOutdated) > 0 {
-		names := make([]string, len(uvOutdated))
-		for i, pkg := range uvOutdated {
-			names[i] = pkg.Name
-		}
+		names := lo.Map(uvOutdated, func(pkg brew.OutdatedPackage, _ int) string {
+			return pkg.Name
+		})
 		if _, err := r.UVUpgrade(names); err != nil {
 			result.UpdateError = err.Error()
 			return result
@@ -205,9 +202,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 }
 
 func setupEntryNames(entries []brew.BrewfileEntry) []string {
-	names := make([]string, len(entries))
-	for i, e := range entries {
-		names[i] = e.Name
-	}
-	return names
+	return lo.Map(entries, func(e brew.BrewfileEntry, _ int) string {
+		return e.Name
+	})
 }

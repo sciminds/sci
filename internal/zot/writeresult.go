@@ -2,6 +2,7 @@ package zot
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -44,11 +45,7 @@ func (r BulkWriteResult) Human() string {
 	fmt.Fprintf(&b, "  %s %s %d/%d %s(s)\n",
 		ui.SymOK, r.Action, len(r.Success), r.Total, r.Kind)
 	if len(r.Failed) > 0 {
-		keys := make([]string, 0, len(r.Failed))
-		for k := range r.Failed {
-			keys = append(keys, k)
-		}
-		slices.Sort(keys)
+		keys := slices.Sorted(maps.Keys(r.Failed))
 		for _, k := range keys {
 			fmt.Fprintf(&b, "  %s %s: %s\n", ui.SymFail, k, r.Failed[k])
 		}

@@ -9,6 +9,7 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
@@ -124,14 +125,12 @@ func sqlTypeToKind(sqlType string) cellKind {
 }
 
 func specsToColumns(specs []columnSpec) []table.Column {
-	cols := make([]table.Column, len(specs))
-	for i, spec := range specs {
-		cols[i] = table.Column{
+	return lo.Map(specs, func(spec columnSpec, _ int) table.Column {
+		return table.Column{
 			Title: spec.Title,
 			Width: spec.Min,
 		}
-	}
-	return cols
+	})
 }
 
 func newTable(columns []table.Column) table.Model {

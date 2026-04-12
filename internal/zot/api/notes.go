@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
@@ -139,10 +140,9 @@ func (c *Client) CreateChildNote(ctx context.Context, parentKey, htmlBody string
 		ParentItem: &parentKey,
 	}
 	if len(tags) > 0 {
-		ts := make([]client.Tag, len(tags))
-		for i, t := range tags {
-			ts[i] = client.Tag{Tag: t}
-		}
+		ts := lo.Map(tags, func(t string, _ int) client.Tag {
+			return client.Tag{Tag: t}
+		})
 		data.Tags = &ts
 	}
 	return c.CreateItem(ctx, data)

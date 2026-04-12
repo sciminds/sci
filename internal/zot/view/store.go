@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/zot/local"
 )
@@ -78,10 +79,9 @@ func (s *Store) TableColumns(table string) ([]data.PragmaColumn, error) {
 	if table != TableName {
 		return nil, fmt.Errorf("unknown table %q", table)
 	}
-	cols := make([]data.PragmaColumn, len(columnTitles))
-	for i, t := range columnTitles {
-		cols[i] = data.PragmaColumn{CID: i, Name: t, Type: "TEXT"}
-	}
+	cols := lo.Map(columnTitles, func(t string, i int) data.PragmaColumn {
+		return data.PragmaColumn{CID: i, Name: t, Type: "TEXT"}
+	})
 	return cols, nil
 }
 

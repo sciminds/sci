@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 )
 
 // SelectItem is the interface that items in a SelectList must implement.
@@ -67,10 +68,9 @@ func WithRenderItem(fn func(item SelectItem, selected, isCursor bool) string) Se
 
 // NewSelectList creates a new SelectList with the given items.
 func NewSelectList(items []SelectItem, opts ...SelectListOption) SelectList {
-	entries := make([]selectEntry, len(items))
-	for i, item := range items {
-		entries[i] = selectEntry{item: item}
-	}
+	entries := lo.Map(items, func(item SelectItem, _ int) selectEntry {
+		return selectEntry{item: item}
+	})
 	sl := SelectList{items: entries}
 	for _, opt := range opts {
 		opt(&sl)
@@ -93,13 +93,9 @@ func (sl SelectList) SelectedIndices() []int {
 
 // SelectedCount returns how many items are selected.
 func (sl SelectList) SelectedCount() int {
-	n := 0
-	for _, e := range sl.items {
-		if e.selected {
-			n++
-		}
-	}
-	return n
+	return lo.CountBy(sl.items, func(e selectEntry) bool {
+		return e.selected
+	})
 }
 
 // IsConfirmed returns true after the user pressed enter with at least one selection.

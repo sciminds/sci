@@ -8,10 +8,13 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 // viewableExtensions lists file extensions that can be viewed directly.
@@ -98,10 +101,9 @@ func importCSVFile(store *SQLiteStore, path, tableName string, delimiter rune) e
 	}
 
 	header := records[0]
-	quotedCols := make([]string, len(header))
-	for i, col := range header {
-		quotedCols[i] = fmt.Sprintf(`"%s" TEXT`, col)
-	}
+	quotedCols := lo.Map(header, func(col string, _ int) string {
+		return fmt.Sprintf(`"%s" TEXT`, col)
+	})
 	createSQL := fmt.Sprintf(`CREATE TABLE "%s" (%s)`, tableName, strings.Join(quotedCols, ", "))
 	if _, err := store.db.NewQuery(createSQL).Execute(); err != nil {
 		return fmt.Errorf("create table: %w", err)
@@ -167,16 +169,11 @@ func importJSONRecords(store *SQLiteStore, records []map[string]any, tableName s
 			keySet[k] = true
 		}
 	}
-	keys := make([]string, 0, len(keySet))
-	for k := range keySet {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
+	keys := slices.Sorted(maps.Keys(keySet))
 
-	quotedCols := make([]string, len(keys))
-	for i, col := range keys {
-		quotedCols[i] = fmt.Sprintf(`"%s" TEXT`, col)
-	}
+	quotedCols := lo.Map(keys, func(col string, _ int) string {
+		return fmt.Sprintf(`"%s" TEXT`, col)
+	})
 	createSQL := fmt.Sprintf(`CREATE TABLE "%s" (%s)`, tableName, strings.Join(quotedCols, ", "))
 	if _, err := store.db.NewQuery(createSQL).Execute(); err != nil {
 		return fmt.Errorf("create table: %w", err)

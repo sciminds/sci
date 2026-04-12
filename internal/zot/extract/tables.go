@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/samber/lo"
 )
 
 // doclingTable is the minimum shape we read from DoclingDocument's
@@ -77,10 +79,9 @@ func writeOneTable(path string, t doclingTable) (err error) {
 	}()
 	w := csv.NewWriter(f)
 	for _, row := range t.Data.Grid {
-		rec := make([]string, len(row))
-		for j, cell := range row {
-			rec[j] = cell.Text
-		}
+		rec := lo.Map(row, func(cell doclingCel, _ int) string {
+			return cell.Text
+		})
 		if err := w.Write(rec); err != nil {
 			return err
 		}

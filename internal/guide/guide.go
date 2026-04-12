@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/mdview"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -43,10 +44,7 @@ type model struct {
 }
 
 func newModel(books []Book) *model {
-	items := make([]list.Item, len(books))
-	for i, b := range books {
-		items[i] = b
-	}
+	items := lo.Map(books, func(b Book, _ int) list.Item { return b })
 
 	d := ui.NewListDelegate()
 	l := list.New(items, d, 0, 0)
@@ -170,10 +168,7 @@ func (m *model) updateBooks(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) openBook(book Book) {
-	items := make([]list.Item, len(book.Entries))
-	for i, e := range book.Entries {
-		items[i] = e
-	}
+	items := lo.Map(book.Entries, func(e Entry, _ int) list.Item { return e })
 	d := ui.NewListDelegate()
 	l := list.New(items, d, m.width, m.height)
 	l.Title = book.Heading

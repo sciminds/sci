@@ -3,11 +3,13 @@ package hygiene
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -53,10 +55,11 @@ var defaultOrphanKinds = []OrphanKind{
 // ParseOrphanKind maps a user-facing string to an OrphanKind.
 func ParseOrphanKind(s string) (OrphanKind, error) {
 	s = strings.TrimSpace(s)
-	for _, k := range AllOrphanKinds {
-		if string(k) == s {
-			return k, nil
-		}
+	k, found := lo.Find(AllOrphanKinds, func(k OrphanKind) bool {
+		return string(k) == s
+	})
+	if found {
+		return k, nil
 	}
 	return "", fmt.Errorf(
 		"unknown orphan kind %q (want: %s)",
@@ -248,10 +251,7 @@ func Orphans(db local.Reader, opts OrphansOptions) (*Report, error) {
 		return cmp.Compare(a.ItemKey, b.ItemKey)
 	})
 
-	total := 0
-	for _, n := range counts {
-		total += n
-	}
+	total := lo.Sum(slices.Collect(maps.Values(counts)))
 
 	return &Report{
 		Check:    "orphans",

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot/hygiene"
 )
@@ -234,10 +235,9 @@ func (r OrphansResult) Human() string {
 	}
 
 	// Group findings by kind for the detail section.
-	groups := map[string][]hygiene.Finding{}
-	for _, f := range r.Report.Findings {
-		groups[f.Kind] = append(groups[f.Kind], f)
-	}
+	groups := lo.GroupBy(r.Report.Findings, func(f hygiene.Finding) string {
+		return f.Kind
+	})
 
 	for _, k := range hygiene.AllOrphanKinds {
 		gs, ok := groups[string(k)]

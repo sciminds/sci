@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -30,11 +31,9 @@ var AllInvalidFields = []InvalidField{
 // InvalidFieldsAsStrings returns the string form expected by
 // local.ScanFieldValues.
 func InvalidFieldsAsStrings(fs []InvalidField) []string {
-	out := make([]string, len(fs))
-	for i, f := range fs {
-		out[i] = string(f)
-	}
-	return out
+	return lo.Map(fs, func(f InvalidField, _ int) string {
+		return string(f)
+	})
 }
 
 // ParseInvalidField maps a user-facing string to an InvalidField.
@@ -42,10 +41,11 @@ func InvalidFieldsAsStrings(fs []InvalidField) []string {
 // mixed-case but users shouldn't have to remember that.
 func ParseInvalidField(s string) (InvalidField, error) {
 	ls := strings.ToLower(strings.TrimSpace(s))
-	for _, f := range AllInvalidFields {
-		if strings.ToLower(string(f)) == ls {
-			return f, nil
-		}
+	f, found := lo.Find(AllInvalidFields, func(f InvalidField) bool {
+		return strings.ToLower(string(f)) == ls
+	})
+	if found {
+		return f, nil
 	}
 	return "", &unknownFieldError{what: "field", got: s, want: "doi, isbn, url, date"}
 }
@@ -164,12 +164,9 @@ func InvalidFromFieldValues(rows []local.FieldValue) *Report {
 // knownField reports whether field is in the validator set and returns
 // the typed form.
 func knownField(field string) (InvalidField, bool) {
-	for _, f := range AllInvalidFields {
-		if string(f) == field {
-			return f, true
-		}
-	}
-	return "", false
+	return lo.Find(AllInvalidFields, func(f InvalidField) bool {
+		return string(f) == field
+	})
 }
 
 // Invalid is the DB-backed orchestrator. It scans for the requested

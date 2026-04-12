@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/doctor"
@@ -209,12 +210,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	result.Tools = toolInfos
 	printToolSummary(toolInfos)
 
-	var missingTools []string
-	for _, t := range toolInfos {
-		if !t.Installed {
-			missingTools = append(missingTools, t.Name)
-		}
-	}
+	missingTools := lo.FilterMap(toolInfos, func(t doctor.ToolInfo, _ int) (string, bool) {
+		return t.Name, !t.Installed
+	})
 
 	if len(missingTools) > 0 {
 		fmt.Fprintf(os.Stderr, "\n  Missing: %s\n", strings.Join(missingTools, ", "))
@@ -259,12 +257,9 @@ func hasHomebrew(result doctor.DocResult) bool {
 
 // printToolSummary prints a one-line tools summary to stderr.
 func printToolSummary(tools []doctor.ToolInfo) {
-	installed := 0
-	for _, t := range tools {
-		if t.Installed {
-			installed++
-		}
-	}
+	installed := lo.CountBy(tools, func(t doctor.ToolInfo) bool {
+		return t.Installed
+	})
 	sym := ui.SymOK
 	if installed < len(tools) {
 		sym = ui.SymFail
@@ -276,11 +271,9 @@ func printToolSummary(tools []doctor.ToolInfo) {
 
 // entryNames extracts names from a slice of BrewfileEntry.
 func entryNames(entries []brew.BrewfileEntry) []string {
-	names := make([]string, len(entries))
-	for i, e := range entries {
-		names[i] = e.Name
-	}
-	return names
+	return lo.Map(entries, func(e brew.BrewfileEntry, _ int) string {
+		return e.Name
+	})
 }
 
 // mustReadFile reads a file, returning "" on error.

@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 )
@@ -88,10 +89,9 @@ func NewModel(store data.DataStore, dbPath string, readOnly bool) (*Model, error
 	viewLister, hasViews := store.(data.ViewLister)
 	virtualLister, hasVirtuals := store.(data.VirtualLister)
 
-	tabs := make([]Tab, len(tableNames))
-	for i, name := range tableNames {
-		tabs[i] = Tab{Name: name}
-	}
+	tabs := lo.Map(tableNames, func(name string, _ int) Tab {
+		return Tab{Name: name}
+	})
 
 	// Fully load only the first tab.
 	if len(tabs) > 0 {

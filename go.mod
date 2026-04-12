@@ -21,6 +21,7 @@ require (
 	github.com/oapi-codegen/runtime v1.4.0
 	github.com/pocketbase/dbx v1.12.0
 	github.com/sahilm/fuzzy v0.1.1
+	github.com/samber/lo v1.53.0
 	github.com/urfave/cli/v3 v3.7.0
 	github.com/yuin/goldmark v1.7.13
 	golang.org/x/sync v0.19.0

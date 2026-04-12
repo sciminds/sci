@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/client"
@@ -300,23 +301,16 @@ func ApplyCitekeys(ctx context.Context, w CitekeyWriter, targets []CitekeyTarget
 	res.Outcomes = make([]CitekeyOutcome, 0, len(targets))
 	done := 0
 
-	for start := 0; start < len(targets); start += batchSize {
-		end := start + batchSize
-		if end > len(targets) {
-			end = len(targets)
-		}
-		chunk := targets[start:end]
-
-		patches := make([]api.ItemPatch, len(chunk))
-		for i, tg := range chunk {
+	for _, chunk := range lo.Chunk(targets, batchSize) {
+		patches := lo.Map(chunk, func(tg CitekeyTarget, _ int) api.ItemPatch {
 			newKey := tg.NewKey
-			patches[i] = api.ItemPatch{
+			return api.ItemPatch{
 				Key:      tg.ItemKey,
 				Version:  tg.Version,
 				ItemType: tg.ItemType,
 				Data:     client.ItemData{CitationKey: &newKey},
 			}
-		}
+		})
 
 		errs, err := w.UpdateItemsBatch(ctx, patches)
 		if err != nil {

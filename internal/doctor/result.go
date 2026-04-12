@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -140,12 +141,9 @@ func (r DocResult) Human() string {
 		fmt.Fprintf(&b, "    %s %-20s %s\n", ui.SymWarn, "status",
 			ui.TUI.Warn().Render("could not check: "+r.ToolCheckError))
 	} else if len(r.Tools) > 0 {
-		installed := 0
-		for _, t := range r.Tools {
-			if t.Installed {
-				installed++
-			}
-		}
+		installed := lo.CountBy(r.Tools, func(t ToolInfo) bool {
+			return t.Installed
+		})
 		sym := ui.SymOK
 		if installed < len(r.Tools) {
 			sym = ui.SymFail

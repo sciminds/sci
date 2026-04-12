@@ -10,6 +10,7 @@ import (
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -36,10 +37,7 @@ func Run(path string) error {
 }
 
 func (m *Model) initPicker() {
-	items := make([]list.Item, len(m.pages))
-	for i, p := range m.pages {
-		items[i] = p
-	}
+	items := lo.Map(m.pages, func(p Page, _ int) list.Item { return p })
 	d := ui.NewListDelegate()
 	l := list.New(items, d, 0, 0)
 	l.Title = "Markdown Files"

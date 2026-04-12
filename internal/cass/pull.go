@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cass/api/canvas"
 	"github.com/sciminds/cli/internal/cass/api/github"
 	"golang.org/x/sync/errgroup"
@@ -36,10 +37,9 @@ func PullStudents(ctx context.Context, db *DB, canvasBaseURL, token string, cour
 	if err != nil {
 		return nil, err
 	}
-	existingMap := make(map[int]Student, len(existing))
-	for _, s := range existing {
-		existingMap[s.CanvasID] = s
-	}
+	existingMap := lo.KeyBy(existing, func(s Student) int {
+		return s.CanvasID
+	})
 
 	params := url.Values{
 		"enrollment_type[]": {"student"},
@@ -56,16 +56,15 @@ func PullStudents(ctx context.Context, db *DB, canvasBaseURL, token string, cour
 }
 
 func pullStudentsFromData(db *DB, canvasUsers []canvas.User, existingMap map[int]Student) (*Changelog, error) {
-	students := make([]Student, len(canvasUsers))
-	for i, u := range canvasUsers {
-		students[i] = Student{
+	students := lo.Map(canvasUsers, func(u canvas.User, _ int) Student {
+		return Student{
 			CanvasID:     u.ID,
 			Name:         u.Name,
 			SortableName: u.SortableName,
 			Email:        u.Email,
 			LoginID:      u.LoginID,
 		}
-	}
+	})
 
 	cl := &Changelog{Entity: "students"}
 	for _, s := range students {
@@ -95,10 +94,9 @@ func PullAssignments(ctx context.Context, db *DB, canvasBaseURL, token string, c
 	if err := client.GetPaginated(ctx, groupPath, nil, &groups); err != nil {
 		return nil, fmt.Errorf("fetch assignment groups: %w", err)
 	}
-	groupNames := make(map[int]string, len(groups))
-	for _, g := range groups {
-		groupNames[g.ID] = g.Name
-	}
+	groupNames := lo.SliceToMap(groups, func(g canvas.AssignmentGroup) (int, string) {
+		return g.ID, g.Name
+	})
 
 	// Fetch assignments.
 	var canvasAssignments []canvas.Assignment
@@ -112,10 +110,9 @@ func PullAssignments(ctx context.Context, db *DB, canvasBaseURL, token string, c
 	if err != nil {
 		return nil, err
 	}
-	existingMap := make(map[string]AssignmentRow, len(existing))
-	for _, a := range existing {
-		existingMap[a.Slug] = a
-	}
+	existingMap := lo.KeyBy(existing, func(a AssignmentRow) string {
+		return a.Slug
+	})
 
 	// Convert to domain type.
 	rows := make([]AssignmentRow, len(canvasAssignments))

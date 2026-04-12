@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -60,10 +61,9 @@ func (r CitekeyFixResult) Human() string {
 
 	// Index outcomes by item key so the per-row render can attach a
 	// success/fail glyph + error message when applicable.
-	outcomeByKey := map[string]CitekeyOutcome{}
-	for _, oc := range r.Result.Outcomes {
-		outcomeByKey[oc.ItemKey] = oc
-	}
+	outcomeByKey := lo.KeyBy(r.Result.Outcomes, func(oc CitekeyOutcome) string {
+		return oc.ItemKey
+	})
 
 	show := r.Result.Targets
 	truncated := 0

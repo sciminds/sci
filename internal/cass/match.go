@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -137,11 +138,9 @@ func scoreName(normGH string, ghTokens []string, normCanvas string) int {
 }
 
 func toSet(tokens []string) map[string]bool {
-	s := make(map[string]bool, len(tokens))
-	for _, t := range tokens {
-		s[t] = true
-	}
-	return s
+	return lo.SliceToMap(tokens, func(t string) (string, bool) {
+		return t, true
+	})
 }
 
 func setIntersection(a, b map[string]bool) map[string]bool {
@@ -215,12 +214,9 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 	}
 
 	// Find students that need matching (have no github_username).
-	var unmatched []Student
-	for _, s := range students {
-		if s.GitHubUsername == "" {
-			unmatched = append(unmatched, s)
-		}
-	}
+	unmatched := lo.Filter(students, func(s Student, _ int) bool {
+		return s.GitHubUsername == ""
+	})
 
 	if len(unmatched) == 0 {
 		if err := db.SetMeta("match_pending", "false"); err != nil {
@@ -269,20 +265,15 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 
 	// Interactive matching for remaining.
 	// Track matched Canvas student IDs to filter candidates.
-	matchedIDs := make(map[int]bool)
-	for _, m := range matched {
-		matchedIDs[m.Student.CanvasID] = true
-	}
+	matchedIDs := lo.SliceToMap(matched, func(m MatchPair) (int, bool) {
+		return m.Student.CanvasID, true
+	})
 
 	// Build the available pool once; use matchedIDs to filter during candidate generation.
 	availableCanvas := func() []Student {
-		var out []Student
-		for _, s := range unmatched {
-			if !matchedIDs[s.CanvasID] {
-				out = append(out, s)
-			}
-		}
-		return out
+		return lo.Reject(unmatched, func(s Student, _ int) bool {
+			return matchedIDs[s.CanvasID]
+		})
 	}
 
 	for _, ghName := range remaining {

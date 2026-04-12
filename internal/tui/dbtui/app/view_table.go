@@ -11,6 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	zone "github.com/lrstanley/bubblezone/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 )
@@ -45,16 +46,14 @@ func visibleProjection(tab *Tab) (
 		colCursor = vis
 	}
 
-	cellRows = make([][]cell, len(tab.CellRows))
-	for r, row := range tab.CellRows {
-		projected := make([]cell, 0, len(visToFull))
-		for _, fi := range visToFull {
+	cellRows = lo.Map(tab.CellRows, func(row []cell, _ int) []cell {
+		return lo.FilterMap(visToFull, func(fi int, _ int) (cell, bool) {
 			if fi < len(row) {
-				projected = append(projected, row[fi])
+				return row[fi], true
 			}
-		}
-		cellRows[r] = projected
-	}
+			return cell{}, false
+		})
+	})
 
 	for _, se := range tab.Sorts {
 		if vis, ok := fullToVis[se.Col]; ok {
@@ -189,17 +188,14 @@ func projectCellRows(
 	start, end int,
 ) [][]cell {
 	vpMap := visToFull[start:end]
-	projected := make([][]cell, len(fullCellRows))
-	for r, row := range fullCellRows {
-		p := make([]cell, 0, len(vpMap))
-		for _, fi := range vpMap {
+	return lo.Map(fullCellRows, func(row []cell, _ int) []cell {
+		return lo.FilterMap(vpMap, func(fi int, _ int) (cell, bool) {
 			if fi < len(row) {
-				p = append(p, row[fi])
+				return row[fi], true
 			}
-		}
-		projected[r] = p
-	}
-	return projected
+			return cell{}, false
+		})
+	})
 }
 
 func viewportSorts(sorts []sortEntry, vpStart int) []sortEntry {
@@ -808,11 +804,7 @@ func allColumns(specs []columnSpec) []int {
 }
 
 func sumInts(values []int) int {
-	total := 0
-	for _, v := range values {
-		total += v
-	}
-	return total
+	return lo.Sum(values)
 }
 
 func safeWidth(widths []int, idx int) int {
@@ -933,9 +925,7 @@ func sliceViewport[T any](items []T, start, end int) []T {
 }
 
 func sliceViewportRows(rows [][]cell, start, end int) [][]cell {
-	result := make([][]cell, len(rows))
-	for i, row := range rows {
-		result[i] = sliceViewport(row, start, end)
-	}
-	return result
+	return lo.Map(rows, func(row []cell, _ int) []cell {
+		return sliceViewport(row, start, end)
+	})
 }

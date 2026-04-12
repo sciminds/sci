@@ -8,7 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
 	"time"
+
+	"github.com/samber/lo"
 
 	_ "modernc.org/sqlite"
 )
@@ -154,13 +157,9 @@ func (s *Store) TableNames() ([]string, error) {
 	}
 	// Filter out shadow tables — they contain binary blobs (FTS index data)
 	// and are not useful to view or edit.
-	filtered := names[:0]
-	for _, name := range names {
-		if !s.shadows[name] {
-			filtered = append(filtered, name)
-		}
-	}
-	return filtered, nil
+	return lo.Reject(names, func(name string, _ int) bool {
+		return s.shadows[name]
+	}), nil
 }
 
 // IsView reports whether name is a SQL view (not a table).
@@ -418,10 +417,9 @@ func (s *Store) InsertRows(table string, columns []string, rows [][]string) erro
 		}
 	}
 
-	quotedCols := make([]string, len(columns))
-	for i, c := range columns {
-		quotedCols[i] = fmt.Sprintf("%q", c)
-	}
+	quotedCols := lo.Map(columns, func(c string, _ int) string {
+		return fmt.Sprintf("%q", c)
+	})
 	placeholders := make([]string, len(columns))
 	for i := range columns {
 		placeholders[i] = "?"
@@ -484,10 +482,9 @@ func (s *Store) ExportCSV(table, csvPath string) error {
 	defer w.Flush()
 
 	// Write header.
-	header := make([]string, len(cols))
-	for i, c := range cols {
-		header[i] = c.Name
-	}
+	header := lo.Map(cols, func(c PragmaColumn, _ int) string {
+		return c.Name
+	})
 	if err := w.Write(header); err != nil {
 		return err
 	}

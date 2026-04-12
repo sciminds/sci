@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 // ViewRow is a denormalized row for the read-only library view: one row per
@@ -125,10 +127,9 @@ JOIN creatorTypes ct ON ic.creatorTypeID = ct.creatorTypeID
 WHERE ct.creatorType = 'author' AND ic.itemID IN (` + placeholders + `)
 ORDER BY ic.itemID, ic.orderIndex
 `
-	args := make([]any, len(itemIDs))
-	for i, id := range itemIDs {
-		args[i] = id
-	}
+	args := lo.Map(itemIDs, func(id int64, _ int) any {
+		return id
+	})
 	rows, err := d.db.Query(q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("authors by item: %w", err)

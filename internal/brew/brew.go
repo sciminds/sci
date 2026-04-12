@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/creack/pty/v2"
+	"github.com/samber/lo"
 )
 
 // DefaultBrewfile is the default Brewfile location (matches brew's XDG convention).
@@ -179,18 +180,14 @@ func parseBrewInfo(jsonData string, isCask bool) ([]PackageInfo, error) {
 	}
 
 	if isCask {
-		pkgs := make([]PackageInfo, len(info.Casks))
-		for i, c := range info.Casks {
-			pkgs[i] = PackageInfo{Name: c.Token, Desc: c.Desc, Version: c.Version, Type: "cask"}
-		}
-		return pkgs, nil
+		return lo.Map(info.Casks, func(c brewCask, _ int) PackageInfo {
+			return PackageInfo{Name: c.Token, Desc: c.Desc, Version: c.Version, Type: "cask"}
+		}), nil
 	}
 
-	pkgs := make([]PackageInfo, len(info.Formulae))
-	for i, f := range info.Formulae {
-		pkgs[i] = PackageInfo{Name: f.Name, Desc: f.Desc, Version: f.Versions.Stable, Type: "formula"}
-	}
-	return pkgs, nil
+	return lo.Map(info.Formulae, func(f brewFormula, _ int) PackageInfo {
+		return PackageInfo{Name: f.Name, Desc: f.Desc, Version: f.Versions.Stable, Type: "formula"}
+	}), nil
 }
 
 // OutdatedPackage holds info about a single outdated package.

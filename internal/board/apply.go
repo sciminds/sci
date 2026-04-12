@@ -3,6 +3,8 @@ package board
 import (
 	"fmt"
 	"slices"
+
+	"github.com/samber/lo"
 )
 
 // Apply folds a single event into a board and returns the new state. It is
@@ -116,10 +118,9 @@ func applyColumnRename(b Board, e Event, p ColumnRenamePayload) Board {
 // but missing from the payload are appended in their original order. This
 // makes the op robust against concurrent column.delete events.
 func applyColumnReorder(b Board, e Event, p ColumnReorderPayload) Board {
-	byID := make(map[string]Column, len(b.Columns))
-	for _, c := range b.Columns {
-		byID[c.ID] = c
-	}
+	byID := lo.KeyBy(b.Columns, func(c Column) string {
+		return c.ID
+	})
 	out := make([]Column, 0, len(b.Columns))
 	seen := make(map[string]bool, len(p.ColumnIDs))
 	for _, id := range p.ColumnIDs {
@@ -128,11 +129,9 @@ func applyColumnReorder(b Board, e Event, p ColumnReorderPayload) Board {
 			seen[id] = true
 		}
 	}
-	for _, c := range b.Columns {
-		if !seen[c.ID] {
-			out = append(out, c)
-		}
-	}
+	out = append(out, lo.Reject(b.Columns, func(c Column, _ int) bool {
+		return seen[c.ID]
+	})...)
 	b.Columns = out
 	return touch(b, e)
 }

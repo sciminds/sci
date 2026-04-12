@@ -8,6 +8,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 // WriteRowsCSV writes a header and rows to a CSV file.
@@ -80,10 +82,9 @@ func (s *Store) DeduplicateTable(table string) (int64, error) {
 	}
 
 	// Build column list for grouping.
-	colNames := make([]string, len(cols))
-	for i, c := range cols {
-		colNames[i] = fmt.Sprintf("%q", c.Name)
-	}
+	colNames := lo.Map(cols, func(c PragmaColumn, _ int) string {
+		return fmt.Sprintf("%q", c.Name)
+	})
 	colList := strings.Join(colNames, ", ")
 
 	// Delete rows where rowid is not the minimum for each unique combination.
@@ -296,10 +297,9 @@ func (s *Store) importTabular(tableName string, header []string, rows [][]string
 	}
 
 	// Build CREATE TABLE.
-	colDefs := make([]string, len(header))
-	for i, name := range header {
-		colDefs[i] = fmt.Sprintf("%q %s", name, types[i])
-	}
+	colDefs := lo.Map(header, func(name string, i int) string {
+		return fmt.Sprintf("%q %s", name, types[i])
+	})
 	createSQL := fmt.Sprintf("CREATE TABLE %q (%s)", tableName, strings.Join(colDefs, ", "))
 	if _, err := s.db.Exec(createSQL); err != nil {
 		return fmt.Errorf("create table: %w", err)
@@ -320,10 +320,9 @@ func (s *Store) importTabular(tableName string, header []string, rows [][]string
 	for i := range header {
 		placeholders[i] = "?"
 	}
-	quotedCols := make([]string, len(header))
-	for i, name := range header {
-		quotedCols[i] = fmt.Sprintf("%q", name)
-	}
+	quotedCols := lo.Map(header, func(name string, _ int) string {
+		return fmt.Sprintf("%q", name)
+	})
 	insertSQL := fmt.Sprintf("INSERT INTO %q (%s) VALUES (%s)",
 		tableName, strings.Join(quotedCols, ", "), strings.Join(placeholders, ", "))
 

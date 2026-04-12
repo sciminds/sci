@@ -3,6 +3,7 @@ package helptui
 import (
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/urfave/cli/v3"
 )
 
@@ -151,14 +152,9 @@ func extractFlags(cmd *cli.Command) []Flag {
 }
 
 func formatFlagNames(names []string) string {
-	var parts []string
-	for _, n := range names {
-		if len(n) == 1 {
-			parts = append(parts, "-"+n)
-		} else {
-			parts = append(parts, "--"+n)
-		}
-	}
+	parts := lo.Map(names, func(n string, _ int) string {
+		return lo.Ternary(len(n) == 1, "-"+n, "--"+n)
+	})
 	return strings.Join(parts, ", ")
 }
 

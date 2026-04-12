@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -54,10 +55,9 @@ type listModel struct {
 }
 
 func newListModel(packages []PackageInfo) listModel {
-	items := make([]list.Item, len(packages))
-	for i, p := range packages {
-		items[i] = makeListItem(p)
-	}
+	items := lo.Map(packages, func(p PackageInfo, _ int) list.Item {
+		return makeListItem(p)
+	})
 
 	title := fmt.Sprintf("Brewfile — %d packages", len(packages))
 	delegate := ui.NewListDelegate()

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -35,10 +36,11 @@ var AllMissingFields = []MissingField{
 // ParseMissingField maps a user-facing string to a MissingField, returning
 // an error on unknown input so CLI callers can surface a clean usage error.
 func ParseMissingField(s string) (MissingField, error) {
-	for _, f := range AllMissingFields {
-		if string(f) == s {
-			return f, nil
-		}
+	f, found := lo.Find(AllMissingFields, func(f MissingField) bool {
+		return string(f) == s
+	})
+	if found {
+		return f, nil
 	}
 	return "", fmt.Errorf("unknown field %q (want one of: title, creators, date, doi, abstract, url, pdf, tags)", s)
 }

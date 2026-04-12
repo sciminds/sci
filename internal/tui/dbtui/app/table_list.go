@@ -15,6 +15,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 )
 
@@ -384,10 +385,9 @@ func highlightFuzzyPositions(
 		return baseStyle.Render(text)
 	}
 
-	posSet := make(map[int]bool, len(positions))
-	for _, p := range positions {
-		posSet[p] = true
-	}
+	posSet := lo.SliceToMap(positions, func(p int) (int, bool) {
+		return p, true
+	})
 
 	runes := []rune(text)
 	var b strings.Builder

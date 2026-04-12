@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 )
@@ -116,10 +117,9 @@ func (m *Model) visualSelectionSet() map[int]bool {
 		return m.visual.CachedSet
 	}
 	sel := m.effectiveVisualSelection()
-	set := make(map[int]bool, len(sel))
-	for _, idx := range sel {
-		set[idx] = true
-	}
+	set := lo.SliceToMap(sel, func(idx int) (int, bool) {
+		return idx, true
+	})
 	m.visual.CachedSet = set
 	m.visual.CachedCursor = cursor
 	return set
@@ -321,19 +321,17 @@ func (m *Model) visualExportCSV() {
 	}
 
 	// Build header and rows from selection.
-	header := make([]string, len(tab.Specs))
-	for i, spec := range tab.Specs {
-		header[i] = spec.Title
-	}
+	header := lo.Map(tab.Specs, func(spec columnSpec, _ int) string {
+		return spec.Title
+	})
 	rows := make([][]string, 0, len(sel))
 	for _, idx := range sel {
 		if idx >= len(tab.CellRows) {
 			continue
 		}
-		row := make([]string, len(tab.CellRows[idx]))
-		for i, c := range tab.CellRows[idx] {
-			row[i] = c.Value
-		}
+		row := lo.Map(tab.CellRows[idx], func(c cell, _ int) string {
+			return c.Value
+		})
 		rows = append(rows, row)
 	}
 

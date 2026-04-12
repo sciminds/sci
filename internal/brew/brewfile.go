@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/samber/lo"
 )
 
 // BrewfileEntry is a parsed line from a Brewfile.
@@ -106,12 +108,7 @@ func brewfileCandidates() []string {
 }
 
 func containsPath(paths []string, target string) bool {
-	for _, p := range paths {
-		if p == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(paths, target)
 }
 
 // ResolveBrewfile returns the path to an existing Brewfile, or creates one at
@@ -139,18 +136,13 @@ func ResolveBrewfile() (path string, created bool, err error) {
 // diffEntries returns entries present in dump but not in existing.
 // Matching is by (type, name) pair.
 func diffEntries(dump, existing string) []BrewfileEntry {
-	existingSet := make(map[string]bool)
-	for _, e := range ParseBrewfileEntries(existing) {
-		existingSet[e.Type+"\t"+e.Name] = true
-	}
+	existingSet := lo.SliceToMap(ParseBrewfileEntries(existing), func(e BrewfileEntry) (string, bool) {
+		return e.Type + "\t" + e.Name, true
+	})
 
-	var missing []BrewfileEntry
-	for _, e := range ParseBrewfileEntries(dump) {
-		if !existingSet[e.Type+"\t"+e.Name] {
-			missing = append(missing, e)
-		}
-	}
-	return missing
+	return lo.Reject(ParseBrewfileEntries(dump), func(e BrewfileEntry, _ int) bool {
+		return existingSet[e.Type+"\t"+e.Name]
+	})
 }
 
 // MissingEntries returns entries from required that are not declared in the
@@ -245,10 +237,9 @@ func Sync(r Runner, path string) (SyncResult, error) {
 	if err != nil {
 		return SyncResult{}, fmt.Errorf("read dump: %w", err)
 	}
-	systemSet := make(map[string]BrewfileEntry)
-	for _, e := range ParseBrewfileEntries(string(dumpContent)) {
-		systemSet[e.Type+"\t"+e.Name] = e
-	}
+	systemSet := lo.SliceToMap(ParseBrewfileEntries(string(dumpContent)), func(e BrewfileEntry) (string, BrewfileEntry) {
+		return e.Type + "\t" + e.Name, e
+	})
 	for _, name := range uvTools {
 		key := "uv\t" + name
 		if _, ok := systemSet[key]; !ok {
@@ -265,10 +256,9 @@ func Sync(r Runner, path string) (SyncResult, error) {
 	if err != nil {
 		return SyncResult{}, fmt.Errorf("read Brewfile: %w", err)
 	}
-	brewfileSet := make(map[string]bool)
-	for _, e := range ParseBrewfileEntries(string(existing)) {
-		brewfileSet[e.Type+"\t"+e.Name] = true
-	}
+	brewfileSet := lo.SliceToMap(ParseBrewfileEntries(string(existing)), func(e BrewfileEntry) (string, bool) {
+		return e.Type + "\t" + e.Name, true
+	})
 
 	// Compute additions: in system but not in Brewfile.
 	var toAdd []BrewfileEntry
@@ -321,10 +311,9 @@ func Sync(r Runner, path string) (SyncResult, error) {
 // RemoveEntries removes the given entries from the Brewfile at path,
 // matching by (type, name) pair. Returns the names of removed entries.
 func RemoveEntries(path string, entries []BrewfileEntry) ([]string, error) {
-	removeSet := make(map[string]bool, len(entries))
-	for _, e := range entries {
-		removeSet[e.Type+"\t"+e.Name] = true
-	}
+	removeSet := lo.SliceToMap(entries, func(e BrewfileEntry) (string, bool) {
+		return e.Type + "\t" + e.Name, true
+	})
 
 	content, err := os.ReadFile(path)
 	if err != nil {

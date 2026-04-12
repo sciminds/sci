@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot"
@@ -297,10 +298,9 @@ func childrenCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			views := make([]zot.ChildItemView, len(children))
-			for i, ch := range children {
-				views[i] = toChildItemView(ch)
-			}
+			views := lo.Map(children, func(ch local.ChildItem, _ int) zot.ChildItemView {
+				return toChildItemView(ch)
+			})
 			cmdutil.Output(cmd, zot.ChildrenListResult{
 				ParentKey: parentKey,
 				Count:     len(views),

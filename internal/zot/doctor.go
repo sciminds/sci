@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot/hygiene"
 	"github.com/sciminds/cli/internal/zot/local"
@@ -142,10 +143,11 @@ func selectedChecks(names []string) map[string]bool {
 // can reject unknown names before opening the DB.
 func ParseDoctorCheck(s string) (string, error) {
 	s = strings.TrimSpace(s)
-	for _, c := range DoctorChecks {
-		if c == s {
-			return c, nil
-		}
+	c, found := lo.Find(DoctorChecks, func(c string) bool {
+		return c == s
+	})
+	if found {
+		return c, nil
 	}
 	return "", fmt.Errorf("unknown check %q (want one of: %s)", s, strings.Join(DoctorChecks, ", "))
 }

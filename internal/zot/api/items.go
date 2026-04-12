@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
@@ -361,16 +362,10 @@ func (c *Client) UpdateItemsBatch(ctx context.Context, patches []ItemPatch) (map
 	// can refresh + retry them once.
 	submit := func(group []built) ([]built, error) {
 		var retryable []built
-		for start := 0; start < len(group); start += maxBatchItems {
-			end := start + maxBatchItems
-			if end > len(group) {
-				end = len(group)
-			}
-			slice := group[start:end]
-			bodies := make([]client.ItemData, len(slice))
-			for i, b := range slice {
-				bodies[i] = b.body
-			}
+		for _, slice := range lo.Chunk(group, maxBatchItems) {
+			bodies := lo.Map(slice, func(b built, _ int) client.ItemData {
+				return b.body
+			})
 			resp, err := c.Gen.CreateOrUpdateItemsWithResponse(ctx, c.UserID, &client.CreateOrUpdateItemsParams{}, bodies)
 			if err != nil {
 				return nil, err

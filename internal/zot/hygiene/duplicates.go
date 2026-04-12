@@ -2,9 +2,11 @@ package hygiene
 
 import (
 	"cmp"
+	"maps"
 	"slices"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -155,11 +157,9 @@ type DuplicatesStats struct {
 }
 
 func countClusterMembers(cs []Cluster) int {
-	n := 0
-	for _, c := range cs {
-		n += len(c.Members)
-	}
-	return n
+	return lo.SumBy(cs, func(c Cluster) int {
+		return len(c.Members)
+	})
 }
 
 // ClusterByDOI groups candidates whose normalized DOI is identical. DOI
@@ -178,11 +178,7 @@ func ClusterByDOI(cands []DuplicateCandidate) []Cluster {
 		buckets[key] = append(buckets[key], c)
 	}
 
-	keys := make([]string, 0, len(buckets))
-	for k := range buckets {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
+	keys := slices.Sorted(maps.Keys(buckets))
 
 	var out []Cluster
 	for _, k := range keys {
@@ -266,11 +262,7 @@ func ClusterByTitle(cands []DuplicateCandidate, threshold float64, fuzzy bool) [
 	}
 
 	// Deterministic iteration order for exact clusters.
-	bucketKeys := make([]string, 0, len(buckets))
-	for k := range buckets {
-		bucketKeys = append(bucketKeys, k)
-	}
-	slices.Sort(bucketKeys)
+	bucketKeys := slices.Sorted(maps.Keys(buckets))
 
 	var out []Cluster
 	exactMembers := map[int]bool{} // entry indices already captured by an exact cluster
@@ -391,15 +383,14 @@ func roundTo(f float64, n int) float64 {
 // toMembers converts a slice of candidates into the display-ready member
 // form. Kept as a helper so title and fuzzy clusterers can reuse it.
 func toMembers(cands []DuplicateCandidate) []ClusterMember {
-	out := make([]ClusterMember, len(cands))
-	for i, c := range cands {
-		out[i] = ClusterMember{
+	out := lo.Map(cands, func(c DuplicateCandidate, _ int) ClusterMember {
+		return ClusterMember{
 			Key:      c.Key,
 			Title:    c.Title,
 			Date:     c.Date,
 			DOI:      c.DOI,
 			PDFCount: c.PDFCount,
 		}
-	}
+	})
 	return out
 }

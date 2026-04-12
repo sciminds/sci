@@ -7,6 +7,7 @@ package app
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 	"unicode/utf8"
 
@@ -161,9 +162,7 @@ func matchANDGroup(row []cell, group resolvedGroup) (map[int][]int, bool) {
 		if !matched {
 			return nil, false
 		}
-		for col, pos := range rowHL {
-			mergedHL[col] = pos
-		}
+		maps.Copy(mergedHL, rowHL)
 	}
 	return mergedHL, true
 }

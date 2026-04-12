@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 // DetectedPackage represents a package found by one of the detection probes.
@@ -53,12 +55,9 @@ func Detect(p Prober, pkg string) ([]DetectedPackage, error) {
 	}()
 	wg.Wait()
 
-	var matches []DetectedPackage
-	for _, r := range results {
-		if r.found {
-			matches = append(matches, DetectedPackage{Name: pkg, Type: r.typ})
-		}
-	}
+	matches := lo.FilterMap(results[:], func(r result, _ int) (DetectedPackage, bool) {
+		return DetectedPackage{Name: pkg, Type: r.typ}, r.found
+	})
 	return matches, nil
 }
 

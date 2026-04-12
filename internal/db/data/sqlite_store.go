@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/pocketbase/dbx"
+	"github.com/samber/lo"
 )
 
 // SQLiteStore implements DataStore using the pure-Go modernc.org/sqlite driver.
@@ -150,9 +151,8 @@ func (s *SQLiteStore) TableColumns(table string) ([]PragmaColumn, error) {
 		return nil, fmt.Errorf("table columns %q: %w", table, err)
 	}
 
-	cols := make([]PragmaColumn, len(prows))
-	for i, r := range prows {
-		cols[i] = PragmaColumn{
+	cols := lo.Map(prows, func(r pragmaInfoRow, _ int) PragmaColumn {
+		return PragmaColumn{
 			CID:       r.CID,
 			Name:      r.Name,
 			Type:      r.Type,
@@ -160,7 +160,7 @@ func (s *SQLiteStore) TableColumns(table string) ([]PragmaColumn, error) {
 			DfltValue: r.DfltValue,
 			PK:        r.PK,
 		}
-	}
+	})
 	return cols, nil
 }
 
@@ -451,10 +451,9 @@ func (s *SQLiteStore) InsertRows(table string, columns []string, rows [][]string
 		}
 	}
 
-	quotedCols := make([]string, len(columns))
-	for i, c := range columns {
-		quotedCols[i] = fmt.Sprintf(`"%s"`, c)
-	}
+	quotedCols := lo.Map(columns, func(c string, _ int) string {
+		return fmt.Sprintf(`"%s"`, c)
+	})
 	colList := strings.Join(quotedCols, ", ")
 
 	return s.insertBatch(table, colList, columns, rows)
@@ -567,10 +566,9 @@ func (s *SQLiteStore) ImportCSV(csvPath, tableName string) error {
 	}
 
 	// Create table with TEXT columns (SQLite is dynamically typed anyway).
-	quotedCols := make([]string, len(header))
-	for i, col := range header {
-		quotedCols[i] = fmt.Sprintf(`"%s" TEXT`, col)
-	}
+	quotedCols := lo.Map(header, func(col string, _ int) string {
+		return fmt.Sprintf(`"%s" TEXT`, col)
+	})
 	createSQL := fmt.Sprintf(`CREATE TABLE "%s" (%s)`, tableName, strings.Join(quotedCols, ", "))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -593,10 +591,9 @@ func (s *SQLiteStore) ImportCSV(csvPath, tableName string) error {
 func (s *SQLiteStore) streamInsert(r *csv.Reader, table string, columns []string) error {
 	const batchSize = 500
 
-	quotedCols := make([]string, len(columns))
-	for i, c := range columns {
-		quotedCols[i] = fmt.Sprintf(`"%s"`, c)
-	}
+	quotedCols := lo.Map(columns, func(c string, _ int) string {
+		return fmt.Sprintf(`"%s"`, c)
+	})
 	colList := strings.Join(quotedCols, ", ")
 
 	batch := make([][]string, 0, batchSize)
@@ -638,10 +635,7 @@ func (s *SQLiteStore) insertBatch(table, colList string, columns []string, rows 
 			rowsPerStmt = 1
 		}
 
-		for i := 0; i < len(rows); i += rowsPerStmt {
-			end := min(i+rowsPerStmt, len(rows))
-			chunk := rows[i:end]
-
+		for _, chunk := range lo.Chunk(rows, rowsPerStmt) {
 			valueTuples := make([]string, len(chunk))
 			params := dbx.Params{}
 			for ri, row := range chunk {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
@@ -17,12 +18,8 @@ func (c *Client) DeleteTagsFromLibrary(ctx context.Context, tags []string) error
 	}
 	// Batch into groups of 50 (API limit).
 	const batchSize = 50
-	for i := 0; i < len(tags); i += batchSize {
-		end := i + batchSize
-		if end > len(tags) {
-			end = len(tags)
-		}
-		joined := strings.Join(tags[i:end], " || ")
+	for _, chunk := range lo.Chunk(tags, batchSize) {
+		joined := strings.Join(chunk, " || ")
 		params := &client.DeleteTagsParams{Tag: joined}
 		resp, err := c.Gen.DeleteTagsWithResponse(ctx, c.UserID, params)
 		if err != nil {

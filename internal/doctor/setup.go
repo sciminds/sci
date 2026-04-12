@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -76,14 +77,13 @@ func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
 		return OptionalToolsResult{}, err
 	}
 
-	tools := make([]OptionalToolInfo, len(entries))
-	for i, e := range entries {
-		tools[i] = OptionalToolInfo{
+	tools := lo.Map(entries, func(e brew.BrewfileEntry, _ int) OptionalToolInfo {
+		return OptionalToolInfo{
 			Name:      e.Name,
 			Type:      e.Type,
 			Installed: !missing[e.Name],
 		}
-	}
+	})
 	return OptionalToolsResult{Tools: tools}, nil
 }
 
@@ -162,20 +162,16 @@ func missingSet(r brew.Runner, content string) map[string]bool {
 	if err != nil {
 		return allNamesSet(content)
 	}
-	set := make(map[string]bool, len(names))
-	for _, n := range names {
-		set[n] = true
-	}
-	return set
+	return lo.SliceToMap(names, func(n string) (string, bool) {
+		return n, true
+	})
 }
 
 // allNamesSet returns a set with every package name from a Brewfile marked
 // as missing. Used as a safe fallback when BundleCheck fails.
 func allNamesSet(content string) map[string]bool {
 	all := brew.ParseBrewfileNames(content)
-	set := make(map[string]bool, len(all))
-	for _, n := range all {
-		set[n] = true
-	}
-	return set
+	return lo.SliceToMap(all, func(n string) (string, bool) {
+		return n, true
+	})
 }

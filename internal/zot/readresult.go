@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot/local"
 )
@@ -75,14 +76,12 @@ func (r ItemResult) Human() string {
 		ui.TUI.Dim().Render(it.Type),
 	)
 	if len(it.Creators) > 0 {
-		parts := make([]string, 0, len(it.Creators))
-		for _, c := range it.Creators {
+		parts := lo.Map(it.Creators, func(c local.Creator, _ int) string {
 			if c.Name != "" {
-				parts = append(parts, c.Name)
-			} else {
-				parts = append(parts, strings.TrimSpace(c.First+" "+c.Last))
+				return c.Name
 			}
-		}
+			return strings.TrimSpace(c.First + " " + c.Last)
+		})
 		fmt.Fprintf(&b, "  %s %s\n", ui.TUI.Dim().Render("authors:"), strings.Join(parts, ", "))
 	}
 	writeField(&b, "date", cleanDate(it.Date))

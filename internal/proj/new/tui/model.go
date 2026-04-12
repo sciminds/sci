@@ -11,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	projnew "github.com/sciminds/cli/internal/proj/new"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -146,15 +147,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Build result from applied files
 		m.Result = projnew.SyncResult{Dir: m.dir}
-		for _, f := range m.files {
-			if f.applied {
-				m.Result.Changed = append(m.Result.Changed, projnew.SyncChange{
-					Path:    f.file.Path,
-					Changed: true,
-					Exists:  f.file.Exists,
-				})
-			}
-		}
+		m.Result.Changed = lo.FilterMap(m.files, func(f fileEntry, _ int) (projnew.SyncChange, bool) {
+			return projnew.SyncChange{
+				Path:    f.file.Path,
+				Changed: true,
+				Exists:  f.file.Exists,
+			}, f.applied
+		})
 		m.phase = phaseDone
 		return m, nil
 

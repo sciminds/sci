@@ -12,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/help"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 )
 
@@ -105,13 +106,9 @@ func (m *Model) keycap(value string) string {
 // ── Text layout utilities ───────────────────────────────────────────────────
 
 func filterNonBlank(values []string) []string {
-	filtered := make([]string, 0, len(values))
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			filtered = append(filtered, v)
-		}
-	}
-	return filtered
+	return lo.Filter(values, func(v string, _ int) bool {
+		return strings.TrimSpace(v) != ""
+	})
 }
 
 func joinVerticalNonEmpty(values ...string) string {

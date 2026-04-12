@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/pocketbase/dbx"
+	"github.com/samber/lo"
 	_ "modernc.org/sqlite"
 )
 
@@ -310,11 +311,9 @@ func (d *DB) AllStudents() ([]Student, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Student, len(raw))
-	for i, r := range raw {
-		out[i] = r.toStudent()
-	}
-	return out, nil
+	return lo.Map(raw, func(r nullableStudent, _ int) Student {
+		return r.toStudent()
+	}), nil
 }
 
 // UpsertAssignments inserts or updates assignments.

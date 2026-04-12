@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/zot"
@@ -215,10 +216,9 @@ func updateCommand() *cli.Command {
 				return nil
 			}
 
-			patches := make([]api.ItemPatch, len(keys))
-			for i, k := range keys {
-				patches[i] = api.ItemPatch{Key: k, Data: patch}
-			}
+			patches := lo.Map(keys, func(k string, _ int) api.ItemPatch {
+				return api.ItemPatch{Key: k, Data: patch}
+			})
 			results, err := c.UpdateItemsBatch(ctx, patches)
 			if err != nil {
 				return err

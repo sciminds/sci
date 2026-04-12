@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cass/api/canvas"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -78,10 +79,9 @@ func DiffLocal(db *DB) (*DiffResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	nameMap := make(map[int]string, len(students))
-	for _, s := range students {
-		nameMap[s.CanvasID] = s.Name
-	}
+	nameMap := lo.SliceToMap(students, func(s Student) (int, string) {
+		return s.CanvasID, s.Name
+	})
 
 	type gradeRow struct {
 		StudentID          int            `db:"student_id"`
@@ -150,12 +150,9 @@ func (r *RemoteDiffResult) Human() string {
 	var b strings.Builder
 	for _, slug := range order {
 		changes := byAssignment[slug]
-		conflicts := 0
-		for _, c := range changes {
-			if c.Conflict {
-				conflicts++
-			}
-		}
+		conflicts := lo.CountBy(changes, func(c RemoteGradeChange) bool {
+			return c.Conflict
+		})
 		label := fmt.Sprintf("%d grade change(s)", len(changes))
 		if conflicts > 0 {
 			label += fmt.Sprintf(" (%d CONFLICT)", conflicts)
@@ -201,10 +198,9 @@ func DiffRemote(ctx context.Context, db *DB, canvasBaseURL, token string, course
 	client := canvas.NewClient(canvasBaseURL, token)
 
 	// Group changes by assignment to batch fetches.
-	byAssignment := make(map[int][]GradeChange)
-	for _, c := range local.Changes {
-		byAssignment[c.CanvasAssignmentID] = append(byAssignment[c.CanvasAssignmentID], c)
-	}
+	byAssignment := lo.GroupBy(local.Changes, func(c GradeChange) int {
+		return c.CanvasAssignmentID
+	})
 
 	result := RemoteDiffResult{
 		Changes: make([]RemoteGradeChange, 0, len(local.Changes)),

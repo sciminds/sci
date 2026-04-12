@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 // OutputFormat mirrors docling's `--to`. We only wire the two formats we
@@ -220,11 +222,12 @@ func (d *DoclingExtractor) Extract(ctx context.Context, opts ExtractOptions) (*E
 	if opts.ImageMode == ImageReferenced {
 		artifacts := filepath.Join(opts.OutputDir, stem+"_artifacts")
 		if entries, err := os.ReadDir(artifacts); err == nil {
-			for _, e := range entries {
-				if !e.IsDir() {
-					result.ImagePaths = append(result.ImagePaths, filepath.Join(artifacts, e.Name()))
+			result.ImagePaths = lo.FilterMap(entries, func(e os.DirEntry, _ int) (string, bool) {
+				if e.IsDir() {
+					return "", false
 				}
-			}
+				return filepath.Join(artifacts, e.Name()), true
+			})
 			slices.Sort(result.ImagePaths)
 		}
 	}
@@ -307,10 +310,9 @@ func (d *DoclingExtractor) ExtractBatch(ctx context.Context, opts ExtractOptions
 
 	// Collect results: walk the output dir and match each .md file back
 	// to its source PDF via stem matching.
-	stemToPDF := make(map[string]string, len(pdfs))
-	for _, p := range pdfs {
-		stemToPDF[stemFor(p)] = p
-	}
+	stemToPDF := lo.SliceToMap(pdfs, func(p string) (string, string) {
+		return stemFor(p), p
+	})
 
 	results := make(map[string]*ExtractResult, len(pdfs))
 	for stem, pdfPath := range stemToPDF {
@@ -334,11 +336,9 @@ func (d *DoclingExtractor) ExtractBatch(ctx context.Context, opts ExtractOptions
 		if opts.ImageMode == ImageReferenced {
 			artifacts := filepath.Join(opts.OutputDir, stem+"_artifacts")
 			if entries, err := os.ReadDir(artifacts); err == nil {
-				for _, e := range entries {
-					if !e.IsDir() {
-						res.ImagePaths = append(res.ImagePaths, filepath.Join(artifacts, e.Name()))
-					}
-				}
+				res.ImagePaths = lo.FilterMap(entries, func(e os.DirEntry, _ int) (string, bool) {
+					return filepath.Join(artifacts, e.Name()), !e.IsDir()
+				})
 				slices.Sort(res.ImagePaths)
 			}
 		}
@@ -419,12 +419,7 @@ func buildDoclingArgs(opts ExtractOptions, pdfs ...string) []string {
 }
 
 func hasFormat(fs []OutputFormat, want OutputFormat) bool {
-	for _, f := range fs {
-		if f == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(fs, want)
 }
 
 // stemFor returns the filename stem used by docling's output naming.

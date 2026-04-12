@@ -7,10 +7,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/extract"
+	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
 )
 
@@ -93,24 +95,19 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 
 	// Filter out items that already have a docling note in Zotero.
 	if !extractLibForce {
-		filtered := all[:0]
-		for _, p := range all {
-			if !hasExisting[p.ParentKey] {
-				filtered = append(filtered, p)
-			}
-		}
-		all = filtered
+		all = lo.Reject(all, func(p local.PDFParent, _ int) bool {
+			return hasExisting[p.ParentKey]
+		})
 	}
 
-	reqs := make([]extract.BatchRequest, len(all))
-	for i, p := range all {
-		reqs[i] = extract.BatchRequest{
+	reqs := lo.Map(all, func(p local.PDFParent, _ int) extract.BatchRequest {
+		return extract.BatchRequest{
 			ParentKey: p.ParentKey,
 			PDFKey:    p.Attachment.Key,
 			PDFName:   p.Attachment.Title,
 			PDFPath:   filepath.Join(cfg.DataDir, "storage", p.Attachment.Key, p.Attachment.Filename),
 		}
-	}
+	})
 
 	// PlanBatch uses concurrent hashing; use a reasonable parallelism.
 	planJobs := extract.BatchJobsDefault(extractLibDevice, runtime.NumCPU())

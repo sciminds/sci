@@ -6,6 +6,8 @@ package convert
 import (
 	"regexp"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 var (
@@ -68,12 +70,9 @@ func tagImportsCell(text string) string {
 		code := sub[2]
 		// Remove import marimo as mo lines from code
 		lines := strings.Split(code, "\n")
-		var filtered []string
-		for _, ln := range lines {
-			if strings.TrimSpace(ln) != "import marimo as mo" {
-				filtered = append(filtered, ln)
-			}
-		}
+		filtered := lo.Reject(lines, func(ln string, _ int) bool {
+			return strings.TrimSpace(ln) == "import marimo as mo"
+		})
 		return "```{code-cell} " + lang + "\n:tags: [remove-cell]\n" + strings.Join(filtered, "\n") + "```"
 	})
 }

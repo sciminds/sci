@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/lab"
@@ -97,16 +98,14 @@ func RunToolChecks(r brew.Runner, brewfilePath string) ([]ToolInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("check tools: %w", err)
 	}
-	missingSet := make(map[string]bool, len(missing))
-	for _, name := range missing {
-		missingSet[name] = true
-	}
+	missingSet := lo.SliceToMap(missing, func(name string) (string, bool) {
+		return name, true
+	})
 
 	all := brew.ParseBrewfileNames(Brewfile)
-	infos := make([]ToolInfo, len(all))
-	for i, name := range all {
-		infos[i] = ToolInfo{Name: name, Installed: !missingSet[name]}
-	}
+	infos := lo.Map(all, func(name string, _ int) ToolInfo {
+		return ToolInfo{Name: name, Installed: !missingSet[name]}
+	})
 	return infos, nil
 }
 

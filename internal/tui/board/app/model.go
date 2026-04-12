@@ -2,6 +2,7 @@ package app
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/ui"
 	"github.com/sciminds/cli/internal/tui/kit"
@@ -108,10 +109,9 @@ func (m *Model) Init() tea.Cmd {
 // cardsByColumn groups the current board's cards by column ID, preserving
 // position order within each column.
 func (m *Model) cardsByColumn() map[string][]engine.Card {
-	out := make(map[string][]engine.Card, len(m.current.Columns))
-	for _, col := range m.current.Columns {
-		out[col.ID] = nil
-	}
+	out := lo.SliceToMap(m.current.Columns, func(col engine.Column) (string, []engine.Card) {
+		return col.ID, nil
+	})
 	for _, c := range m.current.Cards {
 		out[c.Column] = append(out[c.Column], c)
 	}

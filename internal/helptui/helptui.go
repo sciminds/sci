@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/guide"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -37,10 +38,7 @@ type model struct {
 }
 
 func newModel(groups []CommandGroup) *model {
-	items := make([]list.Item, len(groups))
-	for i, g := range groups {
-		items[i] = g
-	}
+	items := lo.Map(groups, func(g CommandGroup, _ int) list.Item { return g })
 
 	d := ui.NewListDelegate()
 	l := list.New(items, d, 0, 0)
@@ -147,10 +145,7 @@ func (m *model) updateCommands(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) openGroup(g CommandGroup) {
-	items := make([]list.Item, len(g.Subs))
-	for i, s := range g.Subs {
-		items[i] = s
-	}
+	items := lo.Map(g.Subs, func(s SubCommand, _ int) list.Item { return s })
 	m.group = &g
 	d := ui.NewListDelegate()
 	listH := m.height - m.descHeight()

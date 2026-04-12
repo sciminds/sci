@@ -3,6 +3,8 @@ package app
 // cursor.go — Cursor navigation helpers: row movement (up, down, half-page),
 // column movement (left, right, home, end), and cell selection queries.
 
+import "github.com/samber/lo"
+
 // clampCursor clamps cursor into [0, total-1]. Returns 0 when total <= 0.
 func clampCursor(cursor, total int) int {
 	if total <= 0 {
@@ -95,13 +97,9 @@ func hasSelectableCol(tab *Tab) bool {
 }
 
 func (m *Model) visibleColCount(tab *Tab) int {
-	count := 0
-	for _, s := range tab.Specs {
-		if s.HideOrder == 0 {
-			count++
-		}
-	}
-	return count
+	return lo.CountBy(tab.Specs, func(s columnSpec) bool {
+		return s.HideOrder == 0
+	})
 }
 
 func (m *Model) firstSelectableCol(tab *Tab) int {

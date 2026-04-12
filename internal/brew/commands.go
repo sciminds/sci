@@ -6,6 +6,8 @@ import (
 	"os"
 	"slices"
 	"sync"
+
+	"github.com/samber/lo"
 )
 
 // Add adds a package to the Brewfile and installs it.
@@ -154,10 +156,9 @@ func runUpgrades(r Runner, brewOutdated, uvOutdated []OutdatedPackage) (string, 
 		upgradeOut = out
 	}
 	if len(uvOutdated) > 0 {
-		names := make([]string, len(uvOutdated))
-		for i, pkg := range uvOutdated {
-			names[i] = pkg.Name
-		}
+		names := lo.Map(uvOutdated, func(pkg OutdatedPackage, _ int) string {
+			return pkg.Name
+		})
 		out, err := r.UVUpgrade(names)
 		if err != nil {
 			return upgradeOut, fmt.Errorf("uv upgrade: %w", err)

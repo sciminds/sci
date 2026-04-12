@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/samber/lo"
 	engine "github.com/sciminds/cli/internal/board"
 	btui "github.com/sciminds/cli/internal/tui/board"
 )
@@ -72,10 +73,9 @@ func seededStore() (*engine.Store, error) {
 // Exercises the horizontal-scroll and column-collapse code paths.
 func seedCalendar(ctx context.Context, store *engine.Store) error {
 	months := []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
-	cols := make([]engine.Column, len(months))
-	for i, mo := range months {
-		cols[i] = engine.Column{ID: strings.ToLower(mo), Title: mo}
-	}
+	cols := lo.Map(months, func(mo string, _ int) engine.Column {
+		return engine.Column{ID: strings.ToLower(mo), Title: mo}
+	})
 	if err := store.CreateBoard(ctx, "calendar", "Calendar", "year-at-a-glance", cols); err != nil {
 		return err
 	}
