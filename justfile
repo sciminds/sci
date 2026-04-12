@@ -21,6 +21,7 @@ lint:
 # No lipgloss.NewStyle() outside ui/ packages; no hardcoded lipgloss.Color() outside palette/style files.
 lint-style:
     sg scan
+    semgrep --config .semgrep/ --error --quiet ./internal/ ./cmd/
 
 # Project-specific guards: import boundaries, flag conventions, API usage rules.
 lint-guard:

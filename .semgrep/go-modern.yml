@@ -1,0 +1,27 @@
+rules:
+  # ── no-manual-map ──────────────────────────────────────────────────────────
+  # A make([]T, len(src)) followed by a for-range that assigns dst[i] = expr
+  # is a hand-rolled Map. Use lo.Map instead.
+  #
+  # Before:
+  #   names := make([]string, len(entries))
+  #   for i, e := range entries {
+  #       names[i] = e.Name
+  #   }
+  #
+  # After:
+  #   names := lo.Map(entries, func(e Entry, _ int) string { return e.Name })
+  #
+  # Suppress with a `// nosemgrep: no-manual-map` comment.
+  - id: no-manual-map
+    patterns:
+      - pattern: |
+          $DST := make([]$TYPE, len($SRC))
+          for $I, $V := range $SRC {
+              $DST[$I] = $EXPR
+          }
+    message: >-
+      Use lo.Map($SRC, func(...) $TYPE { ... }) instead of make+range loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
