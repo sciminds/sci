@@ -4,6 +4,14 @@
 # paths) must have an entry here. lint-guard rule 13 fails the build when an
 # unregistered call site appears.
 #
+# Matching uses file + type + nth (the Nth occurrence of that call type in the
+# file, ordered by source line). Line numbers are kept as documentation but are
+# NOT used for matching — refactors that move code within a file won't cause
+# drift as long as the order of same-typed calls is preserved.
+#
+# Call-site discovery uses ast-grep (scripts/interactive-calls.yml) for
+# structural precision — comments, strings, and test files are ignored.
+#
 # status values:
 #   covered  — a flag/arg fully bypasses the interactive prompt
 #   gap      — no non-interactive bypass exists yet (tracked debt)
@@ -15,6 +23,7 @@
 #   internal/tui/board/     — standalone TUI app
 #   internal/ui/spinner.go  — progress display, not user input
 #   internal/cmdutil/       — shared helpers (callers are tracked)
+#   internal/tui/kit/       — shared TUI infra (callers are tracked)
 
 commands:
 
@@ -24,6 +33,7 @@ commands:
     prompts:
       - id: git-name
         type: huh.NewInput
+        nth: 1
         line: 358
         description: "Git user.name"
         bypass: "--git-name"
@@ -31,6 +41,7 @@ commands:
 
       - id: git-email
         type: huh.NewInput
+        nth: 2
         line: 364
         description: "Git user.email"
         bypass: "--git-email"
@@ -42,6 +53,7 @@ commands:
     prompts:
       - id: project-name
         type: huh.NewInput
+        nth: 1
         line: 35
         description: "Project name"
         bypass: "positional arg [name]"
@@ -49,6 +61,7 @@ commands:
 
       - id: pkg-manager
         type: huh.NewSelect
+        nth: 1
         line: 42
         description: "Package manager (pixi/uv)"
         bypass: "--pkg-manager"
@@ -56,6 +69,7 @@ commands:
 
       - id: doc-system
         type: huh.NewSelect
+        nth: 2
         line: 50
         description: "Authoring system (quarto/myst/none)"
         bypass: "--doc-system"
@@ -63,6 +77,7 @@ commands:
 
       - id: author-name
         type: huh.NewInput
+        nth: 2
         line: 60
         description: "Author name"
         bypass: "--author"
@@ -70,6 +85,7 @@ commands:
 
       - id: author-email
         type: huh.NewInput
+        nth: 3
         line: 65
         description: "Author email"
         bypass: "--email"
@@ -77,6 +93,7 @@ commands:
 
       - id: description
         type: huh.NewInput
+        nth: 4
         line: 70
         description: "Project description"
         bypass: "--description"
@@ -88,7 +105,8 @@ commands:
     prompts:
       - id: config-tui
         type: kit.RunModel
-        line: 230
+        nth: 1
+        line: 232
         description: "Interactive config sync reviewer"
         bypass: "--apply"
         status: covered
@@ -99,6 +117,7 @@ commands:
     prompts:
       - id: replace-token
         type: huh.NewConfirm
+        nth: 1
         line: 91
         description: "Replace existing Canvas token?"
         bypass: "--token (overwrites implicitly)"
@@ -106,6 +125,7 @@ commands:
 
       - id: token-input
         type: huh.NewInput
+        nth: 1
         line: 106
         description: "Canvas API token"
         bypass: "--token"
@@ -117,6 +137,7 @@ commands:
     prompts:
       - id: canvas-url
         type: huh.NewInput
+        nth: 2
         line: 186
         description: "Canvas course URL"
         bypass: "--canvas-url"
@@ -124,6 +145,7 @@ commands:
 
       - id: classroom-url
         type: huh.NewInput
+        nth: 3
         line: 194
         description: "GitHub Classroom URL"
         bypass: "--classroom-url"
@@ -135,6 +157,7 @@ commands:
     prompts:
       - id: match-select
         type: huh.NewSelect
+        nth: 1
         line: 300
         description: "Manual student matching"
         bypass: "--auto"
@@ -146,6 +169,7 @@ commands:
     prompts:
       - id: upload-name
         type: huh.NewInput
+        nth: 1
         line: 116
         description: "Upload name"
         bypass: "--name"
@@ -153,6 +177,7 @@ commands:
 
       - id: upload-desc
         type: huh.NewInput
+        nth: 2
         line: 121
         description: "File description"
         bypass: "--desc"
@@ -160,6 +185,7 @@ commands:
 
       - id: overwrite-confirm
         type: huh.NewConfirm
+        nth: 1
         line: 142
         description: "Overwrite existing file?"
         bypass: "--force"
@@ -171,6 +197,7 @@ commands:
     prompts:
       - id: cloud-list-tui
         type: kit.Run
+        nth: 1
         line: 252
         description: "Interactive cloud file browser"
         bypass: "--plain or --json"
@@ -182,6 +209,7 @@ commands:
     prompts:
       - id: ssh-username
         type: huh.NewInput
+        nth: 1
         line: 67
         description: "SSH username"
         bypass: "--user"
@@ -193,7 +221,8 @@ commands:
     prompts:
       - id: pkg-type-select
         type: huh.NewSelect
-        line: 225
+        nth: 1
+        line: 231
         description: "Package type disambiguation"
         bypass: "type flags (--cask, --tap, --uv, --go, --cargo)"
         status: covered
@@ -204,6 +233,7 @@ commands:
     prompts:
       - id: tools-list-tui
         type: kit.Run
+        nth: 1
         line: 118
         description: "Interactive package browser"
         bypass: "type filter flags (--formula, --cask, etc.)"
@@ -215,6 +245,7 @@ commands:
     prompts:
       - id: reccs-tui
         type: kit.RunModel
+        nth: 1
         line: 151
         description: "Interactive optional tools installer"
         bypass: "--install <name>"
@@ -226,6 +257,7 @@ commands:
     prompts:
       - id: api-key
         type: huh.NewInput
+        nth: 1
         line: 102
         description: "Zotero API key"
         bypass: "--api"
@@ -233,6 +265,7 @@ commands:
 
       - id: library-id
         type: huh.NewInput
+        nth: 2
         line: 107
         description: "Zotero library ID"
         bypass: "--library"
@@ -240,6 +273,7 @@ commands:
 
       - id: data-dir
         type: huh.NewInput
+        nth: 3
         line: 112
         description: "Zotero data directory"
         bypass: "--data-dir"
@@ -251,6 +285,7 @@ commands:
     prompts:
       - id: help-browser
         type: kit.Run
+        nth: 1
         line: 300
         description: "Interactive help browser"
         status: exempt
@@ -258,6 +293,7 @@ commands:
 
       - id: help-group-browser
         type: kit.Run
+        nth: 2
         line: 306
         description: "Interactive help group browser"
         status: exempt
@@ -269,6 +305,7 @@ commands:
     prompts:
       - id: guide-browser
         type: kit.Run
+        nth: 1
         line: 459
         description: "Interactive learning guide"
         status: exempt

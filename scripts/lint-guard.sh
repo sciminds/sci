@@ -145,19 +145,25 @@ if [[ -n "$multiline_opens" ]]; then
 	done <<<"$multiline_opens"
 fi
 
-# ── Rule 5: No exec.Command in process-replacing packages ───────────────────
-# internal/py/ephemeral.go must use syscall.Exec for process replacement.
-# exec.Command would leave a zombie parent. Other files in internal/py/
-# (e.g. convert.go) may legitimately use exec.Command.
+# ── Rule 5: No exec.Command in process-replacing files ──────────────────────
+# Any file that calls syscall.Exec (process replacement) should NOT also use
+# exec.Command — that would leave a zombie parent. exec.CommandContext is OK
+# (used for probes/data-fetching, not replacement).
+#
+# Suppress with "// lint:allow-exec-command" on the same line if truly needed.
 
-if [[ -f internal/py/ephemeral.go ]]; then
-	exec_cmd_hits=$(rg -n 'exec\.Command' internal/py/ephemeral.go 2>/dev/null || true)
-	if [[ -n "$exec_cmd_hits" ]]; then
-		echo "FAIL [no-exec-command-ephemeral] exec.Command in ephemeral.go (use syscall.Exec):"
-		echo "$exec_cmd_hits"
-		fail "no-exec-command-ephemeral"
+syscall_exec_files=$(rg -l 'syscall\.Exec\b' --type go \
+	--glob '!*_test.go' --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
+for f in $syscall_exec_files; do
+	# Flag exec.Command( but not exec.CommandContext(
+	bad_hits=$(rg -n 'exec\.Command[^C]' "$f" 2>/dev/null |
+		rg -v 'lint:allow-exec-command' || true)
+	if [[ -n "$bad_hits" ]]; then
+		echo "FAIL [no-exec-command-in-replacer] exec.Command in process-replacing file $f (use syscall.Exec or exec.CommandContext):"
+		echo "$bad_hits"
+		fail "no-exec-command-in-replacer"
 	fi
-fi
+done
 
 # ── Rule 6: No cloud.Client.Upload in board package ─────────────────────────
 # cloud.Client.Upload auto-prepends {username}/ to keys, which is wrong for
@@ -333,10 +339,15 @@ fi
 # in scripts/scriptable-inventory.yml. This catches new interactive prompts that
 # lack a non-interactive bypass.
 #
+# Call-site discovery uses ast-grep (scripts/interactive-calls.yml) for
+# structural matching. Inventory entries are matched by file + type + nth
+# (occurrence index), NOT line numbers — so refactors don't cause drift.
+#
 # Exempt paths are hard-coded below (TUI-only apps, shared infra).
 # Suppress a specific call site with "// lint:no-scriptable" on the same line.
 
 inventory="scripts/scriptable-inventory.yml"
+interactive_rules="scripts/interactive-calls.yml"
 
 # Exempt paths — these never need inventory entries.
 scriptable_exempt=(
@@ -348,72 +359,82 @@ scriptable_exempt=(
 	"internal/tui/kit/"
 )
 
-# Build a list of file:line pairs from the inventory for fast lookup.
-# We extract "file: <path>" and "line: <N>" pairs from the YAML.
+# ── Step 1: Discover call sites via ast-grep ────────────────────────────────
+# Output: deduplicated JSON array of {id, file, line} sorted by file then line.
+sg_json=$(sg scan -r "$interactive_rules" --json 2>/dev/null | \
+	jaq '[.[] | {id: .ruleId, file, line: (.range.start.line + 1)}] | unique_by(.file, .id, .line) | sort_by(.file, .line)' 2>/dev/null)
+
+# Filter out exempt paths and lint:no-scriptable suppressions.
+sg_filtered="[]"
+while IFS= read -r entry; do
+	[[ -z "$entry" || "$entry" == "null" ]] && continue
+	file=$(echo "$entry" | jaq -r '.file')
+	line=$(echo "$entry" | jaq -r '.line')
+
+	# Skip exempt paths
+	skip=false
+	for exempt in "${scriptable_exempt[@]}"; do
+		if [[ "$file" == *"$exempt"* ]]; then
+			skip=true
+			break
+		fi
+	done
+	$skip && continue
+
+	# Skip lint:no-scriptable suppressions
+	if sed -n "${line}p" "$file" 2>/dev/null | rg -q 'lint:no-scriptable'; then
+		continue
+	fi
+
+	sg_filtered=$(echo "$sg_filtered" | jaq --argjson e "$entry" '. + [$e]')
+done < <(echo "$sg_json" | jaq -c '.[]')
+
+# ── Step 2: Assign nth (occurrence index) per file+type ─────────────────────
+# For each unique (file, type) pair, number occurrences 1, 2, 3… by line order.
+sg_with_nth=$(echo "$sg_filtered" | jaq '
+	group_by(.file, .id)
+	| [.[] | to_entries[] | .value + {nth: (.key + 1)}]
+	| sort_by(.file, .line)')
+
+# ── Step 3: Build inventory lookup from YAML ────────────────────────────────
+# Extract file + type + nth triples from the inventory.
 inv_entries=""
 if [[ -f "$inventory" ]]; then
 	current_file=""
 	while IFS= read -r line; do
-		# Match "file: <path>" lines
 		if [[ "$line" =~ ^[[:space:]]*file:[[:space:]]*(.+)$ ]]; then
 			current_file="${BASH_REMATCH[1]}"
 		fi
-		# Match "line: <N>" lines
-		if [[ "$line" =~ ^[[:space:]]*-?[[:space:]]*line:[[:space:]]*([0-9]+) ]]; then
-			inv_entries+="${current_file}:${BASH_REMATCH[1]}"$'\n'
+		if [[ "$line" =~ ^[[:space:]]*type:[[:space:]]*(.+)$ ]]; then
+			current_type="${BASH_REMATCH[1]}"
+		fi
+		if [[ "$line" =~ ^[[:space:]]*nth:[[:space:]]*([0-9]+) ]]; then
+			inv_entries+="${current_file}|${current_type}|${BASH_REMATCH[1]}"$'\n'
 		fi
 	done < "$inventory"
 fi
 
-# Find all huh.New* and kit.Run/kit.RunModel/tea.NewProgram calls in non-exempt Go files.
-interactive_patterns='huh\.New(Input|Select|Confirm|MultiSelect|Text)\b|tea\.NewProgram\(|kit\.Run(Model)?\('
-interactive_hits=$(rg -n "$interactive_patterns" \
-	--type go --glob '!*_test.go' --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null |
-	rg -v 'lint:no-scriptable' || true)
+# ── Step 4: Check every discovered call site is registered ──────────────────
+while IFS= read -r entry; do
+	[[ -z "$entry" || "$entry" == "null" ]] && continue
+	file=$(echo "$entry" | jaq -r '.file')
+	id=$(echo "$entry" | jaq -r '.id')
+	nth=$(echo "$entry" | jaq -r '.nth')
+	line=$(echo "$entry" | jaq -r '.line')
 
-if [[ -n "$interactive_hits" ]]; then
-	while IFS= read -r hit; do
-		[[ -z "$hit" ]] && continue
-		file=$(echo "$hit" | cut -d: -f1 | sed 's|^\./||')
-		lineno=$(echo "$hit" | cut -d: -f2)
+	# Convert ast-grep id (huh-NewInput) to inventory type (huh.NewInput)
+	inv_type=$(echo "$id" | sed 's/-/./')
 
-		# Skip exempt paths
-		skip=false
-		for exempt in "${scriptable_exempt[@]}"; do
-			if [[ "$file" == *"$exempt"* ]]; then
-				skip=true
-				break
-			fi
-		done
-		$skip && continue
+	lookup="${file}|${inv_type}|${nth}"
+	if ! echo "$inv_entries" | rg -qF "$lookup"; then
+		echo "FAIL [scriptable-parity] unregistered interactive prompt: $file:$line ($inv_type, nth=$nth)"
+		echo "  Add an entry to $inventory or suppress with // lint:no-scriptable"
+		fail "scriptable-parity"
+	fi
+done < <(echo "$sg_with_nth" | jaq -c '.[]')
 
-		# Check if this file:line is registered in the inventory.
-		# Allow ±15 lines of drift from the recorded line number.
-		registered=false
-		while IFS= read -r entry; do
-			[[ -z "$entry" ]] && continue
-			inv_file=$(echo "$entry" | cut -d: -f1)
-			inv_line=$(echo "$entry" | cut -d: -f2)
-			if [[ "$file" == "$inv_file" ]]; then
-				diff=$((lineno - inv_line))
-				if [[ $diff -lt 0 ]]; then diff=$((-diff)); fi
-				if [[ $diff -le 15 ]]; then
-					registered=true
-					break
-				fi
-			fi
-		done <<< "$inv_entries"
-
-		if ! $registered; then
-			echo "FAIL [scriptable-parity] unregistered interactive prompt: $file:$lineno"
-			echo "  Add an entry to $inventory or suppress with // lint:no-scriptable"
-			fail "scriptable-parity"
-		fi
-	done <<< "$interactive_hits"
-fi
-
-# Also warn about inventory entries that point to files/lines where the
-# expected call no longer exists (stale entries).
+# ── Step 5: Detect stale inventory entries ──────────────────────────────────
+# For each inventory entry (file+type+nth), check that ast-grep still finds it.
 if [[ -f "$inventory" ]]; then
 	current_file=""
 	current_type=""
@@ -425,18 +446,19 @@ if [[ -f "$inventory" ]]; then
 		if [[ "$line" =~ ^[[:space:]]*type:[[:space:]]*(.+)$ ]]; then
 			current_type="${BASH_REMATCH[1]}"
 		fi
-		if [[ "$line" =~ ^[[:space:]]*-?[[:space:]]*line:[[:space:]]*([0-9]+) ]]; then
-			inv_line="${BASH_REMATCH[1]}"
-			if [[ -f "$current_file" ]]; then
-				# Check ±15 lines around the recorded line for any interactive call
-				start=$((inv_line > 15 ? inv_line - 15 : 1))
-				end=$((inv_line + 15))
-				window=$(sed -n "${start},${end}p" "$current_file" 2>/dev/null || true)
-				if ! echo "$window" | rg -q "$interactive_patterns" 2>/dev/null; then
-					stale_warnings+="  WARN [scriptable-parity] stale entry: $current_file:$inv_line ($current_type) — no matching call within ±15 lines"$'\n'
+		if [[ "$line" =~ ^[[:space:]]*nth:[[:space:]]*([0-9]+) ]]; then
+			inv_nth="${BASH_REMATCH[1]}"
+			# Convert inventory type (huh.NewInput) to ast-grep id (huh-NewInput)
+			sg_id=$(echo "$current_type" | sed 's/\./-/')
+			# Check if ast-grep found this file+type+nth
+			found=$(echo "$sg_with_nth" | jaq --arg f "$current_file" --arg id "$sg_id" --argjson n "$inv_nth" \
+				'[.[] | select(.file == $f and .id == $id and .nth == $n)] | length')
+			if [[ "$found" == "0" ]]; then
+				if [[ ! -f "$current_file" ]]; then
+					stale_warnings+="  WARN [scriptable-parity] stale entry: $current_file — file not found"$'\n'
+				else
+					stale_warnings+="  WARN [scriptable-parity] stale entry: $current_file ($current_type nth=$inv_nth) — no matching call"$'\n'
 				fi
-			else
-				stale_warnings+="  WARN [scriptable-parity] stale entry: $current_file — file not found"$'\n'
 			fi
 		fi
 	done < "$inventory"

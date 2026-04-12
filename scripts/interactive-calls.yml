@@ -1,0 +1,56 @@
+# interactive-calls.yml — ast-grep rules for discovering interactive call sites.
+# Used by lint-guard rule 13 (scriptable-parity) to structurally find all
+# huh.New*, kit.Run*, and tea.NewProgram calls. Each rule's id becomes the
+# "type" key matched against scriptable-inventory.yml entries.
+#
+# The `kind: call_expression` + `regex` combo handles Go method chains:
+# huh.NewInput().Title("x").Value(&v) is nested call_expressions, and
+# deduplication by file+id+line in lint-guard.sh collapses them.
+
+id: huh-NewInput
+language: go
+rule:
+  kind: call_expression
+  regex: '^huh\.NewInput\('
+---
+id: huh-NewSelect
+language: go
+rule:
+  kind: call_expression
+  regex: '^huh\.NewSelect'
+---
+id: huh-NewConfirm
+language: go
+rule:
+  kind: call_expression
+  regex: '^huh\.NewConfirm\('
+---
+id: huh-NewMultiSelect
+language: go
+rule:
+  kind: call_expression
+  regex: '^huh\.NewMultiSelect'
+---
+id: huh-NewText
+language: go
+rule:
+  kind: call_expression
+  regex: '^huh\.NewText\('
+---
+id: kit-Run
+language: go
+rule:
+  kind: call_expression
+  regex: '^kit\.Run\('
+---
+id: kit-RunModel
+language: go
+rule:
+  kind: call_expression
+  regex: '^kit\.RunModel[\[\(]'
+---
+id: tea-NewProgram
+language: go
+rule:
+  kind: call_expression
+  regex: '^tea\.NewProgram\('
