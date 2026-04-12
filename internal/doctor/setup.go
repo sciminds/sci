@@ -87,6 +87,37 @@ func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
 	return OptionalToolsResult{Tools: tools}, nil
 }
 
+// InstallOptionalTool installs a named optional tool without interactive
+// prompts. Returns an error if the tool is not in the optional list or is
+// already installed.
+func InstallOptionalTool(r brew.Runner, name string) (OptionalSetupResult, error) {
+	entries := brew.ParseBrewfileEntries(BrewfileOptional)
+	entry, ok := lo.Find(entries, func(e brew.BrewfileEntry) bool {
+		return e.Name == name
+	})
+	if !ok {
+		available := lo.Map(entries, func(e brew.BrewfileEntry, _ int) string { return e.Name })
+		return OptionalSetupResult{}, fmt.Errorf("unknown optional tool %q (available: %s)", name, strings.Join(available, ", "))
+	}
+
+	missing := missingSet(r, BrewfileOptional)
+	if !missing[name] {
+		return OptionalSetupResult{}, fmt.Errorf("tool %q is already installed", name)
+	}
+
+	tmpFile, err := brew.WriteTempBrewfile(entry.Line + "\n")
+	if err != nil {
+		return OptionalSetupResult{}, fmt.Errorf("write temp brewfile: %w", err)
+	}
+	defer func() { _ = os.Remove(tmpFile) }()
+
+	output, err := r.BundleInstall(tmpFile)
+	if err != nil {
+		return OptionalSetupResult{}, fmt.Errorf("brew bundle install: %w", err)
+	}
+	return OptionalSetupResult{Installed: []string{name}, Output: output}, nil
+}
+
 // RunOptionalSetup presents a list of uninstalled optional tools and installs
 // the user's selection via brew bundle install.
 func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {

@@ -90,9 +90,8 @@ commands:
         type: kit.RunModel
         line: 230
         description: "Interactive config sync reviewer"
-        bypass: "--json or --dry-run"
-        status: gap
-        note: "No --apply flag to auto-apply changes without TUI"
+        bypass: "--apply"
+        status: covered
 
   # ── cass setup ─────────────────────────────────────────────────────────────
   cass-setup:
@@ -216,11 +215,10 @@ commands:
     prompts:
       - id: reccs-tui
         type: kit.RunModel
-        line: 120
+        line: 151
         description: "Interactive optional tools installer"
-        bypass: "--json (list only)"
-        status: gap
-        note: "No --yes flag to auto-install selected tools without TUI"
+        bypass: "--install <name>"
+        status: covered
 
   # ── zot setup ──────────────────────────────────────────────────────────────
   zot-setup:

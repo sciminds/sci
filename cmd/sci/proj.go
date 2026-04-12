@@ -25,6 +25,7 @@ var (
 	projNewDesc       string
 	projNewDryRun     bool
 	projConfigDryRun  bool
+	projConfigApply   bool
 )
 
 func projCommand() *cli.Command {
@@ -67,9 +68,10 @@ func projConfigCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "config",
 		Usage:       "Refresh config files in your project",
-		Description: "$ sci proj config\n$ sci proj config --dry-run",
+		Description: "$ sci proj config\n$ sci proj config --dry-run\n$ sci proj config --apply   # non-interactive",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "dry-run", Usage: "show changes without applying", Destination: &projConfigDryRun, Local: true},
+			&cli.BoolFlag{Name: "apply", Usage: "apply all changes without TUI review", Destination: &projConfigApply, Local: true},
 		},
 		Action: runProjConfig,
 	}
@@ -213,7 +215,7 @@ func runProjConfig(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("cannot determine working directory: %w", err)
 	}
 
-	if cmdutil.IsJSON(cmd) || projConfigDryRun {
+	if cmdutil.IsJSON(cmd) || projConfigDryRun || projConfigApply {
 		result, err := projnew.Sync(dir, projConfigDryRun)
 		if err != nil {
 			return err

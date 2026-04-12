@@ -125,11 +125,17 @@ func toolsOutdatedCommand() *cli.Command {
 }
 
 func toolsReccsCommand() *cli.Command {
+	var installName string
 	return &cli.Command{
 		Name:        "reccs",
 		Usage:       "Pick optional tools to install",
-		Description: "$ sci tools reccs",
-		Action:      runToolsReccs,
+		Description: "$ sci tools reccs\n$ sci tools reccs --install pandoc   # non-interactive",
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "install", Usage: "install a named tool without TUI (use --json to list available)", Destination: &installName, Local: true},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runToolsReccs(ctx, cmd, installName)
+		},
 	}
 }
 
@@ -432,7 +438,7 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func runToolsReccs(_ context.Context, cmd *cli.Command) error {
+func runToolsReccs(_ context.Context, cmd *cli.Command, installName string) error {
 	runner := brew.BundleRunner{}
 
 	if file, err := resolveToolsFile(); err == nil {
@@ -448,7 +454,13 @@ func runToolsReccs(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	result, err := doctor.RunOptionalSetup(runner)
+	var result doctor.OptionalSetupResult
+	var err error
+	if installName != "" {
+		result, err = doctor.InstallOptionalTool(runner, installName)
+	} else {
+		result, err = doctor.RunOptionalSetup(runner)
+	}
 	if err != nil {
 		return err
 	}
