@@ -163,7 +163,9 @@ func seedFixture(dir string) error {
 			(40, 3, 1, 'DDDD4444', '2024-01-01 10:05:00', '2024-01-01 10:05:00', '2024-01-01 10:05:00'),
 			(50, 5, 1, 'EEEE5555', '2024-04-01 10:00:00', '2024-04-01 10:00:00', '2024-04-01 10:00:00'),
 			(60, 3, 1, 'ORPHANATT', '2024-05-01 10:00:00', '2024-05-01 10:00:00', '2024-05-01 10:00:00'),
-			(70, 4, 1, 'ORPHNNOTE', '2024-05-02 10:00:00', '2024-05-02 10:00:00', '2024-05-02 10:00:00')`,
+			(70, 4, 1, 'ORPHNNOTE', '2024-05-02 10:00:00', '2024-05-02 10:00:00', '2024-05-02 10:00:00'),
+			(80, 1, 1, 'GGGG7777', '2024-06-01 10:00:00', '2024-06-01 10:00:00', '2024-06-01 10:00:00'),
+			(81, 3, 1, 'HHHH8888', '2024-06-01 10:05:00', '2024-06-01 10:05:00', '2024-06-01 10:05:00')`,
 
 		// Item 50 is trashed.
 		`INSERT INTO deletedItems VALUES (50)`,
@@ -185,7 +187,8 @@ func seedFixture(dir string) error {
 			(11,'https://example.org/abc'),
 			(12,'smith2024-deeplearneur-AAAA1111'),
 			(13,'jonesTransformersFMRIAnalysis2024'),
-			(14,'tldr: loose note\nCitation Key: legacyBookKey1900\n')`,
+			(14,'tldr: loose note\nCitation Key: legacyBookKey1900\n'),
+			(15,'Attention Mechanisms in Cortical Networks')`,
 
 		// Item 10 (journalArticle): title, date, DOI, pub, url, abstract,
 		// plus a native citationKey matching our v2 spec (canonical).
@@ -197,7 +200,8 @@ func seedFixture(dir string) error {
 		`INSERT INTO itemData VALUES
 			(10,1,1),(10,2,4),(10,3,6),(10,4,8),(10,5,11),(10,6,10),(10,7,12),
 			(20,1,3),(20,2,4),(20,4,8),(20,7,13),
-			(30,1,2),(30,2,5),(30,8,14)`,
+			(30,1,2),(30,2,5),(30,8,14),
+			(80,1,15),(80,2,5)`,
 
 		`INSERT INTO itemCreators VALUES
 			(10,1,1,0),
@@ -224,7 +228,8 @@ func seedFixture(dir string) error {
 		// standalone attachment (parentItemID NULL).
 		`INSERT INTO itemAttachments VALUES
 			(40,10,1,'application/pdf','storage:deeplearning.pdf'),
-			(60,NULL,1,'application/pdf','storage:standalone.pdf')`,
+			(60,NULL,1,'application/pdf','storage:standalone.pdf'),
+			(81,80,1,'application/pdf','storage:transformers.pdf')`,
 
 		// Item 70 is a standalone note with no parent.
 		`INSERT INTO itemNotes VALUES (70,NULL,'<p>Loose thoughts on attention.</p>','Attention Notes')`,

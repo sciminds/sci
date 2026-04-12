@@ -94,6 +94,18 @@ local.ResolvePDFAttachment → extract.HashPDF → extract.PlanExtract
 
 `zot item children <KEY>` is the companion read-side command. Returns both attachments and notes (unlike `api.ListNoteChildren` which filters). Uses `zot.ChildItemView` as a mirror type because `api` already imports `zot` for `Config` — importing `api` from `zot` would cycle.
 
+**Bulk extraction (`zot extract-lib`).** No-args command that processes every parent item with a PDF attachment. Resumes where it left off via three layers:
+
+1. **Sentinel** in Zotero note body — `PlanExtract` returns Skip. Covers items fully extracted.
+2. **Local markdown cache** at `os.UserCacheDir()/sci/zot/extract/<pdfKey>-<hash>.md` — covers items where docling succeeded but the note post failed. Re-run skips docling and retries the upload only.
+3. **Docling** — only runs on true cache misses.
+
+Pipeline: `local.ListAllPDFAttachments` → `extract.PlanBatch` (concurrent) → confirm → `extract.ExecuteBatch` (worker pool). Workers each own a temp dir cleaned per-item. The circuit breaker aborts after 10 consecutive failures.
+
+`--jobs N` controls worker count (0 = auto: 1 for GPU, NumCPU/4 for CPU). `--limit N` caps the candidate list for smoke testing. `--force` re-extracts even when sentinels match.
+
+Progress is shown via an inline bubbletea progress bar (`ui.RunWithProgress`). In `--json` / quiet mode, the TUI is skipped and the final `ExtractLibResult` is emitted.
+
 **Smoke tests (opt-in).** `DOCLING=1` runs the real-binary Zotero-mode extraction. `DOCLING_FULL=1` runs the full-mode variant. Both use `internal/zot/extract/real_test.go` and point at `~/Desktop/zotero/storage/7T798XVD/undefined` by default (the CKD paper); override via `DOCLING_PDF`. `ZOT_REAL_DB=<dir>` runs `TestRealLibrary_ResolveCKD` to verify the SQL resolver against the user's actual library; override the parent key via `ZOT_REAL_CKD_KEY`.
 
 ## Conventions

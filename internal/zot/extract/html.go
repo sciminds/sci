@@ -108,6 +108,33 @@ func FindSentinel(htmlBody string) (pdfKey, hash string, ok bool) {
 	return payload[:colon], payload[colon+1:], true
 }
 
+// MarkdownToNoteRaw renders the same header/sentinel structure as
+// MarkdownToNoteHTML, but wraps the markdown body in <pre> instead of
+// converting it to HTML. This preserves the original formatting in
+// Zotero's note viewer (monospaced, whitespace-preserved).
+//
+// Used by `zot item extract --save-md`.
+func MarkdownToNoteRaw(md []byte, meta NoteMeta) string {
+	var out strings.Builder
+	out.WriteString("<h1>")
+	out.WriteString(htmlEscape(meta.PDFName))
+	out.WriteString("</h1>\n")
+	out.WriteString("<p><em>")
+	out.WriteString(htmlEscape(meta.Source))
+	out.WriteString(" · ")
+	out.WriteString(meta.Generated.UTC().Format("2006-01-02"))
+	out.WriteString(" · sha256:")
+	out.WriteString(htmlEscape(meta.Hash))
+	out.WriteString(" · markdown")
+	out.WriteString("</em></p>\n")
+	out.WriteString(sentinel(meta.PDFKey, meta.Hash))
+	out.WriteString("\n<hr>\n")
+	out.WriteString("<pre>\n")
+	out.WriteString(htmlEscape(string(md)))
+	out.WriteString("</pre>\n")
+	return out.String()
+}
+
 func htmlEscape(s string) string {
 	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;")
 	return r.Replace(s)

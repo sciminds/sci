@@ -18,8 +18,8 @@ func TestScanFieldPresence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 3 {
-		t.Fatalf("got %d rows, want 3 content items (attachment + trashed excluded)", len(rows))
+	if len(rows) != 4 {
+		t.Fatalf("got %d rows, want 4 content items (attachment + trashed excluded)", len(rows))
 	}
 
 	byKey := map[string]ItemFieldPresence{}
@@ -96,9 +96,10 @@ func TestScanFieldValues(t *testing.T) {
 	//   AAAA1111 DOI=10.1000/abc123, date=2024-03-15 March 15, 2024
 	//   BBBB2222 date=2024-03-15 March 15, 2024
 	//   CCCC3333 date=2023
-	// → 4 rows total.
-	if len(rows) != 4 {
-		t.Fatalf("got %d rows, want 4: %+v", len(rows), rows)
+	//   GGGG7777 date=2023
+	// → 5 rows total.
+	if len(rows) != 5 {
+		t.Fatalf("got %d rows, want 5: %+v", len(rows), rows)
 	}
 
 	type key struct{ k, f string }
@@ -152,9 +153,9 @@ func TestScanDuplicateCandidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 3 content items — attachment and trashed row excluded.
-	if len(cands) != 3 {
-		t.Fatalf("len = %d, want 3: %+v", len(cands), cands)
+	// 4 content items — attachment and trashed row excluded.
+	if len(cands) != 4 {
+		t.Fatalf("len = %d, want 4: %+v", len(cands), cands)
 	}
 	byKey := map[string]DuplicateCandidate{}
 	for _, c := range cands {
@@ -192,8 +193,8 @@ func TestScanCiteKeys(t *testing.T) {
 	}
 	// Content items only — attachments (40, 60), trashed (50), notes (70)
 	// must be excluded, matching every other hygiene scan.
-	if len(rows) != 3 {
-		t.Fatalf("got %d rows, want 3 content items", len(rows))
+	if len(rows) != 4 {
+		t.Fatalf("got %d rows, want 4 content items", len(rows))
 	}
 
 	byKey := map[string]CiteKeyRow{}

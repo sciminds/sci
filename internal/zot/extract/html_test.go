@@ -73,6 +73,44 @@ func TestMarkdownToNoteHTML_EscapesPDFName(t *testing.T) {
 	}
 }
 
+// TestMarkdownToNoteRaw_PreservesMarkdown: the raw-md variant must keep
+// the original markdown inside <pre>, include the same sentinel shape as
+// the HTML variant, and escape HTML entities in the body so a markdown
+// heading like `## Foo` doesn't break Zotero's note renderer.
+func TestMarkdownToNoteRaw_PreservesMarkdown(t *testing.T) {
+	t.Parallel()
+	md := []byte("## Abstract\n\nCKD is <common> & widespread.\n")
+	meta := NoteMeta{
+		PDFKey:    "7T798XVD",
+		PDFName:   "CKD paper.pdf",
+		Source:    "docling 2.86.0",
+		Hash:      "abc123def456",
+		Generated: time.Date(2026, 4, 11, 18, 30, 0, 0, time.UTC),
+	}
+	got := MarkdownToNoteRaw(md, meta)
+
+	want := []string{
+		"<h1>CKD paper.pdf</h1>",
+		"<!-- sci-extract:7T798XVD:abc123def456 -->",
+		"<pre>",
+		"## Abstract",      // markdown preserved, not rendered
+		"&lt;common&gt;",   // HTML-escaped
+		"&amp; widespread", // ampersand escaped
+		"markdown",         // format indicator in header
+	}
+	for _, s := range want {
+		if !strings.Contains(got, s) {
+			t.Errorf("raw note missing %q\n---\n%s", s, got)
+		}
+	}
+
+	// FindSentinel must still parse it — same shape as the HTML variant.
+	key, hash, ok := FindSentinel(got)
+	if !ok || key != "7T798XVD" || hash != "abc123def456" {
+		t.Errorf("FindSentinel on raw note: key=%q hash=%q ok=%v", key, hash, ok)
+	}
+}
+
 func TestFindSentinel(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

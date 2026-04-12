@@ -171,6 +171,51 @@ func (r ExtractDeleteResult) Human() string {
 	return b.String()
 }
 
+// ExtractLibResult is emitted by `zot extract-lib` — the aggregate
+// outcome of a bulk extraction run.
+type ExtractLibResult struct {
+	Total    int               `json:"total"`
+	Created  int               `json:"created"`
+	Replaced int               `json:"replaced"`
+	Skipped  int               `json:"skipped"`
+	Cached   int               `json:"cached"`
+	Failed   int               `json:"failed"`
+	Aborted  bool              `json:"aborted,omitempty"`
+	Errors   map[string]string `json:"errors,omitempty"` // parentKey → error
+	Duration time.Duration     `json:"duration_ns"`
+}
+
+func (r ExtractLibResult) JSON() any { return r }
+func (r ExtractLibResult) Human() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n  %s extract-lib complete\n", ui.SymOK)
+	fmt.Fprintf(&b, "      total:    %d\n", r.Total)
+	fmt.Fprintf(&b, "      created:  %d\n", r.Created)
+	fmt.Fprintf(&b, "      replaced: %d\n", r.Replaced)
+	fmt.Fprintf(&b, "      skipped:  %d (already up-to-date)\n", r.Skipped)
+	if r.Cached > 0 {
+		fmt.Fprintf(&b, "      cached:   %d (docling skipped, note re-posted)\n", r.Cached)
+	}
+	if r.Failed > 0 {
+		fmt.Fprintf(&b, "      %s failed:  %d\n", ui.SymFail, r.Failed)
+	}
+	if r.Aborted {
+		fmt.Fprintf(&b, "      %s aborted (consecutive failure limit)\n", ui.SymFail)
+	}
+	if len(r.Errors) > 0 {
+		keys := make([]string, 0, len(r.Errors))
+		for k := range r.Errors {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(&b, "      %s %s: %s\n", ui.SymFail, k, r.Errors[k])
+		}
+	}
+	fmt.Fprintf(&b, "      duration: %s\n", r.Duration.Truncate(time.Second))
+	return b.String()
+}
+
 // Convenience string aliases so the CLI layer can set Action without
 // importing extract just for its enum labels.
 type actionLabel string

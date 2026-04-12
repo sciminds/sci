@@ -11,10 +11,10 @@ func TestListAll_HydratesCreatorsAndFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 3 content items in the fixture; attachments, notes, and trashed
+	// 4 content items in the fixture; attachments, notes, and trashed
 	// items must be excluded just like List().
-	if len(items) != 3 {
-		t.Fatalf("len = %d, want 3", len(items))
+	if len(items) != 4 {
+		t.Fatalf("len = %d, want 4", len(items))
 	}
 	// Locate the journalArticle with two authors (item AAAA1111).
 	var deep *Item

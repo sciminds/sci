@@ -24,6 +24,7 @@ import "github.com/urfave/cli/v3"
 //	tags    <subcommand>        tags (list/add/remove/delete)
 //	doctor  [subcommand]        hygiene: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates}
+//	extract-lib                 bulk extract every PDF → child note (via docling)
 //
 // `item`, `collection`, and `tags` all reuse the leaf commands defined in
 // read.go / write.go — the wrapper functions below just parent them under
@@ -39,6 +40,7 @@ func Commands() []*cli.Command {
 		collectionCommand(),
 		tagsCommand(),
 		doctorCommand(),
+		extractLibCommand(),
 	}
 }
 

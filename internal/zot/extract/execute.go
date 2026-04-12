@@ -39,6 +39,19 @@ type ExecuteInput struct {
 	// Now returns the wall time stamped into NoteMeta.Generated. Nil
 	// means time.Now — tests inject a fixed clock.
 	Now func() time.Time
+	// RawMarkdown, when true, stores the original docling markdown
+	// wrapped in <pre> instead of rendering it as HTML. The header and
+	// sentinel are identical either way, so FindSentinel and the
+	// plan/dedupe logic work unchanged.
+	RawMarkdown bool
+	// Cache, if non-nil, is consulted before invoking the extractor
+	// and populated after a successful extraction. Keyed by
+	// (Plan.Request.PDFKey, Plan.Request.PDFHash). On a hit the
+	// extractor is not called at all — the resume story for bulk
+	// extraction: a network failure between docling and the Zotero
+	// note post never costs us a re-extract, since the next run hits
+	// the cache and goes straight to the writer.
+	Cache *MarkdownCache
 }
 
 // ExecuteResult describes what Execute did. For ActionSkip the
@@ -99,9 +112,31 @@ func Execute(ctx context.Context, in ExecuteInput) (*ExecuteResult, error) {
 	opts.PDFPath = in.PDFPath
 	opts.OutputDir = in.OutputDir
 
-	extRes, err := in.Extractor.Extract(ctx, opts)
-	if err != nil {
-		return nil, fmt.Errorf("execute: extract: %w", err)
+	var extRes *ExtractResult
+	if in.Cache != nil {
+		if cachedPath, ok := in.Cache.Get(in.Plan.Request.PDFKey, in.Plan.Request.PDFHash); ok {
+			extRes = &ExtractResult{
+				MarkdownPath: cachedPath,
+				ToolVersion:  "docling (cached)",
+				FromCache:    true,
+			}
+		}
+	}
+	if extRes == nil {
+		var err error
+		extRes, err = in.Extractor.Extract(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("execute: extract: %w", err)
+		}
+		if in.Cache != nil {
+			mdBytes, err := os.ReadFile(extRes.MarkdownPath)
+			if err != nil {
+				return nil, fmt.Errorf("execute: read markdown for cache: %w", err)
+			}
+			if _, err := in.Cache.Put(in.Plan.Request.PDFKey, in.Plan.Request.PDFHash, mdBytes); err != nil {
+				return nil, fmt.Errorf("execute: cache put: %w", err)
+			}
+		}
 	}
 
 	md, err := os.ReadFile(extRes.MarkdownPath)
@@ -120,7 +155,12 @@ func Execute(ctx context.Context, in ExecuteInput) (*ExecuteResult, error) {
 		Hash:      in.Plan.Request.PDFHash,
 		Generated: now(),
 	}
-	html := MarkdownToNoteHTML(md, meta)
+	var html string
+	if in.RawMarkdown {
+		html = MarkdownToNoteRaw(md, meta)
+	} else {
+		html = MarkdownToNoteHTML(md, meta)
+	}
 
 	tags := in.Tags
 	if tags == nil {

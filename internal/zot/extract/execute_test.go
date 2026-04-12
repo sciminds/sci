@@ -279,6 +279,118 @@ func TestExecute_PropagatesWriterError(t *testing.T) {
 	}
 }
 
+// TestExecute_CachePopulatedOnMiss: first run with a Cache should
+// invoke the extractor, then write the markdown into the cache.
+func TestExecute_CachePopulatedOnMiss(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "hashA"},
+		Action:  ActionCreate,
+	}
+	in := baseInput(t, plan)
+	in.Cache = &MarkdownCache{Dir: filepath.Join(t.TempDir(), "cache")}
+
+	res, err := Execute(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.Extractor.(*fakeExtractor).calls != 1 {
+		t.Errorf("extractor calls = %d, want 1", in.Extractor.(*fakeExtractor).calls)
+	}
+	if res.Extraction.FromCache {
+		t.Error("FromCache=true on a cache miss")
+	}
+	if _, ok := in.Cache.Get("PDF1", "hashA"); !ok {
+		t.Error("cache miss: expected entry populated after Execute")
+	}
+}
+
+// TestExecute_CacheHitSkipsExtractor: a warm cache short-circuits the
+// extractor entirely, but the Zotero post still happens. Models the
+// "docling succeeded last run, post failed, now retry" path.
+func TestExecute_CacheHitSkipsExtractor(t *testing.T) {
+	t.Parallel()
+	cache := &MarkdownCache{Dir: filepath.Join(t.TempDir(), "cache")}
+	if _, err := cache.Put("PDF1", "hashA", []byte("## cached\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	plan := &Plan{
+		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "hashA"},
+		Action:  ActionCreate,
+	}
+	in := baseInput(t, plan)
+	in.Cache = cache
+
+	res, err := Execute(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.Extractor.(*fakeExtractor).calls != 0 {
+		t.Errorf("extractor must not be called on cache hit; calls = %d", in.Extractor.(*fakeExtractor).calls)
+	}
+	if !res.Extraction.FromCache {
+		t.Error("FromCache=false on a cache hit")
+	}
+	w := in.Writer.(*fakeNoteWriter)
+	if len(w.created) != 1 {
+		t.Fatalf("CreateChildNote calls = %d, want 1", len(w.created))
+	}
+	if !strings.Contains(w.created[0].body, "cached") {
+		t.Errorf("posted body missing cached markdown:\n%s", w.created[0].body)
+	}
+}
+
+// TestExecute_CachePreservedOnWriterError: if docling succeeds but the
+// note post fails, the cache entry must survive so a retry picks up
+// the work instead of re-extracting. This is the reason the cache
+// exists.
+func TestExecute_CachePreservedOnWriterError(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "hashA"},
+		Action:  ActionCreate,
+	}
+	in := baseInput(t, plan)
+	in.Cache = &MarkdownCache{Dir: filepath.Join(t.TempDir(), "cache")}
+	in.Writer.(*fakeNoteWriter).createErr = errors.New("api 500")
+
+	if _, err := Execute(context.Background(), in); err == nil {
+		t.Fatal("expected writer error")
+	}
+	if _, ok := in.Cache.Get("PDF1", "hashA"); !ok {
+		t.Error("cache entry was dropped after writer failure — resume is broken")
+	}
+}
+
+// TestExecute_RawMarkdown: when RawMarkdown is true, the posted body
+// contains the original markdown inside <pre> and still has the
+// sentinel for dedupe.
+func TestExecute_RawMarkdown(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "h"},
+		Action:  ActionCreate,
+	}
+	in := baseInput(t, plan)
+	in.RawMarkdown = true
+
+	_, err := Execute(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := in.Writer.(*fakeNoteWriter).created[0].body
+	if !strings.Contains(body, "<pre>") {
+		t.Errorf("body missing <pre> tag:\n%s", body)
+	}
+	if !strings.Contains(body, "## Heading") {
+		t.Errorf("body missing raw markdown:\n%s", body)
+	}
+	if !strings.Contains(body, "<!-- sci-extract:PDF1:h -->") {
+		t.Errorf("body missing sentinel:\n%s", body)
+	}
+}
+
 // TestExecute_UsesToolVersionFromExtractor: the rendered HTML must
 // reflect the ToolVersion reported by the extractor (not a hardcode).
 func TestExecute_UsesToolVersionFromExtractor(t *testing.T) {

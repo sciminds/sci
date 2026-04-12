@@ -52,6 +52,40 @@ func TestResolvePDFAttachment_MissingParent(t *testing.T) {
 	}
 }
 
+// TestListAllPDFAttachments returns one entry per non-trashed parent
+// that owns at least one PDF child, ordered by parent key.
+func TestListAllPDFAttachments(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+
+	all, err := db.ListAllPDFAttachments()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Fixture has two parents with PDF attachments: AAAA1111 (itemID
+	// 10, att DDDD4444) and BBBB2222 (itemID 20, att FFFF6666).
+	// EEEE5555 (itemID 50) is trashed. ORPHANATT (itemID 60) is
+	// standalone (no parent). So we expect exactly two rows.
+	if len(all) != 2 {
+		t.Fatalf("got %d parents, want 2; items: %+v", len(all), all)
+	}
+	if all[0].ParentKey != "AAAA1111" || all[0].Attachment.Key != "DDDD4444" {
+		t.Errorf("row 0: %+v", all[0])
+	}
+	if all[0].Attachment.Title != "Deep Learning for Neuroimaging" {
+		t.Errorf("row 0 title: %q (want parent's title)", all[0].Attachment.Title)
+	}
+	if all[1].ParentKey != "GGGG7777" || all[1].Attachment.Key != "HHHH8888" {
+		t.Errorf("row 1: %+v", all[1])
+	}
+	if all[1].Attachment.Filename != "transformers.pdf" {
+		t.Errorf("row 1 filename: %q", all[1].Attachment.Filename)
+	}
+	if all[1].Attachment.Title != "Attention Mechanisms in Cortical Networks" {
+		t.Errorf("row 1 title: %q", all[1].Attachment.Title)
+	}
+}
+
 func TestResolvePDFAttachment_TrashedParent(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)

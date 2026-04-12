@@ -112,6 +112,10 @@ type ExtractResult struct {
 	TablePaths   []string
 	ToolVersion  string // e.g. "docling 2.86.0"
 	Duration     time.Duration
+	// FromCache is true when the markdown was served from the
+	// MarkdownCache and no docling invocation occurred. Duration is the
+	// cache hit's trivial read time, not the original extraction time.
+	FromCache bool
 }
 
 // Extractor is the narrow interface the orchestrator uses. Production

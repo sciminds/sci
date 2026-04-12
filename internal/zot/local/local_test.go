@@ -37,17 +37,17 @@ func TestList_ExcludesTrashedAndAttachments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Items 10, 20, 30 are content in the user library.
+	// Items 10, 20, 30, 80 are content in the user library.
 	// Item 40 is an attachment (excluded by type).
 	// Item 50 is trashed (excluded by deletedItems).
-	if len(items) != 3 {
-		t.Errorf("len = %d, want 3: %+v", len(items), items)
+	if len(items) != 4 {
+		t.Errorf("len = %d, want 4: %+v", len(items), items)
 	}
 	keys := map[string]bool{}
 	for _, it := range items {
 		keys[it.Key] = true
 	}
-	for _, want := range []string{"AAAA1111", "BBBB2222", "CCCC3333"} {
+	for _, want := range []string{"AAAA1111", "BBBB2222", "CCCC3333", "GGGG7777"} {
 		if !keys[want] {
 			t.Errorf("missing key %s", want)
 		}
@@ -61,8 +61,8 @@ func TestList_OrderDateAddedDesc(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// dateAdded order desc: CCCC3333 (mar), BBBB2222 (feb), AAAA1111 (jan).
-	if items[0].Key != "CCCC3333" || items[2].Key != "AAAA1111" {
+	// dateAdded order desc: GGGG7777 (jun), CCCC3333 (mar), BBBB2222 (feb), AAAA1111 (jan).
+	if items[0].Key != "GGGG7777" || items[3].Key != "AAAA1111" {
 		t.Errorf("order wrong: %v", keysOf(items))
 	}
 }
@@ -258,8 +258,8 @@ func TestSearch_YearScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 1 || items[0].Key != "CCCC3333" {
-		t.Errorf("year=2023 = %v", keysOf(items))
+	if len(items) != 2 {
+		t.Errorf("year=2023 = %v, want 2 (CCCC3333 + GGGG7777)", keysOf(items))
 	}
 }
 
@@ -300,13 +300,13 @@ func TestSearch_OrGroups(t *testing.T) {
 func TestSearch_Negate(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	// Exclude smith → only BBBB2222 (NASA) remains.
+	// Exclude smith → BBBB2222 (NASA) + GGGG7777 (no creators) remain.
 	items, err := db.Search("@author: -smith", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 1 || items[0].Key != "BBBB2222" {
-		t.Errorf("negate = %v", keysOf(items))
+	if len(items) != 2 {
+		t.Errorf("negate = %v, want 2", keysOf(items))
 	}
 }
 
@@ -420,10 +420,10 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.TotalItems != 3 {
-		t.Errorf("TotalItems = %d, want 3", s.TotalItems)
+	if s.TotalItems != 4 {
+		t.Errorf("TotalItems = %d, want 4", s.TotalItems)
 	}
-	if s.ByType["journalArticle"] != 2 || s.ByType["book"] != 1 {
+	if s.ByType["journalArticle"] != 3 || s.ByType["book"] != 1 {
 		t.Errorf("ByType = %+v", s.ByType)
 	}
 	if s.WithDOI != 1 {
@@ -432,8 +432,8 @@ func TestStats(t *testing.T) {
 	if s.WithAbstract != 1 {
 		t.Errorf("WithAbstract = %d, want 1", s.WithAbstract)
 	}
-	if s.WithAttachment != 1 {
-		t.Errorf("WithAttachment = %d, want 1", s.WithAttachment)
+	if s.WithAttachment != 2 {
+		t.Errorf("WithAttachment = %d, want 2", s.WithAttachment)
 	}
 	if s.Collections != 3 {
 		t.Errorf("Collections = %d, want 3", s.Collections)

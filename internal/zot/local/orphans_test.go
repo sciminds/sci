@@ -95,14 +95,18 @@ func TestScanUncollectedItems(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Items 10 and 20 are in collection 100; 10 is also in 101.
-	// Item 30 is in no collection → uncollected.
+	// Items 30 and 80 are in no collection → uncollected.
 	// Item 50 is trashed → excluded.
-	// Items 40, 60 (attachments) and 70 (note) are non-content → excluded.
-	if len(got) != 1 {
-		t.Fatalf("len = %d, want 1: %+v", len(got), got)
+	// Items 40, 60, 81 (attachments) and 70 (note) are non-content → excluded.
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2: %+v", len(got), got)
 	}
-	if got[0].Key != "CCCC3333" {
-		t.Errorf("key = %q, want CCCC3333", got[0].Key)
+	keys := map[string]bool{}
+	for _, it := range got {
+		keys[it.Key] = true
+	}
+	if !keys["CCCC3333"] || !keys["GGGG7777"] {
+		t.Errorf("keys = %v, want CCCC3333 + GGGG7777", keys)
 	}
 }
 

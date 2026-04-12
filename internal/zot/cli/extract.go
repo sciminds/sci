@@ -19,6 +19,8 @@ import (
 var (
 	extractApply      bool
 	extractForce      bool
+	extractReextract  bool
+	extractSaveMD     bool
 	extractOut        string
 	extractNoNote     bool
 	extractDelete     bool
@@ -66,6 +68,8 @@ func extractCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "apply", Usage: "run docling and create/replace the note (default is dry-run)", Destination: &extractApply, Local: true},
 			&cli.BoolFlag{Name: "force", Usage: "replace an existing note even if the PDF hash hasn't changed", Destination: &extractForce, Local: true},
+			&cli.BoolFlag{Name: "reextract", Usage: "discard cached docling output and re-run extraction from scratch", Destination: &extractReextract, Local: true},
+			&cli.BoolFlag{Name: "save-md", Usage: "store raw markdown in the note instead of rendered HTML", Destination: &extractSaveMD, Local: true},
 			&cli.StringFlag{Name: "out", Usage: "write docling artifacts (md/json/PNGs/CSVs) to DIR; enables full-extraction mode", Destination: &extractOut, Local: true},
 			&cli.BoolFlag{Name: "no-note", Usage: "skip the Zotero note post — requires --out (artifacts only)", Destination: &extractNoNote, Local: true},
 			&cli.BoolFlag{Name: "delete", Usage: "trash any child note whose sci-extract sentinel matches this PDF (undo a prior extraction)", Destination: &extractDelete, Local: true},
@@ -86,8 +90,8 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	if extractNoNote && extractOut == "" {
 		return cmdutil.UsageErrorf(cmd, "--no-note requires --out (artifacts need somewhere to go)")
 	}
-	if extractDelete && (extractApply || extractForce || extractOut != "" || extractNoNote) {
-		return cmdutil.UsageErrorf(cmd, "--delete is mutually exclusive with --apply, --force, --out, and --no-note")
+	if extractDelete && (extractApply || extractForce || extractReextract || extractOut != "" || extractNoNote) {
+		return cmdutil.UsageErrorf(cmd, "--delete is mutually exclusive with --apply, --force, --reextract, --out, and --no-note")
 	}
 
 	cfg, db, err := openLocalDB()
@@ -194,6 +198,22 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
+	// Cache: Zotero mode uses the shared cache so a failed post
+	// doesn't force re-extraction on retry. Full mode (--out) writes
+	// persistent artifacts to a user dir and doesn't benefit from
+	// caching.
+	var cache *extract.MarkdownCache
+	if extractOut == "" {
+		cacheDir, err := extract.DefaultCacheDir()
+		if err != nil {
+			return err
+		}
+		cache = &extract.MarkdownCache{Dir: cacheDir}
+		if extractReextract {
+			cache.Delete(att.Key, hash)
+		}
+	}
+
 	ex, err := extract.NewDoclingExtractor()
 	if err != nil {
 		return err
@@ -205,6 +225,8 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		PDFPath:     pdfPath,
 		OutputDir:   outputDir,
 		ExtractOpts: opts,
+		Cache:       cache,
+		RawMarkdown: extractSaveMD,
 	})
 	if err != nil {
 		return err

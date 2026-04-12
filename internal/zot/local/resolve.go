@@ -75,3 +75,67 @@ LIMIT 1
 		Title:    title,
 	}, nil
 }
+
+// PDFParent bundles a parent item key with its resolved best-PDF
+// attachment metadata. Used by the bulk extract-lib flow to
+// pre-resolve the whole library in a single query.
+type PDFParent struct {
+	ParentKey  string
+	Attachment PDFAttachment
+}
+
+// ListAllPDFAttachments returns every non-trashed parent item that
+// has at least one PDF child attachment, along with the best-match
+// (oldest-added) PDF metadata for each parent. Standalone attachments
+// (parentItemID NULL) are excluded.
+//
+// The query mirrors ResolvePDFAttachment's selection logic — same
+// content-type / extension heuristic, same dateAdded ordering — so
+// bulk results are consistent with per-item lookups.
+func (d *DB) ListAllPDFAttachments() ([]PDFParent, error) {
+	const q = `
+SELECT p.key, ch.key, COALESCE(ia.path, ''),
+       COALESCE((
+         SELECT idv.value
+         FROM itemData id
+         JOIN fields f ON f.fieldID = id.fieldID
+         JOIN itemDataValues idv ON idv.valueID = id.valueID
+         WHERE id.itemID = p.itemID AND f.fieldName = 'title'
+       ), '') AS title
+FROM items p
+JOIN itemAttachments ia ON ia.parentItemID = p.itemID
+JOIN items ch ON ch.itemID = ia.itemID
+LEFT JOIN deletedItems pdi ON pdi.itemID = p.itemID
+LEFT JOIN deletedItems cdi ON cdi.itemID = ch.itemID
+WHERE p.libraryID = ?
+  AND pdi.itemID IS NULL
+  AND cdi.itemID IS NULL
+  AND (ia.contentType = 'application/pdf'
+       OR (ia.path IS NOT NULL AND lower(ia.path) LIKE '%.pdf'))
+GROUP BY p.itemID
+HAVING ch.dateAdded = MIN(ch.dateAdded)
+ORDER BY p.key
+`
+	rows, err := d.db.Query(q, d.libraryID)
+	if err != nil {
+		return nil, fmt.Errorf("list all PDF attachments: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []PDFParent
+	for rows.Next() {
+		var parentKey, attKey, path, title string
+		if err := rows.Scan(&parentKey, &attKey, &path, &title); err != nil {
+			return nil, fmt.Errorf("scan PDF attachment row: %w", err)
+		}
+		out = append(out, PDFParent{
+			ParentKey: parentKey,
+			Attachment: PDFAttachment{
+				Key:      attKey,
+				Filename: strings.TrimPrefix(path, "storage:"),
+				Title:    title,
+			},
+		})
+	}
+	return out, rows.Err()
+}
