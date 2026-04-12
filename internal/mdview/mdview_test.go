@@ -165,9 +165,9 @@ func TestViewerApplySearch(t *testing.T) {
 	v.SetSize(80, 20)
 
 	// Directly set the search input value and call applySearch to test matching.
-	v.searchInput.SetValue("Hello")
-	v.query = "Hello"
-	v.applyViewerSearch()
+	v.search.input.SetValue("Hello")
+	v.search.query = "Hello"
+	v.search.matchLines, v.search.matchCount, v.search.matchIdx = applySearch(v.search.query, v.rendered, &v.vp)
 
 	if v.MatchCount() == 0 {
 		t.Error("should have matches for 'Hello'")
@@ -179,8 +179,8 @@ func TestViewerApplySearchCaseInsensitive(t *testing.T) {
 	v := NewViewer("test", "# HELLO\n\nhello world.")
 	v.SetSize(80, 20)
 
-	v.query = "hello"
-	v.applyViewerSearch()
+	v.search.query = "hello"
+	v.search.matchLines, v.search.matchCount, v.search.matchIdx = applySearch(v.search.query, v.rendered, &v.vp)
 
 	if v.MatchCount() < 2 {
 		t.Errorf("case-insensitive search should find at least 2 matches, got %d", v.MatchCount())
@@ -192,8 +192,8 @@ func TestViewerApplySearchEmpty(t *testing.T) {
 	v := NewViewer("test", "# Test")
 	v.SetSize(80, 20)
 
-	v.query = ""
-	v.applyViewerSearch()
+	v.search.query = ""
+	v.search.matchLines, v.search.matchCount, v.search.matchIdx = applySearch(v.search.query, v.rendered, &v.vp)
 
 	if v.MatchCount() != 0 {
 		t.Error("empty query should have 0 matches")
@@ -219,8 +219,8 @@ func TestViewerSearchScrollsToMatch(t *testing.T) {
 	}
 
 	// Search for TARGET — should scroll down.
-	v.query = "TARGET"
-	v.applyViewerSearch()
+	v.search.query = "TARGET"
+	v.search.matchLines, v.search.matchCount, v.search.matchIdx = applySearch(v.search.query, v.rendered, &v.vp)
 
 	if v.MatchCount() != 1 {
 		t.Fatalf("expected 1 match, got %d", v.MatchCount())
@@ -242,8 +242,8 @@ func TestViewerNextPrevScrolls(t *testing.T) {
 	v := NewViewer("test", sb.String())
 	v.SetSize(80, 10)
 
-	v.query = "MATCH"
-	v.applyViewerSearch()
+	v.search.query = "MATCH"
+	v.search.matchLines, v.search.matchCount, v.search.matchIdx = applySearch(v.search.query, v.rendered, &v.vp)
 
 	if v.MatchCount() != 2 {
 		t.Fatalf("expected 2 matches, got %d", v.MatchCount())
@@ -283,10 +283,10 @@ func TestSinglePageSearch(t *testing.T) {
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	fm := finalModel(t, tm)
-	if fm.searching {
+	if fm.search.searching {
 		t.Error("should not be in search mode after enter")
 	}
-	if fm.query != "Hello" {
-		t.Errorf("query should be 'Hello', got %q", fm.query)
+	if fm.search.query != "Hello" {
+		t.Errorf("query should be 'Hello', got %q", fm.search.query)
 	}
 }

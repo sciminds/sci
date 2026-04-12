@@ -1,7 +1,6 @@
 package mdview
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 
@@ -16,19 +15,17 @@ var (
 	cachedWidth    int
 
 	contentMu    sync.RWMutex
-	contentCache = map[string]string{} // key: "width:markdown" hash → rendered
+	contentCache = map[renderCacheKey]string{}
 
 	styleOnce sync.Once
 	styleName string // "dark" or "light", detected once before TUI starts
 )
 
-func cacheKey(markdown string, width int) string {
-	// Use length + prefix as a fast-enough key; collisions are harmless (just a re-render).
-	prefix := markdown
-	if len(prefix) > 128 {
-		prefix = prefix[:128]
-	}
-	return fmt.Sprintf("%d:%d:%s", width, len(markdown), prefix)
+// renderCacheKey uniquely identifies a (width, content) pair for the render cache.
+// Using the full content string avoids prefix-based collisions.
+type renderCacheKey struct {
+	width   int
+	content string
 }
 
 // DetectStyle probes the terminal for dark/light background.
@@ -69,7 +66,7 @@ func renderLocked(markdown string, width int) (string, error) {
 // Render converts markdown to terminal-styled output at the given width.
 // Results are cached so repeated calls with the same input are instant.
 func Render(markdown string, width int) (string, error) {
-	key := cacheKey(markdown, width)
+	key := renderCacheKey{width: width, content: markdown}
 
 	contentMu.RLock()
 	if cached, ok := contentCache[key]; ok {
