@@ -171,6 +171,43 @@ if [[ -n "$upload_hits" ]]; then
   fail "no-upload-in-board"
 fi
 
+# ── Rule 7: DrainStdin after every tea.Program.Run() ────────────────────────
+# Every bubbletea program that writes to a TTY should call ui.DrainStdin()
+# after p.Run() to flush stale DECRQM responses. Standalone packages (dbtui,
+# board) are excluded — they use alt-screen which resets the terminal, and
+# must not import internal/ui.
+# internal/ui/spinner.go is excluded because it calls DrainStdin internally.
+
+drain_exempt=(
+  "internal/ui/spinner.go"
+  "internal/tui/dbtui/"
+  "internal/tui/board/"
+)
+
+# Find Go files (non-test) that import bubbletea and call .Run()
+bt_files=$(rg -l 'charm\.land/bubbletea' --type go --glob '!*_test.go' \
+  --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
+
+for f in $bt_files; do
+  # Skip exempt paths
+  skip=false
+  for exempt in "${drain_exempt[@]}"; do
+    if [[ "$f" == *"$exempt"* ]]; then
+      skip=true
+      break
+    fi
+  done
+  $skip && continue
+
+  # Check if file calls p.Run() (tea.Program runner)
+  if rg -q '\.Run\(\)' "$f" 2>/dev/null; then
+    if ! rg -q 'DrainStdin' "$f" 2>/dev/null; then
+      echo "FAIL [drain-stdin-after-run] $f calls tea.Program.Run() but never calls DrainStdin()"
+      fail "drain-stdin-after-run"
+    fi
+  fi
+done
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
   echo ""

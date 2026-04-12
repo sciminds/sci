@@ -1,0 +1,11 @@
+id: no-hardcoded-list-size
+language: go
+rule:
+  pattern: list.New($A, $B, $W, $H)
+constraints:
+  W:
+    regex: '^[1-9][0-9]*$'
+severity: error
+message: |
+  list.New() with hardcoded dimensions. Use 0, 0 and let WindowSizeMsg
+  handle sizing — alt-screen sends it immediately on startup.

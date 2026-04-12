@@ -154,6 +154,7 @@ func (m ingestModel) waitForProgress() tea.Cmd {
 func RunIngestWithProgress(store *Store, root, dbPath string) (IngestCmdResult, error) {
 	m := newIngestModel(store, root)
 	finalModel, err := tea.NewProgram(m).Run()
+	ui.DrainStdin()
 	if err != nil {
 		return IngestCmdResult{}, err
 	}
