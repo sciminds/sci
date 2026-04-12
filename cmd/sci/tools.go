@@ -33,13 +33,14 @@ func toolsCommand() *cli.Command {
 		Description: "$ sci tools install\n$ sci tools install pandoc\n$ sci tools uninstall pandoc\n$ sci tools list\n$ sci tools update\n$ sci tools outdated\n$ sci tools reccs",
 		Category:    "Maintenance",
 		Flags: []cli.Flag{
+			// lint:no-local — propagates to subcommands
 			&cli.StringFlag{
 				Name:        "file",
 				Usage:       "path to Brewfile",
 				Value:       brew.DefaultBrewfile,
 				Destination: &toolsFile,
 			},
-			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &toolsDryRun},
+			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &toolsDryRun}, // lint:no-local
 		},
 		Commands: []*cli.Command{
 			toolsInstallCommand(),

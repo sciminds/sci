@@ -14,6 +14,7 @@ var dbFlag = &cli.StringFlag{
 	Name:     "db",
 	Usage:    "path to SQLite database",
 	Required: true,
+	Local:    true,
 }
 
 // BuildCommand returns the top-level markdb CLI command.
@@ -60,6 +61,7 @@ func ingestCommand() *cli.Command {
 				Name:    "output",
 				Aliases: []string{"o"},
 				Usage:   "path to output database (default: ./mark.db)",
+				Local:   true,
 			},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
@@ -118,7 +120,7 @@ func searchCommand() *cli.Command {
 		ArgsUsage: "<query>",
 		Flags: []cli.Flag{
 			dbFlag,
-			&cli.IntFlag{Name: "limit", Usage: "max results", Value: 50},
+			&cli.IntFlag{Name: "limit", Usage: "max results", Value: 50, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -196,8 +198,8 @@ func exportCommand() *cli.Command {
 		Usage: "Reconstruct markdown files from the database",
 		Flags: []cli.Flag{
 			dbFlag,
-			&cli.StringFlag{Name: "dir", Usage: "output directory", Destination: &dir, Required: true},
-			&cli.StringFlag{Name: "where", Usage: "SQL WHERE clause to filter files", Destination: &where},
+			&cli.StringFlag{Name: "dir", Usage: "output directory", Destination: &dir, Required: true, Local: true},
+			&cli.StringFlag{Name: "where", Usage: "SQL WHERE clause to filter files", Destination: &where, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			s, err := openStore(cmd)

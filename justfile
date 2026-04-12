@@ -23,6 +23,10 @@ lint:
 lint-style:
     sg scan
 
+# Project-specific guards: import boundaries, flag conventions, API usage rules.
+lint-guard:
+    ./scripts/lint-guard.sh
+
 vet:
     go vet ./internal/... ./cmd/...
 
@@ -55,7 +59,7 @@ test-all: test test-slow
 boarddemo *ARGS:
     go run ./cmd/boarddemo {{ARGS}}
 
-check: tidy fmt vet lint lint-style test build
+check: tidy fmt vet lint lint-style lint-guard test build
 
 ok: check
     @echo "All checks passed."
@@ -64,7 +68,7 @@ ok: check
 # Requires pixi, uv, quarto, marimo, typst, node on PATH.
 # Does NOT run test-canvas / test-board-live / test-zot-real — those need
 # credentials or live infra and stay opt-in.
-ok-slow: tidy fmt vet lint lint-style test test-slow build
+ok-slow: tidy fmt vet lint lint-style lint-guard test test-slow build
     @echo "All checks (incl. slow) passed."
 
 clean:

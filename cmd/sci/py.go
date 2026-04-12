@@ -36,8 +36,8 @@ func pyREPLCommand() *cli.Command {
 		Usage:       "Open a Python scratchpad",
 		Description: "$ sci py repl\n$ sci py repl --with pandas,matplotlib\n$ sci py repl --ignore-existing",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "with", Usage: "extra packages (comma-separated)", Destination: &pyREPLWithPkgs},
-			&cli.BoolFlag{Name: "ignore-existing", Usage: "skip environment detection, use ephemeral", Destination: &pyREPLIgnoreExisting},
+			&cli.StringFlag{Name: "with", Usage: "extra packages (comma-separated)", Destination: &pyREPLWithPkgs, Local: true},
+			&cli.BoolFlag{Name: "ignore-existing", Usage: "skip environment detection, use ephemeral", Destination: &pyREPLIgnoreExisting, Local: true},
 		},
 		Action: runPyREPL,
 	}
@@ -49,8 +49,8 @@ func pyMarimoCommand() *cli.Command {
 		Usage:       "Open a marimo notebook",
 		Description: "$ sci py marimo\n$ sci py marimo --with pandas,matplotlib\n$ sci py marimo --ignore-existing",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "with", Usage: "extra packages (comma-separated)", Destination: &pyMarimoWithPkgs},
-			&cli.BoolFlag{Name: "ignore-existing", Usage: "skip environment detection, use ephemeral", Destination: &pyMarimoIgnoreExisting},
+			&cli.StringFlag{Name: "with", Usage: "extra packages (comma-separated)", Destination: &pyMarimoWithPkgs, Local: true},
+			&cli.BoolFlag{Name: "ignore-existing", Usage: "skip environment detection, use ephemeral", Destination: &pyMarimoIgnoreExisting, Local: true},
 		},
 		Action: runPyMarimo,
 	}

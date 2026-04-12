@@ -27,7 +27,7 @@ func dbCommand() *cli.Command {
 		Description: "$ sci db add results.csv mydb.db\n$ sci db info mydb.db",
 		Category:    "Commands",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &dbDryRun},
+			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &dbDryRun}, // lint:no-local — propagates to subcommands
 		},
 		Commands: []*cli.Command{
 			dbCreateCommand(),

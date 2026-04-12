@@ -29,11 +29,11 @@ func vidCommand() *cli.Command {
 		Usage:       "Common video editing operations (trim, resize, mute, etc)",
 		Description: "$ sci vid info lecture.mp4\n$ sci vid cut lecture.mp4 0:30 1:00\n$ sci vid gif demo.mov --start 0:05 --duration 3",
 		Category:    "Commands",
-		// Shared flags — propagate to all subcommands (not marked Local).
+		// Shared flags — propagate to all subcommands. lint:no-local
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Usage: "custom output path", Destination: &vidOutput},
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "overwrite without asking", Destination: &vidYes},
-			&cli.BoolFlag{Name: "dry-run", Usage: "print ffmpeg command without executing", Destination: &vidDryRun},
+			&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Usage: "custom output path", Destination: &vidOutput},   // lint:no-local
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "overwrite without asking", Destination: &vidYes},     // lint:no-local
+			&cli.BoolFlag{Name: "dry-run", Usage: "print ffmpeg command without executing", Destination: &vidDryRun},        // lint:no-local
 		},
 		Commands: []*cli.Command{
 			vidInfoCommand(),
