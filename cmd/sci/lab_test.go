@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"net"
 	"strings"
 	"testing"
 
+	"github.com/sciminds/cli/internal/lab"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -12,9 +14,17 @@ func TestLabSetup_JSONRequiresUser(t *testing.T) {
 	ui.SetQuiet(false)
 	t.Cleanup(func() { ui.SetQuiet(false) })
 
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	lab.SetPreflightAddr(ln.Addr().String())
+	t.Cleanup(lab.ResetPreflightAddr)
+
 	root := buildRoot()
 
-	err := root.Run(context.Background(), []string{"sci", "--json", "lab", "setup"})
+	err = root.Run(context.Background(), []string{"sci", "--json", "lab", "setup"})
 
 	if err == nil {
 		t.Fatal("expected error when --json is set without --user")

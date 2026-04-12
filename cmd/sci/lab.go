@@ -32,6 +32,9 @@ func labCommand() *cli.Command {
 			if !netutil.Online() {
 				return nil, fmt.Errorf("no internet connection — sci lab requires network access")
 			}
+			if err := lab.Preflight(); err != nil {
+				return nil, err
+			}
 			return nil, nil
 		},
 		Commands: []*cli.Command{
