@@ -31,4 +31,9 @@ func TestViewAtZeroSize(t *testing.T) {
 		m := newSpinnerModel("test")
 		_ = m.View() // must not panic at zero state
 	})
+
+	t.Run("progressModel", func(t *testing.T) {
+		m := newProgressModel("test")
+		_ = m.View() // must not panic at zero state
+	})
 }

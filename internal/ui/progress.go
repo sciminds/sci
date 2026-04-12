@@ -243,6 +243,7 @@ func RunWithProgress(title string, fn func(t *ProgressTracker) error) error {
 	}()
 
 	result, runErr := p.Run()
+	drainStdin()
 	if runErr != nil {
 		return runErr
 	}

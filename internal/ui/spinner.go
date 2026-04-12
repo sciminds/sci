@@ -90,6 +90,7 @@ func RunWithSpinner(title string, fn func() error) error {
 	}()
 
 	result, runErr := p.Run()
+	drainStdin()
 	if runErr != nil {
 		return runErr
 	}
@@ -114,6 +115,7 @@ func RunWithSpinnerStatus(title string, fn func(setStatus func(string)) error) e
 	}()
 
 	result, runErr := p.Run()
+	drainStdin()
 	if runErr != nil {
 		return runErr
 	}
