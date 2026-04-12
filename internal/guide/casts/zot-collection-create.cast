@@ -1,6 +1,0 @@
-{"version": 2, "width": 80, "height": 24}
-[0.3, "o", "$ "]
-[0.6, "o", "zot collection create \"Brain Papers\""]
-[1.0, "o", "\r\n"]
-[1.4, "o", "  \u001b[32m✓\u001b[m created collection \"Brain Papers\" (COLL0042)\r\n"]
-[2.2, "o", "$ "]
