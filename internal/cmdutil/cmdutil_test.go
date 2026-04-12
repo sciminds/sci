@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -28,7 +29,7 @@ func newCmd() *cli.Command {
 // runCmd parses flags and runs the command action.
 func runCmd(t *testing.T, cmd *cli.Command, args ...string) {
 	t.Helper()
-	all := append([]string{"test"}, args...)
+	all := slices.Concat([]string{"test"}, args)
 	if err := cmd.Run(context.Background(), all); err != nil {
 		t.Fatal(err)
 	}
