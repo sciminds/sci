@@ -54,6 +54,7 @@ func itemCommand() *cli.Command {
 			updateCommand(),
 			deleteCommand(),
 			listCommand(),
+			childrenCommand(),
 			openCommand(),
 			exportCommand(),
 			extractCommand(),

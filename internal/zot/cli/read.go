@@ -9,6 +9,7 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
 )
@@ -266,6 +267,58 @@ func exportCommand() *cli.Command {
 			cmdutil.Output(cmd, zot.ExportResult{Key: key, Format: exportFormat, Body: body})
 			return nil
 		},
+	}
+}
+
+func childrenCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "children",
+		Usage: "List the child items (attachments + notes) of a parent item",
+		Description: "$ zot item children 6R45EVSB\n" +
+			"$ zot --json item children 6R45EVSB | jq '.children[] | select(.item_type==\"note\") | .key'\n" +
+			"\n" +
+			"Shows every child reported by GET /items/<KEY>/children. Use together with\n" +
+			"`zot item delete` to prune specific notes or attachments.",
+		ArgsUsage: "<parent-item-key>",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if cmd.Args().Len() != 1 {
+				return cmdutil.UsageErrorf(cmd, "expected exactly one item key")
+			}
+			parentKey := cmd.Args().First()
+			c, err := requireAPIClient()
+			if err != nil {
+				return err
+			}
+			children, err := c.ListChildren(ctx, parentKey)
+			if err != nil {
+				return err
+			}
+			views := make([]zot.ChildItemView, len(children))
+			for i, ch := range children {
+				views[i] = toChildItemView(ch)
+			}
+			cmdutil.Output(cmd, zot.ChildrenListResult{
+				ParentKey: parentKey,
+				Count:     len(views),
+				Children:  views,
+			})
+			return nil
+		},
+	}
+}
+
+// toChildItemView projects an api.ChildItem into the zot-package
+// mirror type used by ChildrenListResult. The duplication exists to
+// break the api → zot import cycle; see zot.ChildItemView's doc.
+func toChildItemView(ch api.ChildItem) zot.ChildItemView {
+	return zot.ChildItemView{
+		Key:         ch.Key,
+		ItemType:    ch.ItemType,
+		Title:       ch.Title,
+		Note:        ch.Note,
+		ContentType: ch.ContentType,
+		Filename:    ch.Filename,
+		Tags:        ch.Tags,
 	}
 }
 

@@ -21,6 +21,7 @@ var (
 	extractForce      bool
 	extractOut        string
 	extractNoNote     bool
+	extractDelete     bool
 	extractYes        bool
 	extractDevice     string
 	extractNumThreads int
@@ -53,9 +54,11 @@ func extractCommand() *cli.Command {
 			"$ zot item extract 6R45EVSB --apply                    # post clean note to Zotero\n" +
 			"$ zot item extract 6R45EVSB --out ./vault/ckd --apply  # full extraction + note\n" +
 			"$ zot item extract 6R45EVSB --out ./vault/ckd --no-note --apply  # artifacts only\n" +
+			"$ zot item extract 6R45EVSB --delete                   # undo: trash sci-extract note\n" +
 			"\n" +
 			"Zotero mode (default): clean markdown posted as a child note.\n" +
 			"Full mode (--out):     md + json + referenced PNGs + CSV tables written to DIR.\n" +
+			"Delete mode (--delete): trash any child note carrying this PDF's sci-extract sentinel.\n" +
 			"\n" +
 			"Uses the existing PDF attachment's contentType + path from the local zotero.sqlite.\n" +
 			"The Plan step is pure (no docling run); pass --apply to actually extract and post.",
@@ -65,6 +68,7 @@ func extractCommand() *cli.Command {
 			&cli.BoolFlag{Name: "force", Usage: "replace an existing note even if the PDF hash hasn't changed", Destination: &extractForce, Local: true},
 			&cli.StringFlag{Name: "out", Usage: "write docling artifacts (md/json/PNGs/CSVs) to DIR; enables full-extraction mode", Destination: &extractOut, Local: true},
 			&cli.BoolFlag{Name: "no-note", Usage: "skip the Zotero note post — requires --out (artifacts only)", Destination: &extractNoNote, Local: true},
+			&cli.BoolFlag{Name: "delete", Usage: "trash any child note whose sci-extract sentinel matches this PDF (undo a prior extraction)", Destination: &extractDelete, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &extractYes, Local: true},
 			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "auto", Destination: &extractDevice, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default, usually 4)", Destination: &extractNumThreads, Local: true},
@@ -82,6 +86,9 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	if extractNoNote && extractOut == "" {
 		return cmdutil.UsageErrorf(cmd, "--no-note requires --out (artifacts need somewhere to go)")
 	}
+	if extractDelete && (extractApply || extractForce || extractOut != "" || extractNoNote) {
+		return cmdutil.UsageErrorf(cmd, "--delete is mutually exclusive with --apply, --force, --out, and --no-note")
+	}
 
 	cfg, db, err := openLocalDB()
 	if err != nil {
@@ -93,6 +100,12 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+
+	// ── --delete: surgical undo, no PDF on disk needed ──
+	if extractDelete {
+		return runExtractDelete(ctx, cmd, parentKey, att)
+	}
+
 	pdfPath := filepath.Join(cfg.DataDir, "storage", att.Key, att.Filename)
 	if _, err := os.Stat(pdfPath); err != nil {
 		return fmt.Errorf("PDF attachment %s missing on disk at %s: %w", att.Key, pdfPath, err)
@@ -218,6 +231,68 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		apply.Tables = result.Extraction.TablePaths
 	}
 	cmdutil.Output(cmd, apply)
+	return nil
+}
+
+// runExtractDelete handles the `--delete` path: find child notes
+// whose sci-extract sentinel matches this PDF's key and trash each
+// one via the standard TrashItem call. Trash-only (never hard-delete)
+// — users can restore from Zotero's trash if they change their mind.
+//
+// Sentinel matching is strict: a note must carry
+// `<!-- sci-extract:<PDF_KEY>:<HASH> -->` for us to touch it. Notes
+// merely tagged `docling` without the sentinel are left alone — tags
+// can be sprayed around by users, but the sentinel comment is
+// load-bearing and unlikely to be hand-edited.
+func runExtractDelete(ctx context.Context, cmd *cli.Command, parentKey string, att *local.PDFAttachment) error {
+	apiClient, err := requireAPIClient()
+	if err != nil {
+		return err
+	}
+	children, err := apiClient.ListNoteChildren(ctx, parentKey)
+	if err != nil {
+		return err
+	}
+
+	var matching []api.NoteChild
+	for _, nc := range children {
+		pdfKey, _, ok := extract.FindSentinel(nc.Body)
+		if !ok || pdfKey != att.Key {
+			continue
+		}
+		matching = append(matching, nc)
+	}
+
+	if len(matching) == 0 {
+		cmdutil.Output(cmd, zot.ExtractDeleteResult{
+			ParentKey: parentKey,
+			PDFKey:    att.Key,
+			PDFName:   att.Title,
+		})
+		return nil
+	}
+
+	msg := fmt.Sprintf("Trash %d sci-extract note(s) for %s?", len(matching), att.Title)
+	if done, err := cmdutil.ConfirmOrSkip(extractYes, msg); done || err != nil {
+		return err
+	}
+
+	result := zot.ExtractDeleteResult{
+		ParentKey: parentKey,
+		PDFKey:    att.Key,
+		PDFName:   att.Title,
+	}
+	for _, nc := range matching {
+		if err := apiClient.TrashItem(ctx, nc.Key); err != nil {
+			if result.Failed == nil {
+				result.Failed = map[string]string{}
+			}
+			result.Failed[nc.Key] = err.Error()
+			continue
+		}
+		result.Trashed = append(result.Trashed, nc.Key)
+	}
+	cmdutil.Output(cmd, result)
 	return nil
 }
 

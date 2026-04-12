@@ -135,14 +135,20 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 | `sci zot export -o refs.bib` | Full-library BibTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
 | `sci zot item read <key>` | Show full metadata for an item |
 | `sci zot item list` | List items with optional filters |
+| `sci zot item children <key>` | List child attachments + notes of an item |
 | `sci zot item export <key>` | Export a single item to CSL-JSON or BibTeX |
 | `sci zot item open <key>` | Open the item's PDF attachment |
+| `sci zot item extract <key>` | Convert the item's PDF into a Zotero child note (via `docling`) |
+| `sci zot item extract <key> --out DIR` | Full extraction: md + json + referenced PNGs + CSV tables to DIR |
+| `sci zot item extract <key> --delete` | Undo: trash any note carrying this PDF's sci-extract sentinel |
 | `sci zot item add` / `update` / `delete` | Create / patch / trash items via the Zotero Web API |
 | `sci zot collection` / `tags` | Manage collections and tags |
 | `sci zot doctor` | Run all hygiene checks (invalid → missing → orphans → duplicates) |
 | `sci zot doctor {invalid,missing,orphans,duplicates}` | Drill into individual hygiene reports |
 
 Reads the local `zotero.sqlite` (immutable, no contention with the running Zotero desktop app); writes go through the Zotero Web API. `zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds.
+
+**PDF → child note extraction.** `zot item extract <KEY>` pipes the item's PDF attachment through [`docling`](https://github.com/DS4SD/docling), renders the markdown as HTML, and posts it as a child note on the parent — tagged `docling` and stamped with a sentinel comment so re-runs dedupe by sha256. Default mode produces a clean, Zotero-friendly note from a temp dir. `--out DIR` switches to full extraction (md + json + referenced PNGs + CSV tables per `docling`'s always-on TableFormer) persisted for Obsidian-style vault exports; `--no-note` skips the Zotero post entirely. Identical re-runs Skip; PDF updates PATCH-in-place so the note key stays stable. `--delete` is the surgical undo — matches notes by their embedded sentinel (not tag) and trashes them via `zot item delete`'s standard path. Requires `docling` on PATH (`sci doctor` installs it via `uv`).
 
 **Library export details.** `zot export` honors user-pinned cite-keys (Zotero 7's native `citationKey` field, or legacy Better BibTeX `Citation Key:` lines in `extra`) and synthesizes semantic keys for everything else as `lastname{year}{firstword}-ZOTKEY`. The trailing 8-char Zotero key suffix guarantees uniqueness without collision arithmetic and keeps entries round-trippable back to the source item. Pinned entries also carry a `zotero://select/library/items/<KEY>` URI in the `note` field (appended to any existing user prose, never overwriting). A `.zotero-citekeymap.json` sidecar is written next to the output file; on the next run, any synthesized prefix that drifted (e.g. after a metadata typo fix) gets a biblatex `ids = {oldkey}` alias so manuscripts citing the old form still resolve.
 

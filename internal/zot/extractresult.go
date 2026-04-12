@@ -135,6 +135,42 @@ func (r ExtractArtifactResult) Human() string {
 	return b.String()
 }
 
+// ExtractDeleteResult is emitted by `zot item extract --delete`: the
+// surgical undo of a prior extraction. Matches sci-extract notes by
+// their embedded sentinel (pdfKey), NOT by tag — tags can be stripped
+// or added by users, but the sentinel comment is load-bearing for
+// our dedupe and is less likely to be hand-edited.
+type ExtractDeleteResult struct {
+	ParentKey string            `json:"parent_key"`
+	PDFKey    string            `json:"pdf_key"`
+	PDFName   string            `json:"pdf_name"`
+	Trashed   []string          `json:"trashed,omitempty"`
+	Failed    map[string]string `json:"failed,omitempty"`
+}
+
+func (r ExtractDeleteResult) JSON() any { return r }
+func (r ExtractDeleteResult) Human() string {
+	var b strings.Builder
+	if len(r.Trashed) == 0 && len(r.Failed) == 0 {
+		fmt.Fprintf(&b, "  %s no sci-extract notes found for %s\n", ui.SymArrow, r.PDFName)
+		return b.String()
+	}
+	for _, k := range r.Trashed {
+		fmt.Fprintf(&b, "  %s trashed note %s (%s)\n", ui.SymOK, k, r.PDFName)
+	}
+	if len(r.Failed) > 0 {
+		keys := make([]string, 0, len(r.Failed))
+		for k := range r.Failed {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(&b, "  %s %s: %s\n", ui.SymFail, k, r.Failed[k])
+		}
+	}
+	return b.String()
+}
+
 // Convenience string aliases so the CLI layer can set Action without
 // importing extract just for its enum labels.
 type actionLabel string

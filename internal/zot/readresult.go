@@ -124,6 +124,115 @@ func writeField(b *strings.Builder, label, value string) {
 	fmt.Fprintf(b, "  %s %s\n", ui.TUI.Dim().Render(label+":"), value)
 }
 
+// ChildItemView is the zot-package-facing view of a child item as
+// returned by `zot item children`. Mirrors api.ChildItem verbatim —
+// duplicated instead of aliased because api imports zot (for Config),
+// so zot importing api would cycle. The CLI layer converts from
+// api.ChildItem at the call site.
+type ChildItemView struct {
+	Key         string   `json:"key"`
+	ItemType    string   `json:"item_type"`
+	Title       string   `json:"title,omitempty"`
+	Note        string   `json:"note,omitempty"`
+	ContentType string   `json:"content_type,omitempty"`
+	Filename    string   `json:"filename,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+}
+
+// ChildrenListResult is returned for `zot item children <KEY>`:
+// a flat listing of a parent item's child items (attachments + notes),
+// as reported by the Zotero Web API. Used both by humans and by
+// scripts that want to feed note or attachment keys into other zot
+// commands (e.g. `zot item delete`).
+type ChildrenListResult struct {
+	ParentKey string          `json:"parent_key"`
+	Count     int             `json:"count"`
+	Children  []ChildItemView `json:"children"`
+}
+
+func (r ChildrenListResult) JSON() any { return r }
+func (r ChildrenListResult) Human() string {
+	var b strings.Builder
+	if r.Count == 0 {
+		fmt.Fprintf(&b, "  %s %s has no children\n", ui.SymArrow, r.ParentKey)
+		return b.String()
+	}
+	fmt.Fprintf(&b, "\n  %s %s\n\n",
+		ui.TUI.Dim().Render("children of"),
+		ui.TUI.Accent().Render(r.ParentKey),
+	)
+	for _, ch := range r.Children {
+		fmt.Fprintf(&b, "    %s  %s",
+			ui.TUI.Accent().Render(ch.Key),
+			ui.TUI.Dim().Render(childTypeLabel(ch.ItemType)),
+		)
+		// One-line descriptor varies by type:
+		// attachment → contentType + filename
+		// note       → first-line snippet of the HTML body, or tags
+		switch ch.ItemType {
+		case "attachment":
+			meta := ch.ContentType
+			if meta != "" && ch.Filename != "" {
+				meta += "  "
+			}
+			meta += ch.Filename
+			fmt.Fprintf(&b, "  %s", meta)
+		case "note":
+			snippet := noteSnippet(ch.Note)
+			if snippet == "" && len(ch.Tags) > 0 {
+				snippet = "[" + strings.Join(ch.Tags, ", ") + "]"
+			}
+			if snippet != "" {
+				fmt.Fprintf(&b, "  %s", ui.TUI.Dim().Render(snippet))
+			}
+		}
+		fmt.Fprintln(&b)
+	}
+	fmt.Fprintf(&b, "\n  %s %d child item(s)\n", ui.SymArrow, r.Count)
+	return b.String()
+}
+
+func childTypeLabel(t string) string {
+	if t == "" {
+		return "item"
+	}
+	return t
+}
+
+// noteSnippet returns a ~60-char preview of a note body with HTML
+// tags stripped. Good enough for CLI display — full parsing lives
+// in MarkdownToNoteHTML's inverse, which we don't need here.
+func noteSnippet(html string) string {
+	var b strings.Builder
+	inTag := false
+	for _, r := range html {
+		switch {
+		case r == '<':
+			inTag = true
+		case r == '>':
+			inTag = false
+		case inTag:
+			// skip
+		case r == '\n' || r == '\r' || r == '\t':
+			b.WriteByte(' ')
+		default:
+			b.WriteRune(r)
+		}
+		if b.Len() >= 80 {
+			break
+		}
+	}
+	s := strings.TrimSpace(b.String())
+	// Collapse runs of whitespace
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
+	if len(s) > 60 {
+		s = s[:57] + "..."
+	}
+	return s
+}
+
 // CollectionListResult is returned for `zot collection list`.
 type CollectionListResult struct {
 	Count       int                `json:"count"`

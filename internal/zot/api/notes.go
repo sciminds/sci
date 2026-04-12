@@ -4,9 +4,78 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/sciminds/cli/internal/zot/client"
 )
+
+// ChildItem is the minimal projection of a child item (note OR
+// attachment — any type) used by read-side commands like
+// `zot item children`. Mixed fields are populated based on ItemType:
+//
+//   - ItemType="note":       Note body set, Filename/ContentType empty
+//   - ItemType="attachment": Filename + ContentType set, Note empty
+//
+// Title is the attachment/note's own title field (may be empty for
+// notes that don't have one set).
+type ChildItem struct {
+	Key         string   `json:"key"`
+	ItemType    string   `json:"item_type"`
+	Title       string   `json:"title,omitempty"`
+	Note        string   `json:"note,omitempty"`         // body, notes only
+	ContentType string   `json:"content_type,omitempty"` // attachments only
+	Filename    string   `json:"filename,omitempty"`     // attachments only
+	Tags        []string `json:"tags,omitempty"`
+}
+
+// ListChildren returns every child of parentKey — notes, attachments,
+// and anything else Zotero supports. Unlike ListNoteChildren, this
+// does NOT filter by itemType; callers that only want notes should
+// prefer ListNoteChildren for the narrower typed return.
+func (c *Client) ListChildren(ctx context.Context, parentKey string) ([]ChildItem, error) {
+	resp, err := c.Gen.GetItemChildrenWithResponse(ctx, c.UserID, client.ItemKeyPath(parentKey), nil)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode() == http.StatusNotFound {
+		return nil, fmt.Errorf("parent item %s not found", parentKey)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("GET /items/%s/children: %s: %s", parentKey, resp.Status(), string(resp.Body))
+	}
+	if resp.JSON200 == nil {
+		return nil, nil
+	}
+	out := make([]ChildItem, 0, len(*resp.JSON200))
+	for _, it := range *resp.JSON200 {
+		ci := ChildItem{
+			Key:      it.Key,
+			ItemType: string(it.Data.ItemType),
+		}
+		if it.Data.Title != nil {
+			ci.Title = *it.Data.Title
+		}
+		if it.Data.Note != nil {
+			ci.Note = *it.Data.Note
+		}
+		if it.Data.ContentType != nil {
+			ci.ContentType = *it.Data.ContentType
+		}
+		if it.Data.Filename != nil {
+			// Zotero stores attachment paths as "storage:<name>"
+			// in some contexts; the Filename field is already
+			// stripped but we defensively trim anyway.
+			ci.Filename = strings.TrimPrefix(*it.Data.Filename, "storage:")
+		}
+		if it.Data.Tags != nil {
+			for _, t := range *it.Data.Tags {
+				ci.Tags = append(ci.Tags, t.Tag)
+			}
+		}
+		out = append(out, ci)
+	}
+	return out, nil
+}
 
 // NoteChild is the minimum projection of a note item that higher
 // layers (extract, fix, cli) consume. Defined here so callers don't

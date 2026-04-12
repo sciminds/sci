@@ -267,6 +267,64 @@ func TestListNoteChildren_ParentNotFound(t *testing.T) {
 	}
 }
 
+// ListChildren must return BOTH attachments and notes (unlike
+// ListNoteChildren which filters to notes). Used by
+// `zot item children`.
+func TestListChildren_ReturnsAllTypes(t *testing.T) {
+	t.Parallel()
+	h := newNoteHandler(t)
+	h.seedParent("PARENT01")
+	attKey := h.seedAttachmentChild("PARENT01")
+	noteKey := h.seedNoteChild("PARENT01", "<p>body</p>", "docling")
+
+	c, _ := newTestClient(t, h)
+	got, err := c.ListChildren(context.Background(), "PARENT01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d children, want 2 (attachment + note)", len(got))
+	}
+	byKey := map[string]ChildItem{}
+	for _, ci := range got {
+		byKey[ci.Key] = ci
+	}
+	att, ok := byKey[attKey]
+	if !ok {
+		t.Errorf("attachment %s missing from result", attKey)
+	} else if att.ItemType != "attachment" {
+		t.Errorf("attachment itemType = %q", att.ItemType)
+	}
+	note, ok := byKey[noteKey]
+	if !ok {
+		t.Errorf("note %s missing from result", noteKey)
+	} else {
+		if note.ItemType != "note" {
+			t.Errorf("note itemType = %q", note.ItemType)
+		}
+		if note.Note != "<p>body</p>" {
+			t.Errorf("note body = %q", note.Note)
+		}
+		if len(note.Tags) != 1 || note.Tags[0] != "docling" {
+			t.Errorf("note tags = %v", note.Tags)
+		}
+	}
+}
+
+func TestListChildren_EmptyParent(t *testing.T) {
+	t.Parallel()
+	h := newNoteHandler(t)
+	h.seedParent("P00")
+	c, _ := newTestClient(t, h)
+	got, err := c.ListChildren(context.Background(), "P00")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Errorf("got %d children, want 0", len(got))
+	}
+}
+
 func TestCreateChildNote_PostsWithParentAndTags(t *testing.T) {
 	t.Parallel()
 	h := newNoteHandler(t)
