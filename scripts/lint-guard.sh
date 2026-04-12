@@ -328,6 +328,150 @@ if [[ -n "${pkg_doc_hits%$'\n'}" ]]; then
 	fail "pkg-doc-required"
 fi
 
+# ── Rule 13: Scriptability parity — every interactive prompt must be registered
+# Every huh.New* prompt and tea.NewProgram/kit.Run TUI launch must have an entry
+# in scripts/scriptable-inventory.yml. This catches new interactive prompts that
+# lack a non-interactive bypass.
+#
+# Exempt paths are hard-coded below (TUI-only apps, shared infra).
+# Suppress a specific call site with "// lint:no-scriptable" on the same line.
+
+inventory="scripts/scriptable-inventory.yml"
+
+# Exempt paths — these never need inventory entries.
+scriptable_exempt=(
+	"internal/tui/dbtui/"
+	"internal/tui/board/"
+	"internal/mdview/"
+	"internal/ui/spinner.go"
+	"internal/cmdutil/confirm.go"
+	"internal/tui/kit/"
+)
+
+# Build a list of file:line pairs from the inventory for fast lookup.
+# We extract "file: <path>" and "line: <N>" pairs from the YAML.
+inv_entries=""
+if [[ -f "$inventory" ]]; then
+	current_file=""
+	while IFS= read -r line; do
+		# Match "file: <path>" lines
+		if [[ "$line" =~ ^[[:space:]]*file:[[:space:]]*(.+)$ ]]; then
+			current_file="${BASH_REMATCH[1]}"
+		fi
+		# Match "line: <N>" lines
+		if [[ "$line" =~ ^[[:space:]]*-?[[:space:]]*line:[[:space:]]*([0-9]+) ]]; then
+			inv_entries+="${current_file}:${BASH_REMATCH[1]}"$'\n'
+		fi
+	done < "$inventory"
+fi
+
+# Find all huh.New* and kit.Run/kit.RunModel/tea.NewProgram calls in non-exempt Go files.
+interactive_patterns='huh\.New(Input|Select|Confirm|MultiSelect|Text)\b|tea\.NewProgram\(|kit\.Run(Model)?\('
+interactive_hits=$(rg -n "$interactive_patterns" \
+	--type go --glob '!*_test.go' --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null |
+	rg -v 'lint:no-scriptable' || true)
+
+if [[ -n "$interactive_hits" ]]; then
+	while IFS= read -r hit; do
+		[[ -z "$hit" ]] && continue
+		file=$(echo "$hit" | cut -d: -f1 | sed 's|^\./||')
+		lineno=$(echo "$hit" | cut -d: -f2)
+
+		# Skip exempt paths
+		skip=false
+		for exempt in "${scriptable_exempt[@]}"; do
+			if [[ "$file" == *"$exempt"* ]]; then
+				skip=true
+				break
+			fi
+		done
+		$skip && continue
+
+		# Check if this file:line is registered in the inventory.
+		# Allow ±15 lines of drift from the recorded line number.
+		registered=false
+		while IFS= read -r entry; do
+			[[ -z "$entry" ]] && continue
+			inv_file=$(echo "$entry" | cut -d: -f1)
+			inv_line=$(echo "$entry" | cut -d: -f2)
+			if [[ "$file" == "$inv_file" ]]; then
+				diff=$((lineno - inv_line))
+				if [[ $diff -lt 0 ]]; then diff=$((-diff)); fi
+				if [[ $diff -le 15 ]]; then
+					registered=true
+					break
+				fi
+			fi
+		done <<< "$inv_entries"
+
+		if ! $registered; then
+			echo "FAIL [scriptable-parity] unregistered interactive prompt: $file:$lineno"
+			echo "  Add an entry to $inventory or suppress with // lint:no-scriptable"
+			fail "scriptable-parity"
+		fi
+	done <<< "$interactive_hits"
+fi
+
+# Also warn about inventory entries that point to files/lines where the
+# expected call no longer exists (stale entries).
+if [[ -f "$inventory" ]]; then
+	current_file=""
+	current_type=""
+	stale_warnings=""
+	while IFS= read -r line; do
+		if [[ "$line" =~ ^[[:space:]]*file:[[:space:]]*(.+)$ ]]; then
+			current_file="${BASH_REMATCH[1]}"
+		fi
+		if [[ "$line" =~ ^[[:space:]]*type:[[:space:]]*(.+)$ ]]; then
+			current_type="${BASH_REMATCH[1]}"
+		fi
+		if [[ "$line" =~ ^[[:space:]]*-?[[:space:]]*line:[[:space:]]*([0-9]+) ]]; then
+			inv_line="${BASH_REMATCH[1]}"
+			if [[ -f "$current_file" ]]; then
+				# Check ±15 lines around the recorded line for any interactive call
+				start=$((inv_line > 15 ? inv_line - 15 : 1))
+				end=$((inv_line + 15))
+				window=$(sed -n "${start},${end}p" "$current_file" 2>/dev/null || true)
+				if ! echo "$window" | rg -q "$interactive_patterns" 2>/dev/null; then
+					stale_warnings+="  WARN [scriptable-parity] stale entry: $current_file:$inv_line ($current_type) — no matching call within ±15 lines"$'\n'
+				fi
+			else
+				stale_warnings+="  WARN [scriptable-parity] stale entry: $current_file — file not found"$'\n'
+			fi
+		fi
+	done < "$inventory"
+
+	if [[ -n "${stale_warnings%$'\n'}" ]]; then
+		echo "${stale_warnings%$'\n'}"
+		# Stale entries are warnings, not errors — they don't block the build.
+	fi
+fi
+
+# Fail on any inventory entries with status: gap — these are tracked debt that
+# must be resolved (add a non-interactive bypass, then flip to "covered").
+if [[ -f "$inventory" ]]; then
+	current_cmd=""
+	current_id=""
+	gap_hits=""
+	while IFS= read -r line; do
+		if [[ "$line" =~ ^[[:space:]]{2}[a-z] ]] && [[ "$line" =~ ^[[:space:]]*([a-z][-a-z]*): ]]; then
+			current_cmd="${BASH_REMATCH[1]}"
+		fi
+		if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*id:[[:space:]]*(.+)$ ]]; then
+			current_id="${BASH_REMATCH[1]}"
+		fi
+		if [[ "$line" =~ ^[[:space:]]*status:[[:space:]]*gap ]]; then
+			gap_hits+="  $current_cmd/$current_id"$'\n'
+		fi
+	done < "$inventory"
+
+	if [[ -n "${gap_hits%$'\n'}" ]]; then
+		echo "FAIL [scriptable-gap] inventory entries with status: gap (missing non-interactive bypass):"
+		echo "${gap_hits%$'\n'}"
+		fail "scriptable-gap"
+	fi
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
 	echo ""

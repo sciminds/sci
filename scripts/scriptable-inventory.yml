@@ -1,0 +1,277 @@
+# scriptable-inventory.yml — Interactive ↔ Non-interactive parity tracker
+#
+# Every huh.New* prompt and tea.NewProgram/kit.Run TUI launch (outside exempt
+# paths) must have an entry here. lint-guard rule 13 fails the build when an
+# unregistered call site appears.
+#
+# status values:
+#   covered  — a flag/arg fully bypasses the interactive prompt
+#   gap      — no non-interactive bypass exists yet (tracked debt)
+#   exempt   — intentionally interactive-only (read-only browsers, etc.)
+#
+# Exempt paths (no entries needed):
+#   internal/tui/dbtui/     — standalone TUI app
+#   internal/mdview/        — standalone TUI app
+#   internal/tui/board/     — standalone TUI app
+#   internal/ui/spinner.go  — progress display, not user input
+#   internal/cmdutil/       — shared helpers (callers are tracked)
+
+commands:
+
+  # ── doctor ─────────────────────────────────────────────────────────────────
+  doctor:
+    file: cmd/sci/doctor.go
+    prompts:
+      - id: git-name
+        type: huh.NewInput
+        line: 358
+        description: "Git user.name"
+        bypass: "--git-name"
+        status: covered
+
+      - id: git-email
+        type: huh.NewInput
+        line: 364
+        description: "Git user.email"
+        bypass: "--git-email"
+        status: covered
+
+  # ── proj new ───────────────────────────────────────────────────────────────
+  proj-new:
+    file: internal/proj/new/wizard.go
+    prompts:
+      - id: project-name
+        type: huh.NewInput
+        line: 35
+        description: "Project name"
+        bypass: "positional arg [name]"
+        status: covered
+
+      - id: pkg-manager
+        type: huh.NewSelect
+        line: 42
+        description: "Package manager (pixi/uv)"
+        bypass: "--pkg-manager"
+        status: covered
+
+      - id: doc-system
+        type: huh.NewSelect
+        line: 50
+        description: "Authoring system (quarto/myst/none)"
+        bypass: "--doc-system"
+        status: covered
+
+      - id: author-name
+        type: huh.NewInput
+        line: 60
+        description: "Author name"
+        bypass: "--author"
+        status: covered
+
+      - id: author-email
+        type: huh.NewInput
+        line: 65
+        description: "Author email"
+        bypass: "--email"
+        status: covered
+
+      - id: description
+        type: huh.NewInput
+        line: 70
+        description: "Project description"
+        bypass: "--description"
+        status: covered
+
+  # ── proj config ────────────────────────────────────────────────────────────
+  proj-config:
+    file: cmd/sci/proj.go
+    prompts:
+      - id: config-tui
+        type: kit.RunModel
+        line: 230
+        description: "Interactive config sync reviewer"
+        bypass: "--json or --dry-run"
+        status: gap
+        note: "No --apply flag to auto-apply changes without TUI"
+
+  # ── cass setup ─────────────────────────────────────────────────────────────
+  cass-setup:
+    file: cmd/sci/cass.go
+    prompts:
+      - id: replace-token
+        type: huh.NewConfirm
+        line: 91
+        description: "Replace existing Canvas token?"
+        bypass: "--token (overwrites implicitly)"
+        status: covered
+
+      - id: token-input
+        type: huh.NewInput
+        line: 106
+        description: "Canvas API token"
+        bypass: "--token"
+        status: covered
+
+  # ── cass init ──────────────────────────────────────────────────────────────
+  cass-init:
+    file: cmd/sci/cass.go
+    prompts:
+      - id: canvas-url
+        type: huh.NewInput
+        line: 186
+        description: "Canvas course URL"
+        bypass: "--canvas-url"
+        status: covered
+
+      - id: classroom-url
+        type: huh.NewInput
+        line: 194
+        description: "GitHub Classroom URL"
+        bypass: "--classroom-url"
+        status: covered
+
+  # ── cass match ─────────────────────────────────────────────────────────────
+  cass-match:
+    file: internal/cass/match.go
+    prompts:
+      - id: match-select
+        type: huh.NewSelect
+        line: 300
+        description: "Manual student matching"
+        bypass: "--auto"
+        status: covered
+
+  # ── cloud put ──────────────────────────────────────────────────────────────
+  cloud-put:
+    file: cmd/sci/cloud.go
+    prompts:
+      - id: upload-name
+        type: huh.NewInput
+        line: 116
+        description: "Upload name"
+        bypass: "--name"
+        status: covered
+
+      - id: upload-desc
+        type: huh.NewInput
+        line: 121
+        description: "File description"
+        bypass: "--desc"
+        status: covered
+
+      - id: overwrite-confirm
+        type: huh.NewConfirm
+        line: 142
+        description: "Overwrite existing file?"
+        bypass: "--force"
+        status: covered
+
+  # ── cloud list ─────────────────────────────────────────────────────────────
+  cloud-list:
+    file: internal/share/listtui.go
+    prompts:
+      - id: cloud-list-tui
+        type: kit.Run
+        line: 252
+        description: "Interactive cloud file browser"
+        bypass: "--plain or --json"
+        status: covered
+
+  # ── lab setup ──────────────────────────────────────────────────────────────
+  lab-setup:
+    file: cmd/sci/lab.go
+    prompts:
+      - id: ssh-username
+        type: huh.NewInput
+        line: 67
+        description: "SSH username"
+        bypass: "--user"
+        status: covered
+
+  # ── tools install ──────────────────────────────────────────────────────────
+  tools-install:
+    file: cmd/sci/tools.go
+    prompts:
+      - id: pkg-type-select
+        type: huh.NewSelect
+        line: 225
+        description: "Package type disambiguation"
+        bypass: "type flags (--cask, --tap, --uv, --go, --cargo)"
+        status: covered
+
+  # ── tools list ─────────────────────────────────────────────────────────────
+  tools-list:
+    file: internal/brew/list.go
+    prompts:
+      - id: tools-list-tui
+        type: kit.Run
+        line: 118
+        description: "Interactive package browser"
+        bypass: "type filter flags (--formula, --cask, etc.)"
+        status: covered
+
+  # ── tools reccs ────────────────────────────────────────────────────────────
+  tools-reccs:
+    file: internal/doctor/setup.go
+    prompts:
+      - id: reccs-tui
+        type: kit.RunModel
+        line: 120
+        description: "Interactive optional tools installer"
+        bypass: "--json (list only)"
+        status: gap
+        note: "No --yes flag to auto-install selected tools without TUI"
+
+  # ── zot setup ──────────────────────────────────────────────────────────────
+  zot-setup:
+    file: internal/zot/cli/setup.go
+    prompts:
+      - id: api-key
+        type: huh.NewInput
+        line: 102
+        description: "Zotero API key"
+        bypass: "--api"
+        status: covered
+
+      - id: library-id
+        type: huh.NewInput
+        line: 107
+        description: "Zotero library ID"
+        bypass: "--library"
+        status: covered
+
+      - id: data-dir
+        type: huh.NewInput
+        line: 112
+        description: "Zotero data directory"
+        bypass: "--data-dir"
+        status: covered
+
+  # ── help (exempt) ──────────────────────────────────────────────────────────
+  help:
+    file: internal/helptui/helptui.go
+    prompts:
+      - id: help-browser
+        type: kit.Run
+        line: 300
+        description: "Interactive help browser"
+        status: exempt
+        reason: "Read-only browser, no actionable output to script"
+
+      - id: help-group-browser
+        type: kit.Run
+        line: 306
+        description: "Interactive help group browser"
+        status: exempt
+        reason: "Read-only browser, no actionable output to script"
+
+  # ── learn (exempt) ─────────────────────────────────────────────────────────
+  learn:
+    file: internal/guide/guide.go
+    prompts:
+      - id: guide-browser
+        type: kit.Run
+        line: 459
+        description: "Interactive learning guide"
+        status: exempt
+        reason: "Read-only browser, no actionable output to script"
