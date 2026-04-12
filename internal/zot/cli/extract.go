@@ -74,6 +74,12 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	if extractDelete && (extractApply || extractForce || extractReextract || extractOut != "" || extractNoNote) {
 		return cmdutil.UsageErrorf(cmd, "--delete is mutually exclusive with --apply, --force, --reextract, --out, and --no-note")
 	}
+	if extractNoNote && extractHTML {
+		return cmdutil.UsageErrorf(cmd, "--html has no effect with --no-note (no note is posted)")
+	}
+	if extractNoNote && extractReextract {
+		return cmdutil.UsageErrorf(cmd, "--reextract has no effect with --no-note (no cache is used in --out mode)")
+	}
 
 	cfg, db, err := openLocalDB()
 	if err != nil {

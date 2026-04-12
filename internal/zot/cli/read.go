@@ -67,6 +67,9 @@ func searchCommand() *cli.Command {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected a query")
 			}
+			if searchExportOut != "" && !searchExport {
+				return cmdutil.UsageErrorf(cmd, "--out requires --export")
+			}
 			// Join all positional args so unquoted multi-clause queries
 			// like `zot search @author: jolly @title: gossip` work without
 			// requiring the user to wrap the whole thing in shell quotes.

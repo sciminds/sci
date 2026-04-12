@@ -88,14 +88,27 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	if extractLibLimit > 0 && extractLibLimit < len(all) {
-		all = all[:extractLibLimit]
-	}
-
 	// Query local DB for parents that already have docling notes.
 	hasExisting, err := db.ParentsWithDoclingNotes()
 	if err != nil {
 		return err
+	}
+
+	// Filter out already-extracted items before applying --limit so
+	// re-runs pick up the next N unextracted items instead of
+	// re-selecting (and skipping) the same N.
+	if !extractLibForce {
+		filtered := all[:0]
+		for _, p := range all {
+			if !hasExisting[p.ParentKey] {
+				filtered = append(filtered, p)
+			}
+		}
+		all = filtered
+	}
+
+	if extractLibLimit > 0 && extractLibLimit < len(all) {
+		all = all[:extractLibLimit]
 	}
 
 	reqs := make([]extract.BatchRequest, len(all))

@@ -465,6 +465,10 @@ func tagsCommand() *cli.Command {
 					if len(args) != 2 {
 						return cmdutil.UsageErrorf(cmd, "expected <itemKey> <tag>")
 					}
+					if done, err := cmdutil.ConfirmOrSkip(tagRemoveYes,
+						fmt.Sprintf("Remove tag %q from item %s?", args[1], args[0])); done || err != nil {
+						return err
+					}
 					c, err := requireAPIClient()
 					if err != nil {
 						return err

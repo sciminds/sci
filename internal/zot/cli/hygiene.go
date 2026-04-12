@@ -349,6 +349,9 @@ to a specific Zotero key, useful for smoke-testing a single write.`,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if !citekeysFix && (citekeysApply || len(citekeysKind) > 0 || len(citekeysItem) > 0) {
+				return cmdutil.UsageErrorf(cmd, "--apply, --kind, and --item require --fix")
+			}
 			if citekeysFix {
 				return runCitekeysFix(ctx, cmd)
 			}
