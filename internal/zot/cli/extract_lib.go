@@ -240,13 +240,10 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	progressTitle := "Extracting library (cache-only)"
-	if extractLibApply {
-		progressTitle = "Extracting library"
-	}
-
-	err = ui.RunWithProgress(progressTitle, func(t *ui.ProgressTracker) error {
+	err = ui.RunWithProgress("Planning...", func(t *ui.ProgressTracker) error {
 		t.SetTotal(nCreate)
+
+		var curPhase extract.BatchPhase
 
 		var res *extract.BatchResult
 		var batchErr error
@@ -258,6 +255,21 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			ExtractOpts: opts,
 			Jobs:        extractLibJobs,
 			RenderHTML:  extractLibHTML,
+			OnPhase: func(phase extract.BatchPhase, count int) {
+				curPhase = phase
+				switch phase {
+				case extract.PhasePostCached:
+					t.Reset("Posting cached notes to Zotero", count)
+				case extract.PhaseExtract:
+					suffix := " (cache-only)"
+					if extractLibApply {
+						suffix = ""
+					}
+					t.Reset(fmt.Sprintf("Extracting PDFs%s", suffix), count)
+				case extract.PhasePostFresh:
+					t.Reset("Posting notes to Zotero", count)
+				}
+			},
 			OnProgress: func(ev *extract.DoclingEvent) {
 				switch ev.Kind {
 				case extract.EventProcessing:
@@ -272,11 +284,18 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 				if outcome.Action == extract.ActionSkip {
 					return
 				}
-				if outcome.Err != nil && outcome.FromCache {
-					// Cache hit but note post failed — still counts
-					// as an advance for the progress bar.
-					t.Advance("failed", fmt.Sprintf("%s %s: %s", ui.SymFail, outcome.Item.Request.PDFName, outcome.Err))
+				// During the posting phases, advance the bar for each note.
+				// During extraction, OnProgress handles the bar — OnItemDone
+				// only fires for cache-populate bookkeeping, not user-visible.
+				if curPhase == extract.PhaseExtract {
+					return
 				}
+				name := outcome.Item.Request.PDFName
+				if outcome.Err != nil {
+					t.Advance("failed", fmt.Sprintf("%s %s: %s", ui.SymFail, name, outcome.Err))
+					return
+				}
+				t.Advance("posted", fmt.Sprintf("%s %s", ui.SymOK, name))
 			},
 		})
 		batchResult = res

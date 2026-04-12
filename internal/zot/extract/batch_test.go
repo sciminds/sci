@@ -582,3 +582,248 @@ func TestBatchJobsDefault(t *testing.T) {
 }
 
 var _ = runtime.NumCPU
+
+// TestChunkBySize verifies the fixed-size chunking.
+func TestChunkBySize(t *testing.T) {
+	t.Parallel()
+	s := []string{"a", "b", "c", "d", "e"}
+
+	// Chunk size 2 → [2, 2, 1].
+	got := chunkBySize(s, 2)
+	if len(got) != 3 {
+		t.Fatalf("size=2: got %d chunks, want 3", len(got))
+	}
+	if len(got[0]) != 2 || len(got[1]) != 2 || len(got[2]) != 1 {
+		t.Errorf("size=2: chunk sizes = [%d, %d, %d], want [2, 2, 1]",
+			len(got[0]), len(got[1]), len(got[2]))
+	}
+
+	// Chunk size larger than input → single chunk.
+	got = chunkBySize(s, 100)
+	if len(got) != 1 || len(got[0]) != 5 {
+		t.Errorf("size=100: got %d chunks, want 1", len(got))
+	}
+
+	// Chunk size 0 → single chunk (no panic).
+	got = chunkBySize(s, 0)
+	if len(got) != 1 {
+		t.Errorf("size=0: got %d chunks, want 1", len(got))
+	}
+
+	// Empty input.
+	got = chunkBySize(nil, 5)
+	if len(got) != 1 || len(got[0]) != 0 {
+		t.Errorf("nil input: got %d chunks", len(got))
+	}
+}
+
+// TestExecuteBatch_PhaseOrder: with a mix of cached and fresh items,
+// OnPhase fires in the expected order (PostCached → Extract →
+// PostFresh) and each phase reports the correct count.
+func TestExecuteBatch_PhaseOrder(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+
+	// Item A: cached from a prior run.
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+	if _, err := cache.Put("PDFA", "ha", []byte("## cached A\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	// Item B: needs extraction.
+	pdfB := filepath.Join(dir, "b.pdf")
+	writeStubPDF(t, pdfB, "b")
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+		{
+			Request: BatchRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFPath: pdfB},
+			Hash:    "hb",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFHash: "hb"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	type phaseEvent struct {
+		phase BatchPhase
+		count int
+	}
+	var phases []phaseEvent
+
+	// Track the order of note posts relative to phases.
+	var postLog []string
+
+	ex := &fakeExtractor{md: "# fresh\n", version: "docling 2.86.0"}
+	w := &fakeNoteWriter{}
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: ex,
+		Writer:    w,
+		Cache:     cache,
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+		OnPhase: func(phase BatchPhase, count int) {
+			phases = append(phases, phaseEvent{phase, count})
+		},
+		OnItemDone: func(i int, o BatchOutcome) {
+			if o.NoteKey != "" {
+				postLog = append(postLog, o.Item.Request.ParentKey)
+			}
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify phase order.
+	if len(phases) != 3 {
+		t.Fatalf("got %d phases, want 3; phases: %+v", len(phases), phases)
+	}
+	wantPhases := []phaseEvent{
+		{PhasePostCached, 1},
+		{PhaseExtract, 1},
+		{PhasePostFresh, 1},
+	}
+	for i, want := range wantPhases {
+		if phases[i] != want {
+			t.Errorf("phase[%d] = %+v, want %+v", i, phases[i], want)
+		}
+	}
+
+	// Verify PA (cached) was posted before PB (fresh).
+	if len(postLog) != 2 {
+		t.Fatalf("postLog = %v, want 2 entries", postLog)
+	}
+	if postLog[0] != "PA" || postLog[1] != "PB" {
+		t.Errorf("post order = %v, want [PA, PB] (cached first)", postLog)
+	}
+
+	// Both notes should have been posted.
+	created, _, _, failed := res.Counts()
+	if created != 2 || failed != 0 {
+		t.Errorf("created=%d failed=%d; want 2/0", created, failed)
+	}
+}
+
+// TestExecuteBatch_CachedOnlySkipsExtract: when all items are cached,
+// PhaseExtract should not fire and the extractor should not be called.
+func TestExecuteBatch_CachedOnlySkipsExtract(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+	if _, err := cache.Put("PDFA", "ha", []byte("## cached\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	type phaseEvent struct {
+		phase BatchPhase
+		count int
+	}
+	var phases []phaseEvent
+	ex := &fakeExtractor{md: "unused", version: "docling 2.86.0"}
+
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: ex,
+		Writer:    &fakeNoteWriter{},
+		Cache:     cache,
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+		OnPhase: func(phase BatchPhase, count int) {
+			phases = append(phases, phaseEvent{phase, count})
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Only PostCached should fire — no Extract, no PostFresh.
+	if len(phases) != 1 {
+		t.Fatalf("got %d phases, want 1; phases: %+v", len(phases), phases)
+	}
+	if phases[0].phase != PhasePostCached || phases[0].count != 1 {
+		t.Errorf("phase = %+v, want {PostCached, 1}", phases[0])
+	}
+	if atomic.LoadInt32(&ex.calls) != 0 {
+		t.Errorf("extractor calls = %d, want 0", atomic.LoadInt32(&ex.calls))
+	}
+	created, _, _, _ := res.Counts()
+	if created != 1 {
+		t.Errorf("created=%d, want 1", created)
+	}
+}
+
+// TestExecuteBatch_FreshOnlySkipsPostCached: when no items are cached,
+// PhasePostCached should not fire.
+func TestExecuteBatch_FreshOnlySkipsPostCached(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	type phaseEvent struct {
+		phase BatchPhase
+		count int
+	}
+	var phases []phaseEvent
+
+	_, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: &fakeExtractor{md: "# body\n", version: "docling 2.86.0"},
+		Writer:    &fakeNoteWriter{},
+		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+		OnPhase: func(phase BatchPhase, count int) {
+			phases = append(phases, phaseEvent{phase, count})
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Extract + PostFresh, no PostCached.
+	if len(phases) != 2 {
+		t.Fatalf("got %d phases, want 2; phases: %+v", len(phases), phases)
+	}
+	if phases[0].phase != PhaseExtract {
+		t.Errorf("phase[0] = %+v, want Extract", phases[0])
+	}
+	if phases[1].phase != PhasePostFresh {
+		t.Errorf("phase[1] = %+v, want PostFresh", phases[1])
+	}
+}

@@ -19,6 +19,8 @@ import (
 
 type statusMsg string
 
+type titleMsg string
+
 type doneMsg struct{ err error }
 
 type progressUpdateMsg struct {
@@ -27,6 +29,10 @@ type progressUpdateMsg struct {
 	status    string
 	lastEvent string
 	counters  []counterEntry
+}
+
+type progressResetMsg struct {
+	total int
 }
 
 // counterEntry is a single named counter for progress display.
@@ -48,12 +54,33 @@ type ProgressTracker struct {
 	counters []counterEntry
 }
 
+// SetTitle updates the progress bar title text.
+func (t *ProgressTracker) SetTitle(s string) {
+	if t.p != nil {
+		t.p.Send(titleMsg(s))
+	}
+}
+
 // SetTotal sets the expected number of items.
 func (t *ProgressTracker) SetTotal(n int) {
 	t.mu.Lock()
 	t.total = n
 	t.mu.Unlock()
 	t.send("", "")
+}
+
+// Reset clears the current count, counters, and status text so the
+// tracker can be reused for a new phase within the same progress view.
+func (t *ProgressTracker) Reset(title string, total int) {
+	t.mu.Lock()
+	t.current = 0
+	t.total = total
+	t.counters = nil
+	t.mu.Unlock()
+	if t.p != nil {
+		t.p.Send(titleMsg(title))
+		t.p.Send(progressResetMsg{total: total})
+	}
 }
 
 // Advance increments the current count by 1 and sends a status update.
@@ -137,8 +164,18 @@ func (m runnerModel) Init() tea.Cmd {
 
 func (m runnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case titleMsg:
+		m.title = string(msg)
+		return m, nil
 	case statusMsg:
 		m.status = string(msg)
+		return m, nil
+	case progressResetMsg:
+		m.current = 0
+		m.total = msg.total
+		m.counters = nil
+		m.status = ""
+		m.lastEvent = ""
 		return m, nil
 	case progressUpdateMsg:
 		m.current = msg.current

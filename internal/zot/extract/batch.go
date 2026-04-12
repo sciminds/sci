@@ -122,7 +122,23 @@ type BatchInput struct {
 	// OnItemDone fires when an item's note is posted (or skipped/failed).
 	// Safe to be nil.
 	OnItemDone func(i int, outcome BatchOutcome)
+	// OnPhase fires when ExecuteBatch transitions between phases. The
+	// CLI uses this to update the progress bar title and total. Safe
+	// to be nil.
+	OnPhase func(phase BatchPhase, count int)
 }
+
+// BatchPhase identifies which stage ExecuteBatch is in.
+type BatchPhase int
+
+const (
+	// PhasePostCached — posting notes for previously-extracted cached items.
+	PhasePostCached BatchPhase = iota
+	// PhaseExtract — running docling on un-cached PDFs.
+	PhaseExtract
+	// PhasePostFresh — posting notes for newly-extracted items.
+	PhasePostFresh
+)
 
 // BatchOutcome is what ExecuteBatch produced for one item.
 type BatchOutcome struct {
@@ -168,9 +184,11 @@ func (r *BatchResult) Counts() (created, skipped, cached, failed int) {
 //
 // Flow:
 //  1. Partition items into: skip, cached (cache hit), extract (need docling).
-//  2. Call ExtractBatch once with all extract-needing PDF paths.
-//  3. Populate cache for each newly extracted item.
-//  4. Post notes for all create-action items (cached + freshly extracted).
+//  2. Post notes for cached items first (flushes prior runs to Zotero
+//     before starting new extraction work).
+//  3. Run docling in size-limited batches over un-cached PDFs, caching
+//     results as each batch completes.
+//  4. Post notes for freshly extracted items.
 func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	if in.Extractor == nil {
 		return nil, errors.New("batch: Extractor required")
@@ -231,7 +249,6 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 		// Check cache.
 		if _, ok := in.Cache.Get(item.Request.PDFKey, item.Hash); ok {
 			outcomes[i].FromCache = true
-			// Will post note in phase 3.
 			continue
 		}
 
@@ -240,10 +257,39 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 		pdfPaths = append(pdfPaths, item.Request.PDFPath)
 	}
 
-	// ── Phase 2: run docling over un-cached PDFs ──
-	// Jobs controls parallelism: split PDFs across N concurrent
-	// docling processes. Jobs=0 or 1 → single process.
+	// Count cached items for phase notification.
+	var nCached int
+	for i := range in.Items {
+		if outcomes[i].Action == ActionCreate && outcomes[i].FromCache {
+			nCached++
+		}
+	}
+
+	// ── Phase 2: post notes for cached items first ──
+	// Flushes prior extraction runs to Zotero before starting new
+	// docling work, so partial runs make incremental progress.
+	if nCached > 0 {
+		if in.OnPhase != nil {
+			in.OnPhase(PhasePostCached, nCached)
+		}
+		for i, item := range in.Items {
+			if outcomes[i].Err != nil || outcomes[i].Action != ActionCreate || !outcomes[i].FromCache {
+				continue
+			}
+			postNote(ctx, i, item, in, outcomes, result, tags, now)
+		}
+	}
+
+	// ── Phase 3: run docling over un-cached PDFs ──
+	// Docling hangs when given thousands of input files in a single
+	// invocation (it scans all inputs before starting extraction).
+	// We split into batches of maxDoclingBatch PDFs; each batch is a
+	// separate docling process that loads models and starts extracting
+	// immediately. Within each batch, Jobs controls parallelism.
 	if len(pdfPaths) > 0 {
+		if in.OnPhase != nil {
+			in.OnPhase(PhaseExtract, len(pdfPaths))
+		}
 		outputDir := in.OutputDir
 		if outputDir == "" {
 			tmp, err := os.MkdirTemp("", "sci-extract-batch-*")
@@ -254,157 +300,211 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 			outputDir = tmp
 		}
 
-		jobs := in.Jobs
-		if jobs < 1 {
-			jobs = 1
-		}
-		chunks := chunkByJobs(pdfPaths, jobs)
-
 		// Build a pdfPath→needExtract index for result matching.
 		pdfToIdx := make(map[string]int, len(pdfPaths))
 		for pi, idx := range needExtract {
 			pdfToIdx[pdfPaths[pi]] = idx
 		}
 
-		// Run chunks in parallel, one goroutine per docling process.
-		type chunkResult struct {
-			chunk []string
-			res   *BatchExtractResult
-			err   error
+		jobs := in.Jobs
+		if jobs < 1 {
+			jobs = 1
 		}
-		chunkResults := make([]chunkResult, len(chunks))
-		var wg sync.WaitGroup
-		for ci, chunk := range chunks {
-			ci, chunk := ci, chunk
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if ctx.Err() != nil {
-					chunkResults[ci] = chunkResult{chunk: chunk, err: ctx.Err()}
-					return
-				}
-				opts := in.ExtractOpts
-				// Each job gets its own output subdirectory to avoid
-				// filename collisions when parallel processes write
-				// results for different PDFs with the same stem.
-				jobDir := outputDir
-				if len(chunks) > 1 {
-					jobDir = filepath.Join(outputDir, fmt.Sprintf("job-%d", ci))
-				}
-				opts.OutputDir = jobDir
-				res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, in.OnProgress)
-				chunkResults[ci] = chunkResult{chunk: chunk, res: res, err: err}
-			}()
-		}
-		wg.Wait()
 
-		// Process results from all chunks.
-		for _, cr := range chunkResults {
-			if cr.err != nil {
+		// Split into size-limited batches, then apply jobs parallelism
+		// within each batch.
+		batches := chunkBySize(pdfPaths, maxDoclingBatch)
+		batchNum := 0
+		for _, batch := range batches {
+			if ctx.Err() != nil {
+				break
+			}
+			chunks := chunkByJobs(batch, jobs)
+
+			type chunkResult struct {
+				chunk []string
+				res   *BatchExtractResult
+				err   error
+			}
+			chunkResults := make([]chunkResult, len(chunks))
+			var wg sync.WaitGroup
+			for ci, chunk := range chunks {
+				ci, chunk := ci, chunk
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					if ctx.Err() != nil {
+						chunkResults[ci] = chunkResult{chunk: chunk, err: ctx.Err()}
+						return
+					}
+					opts := in.ExtractOpts
+					jobDir := filepath.Join(outputDir, fmt.Sprintf("batch-%d-job-%d", batchNum, ci))
+					opts.OutputDir = jobDir
+					res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, in.OnProgress)
+					chunkResults[ci] = chunkResult{chunk: chunk, res: res, err: err}
+				}()
+			}
+			wg.Wait()
+			batchNum++
+
+			// Process results from this batch's chunks.
+			for _, cr := range chunkResults {
+				if cr.err != nil {
+					for _, pdf := range cr.chunk {
+						idx := pdfToIdx[pdf]
+						outcomes[idx].Err = fmt.Errorf("batch extract: %w", cr.err)
+						if in.OnItemDone != nil {
+							in.OnItemDone(idx, outcomes[idx])
+						}
+					}
+					continue
+				}
+				if result.ToolVersion == "" {
+					result.ToolVersion = cr.res.ToolVersion
+				}
+
+				// Populate cache for successfully extracted items.
 				for _, pdf := range cr.chunk {
 					idx := pdfToIdx[pdf]
-					outcomes[idx].Err = fmt.Errorf("batch extract: %w", cr.err)
-					if in.OnItemDone != nil {
-						in.OnItemDone(idx, outcomes[idx])
+					item := in.Items[idx]
+					extRes, ok := cr.res.Results[pdf]
+					if !ok {
+						outcomes[idx].Err = fmt.Errorf("docling produced no output for %s", item.Request.PDFName)
+						if in.OnItemDone != nil {
+							in.OnItemDone(idx, outcomes[idx])
+						}
+						continue
 					}
-				}
-				continue
-			}
-			if result.ToolVersion == "" {
-				result.ToolVersion = cr.res.ToolVersion
-			}
-
-			// Populate cache for successfully extracted items in this chunk.
-			for _, pdf := range cr.chunk {
-				idx := pdfToIdx[pdf]
-				item := in.Items[idx]
-				extRes, ok := cr.res.Results[pdf]
-				if !ok {
-					outcomes[idx].Err = fmt.Errorf("docling produced no output for %s", item.Request.PDFName)
-					if in.OnItemDone != nil {
-						in.OnItemDone(idx, outcomes[idx])
+					md, err := os.ReadFile(extRes.MarkdownPath)
+					if err != nil {
+						outcomes[idx].Err = fmt.Errorf("read markdown for cache: %w", err)
+						if in.OnItemDone != nil {
+							in.OnItemDone(idx, outcomes[idx])
+						}
+						continue
 					}
-					continue
-				}
-				md, err := os.ReadFile(extRes.MarkdownPath)
-				if err != nil {
-					outcomes[idx].Err = fmt.Errorf("read markdown for cache: %w", err)
-					if in.OnItemDone != nil {
-						in.OnItemDone(idx, outcomes[idx])
+					if _, err := in.Cache.Put(item.Request.PDFKey, item.Hash, md); err != nil {
+						outcomes[idx].Err = fmt.Errorf("cache put: %w", err)
+						if in.OnItemDone != nil {
+							in.OnItemDone(idx, outcomes[idx])
+						}
+						continue
 					}
-					continue
-				}
-				if _, err := in.Cache.Put(item.Request.PDFKey, item.Hash, md); err != nil {
-					outcomes[idx].Err = fmt.Errorf("cache put: %w", err)
-					if in.OnItemDone != nil {
-						in.OnItemDone(idx, outcomes[idx])
-					}
-					continue
 				}
 			}
 		}
 	}
 
-	// ── Phase 3: post notes for all Create items (cached + fresh) ──
-	for i, item := range in.Items {
-		if outcomes[i].Err != nil || outcomes[i].Action != ActionCreate {
-			continue
+	// ── Phase 4: post notes for freshly extracted items ──
+	// Count how many fresh items need posting (no error, not from cache).
+	var nFresh int
+	for i := range in.Items {
+		if outcomes[i].Err == nil && outcomes[i].Action == ActionCreate && !outcomes[i].FromCache {
+			nFresh++
 		}
-
-		cachedPath, ok := in.Cache.Get(item.Request.PDFKey, item.Hash)
-		if !ok {
-			outcomes[i].Err = fmt.Errorf("expected cache entry for %s after extraction", item.Request.PDFName)
-			if in.OnItemDone != nil {
-				in.OnItemDone(i, outcomes[i])
+	}
+	if nFresh > 0 {
+		if in.OnPhase != nil {
+			in.OnPhase(PhasePostFresh, nFresh)
+		}
+		for i, item := range in.Items {
+			if outcomes[i].Err != nil || outcomes[i].Action != ActionCreate || outcomes[i].FromCache {
+				continue
 			}
-			continue
-		}
-
-		md, err := os.ReadFile(cachedPath)
-		if err != nil {
-			outcomes[i].Err = fmt.Errorf("read cached markdown: %w", err)
-			if in.OnItemDone != nil {
-				in.OnItemDone(i, outcomes[i])
-			}
-			continue
-		}
-
-		toolVersion := result.ToolVersion
-		if outcomes[i].FromCache {
-			toolVersion = "docling (cached)"
-		}
-
-		meta := NoteMeta{
-			ParentKey: item.Plan.Request.ParentKey,
-			PDFKey:    item.Plan.Request.PDFKey,
-			PDFName:   item.Plan.Request.PDFName,
-			DOI:       item.Plan.Request.DOI,
-			Source:    toolVersion,
-			Hash:      item.Plan.Request.PDFHash,
-			Generated: now(),
-		}
-		var body string
-		if in.RenderHTML {
-			body = MarkdownToNoteHTML(md, meta)
-		} else {
-			body = MarkdownToNoteRaw(md, meta)
-		}
-
-		key, err := in.Writer.CreateChildNote(ctx, item.Plan.Request.ParentKey, body, tags)
-		if err != nil {
-			outcomes[i].Err = fmt.Errorf("create note: %w", err)
-			if in.OnItemDone != nil {
-				in.OnItemDone(i, outcomes[i])
-			}
-			continue
-		}
-		outcomes[i].NoteKey = key
-		if in.OnItemDone != nil {
-			in.OnItemDone(i, outcomes[i])
+			postNote(ctx, i, item, in, outcomes, result, tags, now)
 		}
 	}
 
 	return result, nil
+}
+
+// postNote reads the cached markdown for a single item, renders the
+// note body, and posts it to Zotero via the writer. It updates
+// outcomes[i] in place and fires OnItemDone.
+func postNote(
+	ctx context.Context,
+	i int,
+	item BatchItem,
+	in BatchInput,
+	outcomes []BatchOutcome,
+	result *BatchResult,
+	tags []string,
+	now func() time.Time,
+) {
+	cachedPath, ok := in.Cache.Get(item.Request.PDFKey, item.Hash)
+	if !ok {
+		outcomes[i].Err = fmt.Errorf("expected cache entry for %s after extraction", item.Request.PDFName)
+		if in.OnItemDone != nil {
+			in.OnItemDone(i, outcomes[i])
+		}
+		return
+	}
+
+	md, err := os.ReadFile(cachedPath)
+	if err != nil {
+		outcomes[i].Err = fmt.Errorf("read cached markdown: %w", err)
+		if in.OnItemDone != nil {
+			in.OnItemDone(i, outcomes[i])
+		}
+		return
+	}
+
+	toolVersion := result.ToolVersion
+	if outcomes[i].FromCache {
+		toolVersion = "docling (cached)"
+	}
+
+	meta := NoteMeta{
+		ParentKey: item.Plan.Request.ParentKey,
+		PDFKey:    item.Plan.Request.PDFKey,
+		PDFName:   item.Plan.Request.PDFName,
+		DOI:       item.Plan.Request.DOI,
+		Source:    toolVersion,
+		Hash:      item.Plan.Request.PDFHash,
+		Generated: now(),
+	}
+	var body string
+	if in.RenderHTML {
+		body = MarkdownToNoteHTML(md, meta)
+	} else {
+		body = MarkdownToNoteRaw(md, meta)
+	}
+
+	key, err := in.Writer.CreateChildNote(ctx, item.Plan.Request.ParentKey, body, tags)
+	if err != nil {
+		outcomes[i].Err = fmt.Errorf("create note: %w", err)
+		if in.OnItemDone != nil {
+			in.OnItemDone(i, outcomes[i])
+		}
+		return
+	}
+	outcomes[i].NoteKey = key
+	if in.OnItemDone != nil {
+		in.OnItemDone(i, outcomes[i])
+	}
+}
+
+// maxDoclingBatch is the maximum number of PDFs passed to a single
+// docling invocation. Docling scans all inputs before starting
+// extraction, so passing thousands of files causes it to appear hung.
+// 50 keeps startup fast (~seconds) while amortising model load time
+// across a reasonable number of documents.
+const maxDoclingBatch = 50
+
+// chunkBySize splits s into chunks of at most n elements.
+func chunkBySize(s []string, n int) [][]string {
+	if n <= 0 || len(s) == 0 {
+		return [][]string{s}
+	}
+	var chunks [][]string
+	for i := 0; i < len(s); i += n {
+		end := i + n
+		if end > len(s) {
+			end = len(s)
+		}
+		chunks = append(chunks, s[i:end])
+	}
+	return chunks
 }
 
 // chunkByJobs splits s into exactly `jobs` roughly-equal chunks.
