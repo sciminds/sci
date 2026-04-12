@@ -126,7 +126,9 @@ func (t *ProgressTracker) send(event, status string) {
 		msg.lastEvent = event
 	}
 	t.mu.Unlock()
-	t.p.Send(msg)
+	if t.p != nil {
+		t.p.Send(msg)
+	}
 }
 
 // ── Model ───────────────────────────────────────────────────────────────────
