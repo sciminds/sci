@@ -1,18 +1,12 @@
 rules:
-  # ── no-manual-map ──────────────────────────────────────────────────────────
-  # A make([]T, len(src)) followed by a for-range that assigns dst[i] = expr
-  # is a hand-rolled Map. Use lo.Map instead.
+  # ── no-manual-map (44 hits) ────────────────────────────────────────────────
+  # make([]T, len(src)) + for-range index-assignment → lo.Map
   #
   # Before:
   #   names := make([]string, len(entries))
-  #   for i, e := range entries {
-  #       names[i] = e.Name
-  #   }
-  #
+  #   for i, e := range entries { names[i] = e.Name }
   # After:
   #   names := lo.Map(entries, func(e Entry, _ int) string { return e.Name })
-  #
-  # Suppress with a `// nosemgrep: no-manual-map` comment.
   - id: no-manual-map
     patterns:
       - pattern: |
@@ -22,6 +16,131 @@ rules:
           }
     message: >-
       Use lo.Map($SRC, func(...) $TYPE { ... }) instead of make+range loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-filter (8 hits) ──────────────────────────────────────────────
+  # for _, x := range src { if cond { out = append(out, x) } } → lo.Filter
+  - id: no-manual-filter
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              if $COND {
+                  $DST = append($DST, $V)
+              }
+          }
+    message: >-
+      Use lo.Filter($SRC, func($V T, _ int) bool { ... }) instead of
+      manual filter loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-keyby (21 hits total) ────────────────────────────────────────
+  # make(map[K]V) + for-range assignment → lo.KeyBy or lo.SliceToMap
+  - id: no-manual-keyby
+    patterns:
+      - pattern: |
+          $DST := make(map[$K]$V)
+          for _, $ITEM := range $SRC {
+              $DST[$KEY] = $VAL
+          }
+    message: >-
+      Use lo.KeyBy or lo.SliceToMap instead of make(map)+range loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  - id: no-manual-keyby-len
+    patterns:
+      - pattern: |
+          $DST := make(map[$K]$V, len($SRC))
+          for _, $ITEM := range $SRC {
+              $DST[$KEY] = $VAL
+          }
+    message: >-
+      Use lo.KeyBy or lo.SliceToMap instead of make(map, len)+range loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-find (5 hits) ────────────────────────────────────────────────
+  # for _, x := range src { if cond { return x, ... } } → lo.Find
+  - id: no-manual-find
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              if $COND {
+                  return $V, $REST
+              }
+          }
+    message: >-
+      Use lo.Find($SRC, func($V T, _ int) bool { ... }) instead of
+      manual find loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-countby (5 hits) ─────────────────────────────────────────────
+  # count := 0; for _, x := range src { if cond { count++ } } → lo.CountBy
+  - id: no-manual-countby
+    patterns:
+      - pattern: |
+          $COUNT := 0
+          for _, $V := range $SRC {
+              if $COND {
+                  $COUNT++
+              }
+          }
+    message: >-
+      Use lo.CountBy($SRC, func($V T, _ int) bool { ... }) instead of
+      manual count loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-contains (3 hits) ────────────────────────────────────────────
+  # for _, x := range src { if x == target { return true } }; return false
+  # → slices.Contains
+  - id: no-manual-contains
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              if $V == $TARGET {
+                  return true
+              }
+          }
+          return false
+    message: >-
+      Use slices.Contains($SRC, $TARGET) instead of manual contains loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-sum (3 hits) ─────────────────────────────────────────────────
+  # acc := 0; for _, x := range src { acc += expr } → lo.SumBy or lo.Reduce
+  - id: no-manual-sum
+    patterns:
+      - pattern: |
+          $ACC := 0
+          for _, $V := range $SRC {
+              $ACC += $EXPR
+          }
+    message: >-
+      Use lo.SumBy or lo.Reduce instead of manual sum loop.
+      See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-groupby (2 hits) ─────────────────────────────────────────────
+  # make(map[K][]V) + for-range append → lo.GroupBy
+  - id: no-manual-groupby
+    patterns:
+      - pattern: |
+          $DST := make(map[$K][]$V)
+          for _, $ITEM := range $SRC {
+              $DST[$KEY] = append($DST[$KEY], $VAL)
+          }
+    message: >-
+      Use lo.GroupBy($SRC, func(...) $K { ... }) instead of manual group loop.
       See CLAUDE.md "Modern Go style".
     severity: WARNING
     languages: [go]
