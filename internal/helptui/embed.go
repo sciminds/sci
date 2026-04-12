@@ -1,6 +1,9 @@
 package helptui
 
-import "embed"
+import (
+	"embed"
+	"io/fs"
+)
 
 //go:embed casts
 var castFS embed.FS
@@ -12,6 +15,6 @@ func loadCast(name string) ([]byte, error) {
 
 // hasCast reports whether a cast file exists in the embedded filesystem.
 func hasCast(name string) bool {
-	_, err := castFS.Open("casts/" + name)
+	_, err := fs.Stat(castFS, "casts/"+name)
 	return err == nil
 }
