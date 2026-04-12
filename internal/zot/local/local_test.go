@@ -128,6 +128,65 @@ func TestSearch_DOIMatch(t *testing.T) {
 	}
 }
 
+func TestSearch_CreatorMatch(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// "Smith" authors items 10 (AAAA1111) and 30 (CCCC3333).
+	items, err := db.Search("smith", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, it := range items {
+		got[it.Key] = true
+	}
+	if !got["AAAA1111"] || !got["CCCC3333"] || len(items) != 2 {
+		t.Errorf("creator search = %v, want AAAA1111+CCCC3333", keysOf(items))
+	}
+}
+
+func TestSearch_SingleNameCreatorMatch(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// Single-name creator (fieldMode=1) "NASA" on BBBB2222.
+	items, err := db.Search("nasa", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Key != "BBBB2222" {
+		t.Errorf("single-name search = %v, want BBBB2222", keysOf(items))
+	}
+}
+
+func TestSearch_Smartcase(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// All-lowercase query → case-insensitive: matches "Neuroimaging" in title.
+	items, err := db.Search("neuroimaging", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Key != "AAAA1111" {
+		t.Errorf("lowercase smartcase = %v, want AAAA1111", keysOf(items))
+	}
+	// Mixed-case query → case-sensitive: "Smith" exists, matches.
+	items, err = db.Search("Smith", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Errorf("mixed-case smartcase = %v, want 2 hits", keysOf(items))
+	}
+	// All-uppercase query → case-sensitive: no "SMITH" in fixture.
+	items, err = db.Search("SMITH", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 0 {
+		t.Errorf("uppercase smartcase = %v, want 0", keysOf(items))
+	}
+}
+
 func TestSearch_NoResults(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)

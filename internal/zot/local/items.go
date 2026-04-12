@@ -297,30 +297,51 @@ func inClause(ids []int64) (string, []any) {
 	return strings.Join(ph, ","), args
 }
 
-// Search returns items whose title, DOI, or publication contains the query
-// (case-insensitive LIKE). Title matches rank above DOI/publication matches.
-// Zotero has no FTS index on EAV metadata — this is a table scan.
+// Search returns items whose title, DOI, publication, or creator name
+// contains the query as a substring. Title matches rank above the rest.
+// Smartcase: an all-lowercase query matches case-insensitively; any uppercase
+// rune flips the match to case-sensitive (so "Smith" excludes "smith" but
+// "smith" still finds "Smith"). Zotero has no FTS on EAV metadata — table scan.
 func (d *DB) Search(query string, limit int) ([]Item, error) {
 	if limit == 0 {
 		limit = 50
 	}
-	like := "%" + strings.ToLower(query) + "%"
+	needle := query
+	titleCol, doiCol, pubCol := "title", "doi", "pub"
+	creatorCol := "(c.firstName || ' ' || c.lastName)"
+	if query == strings.ToLower(query) {
+		needle = strings.ToLower(query)
+		titleCol = "lower(title)"
+		doiCol = "lower(doi)"
+		pubCol = "lower(pub)"
+		creatorCol = "lower(c.firstName || ' ' || c.lastName)"
+	}
 
 	// Use a CTE so we can reference the pulled title/doi/pub columns in the
-	// outer WHERE/ORDER BY.
+	// outer WHERE/ORDER BY. instr(...) > 0 is substring containment that
+	// honors the case of the haystack expression — unlike LIKE, which folds
+	// ASCII case unconditionally and would defeat smartcase.
 	q := `
 WITH base AS (` + baseSelect() + `
 	WHERE i.libraryID = ? AND di.itemID IS NULL ` + contentItemTypeFilter + `
 )
-SELECT * FROM base
-WHERE lower(title) LIKE ? OR lower(doi) LIKE ? OR lower(pub) LIKE ?
+SELECT b.* FROM base b
+WHERE instr(` + titleCol + `, ?) > 0
+   OR instr(` + doiCol + `, ?) > 0
+   OR instr(` + pubCol + `, ?) > 0
+   OR EXISTS (
+        SELECT 1 FROM itemCreators ic
+        JOIN creators c ON ic.creatorID = c.creatorID
+        WHERE ic.itemID = b.itemID
+          AND instr(` + creatorCol + `, ?) > 0
+   )
 ORDER BY
-	CASE WHEN lower(title) LIKE ? THEN 0 ELSE 1 END,
+	CASE WHEN instr(` + titleCol + `, ?) > 0 THEN 0 ELSE 1 END,
 	dateAdded DESC
 LIMIT ?
 `
 	args := listArgs()
-	args = append(args, d.libraryID, like, like, like, like, limit)
+	args = append(args, d.libraryID, needle, needle, needle, needle, needle, limit)
 
 	rows, err := d.db.Query(q, args...)
 	if err != nil {
