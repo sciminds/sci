@@ -6,15 +6,10 @@ For type definitions, file layout, and the full op list, read the source — `do
 
 **Before writing any slice/map/set transforms, invoke the `lo` skill** to pick the right `lo` or stdlib function. See root `CLAUDE.md` § Modern Go style.
 
-## Why the design works
+## Core invariants
 
-State is reconstructed by `LIST events/`, sorting by ID, and folding via the pure `Apply` function. Concurrent edits by different clients converge without conflict resolution code because:
-
-1. **Globally unique event IDs** — `newEventID` returns `{unix-nanos zero-padded 19 digits}-{16 hex chars from crypto/rand}`. No client ever collides with another.
-2. **Lex-sortable IDs == time-sortable.** Sorting by ID = sorting by wall clock (modulo skew). This is what makes `Apply` deterministic across clients. `TestApplyDeterminism` shuffles fixture events 20× and asserts byte-identical output — that property is load-bearing.
-3. **Granular ops.** `card.patch` is per-field, so disjoint field edits both survive. Same-field collisions resolve last-writer-wins via ULID order.
-
-Chosen over single-file JSON + CAS and over a real DB to keep the substrate trivial (R2 PUT/GET/LIST). Original plan in commit `8152697`.
+1. **Event IDs are globally unique and lex-sortable** (`{unix-nanos 19d}-{16 hex}`). Sorting by ID == sorting by wall clock. `TestApplyDeterminism` asserts this property.
+2. **`card.patch` is per-field** — disjoint field edits both survive; same-field = last-writer-wins by ID order.
 
 ## R2 key layout (load-bearing — wrong here = data corruption)
 
@@ -51,10 +46,6 @@ boards/{id}/events/{eventID}.json     ← one Event per file
 `Store` depends on a 5-method `ObjectStore` interface. Production uses `CloudAdapter`, which wraps `*cloud.Client` and talks to `client.S3` directly.
 
 `cloud.Client.Upload`/`Download`/`Delete`/`ListPrefix` auto-prepend `{username}/` to the key via `objectKey`. That's correct for `sci cloud put` but wrong for shared board data — every user would write into a different namespace and never see each other's events. **Always go through `CloudAdapter`** for board ops.
-
-## Auth migration
-
-`cloud.LoadConfig` backfills `cfg.Board` from `cfg.Public` when only the legacy block is present. R2 tokens are account-scoped, so the same keys work for both buckets. Existing users get the board feature transparently — no re-auth. See `TestLoadConfig_LegacyMigration`. Bucket name hardcoded as `defaultBoardBucket = "sci-board"` in `internal/cloud/auth.go`, matching the worker's `BOARD_BUCKET_NAME` env var.
 
 ## Card positions
 

@@ -27,9 +27,8 @@ lint-style:
 lint-guard:
     ./scripts/lint-guard.sh
 
-# Check interactive ↔ non-interactive parity (runs full lint-guard).
-scriptable:
-    ./scripts/lint-guard.sh
+# Check interactive ↔ non-interactive parity (alias for lint-guard).
+scriptable: lint-guard
 
 vet:
     go vet ./internal/... ./cmd/...

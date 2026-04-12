@@ -31,23 +31,9 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 
 ## Modern Go style
 
-Collaborators come from Python/JS backgrounds. Prefer expressive, low-boilerplate Go over verbose manual loops.
-
-- **`samber/lo` for transforms.** Use `lo.Map`, `lo.Filter`, `lo.FilterMap`, `lo.Find`, `lo.Reduce`, `lo.GroupBy`, `lo.KeyBy`, `lo.FlatMap`, `lo.Uniq`/`lo.UniqBy`, `lo.Contains`, `lo.SliceToMap`, `lo.Intersect`, `lo.Difference`, etc. instead of hand-rolled `for`+`append` loops. Go's stdlib lacks generic Map/Filter/GroupBy — `lo` fills that gap and reads like the Python/JS equivalents collaborators already know.
-- **Additional `lo` helpers to prefer over manual loops:**
-  - **Chunking:** `lo.Chunk(slice, n)` — replaces `for i := 0; i < len(s); i += n` step-loops.
-  - **Reject:** `lo.Reject` — inverse of Filter (negated condition). Replaces `if !cond { append }`.
-  - **Set building:** `lo.Keyify(slice)` → `map[T]struct{}`. Replaces `m := map[T]bool{}; for { m[v]=true }`.
-  - **Flatten:** `lo.Flatten(nested)` — replaces `for { out = append(out, sub...) }`.
-  - **Compact:** `lo.Compact(slice)` — removes zero-value elements (empty strings, nils, 0s).
-  - **CountValues:** `lo.CountValues(slice)` — frequency map. Replaces `m[v]++` loops.
-  - **`*Err` variants:** `lo.MapErr`, `lo.FilterErr`, `lo.ReduceErr`, `lo.GroupByErr`, etc. — callbacks return `(T, error)` and short-circuit on first error. Use when transforms touch I/O.
-  - **Ternary:** `lo.Ternary(cond, a, b)` — for simple one-liner `if/else` value assignments.
-- **stdlib `slices`/`maps`/`cmp` when they suffice.** Use `slices.Sort`, `slices.SortFunc`, `slices.Clone`, `slices.Concat`, `slices.Contains`, `slices.Sorted(maps.Keys(m))`, `bytes.Clone`, `cmp.Compare`, `cmp.Or`. These cover sorting, cloning, and simple lookups without an external dep. Use `maps.Copy(dst, src)` instead of manual map-merge loops.
-- **No legacy `sort` package.** `sort.Strings`, `sort.Slice`, `sort.SliceStable`, `sort.Search` are banned by lint-guard rule 9. Use `slices.Sort` / `slices.SortFunc` / `slices.SortStableFunc` / `slices.BinarySearch` instead.
-- **Rule of thumb:** if stdlib has it, use stdlib. If it doesn't (Map, Filter, GroupBy, KeyBy, Find, Reduce, Chunk, set ops), use `lo`. Never hand-roll what either provides.
-- **Semgrep enforces this.** `.semgrep/go-modern.yml` has 20 rules (136 current hits) that flag manual loops replaceable by `lo` or stdlib. Run via `just lint-style`. When adding new code, prefer `lo`/stdlib from the start — don't create new semgrep debt.
-- **`lo` skill is required.** Before writing any code that transforms slices, maps, or sets, **invoke the `lo` skill** to look up the right function. The skill includes a decision framework, Python/JS → Go translations, and `*Err` variant tables. Don't guess from memory — consult the skill.
+- **`samber/lo` for transforms, stdlib when it suffices.** Never hand-roll `for`+`append` when `lo` or `slices`/`maps`/`cmp` provides it. **Invoke the `lo` skill** before writing any slice/map/set transform — it has the full function catalog, decision framework, and `*Err` variant tables.
+- **No legacy `sort` package.** Banned by lint-guard rule 9. Use `slices.Sort` / `slices.SortFunc` / `slices.SortStableFunc` / `slices.BinarySearch`.
+- **Semgrep enforces this.** `.semgrep/go-modern.yml` flags manual loops replaceable by `lo` or stdlib. Run via `just lint-style`. Don't create new semgrep debt.
 
 ## Cross-cutting design rules
 
@@ -56,14 +42,7 @@ Collaborators come from Python/JS backgrounds. Prefer expressive, low-boilerplat
 - **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/`, `internal/markdb/`, `internal/zot/local/`, `internal/board/` LocalCache. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
 - **Bubbletea v2 + bubbles v2** everywhere. No v1 imports.
 - **No inline `lipgloss.NewStyle()`** outside `internal/ui/` or `internal/tui/*/ui/`. Access via the `ui.TUI` singleton. `huh` forms use `ui.HuhTheme()` + `ui.HuhKeyMap()`.
-- **`kit` first for TUI components.** `internal/tui/kit/` provides pre-styled, low-boilerplate primitives that sit on top of Bubbletea. Prefer kit over hand-wiring bubbles directly:
-  - **Filterable lists →** `kit.NewListPicker(title, kit.Items(slice), hints…)` — replaces the 10-line `list.New` + delegate + styling + filtering-enable boilerplate. Use `lp.IsFiltering()` instead of `FilterState() != list.Filtering`.
-  - **Modal overlays →** `kit.OverlayBox{Title, Body, Hints}.Render(termW)` — replaces manual HeaderSection + HeaderHint + OverlayBox assembly. Use for simple title+body+hints overlays; keep manual rendering only when the footer has conditional/mixed-style content.
-  - **Async tea.Cmd →** `kit.AsyncCmd(fn)` / `kit.AsyncCmdCtx(ctx, timeout, fn)` returning `kit.Result[T]` — replaces the repeated `func() tea.Msg { ctx, cancel := …; defer cancel(); … }` pattern. Type-switch on `kit.Result[ConcreteType]` in Update.
-  - **Screen routing →** `kit.Screen` / `kit.Router` — dispatch table replacing switch-on-screen in View/Update/Keys.
-  - **Chrome layout →** `kit.Chrome{Title, Status, Body}.Render(w, h)` — three-part vertical layout with automatic height math.
-  - **2-D cursor →** `kit.Grid2D` — reusable cursor with move/clamp/wrap for grids.
-  - **When to extend kit:** if a Bubbletea pattern appears in ≥ 2 TUIs (or is clearly headed that way), abstract it into kit rather than copy-pasting. Kit types should be plain structs testable without teatest; they compose inside a Bubbletea Model but don't replace it.
+- **`kit` first for TUI components.** Read `internal/tui/kit/README.md` for the full primitive catalog (ListPicker, OverlayBox, AsyncCmd, Screen/Router, Chrome, Grid2D). Prefer kit over hand-wiring bubbles directly. Extend kit when a pattern appears in ≥ 2 TUIs.
 - **Process-replacing exec** (REPL, marimo, quarto) via `syscall.Exec`, not `exec.Command`. Export `Build*Args` helpers for tests.
 - **Reuse shared infra** (`cmdutil`, `ui`, `kit`, `netutil`) — don't re-implement spinners, confirms, lists, or styling per-package.
 - **New TUI apps** go under `internal/tui/<name>/` and follow the dbtui split (`app/`, `ui/`, root-pkg `Run` entry).
@@ -75,10 +54,6 @@ Collaborators come from Python/JS backgrounds. Prefer expressive, low-boilerplat
 - DB mutations verified by querying the store directly, not by inspecting model state.
 - No `time.Sleep` in tests — use `teatest.WaitFor`.
 - Golden file updates: `go test ./path -run TestName -update` (only place raw `go test` is acceptable; the `-update` flag isn't wired through `just`).
-
-## Audience
-
-Collaborators are beginner/intermediate Go devs — keep code clear, avoid clever patterns, don't sacrifice efficiency for pedagogy.
 
 ## Gotchas
 
