@@ -16,29 +16,166 @@ func sortCardsByPosition(cards []engine.Card) {
 	})
 }
 
+// gridLayout describes which columns are visible and how wide each is.
+// Computed once per render by computeGridLayout.
+type gridLayout struct {
+	start, end int   // visible column range [start, end)
+	colWidth   []int // per-column width (len == total columns)
+	windowed   bool  // true when horizontal scrolling is active
+	leftArrow  bool  // render ‹ in left gutter
+	rightArrow bool  // render › in right gutter
+}
+
+// computeGridLayout decides between stretch mode (all columns fit at
+// MinColumnWidth) and windowed mode (fixed-width columns, horizontally
+// scrolled from m.gridScroll). Collapsed columns always take
+// CollapsedColumnWidth regardless of mode.
+func (m *Model) computeGridLayout(width int) gridLayout {
+	n := len(m.current.Columns)
+	if n == 0 {
+		return gridLayout{}
+	}
+	widths := make([]int, n)
+	gaps := (n - 1) * ui.ColumnGap
+
+	minSum := gaps
+	expCount := 0
+	for _, col := range m.current.Columns {
+		if m.collapsed[col.ID] {
+			minSum += ui.CollapsedColumnWidth
+		} else {
+			minSum += ui.MinColumnWidth
+			expCount++
+		}
+	}
+
+	if minSum <= width {
+		// Stretch mode: distribute any extra width across expanded columns
+		// up to ColumnWidth each.
+		extra := width - minSum
+		perExp := 0
+		if expCount > 0 {
+			perExp = extra / expCount
+			if cap := ui.ColumnWidth - ui.MinColumnWidth; perExp > cap {
+				perExp = cap
+			}
+		}
+		for i, col := range m.current.Columns {
+			if m.collapsed[col.ID] {
+				widths[i] = ui.CollapsedColumnWidth
+			} else {
+				widths[i] = ui.MinColumnWidth + perExp
+			}
+		}
+		return gridLayout{start: 0, end: n, colWidth: widths}
+	}
+
+	// Windowed mode: fixed widths, walk forward from gridScroll until
+	// the budget is exhausted. Two cells reserved for arrow gutters.
+	for i, col := range m.current.Columns {
+		if m.collapsed[col.ID] {
+			widths[i] = ui.CollapsedColumnWidth
+		} else {
+			widths[i] = ui.ColumnWidth
+		}
+	}
+
+	start := m.gridScroll
+	if start < 0 {
+		start = 0
+	}
+	if start > n-1 {
+		start = n - 1
+	}
+
+	budget := width - 2*ui.ScrollGutter
+	if budget < widths[start] {
+		budget = widths[start] // always render at least one column
+	}
+
+	end := start
+	used := 0
+	for end < n {
+		add := widths[end]
+		if end > start {
+			add += ui.ColumnGap
+		}
+		if used+add > budget && end > start {
+			break
+		}
+		used += add
+		end++
+	}
+
+	return gridLayout{
+		start:      start,
+		end:        end,
+		colWidth:   widths,
+		windowed:   true,
+		leftArrow:  start > 0,
+		rightArrow: end < n,
+	}
+}
+
+// visibleColumnRange reports the [start, end) range of visible columns at
+// the given total body width.
+func (m *Model) visibleColumnRange(width int) (start, end int) {
+	l := m.computeGridLayout(width)
+	return l.start, l.end
+}
+
+// ensureCursorVisible adjusts m.gridScroll so m.cur.col lands inside the
+// visible window at the given width. Called after any h/l navigation.
+func (m *Model) ensureCursorVisible(width int) {
+	n := len(m.current.Columns)
+	if n == 0 || m.cur.col < 0 || m.cur.col >= n {
+		return
+	}
+	start, end := m.visibleColumnRange(width)
+	if m.cur.col < start {
+		m.gridScroll = m.cur.col
+		return
+	}
+	// Advance gridScroll one column at a time until cursor is visible.
+	guard := n
+	for m.cur.col >= end && m.gridScroll < n-1 && guard > 0 {
+		m.gridScroll++
+		_, end = m.visibleColumnRange(width)
+		guard--
+	}
+}
+
+// toggleCollapseCurrent toggles collapse state for the column under the
+// cursor. View-only — not persisted to the event log.
+func (m *Model) toggleCollapseCurrent() {
+	if m.cur.col < 0 || m.cur.col >= len(m.current.Columns) {
+		return
+	}
+	id := m.current.Columns[m.cur.col].ID
+	if m.collapsed == nil {
+		m.collapsed = map[string]bool{}
+	}
+	if m.collapsed[id] {
+		delete(m.collapsed, id)
+	} else {
+		m.collapsed[id] = true
+	}
+}
+
+// expandAll clears the collapse map so every column renders in full.
+func (m *Model) expandAll() {
+	m.collapsed = map[string]bool{}
+}
+
 // viewGrid renders the kanban grid: columns side-by-side, each a bordered
 // frame containing its cards. Focused column / card are highlighted.
+// Supports horizontal scrolling and per-column collapse.
 func (m *Model) viewGrid(width, height int) string {
 	if len(m.current.Columns) == 0 {
 		return m.styles.Help.Render("  empty board — no columns yet")
 	}
 
-	// Compute per-column width: distribute available width evenly,
-	// clamped to ColumnWidth * 1.3 max so they don't stretch absurdly.
-	nCols := len(m.current.Columns)
-	gapsTotal := ui.ColumnGap * (nCols - 1)
-	avail := width - gapsTotal
-	if avail < nCols*8 {
-		avail = nCols * 8
-	}
-	colW := avail / nCols
-	maxW := ui.ColumnWidth + ui.ColumnWidth/3
-	if colW > maxW {
-		colW = maxW
-	}
-	if colW < 10 {
-		colW = 10
-	}
+	layout := m.computeGridLayout(width)
 
 	// Interior height for each column: subtract 2 for frame top/bottom borders.
 	interiorH := height - 2
@@ -47,28 +184,98 @@ func (m *Model) viewGrid(width, height int) string {
 	}
 
 	byCol := m.cardsByColumn()
-	rendered := make([]string, nCols)
-	for i, col := range m.current.Columns {
-		rendered[i] = m.renderColumn(col, byCol[col.ID], i, colW, interiorH)
+
+	var parts []string
+	if layout.windowed {
+		parts = append(parts, m.renderScrollGutter(layout.leftArrow, "‹", interiorH))
 	}
 
-	gap := strings.Repeat(" ", ui.ColumnGap)
-	return lipgloss.JoinHorizontal(lipgloss.Top, joinWithGap(rendered, gap)...)
+	for i := layout.start; i < layout.end; i++ {
+		col := m.current.Columns[i]
+		w := layout.colWidth[i]
+		var rendered string
+		if m.collapsed[col.ID] {
+			rendered = m.renderCollapsedColumn(col, len(byCol[col.ID]), i, w, interiorH)
+		} else {
+			rendered = m.renderColumn(col, byCol[col.ID], i, w, interiorH)
+		}
+		parts = append(parts, rendered)
+		if i < layout.end-1 {
+			parts = append(parts, strings.Repeat(" ", ui.ColumnGap))
+		}
+	}
+
+	if layout.windowed {
+		parts = append(parts, m.renderScrollGutter(layout.rightArrow, "›", interiorH))
+	}
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 }
 
-// joinWithGap interleaves a spacer between each rendered column.
-func joinWithGap(parts []string, gap string) []string {
-	if len(parts) <= 1 {
-		return parts
+// renderScrollGutter produces a ScrollGutter-wide column of text. When
+// `show` is true the arrow glyph appears on the middle row, otherwise the
+// gutter is blank. Height matches the interior column height + 2 borders
+// so lipgloss.JoinHorizontal aligns correctly.
+func (m *Model) renderScrollGutter(show bool, glyph string, interiorH int) string {
+	total := interiorH + 2
+	rows := make([]string, total)
+	for i := range rows {
+		rows[i] = " "
 	}
-	out := make([]string, 0, len(parts)*2-1)
-	for i, p := range parts {
-		if i > 0 {
-			out = append(out, gap)
-		}
-		out = append(out, p)
+	if show {
+		rows[total/2] = m.styles.ScrollIndicator.Render(glyph)
 	}
-	return out
+	return strings.Join(rows, "\n")
+}
+
+// renderCollapsedColumn draws a narrow bordered strip showing an
+// abbreviated column title and card count — the hidden-column
+// counterpart to renderColumn.
+func (m *Model) renderCollapsedColumn(col engine.Column, count, colIdx, width, height int) string {
+	focus := colIdx == m.cur.col
+	frame := m.styles.ColumnCollapsed
+	if focus {
+		frame = m.styles.ColumnFocus
+	}
+
+	innerW := width - 4 // 2 border + 2 horizontal padding
+	if innerW < 1 {
+		innerW = 1
+	}
+
+	abbr := strings.ToUpper(col.Title)
+	if r := []rune(abbr); len(r) > innerW {
+		abbr = string(r[:innerW])
+	}
+	countStr := fmt.Sprintf("%d", count)
+	if lipgloss.Width(countStr) > innerW {
+		countStr = truncate(countStr, innerW)
+	}
+
+	body := []string{
+		m.styles.ColumnTitle.Render(centerPad(abbr, innerW)),
+		"",
+		m.styles.ColumnCount.Render(centerPad(countStr, innerW)),
+	}
+	for len(body) < height {
+		body = append(body, "")
+	}
+	if len(body) > height {
+		body = body[:height]
+	}
+
+	return frame.Width(width).Render(strings.Join(body, "\n"))
+}
+
+// centerPad pads s with spaces so its visible width equals w, centered.
+func centerPad(s string, w int) string {
+	diff := w - lipgloss.Width(s)
+	if diff <= 0 {
+		return s
+	}
+	left := diff / 2
+	right := diff - left
+	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
 }
 
 func (m *Model) renderColumn(col engine.Column, cards []engine.Card, colIdx, width, height int) string {

@@ -22,9 +22,12 @@ type Model struct {
 	pickerCursor int
 
 	// Grid / Detail
-	current  engine.Board // folded state of the currently-open board
-	cur      cursor
-	lastSeen string // last event ID seen (for Poll)
+	current        engine.Board // folded state of the currently-open board
+	cur            cursor
+	lastSeen       string          // last event ID seen (for Poll)
+	gridScroll     int             // leftmost visible column in windowed mode
+	collapsed      map[string]bool // column IDs currently rendered as collapsed strips
+	initialGridCol int             // cursor column to apply when initialBoard first loads
 
 	// ── Layout ───────────────────────────────────────────
 	width  int
@@ -36,23 +39,30 @@ type Model struct {
 // fast-paths into that board's grid view on first render.
 func NewModel(store *engine.Store, initialBoard string) *Model {
 	return &Model{
-		store:        store,
-		initialBoard: initialBoard,
-		screen:       screenPicker,
-		styles:       ui.TUI,
-		cur:          cursor{col: 0, card: -1},
+		store:          store,
+		initialBoard:   initialBoard,
+		screen:         screenPicker,
+		styles:         ui.TUI,
+		cur:            cursor{col: 0, card: -1},
+		collapsed:      map[string]bool{},
+		initialGridCol: -1,
 	}
 }
 
-// Init fires the initial commands: list boards (always) and, if
-// initialBoard is set, kick off a load for it so the grid pops up as
-// soon as it's ready.
+// SetInitialGridCursor places the grid cursor on the given column the
+// first time the initialBoard loads. Used by callers that want to open a
+// specific column in view (e.g. the calendar demo opening on the current
+// month). No effect on subsequent board loads.
+func (m *Model) SetInitialGridCursor(col int) {
+	m.initialGridCol = col
+}
+
+// Init fires listBoards first; if initialBoard is set, the boardsLoaded
+// handler chains a loadBoardCmd once the board list is in hand. That
+// ordering guarantees m.boards is populated before the grid screen
+// renders — which matters for tab cycling between boards.
 func (m *Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{listBoardsCmd(m.store)}
-	if m.initialBoard != "" {
-		cmds = append(cmds, loadBoardCmd(m.store, m.initialBoard))
-	}
-	return tea.Batch(cmds...)
+	return listBoardsCmd(m.store)
 }
 
 // ── Small helpers ───────────────────────────────────────────────────────

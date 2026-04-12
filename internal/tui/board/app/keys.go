@@ -73,6 +73,7 @@ func (m *Model) handleGridKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if m.cur.card >= n {
 				m.cur.card = n - 1
 			}
+			m.ensureCursorVisible(m.width)
 		}
 	case "l", "right":
 		if m.cur.col < len(cols)-1 {
@@ -81,14 +82,33 @@ func (m *Model) handleGridKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if m.cur.card >= n {
 				m.cur.card = n - 1
 			}
+			m.ensureCursorVisible(m.width)
 		}
 	case "j", "down":
-		if m.cur.card < len(curCards)-1 {
-			m.cur.card++
+		if n := len(curCards); n > 0 {
+			m.cur.card = (m.cur.card + 1) % n
 		}
 	case "k", "up":
-		if m.cur.card > 0 {
-			m.cur.card--
+		if n := len(curCards); n > 0 {
+			// cur.card may be -1 (unfocused) — normalize before wrapping.
+			prev := m.cur.card - 1
+			if m.cur.card <= 0 {
+				prev = n - 1
+			}
+			m.cur.card = prev
+		}
+	case "c":
+		m.toggleCollapseCurrent()
+		m.ensureCursorVisible(m.width)
+	case "C":
+		m.expandAll()
+	case "tab":
+		if next := m.siblingBoardID(+1); next != "" {
+			return m, loadBoardCmd(m.store, next)
+		}
+	case "shift+tab":
+		if prev := m.siblingBoardID(-1); prev != "" {
+			return m, loadBoardCmd(m.store, prev)
 		}
 	case "enter":
 		if m.focusedCard() != nil {
@@ -100,6 +120,28 @@ func (m *Model) handleGridKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.screen = screenPicker
 	}
 	return m, nil
+}
+
+// siblingBoardID returns the board ID offset from m.current.ID in
+// m.boards (wrapping at both ends). Returns "" if there are fewer than
+// two boards or the current board isn't in the list.
+func (m *Model) siblingBoardID(delta int) string {
+	n := len(m.boards)
+	if n < 2 {
+		return ""
+	}
+	idx := -1
+	for i, id := range m.boards {
+		if id == m.current.ID {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return ""
+	}
+	next := (idx + delta%n + n) % n
+	return m.boards[next]
 }
 
 func (m *Model) handleDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

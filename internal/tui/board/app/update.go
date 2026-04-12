@@ -22,6 +22,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.pickerCursor >= len(m.boards) {
 			m.pickerCursor = 0
 		}
+		// Chain into the initial board load only once, after the picker
+		// list is populated. Keeps Init() sequential so tab-cycling knows
+		// which boards exist by the time the grid screen renders.
+		if m.initialBoard != "" && m.current.ID == "" {
+			board := m.initialBoard
+			m.initialBoard = ""
+			return m, loadBoardCmd(m.store, board)
+		}
 		return m, nil
 
 	case boardLoadedMsg:
@@ -32,6 +40,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.current = msg.board
 		m.screen = screenGrid
 		m.cur = cursor{col: 0, card: -1}
+		m.gridScroll = 0
+		m.collapsed = map[string]bool{}
+		// One-shot: apply initialGridCol on the next board load (the
+		// initial one, since the field is reset below).
+		if m.initialGridCol > 0 {
+			n := len(msg.board.Columns)
+			if m.initialGridCol < n {
+				m.cur.col = m.initialGridCol
+				m.gridScroll = m.initialGridCol
+				m.ensureCursorVisible(m.width)
+			}
+		}
+		m.initialGridCol = -1
 		m.setStatusInfo("loaded " + msg.board.Title)
 		return m, pollCmd(m.store, msg.board.ID, m.lastSeen)
 

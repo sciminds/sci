@@ -63,7 +63,7 @@ func (m *Model) renderHelpHint() string {
 	case screenPicker:
 		return "j/k move  ↵ open  r reload  q quit"
 	case screenGrid:
-		return "hjkl move  ↵ detail  r reload  esc back  q quit"
+		return "hjkl move  c collapse  C expand  tab switch board  ↵ detail  esc back  q quit"
 	case screenDetail:
 		return "esc back  q grid"
 	}

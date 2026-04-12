@@ -14,9 +14,22 @@ import (
 // Tweak these to adjust board density without touching any view code.
 const (
 	// ColumnWidth is the target width of a single kanban column in cells.
-	// The grid renderer divides available width among columns but clamps
-	// to this width when the terminal is wide.
+	// In windowed mode each expanded column renders at exactly this width.
+	// In stretch mode (all columns fit) it's the upper bound.
 	ColumnWidth = 28
+
+	// MinColumnWidth is the minimum width an expanded column will shrink
+	// to in stretch mode. Below this the grid switches to windowed mode
+	// and horizontal scrolling takes over.
+	MinColumnWidth = 14
+
+	// CollapsedColumnWidth is the total width of a collapsed column strip
+	// (border + padding + 3-letter abbreviation + border).
+	CollapsedColumnWidth = 7
+
+	// ScrollGutter is the per-side gutter reserved in windowed mode for
+	// left/right scroll indicators. Two gutters total = 2 cells.
+	ScrollGutter = 1
 
 	// ColumnGap is the horizontal gap between adjacent columns.
 	ColumnGap = 1
@@ -53,10 +66,12 @@ type Styles struct {
 	PickerHint     lipgloss.Style
 
 	// Columns ────────────────────────────────────────────────────────
-	ColumnFrame lipgloss.Style
-	ColumnFocus lipgloss.Style
-	ColumnTitle lipgloss.Style
-	ColumnCount lipgloss.Style
+	ColumnFrame     lipgloss.Style
+	ColumnFocus     lipgloss.Style
+	ColumnCollapsed lipgloss.Style
+	ColumnTitle     lipgloss.Style
+	ColumnCount     lipgloss.Style
+	ScrollIndicator lipgloss.Style
 
 	// Cards ──────────────────────────────────────────────────────────
 	Card         lipgloss.Style
@@ -128,6 +143,14 @@ func New(isDark bool) *Styles {
 			Border(border).
 			BorderForeground(p.Accent).
 			Padding(0, 1),
+		ColumnCollapsed: lipgloss.NewStyle().
+			Border(border).
+			BorderForeground(p.TextDim).
+			Padding(0, 1).
+			Faint(true),
+		ScrollIndicator: lipgloss.NewStyle().
+			Foreground(p.Accent).
+			Bold(true),
 		ColumnTitle: lipgloss.NewStyle().
 			Foreground(p.Accent).
 			Bold(true).
