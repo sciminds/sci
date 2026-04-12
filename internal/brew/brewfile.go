@@ -3,10 +3,11 @@
 package brew
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -277,11 +278,11 @@ func Sync(r Runner, path string) (SyncResult, error) {
 		}
 	}
 	// Sort for deterministic Brewfile output (map iteration is random).
-	sort.Slice(toAdd, func(i, j int) bool {
-		if toAdd[i].Type != toAdd[j].Type {
-			return toAdd[i].Type < toAdd[j].Type
+	slices.SortFunc(toAdd, func(a, b BrewfileEntry) int {
+		if c := cmp.Compare(a.Type, b.Type); c != 0 {
+			return c
 		}
-		return toAdd[i].Name < toAdd[j].Name
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	// Compute removals: in Brewfile but not on system (scannable types only).

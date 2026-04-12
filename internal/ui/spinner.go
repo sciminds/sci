@@ -5,9 +5,10 @@ package ui
 // progress-bar variant (RunWithProgress) backed by a single model.
 
 import (
+	"cmp"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -298,18 +299,20 @@ var counterOrder = map[string]int{
 }
 
 func sortCounters(cs []counterEntry) []counterEntry {
-	out := make([]counterEntry, len(cs))
-	copy(out, cs)
-	sort.SliceStable(out, func(i, j int) bool {
-		oi, oki := counterOrder[out[i].Key]
-		oj, okj := counterOrder[out[j].Key]
+	out := slices.Clone(cs)
+	slices.SortStableFunc(out, func(a, b counterEntry) int {
+		oi, oki := counterOrder[a.Key]
+		oj, okj := counterOrder[b.Key]
 		if oki && okj {
-			return oi < oj
+			return cmp.Compare(oi, oj)
 		}
 		if oki != okj {
-			return oki // known keys first
+			if oki {
+				return -1 // known keys first
+			}
+			return 1
 		}
-		return out[i].Key < out[j].Key
+		return cmp.Compare(a.Key, b.Key)
 	})
 	return out
 }

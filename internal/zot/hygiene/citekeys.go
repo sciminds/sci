@@ -1,7 +1,8 @@
 package hygiene
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 
 	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/local"
@@ -111,11 +112,11 @@ func CitekeysFromRows(rows []local.CiteKeyRow) *Report {
 
 	// Stable ordering: by item key, then by finding kind, so golden-ish
 	// tests and human output are deterministic.
-	sort.Slice(findings, func(i, j int) bool {
-		if findings[i].ItemKey != findings[j].ItemKey {
-			return findings[i].ItemKey < findings[j].ItemKey
+	slices.SortFunc(findings, func(a, b Finding) int {
+		if c := cmp.Compare(a.ItemKey, b.ItemKey); c != 0 {
+			return c
 		}
-		return findings[i].Kind < findings[j].Kind
+		return cmp.Compare(a.Kind, b.Kind)
 	})
 
 	return &Report{

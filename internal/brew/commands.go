@@ -1,9 +1,10 @@
 package brew
 
 import (
+	"cmp"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"sync"
 )
 
@@ -219,8 +220,8 @@ func ListDetailed(r Runner, file string) ([]PackageInfo, error) {
 	}
 
 	all := append(formulaeInfo, casksInfo...)
-	sort.Slice(all, func(i, j int) bool {
-		return all[i].Name < all[j].Name
+	slices.SortFunc(all, func(a, b PackageInfo) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 	return all, nil
 }

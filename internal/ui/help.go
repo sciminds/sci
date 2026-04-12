@@ -4,9 +4,10 @@ package ui
 // HelpPrinter with project-branded formatting.
 
 import (
+	"cmp"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -192,9 +193,8 @@ func flagUsage(f cli.Flag) string {
 }
 
 func sortedCommands(cmds []*cli.Command) []*cli.Command {
-	out := make([]*cli.Command, len(cmds))
-	copy(out, cmds)
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	out := slices.Clone(cmds)
+	slices.SortFunc(out, func(a, b *cli.Command) int { return cmp.Compare(a.Name, b.Name) })
 	return out
 }
 

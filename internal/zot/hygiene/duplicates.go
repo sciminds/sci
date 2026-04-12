@@ -1,7 +1,8 @@
 package hygiene
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strings"
 
 	"github.com/sciminds/cli/internal/zot/local"
@@ -181,7 +182,7 @@ func ClusterByDOI(cands []DuplicateCandidate) []Cluster {
 	for k := range buckets {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	var out []Cluster
 	for _, k := range keys {
@@ -269,7 +270,7 @@ func ClusterByTitle(cands []DuplicateCandidate, threshold float64, fuzzy bool) [
 	for k := range buckets {
 		bucketKeys = append(bucketKeys, k)
 	}
-	sort.Strings(bucketKeys)
+	slices.Sort(bucketKeys)
 
 	var out []Cluster
 	exactMembers := map[int]bool{} // entry indices already captured by an exact cluster
@@ -318,7 +319,7 @@ func ClusterByTitle(cands []DuplicateCandidate, threshold float64, fuzzy bool) [
 		}
 		fuzz = append(fuzz, fuzzyItem{entryIdx: i, runes: runes, length: len(runes)})
 	}
-	sort.Slice(fuzz, func(i, j int) bool { return fuzz[i].length < fuzz[j].length })
+	slices.SortFunc(fuzz, func(a, b fuzzyItem) int { return cmp.Compare(a.length, b.length) })
 
 	claimed := map[int]bool{}
 	for ai := range fuzz {

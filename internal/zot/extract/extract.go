@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -225,7 +225,7 @@ func (d *DoclingExtractor) Extract(ctx context.Context, opts ExtractOptions) (*E
 					result.ImagePaths = append(result.ImagePaths, filepath.Join(artifacts, e.Name()))
 				}
 			}
-			sort.Strings(result.ImagePaths)
+			slices.Sort(result.ImagePaths)
 		}
 	}
 
@@ -339,7 +339,7 @@ func (d *DoclingExtractor) ExtractBatch(ctx context.Context, opts ExtractOptions
 						res.ImagePaths = append(res.ImagePaths, filepath.Join(artifacts, e.Name()))
 					}
 				}
-				sort.Strings(res.ImagePaths)
+				slices.Sort(res.ImagePaths)
 			}
 		}
 		results[pdfPath] = res

@@ -1,8 +1,9 @@
 package hygiene
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/sciminds/cli/internal/zot/local"
 )
@@ -110,11 +111,11 @@ func Missing(db local.Reader, fields []MissingField) (*Report, error) {
 		}
 	}
 
-	sort.Slice(findings, func(i, j int) bool {
-		if findings[i].ItemKey != findings[j].ItemKey {
-			return findings[i].ItemKey < findings[j].ItemKey
+	slices.SortFunc(findings, func(a, b Finding) int {
+		if c := cmp.Compare(a.ItemKey, b.ItemKey); c != 0 {
+			return c
 		}
-		return findings[i].Kind < findings[j].Kind
+		return cmp.Compare(a.Kind, b.Kind)
 	})
 
 	cov := make([]FieldCoverage, 0, len(fields))

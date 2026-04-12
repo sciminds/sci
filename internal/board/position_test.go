@@ -2,7 +2,7 @@ package board
 
 import (
 	"math/rand/v2"
-	"sort"
+	"slices"
 	"testing"
 )
 
@@ -101,7 +101,7 @@ func TestBetween_PropertyNoDuplicates(t *testing.T) {
 			t.Fatalf("iter %d: p=%v not < right=%v", i, p, right)
 		}
 		positions = append(positions, p)
-		sort.Float64s(positions)
+		slices.Sort(positions)
 	}
 	for i := 1; i < len(positions); i++ {
 		if positions[i] == positions[i-1] {

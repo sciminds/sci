@@ -1,9 +1,10 @@
 package cass
 
 import (
+	"cmp"
 	"fmt"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"charm.land/huh/v2"
@@ -53,7 +54,7 @@ func NormalizeName(name string) string {
 
 	// Sort tokens for order-independent matching.
 	tokens := strings.Fields(s)
-	sort.Strings(tokens)
+	slices.Sort(tokens)
 	return strings.Join(tokens, " ")
 }
 
@@ -96,8 +97,8 @@ func FindCandidates(ghName string, canvasStudents []Student) []MatchCandidate {
 		}
 	}
 
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].Score > candidates[j].Score
+	slices.SortFunc(candidates, func(a, b MatchCandidate) int {
+		return cmp.Compare(b.Score, a.Score) // descending
 	})
 	return candidates
 }

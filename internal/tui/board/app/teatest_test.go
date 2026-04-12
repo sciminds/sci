@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -78,7 +78,7 @@ func (f *fakeObjectStore) ListObjects(_ context.Context, prefix, startAfter stri
 		}
 		out = append(out, k)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 
@@ -101,7 +101,7 @@ func (f *fakeObjectStore) ListCommonPrefixes(_ context.Context, prefix, delimite
 	for p := range seen {
 		out = append(out, p)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 

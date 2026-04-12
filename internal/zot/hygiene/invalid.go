@@ -1,9 +1,10 @@
 package hygiene
 
 import (
+	"cmp"
 	"net/url"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -128,11 +129,11 @@ func InvalidFromFieldValues(rows []local.FieldValue) *Report {
 	}
 
 	// Sort findings for stable output: by item key, then field.
-	sort.Slice(findings, func(i, j int) bool {
-		if findings[i].ItemKey != findings[j].ItemKey {
-			return findings[i].ItemKey < findings[j].ItemKey
+	slices.SortFunc(findings, func(a, b Finding) int {
+		if c := cmp.Compare(a.ItemKey, b.ItemKey); c != 0 {
+			return c
 		}
-		return findings[i].Kind < findings[j].Kind
+		return cmp.Compare(a.Kind, b.Kind)
 	})
 
 	// Build per-field coverage in AllInvalidFields order so the renderer

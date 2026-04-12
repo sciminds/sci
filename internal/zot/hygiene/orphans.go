@@ -1,10 +1,11 @@
 package hygiene
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/sciminds/cli/internal/zot/local"
@@ -240,11 +241,11 @@ func Orphans(db local.Reader, opts OrphansOptions) (*Report, error) {
 	}
 
 	// Stable sort: by kind first (so the renderer can group), then item key.
-	sort.SliceStable(findings, func(i, j int) bool {
-		if findings[i].Kind != findings[j].Kind {
-			return findings[i].Kind < findings[j].Kind
+	slices.SortStableFunc(findings, func(a, b Finding) int {
+		if c := cmp.Compare(a.Kind, b.Kind); c != 0 {
+			return c
 		}
-		return findings[i].ItemKey < findings[j].ItemKey
+		return cmp.Compare(a.ItemKey, b.ItemKey)
 	})
 
 	total := 0

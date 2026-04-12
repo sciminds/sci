@@ -1,8 +1,9 @@
 package app
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -11,8 +12,8 @@ import (
 )
 
 func sortCardsByPosition(cards []engine.Card) {
-	sort.SliceStable(cards, func(i, j int) bool {
-		return cards[i].Position < cards[j].Position
+	slices.SortStableFunc(cards, func(a, b engine.Card) int {
+		return cmp.Compare(a.Position, b.Position)
 	})
 }
 

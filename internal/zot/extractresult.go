@@ -2,7 +2,7 @@ package zot
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -118,7 +118,7 @@ func (r ExtractArtifactResult) Human() string {
 	}
 	if len(r.Images) > 0 {
 		sorted := append([]string(nil), r.Images...)
-		sort.Strings(sorted)
+		slices.Sort(sorted)
 		fmt.Fprintf(&b, "      images: %d PNG(s)\n", len(sorted))
 	}
 	if len(r.Tables) > 0 {
@@ -153,7 +153,7 @@ func (r ExtractDeleteResult) Human() string {
 		for k := range r.Failed {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, k := range keys {
 			fmt.Fprintf(&b, "  %s %s: %s\n", ui.SymFail, k, r.Failed[k])
 		}
@@ -191,7 +191,7 @@ func (r ExtractLibResult) Human() string {
 		for k := range r.Errors {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, k := range keys {
 			fmt.Fprintf(&b, "      %s %s: %s\n", ui.SymFail, k, r.Errors[k])
 		}

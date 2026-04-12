@@ -9,13 +9,13 @@ errors=0
 failed_rules=()
 
 fail() {
-  errors=$((errors + 1))
-  # Deduplicate: only add rule name if not already present.
-  local rule="$1"
-  for r in "${failed_rules[@]+"${failed_rules[@]}"}"; do
-    [[ "$r" == "$rule" ]] && return
-  done
-  failed_rules+=("$rule")
+	errors=$((errors + 1))
+	# Deduplicate: only add rule name if not already present.
+	local rule="$1"
+	for r in "${failed_rules[@]+"${failed_rules[@]}"}"; do
+		[[ "$r" == "$rule" ]] && return
+	done
+	failed_rules+=("$rule")
 }
 
 # ── Rule 1: No v1 bubbletea / bubbles / lipgloss / huh imports ──────────────
@@ -28,20 +28,20 @@ fail() {
 # (which would be the pre-migration v1 path).
 
 v1_hits=$(rg -n '"charm\.land/(bubbletea|bubbles|lipgloss|huh)"' \
-  --type go --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
+	--type go --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
 if [[ -n "$v1_hits" ]]; then
-  echo "FAIL [no-v1-charm] v1 charm.land import (missing /v2 suffix):"
-  echo "$v1_hits"
-  fail "no-v1-charm"
+	echo "FAIL [no-v1-charm] v1 charm.land import (missing /v2 suffix):"
+	echo "$v1_hits"
+	fail "no-v1-charm"
 fi
 
 v1_gh_hits=$(rg -n '"github\.com/charmbracelet/(bubbletea|bubbles|lipgloss|huh)(/|")' \
-  --type go --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null \
-  | rg -v '// ' || true)  # exclude comments
+	--type go --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null |
+	rg -v '// ' || true) # exclude comments
 if [[ -n "$v1_gh_hits" ]]; then
-  echo "FAIL [no-v1-charm-gh] v1 github.com/charmbracelet import:"
-  echo "$v1_gh_hits"
-  fail "no-v1-charm-gh"
+	echo "FAIL [no-v1-charm-gh] v1 github.com/charmbracelet import:"
+	echo "$v1_gh_hits"
+	fail "no-v1-charm-gh"
 fi
 
 # ── Rule 2: No time.Sleep in test assertions ─────────────────────────────────
@@ -51,29 +51,29 @@ fi
 # http.HandlerFunc closures heuristically.
 
 sleep_hits=$(rg -n 'time\.Sleep' --type go --glob '*_test.go' \
-  --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
+	--glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
 if [[ -n "$sleep_hits" ]]; then
-  # Filter out time.Sleep inside httptest handlers: look for lines where
-  # the surrounding context (within ~10 lines above) contains HandlerFunc.
-  # Use rg -C to get context, then post-filter. For simplicity, we do a
-  # second pass: for each file with a hit, check if the Sleep is inside
-  # a HandlerFunc block.
-  real_hits=""
-  while IFS= read -r line; do
-    file=$(echo "$line" | cut -d: -f1)
-    lineno=$(echo "$line" | cut -d: -f2)
-    # Check 15 lines above for HandlerFunc — crude but effective
-    context=$(sed -n "$((lineno > 15 ? lineno - 15 : 1)),${lineno}p" "$file" 2>/dev/null || true)
-    if ! echo "$context" | rg -q 'HandlerFunc|httptest'; then
-      real_hits+="$line"$'\n'
-    fi
-  done <<< "$sleep_hits"
+	# Filter out time.Sleep inside httptest handlers: look for lines where
+	# the surrounding context (within ~10 lines above) contains HandlerFunc.
+	# Use rg -C to get context, then post-filter. For simplicity, we do a
+	# second pass: for each file with a hit, check if the Sleep is inside
+	# a HandlerFunc block.
+	real_hits=""
+	while IFS= read -r line; do
+		file=$(echo "$line" | cut -d: -f1)
+		lineno=$(echo "$line" | cut -d: -f2)
+		# Check 15 lines above for HandlerFunc — crude but effective
+		context=$(sed -n "$((lineno > 15 ? lineno - 15 : 1)),${lineno}p" "$file" 2>/dev/null || true)
+		if ! echo "$context" | rg -q 'HandlerFunc|httptest'; then
+			real_hits+="$line"$'\n'
+		fi
+	done <<<"$sleep_hits"
 
-  if [[ -n "${real_hits%$'\n'}" ]]; then
-    echo "FAIL [no-sleep-in-tests] time.Sleep in test files (use teatest.WaitFor or sync primitives):"
-    echo "${real_hits%$'\n'}"
-    fail "no-sleep-in-tests"
-  fi
+	if [[ -n "${real_hits%$'\n'}" ]]; then
+		echo "FAIL [no-sleep-in-tests] time.Sleep in test files (use teatest.WaitFor or sync primitives):"
+		echo "${real_hits%$'\n'}"
+		fail "no-sleep-in-tests"
+	fi
 fi
 
 # ── Rule 3: No pocketbase/dbx in standalone packages ────────────────────────
@@ -82,17 +82,17 @@ fi
 # the binary and violate the documented exception.
 
 standalone_pkgs=(
-  "internal/tui/dbtui"
-  "internal/zot/local"
-  "internal/board"
+	"internal/tui/dbtui"
+	"internal/zot/local"
+	"internal/board"
 )
 for pkg in "${standalone_pkgs[@]}"; do
-  dbx_hits=$(rg -n '"github\.com/pocketbase/dbx"' --type go "$pkg/" 2>/dev/null || true)
-  if [[ -n "$dbx_hits" ]]; then
-    echo "FAIL [no-dbx-standalone] pocketbase/dbx import in standalone package $pkg:"
-    echo "$dbx_hits"
-    fail "no-dbx-standalone"
-  fi
+	dbx_hits=$(rg -n '"github\.com/pocketbase/dbx"' --type go "$pkg/" 2>/dev/null || true)
+	if [[ -n "$dbx_hits" ]]; then
+		echo "FAIL [no-dbx-standalone] pocketbase/dbx import in standalone package $pkg:"
+		echo "$dbx_hits"
+		fail "no-dbx-standalone"
+	fi
 done
 
 # ── Rule 4: CLI flags must have Local: true ──────────────────────────────────
@@ -109,12 +109,12 @@ done
 
 # Single-line flags: &cli.XxxFlag{...} all on one line, no "Local:"
 singleline_hits=$(rg -n 'cli\.(String|Bool|Int|Float|StringSlice|IntSlice)Flag\{.*\}' \
-  --type go --glob '!*_test.go' --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null \
-  | rg -v 'Local:|lint:no-local' || true)
+	--type go --glob '!*_test.go' --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null |
+	rg -v 'Local:|lint:no-local' || true)
 if [[ -n "$singleline_hits" ]]; then
-  echo "FAIL [flag-local-required] CLI flag missing Local: true:"
-  echo "$singleline_hits"
-  fail "flag-local-required"
+	echo "FAIL [flag-local-required] CLI flag missing Local: true:"
+	echo "$singleline_hits"
+	fail "flag-local-required"
 fi
 
 # Multi-line flags: &cli.XxxFlag{\n ... } without Local anywhere in the block.
@@ -122,27 +122,27 @@ fi
 # This is harder — we use a Go-aware approach: find opening lines, then scan
 # forward for Local: before the next closing }.
 multiline_opens=$(rg -n 'cli\.(String|Bool|Int|Float|StringSlice|IntSlice)Flag\{$' \
-  --type go --glob '!*_test.go' --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
+	--type go --glob '!*_test.go' --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
 if [[ -n "$multiline_opens" ]]; then
-  while IFS= read -r line; do
-    file=$(echo "$line" | cut -d: -f1)
-    lineno=$(echo "$line" | cut -d: -f2)
-    # Check for lint:no-local on the opening line or the line above it
-    prev=$((lineno > 1 ? lineno - 1 : 1))
-    suppress=$(sed -n "${prev},${lineno}p" "$file" 2>/dev/null || true)
-    if echo "$suppress" | rg -q 'lint:no-local'; then
-      continue
-    fi
-    # Scan forward up to 20 lines for closing brace or Local:
-    block=$(sed -n "${lineno},$((lineno + 20))p" "$file" 2>/dev/null || true)
-    # Extract up to and including the first line with only whitespace + },
-    flag_block=$(echo "$block" | sed -n '1,/^[[:space:]]*},\{0,1\}$/p')
-    if ! echo "$flag_block" | rg -q 'Local:'; then
-      echo "FAIL [flag-local-required] CLI flag missing Local: true:"
-      echo "  $line"
-      fail "flag-local-required"
-    fi
-  done <<< "$multiline_opens"
+	while IFS= read -r line; do
+		file=$(echo "$line" | cut -d: -f1)
+		lineno=$(echo "$line" | cut -d: -f2)
+		# Check for lint:no-local on the opening line or the line above it
+		prev=$((lineno > 1 ? lineno - 1 : 1))
+		suppress=$(sed -n "${prev},${lineno}p" "$file" 2>/dev/null || true)
+		if echo "$suppress" | rg -q 'lint:no-local'; then
+			continue
+		fi
+		# Scan forward up to 20 lines for closing brace or Local:
+		block=$(sed -n "${lineno},$((lineno + 20))p" "$file" 2>/dev/null || true)
+		# Extract up to and including the first line with only whitespace + },
+		flag_block=$(echo "$block" | sed -n '1,/^[[:space:]]*},\{0,1\}$/p')
+		if ! echo "$flag_block" | rg -q 'Local:'; then
+			echo "FAIL [flag-local-required] CLI flag missing Local: true:"
+			echo "  $line"
+			fail "flag-local-required"
+		fi
+	done <<<"$multiline_opens"
 fi
 
 # ── Rule 5: No exec.Command in process-replacing packages ───────────────────
@@ -151,12 +151,12 @@ fi
 # (e.g. convert.go) may legitimately use exec.Command.
 
 if [[ -f internal/py/ephemeral.go ]]; then
-  exec_cmd_hits=$(rg -n 'exec\.Command' internal/py/ephemeral.go 2>/dev/null || true)
-  if [[ -n "$exec_cmd_hits" ]]; then
-    echo "FAIL [no-exec-command-ephemeral] exec.Command in ephemeral.go (use syscall.Exec):"
-    echo "$exec_cmd_hits"
-    fail "no-exec-command-ephemeral"
-  fi
+	exec_cmd_hits=$(rg -n 'exec\.Command' internal/py/ephemeral.go 2>/dev/null || true)
+	if [[ -n "$exec_cmd_hits" ]]; then
+		echo "FAIL [no-exec-command-ephemeral] exec.Command in ephemeral.go (use syscall.Exec):"
+		echo "$exec_cmd_hits"
+		fail "no-exec-command-ephemeral"
+	fi
 fi
 
 # ── Rule 6: No cloud.Client.Upload in board package ─────────────────────────
@@ -165,9 +165,9 @@ fi
 
 upload_hits=$(rg -n '\.Upload\(' --type go internal/board/ 2>/dev/null || true)
 if [[ -n "$upload_hits" ]]; then
-  echo "FAIL [no-upload-in-board] .Upload() in internal/board/ (use CloudAdapter, not cloud.Client.Upload):"
-  echo "$upload_hits"
-  fail "no-upload-in-board"
+	echo "FAIL [no-upload-in-board] .Upload() in internal/board/ (use CloudAdapter, not cloud.Client.Upload):"
+	echo "$upload_hits"
+	fail "no-upload-in-board"
 fi
 
 # ── Rule 7: DrainStdin after every tea.Program.Run() ────────────────────────
@@ -178,33 +178,33 @@ fi
 # internal/ui/spinner.go is excluded because it calls DrainStdin internally.
 
 drain_exempt=(
-  "internal/ui/spinner.go"
-  "internal/tui/dbtui/"
-  "internal/tui/board/"
+	"internal/ui/spinner.go"
+	"internal/tui/dbtui/"
+	"internal/tui/board/"
 )
 
 # Find Go files (non-test) that import bubbletea and call .Run()
 bt_files=$(rg -l 'charm\.land/bubbletea' --type go --glob '!*_test.go' \
-  --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
+	--glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
 
 for f in $bt_files; do
-  # Skip exempt paths
-  skip=false
-  for exempt in "${drain_exempt[@]}"; do
-    if [[ "$f" == *"$exempt"* ]]; then
-      skip=true
-      break
-    fi
-  done
-  $skip && continue
+	# Skip exempt paths
+	skip=false
+	for exempt in "${drain_exempt[@]}"; do
+		if [[ "$f" == *"$exempt"* ]]; then
+			skip=true
+			break
+		fi
+	done
+	$skip && continue
 
-  # Check if file calls p.Run() (tea.Program runner)
-  if rg -q '\.Run\(\)' "$f" 2>/dev/null; then
-    if ! rg -q 'DrainStdin' "$f" 2>/dev/null; then
-      echo "FAIL [drain-stdin-after-run] $f calls tea.Program.Run() but never calls DrainStdin()"
-      fail "drain-stdin-after-run"
-    fi
-  fi
+	# Check if file calls p.Run() (tea.Program runner)
+	if rg -q '\.Run\(\)' "$f" 2>/dev/null; then
+		if ! rg -q 'DrainStdin' "$f" 2>/dev/null; then
+			echo "FAIL [drain-stdin-after-run] $f calls tea.Program.Run() but never calls DrainStdin()"
+			fail "drain-stdin-after-run"
+		fi
+	fi
 done
 
 # ── Rule 8: Standalone package import boundaries ────────────────────────────
@@ -213,21 +213,42 @@ done
 
 isolated_pkgs=("internal/tui/dbtui")
 for pkg in "${isolated_pkgs[@]}"; do
-  # Find imports of internal/* that are NOT within the package's own subtree.
-  own_import="github.com/sciminds/cli/${pkg}"
-  infra_hits=$(rg -n '"github\.com/sciminds/cli/internal/' --type go "$pkg/" 2>/dev/null \
-    | rg -v "\"${own_import}" || true)
-  if [[ -n "$infra_hits" ]]; then
-    echo "FAIL [standalone-boundary] standalone package $pkg imports outside its subtree:"
-    echo "$infra_hits"
-    fail "standalone-boundary"
-  fi
+	# Find imports of internal/* that are NOT within the package's own subtree.
+	own_import="github.com/sciminds/cli/${pkg}"
+	infra_hits=$(rg -n '"github\.com/sciminds/cli/internal/' --type go "$pkg/" 2>/dev/null |
+		rg -v "\"${own_import}" || true)
+	if [[ -n "$infra_hits" ]]; then
+		echo "FAIL [standalone-boundary] standalone package $pkg imports outside its subtree:"
+		echo "$infra_hits"
+		fail "standalone-boundary"
+	fi
 done
 
+# ── Rule 9: No legacy sort package — use slices/maps ───────────────────────
+# Go 1.21+ provides slices.Sort, slices.SortFunc, slices.SortStableFunc,
+# slices.BinarySearch, slices.IsSortedFunc, etc. The old sort.Strings,
+# sort.Slice, etc. are more verbose and less type-safe.
+#
+# Banned:  sort.Strings, sort.Ints, sort.Float64s        → slices.Sort
+#          sort.Slice                                     → slices.SortFunc
+#          sort.SliceStable                               → slices.SortStableFunc
+#          sort.SliceIsSorted                             → slices.IsSortedFunc
+#          sort.Search                                    → slices.BinarySearch[Func]
+#
+# Suppress with "// lint:allow-sort" on the same line if truly needed.
+
+sort_hits=$(rg -n 'sort\.(Strings|Ints|Float64s|Slice|SliceStable|SliceIsSorted|Search)\b' \
+	--type go --glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null |
+	rg -v 'lint:allow-sort' || true)
+if [[ -n "$sort_hits" ]]; then
+	echo "FAIL [no-legacy-sort] use slices.Sort/SortFunc/SortStableFunc instead of sort.*:"
+	echo "$sort_hits"
+	fail "no-legacy-sort"
+fi
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
-  echo ""
-  echo "lint-guard: ${#failed_rules[@]} rule(s) failed: ${failed_rules[*]}"
-  exit 1
+	echo ""
+	echo "lint-guard: ${#failed_rules[@]} rule(s) failed: ${failed_rules[*]}"
+	exit 1
 fi

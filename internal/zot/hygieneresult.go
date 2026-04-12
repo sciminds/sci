@@ -1,8 +1,9 @@
 package zot
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/sciminds/cli/internal/ui"
@@ -109,8 +110,8 @@ func styleSeverity(s hygiene.Severity, text string) string {
 // then SevInfo. Ties keep the input order (the Missing() check already
 // sorts by ItemKey/Kind).
 func stableSortBySeverity(fs []hygiene.Finding) {
-	sort.SliceStable(fs, func(i, j int) bool {
-		return fs[i].Severity > fs[j].Severity
+	slices.SortStableFunc(fs, func(a, b hygiene.Finding) int {
+		return cmp.Compare(b.Severity, a.Severity) // descending
 	})
 }
 

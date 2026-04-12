@@ -2,7 +2,7 @@ package zot
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/sciminds/cli/internal/ui"
@@ -48,7 +48,7 @@ func (r BulkWriteResult) Human() string {
 		for k := range r.Failed {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, k := range keys {
 			fmt.Fprintf(&b, "  %s %s: %s\n", ui.SymFail, k, r.Failed[k])
 		}

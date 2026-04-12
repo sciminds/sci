@@ -1,10 +1,11 @@
 package mdview
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/list"
@@ -80,6 +81,6 @@ func loadPages(path string) ([]Page, error) {
 		name := strings.TrimSuffix(e.Name(), ".md")
 		pages = append(pages, Page{Name: name, Content: string(data)})
 	}
-	sort.Slice(pages, func(i, j int) bool { return pages[i].Name < pages[j].Name })
+	slices.SortFunc(pages, func(a, b Page) int { return cmp.Compare(a.Name, b.Name) })
 	return pages, nil
 }

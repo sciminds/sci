@@ -1,10 +1,11 @@
 package board
 
 import (
+	"cmp"
 	"encoding/json"
 	"math/rand/v2"
 	"reflect"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 )
@@ -264,14 +265,14 @@ func TestApplyDeterminism(t *testing.T) {
 	events := buildFixtureEvents(t)
 
 	// Canonical fold: sort by ID and fold in order.
-	sort.Slice(events, func(i, j int) bool { return events[i].ID < events[j].ID })
+	slices.SortFunc(events, func(a, b Event) int { return cmp.Compare(a.ID, b.ID) })
 	want := foldAll(t, events)
 
 	rng := rand.New(rand.NewPCG(1, 1))
 	for trial := 0; trial < 20; trial++ {
 		shuffled := append([]Event(nil), events...)
 		rng.Shuffle(len(shuffled), func(i, j int) { shuffled[i], shuffled[j] = shuffled[j], shuffled[i] })
-		sort.Slice(shuffled, func(i, j int) bool { return shuffled[i].ID < shuffled[j].ID })
+		slices.SortFunc(shuffled, func(a, b Event) int { return cmp.Compare(a.ID, b.ID) })
 		got := foldAll(t, shuffled)
 		if !boardsEqual(got, want) {
 			t.Fatalf("trial %d: non-deterministic fold", trial)

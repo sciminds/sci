@@ -11,9 +11,10 @@
 package fix
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/citekey"
@@ -180,11 +181,11 @@ func PlanCitekeys(items []local.Item, opts CitekeyOptions) []CitekeyTarget {
 	}
 
 	// Stable ordering for deterministic dry-run diffs and test goldens.
-	sort.Slice(targets, func(i, j int) bool {
-		if targets[i].Reason != targets[j].Reason {
-			return fixReasonRank(targets[i].Reason) < fixReasonRank(targets[j].Reason)
+	slices.SortFunc(targets, func(a, b CitekeyTarget) int {
+		if c := cmp.Compare(fixReasonRank(a.Reason), fixReasonRank(b.Reason)); c != 0 {
+			return c
 		}
-		return targets[i].ItemKey < targets[j].ItemKey
+		return cmp.Compare(a.ItemKey, b.ItemKey)
 	})
 	return targets
 }

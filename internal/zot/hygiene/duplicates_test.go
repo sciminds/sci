@@ -1,7 +1,7 @@
 package hygiene
 
 import (
-	"sort"
+	"slices"
 	"testing"
 )
 
@@ -26,7 +26,7 @@ func clusterKeys(c Cluster) []string {
 	for i, m := range c.Members {
 		keys[i] = m.Key
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

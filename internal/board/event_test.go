@@ -1,8 +1,9 @@
 package board
 
 import (
+	"cmp"
 	"errors"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 )
@@ -85,7 +86,7 @@ func TestEventULIDOrdering(t *testing.T) {
 		{ID: "01HX000000000000000000000A"},
 		{ID: "01HX000000000000000000000B"},
 	}
-	sort.Slice(events, func(i, j int) bool { return events[i].ID < events[j].ID })
+	slices.SortFunc(events, func(a, b Event) int { return cmp.Compare(a.ID, b.ID) })
 	want := []string{
 		"01HX000000000000000000000A",
 		"01HX000000000000000000000B",

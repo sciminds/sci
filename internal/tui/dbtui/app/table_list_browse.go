@@ -5,10 +5,11 @@ package app
 // new table.
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -76,11 +77,14 @@ func newFileBrowser(dir string) (*fileBrowserState, error) {
 	}
 
 	// Sort: directories first, then files, alphabetical within each group.
-	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].IsDir != entries[j].IsDir {
-			return entries[i].IsDir
+	slices.SortFunc(entries, func(a, b fileBrowserEntry) int {
+		if a.IsDir != b.IsDir {
+			if a.IsDir {
+				return -1
+			}
+			return 1
 		}
-		return entries[i].Name < entries[j].Name
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return &fileBrowserState{Dir: dir, Entries: entries}, nil

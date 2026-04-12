@@ -1,13 +1,14 @@
 package board
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -147,7 +148,7 @@ func (s *Store) ListBoards(ctx context.Context) ([]string, error) {
 			out = append(out, id)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 
@@ -208,7 +209,7 @@ func (s *Store) Load(ctx context.Context, boardID string) (Board, error) {
 		}
 		events = append(events, e)
 	}
-	sort.Slice(events, func(i, j int) bool { return events[i].ID < events[j].ID })
+	slices.SortFunc(events, func(a, b Event) int { return cmp.Compare(a.ID, b.ID) })
 
 	lastID := sinceID
 	for _, e := range events {
