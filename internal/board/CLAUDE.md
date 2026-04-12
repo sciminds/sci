@@ -4,6 +4,8 @@ Headless sync engine for shared kanban boards. Append-only event log per board, 
 
 For type definitions, file layout, and the full op list, read the source — `doc.go`, `board.go`, `event.go`, `apply.go`, `store.go` are the truth.
 
+**Before writing any slice/map/set transforms, invoke the `lo` skill** to pick the right `lo` or stdlib function. See root `CLAUDE.md` § Modern Go style.
+
 ## Why the design works
 
 State is reconstructed by `LIST events/`, sorting by ID, and folding via the pure `Apply` function. Concurrent edits by different clients converge without conflict resolution code because:

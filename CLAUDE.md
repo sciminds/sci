@@ -46,6 +46,7 @@ Collaborators come from Python/JS backgrounds. Prefer expressive, low-boilerplat
 - **No legacy `sort` package.** `sort.Strings`, `sort.Slice`, `sort.SliceStable`, `sort.Search` are banned by lint-guard rule 9. Use `slices.Sort` / `slices.SortFunc` / `slices.SortStableFunc` / `slices.BinarySearch` instead.
 - **Rule of thumb:** if stdlib has it, use stdlib. If it doesn't (Map, Filter, GroupBy, KeyBy, Find, Reduce, Chunk, set ops), use `lo`. Never hand-roll what either provides.
 - **Semgrep enforces this.** `.semgrep/go-modern.yml` has 20 rules (136 current hits) that flag manual loops replaceable by `lo` or stdlib. Run via `just lint-style`. When adding new code, prefer `lo`/stdlib from the start — don't create new semgrep debt.
+- **`lo` skill is required.** Before writing any code that transforms slices, maps, or sets, **invoke the `lo` skill** to look up the right function. The skill includes a decision framework, Python/JS → Go translations, and `*Err` variant tables. Don't guess from memory — consult the skill.
 
 ## Cross-cutting design rules
 

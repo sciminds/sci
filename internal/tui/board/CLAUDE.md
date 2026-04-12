@@ -6,7 +6,7 @@ Bubbletea TUI for shared kanban boards. Sits on top of the headless `internal/bo
 
 Mirrors the `internal/tui/dbtui/app/` file split — if you know dbtui, you know where to look.
 
-**Any new TUI work here must invoke the `bubbletea` skill** before designing layouts or adding mouse/keyboard handling.
+**Any new TUI work here must invoke the `bubbletea` skill** before designing layouts or adding mouse/keyboard handling. **Invoke the `lo` skill** before writing any slice/map/set transforms — see root `CLAUDE.md` § Modern Go style.
 
 ## Optimistic write flow (the load-bearing wiring)
 

@@ -2,7 +2,7 @@
 
 VisiData-inspired SQLite viewer/editor. Also installable standalone via `cmd/dbtui/`.
 
-**Any new TUI work here must invoke the `bubbletea` skill** before designing layouts or adding mouse/keyboard handling.
+**Any new TUI work here must invoke the `bubbletea` skill** before designing layouts or adding mouse/keyboard handling. **Invoke the `lo` skill** before writing any slice/map/set transforms — see root `CLAUDE.md` § Modern Go style.
 
 ## Architecture
 
