@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/charmbracelet/x/term"
-	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/urfave/cli/v3"
 )
 
@@ -24,7 +23,7 @@ func BuildCommand(jsonOutput *bool) *cli.Command {
 		Usage:   "Markdown-to-SQLite ingestion, search, and export",
 		Version: "0.1.0",
 		Flags: []cli.Flag{
-			cmdutil.JSONFlag(jsonOutput),
+			jsonFlag(jsonOutput),
 		},
 		Commands: []*cli.Command{
 			ingestCommand(),
@@ -66,7 +65,7 @@ func ingestCommand() *cli.Command {
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected a directory argument")
+				return usageErrorf(cmd, "expected a directory argument")
 			}
 
 			dbPath := cmd.String("output")
@@ -86,7 +85,7 @@ func ingestCommand() *cli.Command {
 
 			dir := cmd.Args().First()
 
-			if cmdutil.IsJSON(cmd) || !term.IsTerminal(os.Stdout.Fd()) {
+			if isJSON(cmd) || !term.IsTerminal(os.Stdout.Fd()) {
 				// No progress bar in JSON mode or non-interactive terminals.
 				stats, err := s.Ingest(dir)
 				if err != nil {
@@ -99,7 +98,7 @@ func ingestCommand() *cli.Command {
 				result := IngestCmdResult{Stats: *stats, DB: dbPath}
 				result.Links.Resolved = resolved
 				result.Links.Broken = broken
-				cmdutil.Output(cmd, result)
+				output(cmd, result)
 				return nil
 			}
 
@@ -107,7 +106,7 @@ func ingestCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, result)
+			output(cmd, result)
 			return nil
 		},
 	}
@@ -124,7 +123,7 @@ func searchCommand() *cli.Command {
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected a search query")
+				return usageErrorf(cmd, "expected a search query")
 			}
 			s, err := openStore(cmd)
 			if err != nil {
@@ -136,7 +135,7 @@ func searchCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, SearchCmdResult{Query: cmd.Args().First(), Hits: hits})
+			output(cmd, SearchCmdResult{Query: cmd.Args().First(), Hits: hits})
 			return nil
 		},
 	}
@@ -158,7 +157,7 @@ func infoCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, info)
+			output(cmd, info)
 			return nil
 		},
 	}
@@ -172,7 +171,7 @@ func diffCommand() *cli.Command {
 		Flags:     []cli.Flag{dbFlag},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected a directory argument")
+				return usageErrorf(cmd, "expected a directory argument")
 			}
 			s, err := openStore(cmd)
 			if err != nil {
@@ -184,7 +183,7 @@ func diffCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, DiffCmdResult{Result: *result})
+			output(cmd, DiffCmdResult{Result: *result})
 			return nil
 		},
 	}
@@ -212,7 +211,7 @@ func exportCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, ExportCmdResult{Stats: *stats})
+			output(cmd, ExportCmdResult{Stats: *stats})
 			return nil
 		},
 	}

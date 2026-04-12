@@ -3,10 +3,10 @@ package ui
 // styles.go — the single source of truth for all lipgloss styles.
 
 import (
+	"os"
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	parentui "github.com/sciminds/cli/internal/ui"
 )
 
 // Styles holds pre-built lipgloss styles shared across all TUI commands.
@@ -82,7 +82,7 @@ type Styles struct {
 }
 
 // TUI is the package-level shared styles singleton.
-var TUI = NewStyles(parentui.DetectDark())
+var TUI = NewStyles(lipgloss.HasDarkBackground(os.Stdin, os.Stderr))
 
 // NewStyles creates a Styles instance for the given light/dark mode.
 func NewStyles(isDark bool) *Styles {

@@ -10,3 +10,4 @@ message: |
 ignores:
   - "internal/ui/*.go"
   - "internal/tui/*/ui/*.go"
+  - "internal/markdb/*.go"  # standalone package — no access to ui.TUI

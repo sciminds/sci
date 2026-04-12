@@ -2,11 +2,13 @@ package markdb
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/ui"
+	"charm.land/lipgloss/v2"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -40,17 +42,22 @@ type ingestModel struct {
 	done     bool
 	result   *ingestDoneMsg
 	sub      chan progressMsg
+	dim      lipgloss.Style
 }
 
 func newIngestModel(store *Store, root string) ingestModel {
-	pal := ui.TUI.Palette()
-	p := progress.New(progress.WithColors(pal.Accent, pal.Secondary), progress.WithScaled(true))
+	isDark := lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
+	ld := lipgloss.LightDark(isDark)
+	accent := ld(lipgloss.Color("#0072B2"), lipgloss.Color("#56B4E9"))
+	secondary := ld(lipgloss.Color("#D55E00"), lipgloss.Color("#E69F00"))
+	p := progress.New(progress.WithColors(accent, secondary), progress.WithScaled(true))
 	return ingestModel{
 		store:    store,
 		root:     root,
 		progress: p,
 		phase:    "starting",
 		sub:      make(chan progressMsg, 256),
+		dim:      lipgloss.NewStyle().Faint(true),
 	}
 }
 
@@ -114,7 +121,7 @@ func (m ingestModel) View() tea.View {
 	}
 
 	return tea.NewView("\n" + pad + m.progress.ViewAs(percent) + "\n" +
-		pad + ui.TUI.Dim().Render(label) + "\n")
+		pad + m.dim.Render(label) + "\n")
 }
 
 // runIngest starts the ingest in a goroutine and sends the result back.
@@ -154,7 +161,9 @@ func (m ingestModel) waitForProgress() tea.Cmd {
 func RunIngestWithProgress(store *Store, root, dbPath string) (IngestCmdResult, error) {
 	m := newIngestModel(store, root)
 	finalModel, err := tea.NewProgram(m).Run()
-	ui.DrainStdin()
+	// Flush stale terminal responses (e.g. DECRQM replies) left over after
+	// bubbletea exits, so they don't leak into the shell prompt.
+	_ = unix.IoctlSetPointerInt(int(os.Stdin.Fd()), unix.TIOCFLUSH, unix.TCIFLUSH)
 	if err != nil {
 		return IngestCmdResult{}, err
 	}
