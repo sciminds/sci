@@ -7,7 +7,9 @@ import (
 
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/cli/internal/zot/fix"
 	"github.com/sciminds/cli/internal/zot/hygiene"
+	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
 )
 
@@ -29,6 +31,11 @@ var (
 	orphansCheckFiles bool
 
 	citekeysLimit int
+	citekeysFix   bool
+	citekeysApply bool
+	citekeysKind  []string
+	citekeysItem  []string
+	citekeysYes   bool
 )
 
 func missingCommand() *cli.Command {
@@ -274,8 +281,14 @@ func citekeysCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "citekeys",
 		Usage: "Validate stored cite-keys against the {author}{year}-{words}-{ZOTKEY} spec",
-		Description: `$ zot doctor citekeys
+		Description: `$ zot doctor citekeys                     # read-only check
 $ zot doctor citekeys --limit 0 --json > citekeys.json
+
+$ zot doctor citekeys --fix               # dry-run: preview what would change
+$ zot doctor citekeys --fix --apply       # actually write through Zotero Web API
+$ zot doctor citekeys --fix --apply --kind invalid,collision
+$ zot doctor citekeys --fix --apply --item ABCD1234
+$ zot doctor citekeys --fix --apply --yes
 
 Categories and severities:
   invalid       SevError   structurally broken (whitespace, BibTeX-illegal chars)
@@ -284,20 +297,61 @@ Categories and severities:
                            (BBT camelCase, hand-authored, drifted v1)
 
 Items with no stored cite-key at all are counted as 'unstored' in the
-summary but emit no finding — a future ` + "`zot doctor citekeys --fix`" + ` will
-synthesize canonical keys for them and write them back through the
-Zotero Web API.`,
+summary but emit no finding — ` + "`--fix`" + ` will synthesize canonical keys for
+them and write them back through the Zotero Web API.
+
+Fix safety: --fix is dry-run by default. --apply is required to
+actually patch items. --kind defaults to every bucket (invalid +
+collision + non-canonical + unstored); narrow it on a BBT-managed
+library to avoid rewriting every key in one pass. --item restricts
+to a specific Zotero key, useful for smoke-testing a single write.`,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:        "limit",
 				Aliases:     []string{"n"},
 				Value:       25,
-				Usage:       "max findings to print (0 = all)",
+				Usage:       "max findings (or targets) to print (0 = all)",
 				Destination: &citekeysLimit,
 				Local:       true,
 			},
+			&cli.BoolFlag{
+				Name:        "fix",
+				Usage:       "switch from read-only check to repair mode (dry-run unless --apply)",
+				Destination: &citekeysFix,
+				Local:       true,
+			},
+			&cli.BoolFlag{
+				Name:        "apply",
+				Usage:       "with --fix, actually write cite-key patches through the Zotero Web API",
+				Destination: &citekeysApply,
+				Local:       true,
+			},
+			&cli.StringSliceFlag{
+				Name:        "kind",
+				Aliases:     []string{"k"},
+				Usage:       "with --fix, limit to buckets (invalid,collision,non-canonical,unstored)",
+				Destination: &citekeysKind,
+				Local:       true,
+			},
+			&cli.StringSliceFlag{
+				Name:        "item",
+				Usage:       "with --fix, only touch these Zotero item keys (repeatable)",
+				Destination: &citekeysItem,
+				Local:       true,
+			},
+			&cli.BoolFlag{
+				Name:        "yes",
+				Aliases:     []string{"y"},
+				Usage:       "with --fix --apply, skip the confirmation prompt",
+				Destination: &citekeysYes,
+				Local:       true,
+			},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if citekeysFix {
+				return runCitekeysFix(ctx, cmd)
+			}
+			// Read-only path: unchanged from the earlier slice.
 			_, db, err := openLocalDB()
 			if err != nil {
 				return err
@@ -312,6 +366,104 @@ Zotero Web API.`,
 			return nil
 		},
 	}
+}
+
+// runCitekeysFix is the --fix path: plan targets, optionally apply, and
+// render a FixResult. Kept in its own function so the read-only action
+// stays small and obvious.
+func runCitekeysFix(ctx context.Context, cmd *cli.Command) error {
+	// Resolve kind bitmask from --kind flags. Empty = all buckets.
+	kinds, err := parseCitekeyFixKinds(citekeysKind)
+	if err != nil {
+		return cmdutil.UsageErrorf(cmd, "%s", err.Error())
+	}
+
+	_, db, err := openLocalDB()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+
+	// ListAll with no filter gives us every content item already
+	// hydrated with Fields + Creators — the planner needs both.
+	items, err := db.ListAll(local.ListFilter{})
+	if err != nil {
+		return fmt.Errorf("list items: %w", err)
+	}
+	targets := fix.PlanCitekeys(items, fix.CitekeyOptions{
+		Kinds:    kinds,
+		ItemKeys: citekeysItem,
+	})
+
+	if !citekeysApply {
+		// Dry-run: render the plan and exit. No API client needed.
+		cmdutil.Output(cmd, fix.CitekeyFixResult{
+			Result: fix.DryRunCitekeys(targets),
+			Limit:  citekeysLimit,
+		})
+		return nil
+	}
+
+	if len(targets) == 0 {
+		// Nothing to apply — still render so JSON callers see the empty
+		// totals and human callers get the "nothing to do" line.
+		cmdutil.Output(cmd, fix.CitekeyFixResult{
+			Result: fix.DryRunCitekeys(targets),
+			Limit:  citekeysLimit,
+		})
+		return nil
+	}
+
+	// Destructive confirm, matching the pattern every other write
+	// command uses. --yes bypasses for non-interactive runs.
+	prompt := fmt.Sprintf("patch %d item(s) citationKey field via Zotero Web API?", len(targets))
+	proceed, err := cmdutil.ConfirmOrSkip(citekeysYes, prompt)
+	if err != nil {
+		return err
+	}
+	if !proceed {
+		return nil
+	}
+
+	client, err := requireAPIClient()
+	if err != nil {
+		return err
+	}
+
+	res, err := fix.ApplyCitekeys(ctx, client, targets)
+	if err != nil {
+		return err
+	}
+	cmdutil.Output(cmd, fix.CitekeyFixResult{Result: res, Limit: citekeysLimit})
+	return nil
+}
+
+// parseCitekeyFixKinds turns --kind values into a fix.CitekeyKind mask.
+// Empty input → fix.CitekeyAll. Accepts repeatable + comma-separated
+// forms uniformly so `--kind invalid --kind collision` and
+// `--kind invalid,collision` behave the same.
+func parseCitekeyFixKinds(values []string) (fix.CitekeyKind, error) {
+	if len(values) == 0 {
+		return fix.CitekeyAll, nil
+	}
+	var mask fix.CitekeyKind
+	for _, raw := range values {
+		for _, p := range strings.Split(raw, ",") {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			bit, ok := fix.ParseCitekeyKind(p)
+			if !ok {
+				return 0, fmt.Errorf("unknown --kind %q (want invalid, collision, non-canonical, unstored)", p)
+			}
+			mask |= bit
+		}
+	}
+	if mask == 0 {
+		return fix.CitekeyAll, nil
+	}
+	return mask, nil
 }
 
 func parseOrphanKindList(s string) ([]hygiene.OrphanKind, error) {

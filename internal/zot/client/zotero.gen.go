@@ -698,6 +698,11 @@ type ItemData struct {
 	CallNumber *string `json:"callNumber,omitempty"`
 	Charset    *string `json:"charset,omitempty"`
 
+	// CitationKey Native Zotero 7 cite-key field. Populated by Better BibTeX in
+	// Z7 and readable/writable via the Web API; acceptable on PATCH
+	// alongside the usual metadata fields.
+	CitationKey *string `json:"citationKey,omitempty"`
+
 	// Collections Collection keys this item belongs to.
 	Collections    *[]string `json:"collections,omitempty"`
 	ConferenceName *string   `json:"conferenceName,omitempty"`
@@ -2136,6 +2141,14 @@ func (a *ItemData) UnmarshalJSON(b []byte) error {
 		delete(object, "charset")
 	}
 
+	if raw, found := object["citationKey"]; found {
+		err = json.Unmarshal(raw, &a.CitationKey)
+		if err != nil {
+			return fmt.Errorf("error reading 'citationKey': %w", err)
+		}
+		delete(object, "citationKey")
+	}
+
 	if raw, found := object["collections"]; found {
 		err = json.Unmarshal(raw, &a.Collections)
 		if err != nil {
@@ -2559,6 +2572,13 @@ func (a ItemData) MarshalJSON() ([]byte, error) {
 		object["charset"], err = json.Marshal(a.Charset)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling 'charset': %w", err)
+		}
+	}
+
+	if a.CitationKey != nil {
+		object["citationKey"], err = json.Marshal(a.CitationKey)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'citationKey': %w", err)
 		}
 	}
 
