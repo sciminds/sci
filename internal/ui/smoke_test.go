@@ -27,13 +27,13 @@ func TestViewAtZeroSize(t *testing.T) {
 		_ = o.View() // must not panic
 	})
 
-	t.Run("spinnerModel", func(t *testing.T) {
-		m := newSpinnerModel("test")
+	t.Run("runnerModel/spinner", func(t *testing.T) {
+		m := newRunnerModel("test", false)
 		_ = m.View() // must not panic at zero state
 	})
 
-	t.Run("progressModel", func(t *testing.T) {
-		m := newProgressModel("test")
+	t.Run("runnerModel/progress", func(t *testing.T) {
+		m := newRunnerModel("test", true)
 		_ = m.View() // must not panic at zero state
 	})
 }

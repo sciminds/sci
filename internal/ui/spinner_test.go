@@ -4,47 +4,46 @@ import (
 	"testing"
 )
 
-func TestSpinnerModel_Init(t *testing.T) {
+func TestRunnerModel_Init(t *testing.T) {
 	t.Parallel()
-	m := newSpinnerModel("Loading…")
+	m := newRunnerModel("Loading…", false)
 	cmd := m.Init()
 	if cmd == nil {
 		t.Error("Init should return a tick Cmd")
 	}
 }
 
-func TestSpinnerModel_DoneMsg(t *testing.T) {
+func TestRunnerModel_DoneMsg(t *testing.T) {
 	t.Parallel()
-	m := newSpinnerModel("Loading…")
+	m := newRunnerModel("Loading…", false)
 	updated, cmd := m.Update(doneMsg{err: nil})
-	sm := updated.(spinnerModel)
+	rm := updated.(runnerModel)
 
-	if !sm.done {
+	if !rm.done {
 		t.Error("expected done=true after doneMsg")
 	}
-	if sm.err != nil {
-		t.Errorf("expected nil error, got %v", sm.err)
+	if rm.err != nil {
+		t.Errorf("expected nil error, got %v", rm.err)
 	}
-	// Should return a quit command.
 	if cmd == nil {
 		t.Error("expected quit Cmd after doneMsg")
 	}
 }
 
-func TestSpinnerModel_StatusMsg(t *testing.T) {
+func TestRunnerModel_StatusMsg(t *testing.T) {
 	t.Parallel()
-	m := newSpinnerModel("Loading…")
+	m := newRunnerModel("Loading…", false)
 	updated, _ := m.Update(statusMsg("step 1"))
-	sm := updated.(spinnerModel)
+	rm := updated.(runnerModel)
 
-	if sm.status != "step 1" {
-		t.Errorf("status = %q, want %q", sm.status, "step 1")
+	if rm.status != "step 1" {
+		t.Errorf("status = %q, want %q", rm.status, "step 1")
 	}
 }
 
-func TestSpinnerModel_ViewShowsTitle(t *testing.T) {
+func TestRunnerModel_ViewShowsTitle(t *testing.T) {
 	t.Parallel()
-	m := newSpinnerModel("Installing…")
+	m := newRunnerModel("Installing…", false)
 	v := m.View()
 	got := v.Content
 	if got == "" {
@@ -52,9 +51,9 @@ func TestSpinnerModel_ViewShowsTitle(t *testing.T) {
 	}
 }
 
-func TestSpinnerModel_ViewEmptyWhenDone(t *testing.T) {
+func TestRunnerModel_ViewEmptyWhenDone(t *testing.T) {
 	t.Parallel()
-	m := newSpinnerModel("Installing…")
+	m := newRunnerModel("Installing…", false)
 	m.done = true
 	v := m.View()
 	if v.Content != "" {

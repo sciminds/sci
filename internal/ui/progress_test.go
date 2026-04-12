@@ -6,11 +6,11 @@ import (
 	"testing"
 )
 
-// ── Model unit tests ──────────────��────────────────────────────────────────
+// ── Model unit tests ──────────────────────────────────────��─────────────────
 
 func TestProgressModel_Init(t *testing.T) {
 	t.Parallel()
-	m := newProgressModel("Extracting…")
+	m := newRunnerModel("Extracting…", true)
 	cmd := m.Init()
 	if cmd == nil {
 		t.Error("Init should return a tick Cmd")
@@ -19,69 +19,75 @@ func TestProgressModel_Init(t *testing.T) {
 
 func TestProgressModel_DoneMsg(t *testing.T) {
 	t.Parallel()
-	m := newProgressModel("Extracting…")
-	updated, cmd := m.Update(progressDoneMsg{err: nil})
-	pm := updated.(progressModel)
+	m := newRunnerModel("Extracting…", true)
+	updated, cmd := m.Update(doneMsg{err: nil})
+	rm := updated.(runnerModel)
 
-	if !pm.done {
-		t.Error("expected done=true after progressDoneMsg")
+	if !rm.done {
+		t.Error("expected done=true after doneMsg")
 	}
-	if pm.err != nil {
-		t.Errorf("expected nil error, got %v", pm.err)
+	if rm.err != nil {
+		t.Errorf("expected nil error, got %v", rm.err)
 	}
 	if cmd == nil {
-		t.Error("expected quit Cmd after progressDoneMsg")
+		t.Error("expected quit Cmd after doneMsg")
 	}
 }
 
 func TestProgressModel_DoneMsgWithError(t *testing.T) {
 	t.Parallel()
 	want := errors.New("docling failed")
-	m := newProgressModel("Extracting…")
-	updated, _ := m.Update(progressDoneMsg{err: want})
-	pm := updated.(progressModel)
+	m := newRunnerModel("Extracting…", true)
+	updated, _ := m.Update(doneMsg{err: want})
+	rm := updated.(runnerModel)
 
-	if !pm.done {
+	if !rm.done {
 		t.Error("expected done=true")
 	}
-	if !errors.Is(pm.err, want) {
-		t.Errorf("got %v, want %v", pm.err, want)
+	if !errors.Is(rm.err, want) {
+		t.Errorf("got %v, want %v", rm.err, want)
 	}
 }
 
 func TestProgressModel_UpdateMsg(t *testing.T) {
 	t.Parallel()
-	m := newProgressModel("Extracting…")
+	m := newRunnerModel("Extracting…", true)
 	msg := progressUpdateMsg{
 		current:   3,
 		total:     10,
 		status:    "processing item.pdf",
 		lastEvent: "✓ created foo.pdf",
-		counters:  map[string]int{"created": 2, "skipped": 1},
+		counters:  []counterEntry{{Key: "created", Count: 2}, {Key: "skipped", Count: 1}},
 	}
 	updated, _ := m.Update(msg)
-	pm := updated.(progressModel)
+	rm := updated.(runnerModel)
 
-	if pm.current != 3 {
-		t.Errorf("current = %d, want 3", pm.current)
+	if rm.current != 3 {
+		t.Errorf("current = %d, want 3", rm.current)
 	}
-	if pm.total != 10 {
-		t.Errorf("total = %d, want 10", pm.total)
+	if rm.total != 10 {
+		t.Errorf("total = %d, want 10", rm.total)
 	}
-	if pm.status != "processing item.pdf" {
-		t.Errorf("status = %q, want %q", pm.status, "processing item.pdf")
+	if rm.status != "processing item.pdf" {
+		t.Errorf("status = %q, want %q", rm.status, "processing item.pdf")
 	}
-	if pm.lastEvent != "✓ created foo.pdf" {
-		t.Errorf("lastEvent = %q, want %q", pm.lastEvent, "✓ created foo.pdf")
+	if rm.lastEvent != "✓ created foo.pdf" {
+		t.Errorf("lastEvent = %q, want %q", rm.lastEvent, "✓ created foo.pdf")
 	}
-	if pm.counters["created"] != 2 {
-		t.Errorf("counters[created] = %d, want 2", pm.counters["created"])
+	found := false
+	for _, c := range rm.counters {
+		if c.Key == "created" && c.Count == 2 {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("counters should contain created:2, got %v", rm.counters)
 	}
 }
 
 func TestProgressModel_ViewEmptyWhenDone(t *testing.T) {
 	t.Parallel()
-	m := newProgressModel("Extracting…")
+	m := newRunnerModel("Extracting…", true)
 	m.done = true
 	v := m.View()
 	if v.Content != "" {
@@ -91,7 +97,7 @@ func TestProgressModel_ViewEmptyWhenDone(t *testing.T) {
 
 func TestProgressModel_ViewShowsTitle(t *testing.T) {
 	t.Parallel()
-	m := newProgressModel("Extracting library")
+	m := newRunnerModel("Extracting library", true)
 	v := m.View()
 	if !strings.Contains(v.Content, "Extracting library") {
 		t.Errorf("view should contain title, got %q", v.Content)
@@ -100,7 +106,7 @@ func TestProgressModel_ViewShowsTitle(t *testing.T) {
 
 func TestProgressModel_ViewShowsBar(t *testing.T) {
 	t.Parallel()
-	m := newProgressModel("Working…")
+	m := newRunnerModel("Working…", true)
 	m.total = 10
 	m.current = 5
 	m.width = 60
@@ -112,17 +118,63 @@ func TestProgressModel_ViewShowsBar(t *testing.T) {
 
 func TestProgressModel_ViewShowsCounters(t *testing.T) {
 	t.Parallel()
-	m := newProgressModel("Working…")
+	m := newRunnerModel("Working…", true)
 	m.total = 10
 	m.current = 3
-	m.counters = map[string]int{"created": 2, "skipped": 1}
+	m.counters = []counterEntry{{Key: "created", Count: 2}, {Key: "skipped", Count: 1}}
 	v := m.View()
 	if !strings.Contains(v.Content, "created") {
 		t.Errorf("view should show 'created' counter, got %q", v.Content)
 	}
 }
 
-// ── Quiet-mode integration tests ���─────────────────────���───────────────────
+func TestProgressModel_ViewShowsUnknownCounters(t *testing.T) {
+	t.Parallel()
+	m := newRunnerModel("Working…", true)
+	m.total = 10
+	m.current = 3
+	m.counters = []counterEntry{{Key: "patched", Count: 5}}
+	v := m.View()
+	if !strings.Contains(v.Content, "patched") {
+		t.Errorf("view should show 'patched' counter, got %q", v.Content)
+	}
+}
+
+// ── Counter sort tests ────���─────────────────────────────────────────────────
+
+func TestSortCounters_KnownOrder(t *testing.T) {
+	t.Parallel()
+	input := []counterEntry{
+		{Key: "failed", Count: 1},
+		{Key: "created", Count: 3},
+		{Key: "skipped", Count: 2},
+	}
+	got := sortCounters(input)
+	want := []string{"created", "skipped", "failed"}
+	for i, w := range want {
+		if got[i].Key != w {
+			t.Errorf("position %d: got %q, want %q", i, got[i].Key, w)
+		}
+	}
+}
+
+func TestSortCounters_UnknownAfterKnown(t *testing.T) {
+	t.Parallel()
+	input := []counterEntry{
+		{Key: "zapped", Count: 1},
+		{Key: "created", Count: 2},
+		{Key: "alpha", Count: 3},
+	}
+	got := sortCounters(input)
+	want := []string{"created", "alpha", "zapped"}
+	for i, w := range want {
+		if got[i].Key != w {
+			t.Errorf("position %d: got %q, want %q", i, got[i].Key, w)
+		}
+	}
+}
+
+// ── Quiet-mode integration tests ────────────────────────────────────────────
 
 func TestRunWithProgress_QuietRunsFn(t *testing.T) {
 	SetQuiet(true)

@@ -81,6 +81,9 @@ type Styles struct {
 	badgeCargo lipgloss.Style
 	badgeOther lipgloss.Style
 
+	// Spinner / progress
+	spinnerDot lipgloss.Style
+
 	// Help rendering
 	helpDesc    lipgloss.Style
 	helpSection lipgloss.Style
@@ -239,6 +242,9 @@ func NewStyles(isDark bool) *Styles {
 			Foreground(p.TextDim).
 			Padding(0, 1),
 
+		// Spinner / progress
+		spinnerDot: lipgloss.NewStyle().Foreground(p.Accent),
+
 		// Help rendering
 		helpDesc: lipgloss.NewStyle().
 			Foreground(p.TextMid).
@@ -356,6 +362,10 @@ func (s *Styles) HelpDesc() lipgloss.Style    { return s.helpDesc }
 func (s *Styles) HelpSection() lipgloss.Style { return s.helpSection }
 func (s *Styles) HelpHint() lipgloss.Style    { return s.helpHint }
 func (s *Styles) HelpUsage() lipgloss.Style   { return s.helpUsage }
+
+// ── Accessors — spinner / progress ──────────────────────────────────────────
+
+func (s *Styles) SpinnerDot() lipgloss.Style { return s.spinnerDot }
 
 // NewListDelegate returns a list.DefaultDelegate styled to match the TUI theme.
 // Used by the help browser and glossary TUIs.
