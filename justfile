@@ -18,6 +18,11 @@ fmt:
 lint:
     golangci-lint run ./internal/... ./cmd/...
 
+# Structural style rules enforced via ast-grep.
+# No lipgloss.NewStyle() outside ui/ packages; no hardcoded lipgloss.Color() outside palette/style files.
+lint-style:
+    sg scan
+
 vet:
     go vet ./internal/... ./cmd/...
 
@@ -50,7 +55,7 @@ test-all: test test-slow
 boarddemo *ARGS:
     go run ./cmd/boarddemo {{ARGS}}
 
-check: tidy fmt vet lint test build
+check: tidy fmt vet lint lint-style test build
 
 ok: check
     @echo "All checks passed."
@@ -59,7 +64,7 @@ ok: check
 # Requires pixi, uv, quarto, marimo, typst, node on PATH.
 # Does NOT run test-canvas / test-board-live / test-zot-real — those need
 # credentials or live infra and stay opt-in.
-ok-slow: tidy fmt vet lint test test-slow build
+ok-slow: tidy fmt vet lint lint-style test test-slow build
     @echo "All checks (incl. slow) passed."
 
 clean:

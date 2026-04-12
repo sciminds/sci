@@ -1,0 +1,13 @@
+id: no-hardcoded-color
+language: go
+rule:
+  pattern: lipgloss.Color($STR)
+severity: error
+message: |
+  Hardcoded lipgloss.Color() is only allowed in palette/style files.
+  Define colors in internal/ui/palette.go and reference via ui.TUI.Palette().
+ignores:
+  - "internal/ui/palette.go"
+  - "internal/ui/styles.go"
+  - "internal/tui/*/ui/palette.go"
+  - "internal/tui/*/ui/styles.go"

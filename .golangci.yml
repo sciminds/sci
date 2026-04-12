@@ -1,0 +1,29 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - dupl
+    - dupword
+
+  settings:
+    dupl:
+      threshold: 120
+
+  exclusions:
+    rules:
+      # CLI command definitions are inherently repetitive (flags, ArgsUsage,
+      # Action boilerplate). Abstracting them makes urfave/cli wiring harder
+      # to read.
+      - path: "^cmd/"
+        linters: [dupl]
+      - path: "cli/"
+        linters: [dupl]
+
+      # Test duplication is often intentional — each test is self-contained.
+      - path: "_test\\.go$"
+        linters: [dupl, dupword]
+
+      # Fixture data has intentional repeated words.
+      - path: "^cmd/boarddemo/"
+        linters: [dupword]
