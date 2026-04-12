@@ -47,7 +47,7 @@ func Commands() []*cli.Command {
 func itemCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "item",
-		Usage: "Work with individual items (read, add, update, delete, list, open, export)",
+		Usage: "Work with individual items (read, add, update, delete, list, open, export, extract)",
 		Commands: []*cli.Command{
 			readCommand(),
 			addCommand(),
@@ -56,6 +56,7 @@ func itemCommand() *cli.Command {
 			listCommand(),
 			openCommand(),
 			exportCommand(),
+			extractCommand(),
 		},
 	}
 }
