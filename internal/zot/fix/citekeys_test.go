@@ -100,6 +100,33 @@ func TestPlanCitekeys_DefaultKindsCoverAllBuckets(t *testing.T) {
 	}
 }
 
+func TestPlanCitekeys_CarriesVersionAndItemType(t *testing.T) {
+	t.Parallel()
+	// PlanCitekeys must copy Version and Type from local.Item so that
+	// ApplyCitekeys can pass them to UpdateItemsBatch's fast path.
+	items := []local.Item{{
+		Key:     "AAAA1111",
+		Type:    "journalArticle",
+		Version: 42,
+		Title:   "No Key Yet",
+		Date:    "2020",
+		Creators: []local.Creator{
+			{Type: "author", Last: "Smith", OrderIdx: 0},
+		},
+		Fields: map[string]string{},
+	}}
+	targets := PlanCitekeys(items, CitekeyOptions{})
+	if len(targets) != 1 {
+		t.Fatalf("targets = %d, want 1", len(targets))
+	}
+	if targets[0].Version != 42 {
+		t.Errorf("Version = %d, want 42", targets[0].Version)
+	}
+	if targets[0].ItemType != "journalArticle" {
+		t.Errorf("ItemType = %q, want journalArticle", targets[0].ItemType)
+	}
+}
+
 func TestPlanCitekeys_SynthesizesCanonicalNewKeys(t *testing.T) {
 	t.Parallel()
 	// Every target's NewKey must itself pass the v2 spec — otherwise the
@@ -216,8 +243,8 @@ func TestPlanCitekeys_ResolvesBBTFromExtra(t *testing.T) {
 func TestApplyCitekeys_WritesEveryTargetCitationKey(t *testing.T) {
 	t.Parallel()
 	targets := []CitekeyTarget{
-		{ItemKey: "AAAA1111", OldKey: "oldA", NewKey: "smith2020-aaa-AAAA1111", Reason: "non-canonical"},
-		{ItemKey: "BBBB2222", OldKey: "", NewKey: "jones2019-bbb-BBBB2222", Reason: "unstored"},
+		{ItemKey: "AAAA1111", OldKey: "oldA", NewKey: "smith2020-aaa-AAAA1111", Reason: "non-canonical", Version: 42, ItemType: "journalArticle"},
+		{ItemKey: "BBBB2222", OldKey: "", NewKey: "jones2019-bbb-BBBB2222", Reason: "unstored", Version: 15, ItemType: "book"},
 	}
 	w := &fakeWriter{}
 	res, err := ApplyCitekeys(context.Background(), w, targets)
@@ -230,21 +257,26 @@ func TestApplyCitekeys_WritesEveryTargetCitationKey(t *testing.T) {
 	if len(w.received) != 2 {
 		t.Fatalf("writer got %d patches, want 2", len(w.received))
 	}
-	// Every patch must set CitationKey to the target's NewKey and leave
-	// every other field zero — the orchestrator is a single-field
-	// overwrite only.
+	// Every patch must set CitationKey to the target's NewKey and carry
+	// Version + ItemType so UpdateItemsBatch can skip the per-item GET.
 	for _, p := range w.received {
 		if p.Data.CitationKey == nil || *p.Data.CitationKey == "" {
 			t.Errorf("%s: CitationKey not set", p.Key)
 		}
-		var want string
+		var want CitekeyTarget
 		for _, tg := range targets {
 			if tg.ItemKey == p.Key {
-				want = tg.NewKey
+				want = tg
 			}
 		}
-		if got := *p.Data.CitationKey; got != want {
-			t.Errorf("%s CitationKey = %q, want %q", p.Key, got, want)
+		if got := *p.Data.CitationKey; got != want.NewKey {
+			t.Errorf("%s CitationKey = %q, want %q", p.Key, got, want.NewKey)
+		}
+		if p.Version != want.Version {
+			t.Errorf("%s Version = %d, want %d", p.Key, p.Version, want.Version)
+		}
+		if p.ItemType != want.ItemType {
+			t.Errorf("%s ItemType = %q, want %q", p.Key, p.ItemType, want.ItemType)
 		}
 	}
 	if res.Totals.Succeeded != 2 || res.Totals.Failed != 0 {
@@ -332,6 +364,40 @@ func TestDryRunCitekeys_FlagsNotApplied(t *testing.T) {
 	}
 	if res.Totals.PerReason["invalid"] != 1 || res.Totals.PerReason["non-canonical"] != 1 {
 		t.Errorf("per-reason totals = %+v", res.Totals.PerReason)
+	}
+}
+
+func TestApplyCitekeys_ProgressCallbackFires(t *testing.T) {
+	t.Parallel()
+	// Build 3 targets so we can verify the callback fires with
+	// cumulative done counts.
+	targets := []CitekeyTarget{
+		{ItemKey: "AAAA1111", NewKey: "a-AAAA1111", Reason: "unstored", Version: 1, ItemType: "journalArticle"},
+		{ItemKey: "BBBB2222", NewKey: "b-BBBB2222", Reason: "unstored", Version: 2, ItemType: "book"},
+		{ItemKey: "CCCC3333", NewKey: "c-CCCC3333", Reason: "unstored", Version: 3, ItemType: "book"},
+	}
+	w := &fakeWriter{}
+	var calls []int
+	opts := ApplyOptions{
+		OnProgress: func(done, total int) {
+			calls = append(calls, done)
+		},
+	}
+	res, err := ApplyCitekeys(context.Background(), w, targets, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Totals.Succeeded != 3 {
+		t.Errorf("succeeded = %d, want 3", res.Totals.Succeeded)
+	}
+	// Callback fires once per item, so 3 calls with cumulative done 1,2,3.
+	if len(calls) != 3 {
+		t.Fatalf("OnProgress called %d times, want 3", len(calls))
+	}
+	for i, want := range []int{1, 2, 3} {
+		if calls[i] != want {
+			t.Errorf("calls[%d] = %d, want %d", i, calls[i], want)
+		}
 	}
 }
 

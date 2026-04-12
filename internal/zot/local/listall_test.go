@@ -43,6 +43,23 @@ func TestListAll_HydratesCreatorsAndFields(t *testing.T) {
 	}
 }
 
+func TestListAll_PopulatesVersionFromDB(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	items, err := db.ListAll(ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Every content item in the fixture has a non-zero version; the
+	// field must be populated so callers (e.g. UpdateItemsBatch) can
+	// skip the per-item GET that fetches the version from the API.
+	for _, it := range items {
+		if it.Version == 0 {
+			t.Errorf("item %s Version = 0, want non-zero", it.Key)
+		}
+	}
+}
+
 func TestListAll_RespectsCollectionFilter(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)

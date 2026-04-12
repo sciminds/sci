@@ -7,6 +7,7 @@ type Item struct {
 	ID           int64             `json:"id"`
 	Key          string            `json:"key"`
 	Type         string            `json:"type"`
+	Version      int               `json:"version"`
 	Title        string            `json:"title,omitempty"`
 	Date         string            `json:"date,omitempty"`
 	DOI          string            `json:"doi,omitempty"`

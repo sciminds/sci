@@ -266,11 +266,18 @@ func (c *Client) RemoveTagFromItem(ctx context.Context, itemKey, tag string) err
 }
 
 // ItemPatch describes a single entry in a bulk item update. Key is required;
-// Data holds the fields to change. ItemType and Version are filled in
-// automatically by UpdateItemsBatch.
+// Data holds the fields to change.
+//
+// When Version and ItemType are both non-zero/non-empty, UpdateItemsBatch
+// skips the per-item GET that normally fetches them from the API. This is
+// the fast path for callers that already have fresh metadata from the local
+// Zotero sqlite. If either is missing, the slow path (one GET per item)
+// is used as before.
 type ItemPatch struct {
-	Key  string
-	Data client.ItemData
+	Key      string
+	Version  int    // optional: skip GET if set together with ItemType
+	ItemType string // optional: skip GET if set together with Version
+	Data     client.ItemData
 }
 
 // maxBatchItems is the Zotero Web API's per-request object cap for
@@ -298,24 +305,36 @@ func (c *Client) UpdateItemsBatch(ctx context.Context, patches []ItemPatch) (map
 		return results, nil
 	}
 
-	// Build initial payloads: fetch version + itemType for each key.
+	// Build initial payloads. When a patch carries Version + ItemType
+	// (typically from the local sqlite), skip the per-item GET entirely.
+	// This is the difference between 5000 HTTP calls and zero for a
+	// full-library citekey fix.
 	type built struct {
 		patch ItemPatch
 		body  client.ItemData
 	}
 	initial := make([]built, 0, len(patches))
 	for _, p := range patches {
-		cur, err := c.GetItemRaw(ctx, p.Key)
-		if err != nil {
-			results[p.Key] = err
-			continue
-		}
 		body := p.Data
 		k := p.Key
-		v := cur.Version
 		body.Key = &k
-		body.Version = &v
-		body.ItemType = cur.Data.ItemType
+
+		if p.Version > 0 && p.ItemType != "" {
+			// Fast path: caller supplied metadata from the local DB.
+			v := p.Version
+			body.Version = &v
+			body.ItemType = client.ItemDataItemType(p.ItemType)
+		} else {
+			// Slow path: fetch version + itemType from the API.
+			cur, err := c.GetItemRaw(ctx, p.Key)
+			if err != nil {
+				results[p.Key] = err
+				continue
+			}
+			v := cur.Version
+			body.Version = &v
+			body.ItemType = cur.Data.ItemType
+		}
 		initial = append(initial, built{patch: p, body: body})
 	}
 

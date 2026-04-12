@@ -23,12 +23,12 @@ const fieldValueSubquery = `
 // baseSelect returns a SELECT that pulls common display columns for a list
 // of items. The result row order is:
 //
-//	itemID, key, typeName, dateAdded, dateModified, title, date, DOI, publicationTitle
+//	itemID, key, typeName, version, dateAdded, dateModified, title, date, DOI, publicationTitle
 //
 // Callers append WHERE/ORDER BY/LIMIT.
 func baseSelect() string {
 	return `
-SELECT i.itemID, i.key, it.typeName, i.dateAdded, i.clientDateModified,
+SELECT i.itemID, i.key, it.typeName, i.version, i.dateAdded, i.clientDateModified,
 	` + fieldValueSubquery + ` AS title,
 	` + fieldValueSubquery + ` AS date,
 	` + fieldValueSubquery + ` AS doi,
@@ -44,7 +44,7 @@ func scanListRow(rows *sql.Rows) (Item, error) {
 	var it Item
 	var title, date, doi, pub sql.NullString
 	if err := rows.Scan(
-		&it.ID, &it.Key, &it.Type, &it.DateAdded, &it.DateModified,
+		&it.ID, &it.Key, &it.Type, &it.Version, &it.DateAdded, &it.DateModified,
 		&title, &date, &doi, &pub,
 	); err != nil {
 		return it, err
@@ -471,7 +471,7 @@ LIMIT 1
 	var it Item
 	var title, date, doi, pub sql.NullString
 	if err := row.Scan(
-		&it.ID, &it.Key, &it.Type, &it.DateAdded, &it.DateModified,
+		&it.ID, &it.Key, &it.Type, &it.Version, &it.DateAdded, &it.DateModified,
 		&title, &date, &doi, &pub,
 	); err != nil {
 		if err == sql.ErrNoRows {

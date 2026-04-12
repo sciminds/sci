@@ -19,6 +19,7 @@ type itemHandler struct {
 	versionSeq    int
 	post412Once   bool // force first POST /items/<key> to 412
 	delete412Once bool
+	gets          int32
 	posts         int32
 	deletes       int32
 }
@@ -43,6 +44,7 @@ func (h *itemHandler) seed(key string, data client.ItemData, version int) {
 func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/users/42/items/") && !strings.HasSuffix(r.URL.Path, "/items/"):
+		atomic.AddInt32(&h.gets, 1)
 		key := strings.TrimPrefix(r.URL.Path, "/users/42/items/")
 		it, ok := h.items[key]
 		if !ok {
@@ -320,6 +322,67 @@ func TestUpdateItemsBatch(t *testing.T) {
 	}
 	if atomic.LoadInt32(&h.posts) != 1 {
 		t.Errorf("want 1 POST, got %d", h.posts)
+	}
+}
+
+func TestUpdateItemsBatch_SkipsGETWhenPreloaded(t *testing.T) {
+	t.Parallel()
+	h := newItemHandler(t)
+	// Seed items so the POST can match them.
+	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle"}, 10)
+	h.seed("DEF67890", client.ItemData{ItemType: "book"}, 5)
+	c, _ := newTestClient(t, h)
+
+	title := "Preloaded Fix"
+	patches := []ItemPatch{
+		{Key: "ABC12345", Version: 10, ItemType: "journalArticle", Data: client.ItemData{Title: &title}},
+		{Key: "DEF67890", Version: 5, ItemType: "book", Data: client.ItemData{Title: &title}},
+	}
+	results, err := c.UpdateItemsBatch(context.Background(), patches)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, e := range results {
+		if e != nil {
+			t.Errorf("key %s: %v", k, e)
+		}
+	}
+	// The critical assertion: zero GETs because version+itemType were
+	// pre-supplied from the local DB.
+	if g := atomic.LoadInt32(&h.gets); g != 0 {
+		t.Errorf("want 0 GETs (preloaded), got %d", g)
+	}
+	if h.items["ABC12345"].data.Title == nil || *h.items["ABC12345"].data.Title != "Preloaded Fix" {
+		t.Errorf("ABC12345 title not applied")
+	}
+}
+
+func TestUpdateItemsBatch_412RetryUsesGETOnlyForConflicts(t *testing.T) {
+	t.Parallel()
+	h := newItemHandler(t)
+	// Seed with version 10; pass version 9 (stale) for one item to trigger 412.
+	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle"}, 10)
+	h.seed("DEF67890", client.ItemData{ItemType: "book"}, 5)
+	c, _ := newTestClient(t, h)
+
+	title := "Retry Fix"
+	patches := []ItemPatch{
+		{Key: "ABC12345", Version: 9, ItemType: "journalArticle", Data: client.ItemData{Title: &title}},
+		{Key: "DEF67890", Version: 5, ItemType: "book", Data: client.ItemData{Title: &title}},
+	}
+	results, err := c.UpdateItemsBatch(context.Background(), patches)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// DEF67890 should succeed; ABC12345 should succeed on retry.
+	for k, e := range results {
+		if e != nil {
+			t.Errorf("key %s: %v", k, e)
+		}
+	}
+	// Only 1 GET: the 412 retry for ABC12345. DEF67890 never needed a GET.
+	if g := atomic.LoadInt32(&h.gets); g != 1 {
+		t.Errorf("want 1 GET (412 retry only), got %d", g)
 	}
 }
 

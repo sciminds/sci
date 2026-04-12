@@ -78,11 +78,13 @@ func ParseCitekeyKind(s string) (CitekeyKind, bool) {
 // by PlanCitekeys and consumed by ApplyCitekeys, which actually
 // does the POST /items round-trip.
 type CitekeyTarget struct {
-	ItemKey string `json:"item_key"`
-	Title   string `json:"title,omitempty"`
-	OldKey  string `json:"old_key,omitempty"` // "" for unstored
-	NewKey  string `json:"new_key"`
-	Reason  string `json:"reason"` // invalid | collision | non-canonical | unstored
+	ItemKey  string `json:"item_key"`
+	Title    string `json:"title,omitempty"`
+	OldKey   string `json:"old_key,omitempty"` // "" for unstored
+	NewKey   string `json:"new_key"`
+	Reason   string `json:"reason"`    // invalid | collision | non-canonical | unstored
+	Version  int    `json:"version"`   // from local DB — lets UpdateItemsBatch skip per-item GETs
+	ItemType string `json:"item_type"` // from local DB — ditto
 }
 
 // CitekeyOptions narrows a plan. Kinds filters which buckets contribute
@@ -167,11 +169,13 @@ func PlanCitekeys(items []local.Item, opts CitekeyOptions) []CitekeyTarget {
 			continue
 		}
 		targets = append(targets, CitekeyTarget{
-			ItemKey: s.item.Key,
-			Title:   s.item.Title,
-			OldKey:  s.stored,
-			NewKey:  citekey.Synthesize(s.item),
-			Reason:  reason,
+			ItemKey:  s.item.Key,
+			Title:    s.item.Title,
+			OldKey:   s.stored,
+			NewKey:   citekey.Synthesize(s.item),
+			Reason:   reason,
+			Version:  s.item.Version,
+			ItemType: s.item.Type,
 		})
 	}
 
@@ -255,18 +259,31 @@ type CitekeyTotals struct {
 	Failed    int            `json:"failed"`
 }
 
+// ApplyOptions configures the apply run. All fields are optional.
+type ApplyOptions struct {
+	// OnProgress is called after each item's outcome is recorded. done is
+	// the cumulative count of items processed so far; total is len(targets).
+	// Safe to leave nil.
+	OnProgress func(done, total int)
+}
+
 // ApplyCitekeys writes every target's new cite-key to its item via
-// POST /items (batched by the API client). Returns one CitekeyOutcome per
-// target; a per-item error populates Error, leaves Applied=false, and
-// bumps Failed. Whole-request failures (network, HTTP 5xx) surface as
-// the error return — we stop the run rather than pretend partial
-// progress.
+// POST /items. Targets are sent in batches of 50 (the Zotero API cap),
+// calling opts.OnProgress between batches so the CLI can drive a
+// progress bar. Returns one CitekeyOutcome per target; a per-item error
+// populates Error, leaves Applied=false, and bumps Failed. Whole-request
+// failures (network, HTTP 5xx) surface as the error return — we stop
+// the run rather than pretend partial progress.
 //
 // After the API round-trip completes we return from the zot side
 // without waiting for the local Zotero desktop's sync to catch up; the
 // CLAUDE.md "reads local, writes cloud" split expects the next local
 // read to pick up fresh data on its own.
-func ApplyCitekeys(ctx context.Context, w CitekeyWriter, targets []CitekeyTarget) (*CitekeyResult, error) {
+func ApplyCitekeys(ctx context.Context, w CitekeyWriter, targets []CitekeyTarget, opts ...ApplyOptions) (*CitekeyResult, error) {
+	var opt ApplyOptions
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 	res := &CitekeyResult{
 		Applied: true,
 		Targets: targets,
@@ -276,38 +293,55 @@ func ApplyCitekeys(ctx context.Context, w CitekeyWriter, targets []CitekeyTarget
 		return res, nil
 	}
 
-	patches := make([]api.ItemPatch, len(targets))
-	for i, tg := range targets {
-		newKey := tg.NewKey
-		patches[i] = api.ItemPatch{
-			Key: tg.ItemKey,
-			// ItemType is filled in by UpdateItemsBatch; we only need
-			// to carry the citationKey diff.
-			Data: client.ItemData{CitationKey: &newKey},
-		}
-	}
-
-	errs, err := w.UpdateItemsBatch(ctx, patches)
-	if err != nil {
-		return nil, fmt.Errorf("apply citekey fix: %w", err)
-	}
-
+	// Send in chunks of 50 (the Zotero API cap), reporting progress
+	// between chunks so the CLI can animate a progress bar.
+	const batchSize = 50
 	res.Outcomes = make([]CitekeyOutcome, 0, len(targets))
-	for _, tg := range targets {
-		oc := CitekeyOutcome{
-			ItemKey: tg.ItemKey,
-			OldKey:  tg.OldKey,
-			NewKey:  tg.NewKey,
-			Reason:  tg.Reason,
+	done := 0
+
+	for start := 0; start < len(targets); start += batchSize {
+		end := start + batchSize
+		if end > len(targets) {
+			end = len(targets)
 		}
-		if perErr, ok := errs[tg.ItemKey]; ok && perErr != nil {
-			oc.Error = perErr.Error()
-			res.Totals.Failed++
-		} else {
-			oc.Applied = true
-			res.Totals.Succeeded++
+		chunk := targets[start:end]
+
+		patches := make([]api.ItemPatch, len(chunk))
+		for i, tg := range chunk {
+			newKey := tg.NewKey
+			patches[i] = api.ItemPatch{
+				Key:      tg.ItemKey,
+				Version:  tg.Version,
+				ItemType: tg.ItemType,
+				Data:     client.ItemData{CitationKey: &newKey},
+			}
 		}
-		res.Outcomes = append(res.Outcomes, oc)
+
+		errs, err := w.UpdateItemsBatch(ctx, patches)
+		if err != nil {
+			return nil, fmt.Errorf("apply citekey fix: %w", err)
+		}
+
+		for _, tg := range chunk {
+			oc := CitekeyOutcome{
+				ItemKey: tg.ItemKey,
+				OldKey:  tg.OldKey,
+				NewKey:  tg.NewKey,
+				Reason:  tg.Reason,
+			}
+			if perErr, ok := errs[tg.ItemKey]; ok && perErr != nil {
+				oc.Error = perErr.Error()
+				res.Totals.Failed++
+			} else {
+				oc.Applied = true
+				res.Totals.Succeeded++
+			}
+			res.Outcomes = append(res.Outcomes, oc)
+			done++
+			if opt.OnProgress != nil {
+				opt.OnProgress(done, len(targets))
+			}
+		}
 	}
 	return res, nil
 }

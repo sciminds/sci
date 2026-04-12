@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/fix"
 	"github.com/sciminds/cli/internal/zot/hygiene"
@@ -417,20 +418,27 @@ func runCitekeysFix(ctx context.Context, cmd *cli.Command) error {
 	// Destructive confirm, matching the pattern every other write
 	// command uses. --yes bypasses for non-interactive runs.
 	prompt := fmt.Sprintf("patch %d item(s) citationKey field via Zotero Web API?", len(targets))
-	proceed, err := cmdutil.ConfirmOrSkip(citekeysYes, prompt)
-	if err != nil {
+	if done, err := cmdutil.ConfirmOrSkip(citekeysYes, prompt); done || err != nil {
 		return err
 	}
-	if !proceed {
-		return nil
-	}
 
-	client, err := requireAPIClient()
+	apiClient, err := requireAPIClient()
 	if err != nil {
 		return err
 	}
 
-	res, err := fix.ApplyCitekeys(ctx, client, targets)
+	var res *fix.CitekeyResult
+	err = ui.RunWithProgress("Fixing cite-keys", func(t *ui.ProgressTracker) error {
+		t.SetTotal(len(targets))
+		var applyErr error
+		res, applyErr = fix.ApplyCitekeys(ctx, apiClient, targets, fix.ApplyOptions{
+			OnProgress: func(done, total int) {
+				counter := "patched"
+				t.Advance(counter, "")
+			},
+		})
+		return applyErr
+	})
 	if err != nil {
 		return err
 	}
