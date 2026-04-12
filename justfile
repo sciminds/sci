@@ -104,6 +104,15 @@ casts-gif FILTER='*':
     done
     echo "rendered ${#casts[@]} gif(s) to docs/casts/"
 
+# Check Go doc comments (package-level + exported symbols) via revive.
+# Not part of `check`/`ok` gate — run manually or in doc-audit sessions.
+lint-docs:
+    golangci-lint run --config .golangci-docs.yml ./internal/...
+
+# Report gaps in user-facing CLI documentation (casts, gifs, README embeds, help descriptions).
+doc-coverage:
+    ./scripts/doc-coverage.sh
+
 run *ARGS:
     go run ./cmd/sci {{ARGS}}
 

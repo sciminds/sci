@@ -1,0 +1,38 @@
+version: "2"
+
+# Documentation-only lint config. Run via `just lint-docs`.
+# Separated from the main .golangci.yml so that doc warnings
+# don't block `just ok` while the codebase is being documented.
+
+linters:
+  default: none
+  enable:
+    - revive
+
+  settings:
+    revive:
+      rules:
+        # Every package must have a // Package <name> doc comment.
+        - name: package-comments
+          severity: warning
+        # Every exported type/func/var/const must have a doc comment
+        # that starts with the symbol name (standard godoc convention).
+        - name: exported
+          severity: warning
+          arguments:
+            - "checkPrivateReceivers"
+            - "sayRepetitiveInsteadOfStutters"
+
+  exclusions:
+    rules:
+      # Tests don't need exported-symbol doc comments.
+      - path: "_test\\.go$"
+        linters: [revive]
+
+      # main packages are entry points, not library API.
+      - path: "^cmd/"
+        linters: [revive]
+
+      # CLI command wiring (urfave/cli) is repetitive by nature.
+      - path: "cli/"
+        linters: [revive]

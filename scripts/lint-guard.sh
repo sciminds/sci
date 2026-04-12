@@ -278,6 +278,56 @@ if [[ -n "$byte_clone_hits" ]]; then
 	fail "no-byte-clone"
 fi
 
+# ── Rule 12: Every internal/ package must have a package-level doc comment ──
+# pkgsite (just docs) renders the first // Package <name> comment block as
+# the package overview. Without it the package page is blank and unhelpful.
+# A package satisfies this rule if ANY .go file in the directory starts its
+# package clause with a doc comment, or if a doc.go file exists.
+#
+# Suppress with a file named .lint-no-pkg-doc in the package directory.
+
+pkg_doc_hits=""
+while IFS= read -r dir; do
+	# Only check directories that contain non-test .go files (skip asset dirs).
+	has_go=false
+	for f in "$dir"/*.go; do
+		[[ -e "$f" ]] || continue
+		[[ "$f" == *_test.go ]] && continue
+		has_go=true
+		break
+	done
+	$has_go || continue
+
+	# Skip testdata directories (not real packages).
+	[[ "$dir" == */testdata* ]] && continue
+
+	# Skip if suppressed
+	[[ -f "$dir/.lint-no-pkg-doc" ]] && continue
+
+	# Check for doc.go
+	[[ -f "$dir/doc.go" ]] && continue
+
+	# Check for // Package <name> comment in any .go file (non-test).
+	has_pkg_doc=false
+	for f in "$dir"/*.go; do
+		[[ "$f" == *_test.go ]] && continue
+		if rg -q '^// Package ' "$f" 2>/dev/null; then
+			has_pkg_doc=true
+			break
+		fi
+	done
+
+	if ! $has_pkg_doc; then
+		pkg_doc_hits+="  $dir"$'\n'
+	fi
+done < <(fd -t d --min-depth 1 . internal/ | sort)
+
+if [[ -n "${pkg_doc_hits%$'\n'}" ]]; then
+	echo "FAIL [pkg-doc-required] packages missing // Package <name> doc comment:"
+	echo "${pkg_doc_hits%$'\n'}"
+	fail "pkg-doc-required"
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
 	echo ""
