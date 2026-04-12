@@ -4,6 +4,7 @@ package tui
 // applying changes, and the final done/error summary.
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -54,7 +55,7 @@ func (m Model) View() tea.View {
 	case phaseSelecting:
 		body = m.selectList.View()
 	case phaseApplying:
-		body = m.selectList.View() // show selection while applying
+		body = m.spinner.View() + ui.TUI.FgAccent().Render(fmt.Sprintf("Applying %d files…", m.selectList.SelectedCount()))
 	case phaseDone:
 		body = m.viewDone()
 	}

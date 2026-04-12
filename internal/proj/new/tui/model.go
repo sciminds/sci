@@ -9,6 +9,7 @@ import (
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	projnew "github.com/sciminds/cli/internal/proj/new"
 	"github.com/sciminds/cli/internal/ui"
@@ -63,10 +64,11 @@ func (k doneKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHel
 
 // Model is the Bubble Tea model for the proj config TUI.
 type Model struct {
-	phase  phase
-	width  int
-	height int
-	help   help.Model
+	phase   phase
+	width   int
+	height  int
+	help    help.Model
+	spinner spinner.Model
 
 	selectList ui.SelectList
 	dir        string
@@ -99,9 +101,15 @@ func New(opts Options) Model {
 		ui.WithRenderItem(renderFileItem),
 	)
 
+	s := spinner.New(
+		spinner.WithSpinner(spinner.Dot),
+		spinner.WithStyle(ui.TUI.SpinnerDot()),
+	)
+
 	return Model{
 		phase:      phaseSelecting,
 		help:       ui.NewHelp(),
+		spinner:    s,
 		selectList: sl,
 		dir:        opts.Dir,
 		files:      files,
@@ -154,6 +162,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 	}
 
+	if m.phase == phaseApplying {
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	}
+
 	return m, nil
 }
 
@@ -169,7 +183,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.selectList, cmd = m.selectList.Update(msg)
 		if m.selectList.IsConfirmed() {
 			m.phase = phaseApplying
-			return m, m.applySelected()
+			return m, tea.Batch(m.spinner.Tick, m.applySelected())
 		}
 		return m, cmd
 	case phaseDone:
