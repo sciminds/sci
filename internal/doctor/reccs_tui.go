@@ -68,7 +68,7 @@ func newReccsModel(entries []brew.BrewfileEntry, missing map[string]bool) reccsM
 
 	title := fmt.Sprintf("Recommended tools — %d available", len(items))
 	delegate := ui.NewListDelegate()
-	l := list.New(items, delegate, 80, 24)
+	l := list.New(items, delegate, 0, 0)
 	l.Title = title
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
