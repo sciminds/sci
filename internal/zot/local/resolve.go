@@ -98,6 +98,9 @@ type PDFParent struct {
 // (oldest-added) PDF metadata for each parent. Standalone attachments
 // (parentItemID NULL) are excluded.
 //
+// Results are ordered by parent dateAdded DESC (most recently added
+// first) so extract-lib processes the newest items first.
+//
 // The query mirrors ResolvePDFAttachment's selection logic — same
 // content-type / extension heuristic, same dateAdded ordering — so
 // bulk results are consistent with per-item lookups.
@@ -130,7 +133,7 @@ WHERE p.libraryID = ?
        OR (ia.path IS NOT NULL AND lower(ia.path) LIKE '%.pdf'))
 GROUP BY p.itemID
 HAVING ch.dateAdded = MIN(ch.dateAdded)
-ORDER BY p.key
+ORDER BY p.dateAdded DESC
 `
 	rows, err := d.db.Query(q, d.libraryID)
 	if err != nil {
