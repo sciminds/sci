@@ -25,6 +25,8 @@ Written in Go because:
 | `sci doctor` | Check that your Mac is set up correctly |
 | `sci update` | Update sci to the latest version |
 
+![sci doctor](docs/casts/sci-doctor.gif)
+
 ### Browse data files
 
 | Command | What it does |
@@ -48,6 +50,8 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci py marimo` | Open a marimo notebook |
 | `sci py convert` | Convert between marimo (.py), MyST (.md), and Quarto (.qmd) |
 
+![sci proj](docs/casts/sci-proj.gif)
+
 ### Manage databases
 
 | Command | What it does |
@@ -59,6 +63,8 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci db delete` | Delete a table from a database |
 | `sci db reset` | Delete and recreate an empty database |
 
+![sci db](docs/casts/sci-db.gif)
+
 ### Cloud storage
 
 | Command | What it does |
@@ -68,6 +74,8 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci cloud get <name>` | Download a shared file |
 | `sci cloud list` | List all shared files |
 | `sci cloud remove <name>` | Remove a shared file |
+
+![sci cloud](docs/casts/sci-cloud.gif)
 
 ### Lab storage (sftp)
 
@@ -79,6 +87,8 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci lab put` | Upload a file or directory to your lab space |
 | `sci lab browse` | Open an SSH shell in lab storage |
 
+![sci lab](docs/casts/sci-lab.gif)
+
 ### Manage tools (Homebrew & uv)
 
 | Command | What it does |
@@ -88,6 +98,8 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci tools uninstall` | Remove a package from the Brewfile and uninstall it |
 | `sci tools update` | Update the Homebrew registry and upgrade outdated packages |
 | `sci tools reccs` | Pick optional tools to install |
+
+![sci tools](docs/casts/sci-tools.gif)
 
 ### Video/audio editing
 
@@ -103,6 +115,8 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci vid mute` | Remove audio from a video |
 | `sci vid extract-audio` | Extract audio track to file |
 | `sci vid strip-subs` | Remove subtitles from a video |
+
+![sci vid](docs/casts/sci-vid.gif)
 
 ### Canvas LMS & GitHub Classroom
 
@@ -123,6 +137,8 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci cass canvas files` | List course files |
 
 Syncs course data to a local SQLite database (`cass.db`) with a git-like workflow: pull shows changelogs, diff shows pending grade changes, push sends grades to Canvas with conflict detection. GitHub Classroom is optional — works with Canvas-only courses.
+
+![sci cass](docs/casts/sci-cass.gif)
 
 ### Zotero library management (Experimental)
 
@@ -194,6 +210,8 @@ Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd
 Ingests any folder of markdown files with YAML front-matter into a single SQLite database. Front-matter keys become real SQL columns (dynamically discovered), wikilinks and markdown links are tracked in a `links` table, and FTS5 enables full-text search. Export reconstructs byte-identical files from the database.
 
 Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/markdb@latest`.
+
+![sci markdb](docs/casts/sci-markdb.gif)
 
 ---
 
