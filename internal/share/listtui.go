@@ -6,9 +6,11 @@ package share
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -18,6 +20,13 @@ import (
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/ui"
 )
+
+// ErrInterrupted signals the user interrupted the TUI (Ctrl-C).
+var ErrInterrupted = errors.New("interrupted")
+
+// cmdTimeout caps how long a single async command (delete, download) waits
+// before returning an error.
+var cmdTimeout = 30 * time.Second
 
 // ── List item ──────────────────────────────────────────────────────────────
 
@@ -139,20 +148,24 @@ func newCloudDelegate(keys *cloudDelegateKeyMap, client *cloud.Client, pendingDe
 
 func deleteFile(client *cloud.Client, name string) tea.Cmd {
 	return func() tea.Msg {
-		err := client.Delete(context.Background(), name)
+		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+		defer cancel()
+		err := client.Delete(ctx, name)
 		return deleteResultMsg{name: name, err: err}
 	}
 }
 
 func downloadFile(client *cloud.Client, name string) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+		defer cancel()
 		outPath := filepath.Base(name)
 		f, err := os.Create(outPath)
 		if err != nil {
 			return downloadResultMsg{name: name, err: err}
 		}
 		defer func() { _ = f.Close() }()
-		if err := client.Download(context.Background(), name, f); err != nil {
+		if err := client.Download(ctx, name, f); err != nil {
 			return downloadResultMsg{name: name, err: err}
 		}
 		return downloadResultMsg{name: name, path: outPath}
@@ -167,7 +180,7 @@ type cloudListModel struct {
 	pendingDelete *string // shared with delegate closure
 }
 
-func newCloudListModel(entries []SharedEntry, client *cloud.Client, width, height int) cloudListModel {
+func newCloudListModel(entries []SharedEntry, client *cloud.Client) cloudListModel {
 	items := make([]list.Item, len(entries))
 	hasDesc := false
 	for i, e := range entries {
@@ -187,7 +200,7 @@ func newCloudListModel(entries []SharedEntry, client *cloud.Client, width, heigh
 	}
 
 	title := fmt.Sprintf("Cloud Files — %d shared", len(entries))
-	l := list.New(items, delegate, width, height)
+	l := list.New(items, delegate, 0, 0)
 	l.Title = title
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
@@ -239,9 +252,15 @@ func (m cloudListModel) View() tea.View {
 
 // RunCloudListTUI launches the interactive cloud file manager.
 func RunCloudListTUI(entries []SharedEntry, client *cloud.Client) error {
-	m := newCloudListModel(entries, client, ui.FallbackWidth, ui.FallbackHeight+ui.PageChromeLines)
+	m := newCloudListModel(entries, client)
 	p := tea.NewProgram(m)
 	_, err := p.Run()
 	ui.DrainStdin()
-	return err
+	if err != nil {
+		if errors.Is(err, tea.ErrInterrupted) {
+			return ErrInterrupted
+		}
+		return err
+	}
+	return nil
 }
