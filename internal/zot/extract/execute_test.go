@@ -40,6 +40,37 @@ func (f *fakeExtractor) Extract(_ context.Context, opts ExtractOptions) (*Extrac
 	}, nil
 }
 
+func (f *fakeExtractor) ExtractBatch(_ context.Context, opts ExtractOptions, pdfs []string, onProgress ProgressFunc) (*BatchExtractResult, error) {
+	f.calls++
+	if f.err != nil {
+		return nil, f.err
+	}
+	if err := os.MkdirAll(opts.OutputDir, 0o755); err != nil {
+		return nil, err
+	}
+	results := make(map[string]*ExtractResult, len(pdfs))
+	for _, pdf := range pdfs {
+		stem := stemFor(pdf)
+		mdPath := filepath.Join(opts.OutputDir, stem+".md")
+		if err := os.WriteFile(mdPath, []byte(f.md), 0o644); err != nil {
+			return nil, err
+		}
+		results[pdf] = &ExtractResult{
+			MarkdownPath: mdPath,
+			ToolVersion:  f.version,
+			Duration:     time.Second,
+		}
+		if onProgress != nil {
+			onProgress(&DoclingEvent{Kind: EventFinished, Document: stem + ".pdf"})
+		}
+	}
+	return &BatchExtractResult{
+		Results:     results,
+		ToolVersion: f.version,
+		Duration:    time.Duration(len(pdfs)) * time.Second,
+	}, nil
+}
+
 // fakeNoteWriter records every CreateChildNote call.
 type fakeNoteWriter struct {
 	created   []createCall

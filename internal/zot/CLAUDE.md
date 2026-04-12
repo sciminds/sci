@@ -113,16 +113,21 @@ The `--html` flag renders the markdown as HTML via goldmark instead, with an HTM
 
 `zot item children <KEY>` is the companion read-side command. Reads from the local sqlite via `local.ListChildren` (not the Web API). Returns both attachments and notes. Uses `zot.ChildItemView` as a mirror type because `local` → `zot` would cycle.
 
-**Bulk extraction (`zot extract-lib`).** No-args command that processes every parent item with a PDF attachment. Resumes where it left off via two layers:
+**Bulk extraction (`zot extract-lib`).** No-args command that processes every parent item with a PDF attachment. Two logical steps:
+
+1. **Extract** — runs `docling` once over all un-cached PDFs in a single process invocation (models load once). Populates the local markdown cache.
+2. **Apply** (`--apply`) — reads cached markdown, renders note bodies, posts to Zotero via the Web API. Without `--apply`, extraction is cache-only.
+
+Resume after failure via two layers:
 
 1. **Local DB tag check** — `local.ParentsWithDoclingNotes()` returns parents that already have a docling-tagged child note → `PlanExtract` returns Skip. Covers items fully extracted.
 2. **Local markdown cache** at `os.UserCacheDir()/sci/zot/extract/<pdfKey>-<hash>.md` — covers items where docling succeeded but the note post failed. Re-run skips docling and retries the upload only.
 
-Pipeline: `local.ListAllPDFAttachments` + `local.ParentsWithDoclingNotes` → `extract.PlanBatch` (concurrent) → confirm → `extract.ExecuteBatch` (worker pool). Workers each own a temp dir cleaned per-item. The circuit breaker aborts after 10 consecutive failures.
+Pipeline: `local.ListAllPDFAttachments` + `local.ParentsWithDoclingNotes` → `extract.PlanBatch` (concurrent hashing) → confirm → `extract.ExecuteBatch` (single docling process → cache populate → note posting loop).
 
-`--jobs N` controls worker count (0 = auto: 1 for GPU, NumCPU/4 for CPU). `--limit N` caps the candidate list for smoke testing. `--force` creates new notes even where docling notes already exist.
+`--limit N` caps the candidate list for smoke testing. `--force` creates new notes even where docling notes already exist. `--reextract` clears cache entries to force docling re-runs.
 
-Progress is shown via an inline bubbletea progress bar (`ui.RunWithProgress`). In `--json` / quiet mode, the TUI is skipped and the final `ExtractLibResult` is emitted.
+Progress is driven by parsing docling's `-v` stderr log lines (`extract.ParseDoclingEvent`): `Processing document X` updates the status, `Finished converting document X in N sec` advances the progress bar. `--no-abort-on-error` is always passed so docling continues past individual failures. In `--json` / quiet mode, the TUI is skipped and the final `ExtractLibResult` is emitted.
 
 **Smoke tests (opt-in).** `DOCLING=1` runs the real-binary Zotero-mode extraction. `DOCLING_FULL=1` runs the full-mode variant. Both use `internal/zot/extract/real_test.go` and point at `~/Desktop/zotero/storage/7T798XVD/undefined` by default (the CKD paper); override via `DOCLING_PDF`. `ZOT_REAL_DB=<dir>` runs `TestRealLibrary_ResolveCKD` to verify the SQL resolver against the user's actual library; override the parent key via `ZOT_REAL_CKD_KEY`.
 

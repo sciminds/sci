@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -89,8 +89,9 @@ func TestPlanBatch_MixedOutcomes(t *testing.T) {
 	}
 }
 
-// TestExecuteBatch_HappyPath: 2 items, 1 Create + 1 Skip, with 2
-// workers. Skip never calls extractor; the create does and posts.
+// TestExecuteBatch_HappyPath: 2 items, 1 Create + 1 Skip. The create
+// goes through ExtractBatch (single docling call), gets cached, and
+// the note is posted. Skip never triggers extraction.
 func TestExecuteBatch_HappyPath(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -128,21 +129,19 @@ func TestExecuteBatch_HappyPath(t *testing.T) {
 		Extractor: ex,
 		Writer:    w,
 		Cache:     cache,
-		Jobs:      2,
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
 	})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if res.Aborted {
-		t.Errorf("batch should not be aborted: %s", res.AbortReason)
 	}
 
 	created, skipped, cached, failed := res.Counts()
 	if created != 1 || skipped != 1 || failed != 0 {
 		t.Errorf("counts = created=%d/skipped=%d/cached=%d/failed=%d; want 1/1/0/0", created, skipped, cached, failed)
 	}
+	// ExtractBatch called once (not per-item).
 	if ex.calls != 1 {
-		t.Errorf("extractor calls = %d, want 1 (Skip must not trigger)", ex.calls)
+		t.Errorf("extractor calls = %d, want 1 (single batch call)", ex.calls)
 	}
 	if len(w.created) != 1 || w.created[0].parent != "PA" {
 		t.Errorf("CreateChildNote calls = %v", w.created)
@@ -154,8 +153,8 @@ func TestExecuteBatch_HappyPath(t *testing.T) {
 	}
 }
 
-// TestExecuteBatch_PerItemErrorsContinue: one item fails (plan
-// carried an error) — the batch keeps running.
+// TestExecuteBatch_PerItemErrorsContinue: one item has a plan error —
+// the batch keeps running for other items.
 func TestExecuteBatch_PerItemErrorsContinue(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -179,7 +178,7 @@ func TestExecuteBatch_PerItemErrorsContinue(t *testing.T) {
 		Extractor: &fakeExtractor{md: "# h\n", version: "docling 2.86.0"},
 		Writer:    &fakeNoteWriter{},
 		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
-		Jobs:      1,
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -196,12 +195,13 @@ func TestExecuteBatch_PerItemErrorsContinue(t *testing.T) {
 	}
 }
 
-// TestExecuteBatch_CircuitBreakerAborts: every item fails, the
-// consecutive-failure limit trips.
-func TestExecuteBatch_CircuitBreakerAborts(t *testing.T) {
+// TestExecuteBatch_ExtractorFailureMarksAllPending: if the single
+// ExtractBatch call fails entirely, all items needing extraction
+// are marked failed but the result is returned (not an error).
+func TestExecuteBatch_ExtractorFailureMarksAllPending(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	const N = 10
+	const N = 3
 	items := make([]BatchItem, N)
 	for i := 0; i < N; i++ {
 		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
@@ -227,28 +227,23 @@ func TestExecuteBatch_CircuitBreakerAborts(t *testing.T) {
 	}
 
 	res, err := ExecuteBatch(context.Background(), BatchInput{
-		Items:                   items,
-		Extractor:               &fakeExtractor{err: errors.New("docling exploded")},
-		Writer:                  &fakeNoteWriter{},
-		Cache:                   &MarkdownCache{Dir: filepath.Join(dir, "cache")},
-		Jobs:                    1,
-		ConsecutiveFailureLimit: 3,
+		Items:     items,
+		Extractor: &fakeExtractor{err: errors.New("docling exploded")},
+		Writer:    &fakeNoteWriter{},
+		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Aborted {
-		t.Error("expected Aborted=true after circuit breaker trip")
-	}
 	for i, o := range res.Outcomes {
 		if o.Err == nil {
-			t.Errorf("outcome[%d] succeeded; expected failure or cancel", i)
+			t.Errorf("outcome[%d] succeeded; expected failure", i)
 		}
 	}
 }
 
-// TestExecuteBatch_FiresCallbacks: OnItemStart / OnItemDone fire once
-// per item.
+// TestExecuteBatch_FiresCallbacks: OnItemDone fires for every item.
 func TestExecuteBatch_FiresCallbacks(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -265,35 +260,258 @@ func TestExecuteBatch_FiresCallbacks(t *testing.T) {
 		},
 	}
 
-	var starts, dones atomic.Int32
-	var mu sync.Mutex
-	var doneOutcome BatchOutcome
+	var dones atomic.Int32
 
 	_, err := ExecuteBatch(context.Background(), BatchInput{
 		Items:     items,
 		Extractor: &fakeExtractor{md: "x", version: "docling 2.86.0"},
 		Writer:    &fakeNoteWriter{},
 		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
-		Jobs:      1,
-		OnItemStart: func(i int, it BatchItem) {
-			starts.Add(1)
-		},
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
 		OnItemDone: func(i int, o BatchOutcome) {
 			dones.Add(1)
-			mu.Lock()
-			doneOutcome = o
-			mu.Unlock()
 		},
-		Now: func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if starts.Load() != 1 || dones.Load() != 1 {
-		t.Errorf("starts=%d dones=%d, want 1/1", starts.Load(), dones.Load())
+	if dones.Load() != 1 {
+		t.Errorf("dones=%d, want 1", dones.Load())
 	}
-	if doneOutcome.NoteKey == "" {
-		t.Error("OnItemDone fired with empty NoteKey")
+}
+
+// TestExecuteBatch_CacheHitSkipsExtractor: items already in cache
+// skip the docling call entirely but still post notes.
+func TestExecuteBatch_CacheHitSkipsExtractor(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+	if _, err := cache.Put("PDFA", "ha", []byte("## cached\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	ex := &fakeExtractor{md: "unused", version: "docling 2.86.0"}
+	w := &fakeNoteWriter{}
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: ex,
+		Writer:    w,
+		Cache:     cache,
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Extractor should NOT be called — everything was cached.
+	if ex.calls != 0 {
+		t.Errorf("extractor calls = %d, want 0 (all cached)", ex.calls)
+	}
+	if res.Outcomes[0].Err != nil {
+		t.Errorf("unexpected error: %v", res.Outcomes[0].Err)
+	}
+	if !res.Outcomes[0].FromCache {
+		t.Error("FromCache=false, want true")
+	}
+	// Note should still be posted.
+	if len(w.created) != 1 {
+		t.Fatalf("CreateChildNote calls = %d, want 1", len(w.created))
+	}
+	if !strings.Contains(w.created[0].body, "cached") {
+		t.Errorf("posted body missing cached markdown:\n%s", w.created[0].body)
+	}
+}
+
+// TestExecuteBatch_CachePreservedOnWriterError: if extraction succeeds
+// but the note post fails, the cache entry must survive.
+func TestExecuteBatch_CachePreservedOnWriterError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: &fakeExtractor{md: "# body\n", version: "docling 2.86.0"},
+		Writer:    &fakeNoteWriter{createErr: errors.New("api 500")},
+		Cache:     cache,
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Outcomes[0].Err == nil {
+		t.Fatal("expected writer error")
+	}
+	// Cache must be preserved for resume.
+	if _, ok := cache.Get("PDFA", "ha"); !ok {
+		t.Error("cache entry was dropped after writer failure — resume is broken")
+	}
+}
+
+// TestExecuteBatch_OnProgressFires: the progress callback fires
+// during extraction.
+func TestExecuteBatch_OnProgressFires(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	var progressCalls atomic.Int32
+	_, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: &fakeExtractor{md: "body", version: "docling 2.86.0"},
+		Writer:    &fakeNoteWriter{},
+		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+		OnProgress: func(ev *DoclingEvent) {
+			progressCalls.Add(1)
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if progressCalls.Load() == 0 {
+		t.Error("OnProgress never fired")
+	}
+}
+
+// TestExecuteBatch_ChunkedExtraction: with BatchSize=2 and 5 items
+// needing extraction, ExtractBatch should be called 3 times (2+2+1).
+func TestExecuteBatch_ChunkedExtraction(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	const N = 5
+	items := make([]BatchItem, N)
+	for i := 0; i < N; i++ {
+		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
+		writeStubPDF(t, p, fmt.Sprintf("body%d", i))
+		items[i] = BatchItem{
+			Request: BatchRequest{
+				ParentKey: fmt.Sprintf("P%d", i),
+				PDFKey:    fmt.Sprintf("PDF%d", i),
+				PDFName:   fmt.Sprintf("p%d.pdf", i),
+				PDFPath:   p,
+			},
+			Hash: fmt.Sprintf("h%d", i),
+			Plan: &Plan{
+				Request: PlanRequest{
+					ParentKey: fmt.Sprintf("P%d", i),
+					PDFKey:    fmt.Sprintf("PDF%d", i),
+					PDFName:   fmt.Sprintf("p%d.pdf", i),
+					PDFHash:   fmt.Sprintf("h%d", i),
+				},
+				Action: ActionCreate,
+			},
+		}
+	}
+
+	ex := &fakeExtractor{md: "# chunk\n", version: "docling 2.86.0"}
+	w := &fakeNoteWriter{}
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: ex,
+		Writer:    w,
+		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
+		BatchSize: 2,
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 5 items / batch size 2 = 3 ExtractBatch calls (2+2+1).
+	if ex.calls != 3 {
+		t.Errorf("extractor calls = %d, want 3 (chunked 2+2+1)", ex.calls)
+	}
+	created, _, _, failed := res.Counts()
+	if created != 5 || failed != 0 {
+		t.Errorf("created=%d failed=%d; want 5/0", created, failed)
+	}
+	if len(w.created) != 5 {
+		t.Errorf("notes posted = %d, want 5", len(w.created))
+	}
+}
+
+// TestExecuteBatch_BatchSizeZeroMeansAll: BatchSize=0 (default) sends
+// all PDFs in a single ExtractBatch call.
+func TestExecuteBatch_BatchSizeZeroMeansAll(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	const N = 4
+	items := make([]BatchItem, N)
+	for i := 0; i < N; i++ {
+		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
+		writeStubPDF(t, p, fmt.Sprintf("body%d", i))
+		items[i] = BatchItem{
+			Request: BatchRequest{
+				ParentKey: fmt.Sprintf("P%d", i),
+				PDFKey:    fmt.Sprintf("PDF%d", i),
+				PDFName:   fmt.Sprintf("p%d.pdf", i),
+				PDFPath:   p,
+			},
+			Hash: fmt.Sprintf("h%d", i),
+			Plan: &Plan{
+				Request: PlanRequest{
+					ParentKey: fmt.Sprintf("P%d", i),
+					PDFKey:    fmt.Sprintf("PDF%d", i),
+					PDFName:   fmt.Sprintf("p%d.pdf", i),
+					PDFHash:   fmt.Sprintf("h%d", i),
+				},
+				Action: ActionCreate,
+			},
+		}
+	}
+
+	ex := &fakeExtractor{md: "# all\n", version: "docling 2.86.0"}
+	_, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: ex,
+		Writer:    &fakeNoteWriter{},
+		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
+		BatchSize: 0, // default — all in one call
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ex.calls != 1 {
+		t.Errorf("extractor calls = %d, want 1 (all in one batch)", ex.calls)
 	}
 }
 

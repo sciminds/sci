@@ -55,7 +55,7 @@ func extractCommand() *cli.Command {
 			&cli.BoolFlag{Name: "no-note", Usage: "skip the Zotero note post — requires --out (artifacts only)", Destination: &extractNoNote, Local: true},
 			&cli.BoolFlag{Name: "delete", Usage: "trash any child notes tagged 'docling' for this parent (undo a prior extraction)", Destination: &extractDelete, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &extractYes, Local: true},
-			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "auto", Destination: &extractDevice, Local: true},
+			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "mps", Destination: &extractDevice, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default, usually 4)", Destination: &extractNumThreads, Local: true},
 		},
 		Action: extractAction,
@@ -133,7 +133,7 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	} else {
 		opts = extract.ZoteroDefaults()
 	}
-	if extractDevice != "" && extractDevice != "auto" {
+	if extractDevice != "" {
 		opts.Device = extractDevice
 	}
 	opts.NumThreads = extractNumThreads

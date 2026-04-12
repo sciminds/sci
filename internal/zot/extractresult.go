@@ -169,7 +169,6 @@ type ExtractLibResult struct {
 	Skipped  int               `json:"skipped"`
 	Cached   int               `json:"cached"`
 	Failed   int               `json:"failed"`
-	Aborted  bool              `json:"aborted,omitempty"`
 	Errors   map[string]string `json:"errors,omitempty"` // parentKey → error
 	Duration time.Duration     `json:"duration_ns"`
 }
@@ -186,9 +185,6 @@ func (r ExtractLibResult) Human() string {
 	}
 	if r.Failed > 0 {
 		fmt.Fprintf(&b, "      %s failed:  %d\n", ui.SymFail, r.Failed)
-	}
-	if r.Aborted {
-		fmt.Fprintf(&b, "      %s aborted (consecutive failure limit)\n", ui.SymFail)
 	}
 	if len(r.Errors) > 0 {
 		keys := make([]string, 0, len(r.Errors))

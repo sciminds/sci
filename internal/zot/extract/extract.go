@@ -1,6 +1,7 @@
 package extract
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -85,6 +86,7 @@ func ZoteroDefaults() ExtractOptions {
 		Formats:   []OutputFormat{FormatMarkdown},
 		ImageMode: ImagePlaceholder,
 		TableMode: TableAccurate,
+		Device:    "mps",
 	}
 }
 
@@ -96,6 +98,7 @@ func ZoteroDefaults() ExtractOptions {
 // packaging holes as of docling 2.86.
 func FullDefaults() ExtractOptions {
 	return ExtractOptions{
+		Device:      "mps",
 		Formats:     []OutputFormat{FormatMarkdown, FormatJSON},
 		ImageMode:   ImageReferenced,
 		TableMode:   TableAccurate,
@@ -118,11 +121,30 @@ type ExtractResult struct {
 	FromCache bool
 }
 
+// BatchExtractResult holds the per-PDF outcomes of a single docling
+// batch invocation. Results maps the input PDF path to its outcome.
+// FailedDocs lists PDF paths that docling reported as failed.
+type BatchExtractResult struct {
+	Results     map[string]*ExtractResult // pdfPath → result
+	FailedDocs  []string
+	ToolVersion string
+	Duration    time.Duration
+}
+
+// ProgressFunc is called for each parsed docling log event during batch
+// extraction. Implementations must be safe to call from a goroutine
+// (the stderr reader runs concurrently with the docling process).
+type ProgressFunc func(ev *DoclingEvent)
+
 // Extractor is the narrow interface the orchestrator uses. Production
 // impl is DoclingExtractor; tests substitute a fake that writes fixture
 // markdown without shelling out.
 type Extractor interface {
+	// Extract converts a single PDF. Used by `zot item extract`.
 	Extract(ctx context.Context, opts ExtractOptions) (*ExtractResult, error)
+	// ExtractBatch converts multiple PDFs in a single process invocation
+	// (models loaded once). Used by `zot extract-lib`.
+	ExtractBatch(ctx context.Context, opts ExtractOptions, pdfs []string, onProgress ProgressFunc) (*BatchExtractResult, error)
 }
 
 // DoclingExtractor wraps the `docling` CLI binary.
@@ -163,7 +185,7 @@ func (d *DoclingExtractor) Extract(ctx context.Context, opts ExtractOptions) (*E
 		return nil, fmt.Errorf("extract: mkdir output: %w", err)
 	}
 
-	args := buildDoclingArgs(opts)
+	args := buildDoclingArgs(opts, opts.PDFPath)
 	cmd := exec.CommandContext(ctx, d.Binary, args...)
 	stderr := d.Stderr
 	if stderr == nil {
@@ -220,6 +242,117 @@ func (d *DoclingExtractor) Extract(ctx context.Context, opts ExtractOptions) (*E
 	return result, nil
 }
 
+// ExtractBatch runs docling once over multiple PDFs. Models load a
+// single time; each PDF is processed sequentially within the same
+// process. onProgress fires for every parsed log event from docling's
+// stderr (nil is safe — events are simply discarded).
+//
+// Returns per-PDF results keyed by the original PDF path. PDFs that
+// docling could not convert appear in FailedDocs but are not an error
+// — callers decide how to handle them.
+func (d *DoclingExtractor) ExtractBatch(ctx context.Context, opts ExtractOptions, pdfs []string, onProgress ProgressFunc) (*BatchExtractResult, error) {
+	if opts.OutputDir == "" {
+		return nil, fmt.Errorf("extractbatch: OutputDir required")
+	}
+	if len(pdfs) == 0 {
+		return &BatchExtractResult{Results: map[string]*ExtractResult{}}, nil
+	}
+	if err := os.MkdirAll(opts.OutputDir, 0o755); err != nil {
+		return nil, fmt.Errorf("extractbatch: mkdir output: %w", err)
+	}
+
+	args := buildDoclingArgs(opts, pdfs...)
+	cmd := exec.CommandContext(ctx, d.Binary, args...)
+
+	// Capture stderr for progress parsing. Docling's structured log
+	// lines go to stderr; stdout is unused by docling CLI.
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("extractbatch: stderr pipe: %w", err)
+	}
+
+	start := time.Now()
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("extractbatch: start: %w", err)
+	}
+
+	// Parse stderr line-by-line in the foreground while docling runs.
+	scanner := bufio.NewScanner(stderrPipe)
+	var failedDocs []string
+	sink := d.Stderr
+	for scanner.Scan() {
+		line := scanner.Text()
+		// Mirror to the configured sink (TUI, os.Stderr, or nil).
+		if sink != nil {
+			_, _ = fmt.Fprintln(sink, line)
+		}
+		ev := ParseDoclingEvent(line)
+		if ev == nil {
+			continue
+		}
+		if ev.Kind == EventFailed {
+			failedDocs = append(failedDocs, ev.Document)
+		}
+		if onProgress != nil {
+			onProgress(ev)
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return nil, fmt.Errorf("extractbatch: docling exit: %w", err)
+	}
+	dur := time.Since(start)
+
+	toolVer := d.Version(ctx)
+
+	// Collect results: walk the output dir and match each .md file back
+	// to its source PDF via stem matching.
+	stemToPDF := make(map[string]string, len(pdfs))
+	for _, p := range pdfs {
+		stemToPDF[stemFor(p)] = p
+	}
+
+	results := make(map[string]*ExtractResult, len(pdfs))
+	for stem, pdfPath := range stemToPDF {
+		mdPath := filepath.Join(opts.OutputDir, stem+".md")
+		if _, err := os.Stat(mdPath); err != nil {
+			continue // docling didn't produce output — likely in failedDocs
+		}
+		res := &ExtractResult{
+			MarkdownPath: mdPath,
+			ToolVersion:  toolVer,
+			Duration:     dur, // total batch duration; per-item not available
+		}
+		// JSON output.
+		if hasFormat(opts.Formats, FormatJSON) || opts.TablesAsCSV {
+			jsonPath := filepath.Join(opts.OutputDir, stem+".json")
+			if _, err := os.Stat(jsonPath); err == nil {
+				res.JSONPath = jsonPath
+			}
+		}
+		// Referenced images.
+		if opts.ImageMode == ImageReferenced {
+			artifacts := filepath.Join(opts.OutputDir, stem+"_artifacts")
+			if entries, err := os.ReadDir(artifacts); err == nil {
+				for _, e := range entries {
+					if !e.IsDir() {
+						res.ImagePaths = append(res.ImagePaths, filepath.Join(artifacts, e.Name()))
+					}
+				}
+				sort.Strings(res.ImagePaths)
+			}
+		}
+		results[pdfPath] = res
+	}
+
+	return &BatchExtractResult{
+		Results:     results,
+		FailedDocs:  failedDocs,
+		ToolVersion: toolVer,
+		Duration:    dur,
+	}, nil
+}
+
 // Version probes `docling --version` and returns "docling X.Y.Z", or
 // plain "docling" if parsing fails. Cheap (~50ms) — safe to call once
 // per extraction.
@@ -238,9 +371,9 @@ func (d *DoclingExtractor) Version(ctx context.Context) string {
 var versionRE = regexp.MustCompile(`Docling version:\s*(\S+)`)
 
 // buildDoclingArgs constructs the argv for a docling invocation. Pure:
-// no filesystem, no exec — unit-tested directly. The positional PDF
-// path is always the last element.
-func buildDoclingArgs(opts ExtractOptions) []string {
+// no filesystem, no exec — unit-tested directly. PDF paths are
+// appended as trailing positional args.
+func buildDoclingArgs(opts ExtractOptions, pdfs ...string) []string {
 	formats := opts.Formats
 	if len(formats) == 0 {
 		formats = []OutputFormat{FormatMarkdown}
@@ -260,7 +393,7 @@ func buildDoclingArgs(opts ExtractOptions) []string {
 		tableMode = TableAccurate
 	}
 
-	args := []string{"--from", "pdf"}
+	args := []string{"-v", "--no-abort-on-error", "--from", "pdf"}
 	for _, f := range formats {
 		args = append(args, "--to", string(f))
 	}
@@ -281,7 +414,7 @@ func buildDoclingArgs(opts ExtractOptions) []string {
 		args = append(args, "--num-threads", strconv.Itoa(opts.NumThreads))
 	}
 	args = append(args, "--output", opts.OutputDir)
-	args = append(args, opts.PDFPath)
+	args = append(args, pdfs...)
 	return args
 }
 

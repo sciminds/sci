@@ -64,10 +64,9 @@ func TestZoteroDefaults_IsMinimal(t *testing.T) {
 func TestBuildDoclingArgs_Zotero(t *testing.T) {
 	t.Parallel()
 	opts := ZoteroDefaults()
-	opts.PDFPath = "/tmp/paper.pdf"
 	opts.OutputDir = "/tmp/out"
 
-	args := buildDoclingArgs(opts)
+	args := buildDoclingArgs(opts, "/tmp/paper.pdf")
 	got := argString(args)
 
 	mustContain := []string{
@@ -109,7 +108,6 @@ func TestBuildDoclingArgs_Zotero(t *testing.T) {
 func TestBuildDoclingArgs_FullMode(t *testing.T) {
 	t.Parallel()
 	opts := ExtractOptions{
-		PDFPath:     "/tmp/paper.pdf",
 		OutputDir:   "/tmp/out",
 		Formats:     []OutputFormat{FormatMarkdown, FormatJSON},
 		ImageMode:   ImageReferenced,
@@ -118,7 +116,7 @@ func TestBuildDoclingArgs_FullMode(t *testing.T) {
 		Device:      "mps",
 		NumThreads:  8,
 	}
-	args := buildDoclingArgs(opts)
+	args := buildDoclingArgs(opts, "/tmp/paper.pdf")
 	got := argString(args)
 
 	mustContain := []string{
@@ -161,11 +159,10 @@ func TestBuildDoclingArgs_FullMode(t *testing.T) {
 func TestBuildDoclingArgs_TablesAsCSV_PromotesJSON(t *testing.T) {
 	t.Parallel()
 	opts := ZoteroDefaults()
-	opts.PDFPath = "/tmp/p.pdf"
 	opts.OutputDir = "/tmp/out"
 	opts.TablesAsCSV = true // Formats still [md] — must auto-add json
 
-	got := argString(buildDoclingArgs(opts))
+	got := argString(buildDoclingArgs(opts, "/tmp/p.pdf"))
 	if !strings.Contains(got, "--to json") {
 		t.Errorf("TablesAsCSV must promote --to json; got:\n%s", got)
 	}
@@ -176,10 +173,10 @@ func TestBuildDoclingArgs_TablesAsCSV_PromotesJSON(t *testing.T) {
 func TestBuildDoclingArgs_ZeroPerfKnobsOmitted(t *testing.T) {
 	t.Parallel()
 	opts := ZoteroDefaults()
-	opts.PDFPath = "/tmp/p.pdf"
 	opts.OutputDir = "/tmp/out"
-	// Device="" and NumThreads=0 (defaults)
-	args := buildDoclingArgs(opts)
+	opts.Device = ""    // explicitly clear — ZoteroDefaults now sets "mps"
+	opts.NumThreads = 0 // already zero
+	args := buildDoclingArgs(opts, "/tmp/p.pdf")
 	if argIndex(args, "--device") != -1 {
 		t.Errorf("--device must not appear when Device empty; got: %s", argString(args))
 	}
@@ -190,10 +187,95 @@ func TestBuildDoclingArgs_ZeroPerfKnobsOmitted(t *testing.T) {
 
 func TestBuildDoclingArgs_EmptyFormats_DefaultsToMarkdown(t *testing.T) {
 	t.Parallel()
-	opts := ExtractOptions{PDFPath: "/tmp/p.pdf", OutputDir: "/tmp/out"}
-	got := argString(buildDoclingArgs(opts))
+	opts := ExtractOptions{OutputDir: "/tmp/out"}
+	got := argString(buildDoclingArgs(opts, "/tmp/p.pdf"))
 	if !strings.Contains(got, "--to md") {
 		t.Errorf("empty Formats must default to md; got:\n%s", got)
+	}
+}
+
+// TestBuildDoclingArgs_MultiplePDFs: batch mode appends all PDF paths
+// as positional args after the flags.
+func TestBuildDoclingArgs_MultiplePDFs(t *testing.T) {
+	t.Parallel()
+	opts := ZoteroDefaults()
+	opts.OutputDir = "/tmp/out"
+	pdfs := []string{"/a/one.pdf", "/b/two.pdf", "/c/three.pdf"}
+	args := buildDoclingArgs(opts, pdfs...)
+	got := argString(args)
+
+	// All three PDFs must be present as the last 3 args.
+	if len(args) < 3 {
+		t.Fatalf("args too short: %v", args)
+	}
+	tail := args[len(args)-3:]
+	for i, want := range pdfs {
+		if tail[i] != want {
+			t.Errorf("tail[%d] = %q, want %q", i, tail[i], want)
+		}
+	}
+	// Flags still present.
+	if !strings.Contains(got, "--from pdf") {
+		t.Errorf("missing --from pdf; got:\n%s", got)
+	}
+	if !strings.Contains(got, "--output /tmp/out") {
+		t.Errorf("missing --output; got:\n%s", got)
+	}
+}
+
+// TestBuildDoclingArgs_NoPDFs: edge case — zero PDFs should produce
+// args with just the flags (caller should not invoke docling, but the
+// builder should not panic).
+func TestBuildDoclingArgs_NoPDFs(t *testing.T) {
+	t.Parallel()
+	opts := ZoteroDefaults()
+	opts.OutputDir = "/tmp/out"
+	args := buildDoclingArgs(opts)
+	got := argString(args)
+	if !strings.Contains(got, "--from pdf") {
+		t.Errorf("missing flags; got:\n%s", got)
+	}
+}
+
+// TestBuildDoclingArgs_DeviceMPS: when Device is "mps" it appears in args.
+func TestBuildDoclingArgs_DeviceMPS(t *testing.T) {
+	t.Parallel()
+	opts := ZoteroDefaults()
+	opts.OutputDir = "/tmp/out"
+	args := buildDoclingArgs(opts, "/tmp/a.pdf")
+	got := argString(args)
+	if !strings.Contains(got, "--device mps") {
+		t.Errorf("args missing --device mps; got: %s", got)
+	}
+}
+
+// TestZoteroDefaults_DeviceMPS: ZoteroDefaults must default to mps.
+func TestZoteroDefaults_DeviceMPS(t *testing.T) {
+	t.Parallel()
+	d := ZoteroDefaults()
+	if d.Device != "mps" {
+		t.Errorf("Device = %q, want \"mps\"", d.Device)
+	}
+}
+
+// TestFullDefaults_DeviceMPS: FullDefaults must default to mps.
+func TestFullDefaults_DeviceMPS(t *testing.T) {
+	t.Parallel()
+	d := FullDefaults()
+	if d.Device != "mps" {
+		t.Errorf("Device = %q, want \"mps\"", d.Device)
+	}
+}
+
+// TestBuildDoclingArgs_VerboseFlag: batch mode must include -v so
+// the progress parser gets structured log lines.
+func TestBuildDoclingArgs_VerboseFlag(t *testing.T) {
+	t.Parallel()
+	opts := ZoteroDefaults()
+	opts.OutputDir = "/tmp/out"
+	args := buildDoclingArgs(opts, "/tmp/a.pdf")
+	if argIndex(args, "-v") == -1 {
+		t.Errorf("args missing -v flag; got: %s", argString(args))
 	}
 }
 

@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	extractLibJobs       int
 	extractLibDevice     string
 	extractLibNumThreads int
+	extractLibBatchSize  int
 	extractLibYes        bool
 	extractLibForce      bool
 	extractLibReextract  bool
@@ -25,8 +25,6 @@ var (
 	extractLibApply      bool
 	extractLibHTML       bool
 )
-
-const defaultConsecutiveFailureLimit = 10
 
 func extractLibCommand() *cli.Command {
 	return &cli.Command{
@@ -44,14 +42,13 @@ func extractLibCommand() *cli.Command {
 			"$ zot extract-lib                  # extract all PDFs to local cache\n" +
 			"$ zot extract-lib --apply          # extract + post notes to Zotero\n" +
 			"$ zot extract-lib --apply --yes    # skip confirmation\n" +
-			"$ zot extract-lib --jobs 4         # 4 parallel workers (CPU mode)\n" +
 			"$ zot extract-lib --reextract      # re-run docling, ignore cached output\n" +
 			"$ zot extract-lib --force --apply  # create new notes even where docling note exists\n" +
 			"$ zot extract-lib --limit 5        # extract at most 5 items (smoke test)",
 		Flags: []cli.Flag{
-			&cli.IntFlag{Name: "jobs", Aliases: []string{"j"}, Usage: "parallel docling workers (0 = auto: 1 for GPU, NumCPU/4 for CPU)", Destination: &extractLibJobs, Local: true},
-			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "auto", Destination: &extractLibDevice, Local: true},
-			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads per worker (0 = docling default)", Destination: &extractLibNumThreads, Local: true},
+			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "mps", Destination: &extractLibDevice, Local: true},
+			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default)", Destination: &extractLibNumThreads, Local: true},
+			&cli.IntFlag{Name: "batch-size", Usage: "PDFs per docling process (0 = all in one process)", Destination: &extractLibBatchSize, Local: true},
 			&cli.BoolFlag{Name: "apply", Usage: "post extracted notes to Zotero (default is cache-only)", Destination: &extractLibApply, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &extractLibYes, Local: true},
 			&cli.BoolFlag{Name: "force", Usage: "create new notes even if docling note already exists", Destination: &extractLibForce, Local: true},
@@ -94,9 +91,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	// Filter out already-extracted items before applying --limit so
-	// re-runs pick up the next N unextracted items instead of
-	// re-selecting (and skipping) the same N.
+	// Filter out items that already have a docling note in Zotero.
 	if !extractLibForce {
 		filtered := all[:0]
 		for _, p := range all {
@@ -105,10 +100,6 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 		all = filtered
-	}
-
-	if extractLibLimit > 0 && extractLibLimit < len(all) {
-		all = all[:extractLibLimit]
 	}
 
 	reqs := make([]extract.BatchRequest, len(all))
@@ -121,13 +112,14 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	jobs := extractLibJobs
-	if jobs == 0 {
-		jobs = extract.BatchJobsDefault(extractLibDevice, runtime.NumCPU())
+	// PlanBatch uses concurrent hashing; use a reasonable parallelism.
+	planJobs := extract.BatchJobsDefault(extractLibDevice, runtime.NumCPU())
+	if planJobs < 4 {
+		planJobs = 4
 	}
 
 	opts := extract.ZoteroDefaults()
-	if extractLibDevice != "" && extractLibDevice != "auto" {
+	if extractLibDevice != "" {
 		opts.Device = extractLibDevice
 	}
 	opts.NumThreads = extractLibNumThreads
@@ -150,14 +142,45 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		writer = noopNoteWriter{}
 	}
 
-	// Plan phase — concurrent, shows a spinner.
+	// Plan phase — concurrent hashing + plan, shows a spinner.
+	// We plan ALL candidates first so we can filter out cached items
+	// before applying --limit. This ensures --limit picks up the next
+	// N truly-unextracted items instead of re-selecting cached ones.
 	var items []extract.BatchItem
 	err = ui.RunWithSpinner("Planning extraction...", func() error {
-		items = extract.PlanBatch(ctx, reqs, jobs, extractLibForce, hasExisting)
+		items = extract.PlanBatch(ctx, reqs, planJobs, extractLibForce, hasExisting)
 		return nil
 	})
 	if err != nil {
 		return err
+	}
+
+	// Filter out items that are already cached (prior run extracted
+	// but didn't --apply). Without this, --limit keeps hitting cache
+	// instead of advancing to new items.
+	if !extractLibReextract {
+		filtered := items[:0]
+		for _, it := range items {
+			if it.Err != nil || it.Plan.Action == extract.ActionSkip {
+				filtered = append(filtered, it)
+				continue
+			}
+			if _, ok := cache.Get(it.Request.PDFKey, it.Hash); ok {
+				// Already cached — skip unless --apply needs to post.
+				if extractLibApply {
+					filtered = append(filtered, it)
+				}
+				// In cache-only mode, nothing to do — drop it.
+				continue
+			}
+			filtered = append(filtered, it)
+		}
+		items = filtered
+	}
+
+	// Apply --limit after filtering so re-runs advance past cached items.
+	if extractLibLimit > 0 && extractLibLimit < len(items) {
+		items = items[:extractLibLimit]
 	}
 
 	// Tally the plan for confirmation.
@@ -203,7 +226,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	if nErr > 0 {
 		msg += fmt.Sprintf(", %d plan errors", nErr)
 	}
-	msg += fmt.Sprintf("), %d workers%s?", jobs, mode)
+	msg += fmt.Sprintf(")%s?", mode)
 	if done, err := cmdutil.ConfirmOrSkip(extractLibYes, msg); done || err != nil {
 		return err
 	}
@@ -223,42 +246,37 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	err = ui.RunWithProgress(progressTitle, func(t *ui.ProgressTracker) error {
-		t.SetTotal(len(items))
+		t.SetTotal(nCreate)
 
 		var res *extract.BatchResult
 		var batchErr error
 		res, batchErr = extract.ExecuteBatch(ctx, extract.BatchInput{
-			Items:                   items,
-			Extractor:               ex,
-			Writer:                  writer,
-			Cache:                   cache,
-			ExtractOpts:             opts,
-			RenderHTML:              extractLibHTML,
-			Jobs:                    jobs,
-			ConsecutiveFailureLimit: defaultConsecutiveFailureLimit,
-			OnItemStart: func(i int, item extract.BatchItem) {
-				t.Status(item.Request.PDFName)
+			Items:       items,
+			Extractor:   ex,
+			Writer:      writer,
+			Cache:       cache,
+			ExtractOpts: opts,
+			BatchSize:   extractLibBatchSize,
+			RenderHTML:  extractLibHTML,
+			OnProgress: func(ev *extract.DoclingEvent) {
+				switch ev.Kind {
+				case extract.EventProcessing:
+					t.Status(ev.Document)
+				case extract.EventFinished:
+					t.Advance("extracted", fmt.Sprintf("%s %s (%.1fs)", ui.SymOK, ev.Document, ev.Duration.Seconds()))
+				case extract.EventFailed:
+					t.Advance("failed", fmt.Sprintf("%s %s", ui.SymFail, ev.Document))
+				}
 			},
 			OnItemDone: func(i int, outcome extract.BatchOutcome) {
-				counter := "skipped"
-				event := fmt.Sprintf("%s %s", ui.SymArrow, outcome.Item.Request.PDFName)
-				if outcome.Err != nil {
-					counter = "failed"
-					event = fmt.Sprintf("%s %s: %s", ui.SymFail, outcome.Item.Request.PDFName, outcome.Err)
-				} else {
-					switch outcome.Action {
-					case extract.ActionCreate:
-						if outcome.FromCache {
-							counter = "cached"
-						} else {
-							counter = "created"
-						}
-						event = fmt.Sprintf("%s %s %s", ui.SymOK, outcome.Action, outcome.Item.Request.PDFName)
-					case extract.ActionSkip:
-						event = fmt.Sprintf("%s skipped %s", ui.SymArrow, outcome.Item.Request.PDFName)
-					}
+				if outcome.Action == extract.ActionSkip {
+					return
 				}
-				t.Advance(counter, event)
+				if outcome.Err != nil && outcome.FromCache {
+					// Cache hit but note post failed — still counts
+					// as an advance for the progress bar.
+					t.Advance("failed", fmt.Sprintf("%s %s: %s", ui.SymFail, outcome.Item.Request.PDFName, outcome.Err))
+				}
 			},
 		})
 		batchResult = res
@@ -275,7 +293,6 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		Skipped:  skipped,
 		Cached:   cached,
 		Failed:   failed,
-		Aborted:  batchResult.Aborted,
 		Duration: time.Since(started),
 	}
 	if failed > 0 {
