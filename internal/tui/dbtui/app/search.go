@@ -16,7 +16,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // rowSearchState holds the state for the inline row search bar.

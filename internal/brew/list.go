@@ -8,7 +8,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ErrInterrupted signals the user interrupted the TUI (Ctrl-C).

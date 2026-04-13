@@ -6,7 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/app"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ErrInterrupted signals that the user interrupted the TUI (e.g. Ctrl-C).

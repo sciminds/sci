@@ -9,7 +9,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // CloudResult is returned by share, unshare, get.

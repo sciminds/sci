@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 func TestCloudListModel_ViewAtZeroSize(t *testing.T) {

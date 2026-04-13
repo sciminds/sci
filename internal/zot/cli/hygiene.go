@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/fix"
 	"github.com/sciminds/cli/internal/zot/hygiene"
@@ -432,7 +432,7 @@ func runCitekeysFix(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	var res *fix.CitekeyResult
-	err = ui.RunWithProgress("Fixing cite-keys", func(t *ui.ProgressTracker) error {
+	err = cliui.RunWithProgress("Fixing cite-keys", func(t *cliui.ProgressTracker) error {
 		t.SetTotal(len(targets))
 		var applyErr error
 		res, applyErr = fix.ApplyCitekeys(ctx, apiClient, targets, fix.ApplyOptions{

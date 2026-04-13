@@ -8,7 +8,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"

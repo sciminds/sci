@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 func TestTUISingletonNotNil(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot/hygiene"
 	"github.com/sciminds/cli/internal/zot/local"
 )

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // handleNormalModeKey processes keys specific to normal mode.

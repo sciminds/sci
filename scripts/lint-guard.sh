@@ -180,12 +180,12 @@ fi
 # Every bubbletea program that writes to a TTY should call ui.DrainStdin()
 # after p.Run() to flush stale DECRQM responses. Standalone packages (dbtui,
 # board) are excluded — they use alt-screen which resets the terminal, and
-# must not import internal/ui.
-# internal/ui/spinner.go is excluded because it calls DrainStdin internally.
+# must not import internal/cliui.
+# internal/cliui/spinner.go is excluded because it calls DrainStdin internally.
 
 drain_exempt=(
-	"internal/ui/spinner.go"
-	"internal/tui/uikit/"
+	"internal/cliui/spinner.go"
+	"internal/uikit/"
 	"internal/tui/dbtui/"
 	"internal/tui/board/"
 )
@@ -222,7 +222,7 @@ done
 # are allowed — they exist specifically to be importable by standalone binaries.
 
 standalone_allowed=(
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 isolated_pkgs=("internal/tui/dbtui")
@@ -366,9 +366,9 @@ scriptable_exempt=(
 	"internal/tui/dbtui/"
 	"internal/tui/board/"
 	"internal/mdview/"
-	"internal/ui/spinner.go"
+	"internal/cliui/spinner.go"
 	"internal/cmdutil/confirm.go"
-	"internal/tui/uikit/"
+	"internal/uikit/"
 )
 
 # ── Step 1: Discover call sites via ast-grep ────────────────────────────────

@@ -1,4 +1,4 @@
-package ui
+package cliui
 
 // help.go — styled help output for urfave/cli v3, replacing the default
 // HelpPrinter with project-branded formatting.
@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 
 	"github.com/samber/lo"
 	"github.com/urfave/cli/v3"

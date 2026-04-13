@@ -10,7 +10,7 @@ import (
 
 	"charm.land/bubbles/v2/list"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // Run launches the markdown viewer TUI for a file or directory of .md files.

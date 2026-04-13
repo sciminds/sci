@@ -21,9 +21,9 @@
 #   internal/tui/dbtui/     — standalone TUI app
 #   internal/mdview/        — standalone TUI app
 #   internal/tui/board/     — standalone TUI app
-#   internal/ui/spinner.go  — progress display, not user input
-#   internal/cmdutil/       — shared helpers (callers are tracked)
-#   internal/tui/uikit/     — shared TUI infra (callers are tracked)
+#   internal/cliui/spinner.go — progress display, not user input
+#   internal/cmdutil/        — shared helpers (callers are tracked)
+#   internal/uikit/          — shared TUI infra (callers are tracked)
 
 commands:
 

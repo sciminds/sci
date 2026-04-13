@@ -1,4 +1,4 @@
-package ui
+package cliui
 
 // spinner.go — bubbletea inline runner for long-running operations.
 // Provides both a simple spinner (RunWithSpinner / RunWithSpinnerStatus) and a
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"

@@ -8,7 +8,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cass/api/canvas"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // GradeChange represents a pending grade change.

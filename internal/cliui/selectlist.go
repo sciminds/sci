@@ -1,4 +1,4 @@
-package ui
+package cliui
 
 // selectlist.go — generic multi-select list component used by TUI wizards
 // (e.g. sci new, sci doctor setup). Items implement [SelectItem].
@@ -8,7 +8,7 @@ import (
 
 	"strings"
 
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"

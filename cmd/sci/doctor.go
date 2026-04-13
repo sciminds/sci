@@ -11,11 +11,11 @@ import (
 	"charm.land/huh/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/doctor"
 	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/tui/uikit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 
@@ -66,7 +66,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// ── Step 1–2: Pre-flight + Identity checks ──────────────────────────
 	var result doctor.DocResult
-	err := ui.RunWithSpinner("Checking your computer setup…", func() error {
+	err := cliui.RunWithSpinner("Checking your computer setup…", func() error {
 		result.Sections = doctor.RunAll()
 		return nil
 	})
@@ -193,7 +193,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	// Step 4: Check & install.
 	var toolInfos []doctor.ToolInfo
 	var toolCheckErr error
-	err = ui.RunWithSpinner("Checking for required tools…", func() error {
+	err = cliui.RunWithSpinner("Checking for required tools…", func() error {
 		toolInfos, toolCheckErr = doctor.RunToolChecks(runner, brewfilePath)
 		return nil
 	})
@@ -369,8 +369,8 @@ func promptGitIdentity(result doctor.DocResult) error {
 	}
 
 	if err := huh.NewForm(huh.NewGroup(fields...)).
-		WithTheme(ui.HuhTheme()).
-		WithKeyMap(ui.HuhKeyMap()).
+		WithTheme(cliui.HuhTheme()).
+		WithKeyMap(cliui.HuhKeyMap()).
 		Run(); err != nil {
 		return err
 	}

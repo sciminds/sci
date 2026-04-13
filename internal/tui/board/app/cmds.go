@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	engine "github.com/sciminds/cli/internal/board"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // pollInterval is how often the TUI asks Store.Poll for new remote events.

@@ -4,20 +4,20 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/cliui"
 	"github.com/urfave/cli/v3"
 )
 
 func TestJSONFlag_SetsQuiet(t *testing.T) {
-	ui.SetQuiet(false)
-	t.Cleanup(func() { ui.SetQuiet(false) })
+	cliui.SetQuiet(false)
+	t.Cleanup(func() { cliui.SetQuiet(false) })
 
 	var observed bool
 	root := buildRoot()
 	root.Commands = append(root.Commands, &cli.Command{
 		Name: "test-quiet",
 		Action: func(_ context.Context, _ *cli.Command) error {
-			observed = ui.IsQuiet()
+			observed = cliui.IsQuiet()
 			return nil
 		},
 	})
@@ -25,20 +25,20 @@ func TestJSONFlag_SetsQuiet(t *testing.T) {
 	_ = root.Run(context.Background(), []string{"sci", "--json", "test-quiet"})
 
 	if !observed {
-		t.Error("--json should set ui.IsQuiet() to true")
+		t.Error("--json should set cliui.IsQuiet() to true")
 	}
 }
 
 func TestNoJSONFlag_QuietFalse(t *testing.T) {
-	ui.SetQuiet(true)
-	t.Cleanup(func() { ui.SetQuiet(false) })
+	cliui.SetQuiet(true)
+	t.Cleanup(func() { cliui.SetQuiet(false) })
 
 	var observed bool
 	root := buildRoot()
 	root.Commands = append(root.Commands, &cli.Command{
 		Name: "test-quiet",
 		Action: func(_ context.Context, _ *cli.Command) error {
-			observed = ui.IsQuiet()
+			observed = cliui.IsQuiet()
 			return nil
 		},
 	})
@@ -46,6 +46,6 @@ func TestNoJSONFlag_QuietFalse(t *testing.T) {
 	_ = root.Run(context.Background(), []string{"sci", "test-quiet"})
 
 	if observed {
-		t.Error("without --json, ui.IsQuiet() should be false")
+		t.Error("without --json, cliui.IsQuiet() should be false")
 	}
 }

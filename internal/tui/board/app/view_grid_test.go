@@ -8,7 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/ui"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // fixtureGridModel builds a Model with a synthetic two-column board ready

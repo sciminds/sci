@@ -1,4 +1,4 @@
-// Package ui provides centralized styling and output helpers for the terminal.
+// Package cliui provides centralized styling and output helpers for the terminal.
 //
 // All visual output in the CLI goes through this package. The [TUI] singleton
 // exposes style methods (Dim, Bold, Accent, Pass, Fail, Warn) that return
@@ -14,14 +14,14 @@
 //
 // Symbols are available as package variables: [uikit.SymOK] (✓), [uikit.SymFail] (✗),
 // [uikit.SymWarn] (⚠), [uikit.SymArrow] (→).
-package ui
+package cliui
 
 import (
 	"fmt"
 
 	"os"
 
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // statusOut returns stderr in quiet mode (so status output doesn't

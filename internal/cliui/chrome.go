@@ -1,4 +1,4 @@
-package ui
+package cliui
 
 // chrome.go — shared TUI chrome: footer bars, horizontal dividers, and status
 // row helpers used across all interactive views.
@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // MaxDividerWidth is the maximum width for horizontal dividers in TUI views.

@@ -7,11 +7,11 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/doctor"
 	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/tui/uikit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 
@@ -195,7 +195,7 @@ func resolveToolsPkgType() string {
 // prompt with the recommended choice pre-selected.
 func detectPkgType(pkg string) (string, error) {
 	var matches []brew.DetectedPackage
-	if err := ui.RunWithSpinner(fmt.Sprintf("Detecting package type for %s…", pkg), func() error {
+	if err := cliui.RunWithSpinner(fmt.Sprintf("Detecting package type for %s…", pkg), func() error {
 		var detectErr error
 		matches, detectErr = brew.Detect(brew.LiveProber{}, pkg)
 		return detectErr
@@ -234,7 +234,7 @@ func promptPkgType(pkg string, matches []brew.DetectedPackage) (string, error) {
 				Options(options...).
 				Value(&selected),
 		),
-	).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap())
+	).WithTheme(cliui.HuhTheme()).WithKeyMap(cliui.HuhKeyMap())
 
 	if err := form.Run(); err != nil {
 		return "", err
@@ -273,7 +273,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		}
 
 		if toolsDryRun {
-			ui.Hint(fmt.Sprintf("would add %s (%s) to %s", pkg, pkgType, file))
+			cliui.Hint(fmt.Sprintf("would add %s (%s) to %s", pkg, pkgType, file))
 			return nil
 		}
 
@@ -290,7 +290,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 
 	// No arguments: sync all packages from the Brewfile.
 	if toolsDryRun {
-		ui.Hint(fmt.Sprintf("would install all packages from %s", file))
+		cliui.Hint(fmt.Sprintf("would install all packages from %s", file))
 		return nil
 	}
 
@@ -324,7 +324,7 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 	pkg := cmd.Args().First()
 
 	if toolsDryRun {
-		ui.Hint(fmt.Sprintf("would remove %s from %s", pkg, file))
+		cliui.Hint(fmt.Sprintf("would remove %s from %s", pkg, file))
 		return nil
 	}
 
@@ -365,7 +365,7 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 
 	// Default: interactive TUI with descriptions.
 	var packages []brew.PackageInfo
-	err = ui.RunWithSpinner("Loading package info…", func() error {
+	err = cliui.RunWithSpinner("Loading package info…", func() error {
 		var detErr error
 		packages, detErr = brew.ListDetailed(runner, file)
 		return detErr
@@ -391,7 +391,7 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 	}
 
 	if toolsDryRun {
-		ui.Hint("would update the registry and upgrade outdated packages")
+		cliui.Hint("would update the registry and upgrade outdated packages")
 		return nil
 	}
 
@@ -422,7 +422,7 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 	}
 
 	if toolsDryRun {
-		ui.Hint("would update the registry and list outdated packages")
+		cliui.Hint("would update the registry and list outdated packages")
 		return nil
 	}
 

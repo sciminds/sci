@@ -18,7 +18,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/dustin/go-humanize"
 	"github.com/sciminds/cli/internal/cloud"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ErrInterrupted signals the user interrupted the TUI (Ctrl-C).

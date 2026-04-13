@@ -17,12 +17,12 @@ package cmdutil
 import (
 	"testing"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/cliui"
 )
 
 func TestConfirm_QuietAutoConfirms(t *testing.T) {
-	ui.SetQuiet(true)
-	defer ui.SetQuiet(false)
+	cliui.SetQuiet(true)
+	defer cliui.SetQuiet(false)
 
 	err := Confirm("Delete everything?")
 	if err != nil {
@@ -31,8 +31,8 @@ func TestConfirm_QuietAutoConfirms(t *testing.T) {
 }
 
 func TestConfirmYes_QuietAutoConfirms(t *testing.T) {
-	ui.SetQuiet(true)
-	defer ui.SetQuiet(false)
+	cliui.SetQuiet(true)
+	defer cliui.SetQuiet(false)
 
 	err := ConfirmYes("Update Brewfile?")
 	if err != nil {
@@ -53,8 +53,8 @@ func TestConfirmOrSkip_SkipTrue(t *testing.T) {
 }
 
 func TestConfirmOrSkip_QuietAutoConfirms(t *testing.T) {
-	ui.SetQuiet(true)
-	defer ui.SetQuiet(false)
+	cliui.SetQuiet(true)
+	defer cliui.SetQuiet(false)
 
 	done, err := ConfirmOrSkip(false, "Drop table?")
 	if err != nil {

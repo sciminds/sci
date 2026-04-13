@@ -6,7 +6,7 @@ package vid
 import (
 	"fmt"
 
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // InfoResult implements cmdutil.Result for the info subcommand.

@@ -96,10 +96,10 @@ normally — existing teatest patterns work unchanged.
 
 ```
 sci (cmd/sci)          ──┐
-dbtui (cmd/dbtui)      ──┤── all import ──▶  internal/tui/uikit/
+dbtui (cmd/dbtui)      ──┤── all import ──▶  internal/uikit/
 zot (cmd/zot)          ──┘
 
-internal/ui/           ── CLI-specific layer (spinner, help, huh theme)
+internal/cliui/        ── CLI-specific layer (spinner, help, huh theme)
                           imports uikit for styles/palette
 
 internal/tui/dbtui/ui/ ── dbtui-specific styles (own TUI singleton)

@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/db"
-	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -75,7 +75,7 @@ func dbResetCommand() *cli.Command {
 			}
 			dbPath := cmd.Args().First()
 			if dbDryRun {
-				ui.Hint(fmt.Sprintf("would delete and recreate %s", dbPath))
+				cliui.Hint(fmt.Sprintf("would delete and recreate %s", dbPath))
 				return nil
 			}
 			if done, err := cmdutil.ConfirmOrSkip(dbResetYes, fmt.Sprintf("This will delete all data in %s. Continue?", dbPath)); done || err != nil {
@@ -133,7 +133,7 @@ func dbAddCommand() *cli.Command {
 					if tbl == "" {
 						tbl = strings.TrimSuffix(filepath.Base(f), filepath.Ext(f))
 					}
-					ui.Hint(fmt.Sprintf("would import %s → table %q in %s", f, tbl, dbPath))
+					cliui.Hint(fmt.Sprintf("would import %s → table %q in %s", f, tbl, dbPath))
 				}
 				return nil
 			}
@@ -143,7 +143,7 @@ func dbAddCommand() *cli.Command {
 			}
 			cmdutil.Output(cmd, result)
 			if !cmdutil.IsJSON(cmd) {
-				ui.NextStep("sci view", "Explore your data interactively")
+				cliui.NextStep("sci view", "Explore your data interactively")
 			}
 			return nil
 		},
@@ -167,7 +167,7 @@ func dbDeleteCommand() *cli.Command {
 			table := args[0]
 			dbPath := args[1]
 			if dbDryRun {
-				ui.Hint(fmt.Sprintf("would delete table %q from %s", table, dbPath))
+				cliui.Hint(fmt.Sprintf("would delete table %q from %s", table, dbPath))
 				return nil
 			}
 			if done, err := cmdutil.ConfirmOrSkip(dbDeleteYes, fmt.Sprintf("Drop table %q from %s?", table, dbPath)); done || err != nil {
@@ -200,7 +200,7 @@ func dbRenameCommand() *cli.Command {
 			oldName, newName := args[0], args[1]
 			dbPath := args[2]
 			if dbDryRun {
-				ui.Hint(fmt.Sprintf("would rename table %q → %q in %s", oldName, newName, dbPath))
+				cliui.Hint(fmt.Sprintf("would rename table %q → %q in %s", oldName, newName, dbPath))
 				return nil
 			}
 			if done, err := cmdutil.ConfirmOrSkip(dbRenameYes, fmt.Sprintf("Rename table %q to %q in %s?", oldName, newName, dbPath)); done || err != nil {

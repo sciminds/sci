@@ -9,8 +9,8 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/tui/uikit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/cliui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // OptionalSetupResult reports the outcome of the optional tool install.
@@ -67,7 +67,7 @@ func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
 	}
 
 	var missing map[string]bool
-	if err := ui.RunWithSpinner("Checking for required tools…", func() error {
+	if err := cliui.RunWithSpinner("Checking for required tools…", func() error {
 		missing = missingSet(r, BrewfileOptional)
 		return nil
 	}); err != nil {
@@ -125,7 +125,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 
 	// Detect which optional tools are already installed (behind a spinner).
 	var missing map[string]bool
-	if err := ui.RunWithSpinner("Checking for required tools…", func() error {
+	if err := cliui.RunWithSpinner("Checking for required tools…", func() error {
 		missing = missingSet(r, BrewfileOptional)
 		return nil
 	}); err != nil {

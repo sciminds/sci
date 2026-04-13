@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"charm.land/huh/v2"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/cliui"
 )
 
 // ErrCancelled is returned when the user declines a confirmation prompt.
@@ -19,7 +19,7 @@ var ErrCancelled = errors.New("cancelled")
 // ErrCancelled if the user declines. Default is No.
 // In quiet mode (--json), auto-confirms without prompting.
 func Confirm(msg string) error {
-	if ui.IsQuiet() {
+	if cliui.IsQuiet() {
 		return nil
 	}
 	confirmed := false
@@ -29,7 +29,7 @@ func Confirm(msg string) error {
 			Affirmative("Yes").
 			Negative("No").
 			Value(&confirmed),
-	)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
+	)).WithTheme(cliui.HuhTheme()).WithKeyMap(cliui.HuhKeyMap()).Run(); err != nil {
 		return err
 	}
 	if !confirmed {
@@ -42,7 +42,7 @@ func Confirm(msg string) error {
 // returns nil. "n"/"no" returns ErrCancelled.
 // In quiet mode (--json), auto-confirms without prompting.
 func ConfirmYes(msg string) error {
-	if ui.IsQuiet() {
+	if cliui.IsQuiet() {
 		return nil
 	}
 	confirmed := true
@@ -52,7 +52,7 @@ func ConfirmYes(msg string) error {
 			Affirmative("Yes").
 			Negative("No").
 			Value(&confirmed),
-	)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
+	)).WithTheme(cliui.HuhTheme()).WithKeyMap(cliui.HuhKeyMap()).Run(); err != nil {
 		return err
 	}
 	if !confirmed {

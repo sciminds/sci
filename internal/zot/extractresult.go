@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot/extract"
 )
 

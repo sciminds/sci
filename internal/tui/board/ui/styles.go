@@ -7,7 +7,7 @@ package ui
 
 import (
 	"charm.land/lipgloss/v2"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // Layout constants — single source of truth for spacing and sizing.

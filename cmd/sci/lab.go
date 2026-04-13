@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
+	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/lab"
 	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -68,7 +68,7 @@ func labSetupCommand() *cli.Command {
 						Title("SSH username").
 						Description("Your UCSD username for " + lab.Host).
 						Value(&user),
-				)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
+				)).WithTheme(cliui.HuhTheme()).WithKeyMap(cliui.HuhKeyMap()).Run(); err != nil {
 					return err
 				}
 			}
@@ -82,7 +82,7 @@ func labSetupCommand() *cli.Command {
 			}
 			cmdutil.Output(cmd, result)
 			if result.OK {
-				ui.NextStep("sci lab ls", "Browse lab storage")
+				cliui.NextStep("sci lab ls", "Browse lab storage")
 			}
 			return nil
 		},

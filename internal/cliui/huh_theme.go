@@ -1,4 +1,4 @@
-package ui
+package cliui
 
 // huh_theme.go — custom [huh.Theme] built from the Wong palette. Isolated
 // from styles.go so huh is not a transitive dependency for all ui importers.
@@ -7,7 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // HuhTheme returns a huh.ThemeFunc built from the project's Wong colorblind-safe palette.

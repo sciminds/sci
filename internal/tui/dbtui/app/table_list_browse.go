@@ -16,7 +16,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/dustin/go-humanize"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // importableExts lists file extensions shown in the file browser.

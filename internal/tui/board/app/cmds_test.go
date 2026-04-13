@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	engine "github.com/sciminds/cli/internal/board"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ── listBoardsCmd ─────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/proj"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ManagedFiles are the config files that proj config manages.

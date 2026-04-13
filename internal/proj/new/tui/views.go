@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/uikit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/cliui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ── Done phase ───────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ func (m Model) viewDone() string {
 	var lines []string
 
 	if m.Err != nil {
-		lines = append(lines, ui.StatusRow(uikit.TUI.Fail().Render(uikit.IconFail), m.Err.Error()))
+		lines = append(lines, cliui.StatusRow(uikit.TUI.Fail().Render(uikit.IconFail), m.Err.Error()))
 		return strings.Join(lines, "\n")
 	}
 
@@ -27,9 +27,9 @@ func (m Model) viewDone() string {
 		if f.applied {
 			icon := uikit.TUI.Pass().Render(uikit.IconPass)
 			label := f.statusLabel()
-			return ui.StatusRow(icon, f.file.Path+"  "+uikit.TUI.Dim().Render(label))
+			return cliui.StatusRow(icon, f.file.Path+"  "+uikit.TUI.Dim().Render(label))
 		}
-		return ui.StatusRow(
+		return cliui.StatusRow(
 			uikit.TUI.Dim().Render(uikit.IconSkip),
 			uikit.TUI.Dim().Render(f.file.Path+" skipped"),
 		)
@@ -41,9 +41,9 @@ func (m Model) viewDone() string {
 
 	lines = append(lines, uikit.TUI.RenderDivider(uikit.ContentWidth(m.width)))
 
-	lines = append(lines, ui.SummaryLine(
-		ui.SummaryPart{Count: applied, Label: "applied", Kind: ui.SummarySuccess},
-		ui.SummaryPart{Count: skipped, Label: "skipped", Kind: ui.SummaryDim},
+	lines = append(lines, cliui.SummaryLine(
+		cliui.SummaryPart{Count: applied, Label: "applied", Kind: cliui.SummarySuccess},
+		cliui.SummaryPart{Count: skipped, Label: "skipped", Kind: cliui.SummaryDim},
 	))
 
 	return strings.Join(lines, "\n")
@@ -63,7 +63,7 @@ func (m Model) View() tea.View {
 		body = m.viewDone()
 	}
 
-	v := tea.NewView(ui.PageLayout("sci proj config", body, m.footerLeft(), m.footerRight(), m.width))
+	v := tea.NewView(cliui.PageLayout("sci proj config", body, m.footerLeft(), m.footerRight(), m.width))
 	v.AltScreen = true
 	return v
 }

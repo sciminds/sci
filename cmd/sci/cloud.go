@@ -6,12 +6,12 @@ import (
 	"os"
 
 	"charm.land/huh/v2"
+	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/share"
-	"github.com/sciminds/cli/internal/tui/uikit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 
@@ -123,7 +123,7 @@ func cloudPutCommand() *cli.Command {
 						Title("Description").
 						Description("Optional — shown in cloud list").
 						Value(&desc),
-				)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
+				)).WithTheme(cliui.HuhTheme()).WithKeyMap(cliui.HuhKeyMap()).Run(); err != nil {
 					return err
 				}
 				if name == "" {
@@ -143,11 +143,11 @@ func cloudPutCommand() *cli.Command {
 						huh.NewConfirm().
 							Title(fmt.Sprintf("File %q already exists. Overwrite?", name)).
 							Value(&overwrite),
-					)).WithTheme(ui.HuhTheme()).WithKeyMap(ui.HuhKeyMap()).Run(); err != nil {
+					)).WithTheme(cliui.HuhTheme()).WithKeyMap(cliui.HuhKeyMap()).Run(); err != nil {
 						return err
 					}
 					if !overwrite {
-						ui.Hint("cancelled")
+						cliui.Hint("cancelled")
 						return nil
 					}
 					force = true

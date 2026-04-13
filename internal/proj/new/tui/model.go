@@ -12,9 +12,9 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/cliui"
 	projnew "github.com/sciminds/cli/internal/proj/new"
-	"github.com/sciminds/cli/internal/tui/uikit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ── Phase ────────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ type fileEntry struct {
 	applied bool
 }
 
-// SelectTitle implements ui.SelectItem.
+// SelectTitle implements cliui.SelectItem.
 func (f fileEntry) SelectTitle() string { return f.file.Path }
 
 func (f fileEntry) statusLabel() string {
@@ -75,7 +75,7 @@ type Model struct {
 	help    help.Model
 	spinner spinner.Model
 
-	selectList ui.SelectList
+	selectList cliui.SelectList
 	dir        string
 	files      []fileEntry
 
@@ -92,7 +92,7 @@ type Options struct {
 // New creates a new proj config TUI model.
 func New(opts Options) Model {
 	files := make([]fileEntry, len(opts.Files))
-	items := make([]ui.SelectItem, len(opts.Files))
+	items := make([]cliui.SelectItem, len(opts.Files))
 	selected := make([]bool, len(opts.Files))
 	for i, f := range opts.Files {
 		files[i] = fileEntry{file: f}
@@ -100,10 +100,10 @@ func New(opts Options) Model {
 		selected[i] = f.Changed
 	}
 
-	sl := ui.NewSelectList(items,
-		ui.WithHeading("Select config files to apply"),
-		ui.WithSelected(selected),
-		ui.WithRenderItem(renderFileItem),
+	sl := cliui.NewSelectList(items,
+		cliui.WithHeading("Select config files to apply"),
+		cliui.WithSelected(selected),
+		cliui.WithRenderItem(renderFileItem),
 	)
 
 	s := spinner.New(
@@ -121,9 +121,9 @@ func New(opts Options) Model {
 	}
 }
 
-func renderFileItem(item ui.SelectItem, selected, isCursor bool) string {
+func renderFileItem(item cliui.SelectItem, selected, isCursor bool) string {
 	f := item.(fileEntry)
-	line := ui.RenderSelectItemLine(f.file.Path, selected, isCursor)
+	line := cliui.RenderSelectItemLine(f.file.Path, selected, isCursor)
 	statusStr := uikit.TUI.Dim().Render("(" + f.statusLabel() + ")")
 	return line + "  " + statusStr
 }
@@ -235,7 +235,7 @@ func (m Model) footerRight() string {
 	var km help.KeyMap
 	switch m.phase {
 	case phaseSelecting:
-		km = ui.NewSelectListKeys()
+		km = cliui.NewSelectListKeys()
 	case phaseDone:
 		km = doneKeys{}
 	}

@@ -1,4 +1,4 @@
-package ui
+package cliui
 
 // quiet.go — global toggle for non-interactive (--json) mode.
 // When quiet, spinners are suppressed, progress bars are skipped,

@@ -5,7 +5,7 @@ import (
 	"github.com/samber/lo"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/ui"
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // Model is the single Bubble Tea model for the board TUI. See doc.go for

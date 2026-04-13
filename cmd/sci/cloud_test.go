@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/cliui"
 )
 
 func TestCloudPut_JSONRequiresName(t *testing.T) {
-	ui.SetQuiet(false)
-	t.Cleanup(func() { ui.SetQuiet(false) })
+	cliui.SetQuiet(false)
+	t.Cleanup(func() { cliui.SetQuiet(false) })
 
 	root := buildRoot()
 

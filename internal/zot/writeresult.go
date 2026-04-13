@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/sciminds/cli/internal/tui/uikit"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // WriteResult is the standard return type for write commands. Action is
