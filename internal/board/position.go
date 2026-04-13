@@ -1,5 +1,7 @@
 package board
 
+import "github.com/samber/lo"
+
 // Fractional indexing for stable, conflict-free ordering within a column.
 //
 // Each card carries a Position (float64 > 0). Inserting between two cards
@@ -56,9 +58,7 @@ func NeedsNormalize(positions []float64) bool {
 // Normalize renumbers positions to evenly spaced integers (1.0, 2.0, 3.0, …).
 // Order is preserved; the caller sorts the input first if needed.
 func Normalize(positions []float64) []float64 {
-	out := make([]float64, len(positions))
-	for i := range positions {
-		out[i] = float64(i + 1)
-	}
-	return out
+	return lo.Times(len(positions), func(i int) float64 {
+		return float64(i + 1)
+	})
 }

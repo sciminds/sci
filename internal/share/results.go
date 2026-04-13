@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/dustin/go-humanize"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -90,13 +91,9 @@ func (r SharedListResult) Human() string {
 	}
 
 	// Show owner column only when at least one entry has Owner set.
-	hasOwner := false
-	for _, d := range r.Datasets {
-		if d.Owner != "" {
-			hasOwner = true
-			break
-		}
-	}
+	hasOwner := lo.SomeBy(r.Datasets, func(d SharedEntry) bool {
+		return d.Owner != ""
+	})
 
 	var b strings.Builder
 	if hasOwner {

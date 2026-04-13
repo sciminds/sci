@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/table"
+	"github.com/samber/lo"
 )
 
 // ToggleSort cycles a column through the sort states: none → asc → desc → none.
@@ -42,10 +43,7 @@ func ApplySorts(tab *Tab) {
 
 	// No user sorts — restore original insertion order via RowMeta.ID.
 	if len(tab.Sorts) == 0 {
-		indices := make([]int, len(tab.CellRows))
-		for i := range indices {
-			indices[i] = i
-		}
+		indices := lo.Times(len(tab.CellRows), func(i int) int { return i })
 		slices.SortStableFunc(indices, func(a, b int) int {
 			return cmp.Compare(tab.Rows[a].ID, tab.Rows[b].ID)
 		})
@@ -55,11 +53,7 @@ func ApplySorts(tab *Tab) {
 
 	sorts := withPKTiebreaker(tab.Sorts)
 
-	indices := make([]int, len(tab.CellRows))
-	for i := range indices {
-		indices[i] = i
-	}
-
+	indices := lo.Times(len(tab.CellRows), func(i int) int { return i })
 	slices.SortStableFunc(indices, func(a, b int) int {
 		for _, entry := range sorts {
 			ca := CellAt(tab, a, entry.Col)

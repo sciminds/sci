@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cloud"
 )
 
@@ -82,9 +83,9 @@ func (a *CloudAdapter) ListObjects(ctx context.Context, prefix, startAfter strin
 		if err != nil {
 			return nil, err
 		}
-		for _, obj := range page.Contents {
-			out = append(out, aws.ToString(obj.Key))
-		}
+		out = append(out, lo.Map(page.Contents, func(obj types.Object, _ int) string {
+			return aws.ToString(obj.Key)
+		})...)
 	}
 	return out, nil
 }
@@ -103,9 +104,9 @@ func (a *CloudAdapter) ListCommonPrefixes(ctx context.Context, prefix, delimiter
 		if err != nil {
 			return nil, err
 		}
-		for _, cp := range page.CommonPrefixes {
-			out = append(out, aws.ToString(cp.Prefix))
-		}
+		out = append(out, lo.Map(page.CommonPrefixes, func(cp types.CommonPrefix, _ int) string {
+			return aws.ToString(cp.Prefix)
+		})...)
 	}
 	return out, nil
 }

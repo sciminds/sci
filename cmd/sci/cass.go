@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cass"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/cmdutil"
@@ -395,10 +396,9 @@ func cassPullCommand() *cli.Command {
 			// Record pull time and log.
 			now := time.Now().Format(time.RFC3339)
 			_ = db.SetMeta("last_pull", now)
-			var parts []string
-			for _, cl := range result.Changelogs {
-				parts = append(parts, fmt.Sprintf("%s: %d new, %d updated", cl.Entity, cl.Added, cl.Updated))
-			}
+			parts := lo.Map(result.Changelogs, func(cl *cass.Changelog, _ int) string {
+				return fmt.Sprintf("%s: %d new, %d updated", cl.Entity, cl.Added, cl.Updated)
+			})
 			_ = db.WriteLog("pull", strings.Join(parts, "; "), "")
 
 			cmdutil.Output(cmd, &result)

@@ -9,10 +9,7 @@ package hygiene
 func SimilarityRatio(a, b string) float64 {
 	ra := []rune(a)
 	rb := []rune(b)
-	maxLen := len(ra)
-	if len(rb) > maxLen {
-		maxLen = len(rb)
-	}
+	maxLen := max(len(ra), len(rb))
 	if maxLen == 0 {
 		return 1.0
 	}
@@ -71,7 +68,7 @@ func levenshteinCapped(a, b []rune, cap int) int {
 			del := prev[j] + 1
 			ins := curr[j-1] + 1
 			sub := prev[j-1] + cost
-			curr[j] = min3(del, ins, sub)
+			curr[j] = min(del, ins, sub)
 			if curr[j] < rowMin {
 				rowMin = curr[j]
 			}
@@ -113,20 +110,9 @@ func levenshteinRunes(a, b []rune) int {
 			del := prev[j] + 1
 			ins := curr[j-1] + 1
 			sub := prev[j-1] + cost
-			curr[j] = min3(del, ins, sub)
+			curr[j] = min(del, ins, sub)
 		}
 		prev, curr = curr, prev
 	}
 	return prev[len(b)]
-}
-
-func min3(a, b, c int) int {
-	m := a
-	if b < m {
-		m = b
-	}
-	if c < m {
-		m = c
-	}
-	return m
 }

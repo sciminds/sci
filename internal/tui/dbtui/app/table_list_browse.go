@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/samber/lo"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/dustin/go-humanize"
@@ -150,11 +152,10 @@ func (m *Model) handleTableListAddKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		tl.Browser = nb
 		// Position cursor on the directory we came from.
-		for i, e := range nb.Entries {
-			if e.IsDir && e.Name == prev {
-				nb.Cursor = i
-				break
-			}
+		if _, idx, ok := lo.FindIndexOf(nb.Entries, func(e fileBrowserEntry) bool {
+			return e.IsDir && e.Name == prev
+		}); ok {
+			nb.Cursor = idx
 		}
 
 	case keyL, keyRight, keyEnter:
@@ -189,11 +190,9 @@ func (m *Model) tableListImportFile(path string) {
 	name := strings.TrimSuffix(base, filepath.Ext(base))
 
 	// Check for collision.
-	for _, e := range tl.Tables {
-		if e.Name == name {
-			tl.Status = fmt.Sprintf("Table %q already exists", name)
-			return
-		}
+	if lo.ContainsBy(tl.Tables, func(e tableListEntry) bool { return e.Name == name }) {
+		tl.Status = fmt.Sprintf("Table %q already exists", name)
+		return
 	}
 
 	if err := m.store.ImportFile(path, name); err != nil {
@@ -215,11 +214,10 @@ func (m *Model) tableListImportFile(path string) {
 	if err == nil {
 		tl.Tables = entries
 		// Position cursor on the new table.
-		for i, e := range entries {
-			if e.Name == name {
-				tl.Cursor = i
-				break
-			}
+		if _, idx, ok := lo.FindIndexOf(entries, func(e tableListEntry) bool {
+			return e.Name == name
+		}); ok {
+			tl.Cursor = idx
 		}
 	}
 
@@ -251,12 +249,9 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 		b.WriteString("\n")
 	} else {
 		// Compute max name width for alignment.
-		maxNameW := 0
-		for _, e := range br.Entries {
-			if len(e.Name) > maxNameW {
-				maxNameW = len(e.Name)
-			}
-		}
+		maxNameW := lo.Reduce(br.Entries, func(mx int, e fileBrowserEntry, _ int) int {
+			return max(mx, len(e.Name))
+		}, 0)
 		if maxNameW > innerW-fileBrowserNameAlignReserve {
 			maxNameW = innerW - fileBrowserNameAlignReserve
 		}
