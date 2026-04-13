@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot"
@@ -482,20 +483,12 @@ func parseOrphanKindList(s string) ([]hygiene.OrphanKind, error) {
 	if s == "" {
 		return nil, nil
 	}
-	parts := strings.Split(s, ",")
-	out := make([]hygiene.OrphanKind, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		k, err := hygiene.ParseOrphanKind(p)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, k)
-	}
-	return out, nil
+	parts := lo.Filter(strings.Split(s, ","), func(p string, _ int) bool {
+		return strings.TrimSpace(p) != ""
+	})
+	return lo.MapErr(parts, func(p string, _ int) (hygiene.OrphanKind, error) {
+		return hygiene.ParseOrphanKind(strings.TrimSpace(p))
+	})
 }
 
 func parseInvalidFieldList(s string) ([]hygiene.InvalidField, error) {
@@ -503,20 +496,12 @@ func parseInvalidFieldList(s string) ([]hygiene.InvalidField, error) {
 	if s == "" {
 		return nil, nil
 	}
-	parts := strings.Split(s, ",")
-	out := make([]hygiene.InvalidField, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		f, err := hygiene.ParseInvalidField(p)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, f)
-	}
-	return out, nil
+	parts := lo.Filter(strings.Split(s, ","), func(p string, _ int) bool {
+		return strings.TrimSpace(p) != ""
+	})
+	return lo.MapErr(parts, func(p string, _ int) (hygiene.InvalidField, error) {
+		return hygiene.ParseInvalidField(strings.TrimSpace(p))
+	})
 }
 
 func parseStrategy(s string) (hygiene.Strategy, error) {
@@ -539,18 +524,10 @@ func parseMissingFieldList(s string) ([]hygiene.MissingField, error) {
 	if s == "" {
 		return nil, nil
 	}
-	parts := strings.Split(s, ",")
-	out := make([]hygiene.MissingField, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		f, err := hygiene.ParseMissingField(p)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, f)
-	}
-	return out, nil
+	parts := lo.Filter(strings.Split(s, ","), func(p string, _ int) bool {
+		return strings.TrimSpace(p) != ""
+	})
+	return lo.MapErr(parts, func(p string, _ int) (hygiene.MissingField, error) {
+		return hygiene.ParseMissingField(strings.TrimSpace(p))
+	})
 }

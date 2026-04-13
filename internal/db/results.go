@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -96,15 +97,8 @@ func (r TablesResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r TablesResult) Human() string {
-	hasViews, hasVirtual := false, false
-	for _, t := range r.Tables {
-		if t.IsView {
-			hasViews = true
-		}
-		if t.IsVirtual {
-			hasVirtual = true
-		}
-	}
+	hasViews := lo.SomeBy(r.Tables, func(t TableEntry) bool { return t.IsView })
+	hasVirtual := lo.SomeBy(r.Tables, func(t TableEntry) bool { return t.IsVirtual })
 	var b strings.Builder
 	writeTableRows(&b, r.Tables, hasViews, hasVirtual)
 	if b.Len() == 0 {

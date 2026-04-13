@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 // ObjectStore is the minimal interface Store needs from the underlying
@@ -140,14 +142,11 @@ func (s *Store) ListBoards(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]string, 0, len(prefixes))
-	for _, p := range prefixes {
+	out := lo.FilterMap(prefixes, func(p string, _ int) (string, bool) {
 		id := strings.TrimPrefix(p, "boards/")
 		id = strings.TrimSuffix(id, "/")
-		if id != "" {
-			out = append(out, id)
-		}
-	}
+		return id, id != ""
+	})
 	slices.Sort(out)
 	return out, nil
 }
@@ -197,18 +196,17 @@ func (s *Store) Load(ctx context.Context, boardID string) (Board, error) {
 		return b, fmt.Errorf("list events: %w", err)
 	}
 
-	events := make([]Event, 0, len(keys))
-	for _, k := range keys {
+	events := lo.FilterMap(keys, func(k string, _ int) (Event, bool) {
 		data, err := s.obj.GetObject(ctx, k)
 		if err != nil {
-			continue // best effort — missing object just means someone deleted it
+			return Event{}, false // best effort — missing object just means someone deleted it
 		}
 		var e Event
 		if err := json.Unmarshal(data, &e); err != nil {
-			continue
+			return Event{}, false
 		}
-		events = append(events, e)
-	}
+		return e, true
+	})
 	slices.SortFunc(events, func(a, b Event) int { return cmp.Compare(a.ID, b.ID) })
 
 	lastID := sinceID
@@ -307,15 +305,12 @@ func (s *Store) Poll(ctx context.Context, boardID, sinceID string) ([]string, er
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]string, 0, len(keys))
 	prefix := eventsPrefix(boardID)
-	for _, k := range keys {
+	ids := lo.FilterMap(keys, func(k string, _ int) (string, bool) {
 		id := strings.TrimPrefix(k, prefix)
 		id = strings.TrimSuffix(id, ".json")
-		if id != "" {
-			ids = append(ids, id)
-		}
-	}
+		return id, id != ""
+	})
 	return ids, nil
 }
 
@@ -324,16 +319,11 @@ func (s *Store) Poll(ctx context.Context, boardID, sinceID string) ([]string, er
 // snapshot. Failure to update the pointer is non-fatal — the next client
 // will produce its own snapshot.
 func (s *Store) Snapshot(ctx context.Context, boardID string, b Board) error {
-	upToID := ""
 	cached, err := s.local.LoadCachedEvents(ctx, boardID, "")
 	if err != nil {
 		return err
 	}
-	for _, e := range cached {
-		if e.ID > upToID {
-			upToID = e.ID
-		}
-	}
+	upToID := lo.MaxBy(cached, func(a, b Event) bool { return a.ID < b.ID }).ID
 	snapID := s.newID()
 	data, err := json.Marshal(b)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 )
 
@@ -196,10 +197,7 @@ func (d *DB) ListAll(f ListFilter) ([]Item, error) {
 	}
 
 	// Bulk-hydrate Fields in one query across every returned item.
-	ids := make([]int64, 0, len(out))
-	for _, it := range out {
-		ids = append(ids, it.ID)
-	}
+	ids := lo.Map(out, func(it Item, _ int) int64 { return it.ID })
 	if err := d.hydrateFields(out, idIndex, ids); err != nil {
 		return nil, err
 	}
@@ -290,12 +288,8 @@ func (d *DB) hydrateCreators(out []Item, idIndex map[int64]int, ids []int64) err
 // inClause builds a `?,?,?,…` placeholder list and a matching []any args
 // slice for a SQL IN (...) expression.
 func inClause(ids []int64) (string, []any) {
-	ph := make([]string, len(ids))
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		ph[i] = "?"
-		args[i] = id
-	}
+	ph := lo.Map(ids, func(_ int64, _ int) string { return "?" })
+	args := lo.Map(ids, func(id int64, _ int) any { return id })
 	return strings.Join(ph, ","), args
 }
 
