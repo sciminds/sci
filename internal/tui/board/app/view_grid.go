@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/ui"
+	"github.com/sciminds/cli/internal/tui/compose"
 )
 
 func sortCardsByPosition(cards []engine.Card) {
@@ -270,13 +271,7 @@ func (m *Model) renderCollapsedColumn(col engine.Column, count, colIdx, width, h
 
 // centerPad pads s with spaces so its visible width equals w, centered.
 func centerPad(s string, w int) string {
-	diff := w - lipgloss.Width(s)
-	if diff <= 0 {
-		return s
-	}
-	left := diff / 2
-	right := diff - left
-	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
+	return compose.Center(w, s)
 }
 
 func (m *Model) renderColumn(col engine.Column, cards []engine.Card, colIdx, width, height int) string {
@@ -345,15 +340,12 @@ func (m *Model) renderColumnHeader(col engine.Column, count, innerW int) string 
 	}
 	title := truncate(strings.ToUpper(col.Title), titleAvail)
 
-	// Right-align the count by padding the gap between title and count.
-	gap := innerW - lipgloss.Width(title) - countW
-	if gap < 1 {
-		gap = 1
-	}
-
-	return m.styles.ColumnTitle.Render(title) +
-		strings.Repeat(" ", gap) +
-		m.styles.ColumnCount.Render(countStr)
+	// Right-align the count by spreading title and count across innerW.
+	return compose.SpreadMinGap(innerW,
+		1,
+		m.styles.ColumnTitle.Render(title),
+		m.styles.ColumnCount.Render(countStr),
+	)
 }
 
 func (m *Model) renderCard(c engine.Card, width int, selected bool) string {

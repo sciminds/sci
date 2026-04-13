@@ -15,8 +15,8 @@ import (
 	"github.com/samber/lo"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/dustin/go-humanize"
+	"github.com/sciminds/cli/internal/tui/compose"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 )
 
@@ -291,32 +291,21 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 				sizeLabel = humanize.Bytes(uint64(entry.Size)) //nolint:gosec
 			}
 
+			var left string
 			if selected {
 				pointer := m.styles.TextBlueBold().Render(symTriRight + " ")
-				if entry.IsDir {
-					nameStyled := m.styles.TextBlueBold().Render(name)
-					b.WriteString(pointer + nameStyled)
-				} else {
-					nameStyled := m.styles.TextBlueBold().Render(name)
-					b.WriteString(pointer + nameStyled)
-				}
+				left = pointer + m.styles.TextBlueBold().Render(name)
+			} else if entry.IsDir {
+				left = "  " + m.styles.Info().Render(name)
 			} else {
-				if entry.IsDir {
-					b.WriteString("  " + m.styles.Info().Render(name))
-				} else {
-					b.WriteString("  " + name)
-				}
+				left = "  " + name
 			}
 
 			if sizeLabel != "" {
-				// Pad between name and size.
-				nameW := lipgloss.Width(name) + 2 // 2 for pointer/indent
-				gap := innerW - nameW - lipgloss.Width(sizeLabel) - 1
-				if gap < 1 {
-					gap = 1
-				}
-				b.WriteString(strings.Repeat(" ", gap))
-				b.WriteString(m.styles.HeaderHint().Render(sizeLabel))
+				right := m.styles.HeaderHint().Render(sizeLabel)
+				b.WriteString(compose.SpreadMinGap(innerW, 1, left, right))
+			} else {
+				b.WriteString(left)
 			}
 
 			if i < end-1 {

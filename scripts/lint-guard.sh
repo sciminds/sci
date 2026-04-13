@@ -216,6 +216,13 @@ done
 # ── Rule 8: Standalone package import boundaries ────────────────────────────
 # dbtui and markdb must not import any sciminds/cli/internal/* packages outside
 # their own subtree. zot may import shared infra and dbtui, but not markdb.
+#
+# Shared leaf packages (pure-lipgloss utilities with no project-specific deps)
+# are allowed — they exist specifically to be importable by standalone binaries.
+
+standalone_allowed=(
+	"github.com/sciminds/cli/internal/tui/compose"
+)
 
 isolated_pkgs=("internal/tui/dbtui")
 for pkg in "${isolated_pkgs[@]}"; do
@@ -223,6 +230,10 @@ for pkg in "${isolated_pkgs[@]}"; do
 	own_import="github.com/sciminds/cli/${pkg}"
 	infra_hits=$(rg -n '"github\.com/sciminds/cli/internal/' --type go "$pkg/" 2>/dev/null |
 		rg -v "\"${own_import}" || true)
+	# Filter out allowed shared leaf packages.
+	for allowed in "${standalone_allowed[@]}"; do
+		infra_hits=$(echo "$infra_hits" | rg -v "\"${allowed}\"" || true)
+	done
 	if [[ -n "$infra_hits" ]]; then
 		echo "FAIL [standalone-boundary] standalone package $pkg imports outside its subtree:"
 		echo "$infra_hits"

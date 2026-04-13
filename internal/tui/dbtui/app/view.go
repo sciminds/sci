@@ -15,6 +15,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/sciminds/cli/internal/tui/compose"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 )
@@ -127,10 +128,7 @@ func (m *Model) buildBaseView() string {
 				path = osc8Link("file://"+m.dbPath, path)
 			}
 			label := m.styles.HeaderHint().Render(path)
-			gap := m.width - tabsW - lipgloss.Width(label)
-			if gap > 0 {
-				tabs += strings.Repeat(" ", gap) + label
-			}
+			tabs = compose.Spread(m.width, tabs, label)
 		}
 	}
 

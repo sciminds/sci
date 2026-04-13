@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/sciminds/cli/internal/tui/compose"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 )
 
@@ -118,12 +119,8 @@ func (m *Model) buildTableListOverlay() string {
 			}
 			shapeStyled := m.styles.HeaderHint().Render(shape)
 
-			// Pad name to align shape column.
-			padLen := maxNameW - len(entry.Name)
-			if padLen < 0 {
-				padLen = 0
-			}
-			padding := strings.Repeat(" ", padLen+2)
+			// Pad name to align shape column (+2 for separator gap).
+			paddedName := compose.PadRight(name, maxNameW+2)
 
 			if selected && tl.Renaming {
 				// Show textinput for rename
@@ -133,13 +130,14 @@ func (m *Model) buildTableListOverlay() string {
 			} else if selected {
 				pointer := m.styles.TextBlueBold().Render(symTriRight + " ")
 				nameStyled := m.styles.TextBlueBold().Render(name)
-				line := pointer + nameStyled + padding + shapeStyled
+				paddedStyled := compose.PadRight(nameStyled, maxNameW+2)
+				line := pointer + paddedStyled + shapeStyled
 				if lipgloss.Width(line) > innerW {
 					line = m.styles.Base().MaxWidth(innerW).Render(line)
 				}
 				b.WriteString(line)
 			} else {
-				line := "  " + name + padding + shapeStyled
+				line := "  " + paddedName + shapeStyled
 				if lipgloss.Width(line) > innerW {
 					line = m.styles.Base().MaxWidth(innerW).Render(line)
 				}

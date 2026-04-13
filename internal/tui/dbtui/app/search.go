@@ -13,8 +13,8 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/tui/compose"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 )
@@ -293,9 +293,5 @@ func (m *Model) renderSearchBar() string {
 	left := prompt + " " + queryText
 	right := countLabel
 
-	gap := m.width - lipgloss.Width(left) - lipgloss.Width(right)
-	if gap < 1 {
-		gap = 1
-	}
-	return left + strings.Repeat(" ", gap) + right
+	return compose.SpreadMinGap(m.width, 1, left, right)
 }

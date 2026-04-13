@@ -138,13 +138,9 @@ func writeTableRows(b *strings.Builder, entries []TableEntry, hasViews, hasVirtu
 	nameW += 2 // padding between columns
 	rowsW += 2
 
-	headerPad := nameW - visLen(header)
-	if headerPad < 0 {
-		headerPad = 0
-	}
-	fmt.Fprintf(b, "  %s%s%s   %s\n",
-		header, strings.Repeat(" ", headerPad),
-		ui.TUI.Dim().Render(padRight("rows", rowsW)),
+	fmt.Fprintf(b, "  %s%s   %s\n",
+		ui.PadRight(header, nameW),
+		ui.TUI.Dim().Render(ui.PadRight("rows", rowsW)),
 		ui.TUI.Dim().Render("columns"),
 	)
 
@@ -159,24 +155,12 @@ func writeTableRows(b *strings.Builder, entries []TableEntry, hasViews, hasVirtu
 		default:
 			name = ui.TUI.TextBlue().Render(t.Name)
 		}
-		namePad := nameW - visLen(name)
-		if namePad < 0 {
-			namePad = 0
-		}
-		fmt.Fprintf(b, "  %s%s%s   %d\n",
-			name, strings.Repeat(" ", namePad),
-			padRight(strconv.Itoa(t.Rows), rowsW),
+		fmt.Fprintf(b, "  %s%s   %d\n",
+			ui.PadRight(name, nameW),
+			ui.PadRight(strconv.Itoa(t.Rows), rowsW),
 			t.Columns,
 		)
 	}
-}
-
-// padRight pads s with spaces on the right to width w.
-func padRight(s string, w int) string {
-	if len(s) >= w {
-		return s
-	}
-	return s + strings.Repeat(" ", w-len(s))
 }
 
 // visLen returns the visible length of s (stripping ANSI escape sequences).

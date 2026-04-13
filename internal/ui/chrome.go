@@ -6,8 +6,6 @@ package ui
 import (
 	"fmt"
 	"strings"
-
-	"charm.land/lipgloss/v2"
 )
 
 // MaxDividerWidth is the maximum width for horizontal dividers in TUI views.
@@ -16,15 +14,10 @@ const MaxDividerWidth = 60
 // FooterBar renders a bottom bar with left-aligned and right-aligned content,
 // filling the gap with spaces. If width is 0 or the content exceeds the width,
 // only the left side is returned.
+//
+// Thin wrapper around [Spread] retained for readability at call sites.
 func FooterBar(left, right string, width int) string {
-	if width <= 0 {
-		return left
-	}
-	gap := width - lipgloss.Width(left) - lipgloss.Width(right)
-	if gap <= 0 {
-		return left
-	}
-	return left + strings.Repeat(" ", gap) + right
+	return Spread(width, left, right)
 }
 
 // SummaryKind controls how a summary part is styled.

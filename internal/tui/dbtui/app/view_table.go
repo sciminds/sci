@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	zone "github.com/lrstanley/bubblezone/v2"
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/tui/compose"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 )
@@ -167,19 +168,7 @@ func formatHeaderCell(title, indicator string, width int) string {
 	if indicator == "" {
 		return formatCell(title, width, alignLeft)
 	}
-	titleW := lipgloss.Width(title)
-	indW := lipgloss.Width(indicator)
-	gap := width - titleW - indW
-	if gap < 0 {
-		available := width - indW
-		if available < 1 {
-			return formatCell(title, width, alignLeft)
-		}
-		title = ansi.Truncate(title, available, "")
-		titleW = lipgloss.Width(title)
-		gap = width - titleW - indW
-	}
-	return title + strings.Repeat(" ", gap) + indicator
+	return compose.SpreadMinGap(width, 1, title, indicator)
 }
 
 func projectCellRows(
@@ -548,21 +537,11 @@ func firstLine(s string) string {
 }
 
 func formatCell(value string, width int, align alignKind) string {
-	if width < 1 {
-		return ""
+	pos := lipgloss.Left
+	if align == alignRight {
+		pos = lipgloss.Right
 	}
-	truncated := ansi.Truncate(value, width, "\u2026")
-	current := lipgloss.Width(truncated)
-	if current >= width {
-		return truncated
-	}
-	padding := width - current
-	switch align {
-	case alignRight:
-		return strings.Repeat(" ", padding) + truncated
-	default:
-		return truncated + strings.Repeat(" ", padding)
-	}
+	return compose.Fit(value, width, pos)
 }
 
 func visibleRange(total, height, cursor int) (int, int) {
