@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -21,21 +22,21 @@ func (m Model) viewDone() string {
 		return strings.Join(lines, "\n")
 	}
 
-	var applied, skipped int
-	for _, f := range m.files {
+	fileLines := lo.Map(m.files, func(f fileEntry, _ int) string {
 		if f.applied {
-			applied++
 			icon := ui.TUI.Pass().Render(ui.IconPass)
 			label := f.statusLabel()
-			lines = append(lines, ui.StatusRow(icon, f.file.Path+"  "+ui.TUI.Dim().Render(label)))
-		} else {
-			skipped++
-			lines = append(lines, ui.StatusRow(
-				ui.TUI.Dim().Render(ui.IconSkip),
-				ui.TUI.Dim().Render(f.file.Path+" skipped"),
-			))
+			return ui.StatusRow(icon, f.file.Path+"  "+ui.TUI.Dim().Render(label))
 		}
-	}
+		return ui.StatusRow(
+			ui.TUI.Dim().Render(ui.IconSkip),
+			ui.TUI.Dim().Render(f.file.Path+" skipped"),
+		)
+	})
+	lines = append(lines, fileLines...)
+
+	applied := lo.CountBy(m.files, func(f fileEntry) bool { return f.applied })
+	skipped := len(m.files) - applied
 
 	lines = append(lines, ui.TUI.RenderDivider(ui.ContentWidth(m.width)))
 

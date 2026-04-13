@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sciminds/cli/internal/ui"
@@ -182,9 +184,9 @@ func (p *Player) View() string {
 	}
 	// Clip each line to the panel width to prevent overflow / unwanted wrapping.
 	if p.width > 0 {
-		for i, line := range lines {
-			lines[i] = ansi.Truncate(line, p.width, "")
-		}
+		lines = lo.Map(lines, func(line string, _ int) string {
+			return ansi.Truncate(line, p.width, "")
+		})
 	}
 
 	var b strings.Builder

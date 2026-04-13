@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/proj"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -41,10 +42,11 @@ func (r SyncResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r SyncResult) Human() string {
 	var b strings.Builder
-	changed := 0
+	changed := lo.CountBy(r.Changed, func(c SyncChange) bool {
+		return c.Changed
+	})
 	for _, c := range r.Changed {
 		if c.Changed {
-			changed++
 			fmt.Fprintf(&b, "    %s %s\n", ui.SymOK, c.Path)
 		}
 	}
@@ -131,18 +133,20 @@ func Sync(dir string, dryRun bool) (*SyncResult, error) {
 		return nil, err
 	}
 
-	result := &SyncResult{Dir: dir, DryRun: dryRun}
+	result := &SyncResult{
+		Dir:    dir,
+		DryRun: dryRun,
+		Changed: lo.Map(files, func(f ConfigFile, _ int) SyncChange {
+			return SyncChange{Path: f.Path, Changed: f.Changed, Exists: f.Exists}
+		}),
+	}
 
-	for _, f := range files {
-		result.Changed = append(result.Changed, SyncChange{
-			Path:    f.Path,
-			Changed: f.Changed,
-			Exists:  f.Exists,
-		})
-
-		if f.Changed && !dryRun {
-			if err := ApplyConfigFiles(dir, []ConfigFile{f}); err != nil {
-				return nil, err
+	if !dryRun {
+		for _, f := range files {
+			if f.Changed {
+				if err := ApplyConfigFiles(dir, []ConfigFile{f}); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

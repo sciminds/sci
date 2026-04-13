@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cass/api"
 )
 
@@ -138,12 +139,9 @@ func (c *Client) Delete(ctx context.Context, path string) error {
 // BulkGradeForm builds a FormData for the update_grades endpoint.
 // grades maps Canvas user IDs to grade strings.
 func BulkGradeForm(grades map[int]string) FormData {
-	form := make(FormData, len(grades))
-	for uid, grade := range grades {
-		key := fmt.Sprintf("grade_data[%d][posted_grade]", uid)
-		form[key] = grade
-	}
-	return form
+	return lo.MapEntries(grades, func(uid int, grade string) (string, string) {
+		return fmt.Sprintf("grade_data[%d][posted_grade]", uid), grade
+	})
 }
 
 // --- internals ---

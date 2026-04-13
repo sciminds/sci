@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/local"
 )
@@ -82,17 +83,14 @@ func exportBibTeXLibrary(items []local.Item, prev Keymap, stats *ExportStats) st
 }
 
 func exportCSLJSONLibrary(items []local.Item, stats *ExportStats) (string, error) {
-	out := make([]cslItem, 0, len(items))
-	for i := range items {
-		it := &items[i]
-		_, synth := citekey.Resolve(it)
-		if synth {
-			stats.Synthesized++
-		} else {
-			stats.Pinned++
-		}
-		out = append(out, buildCSLItem(it))
-	}
+	out := lo.Map(items, func(it local.Item, _ int) cslItem {
+		return buildCSLItem(&it)
+	})
+	stats.Synthesized = lo.CountBy(items, func(it local.Item) bool {
+		_, synth := citekey.Resolve(&it)
+		return synth
+	})
+	stats.Pinned = len(items) - stats.Synthesized
 	raw, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		return "", err
