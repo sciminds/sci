@@ -44,9 +44,16 @@ WHERE p.libraryID = ?
   AND (ia.parentItemID = p.itemID OR n.parentItemID = p.itemID)
 ORDER BY ch.dateAdded
 `
+	return d.queryChildren(q, "list children of", parentKey)
+}
+
+// queryChildren runs a query that returns ChildItem-shaped rows
+// (key, typeName, title, note, contentType, filename) and hydrates
+// tags in a second pass. Used by ListChildren and ListDoclingNotes.
+func (d *DB) queryChildren(q, errPrefix, parentKey string) ([]ChildItem, error) {
 	rows, err := d.db.Query(q, d.libraryID, parentKey)
 	if err != nil {
-		return nil, fmt.Errorf("list children of %s: %w", parentKey, err)
+		return nil, fmt.Errorf("%s %s: %w", errPrefix, parentKey, err)
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -55,7 +62,7 @@ ORDER BY ch.dateAdded
 		var ci ChildItem
 		if err := rows.Scan(&ci.Key, &ci.ItemType, &ci.Title, &ci.Note,
 			&ci.ContentType, &ci.Filename); err != nil {
-			return nil, fmt.Errorf("scan child of %s: %w", parentKey, err)
+			return nil, fmt.Errorf("scan %s %s: %w", errPrefix, parentKey, err)
 		}
 		out = append(out, ci)
 	}
@@ -63,8 +70,6 @@ ORDER BY ch.dateAdded
 		return nil, err
 	}
 
-	// Hydrate tags in a second pass — avoids a GROUP BY / GROUP_CONCAT
-	// that complicates the main query.
 	for i := range out {
 		tags, err := d.childTags(out[i].Key)
 		if err != nil {

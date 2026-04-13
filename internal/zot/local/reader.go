@@ -34,6 +34,11 @@ type Reader interface {
 	// Children
 	ListChildren(parentKey string) ([]ChildItem, error)
 
+	// Notes (docling extraction notes)
+	ListDoclingNotes(parentKey string) ([]ChildItem, error)
+	ListAllDoclingNotes() ([]DoclingNoteSummary, error)
+	ReadNote(noteKey string) (*NoteDetail, error)
+
 	// PDF Resolution
 	ResolvePDFAttachment(parentKey string) (*PDFAttachment, error)
 	ListAllPDFAttachments() ([]PDFParent, error)

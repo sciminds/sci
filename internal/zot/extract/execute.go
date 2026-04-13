@@ -15,6 +15,14 @@ type NoteWriter interface {
 	CreateChildNote(ctx context.Context, parentKey, body string, tags []string) (string, error)
 }
 
+// NoteUpdater is the narrow interface Execute needs when updating an
+// existing note in place (PATCH). Implemented by *api.Client via its
+// UpdateChildNote method. Required only when ExecuteInput.UpdateNoteKey
+// is set — nil is fine for create-only callers.
+type NoteUpdater interface {
+	UpdateChildNote(ctx context.Context, noteKey, body string) error
+}
+
 // ExecuteInput bundles everything Execute needs in one struct so
 // callers don't have to thread 8 positional args. Required fields are
 // noted inline; Tags and Now have defaults.
@@ -51,6 +59,14 @@ type ExecuteInput struct {
 	// note post never costs us a re-extract, since the next run hits
 	// the cache and goes straight to the writer.
 	Cache *MarkdownCache
+	// UpdateNoteKey, when non-empty, tells Execute to update an
+	// existing note in place via Updater instead of creating a new
+	// one via Writer. The extractor still runs (or cache is hit) to
+	// produce the body — only the final write changes.
+	UpdateNoteKey string
+	// Updater is required when UpdateNoteKey is set. Implemented by
+	// *api.Client. Nil is fine for create-only callers.
+	Updater NoteUpdater
 }
 
 // ExecuteResult describes what Execute did. For ActionSkip the
@@ -169,10 +185,20 @@ func Execute(ctx context.Context, in ExecuteInput) (*ExecuteResult, error) {
 		Extraction: extRes,
 	}
 
-	key, err := in.Writer.CreateChildNote(ctx, in.Plan.Request.ParentKey, body, tags)
-	if err != nil {
-		return nil, fmt.Errorf("execute: create note: %w", err)
+	if in.UpdateNoteKey != "" {
+		if in.Updater == nil {
+			return nil, fmt.Errorf("execute: Updater required when UpdateNoteKey is set")
+		}
+		if err := in.Updater.UpdateChildNote(ctx, in.UpdateNoteKey, body); err != nil {
+			return nil, fmt.Errorf("execute: update note: %w", err)
+		}
+		result.NoteKey = in.UpdateNoteKey
+	} else {
+		key, err := in.Writer.CreateChildNote(ctx, in.Plan.Request.ParentKey, body, tags)
+		if err != nil {
+			return nil, fmt.Errorf("execute: create note: %w", err)
+		}
+		result.NoteKey = key
 	}
-	result.NoteKey = key
 	return result, nil
 }

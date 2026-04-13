@@ -63,6 +63,7 @@ func searchCommand() *cli.Command {
 			// CSL-JSON should use the top-level `zot export` command.
 			&cli.BoolFlag{Name: "export", Usage: "emit results as bibtex instead of the normal hit list", Destination: &searchExport, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
+			&cli.BoolFlag{Name: "notes", Usage: "only show items that have docling extraction notes", Destination: &searchNotes, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -84,6 +85,15 @@ func searchCommand() *cli.Command {
 			items, err := db.Search(query, searchLimit)
 			if err != nil {
 				return err
+			}
+			if searchNotes {
+				hasNotes, err := db.ParentsWithDoclingNotes()
+				if err != nil {
+					return err
+				}
+				items = lo.Filter(items, func(it local.Item, _ int) bool {
+					return hasNotes[it.Key]
+				})
 			}
 			// Need full Fields + Creators hydration before export —
 			// Search() only returns list-view metadata.

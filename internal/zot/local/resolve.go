@@ -197,7 +197,7 @@ WHERE p.libraryID = ?
 
 // DoclingNoteKeys returns the Zotero item keys of all non-trashed
 // child notes of parentKey that are tagged "docling". Used by
-// `zot item extract --delete` to find notes to trash.
+// `zot notes delete` and `zot notes update` to find notes to operate on.
 func (d *DB) DoclingNoteKeys(parentKey string) ([]string, error) {
 	const q = `
 SELECT ni.key

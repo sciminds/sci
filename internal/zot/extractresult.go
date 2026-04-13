@@ -138,38 +138,6 @@ func (r ExtractArtifactResult) Human() string {
 	return b.String()
 }
 
-// ExtractDeleteResult is emitted by `zot item extract --delete`: trashes
-// child notes tagged "docling" for the given parent.
-type ExtractDeleteResult struct {
-	ParentKey string            `json:"parent_key"`
-	PDFKey    string            `json:"pdf_key"`
-	PDFName   string            `json:"pdf_name"`
-	Trashed   []string          `json:"trashed,omitempty"`
-	Failed    map[string]string `json:"failed,omitempty"`
-}
-
-// JSON implements cmdutil.Result.
-func (r ExtractDeleteResult) JSON() any { return r }
-
-// Human implements cmdutil.Result.
-func (r ExtractDeleteResult) Human() string {
-	var b strings.Builder
-	if len(r.Trashed) == 0 && len(r.Failed) == 0 {
-		fmt.Fprintf(&b, "  %s no docling notes found for %s\n", ui.SymArrow, r.PDFName)
-		return b.String()
-	}
-	for _, k := range r.Trashed {
-		fmt.Fprintf(&b, "  %s trashed note %s (%s)\n", ui.SymOK, k, r.PDFName)
-	}
-	if len(r.Failed) > 0 {
-		keys := slices.Sorted(maps.Keys(r.Failed))
-		for _, k := range keys {
-			fmt.Fprintf(&b, "  %s %s: %s\n", ui.SymFail, k, r.Failed[k])
-		}
-	}
-	return b.String()
-}
-
 // ExtractLibResult is emitted by `zot extract-lib` — the aggregate
 // outcome of a bulk extraction run.
 type ExtractLibResult struct {

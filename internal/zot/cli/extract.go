@@ -22,7 +22,6 @@ var (
 	extractHTML       bool
 	extractOut        string
 	extractNoNote     bool
-	extractDelete     bool
 	extractYes        bool
 	extractDevice     string
 	extractNumThreads int
@@ -31,18 +30,17 @@ var (
 func extractCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "extract",
-		Usage: "Convert a PDF attachment into a Zotero child note (via docling)",
-		Description: "$ zot item extract 6R45EVSB                           # dry-run preview\n" +
-			"$ zot item extract 6R45EVSB --apply                    # post markdown note to Zotero\n" +
-			"$ zot item extract 6R45EVSB --html --apply             # post rendered HTML note\n" +
-			"$ zot item extract 6R45EVSB --out ./vault/ckd --apply  # full extraction + note\n" +
-			"$ zot item extract 6R45EVSB --out ./vault/ckd --no-note --apply  # artifacts only\n" +
-			"$ zot item extract 6R45EVSB --delete                   # undo: trash docling notes\n" +
+		Usage: "Run the docling PDF extraction pipeline",
+		Description: "$ zot extract 6R45EVSB                           # dry-run preview\n" +
+			"$ zot extract 6R45EVSB --apply                    # post markdown note to Zotero\n" +
+			"$ zot extract 6R45EVSB --html --apply             # post rendered HTML note\n" +
+			"$ zot extract 6R45EVSB --out ./vault/ckd --apply  # full extraction + note\n" +
+			"$ zot extract 6R45EVSB --out ./vault/ckd --no-note --apply  # artifacts only\n" +
 			"\n" +
 			"Zotero mode (default): raw markdown with YAML frontmatter posted as a child note (--html for rendered HTML).\n" +
 			"Full mode (--out):     md + json + referenced PNGs + CSV tables written to DIR.\n" +
-			"Delete mode (--delete): trash any child note tagged 'docling' for this parent.\n" +
 			"\n" +
+			"To manage existing notes, use `zot notes` (list, read, add, update, delete).\n" +
 			"Uses the existing PDF attachment's contentType + path from the local zotero.sqlite.\n" +
 			"The Plan step is pure (no docling run); pass --apply to actually extract and post.",
 		ArgsUsage: "<parent-item-key>",
@@ -53,7 +51,6 @@ func extractCommand() *cli.Command {
 			&cli.BoolFlag{Name: "html", Usage: "render markdown as HTML before posting (default is raw markdown)", Destination: &extractHTML, Local: true},
 			&cli.StringFlag{Name: "out", Usage: "write docling artifacts (md/json/PNGs/CSVs) to DIR; enables full-extraction mode", Destination: &extractOut, Local: true},
 			&cli.BoolFlag{Name: "no-note", Usage: "skip the Zotero note post — requires --out (artifacts only)", Destination: &extractNoNote, Local: true},
-			&cli.BoolFlag{Name: "delete", Usage: "trash any child notes tagged 'docling' for this parent (undo a prior extraction)", Destination: &extractDelete, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &extractYes, Local: true},
 			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "mps", Destination: &extractDevice, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default, usually 4)", Destination: &extractNumThreads, Local: true},
@@ -71,9 +68,6 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	if extractNoNote && extractOut == "" {
 		return cmdutil.UsageErrorf(cmd, "--no-note requires --out (artifacts need somewhere to go)")
 	}
-	if extractDelete && (extractApply || extractForce || extractReextract || extractOut != "" || extractNoNote) {
-		return cmdutil.UsageErrorf(cmd, "--delete is mutually exclusive with --apply, --force, --reextract, --out, and --no-note")
-	}
 	if extractNoNote && extractHTML {
 		return cmdutil.UsageErrorf(cmd, "--html has no effect with --no-note (no note is posted)")
 	}
@@ -90,11 +84,6 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	att, err := db.ResolvePDFAttachment(parentKey)
 	if err != nil {
 		return err
-	}
-
-	// ── --delete: find docling-tagged notes in local DB, trash via API ──
-	if extractDelete {
-		return runExtractDelete(ctx, cmd, db, parentKey, att)
 	}
 
 	pdfPath := filepath.Join(cfg.DataDir, "storage", att.Key, att.Filename)
@@ -236,52 +225,6 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		apply.Tables = result.Extraction.TablePaths
 	}
 	cmdutil.Output(cmd, apply)
-	return nil
-}
-
-// runExtractDelete finds docling-tagged child notes in the local DB
-// and trashes them via the Zotero Web API.
-func runExtractDelete(ctx context.Context, cmd *cli.Command, db local.Reader, parentKey string, att *local.PDFAttachment) error {
-	noteKeys, err := db.DoclingNoteKeys(parentKey)
-	if err != nil {
-		return err
-	}
-
-	if len(noteKeys) == 0 {
-		cmdutil.Output(cmd, zot.ExtractDeleteResult{
-			ParentKey: parentKey,
-			PDFKey:    att.Key,
-			PDFName:   att.Title,
-		})
-		return nil
-	}
-
-	msg := fmt.Sprintf("Trash %d docling note(s) for %s?", len(noteKeys), att.Title)
-	if done, err := cmdutil.ConfirmOrSkip(extractYes, msg); done || err != nil {
-		return err
-	}
-
-	apiClient, err := requireAPIClient()
-	if err != nil {
-		return err
-	}
-
-	result := zot.ExtractDeleteResult{
-		ParentKey: parentKey,
-		PDFKey:    att.Key,
-		PDFName:   att.Title,
-	}
-	for _, key := range noteKeys {
-		if err := apiClient.TrashItem(ctx, key); err != nil {
-			if result.Failed == nil {
-				result.Failed = map[string]string{}
-			}
-			result.Failed[key] = err.Error()
-			continue
-		}
-		result.Trashed = append(result.Trashed, key)
-	}
-	cmdutil.Output(cmd, result)
 	return nil
 }
 

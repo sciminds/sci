@@ -17,13 +17,15 @@ import "github.com/urfave/cli/v3"
 //	setup                       configure API key + library
 //	info                        library summary (alias: stats)
 //	view                        interactive read-only table viewer
-//	search  <query>             cross-field search (supports --export)
+//	search  <query>             cross-field search (supports --export, --notes)
 //	export                      full-library BibTeX / CSL-JSON export
 //	item    <subcommand>        per-item ops (read/add/update/delete/list/open/export)
 //	collection <subcommand>     collections (list/create/delete/add/remove)
 //	tags    <subcommand>        tags (list/add/remove/delete)
+//	notes   <subcommand>        docling extraction notes (list/read/add/update/delete)
 //	doctor  [subcommand]        hygiene: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates}
+//	extract <parent-key>        run docling PDF extraction pipeline
 //	extract-lib                 bulk extract every PDF → child note (via docling)
 //
 // `item`, `collection`, and `tags` all reuse the leaf commands defined in
@@ -39,7 +41,9 @@ func Commands() []*cli.Command {
 		itemCommand(),
 		collectionCommand(),
 		tagsCommand(),
+		notesCommand(),
 		doctorCommand(),
+		extractCommand(),
 		extractLibCommand(),
 	}
 }
@@ -49,12 +53,11 @@ func Commands() []*cli.Command {
 func itemCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "item",
-		Usage: "Work with individual items (read, add, update, delete, list, open, export, extract)",
+		Usage: "Work with individual items (read, add, update, delete, list, open, export)",
 		Description: "$ zot item read ABC12345\n" +
 			"$ zot item add --type journalArticle --title \"My Paper\"\n" +
 			"$ zot item list --limit 20\n" +
-			"$ zot item export ABC12345\n" +
-			"$ zot item extract ABC12345 --apply",
+			"$ zot item export ABC12345",
 		Commands: []*cli.Command{
 			readCommand(),
 			addCommand(),
@@ -64,7 +67,6 @@ func itemCommand() *cli.Command {
 			childrenCommand(),
 			openCommand(),
 			exportCommand(),
-			extractCommand(),
 		},
 	}
 }

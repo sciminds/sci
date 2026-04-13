@@ -63,7 +63,7 @@ Read-only library-quality checks. All four checks (`invalid`, `missing`, `orphan
 
 ## PDF extraction (`internal/zot/extract/`)
 
-Same reads-local / writes-cloud split. Two CLI modes: Zotero-mode (default, temp dir, posts child note) and full-mode (`--out DIR`, persists md + json + PNGs + CSV tables). `--delete` trashes docling-tagged child notes. Bulk via `zot extract-lib` (single docling process, resume via local cache at `os.UserCacheDir()/sci/zot/extract/`). See `cli/extract.go` and `extract/extract.go` for pipeline details.
+Same reads-local / writes-cloud split. Two CLI modes: Zotero-mode (default, temp dir, posts child note) and full-mode (`--out DIR`, persists md + json + PNGs + CSV tables). Note management (list/read/add/update/delete) lives in `zot notes` — see `cli/notes.go`. Bulk extraction via `zot extract-lib` (single docling process, resume via local cache at `os.UserCacheDir()/sci/zot/extract/`). See `cli/extract.go` and `extract/extract.go` for pipeline details.
 
 **Smoke tests:** `DOCLING=1` (Zotero-mode), `DOCLING_FULL=1` (full-mode), `ZOT_REAL_DB=<dir>` (real library resolver). Override PDF via `DOCLING_PDF`, parent key via `ZOT_REAL_CKD_KEY`.
 

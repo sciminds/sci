@@ -452,3 +452,99 @@ func TestExecute_UsesToolVersionFromExtractor(t *testing.T) {
 		t.Errorf("body missing tool version; got:\n%s", body)
 	}
 }
+
+// fakeNoteUpdater records every UpdateChildNote call.
+type fakeNoteUpdater struct {
+	updated   []updateCall
+	updateErr error
+}
+
+type updateCall struct {
+	noteKey string
+	body    string
+}
+
+func (f *fakeNoteUpdater) UpdateChildNote(_ context.Context, noteKey, body string) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	f.updated = append(f.updated, updateCall{noteKey: noteKey, body: body})
+	return nil
+}
+
+// TestExecute_Update: when UpdateNoteKey is set, Execute calls
+// Updater.UpdateChildNote instead of Writer.CreateChildNote.
+func TestExecute_Update(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{
+			ParentKey: "PARENT01",
+			PDFKey:    "PDF1",
+			PDFName:   "paper.pdf",
+			PDFHash:   "abc123",
+		},
+		Action: ActionCreate,
+		Reason: "re-extract for update",
+	}
+	in := baseInput(t, plan)
+	updater := &fakeNoteUpdater{}
+	in.UpdateNoteKey = "EXISTING"
+	in.Updater = updater
+
+	res, err := Execute(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Should have called Updater, not Writer.
+	w := in.Writer.(*fakeNoteWriter)
+	if len(w.created) != 0 {
+		t.Errorf("CreateChildNote should NOT be called on update; calls=%d", len(w.created))
+	}
+	if len(updater.updated) != 1 {
+		t.Fatalf("UpdateChildNote calls = %d, want 1", len(updater.updated))
+	}
+	if updater.updated[0].noteKey != "EXISTING" {
+		t.Errorf("noteKey = %q, want EXISTING", updater.updated[0].noteKey)
+	}
+	if res.NoteKey != "EXISTING" {
+		t.Errorf("NoteKey = %q, want EXISTING", res.NoteKey)
+	}
+	if res.Body == "" {
+		t.Error("Body should be non-empty")
+	}
+}
+
+// TestExecute_UpdateRequiresUpdater: UpdateNoteKey without Updater is an error.
+func TestExecute_UpdateRequiresUpdater(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "h"},
+		Action:  ActionCreate,
+	}
+	in := baseInput(t, plan)
+	in.UpdateNoteKey = "EXISTING"
+	// in.Updater is nil
+
+	_, err := Execute(context.Background(), in)
+	if err == nil {
+		t.Fatal("expected error when UpdateNoteKey set but Updater is nil")
+	}
+}
+
+// TestExecute_UpdatePropagatesError: updater failure surfaces to caller.
+func TestExecute_UpdatePropagatesError(t *testing.T) {
+	t.Parallel()
+	plan := &Plan{
+		Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "h"},
+		Action:  ActionCreate,
+	}
+	in := baseInput(t, plan)
+	boom := errors.New("api 412")
+	in.UpdateNoteKey = "EXISTING"
+	in.Updater = &fakeNoteUpdater{updateErr: boom}
+
+	_, err := Execute(context.Background(), in)
+	if !errors.Is(err, boom) {
+		t.Errorf("err = %v, want wraps %v", err, boom)
+	}
+}

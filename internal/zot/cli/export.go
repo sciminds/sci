@@ -29,6 +29,7 @@ var (
 
 	searchExport    bool // --export on `zot search`: emit bibtex
 	searchExportOut string
+	searchNotes     bool // --notes on `zot search`: filter to items with docling notes
 )
 
 // libraryExportCommand implements `zot export` — a top-level command that
