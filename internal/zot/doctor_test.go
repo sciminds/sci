@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/zot/hygiene"
 )
 
@@ -168,11 +168,11 @@ func TestDoctorResult_FooterZeroBucketsRenderAsPass(t *testing.T) {
 	}
 	out := res.Human()
 
-	wantPassZero := ui.TUI.Pass().Render("0 error")
+	wantPassZero := uikit.TUI.Pass().Render("0 error")
 	if !strings.Contains(out, wantPassZero) {
 		t.Errorf("Human() should render '0 error' in the pass color:\n%s", out)
 	}
-	wantWarnNonzero := ui.TUI.Warn().Render("3 warn")
+	wantWarnNonzero := uikit.TUI.Warn().Render("3 warn")
 	if !strings.Contains(out, wantWarnNonzero) {
 		t.Errorf("Human() should still render nonzero warnings in the warn color:\n%s", out)
 	}
@@ -183,7 +183,7 @@ func TestDoctorResult_FooterZeroBucketsRenderAsPass(t *testing.T) {
 		res.Reports[name] = buildReport(name, 0, 0, 0)
 	}
 	out = res.Human()
-	if !strings.Contains(out, ui.TUI.Pass().Render("0 warn")) {
+	if !strings.Contains(out, uikit.TUI.Pass().Render("0 warn")) {
 		t.Errorf("Human() should render '0 warn' in the pass color when warnings=0:\n%s", out)
 	}
 }

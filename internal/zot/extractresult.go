@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/zot/extract"
 )
 
@@ -31,7 +31,7 @@ func (r ExtractPlanResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r ExtractPlanResult) Human() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "  %s would %s note for %s\n", ui.SymArrow, r.Action, r.PDFName)
+	fmt.Fprintf(&b, "  %s would %s note for %s\n", uikit.SymArrow, r.Action, r.PDFName)
 	fmt.Fprintf(&b, "      parent:   %s\n", r.ParentKey)
 	fmt.Fprintf(&b, "      pdf:      %s (sha256:%s)\n", r.PDFKey, r.PDFHash)
 	fmt.Fprintf(&b, "      reason:   %s\n", r.Reason)
@@ -72,12 +72,12 @@ func (r ExtractApplyResult) Human() string {
 	var b strings.Builder
 	switch r.Action {
 	case string(actionSkip):
-		fmt.Fprintf(&b, "  %s skipped %s — %s\n", ui.SymArrow, r.PDFName, r.Reason)
+		fmt.Fprintf(&b, "  %s skipped %s — %s\n", uikit.SymArrow, r.PDFName, r.Reason)
 		return b.String()
 	case string(actionCreate):
-		fmt.Fprintf(&b, "  %s created note %s for %s\n", ui.SymOK, r.NoteKey, r.PDFName)
+		fmt.Fprintf(&b, "  %s created note %s for %s\n", uikit.SymOK, r.NoteKey, r.PDFName)
 	default:
-		fmt.Fprintf(&b, "  %s %s %s (%s)\n", ui.SymOK, r.Action, r.NoteKey, r.PDFName)
+		fmt.Fprintf(&b, "  %s %s %s (%s)\n", uikit.SymOK, r.Action, r.NoteKey, r.PDFName)
 	}
 	if r.ToolVersion != "" && r.Duration > 0 {
 		fmt.Fprintf(&b, "      %s in %s\n", r.ToolVersion, r.Duration.Truncate(time.Second))
@@ -121,7 +121,7 @@ func (r ExtractArtifactResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r ExtractArtifactResult) Human() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "  %s extracted %s → %s\n", ui.SymOK, r.PDFName, r.OutputDir)
+	fmt.Fprintf(&b, "  %s extracted %s → %s\n", uikit.SymOK, r.PDFName, r.OutputDir)
 	fmt.Fprintf(&b, "      md:     %s\n", r.Markdown)
 	if r.JSONDoc != "" {
 		fmt.Fprintf(&b, "      json:   %s\n", r.JSONDoc)
@@ -156,7 +156,7 @@ func (r ExtractLibResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r ExtractLibResult) Human() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n  %s extract-lib complete\n", ui.SymOK)
+	fmt.Fprintf(&b, "\n  %s extract-lib complete\n", uikit.SymOK)
 	fmt.Fprintf(&b, "      total:    %d\n", r.Total)
 	fmt.Fprintf(&b, "      created:  %d\n", r.Created)
 	fmt.Fprintf(&b, "      skipped:  %d (docling note exists)\n", r.Skipped)
@@ -164,12 +164,12 @@ func (r ExtractLibResult) Human() string {
 		fmt.Fprintf(&b, "      cached:   %d (docling skipped, note re-posted)\n", r.Cached)
 	}
 	if r.Failed > 0 {
-		fmt.Fprintf(&b, "      %s failed:  %d\n", ui.SymFail, r.Failed)
+		fmt.Fprintf(&b, "      %s failed:  %d\n", uikit.SymFail, r.Failed)
 	}
 	if len(r.Errors) > 0 {
 		keys := slices.Sorted(maps.Keys(r.Errors))
 		for _, k := range keys {
-			fmt.Fprintf(&b, "      %s %s: %s\n", ui.SymFail, k, r.Errors[k])
+			fmt.Fprintf(&b, "      %s %s: %s\n", uikit.SymFail, k, r.Errors[k])
 		}
 	}
 	fmt.Fprintf(&b, "      duration: %s\n", r.Duration.Truncate(time.Second))

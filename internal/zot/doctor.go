@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/zot/hygiene"
 	"github.com/sciminds/cli/internal/zot/local"
 )
@@ -164,16 +164,16 @@ func (r *DoctorResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Library Health"))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render("Library Health"))
 	deepLabel := "fast mode"
 	if r.Deep {
 		deepLabel = "deep mode"
 	}
 	fmt.Fprintf(&b, "  %s %d items scanned  %s %s\n\n",
-		ui.TUI.Dim().Render("·"),
+		uikit.TUI.Dim().Render("·"),
 		r.Scanned,
-		ui.TUI.Dim().Render("·"),
-		ui.TUI.Dim().Render(deepLabel),
+		uikit.TUI.Dim().Render("·"),
+		uikit.TUI.Dim().Render(deepLabel),
 	)
 
 	for _, name := range r.Order {
@@ -185,28 +185,28 @@ func (r *DoctorResult) Human() string {
 		fmt.Fprintf(&b, "    %s  %-12s %s\n", doctorStatusGlyph(rep), name, line)
 	}
 
-	errSym, errText := ui.SymFail, ui.TUI.Fail().Render(fmt.Sprintf("%d error", r.Totals.Errors))
+	errSym, errText := uikit.SymFail, uikit.TUI.Fail().Render(fmt.Sprintf("%d error", r.Totals.Errors))
 	if r.Totals.Errors == 0 {
-		errSym, errText = ui.SymOK, ui.TUI.Pass().Render("0 error")
+		errSym, errText = uikit.SymOK, uikit.TUI.Pass().Render("0 error")
 	}
-	warnSym, warnText := ui.SymWarn, ui.TUI.Warn().Render(fmt.Sprintf("%d warn", r.Totals.Warnings))
+	warnSym, warnText := uikit.SymWarn, uikit.TUI.Warn().Render(fmt.Sprintf("%d warn", r.Totals.Warnings))
 	if r.Totals.Warnings == 0 {
-		warnSym, warnText = ui.SymOK, ui.TUI.Pass().Render("0 warn")
+		warnSym, warnText = uikit.SymOK, uikit.TUI.Pass().Render("0 warn")
 	}
 	fmt.Fprintf(&b, "\n  %s %s  %s %s  %s %s\n",
 		errSym, errText,
 		warnSym, warnText,
-		ui.TUI.Dim().Render("·"), ui.TUI.Dim().Render(fmt.Sprintf("%d info", r.Totals.Info)),
+		uikit.TUI.Dim().Render("·"), uikit.TUI.Dim().Render(fmt.Sprintf("%d info", r.Totals.Info)),
 	)
 
 	if r.Totals.Errors == 0 && r.Totals.Warnings == 0 && r.Totals.Clusters == 0 {
-		fmt.Fprintf(&b, "\n  %s library looks healthy\n", ui.SymOK)
+		fmt.Fprintf(&b, "\n  %s library looks healthy\n", uikit.SymOK)
 		return b.String()
 	}
 
 	fmt.Fprintf(&b, "\n  %s run %s for per-finding detail\n",
-		ui.SymArrow,
-		ui.TUI.Dim().Render("`zot doctor invalid`, `zot doctor missing`, `zot doctor orphans`, `zot doctor duplicates`, `zot doctor citekeys`"),
+		uikit.SymArrow,
+		uikit.TUI.Dim().Render("`zot doctor invalid`, `zot doctor missing`, `zot doctor orphans`, `zot doctor duplicates`, `zot doctor citekeys`"),
 	)
 	return b.String()
 }
@@ -224,26 +224,26 @@ func doctorSummaryLine(check string, rep *hygiene.Report) string {
 		// plenty of non-canonical.
 		stats, _ := rep.Stats.(hygiene.CitekeysStats)
 		if stats.Stored == 0 && stats.Unstored > 0 {
-			return ui.TUI.Dim().Render(fmt.Sprintf("%d unstored (will synthesize)", stats.Unstored))
+			return uikit.TUI.Dim().Render(fmt.Sprintf("%d unstored (will synthesize)", stats.Unstored))
 		}
 		if stats.Invalid == 0 && stats.NonCanonical == 0 && stats.Collisions == 0 {
-			return ui.TUI.Dim().Render(fmt.Sprintf("%d canonical", stats.Valid))
+			return uikit.TUI.Dim().Render(fmt.Sprintf("%d canonical", stats.Valid))
 		}
 		parts := []string{}
 		if stats.Invalid > 0 {
-			parts = append(parts, ui.TUI.Fail().Render(fmt.Sprintf("%d invalid", stats.Invalid)))
+			parts = append(parts, uikit.TUI.Fail().Render(fmt.Sprintf("%d invalid", stats.Invalid)))
 		}
 		if stats.Collisions > 0 {
-			parts = append(parts, ui.TUI.Fail().Render(fmt.Sprintf("%d collision", stats.Collisions)))
+			parts = append(parts, uikit.TUI.Fail().Render(fmt.Sprintf("%d collision", stats.Collisions)))
 		}
 		if stats.NonCanonical > 0 {
-			parts = append(parts, ui.TUI.Warn().Render(fmt.Sprintf("%d non-canonical", stats.NonCanonical)))
+			parts = append(parts, uikit.TUI.Warn().Render(fmt.Sprintf("%d non-canonical", stats.NonCanonical)))
 		}
 		return strings.Join(parts, "  ")
 	case "duplicates":
 		stats, _ := rep.Stats.(hygiene.DuplicatesStats)
 		if stats.ClusterCount == 0 {
-			return ui.TUI.Dim().Render("no duplicate clusters")
+			return uikit.TUI.Dim().Render("no duplicate clusters")
 		}
 		label := fmt.Sprintf("%d cluster", stats.ClusterCount)
 		if stats.ClusterCount != 1 {
@@ -256,17 +256,17 @@ func doctorSummaryLine(check string, rep *hygiene.Report) string {
 		return label
 	default:
 		if counts[hygiene.SevError] == 0 && counts[hygiene.SevWarn] == 0 && counts[hygiene.SevInfo] == 0 {
-			return ui.TUI.Dim().Render("clean")
+			return uikit.TUI.Dim().Render("clean")
 		}
 		parts := []string{}
 		if n := counts[hygiene.SevError]; n > 0 {
-			parts = append(parts, ui.TUI.Fail().Render(fmt.Sprintf("%d error", n)))
+			parts = append(parts, uikit.TUI.Fail().Render(fmt.Sprintf("%d error", n)))
 		}
 		if n := counts[hygiene.SevWarn]; n > 0 {
-			parts = append(parts, ui.TUI.Warn().Render(fmt.Sprintf("%d warn", n)))
+			parts = append(parts, uikit.TUI.Warn().Render(fmt.Sprintf("%d warn", n)))
 		}
 		if n := counts[hygiene.SevInfo]; n > 0 {
-			parts = append(parts, ui.TUI.Dim().Render(fmt.Sprintf("%d info", n)))
+			parts = append(parts, uikit.TUI.Dim().Render(fmt.Sprintf("%d info", n)))
 		}
 		return strings.Join(parts, "  ")
 	}
@@ -277,10 +277,10 @@ func doctorSummaryLine(check string, rep *hygiene.Report) string {
 func doctorStatusGlyph(rep *hygiene.Report) string {
 	counts := rep.CountBySeverity()
 	if counts[hygiene.SevError] > 0 {
-		return ui.SymFail
+		return uikit.SymFail
 	}
 	if counts[hygiene.SevWarn] > 0 || len(rep.Clusters) > 0 {
-		return ui.SymWarn
+		return uikit.SymWarn
 	}
-	return ui.SymOK
+	return uikit.SymOK
 }

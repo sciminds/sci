@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	engine "github.com/sciminds/cli/internal/board"
-	"github.com/sciminds/cli/internal/tui/kit"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // ── listBoardsCmd ─────────────────────────────────────────────────────
@@ -16,9 +16,9 @@ func TestListBoardsCmdReturnsKitResult(t *testing.T) {
 	store := setupStore(t)
 	cmd := listBoardsCmd(store)
 	msg := cmd()
-	r, ok := msg.(kit.Result[[]string])
+	r, ok := msg.(uikit.Result[[]string])
 	if !ok {
-		t.Fatalf("expected kit.Result[[]string], got %T", msg)
+		t.Fatalf("expected uikit.Result[[]string], got %T", msg)
 	}
 	if r.Err != nil {
 		t.Fatalf("unexpected error: %v", r.Err)
@@ -35,9 +35,9 @@ func TestLoadBoardCmdReturnsKitResult(t *testing.T) {
 	store := setupStore(t)
 	cmd := loadBoardCmd(store, "alpha")
 	msg := cmd()
-	r, ok := msg.(kit.Result[engine.Board])
+	r, ok := msg.(uikit.Result[engine.Board])
 	if !ok {
-		t.Fatalf("expected kit.Result[engine.Board], got %T", msg)
+		t.Fatalf("expected uikit.Result[engine.Board], got %T", msg)
 	}
 	if r.Err != nil {
 		t.Fatalf("unexpected error: %v", r.Err)
@@ -61,9 +61,9 @@ func TestLoadBoardCmdErrorReturnsKitResult(t *testing.T) {
 
 	cmd := loadBoardCmd(store, "nonexistent")
 	msg := cmd()
-	r, ok := msg.(kit.Result[engine.Board])
+	r, ok := msg.(uikit.Result[engine.Board])
 	if !ok {
-		t.Fatalf("expected kit.Result[engine.Board], got %T", msg)
+		t.Fatalf("expected uikit.Result[engine.Board], got %T", msg)
 	}
 	if r.Err == nil {
 		t.Error("expected error for nonexistent board")
@@ -78,9 +78,9 @@ func TestAppendCmdReturnsKitResult(t *testing.T) {
 	card := engine.Card{ID: "c99", Title: "New", Column: "todo", Position: 99}
 	cmd := AppendCmd(store, "alpha", engine.OpCardAdd, engine.CardAddPayload{Card: card})
 	msg := cmd()
-	r, ok := msg.(kit.Result[struct{}])
+	r, ok := msg.(uikit.Result[struct{}])
 	if !ok {
-		t.Fatalf("expected kit.Result[struct{}], got %T", msg)
+		t.Fatalf("expected uikit.Result[struct{}], got %T", msg)
 	}
 	if r.Err != nil {
 		t.Fatalf("unexpected error: %v", r.Err)

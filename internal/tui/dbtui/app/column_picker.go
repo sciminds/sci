@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // gapSeparators computes per-gap separators for hidden column indicators.
@@ -186,12 +187,12 @@ func (m *Model) buildColumnPickerOverlay() string {
 		return ""
 	}
 
-	contentW := ui.OverlayWidth(m.width, colPickerMinW, colPickerMaxW)
+	contentW := uikit.OverlayWidth(m.width, colPickerMinW, colPickerMaxW)
 
 	var b strings.Builder
 	b.WriteString(m.overlayHeader("Hidden Columns"))
 
-	maxVisible := ui.OverlayBodyHeight(m.height, 0)
+	maxVisible := uikit.OverlayBodyHeight(m.height, 0)
 	start := 0
 	if m.columnPicker.Cursor >= maxVisible {
 		start = m.columnPicker.Cursor - maxVisible + 1

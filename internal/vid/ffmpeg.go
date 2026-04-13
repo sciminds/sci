@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // RequireFfmpeg checks that ffmpeg and ffprobe are on PATH.
@@ -30,7 +30,7 @@ func RequireFfmpeg() error {
 // In dry-run mode it prints the command instead.
 func RunFfmpeg(args []string, dryRun bool) error {
 	if dryRun {
-		fmt.Fprintf(os.Stderr, "%s\n", ui.TUI.Dim().Render("$ ffmpeg "+strings.Join(args, " ")))
+		fmt.Fprintf(os.Stderr, "%s\n", uikit.TUI.Dim().Render("$ ffmpeg "+strings.Join(args, " ")))
 		return nil
 	}
 

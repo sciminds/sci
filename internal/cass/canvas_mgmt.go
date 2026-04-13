@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/sciminds/cli/internal/cass/api/canvas"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // --- Modules ---
@@ -27,9 +27,9 @@ func (r *ModulesResult) Human() string {
 	}
 	var b strings.Builder
 	for _, m := range r.Modules {
-		pub := ui.TUI.Dim().Render("(draft)")
+		pub := uikit.TUI.Dim().Render("(draft)")
 		if m.Published != nil && *m.Published {
-			pub = ui.TUI.Pass().Render("published")
+			pub = uikit.TUI.Pass().Render("published")
 		}
 		fmt.Fprintf(&b, "  %3d  %-30s  %s\n", m.Position, m.Name, pub)
 	}
@@ -57,7 +57,7 @@ func (r *ModuleResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r *ModuleResult) Human() string {
-	return fmt.Sprintf("  %s Created module: %s\n", ui.SymOK, r.Module.Name)
+	return fmt.Sprintf("  %s Created module: %s\n", uikit.SymOK, r.Module.Name)
 }
 
 // CreateModule creates a new course module.
@@ -112,9 +112,9 @@ func (r *AssignmentsResult) Human() string {
 	}
 	var b strings.Builder
 	for _, a := range r.Assignments {
-		pub := ui.TUI.Dim().Render("draft")
+		pub := uikit.TUI.Dim().Render("draft")
 		if a.Published {
-			pub = ui.TUI.Pass().Render("published")
+			pub = uikit.TUI.Pass().Render("published")
 		}
 		due := "-"
 		if a.DueAt != nil {
@@ -158,7 +158,7 @@ func (r *AssignmentResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r *AssignmentResult) Human() string {
-	return fmt.Sprintf("  %s Created assignment: %s (%.0f pts)\n", ui.SymOK, r.Assignment.Name, r.Assignment.PointsPossible)
+	return fmt.Sprintf("  %s Created assignment: %s (%.0f pts)\n", uikit.SymOK, r.Assignment.Name, r.Assignment.PointsPossible)
 }
 
 // CreateCanvasAssignment creates a new assignment.
@@ -236,7 +236,7 @@ func (r *AnnouncementResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r *AnnouncementResult) Human() string {
-	return fmt.Sprintf("  %s Posted announcement: %s\n", ui.SymOK, r.Announcement.Title)
+	return fmt.Sprintf("  %s Posted announcement: %s\n", uikit.SymOK, r.Announcement.Title)
 }
 
 // AnnouncementsResult is the output of ListAnnouncements.

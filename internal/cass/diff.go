@@ -8,7 +8,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cass/api/canvas"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // GradeChange represents a pending grade change.
@@ -33,7 +33,7 @@ func (r *DiffResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r *DiffResult) Human() string {
 	if len(r.Changes) == 0 {
-		return fmt.Sprintf("  %s No pending grade changes.\n", ui.SymOK)
+		return fmt.Sprintf("  %s No pending grade changes.\n", uikit.SymOK)
 	}
 
 	byAssignment, order := groupBySlug(r.Changes)
@@ -41,11 +41,11 @@ func (r *DiffResult) Human() string {
 	var b strings.Builder
 	for _, slug := range order {
 		changes := byAssignment[slug]
-		fmt.Fprintf(&b, "\n  %s — %d grade change(s)\n", ui.TUI.Bold().Render(slug), len(changes))
+		fmt.Fprintf(&b, "\n  %s — %d grade change(s)\n", uikit.TUI.Bold().Render(slug), len(changes))
 		fmt.Fprintf(&b, "    %-25s %-10s → %s\n",
-			ui.TUI.Dim().Render("Student"),
-			ui.TUI.Dim().Render("Baseline"),
-			ui.TUI.Dim().Render("Local"))
+			uikit.TUI.Dim().Render("Student"),
+			uikit.TUI.Dim().Render("Baseline"),
+			uikit.TUI.Dim().Render("Local"))
 		for _, c := range changes {
 			baseline := lo.Ternary(c.Baseline == "", "-", c.Baseline)
 			fmt.Fprintf(&b, "    %-25s %-10s → %s\n", c.StudentName, baseline, c.Current)
@@ -140,7 +140,7 @@ func (r *RemoteDiffResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r *RemoteDiffResult) Human() string {
 	if len(r.Changes) == 0 {
-		return fmt.Sprintf("  %s No pending grade changes.\n", ui.SymOK)
+		return fmt.Sprintf("  %s No pending grade changes.\n", uikit.SymOK)
 	}
 
 	byAssignment, order := groupBySlug(r.Changes)
@@ -155,21 +155,21 @@ func (r *RemoteDiffResult) Human() string {
 		if conflicts > 0 {
 			label += fmt.Sprintf(" (%d CONFLICT)", conflicts)
 		}
-		fmt.Fprintf(&b, "\n  %s — %s\n", ui.TUI.Bold().Render(slug), label)
+		fmt.Fprintf(&b, "\n  %s — %s\n", uikit.TUI.Bold().Render(slug), label)
 		fmt.Fprintf(&b, "    %-25s %-10s %-10s → %s\n",
-			ui.TUI.Dim().Render("Student"),
-			ui.TUI.Dim().Render("Baseline"),
-			ui.TUI.Dim().Render("Canvas"),
-			ui.TUI.Dim().Render("Local"))
+			uikit.TUI.Dim().Render("Student"),
+			uikit.TUI.Dim().Render("Baseline"),
+			uikit.TUI.Dim().Render("Canvas"),
+			uikit.TUI.Dim().Render("Local"))
 		for _, c := range changes {
 			baseline := lo.Ternary(c.Baseline == "", "-", c.Baseline)
 			live := lo.Ternary(c.Live == "", "-", c.Live)
-			marker := lo.Ternary(c.Conflict, ui.SymWarn, " ")
+			marker := lo.Ternary(c.Conflict, uikit.SymWarn, " ")
 			fmt.Fprintf(&b, "  %s %-25s %-10s %-10s → %s\n", marker, c.StudentName, baseline, live, c.Current)
 		}
 	}
 	if r.Conflicts > 0 {
-		fmt.Fprintf(&b, "\n  %s %d conflict(s) — Canvas was edited since last pull\n", ui.SymWarn, r.Conflicts)
+		fmt.Fprintf(&b, "\n  %s %d conflict(s) — Canvas was edited since last pull\n", uikit.SymWarn, r.Conflicts)
 	}
 	return b.String()
 }

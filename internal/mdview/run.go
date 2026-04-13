@@ -10,8 +10,7 @@ import (
 
 	"charm.land/bubbles/v2/list"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/kit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Run launches the markdown viewer TUI for a file or directory of .md files.
@@ -30,15 +29,15 @@ func Run(path string) error {
 	if m.multi {
 		m.initPicker()
 	}
-	return kit.Run(m)
+	return uikit.Run(m)
 }
 
 func (m *Model) initPicker() {
 	items := lo.Map(m.pages, func(p Page, _ int) list.Item { return p })
-	d := ui.NewListDelegate()
+	d := uikit.NewListDelegate()
 	l := list.New(items, d, 0, 0)
 	l.Title = "Markdown Files"
-	l.Styles.Title = ui.TUI.TextBlueBold()
+	l.Styles.Title = uikit.TUI.TextBlueBold()
 	l.SetFilteringEnabled(true)
 	l.SetShowStatusBar(true)
 	m.picker = l

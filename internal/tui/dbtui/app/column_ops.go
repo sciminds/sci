@@ -9,7 +9,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // openColumnRename opens the column rename overlay for the current column.
@@ -143,7 +143,7 @@ func (m *Model) buildColumnRenameOverlay() string {
 		return ""
 	}
 
-	contentW := ui.OverlayWidth(m.width, 20, 60)
+	contentW := uikit.OverlayWidth(m.width, 20, 60)
 
 	var b strings.Builder
 	b.WriteString(m.overlayHeader("Rename Column"))

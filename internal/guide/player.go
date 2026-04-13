@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/tui/uikit"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/sciminds/cli/internal/ui"
 )
 
 // ── Asciicast v2 types ──────────────────────────────────────────────────────
@@ -198,13 +198,13 @@ func (p *Player) View() string {
 	var status string
 	switch {
 	case p.finished:
-		status = ui.TUI.TextGreen().Render("done")
+		status = uikit.TUI.TextGreen().Render("done")
 	case p.paused:
-		status = ui.TUI.TextOrange().Render("paused")
+		status = uikit.TUI.TextOrange().Render("paused")
 	default:
-		status = ui.TUI.TextBlue().Render("playing")
+		status = uikit.TUI.TextBlue().Render("playing")
 	}
-	b.WriteString(status + "  " + ui.TUI.Dim().Render(progress))
+	b.WriteString(status + "  " + uikit.TUI.Dim().Render(progress))
 
 	return b.String()
 }

@@ -4,9 +4,10 @@ rule:
   pattern: lipgloss.NewStyle()
 severity: error
 message: |
-  lipgloss.NewStyle() is only allowed in style files (internal/ui/ or internal/tui/*/ui/).
-  Use ui.TUI accessors for semantic styles, or ui.TUI.Base() for layout containers.
-  See CLAUDE.md: "No inline lipgloss.NewStyle() outside internal/ui/ or internal/tui/*/ui/"
+  lipgloss.NewStyle() is only allowed in style files (internal/tui/uikit/ or internal/tui/*/ui/).
+  Use uikit.TUI accessors for semantic styles, or uikit.TUI.Base() for layout containers.
+  See CLAUDE.md: "No inline lipgloss.NewStyle() outside internal/tui/uikit/ or internal/tui/*/ui/"
 ignores:
-  - "internal/ui/*.go"
+  - "internal/tui/uikit/*.go"
   - "internal/tui/*/ui/*.go"
+  - "internal/ui/*.go"

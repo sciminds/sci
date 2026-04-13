@@ -10,6 +10,7 @@ import (
 
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // TestViewAtZeroSize ensures the TUI Model can render View() before any
@@ -201,7 +202,7 @@ func setupViewTestDB(t *testing.T) *data.Store {
 
 // minimalModel returns a *Model with the minimum non-nil fields required by View().
 func minimalModel() *Model {
-	h := ui.NewHelp()
+	h := uikit.NewHelp()
 	h.ShowAll = true
 
 	s := spinner.New()

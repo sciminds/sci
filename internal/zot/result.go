@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // JSON implements cmdutil.Result.
@@ -13,7 +13,7 @@ func (c Config) JSON() any { return c }
 // Human implements cmdutil.Result.
 func (c Config) Human() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "  %s zot config\n", ui.SymOK)
+	fmt.Fprintf(&b, "  %s zot config\n", uikit.SymOK)
 	fmt.Fprintf(&b, "    library:  %s\n", c.LibraryID)
 	fmt.Fprintf(&b, "    data dir: %s\n", c.DataDir)
 	fmt.Fprintf(&b, "    api key:  %s\n", c.APIKey)
@@ -34,9 +34,9 @@ func (r SetupResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r SetupResult) Human() string {
 	var b strings.Builder
-	sym := ui.SymOK
+	sym := uikit.SymOK
 	if !r.OK {
-		sym = ui.SymFail
+		sym = uikit.SymFail
 	}
 	fmt.Fprintf(&b, "  %s %s\n", sym, r.Message)
 	if r.OK {

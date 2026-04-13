@@ -12,7 +12,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Page holds a single markdown document's metadata and raw content.
@@ -333,7 +333,7 @@ func (m *Model) statusLine() string {
 	pct := scrollPercent(&m.vp)
 
 	title := m.pages[m.current].Name
-	left := ui.TUI.TextBlueBold().Render(" " + title + " ")
+	left := uikit.TUI.TextBlueBold().Render(" " + title + " ")
 
 	nav := "/ search  q quit"
 	if m.multi {
@@ -342,9 +342,9 @@ func (m *Model) statusLine() string {
 	if m.search.query != "" && !m.search.searching {
 		nav = fmt.Sprintf("n/N next/prev (%d matches)  ", m.search.matchCount) + nav
 	}
-	right := ui.TUI.HeaderHint().Render(nav)
+	right := uikit.TUI.HeaderHint().Render(nav)
 
-	scrollInfo := ui.TUI.Dim().Render(fmt.Sprintf("  %d%%", pct))
+	scrollInfo := uikit.TUI.Dim().Render(fmt.Sprintf("  %d%%", pct))
 
 	return left + "  " + right + scrollInfo
 }

@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	engine "github.com/sciminds/cli/internal/board"
-	"github.com/sciminds/cli/internal/tui/kit"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // pollInterval is how often the TUI asks Store.Poll for new remote events.
@@ -19,13 +19,13 @@ var pollInterval = 30 * time.Second
 var cmdTimeout = 10 * time.Second
 
 func listBoardsCmd(store *engine.Store) tea.Cmd {
-	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) ([]string, error) {
+	return uikit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) ([]string, error) {
 		return store.ListBoards(ctx)
 	})
 }
 
 func loadBoardCmd(store *engine.Store, id string) tea.Cmd {
-	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (engine.Board, error) {
+	return uikit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (engine.Board, error) {
 		return store.Load(ctx, id)
 	})
 }
@@ -37,7 +37,7 @@ func loadBoardCmd(store *engine.Store, id string) tea.Cmd {
 // Exposed (uppercase) because no edit UX wires it yet; keeping it public
 // signals it as the entry point the first edit operation should reach for.
 func AppendCmd(store *engine.Store, boardID string, op engine.Op, payload any) tea.Cmd {
-	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (struct{}, error) {
+	return uikit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (struct{}, error) {
 		_, err := store.Append(ctx, boardID, op, payload)
 		return struct{}{}, err
 	})

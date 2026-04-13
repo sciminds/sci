@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // columnPickerState holds the cursor for the hidden-column picker overlay.
@@ -21,7 +22,7 @@ type columnPickerState struct {
 type notePreviewState struct {
 	Text    string
 	Title   string
-	Overlay ui.Overlay
+	Overlay uikit.Overlay
 }
 
 // tableListState holds the state for the table list overlay.

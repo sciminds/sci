@@ -8,8 +8,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/kit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // ErrInterrupted signals the user interrupted the TUI (Ctrl-C).
@@ -39,13 +38,13 @@ func makeListItem(p PackageInfo) listItem {
 	var desc string
 	switch {
 	case p.Desc != "" && p.Version != "":
-		desc = p.Desc + ui.TUI.TextPink().Render("  "+p.Version)
+		desc = p.Desc + uikit.TUI.TextPink().Render("  "+p.Version)
 	case p.Desc != "":
 		desc = p.Desc
 	case p.Version != "":
-		desc = ui.TUI.TextPink().Render(p.Version)
+		desc = uikit.TUI.TextPink().Render(p.Version)
 	default:
-		desc = ui.TUI.Dim().Render("no description")
+		desc = uikit.TUI.Dim().Render("no description")
 	}
 
 	return listItem{
@@ -66,7 +65,7 @@ func newListModel(packages []PackageInfo) listModel {
 	})
 
 	title := fmt.Sprintf("Brewfile — %d packages", len(packages))
-	delegate := ui.NewListDelegate()
+	delegate := uikit.NewListDelegate()
 	l := list.New(items, delegate, 0, 0)
 	l.Title = title
 	l.SetShowStatusBar(true)
@@ -115,7 +114,7 @@ func (m listModel) View() tea.View {
 
 // RunListTUI launches the interactive package list.
 func RunListTUI(packages []PackageInfo) error {
-	if err := kit.Run(newListModel(packages)); err != nil {
+	if err := uikit.Run(newListModel(packages)); err != nil {
 		if errors.Is(err, tea.ErrInterrupted) {
 			return ErrInterrupted
 		}

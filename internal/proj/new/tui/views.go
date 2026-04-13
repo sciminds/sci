@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -18,19 +19,19 @@ func (m Model) viewDone() string {
 	var lines []string
 
 	if m.Err != nil {
-		lines = append(lines, ui.StatusRow(ui.TUI.Fail().Render(ui.IconFail), m.Err.Error()))
+		lines = append(lines, ui.StatusRow(uikit.TUI.Fail().Render(uikit.IconFail), m.Err.Error()))
 		return strings.Join(lines, "\n")
 	}
 
 	fileLines := lo.Map(m.files, func(f fileEntry, _ int) string {
 		if f.applied {
-			icon := ui.TUI.Pass().Render(ui.IconPass)
+			icon := uikit.TUI.Pass().Render(uikit.IconPass)
 			label := f.statusLabel()
-			return ui.StatusRow(icon, f.file.Path+"  "+ui.TUI.Dim().Render(label))
+			return ui.StatusRow(icon, f.file.Path+"  "+uikit.TUI.Dim().Render(label))
 		}
 		return ui.StatusRow(
-			ui.TUI.Dim().Render(ui.IconSkip),
-			ui.TUI.Dim().Render(f.file.Path+" skipped"),
+			uikit.TUI.Dim().Render(uikit.IconSkip),
+			uikit.TUI.Dim().Render(f.file.Path+" skipped"),
 		)
 	})
 	lines = append(lines, fileLines...)
@@ -38,7 +39,7 @@ func (m Model) viewDone() string {
 	applied := lo.CountBy(m.files, func(f fileEntry) bool { return f.applied })
 	skipped := len(m.files) - applied
 
-	lines = append(lines, ui.TUI.RenderDivider(ui.ContentWidth(m.width)))
+	lines = append(lines, uikit.TUI.RenderDivider(uikit.ContentWidth(m.width)))
 
 	lines = append(lines, ui.SummaryLine(
 		ui.SummaryPart{Count: applied, Label: "applied", Kind: ui.SummarySuccess},
@@ -57,7 +58,7 @@ func (m Model) View() tea.View {
 	case phaseSelecting:
 		body = m.selectList.View()
 	case phaseApplying:
-		body = m.spinner.View() + ui.TUI.TextBlue().Render(fmt.Sprintf("Applying %d files…", m.selectList.SelectedCount()))
+		body = m.spinner.View() + uikit.TUI.TextBlue().Render(fmt.Sprintf("Applying %d files…", m.selectList.SelectedCount()))
 	case phaseDone:
 		body = m.viewDone()
 	}

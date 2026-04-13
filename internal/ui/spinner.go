@@ -7,10 +7,13 @@ package ui
 import (
 	"cmp"
 	"fmt"
+
 	"os"
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/sciminds/cli/internal/tui/uikit"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -151,7 +154,7 @@ type runnerModel struct {
 func newRunnerModel(title string, progress bool) runnerModel {
 	s := spinner.New(
 		spinner.WithSpinner(spinner.Dot),
-		spinner.WithStyle(TUI.SpinnerDot()),
+		spinner.WithStyle(uikit.TUI.SpinnerDot()),
 	)
 	return runnerModel{
 		spinner:  s,
@@ -222,12 +225,12 @@ func (m runnerModel) View() tea.View {
 
 	// Line 1: spinner + title + fraction
 	b.WriteString(m.spinner.View())
-	b.WriteString(TUI.TextBlue().Render(m.title))
+	b.WriteString(uikit.TUI.TextBlue().Render(m.title))
 	if m.progress && m.total > 0 {
-		b.WriteString(TUI.Dim().Render(fmt.Sprintf("  %d/%d", m.current, m.total)))
+		b.WriteString(uikit.TUI.Dim().Render(fmt.Sprintf("  %d/%d", m.current, m.total)))
 	}
 	if !m.progress && m.status != "" {
-		b.WriteString(TUI.Dim().Render("  " + m.status))
+		b.WriteString(uikit.TUI.Dim().Render("  " + m.status))
 	}
 	b.WriteByte('\n')
 
@@ -254,9 +257,9 @@ func (m runnerModel) viewProgress(b *strings.Builder) {
 		}
 		pct := 100 * m.current / m.total
 		b.WriteString("  ")
-		b.WriteString(TUI.TextBlue().Render(strings.Repeat("█", filled)))
-		b.WriteString(TUI.Dim().Render(strings.Repeat("░", barWidth-filled)))
-		b.WriteString(TUI.Dim().Render(fmt.Sprintf(" %d%%", pct)))
+		b.WriteString(uikit.TUI.TextBlue().Render(strings.Repeat("█", filled)))
+		b.WriteString(uikit.TUI.Dim().Render(strings.Repeat("░", barWidth-filled)))
+		b.WriteString(uikit.TUI.Dim().Render(fmt.Sprintf(" %d%%", pct)))
 		b.WriteByte('\n')
 	}
 
@@ -266,13 +269,13 @@ func (m runnerModel) viewProgress(b *strings.Builder) {
 		sorted := sortCounters(m.counters)
 		for i, c := range sorted {
 			if i > 0 {
-				b.WriteString(TUI.Dim().Render(" | "))
+				b.WriteString(uikit.TUI.Dim().Render(" | "))
 			}
 			label := c.Key + ":" + fmt.Sprintf("%d", c.Count)
 			if c.Key == "failed" {
-				b.WriteString(TUI.Fail().Render(label))
+				b.WriteString(uikit.TUI.Fail().Render(label))
 			} else {
-				b.WriteString(TUI.Dim().Render(label))
+				b.WriteString(uikit.TUI.Dim().Render(label))
 			}
 		}
 		b.WriteByte('\n')
@@ -281,11 +284,11 @@ func (m runnerModel) viewProgress(b *strings.Builder) {
 	// Status / last event
 	if m.status != "" {
 		b.WriteString("  ")
-		b.WriteString(TUI.Dim().Render(m.status))
+		b.WriteString(uikit.TUI.Dim().Render(m.status))
 		b.WriteByte('\n')
 	} else if m.lastEvent != "" {
 		b.WriteString("  ")
-		b.WriteString(TUI.Dim().Render(m.lastEvent))
+		b.WriteString(uikit.TUI.Dim().Render(m.lastEvent))
 		b.WriteByte('\n')
 	}
 }
@@ -323,7 +326,7 @@ func sortCounters(cs []counterEntry) []counterEntry {
 // ── Public API ──────────────────────────────────────────────────────────────
 
 // RunWithSpinner shows an inline spinner while fn runs. Returns fn's error.
-// In quiet mode, prints the title to stderr and skips the TUI.
+// In quiet mode, prints the title to stderr and skips the uikit.TUI.
 func RunWithSpinner(title string, fn func() error) error {
 	return RunWithSpinnerStatus(title, func(_ func(string)) error {
 		return fn()
@@ -332,7 +335,7 @@ func RunWithSpinner(title string, fn func() error) error {
 
 // RunWithSpinnerStatus shows an inline spinner while fn runs, with a
 // status callback for updating detail text. Returns fn's error.
-// In quiet mode, prints the title to stderr and skips the TUI.
+// In quiet mode, prints the title to stderr and skips the uikit.TUI.
 func RunWithSpinnerStatus(title string, fn func(setStatus func(string)) error) error {
 	if IsQuiet() {
 		fmt.Fprintf(os.Stderr, "%s\n", title)
@@ -348,7 +351,7 @@ func RunWithSpinnerStatus(title string, fn func(setStatus func(string)) error) e
 	}()
 
 	result, runErr := p.Run()
-	DrainStdin()
+	uikit.DrainStdin()
 	if runErr != nil {
 		return runErr
 	}
@@ -376,7 +379,7 @@ func RunWithProgress(title string, fn func(t *ProgressTracker) error) error {
 	}()
 
 	result, runErr := p.Run()
-	DrainStdin()
+	uikit.DrainStdin()
 	if runErr != nil {
 		return runErr
 	}

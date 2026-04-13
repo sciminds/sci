@@ -13,6 +13,7 @@ import (
 	"github.com/sciminds/cli/internal/cass"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -86,7 +87,7 @@ func cassSetupCommand() *cli.Command {
 			// Check for existing token.
 			existing, _ := cass.LoadCanvasToken(credPath)
 			if existing != "" {
-				fmt.Fprintf(os.Stderr, "  %s Canvas API token already configured.\n", ui.SymOK)
+				fmt.Fprintf(os.Stderr, "  %s Canvas API token already configured.\n", uikit.SymOK)
 				overwrite := false
 				if err := huh.NewForm(huh.NewGroup(
 					huh.NewConfirm().
@@ -145,7 +146,7 @@ func (r *setupResult) JSON() any {
 }
 
 func (r *setupResult) Human() string {
-	return fmt.Sprintf("  %s Canvas API token saved to %s\n", ui.SymOK, cloud.ConfigPath())
+	return fmt.Sprintf("  %s Canvas API token saved to %s\n", uikit.SymOK, cloud.ConfigPath())
 }
 
 // --- init: per-project cass.yaml ---
@@ -252,12 +253,12 @@ type initResult struct {
 
 func (r *initResult) JSON() any { return r }
 func (r *initResult) Human() string {
-	out := fmt.Sprintf("  %s Created %s\n", ui.SymOK, filepath.Base(r.ConfigPath))
-	out += fmt.Sprintf("  %s Created %s\n", ui.SymOK, filepath.Base(r.DBPath))
+	out := fmt.Sprintf("  %s Created %s\n", uikit.SymOK, filepath.Base(r.ConfigPath))
+	out += fmt.Sprintf("  %s Created %s\n", uikit.SymOK, filepath.Base(r.DBPath))
 	if r.HasClassroom {
-		out += fmt.Sprintf("  %s GitHub Classroom configured\n", ui.SymOK)
+		out += fmt.Sprintf("  %s GitHub Classroom configured\n", uikit.SymOK)
 	}
-	out += fmt.Sprintf("\n  Next: run %s to fetch course data\n", ui.TUI.TextBlue().Render("sci cass pull"))
+	out += fmt.Sprintf("\n  Next: run %s to fetch course data\n", uikit.TUI.TextBlue().Render("sci cass pull"))
 	return out
 }
 
@@ -347,7 +348,7 @@ func cassPullCommand() *cli.Command {
 			if cfg.HasClassroom() {
 				ghToken, err := cass.GetGHTokenFromCLI()
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "  %s GitHub token not available — skipping Classroom pull (%v)\n", ui.SymWarn, err)
+					fmt.Fprintf(os.Stderr, "  %s GitHub token not available — skipping Classroom pull (%v)\n", uikit.SymWarn, err)
 				} else {
 					// Resolve classroom API ID if not cached.
 					classroomID, resolveErr := cfg.ClassroomAPIID()
@@ -505,7 +506,7 @@ func cassPushCommand() *cli.Command {
 				return err
 			}
 			if len(diff.Changes) == 0 {
-				fmt.Fprintf(os.Stderr, "  %s No pending grade changes to push.\n", ui.SymOK)
+				fmt.Fprintf(os.Stderr, "  %s No pending grade changes to push.\n", uikit.SymOK)
 				return nil
 			}
 
@@ -546,7 +547,7 @@ func cassPushCommand() *cli.Command {
 
 			_ = db.WriteLog("push", fmt.Sprintf("%d grades pushed", pushed), "")
 
-			fmt.Fprintf(os.Stderr, "  %s Pushed %d grade(s) to Canvas\n", ui.SymOK, pushed)
+			fmt.Fprintf(os.Stderr, "  %s Pushed %d grade(s) to Canvas\n", uikit.SymOK, pushed)
 			return nil
 		},
 	}
@@ -573,7 +574,7 @@ func cassMatchCommand() *cli.Command {
 			defer func() { _ = db.Close() }()
 
 			if !cfg.HasClassroom() {
-				fmt.Fprintf(os.Stderr, "  %s No GitHub Classroom configured — nothing to match.\n", ui.SymOK)
+				fmt.Fprintf(os.Stderr, "  %s No GitHub Classroom configured — nothing to match.\n", uikit.SymOK)
 				return nil
 			}
 
@@ -615,7 +616,7 @@ func cassRevertCommand() *cli.Command {
 				return err
 			}
 			if len(diff.Changes) == 0 {
-				fmt.Fprintf(os.Stderr, "  %s No pending changes to revert.\n", ui.SymOK)
+				fmt.Fprintf(os.Stderr, "  %s No pending changes to revert.\n", uikit.SymOK)
 				return nil
 			}
 
@@ -629,7 +630,7 @@ func cassRevertCommand() *cli.Command {
 			}
 
 			_ = db.WriteLog("revert", fmt.Sprintf("%d grades reverted", count), "")
-			fmt.Fprintf(os.Stderr, "  %s Reverted %d grade(s)\n", ui.SymOK, count)
+			fmt.Fprintf(os.Stderr, "  %s Reverted %d grade(s)\n", uikit.SymOK, count)
 			return nil
 		},
 	}
@@ -729,7 +730,7 @@ func cassCanvasModulesCommand() *cli.Command {
 				if err := cass.DeleteModule(ctx, baseURL, token, courseID, deleteID); err != nil {
 					return err
 				}
-				fmt.Fprintf(os.Stderr, "  %s Deleted module %d\n", ui.SymOK, deleteID)
+				fmt.Fprintf(os.Stderr, "  %s Deleted module %d\n", uikit.SymOK, deleteID)
 				return nil
 			}
 
@@ -802,7 +803,7 @@ func cassCanvasAssignmentsCommand() *cli.Command {
 				if err := cass.DeleteCanvasAssignment(ctx, baseURL, token, courseID, deleteID); err != nil {
 					return err
 				}
-				fmt.Fprintf(os.Stderr, "  %s Deleted assignment %d\n", ui.SymOK, deleteID)
+				fmt.Fprintf(os.Stderr, "  %s Deleted assignment %d\n", uikit.SymOK, deleteID)
 				return nil
 			}
 
@@ -853,7 +854,7 @@ func cassCanvasAnnounceCommand() *cli.Command {
 				if err := cass.DeleteAnnouncement(ctx, baseURL, token, courseID, deleteID); err != nil {
 					return err
 				}
-				fmt.Fprintf(os.Stderr, "  %s Deleted announcement %d\n", ui.SymOK, deleteID)
+				fmt.Fprintf(os.Stderr, "  %s Deleted announcement %d\n", uikit.SymOK, deleteID)
 				return nil
 			}
 			if title == "" || message == "" {

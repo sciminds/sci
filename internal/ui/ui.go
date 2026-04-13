@@ -10,15 +10,18 @@
 //   - [Header] prints a bold section heading
 //   - [NextStep] suggests a follow-up command after an operation
 //   - [RunWithSpinner] wraps a long-running function with a bubbletea inline spinner
-//   - [ClampWidth] / [ClampHeight] guard Bubble Tea views against zero dimensions
+//   - [uikit.ClampWidth] / [uikit.ClampHeight] guard Bubble Tea views against zero dimensions
 //
-// Symbols are available as package variables: [SymOK] (✓), [SymFail] (✗),
-// [SymWarn] (⚠), [SymArrow] (→).
+// Symbols are available as package variables: [uikit.SymOK] (✓), [uikit.SymFail] (✗),
+// [uikit.SymWarn] (⚠), [uikit.SymArrow] (→).
 package ui
 
 import (
 	"fmt"
+
 	"os"
+
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // statusOut returns stderr in quiet mode (so status output doesn't
@@ -31,16 +34,16 @@ func statusOut() *os.File {
 }
 
 // OK prints a green check line.
-func OK(msg string) { _, _ = fmt.Fprintf(statusOut(), "%s %s\n", SymOK, msg) }
+func OK(msg string) { _, _ = fmt.Fprintf(statusOut(), "%s %s\n", uikit.SymOK, msg) }
 
 // Hint prints a dimmed indented line.
-func Hint(msg string) { _, _ = fmt.Fprintf(statusOut(), "  %s\n", TUI.Dim().Render(msg)) }
+func Hint(msg string) { _, _ = fmt.Fprintf(statusOut(), "  %s\n", uikit.TUI.Dim().Render(msg)) }
 
 // Header prints a bold section header.
-func Header(msg string) { _, _ = fmt.Fprintf(statusOut(), "\n  %s\n\n", TUI.Bold().Render(msg)) }
+func Header(msg string) { _, _ = fmt.Fprintf(statusOut(), "\n  %s\n\n", uikit.TUI.Bold().Render(msg)) }
 
 // NextStep prints a suggested next action after a command completes.
 func NextStep(cmd, desc string) {
-	_, _ = fmt.Fprintf(statusOut(), "\n  %s %s\n", SymArrow, TUI.TextBlue().Render(cmd))
+	_, _ = fmt.Fprintf(statusOut(), "\n  %s %s\n", uikit.SymArrow, uikit.TUI.TextBlue().Render(cmd))
 	Hint(desc)
 }

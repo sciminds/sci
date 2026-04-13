@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // ---------------------------------------------------------------------------
@@ -56,11 +56,11 @@ func (r CreateResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r CreateResult) Human() string {
 	var b strings.Builder
-	sym := lo.Ternary(r.DryRun, ui.SymWarn, ui.SymOK)
+	sym := lo.Ternary(r.DryRun, uikit.SymWarn, uikit.SymOK)
 	verb := lo.Ternary(r.DryRun, "would create", "Created")
-	fmt.Fprintf(&b, "  %s %s %d files in %s\n", sym, verb, len(r.Files), ui.TUI.TextBlue().Render(r.ProjectDir))
+	fmt.Fprintf(&b, "  %s %s %d files in %s\n", sym, verb, len(r.Files), uikit.TUI.TextBlue().Render(r.ProjectDir))
 	for _, f := range r.Files {
-		fmt.Fprintf(&b, "    %s\n", ui.TUI.Dim().Render(f))
+		fmt.Fprintf(&b, "    %s\n", uikit.TUI.Dim().Render(f))
 	}
 	return b.String()
 }

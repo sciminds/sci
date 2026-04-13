@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // InfoResult holds database metadata and table listing.
@@ -26,10 +26,10 @@ func (r InfoResult) JSON() any { return r }
 func (r InfoResult) Human() string {
 	nTables, nViews, nVirtual := r.counts()
 	var b strings.Builder
-	fmt.Fprintf(&b, "  %s  %s\n", ui.TUI.Dim().Render("path"), r.DBPath)
+	fmt.Fprintf(&b, "  %s  %s\n", uikit.TUI.Dim().Render("path"), r.DBPath)
 	fmt.Fprintf(&b, "  %s  %.2f MB  %s  %s\n",
-		ui.TUI.Dim().Render("size"), r.SizeMB,
-		ui.TUI.Dim().Render("·"), r.summaryLabel(nTables, nViews, nVirtual),
+		uikit.TUI.Dim().Render("size"), r.SizeMB,
+		uikit.TUI.Dim().Render("·"), r.summaryLabel(nTables, nViews, nVirtual),
 	)
 	if len(r.Tables) > 0 {
 		b.WriteByte('\n')
@@ -56,19 +56,19 @@ func (r InfoResult) summaryLabel(nTables, nViews, nVirtual int) string {
 	var parts []string
 	if nTables > 0 {
 		label := lo.Ternary(nTables == 1, "table", "tables")
-		parts = append(parts, ui.TUI.TextBlue().Render(fmt.Sprintf("%d %s", nTables, label)))
+		parts = append(parts, uikit.TUI.TextBlue().Render(fmt.Sprintf("%d %s", nTables, label)))
 	}
 	if nViews > 0 {
 		label := lo.Ternary(nViews == 1, "view", "views")
-		parts = append(parts, ui.TUI.TextOrange().Render(fmt.Sprintf("%d %s", nViews, label)))
+		parts = append(parts, uikit.TUI.TextOrange().Render(fmt.Sprintf("%d %s", nViews, label)))
 	}
 	if nVirtual > 0 {
-		parts = append(parts, ui.TUI.TextPink().Render(fmt.Sprintf("%d %s", nVirtual, "virtual")))
+		parts = append(parts, uikit.TUI.TextPink().Render(fmt.Sprintf("%d %s", nVirtual, "virtual")))
 	}
 	if len(parts) == 0 {
 		return "0 tables"
 	}
-	return strings.Join(parts, "  "+ui.TUI.Dim().Render("·")+"  ")
+	return strings.Join(parts, "  "+uikit.TUI.Dim().Render("·")+"  ")
 }
 
 // TablesResult holds table summary information.
@@ -95,7 +95,7 @@ func (r TablesResult) Human() string {
 	var b strings.Builder
 	writeTableRows(&b, r.Tables, hasViews, hasVirtual)
 	if b.Len() == 0 {
-		fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render("no tables"))
+		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("no tables"))
 	}
 	return b.String()
 }
@@ -108,16 +108,16 @@ func writeTableRows(b *strings.Builder, entries []TableEntry, hasViews, hasVirtu
 
 	// Build header first so we can factor its visual width into column sizing.
 	var headerParts []string
-	headerParts = append(headerParts, ui.TUI.TextBlue().Render("table"))
+	headerParts = append(headerParts, uikit.TUI.TextBlue().Render("table"))
 	if hasViews {
-		headerParts = append(headerParts, ui.TUI.TextOrange().Render("view"))
+		headerParts = append(headerParts, uikit.TUI.TextOrange().Render("view"))
 	}
 	if hasVirtual {
-		headerParts = append(headerParts, ui.TUI.TextPink().Render("virtual"))
+		headerParts = append(headerParts, uikit.TUI.TextPink().Render("virtual"))
 	}
 	header := lo.Ternary(len(headerParts) == 1,
 		"table",
-		strings.Join(headerParts, ui.TUI.Dim().Render(" / ")),
+		strings.Join(headerParts, uikit.TUI.Dim().Render(" / ")),
 	)
 
 	// Compute column widths from data and header.
@@ -139,9 +139,9 @@ func writeTableRows(b *strings.Builder, entries []TableEntry, hasViews, hasVirtu
 	rowsW += 2
 
 	fmt.Fprintf(b, "  %s%s   %s\n",
-		ui.PadRight(header, nameW),
-		ui.TUI.Dim().Render(ui.PadRight("rows", rowsW)),
-		ui.TUI.Dim().Render("columns"),
+		uikit.PadRight(header, nameW),
+		uikit.TUI.Dim().Render(uikit.PadRight("rows", rowsW)),
+		uikit.TUI.Dim().Render("columns"),
 	)
 
 	// Rows.
@@ -149,15 +149,15 @@ func writeTableRows(b *strings.Builder, entries []TableEntry, hasViews, hasVirtu
 		var name string
 		switch {
 		case t.IsView:
-			name = ui.TUI.TextOrange().Render(t.Name)
+			name = uikit.TUI.TextOrange().Render(t.Name)
 		case t.IsVirtual:
-			name = ui.TUI.TextPink().Render(t.Name)
+			name = uikit.TUI.TextPink().Render(t.Name)
 		default:
-			name = ui.TUI.TextBlue().Render(t.Name)
+			name = uikit.TUI.TextBlue().Render(t.Name)
 		}
 		fmt.Fprintf(b, "  %s%s   %d\n",
-			ui.PadRight(name, nameW),
-			ui.PadRight(strconv.Itoa(t.Rows), rowsW),
+			uikit.PadRight(name, nameW),
+			uikit.PadRight(strconv.Itoa(t.Rows), rowsW),
 			t.Columns,
 		)
 	}
@@ -194,6 +194,6 @@ func (r MutationResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r MutationResult) Human() string {
-	sym := lo.Ternary(r.OK, ui.SymOK, ui.SymFail)
+	sym := lo.Ternary(r.OK, uikit.SymOK, uikit.SymFail)
 	return fmt.Sprintf("  %s %s\n", sym, r.Message)
 }

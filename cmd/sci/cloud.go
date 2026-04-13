@@ -10,6 +10,7 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/share"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -94,8 +95,8 @@ func cloudPutCommand() *cli.Command {
 			filePath := cmd.Args().First()
 
 			// Warn about public access.
-			fmt.Fprintf(os.Stderr, "\n  %s This creates a public URL for file access. Do not share sensitive or personally identifying information.\n", ui.SymWarn)
-			fmt.Fprintf(os.Stderr, "    Use %s for private lab storage.\n\n", ui.TUI.TextBlue().Render("sci lab put"))
+			fmt.Fprintf(os.Stderr, "\n  %s This creates a public URL for file access. Do not share sensitive or personally identifying information.\n", uikit.SymWarn)
+			fmt.Fprintf(os.Stderr, "    Use %s for private lab storage.\n\n", uikit.TUI.TextBlue().Render("sci lab put"))
 
 			name := putName
 			desc := putDesc

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // handleNormalModeKey processes keys specific to normal mode.
@@ -119,7 +119,7 @@ func (m *Model) handleNormalModeKey(k string, tab *Tab) bool {
 			m.notePreview = &notePreviewState{
 				Text:    c.Value,
 				Title:   title,
-				Overlay: ui.NewOverlay(title, c.Value, m.width, m.height),
+				Overlay: uikit.NewOverlay(title, c.Value, m.width, m.height),
 			}
 		}
 

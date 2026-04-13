@@ -6,6 +6,7 @@ import (
 
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/selfupdate"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -51,7 +52,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("update available but no download URL found")
 	}
 
-	fmt.Printf("  %s New version available: %s → %s\n", ui.SymArrow, current, ui.TUI.TextBlue().Render(latest))
+	fmt.Printf("  %s New version available: %s → %s\n", uikit.SymArrow, current, uikit.TUI.TextBlue().Render(latest))
 
 	err = ui.RunWithSpinner("Downloading…", func() error {
 		_, uerr := selfupdate.Update(result.DownloadURL)

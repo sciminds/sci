@@ -13,7 +13,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // ── Overlay builders ────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ func (m *Model) buildNotePreviewOverlay() string {
 }
 
 func (m *Model) buildHelpOverlay() string {
-	contentW := ui.OverlayWidth(m.width, helpOverlayMinW, helpOverlayMaxW)
+	contentW := uikit.OverlayWidth(m.width, helpOverlayMinW, helpOverlayMaxW)
 
 	var b strings.Builder
 	b.WriteString(m.overlayHeader("Keyboard Shortcuts"))

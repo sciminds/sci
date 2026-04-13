@@ -7,13 +7,14 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // HuhTheme returns a huh.ThemeFunc built from the project's Wong colorblind-safe palette.
 // Separate from styles.go so huh is not a transitive dependency for all ui importers.
 func HuhTheme() huh.ThemeFunc {
 	return func(isDark bool) *huh.Styles {
-		p := TUI.Palette()
+		p := uikit.TUI.Palette()
 		t := huh.ThemeBase(isDark)
 
 		f := &t.Focused

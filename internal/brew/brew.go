@@ -86,7 +86,7 @@ func (BundleRunner) BundleRemove(file, pkg, pkgType string) error {
 
 // BundleInstall implements Runner.
 func (BundleRunner) BundleInstall(file string) (string, error) {
-	return runBrewLive("bundle", "install", "--verbose", "--file="+file)
+	return runBrewLive("bundle", "install", "--verbose", "--no-upgrade", "--file="+file)
 }
 
 // BundleCheck runs `brew bundle check --verbose` and returns the names of

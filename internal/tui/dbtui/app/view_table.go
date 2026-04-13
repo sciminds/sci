@@ -12,9 +12,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	zone "github.com/lrstanley/bubblezone/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/compose"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 const (
@@ -168,7 +168,7 @@ func formatHeaderCell(title, indicator string, width int) string {
 	if indicator == "" {
 		return formatCell(title, width, alignLeft)
 	}
-	return compose.SpreadMinGap(width, 1, title, indicator)
+	return uikit.SpreadMinGap(width, 1, title, indicator)
 }
 
 func projectCellRows(
@@ -541,7 +541,7 @@ func formatCell(value string, width int, align alignKind) string {
 	if align == alignRight {
 		pos = lipgloss.Right
 	}
-	return compose.Fit(value, width, pos)
+	return uikit.Fit(value, width, pos)
 }
 
 func visibleRange(total, height, cursor int) (int, int) {

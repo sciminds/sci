@@ -22,11 +22,6 @@ func TestViewAtZeroSize(t *testing.T) {
 		_ = m.View() // must not panic
 	})
 
-	t.Run("overlay", func(t *testing.T) {
-		o := NewOverlay("title", "content", 0, 0)
-		_ = o.View() // must not panic
-	})
-
 	t.Run("runnerModel/spinner", func(t *testing.T) {
 		m := newRunnerModel("test", false)
 		_ = m.View() // must not panic at zero state

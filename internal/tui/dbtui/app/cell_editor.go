@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Cell editor overlay constants.
@@ -55,7 +56,7 @@ func (m *Model) openCellEditor() {
 	ta.SetValue(value)
 	ta.Focus()
 	ta.CharLimit = 0 // no limit
-	ta.SetWidth(ui.OverlayWidth(m.width, cellEditorMinW, cellEditorMaxW) - cellEditorWidthInset)
+	ta.SetWidth(uikit.OverlayWidth(m.width, cellEditorMinW, cellEditorMaxW) - cellEditorWidthInset)
 	taH := m.height - cellEditorChrome
 	if taH < cellEditorMinH {
 		taH = cellEditorMinH
@@ -175,7 +176,7 @@ func (m *Model) buildCellEditorOverlay() string {
 		return ""
 	}
 
-	contentW := ui.OverlayWidth(m.width, cellEditorMinW, cellEditorMaxW)
+	contentW := uikit.OverlayWidth(m.width, cellEditorMinW, cellEditorMaxW)
 
 	var b strings.Builder
 

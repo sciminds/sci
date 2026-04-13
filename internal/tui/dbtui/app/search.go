@@ -14,9 +14,9 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/compose"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // rowSearchState holds the state for the inline row search bar.
@@ -293,5 +293,5 @@ func (m *Model) renderSearchBar() string {
 	left := prompt + " " + queryText
 	right := countLabel
 
-	return compose.SpreadMinGap(m.width, 1, left, right)
+	return uikit.SpreadMinGap(m.width, 1, left, right)
 }

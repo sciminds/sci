@@ -12,6 +12,7 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/selfupdate"
 	dbtui "github.com/sciminds/cli/internal/tui/dbtui/app"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/version"
 	"github.com/urfave/cli/v3"
@@ -42,7 +43,7 @@ func buildRoot() *cli.Command {
 				return nil
 			}
 			if updateNotice != "" {
-				fmt.Fprintf(os.Stderr, "\n  %s %s\n", ui.SymArrow, updateNotice)
+				fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymArrow, updateNotice)
 			}
 			return nil
 		},
@@ -84,7 +85,7 @@ func main() {
 		if errors.Is(err, dbtui.ErrInterrupted) {
 			os.Exit(130)
 		}
-		fmt.Fprintf(os.Stderr, "  %s %s\n", ui.SymFail, err)
+		fmt.Fprintf(os.Stderr, "  %s %s\n", uikit.SymFail, err)
 		os.Exit(1)
 	}
 }

@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 	projnew "github.com/sciminds/cli/internal/proj/new"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -58,7 +59,7 @@ type doneKeys struct{}
 
 // ShortHelp implements help.KeyMap.
 func (k doneKeys) ShortHelp() []key.Binding {
-	return []key.Binding{ui.BindEnter, ui.BindQuit}
+	return []key.Binding{uikit.BindEnter, uikit.BindQuit}
 }
 
 // FullHelp implements help.KeyMap.
@@ -107,12 +108,12 @@ func New(opts Options) Model {
 
 	s := spinner.New(
 		spinner.WithSpinner(spinner.Dot),
-		spinner.WithStyle(ui.TUI.SpinnerDot()),
+		spinner.WithStyle(uikit.TUI.SpinnerDot()),
 	)
 
 	return Model{
 		phase:      phaseSelecting,
-		help:       ui.NewHelp(),
+		help:       uikit.NewHelp(),
 		spinner:    s,
 		selectList: sl,
 		dir:        opts.Dir,
@@ -123,7 +124,7 @@ func New(opts Options) Model {
 func renderFileItem(item ui.SelectItem, selected, isCursor bool) string {
 	f := item.(fileEntry)
 	line := ui.RenderSelectItemLine(f.file.Path, selected, isCursor)
-	statusStr := ui.TUI.Dim().Render("(" + f.statusLabel() + ")")
+	statusStr := uikit.TUI.Dim().Render("(" + f.statusLabel() + ")")
 	return line + "  " + statusStr
 }
 
@@ -142,8 +143,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.help.SetWidth(ui.ContentWidth(msg.Width))
-		m.selectList.SetWidth(ui.ContentWidth(msg.Width))
+		m.help.SetWidth(uikit.ContentWidth(msg.Width))
+		m.selectList.SetWidth(uikit.ContentWidth(msg.Width))
 		return m, nil
 
 	case applyDoneMsg:
@@ -177,7 +178,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case ui.KeyQ, ui.KeyCtrlC, ui.KeyEsc:
+	case uikit.KeyQ, uikit.KeyCtrlC, uikit.KeyEsc:
 		return m, tea.Quit
 	}
 
@@ -191,7 +192,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 	case phaseDone:
-		if msg.String() == ui.KeyEnter {
+		if msg.String() == uikit.KeyEnter {
 			return m, tea.Quit
 		}
 	}

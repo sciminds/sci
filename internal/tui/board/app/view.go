@@ -3,7 +3,7 @@ package app
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/sciminds/cli/internal/tui/kit"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // View is the top-level render. It composes chrome (title + body + status)
@@ -19,7 +19,7 @@ func (m *Model) buildView() string {
 		return ""
 	}
 
-	chrome := kit.Chrome{
+	chrome := uikit.Chrome{
 		Title: func(w int) string {
 			raw := m.router.Title(m.screen, m, w)
 			return m.styles.Title.Render(truncate(raw, w-2))

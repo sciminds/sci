@@ -7,7 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/sciminds/cli/internal/mdview"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // splitView renders a side-by-side layout: scrollable markdown on the left,
@@ -181,7 +181,7 @@ func (s *splitView) View() string {
 	var b strings.Builder
 
 	// Title bar
-	b.WriteString(ui.TUI.HeaderSection().Render(" " + s.title + " "))
+	b.WriteString(uikit.TUI.HeaderSection().Render(" " + s.title + " "))
 	b.WriteString("\n\n")
 
 	if s.stacked() {
@@ -203,19 +203,19 @@ func (s *splitView) viewSideBySide() string {
 	}
 
 	leftContent := s.viewer.View() + "\n" + s.viewerFooter(leftW)
-	leftBox := ui.TUI.Base().
+	leftBox := uikit.TUI.Base().
 		Width(leftW).
 		Height(bodyH).
 		PaddingRight(1).
 		Render(leftContent)
 
 	rightContent := s.player.View() + "\n" + s.playerFooter(rightW)
-	rightBox := ui.TUI.Base().
+	rightBox := uikit.TUI.Base().
 		Width(rightW).
 		Height(bodyH).
 		BorderLeft(true).
 		BorderStyle(lipgloss.ThickBorder()).
-		BorderLeftForeground(ui.TUI.Palette().Blue).
+		BorderLeftForeground(uikit.TUI.Palette().Blue).
 		PaddingLeft(1).
 		Render(rightContent)
 
@@ -237,16 +237,16 @@ func (s *splitView) viewStacked() string {
 	botH := availH - topH
 
 	topContent := s.viewer.View() + "\n" + s.viewerFooter(s.width)
-	topBox := ui.TUI.Base().
+	topBox := uikit.TUI.Base().
 		Width(s.width).
 		Height(topH).
 		Render(topContent)
 
-	divider := ui.TUI.TextBlue().
+	divider := uikit.TUI.TextBlue().
 		Render(strings.Repeat("━", s.width))
 
 	botContent := s.player.View() + "\n" + s.playerFooter(s.width)
-	botBox := ui.TUI.Base().
+	botBox := uikit.TUI.Base().
 		Width(s.width).
 		Height(botH).
 		Render(botContent)
@@ -264,7 +264,7 @@ func (s *splitView) viewerFooter(width int) string {
 	const sep = "  "
 
 	// Always-present suffix: scroll percent.
-	pctPart := ui.TUI.Dim().Render(fmt.Sprintf("%d%%", s.viewer.ScrollPercent()))
+	pctPart := uikit.TUI.Dim().Render(fmt.Sprintf("%d%%", s.viewer.ScrollPercent()))
 	pctW := lipgloss.Width(pctPart)
 
 	hints := []string{
@@ -278,7 +278,7 @@ func (s *splitView) viewerFooter(width int) string {
 	budget := width - pctW
 	var parts []string
 	for _, h := range hints {
-		rendered := ui.TUI.HeaderHint().Render(h)
+		rendered := uikit.TUI.HeaderHint().Render(h)
 		w := lipgloss.Width(rendered) + len(sep)
 		if budget-w < 0 {
 			break
@@ -297,7 +297,7 @@ func (s *splitView) playerFooter(width int) string {
 	const sep = "  "
 
 	// Always-present suffix: q/esc close.
-	escPart := ui.TUI.HeaderHint().Render("q/esc close")
+	escPart := uikit.TUI.HeaderHint().Render("q/esc close")
 	escW := lipgloss.Width(escPart)
 
 	hints := []string{
@@ -308,7 +308,7 @@ func (s *splitView) playerFooter(width int) string {
 	budget := width - escW
 	var parts []string
 	for _, h := range hints {
-		rendered := ui.TUI.HeaderHint().Render(h)
+		rendered := uikit.TUI.HeaderHint().Render(h)
 		w := lipgloss.Width(rendered) + len(sep)
 		if budget-w < 0 {
 			break

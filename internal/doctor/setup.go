@@ -9,7 +9,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/tui/kit"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -138,7 +138,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 	}
 
 	// Launch list TUI — only uninstalled tools are shown.
-	model, err := kit.RunModel(newReccsModel(entries, missing))
+	model, err := uikit.RunModel(newReccsModel(entries, missing))
 	if err != nil {
 		return OptionalSetupResult{}, err
 	}

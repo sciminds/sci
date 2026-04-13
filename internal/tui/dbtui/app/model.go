@@ -13,6 +13,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Zone ID prefixes for clickable UI regions.
@@ -106,7 +107,7 @@ func NewModel(store data.DataStore, dbPath string, readOnly bool) (*Model, error
 		tabs[0] = tab
 	}
 
-	h := ui.NewHelp()
+	h := uikit.NewHelp()
 	h.ShowAll = true // help overlay always shows full bindings
 
 	s := spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(ui.TUI.TextBlue()))

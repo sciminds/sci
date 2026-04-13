@@ -8,7 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/ui"
-	"github.com/sciminds/cli/internal/tui/kit"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // fixtureGridModel builds a Model with a synthetic two-column board ready
@@ -17,7 +17,7 @@ func fixtureGridModel(width, height int) *Model {
 	m := &Model{
 		styles:    ui.TUI,
 		screen:    screenGrid,
-		cur:       kit.Grid2D{Col: 0, Row: -1},
+		cur:       uikit.Grid2D{Col: 0, Row: -1},
 		width:     width,
 		height:    height,
 		collapsed: map[string]bool{},
@@ -52,7 +52,7 @@ func fixtureCalendarModel(width, height int) *Model {
 	m := &Model{
 		styles:    ui.TUI,
 		screen:    screenGrid,
-		cur:       kit.Grid2D{Col: 0, Row: -1},
+		cur:       uikit.Grid2D{Col: 0, Row: -1},
 		width:     width,
 		height:    height,
 		collapsed: map[string]bool{},
@@ -119,7 +119,7 @@ func TestDetailFitsTerminalHeight(t *testing.T) {
 	for _, tc := range cases {
 		m := fixtureGridModel(tc.w, tc.h)
 		m.screen = screenDetail
-		m.cur = kit.Grid2D{Col: 0, Row: 0}
+		m.cur = uikit.Grid2D{Col: 0, Row: 0}
 		out := m.buildView()
 		if got := lipgloss.Height(out); got != tc.h {
 			t.Errorf("detail term %dx%d: rendered height = %d, want %d", tc.w, tc.h, got, tc.h)
@@ -272,7 +272,7 @@ func pressKey(m *Model, k string) {
 // first. fixtureGridModel's "todo" column has two cards (c1, c2).
 func TestGridJWrapsAtLastCard(t *testing.T) {
 	m := fixtureGridModel(100, 30)
-	m.cur = kit.Grid2D{Col: 0, Row: 1} // on c2 (last)
+	m.cur = uikit.Grid2D{Col: 0, Row: 1} // on c2 (last)
 	pressKey(m, "j")
 	if m.cur.Row != 0 {
 		t.Errorf("cur.card=%d after j-wrap, want 0", m.cur.Row)
@@ -283,7 +283,7 @@ func TestGridJWrapsAtLastCard(t *testing.T) {
 // the last.
 func TestGridKWrapsAtFirstCard(t *testing.T) {
 	m := fixtureGridModel(100, 30)
-	m.cur = kit.Grid2D{Col: 0, Row: 0} // on c1 (first)
+	m.cur = uikit.Grid2D{Col: 0, Row: 0} // on c1 (first)
 	pressKey(m, "k")
 	if m.cur.Row != 1 {
 		t.Errorf("cur.card=%d after k-wrap, want 1", m.cur.Row)
@@ -295,7 +295,7 @@ func TestGridKWrapsAtFirstCard(t *testing.T) {
 // a no-op.
 func TestGridKFromUnfocusedGoesToLast(t *testing.T) {
 	m := fixtureGridModel(100, 30)
-	m.cur = kit.Grid2D{Col: 0, Row: -1}
+	m.cur = uikit.Grid2D{Col: 0, Row: -1}
 	pressKey(m, "k")
 	if m.cur.Row != 1 {
 		t.Errorf("cur.card=%d after k-from-unfocused, want 1", m.cur.Row)
@@ -308,7 +308,7 @@ func TestGridJKEmptyColumnNoop(t *testing.T) {
 	m := fixtureGridModel(100, 30)
 	// Drop all cards so both columns are empty.
 	m.current.Cards = nil
-	m.cur = kit.Grid2D{Col: 0, Row: -1}
+	m.cur = uikit.Grid2D{Col: 0, Row: -1}
 	pressKey(m, "j")
 	pressKey(m, "k")
 	if m.cur.Row != -1 {

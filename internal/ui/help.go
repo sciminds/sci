@@ -6,10 +6,13 @@ package ui
 import (
 	"cmp"
 	"fmt"
+
 	"io"
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/sciminds/cli/internal/tui/uikit"
 
 	"github.com/samber/lo"
 	"github.com/urfave/cli/v3"
@@ -48,7 +51,7 @@ func renderHelp(w io.Writer, c *cli.Command) {
 	// ── Banner (root only) ────────────────────────────────────────────────
 	if isRoot {
 		p()
-		p(TUI.TextBlueBold().Render("  🔬🧠 sci") + " " + TUI.Dim().Render("— your scientific computing toolkit"))
+		p(uikit.TUI.TextBlueBold().Render("  🔬🧠 sci") + " " + uikit.TUI.Dim().Render("— your scientific computing toolkit"))
 	}
 
 	// ── Description (skip for root — banner covers it) ───────────────────
@@ -56,18 +59,18 @@ func renderHelp(w io.Writer, c *cli.Command) {
 		desc := c.Usage
 		if desc != "" {
 			p()
-			p(TUI.HelpDesc().Render(desc))
+			p(uikit.TUI.HelpDesc().Render(desc))
 		}
 	}
 
 	// ── Usage ────────────────────────────────────────────────────────────
 	p()
-	p(TUI.HelpSection().Render("Usage"))
+	p(uikit.TUI.HelpSection().Render("Usage"))
 	if c.Action != nil {
-		pf("    %s\n", TUI.HelpUsage().Render(buildUsageLine(c)))
+		pf("    %s\n", uikit.TUI.HelpUsage().Render(buildUsageLine(c)))
 	}
 	if len(c.VisibleCommands()) > 0 {
-		pf("    %s\n", TUI.HelpUsage().Render(c.FullName()+" <command>"))
+		pf("    %s\n", uikit.TUI.HelpUsage().Render(c.FullName()+" <command>"))
 	}
 
 	// ── Flags ────────────────────────────────────────────────────────────
@@ -77,9 +80,9 @@ func renderHelp(w io.Writer, c *cli.Command) {
 		for _, f := range localFlags {
 			name := flagNamePart(f)
 			usage := flagUsage(f)
-			padded := TUI.TextBright().Render(rpad("  "+name, pad+2))
+			padded := uikit.TUI.TextBright().Render(rpad("  "+name, pad+2))
 			if usage != "" {
-				pf("  %s%s\n", padded, TUI.TextMid().Render(usage))
+				pf("  %s%s\n", padded, uikit.TUI.TextMid().Render(usage))
 			} else {
 				pf("  %s\n", padded)
 			}
@@ -129,7 +132,7 @@ func renderHelp(w io.Writer, c *cli.Command) {
 			}
 		} else {
 			p()
-			p(TUI.HelpSection().Render("Commands"))
+			p(uikit.TUI.HelpSection().Render("Commands"))
 			sorted := sortedCommands(cmds)
 			for _, sub := range sorted {
 				printCommandCli(w, sub, padding)
@@ -140,18 +143,18 @@ func renderHelp(w io.Writer, c *cli.Command) {
 	// ── Examples (from Description) ──────────────────────────────────────
 	if c.Description != "" {
 		p()
-		p(TUI.HelpSection().Render("Examples"))
+		p(uikit.TUI.HelpSection().Render("Examples"))
 		for _, line := range strings.Split(c.Description, "\n") {
 			trimmed := strings.TrimSpace(line)
 			switch {
 			case trimmed == "":
 				p()
 			case strings.HasPrefix(trimmed, "#"):
-				pf("    %s\n", TUI.Dim().Render(line))
+				pf("    %s\n", uikit.TUI.Dim().Render(line))
 			case strings.HasPrefix(trimmed, "$"):
-				pf("    %s\n", TUI.HelpUsage().Render(line))
+				pf("    %s\n", uikit.TUI.HelpUsage().Render(line))
 			default:
-				pf("    %s\n", TUI.Dim().Render(line))
+				pf("    %s\n", uikit.TUI.Dim().Render(line))
 			}
 		}
 	}
@@ -168,8 +171,8 @@ func buildUsageLine(c *cli.Command) string {
 }
 
 func printCommandCli(w io.Writer, cmd *cli.Command, padding int) {
-	name := TUI.TextBlue().Render(rpad(cmd.Name, padding))
-	desc := TUI.TextMid().Render(cmd.Usage)
+	name := uikit.TUI.TextBlue().Render(rpad(cmd.Name, padding))
+	desc := uikit.TUI.TextMid().Render(cmd.Usage)
 	_, _ = fmt.Fprintf(w, "    %s%s\n", name, desc)
 }
 
@@ -211,9 +214,9 @@ func rpad(s string, padding int) string {
 
 func categoryHeading(name string) string {
 	if name == "Experimental" {
-		return TUI.TextPinkBold().Render(name)
+		return uikit.TUI.TextPinkBold().Render(name)
 	}
-	return TUI.HelpSection().Render(name)
+	return uikit.TUI.HelpSection().Render(name)
 }
 
 func maxNameLen(cmds []*cli.Command) int {

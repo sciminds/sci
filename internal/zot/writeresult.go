@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // WriteResult is the standard return type for write commands. Action is
@@ -28,7 +28,7 @@ func (r WriteResult) Human() string {
 	if msg == "" {
 		msg = fmt.Sprintf("%s %s %s", r.Action, r.Kind, r.Target)
 	}
-	return fmt.Sprintf("  %s %s\n", ui.SymOK, msg)
+	return fmt.Sprintf("  %s %s\n", uikit.SymOK, msg)
 }
 
 // BulkWriteResult reports per-item outcomes for a batch write (e.g. bulk
@@ -49,11 +49,11 @@ func (r BulkWriteResult) JSON() any { return r }
 func (r BulkWriteResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s %s %d/%d %s(s)\n",
-		ui.SymOK, r.Action, len(r.Success), r.Total, r.Kind)
+		uikit.SymOK, r.Action, len(r.Success), r.Total, r.Kind)
 	if len(r.Failed) > 0 {
 		keys := slices.Sorted(maps.Keys(r.Failed))
 		for _, k := range keys {
-			fmt.Fprintf(&b, "  %s %s: %s\n", ui.SymFail, k, r.Failed[k])
+			fmt.Fprintf(&b, "  %s %s: %s\n", uikit.SymFail, k, r.Failed[k])
 		}
 	}
 	return b.String()

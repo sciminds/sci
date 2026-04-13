@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Format represents a notebook format.
@@ -60,7 +60,7 @@ func (r ConvertResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r ConvertResult) Human() string {
-	return fmt.Sprintf("  %s %s → %s\n", ui.SymOK, r.Input, r.Output)
+	return fmt.Sprintf("  %s %s → %s\n", uikit.SymOK, r.Input, r.Output)
 }
 
 // Convert converts input to output, inferring formats from extensions.
@@ -79,7 +79,7 @@ func Convert(input, output string) (*ConvertResult, error) {
 
 	// Ensure uvx is available
 	if _, err := exec.LookPath("uvx"); err != nil {
-		return nil, fmt.Errorf("uvx not found — run %s to install it", ui.TUI.TextBlue().Render("sci doctor check"))
+		return nil, fmt.Errorf("uvx not found — run %s to install it", uikit.TUI.TextBlue().Render("sci doctor check"))
 	}
 
 	// Build jupytext args

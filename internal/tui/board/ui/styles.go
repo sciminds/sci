@@ -7,7 +7,7 @@ package ui
 
 import (
 	"charm.land/lipgloss/v2"
-	parentui "github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Layout constants — single source of truth for spacing and sizing.
@@ -50,7 +50,7 @@ const (
 // Styles holds all lipgloss styles the board TUI uses. One place to
 // tweak every visual aspect of the board.
 type Styles struct {
-	palette parentui.Palette
+	palette uikit.Palette
 
 	// Chrome ─────────────────────────────────────────────────────────
 	Title     lipgloss.Style
@@ -89,13 +89,13 @@ type Styles struct {
 }
 
 // TUI is the package-level shared styles singleton. Reach for it from
-// the app package via ui.TUI.
-var TUI = New(parentui.DetectDark())
+// the app package via uikit.TUI.
+var TUI = New(uikit.DetectDark())
 
 // New builds a Styles instance for the given dark-mode preference.
 // Callers should not normally use this directly — use TUI.
 func New(isDark bool) *Styles {
-	p := parentui.NewPalette(isDark)
+	p := uikit.NewPalette(isDark)
 	border := lipgloss.RoundedBorder()
 	cardBorder := lipgloss.RoundedBorder()
 
@@ -197,4 +197,4 @@ func New(isDark bool) *Styles {
 }
 
 // Palette exposes the underlying palette for callers that need raw colors.
-func (s *Styles) Palette() parentui.Palette { return s.palette }
+func (s *Styles) Palette() uikit.Palette { return s.palette }

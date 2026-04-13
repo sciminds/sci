@@ -9,7 +9,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // CloudResult is returned by share, unshare, get.
@@ -26,10 +26,10 @@ func (r CloudResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r CloudResult) Human() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "  %s %s\n", lo.Ternary(r.OK, ui.SymOK, ui.SymFail), r.Message)
+	fmt.Fprintf(&b, "  %s %s\n", lo.Ternary(r.OK, uikit.SymOK, uikit.SymFail), r.Message)
 	if r.URL != "" {
-		fmt.Fprintf(&b, "\n  %s  %s\n", ui.TUI.Dim().Render("url"), r.URL)
-		fmt.Fprintf(&b, "  %s  sci cloud get <name>\n", ui.TUI.Dim().Render("get"))
+		fmt.Fprintf(&b, "\n  %s  %s\n", uikit.TUI.Dim().Render("url"), r.URL)
+		fmt.Fprintf(&b, "  %s  sci cloud get <name>\n", uikit.TUI.Dim().Render("get"))
 	}
 	return b.String()
 }
@@ -48,9 +48,9 @@ func (r AuthResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r AuthResult) Human() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "  %s %s\n", lo.Ternary(r.OK, ui.SymOK, ui.SymFail), r.Message)
+	fmt.Fprintf(&b, "  %s %s\n", lo.Ternary(r.OK, uikit.SymOK, uikit.SymFail), r.Message)
 	if r.Action == "login" || r.Action == "status" {
-		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("Try these next:"))
+		fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Dim().Render("Try these next:"))
 		fmt.Fprintf(&b, "    sci cloud put                 Upload a file\n")
 		fmt.Fprintf(&b, "    sci cloud list                List shared files\n")
 	}
@@ -79,7 +79,7 @@ func (r SharedListResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r SharedListResult) Human() string {
 	if len(r.Datasets) == 0 {
-		return fmt.Sprintf("  %s no files shared\n", ui.TUI.Dim().Render("·"))
+		return fmt.Sprintf("  %s no files shared\n", uikit.TUI.Dim().Render("·"))
 	}
 
 	// Show owner column only when at least one entry has Owner set.
@@ -89,19 +89,19 @@ func (r SharedListResult) Human() string {
 
 	var b strings.Builder
 	if hasOwner {
-		fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render("owner             name                          type       size        url"))
+		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("owner             name                          type       size        url"))
 		for _, d := range r.Datasets {
-			fmt.Fprintf(&b, "  %-18s%-30s%-11s%-12s%s\n", d.Owner, d.Name, d.Type, humanize.Bytes(uint64(d.Size)), ui.TUI.Dim().Render(d.URL))
+			fmt.Fprintf(&b, "  %-18s%-30s%-11s%-12s%s\n", d.Owner, d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL))
 			if d.Description != "" {
-				fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render(d.Description))
+				fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render(d.Description))
 			}
 		}
 	} else {
-		fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render("name                          type       size        url"))
+		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("name                          type       size        url"))
 		for _, d := range r.Datasets {
-			fmt.Fprintf(&b, "  %-30s%-11s%-12s%s\n", d.Name, d.Type, humanize.Bytes(uint64(d.Size)), ui.TUI.Dim().Render(d.URL))
+			fmt.Fprintf(&b, "  %-30s%-11s%-12s%s\n", d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL))
 			if d.Description != "" {
-				fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render(d.Description))
+				fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render(d.Description))
 			}
 		}
 	}
@@ -129,12 +129,12 @@ func (r DatasetListResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r DatasetListResult) Human() string {
 	if len(r.Datasets) == 0 {
-		return fmt.Sprintf("  %s no files found\n", ui.TUI.Dim().Render("·"))
+		return fmt.Sprintf("  %s no files found\n", uikit.TUI.Dim().Render("·"))
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render("owner             name                          type       size        url"))
+	fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("owner             name                          type       size        url"))
 	for _, d := range r.Datasets {
-		fmt.Fprintf(&b, "  %-18s%-30s%-11s%-12s%s\n", d.Owner, d.Name, d.Type, humanize.Bytes(uint64(d.Size)), ui.TUI.Dim().Render(d.URL))
+		fmt.Fprintf(&b, "  %-18s%-30s%-11s%-12s%s\n", d.Owner, d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL))
 	}
 	return b.String()
 }

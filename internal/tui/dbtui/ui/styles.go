@@ -3,16 +3,16 @@ package ui
 // styles.go — the single source of truth for all lipgloss styles.
 
 import (
-	"os"
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Styles holds pre-built lipgloss styles shared across all TUI commands.
 type Styles struct {
 	// palette is retained so callers that need raw colors can access them.
-	palette Palette
+	palette uikit.Palette
 
 	// ── Semantic foreground ──────────────────────────────────────────────
 
@@ -81,11 +81,11 @@ type Styles struct {
 }
 
 // TUI is the package-level shared styles singleton.
-var TUI = NewStyles(lipgloss.HasDarkBackground(os.Stdin, os.Stderr))
+var TUI = NewStyles(uikit.DetectDark())
 
 // NewStyles creates a Styles instance for the given light/dark mode.
 func NewStyles(isDark bool) *Styles {
-	p := NewPalette(isDark)
+	p := uikit.NewPalette(isDark)
 	ld := lipgloss.LightDark(isDark)
 
 	return &Styles{
@@ -127,7 +127,7 @@ func NewStyles(isDark bool) *Styles {
 
 		// Layout / chrome
 		heading: lipgloss.NewStyle().Foreground(p.TextBright).Bold(true),
-		cursor:  lipgloss.NewStyle().Background(p.Surface).Bold(true),
+		cursor:  lipgloss.NewStyle().Background(p.SurfaceRaised).Bold(true),
 		title: lipgloss.NewStyle().
 			Foreground(p.Blue).
 			Bold(true).
@@ -221,7 +221,7 @@ func NewStyles(isDark bool) *Styles {
 }
 
 // Palette returns the resolved color palette backing this Styles instance.
-func (s *Styles) Palette() Palette { return s.palette }
+func (s *Styles) Palette() uikit.Palette { return s.palette }
 
 // ── Accessors — semantic (domain-meaning, color-agnostic) ───────────────────
 
@@ -455,9 +455,9 @@ func (s *Styles) Keybinds(pairs ...string) string {
 
 // RenderDivider returns a horizontal rule at the given content width.
 func (s *Styles) RenderDivider(contentWidth int) string {
-	w := FallbackDividerWidth
-	if contentWidth > len(DividerLeadingSpaces) {
-		w = contentWidth - len(DividerLeadingSpaces)
+	w := uikit.FallbackDividerWidth
+	if contentWidth > len(uikit.DividerLeadingSpaces) {
+		w = contentWidth - len(uikit.DividerLeadingSpaces)
 	}
-	return DividerLeadingSpaces + s.divider.Render(strings.Repeat("─", w))
+	return uikit.DividerLeadingSpaces + s.divider.Render(strings.Repeat("─", w))
 }

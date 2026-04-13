@@ -6,7 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/app"
-	"github.com/sciminds/cli/internal/tui/kit"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // ErrInterrupted signals that the user interrupted the TUI (e.g. Ctrl-C).
@@ -32,7 +32,7 @@ func Run(store *engine.Store, initialBoard string, opts ...Option) error {
 	for _, opt := range opts {
 		opt(m)
 	}
-	if err := kit.Run(m); err != nil {
+	if err := uikit.Run(m); err != nil {
 		if errors.Is(err, tea.ErrInterrupted) {
 			return ErrInterrupted
 		}

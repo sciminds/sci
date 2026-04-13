@@ -16,8 +16,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/dustin/go-humanize"
-	"github.com/sciminds/cli/internal/tui/compose"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // importableExts lists file extensions shown in the file browser.
@@ -257,7 +256,7 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 		}
 
 		// Visible window.
-		maxVisible := ui.OverlayBodyHeight(m.height, fileBrowserExtraChrome)
+		maxVisible := uikit.OverlayBodyHeight(m.height, fileBrowserExtraChrome)
 		if maxVisible > len(br.Entries) {
 			maxVisible = len(br.Entries)
 		}
@@ -303,7 +302,7 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 
 			if sizeLabel != "" {
 				right := m.styles.HeaderHint().Render(sizeLabel)
-				b.WriteString(compose.SpreadMinGap(innerW, 1, left, right))
+				b.WriteString(uikit.SpreadMinGap(innerW, 1, left, right))
 			} else {
 				b.WriteString(left)
 			}

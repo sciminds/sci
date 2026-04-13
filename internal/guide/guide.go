@@ -10,8 +10,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/mdview"
-	"github.com/sciminds/cli/internal/tui/kit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // level tracks where we are in the navigation hierarchy.
@@ -29,9 +28,9 @@ type pagesWarmedMsg struct{}
 
 // model is the top-level Bubble Tea model for the guide TUI.
 type model struct {
-	allBooks []Book         // original book data (for pre-rendering)
-	books    kit.ListPicker // top-level book picker
-	entries  kit.ListPicker // entry list for the selected book
+	allBooks []Book           // original book data (for pre-rendering)
+	books    uikit.ListPicker // top-level book picker
+	entries  uikit.ListPicker // entry list for the selected book
 	player   *Player
 	viewer   *mdview.Viewer // markdown page viewer
 	split    *splitView     // side-by-side markdown + cast
@@ -43,7 +42,7 @@ type model struct {
 }
 
 func newModel(books []Book) *model {
-	lp := kit.NewListPicker("Guides", kit.Items(books),
+	lp := uikit.NewListPicker("Guides", uikit.Items(books),
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
 		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 	)
@@ -66,12 +65,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.entries.SetSize(msg.Width, msg.Height)
 		}
 		if m.player != nil {
-			m.player.SetHeight(ui.OverlayBodyHeight(m.height, 4))
-			m.player.SetWidth(ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding)
+			m.player.SetHeight(uikit.OverlayBodyHeight(m.height, 4))
+			m.player.SetWidth(uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding)
 		}
 		if m.viewer != nil {
-			w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding
-			m.viewer.SetSize(w, ui.OverlayBodyHeight(m.height, 4))
+			w := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding
+			m.viewer.SetSize(w, uikit.OverlayBodyHeight(m.height, 4))
 		}
 		if m.split != nil {
 			m.split.SetSize(msg.Width, msg.Height)
@@ -158,7 +157,7 @@ func (m *model) updateBooks(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) openBook(book Book) {
-	m.entries = kit.NewListPicker(book.Heading, kit.Items(book.Entries),
+	m.entries = uikit.NewListPicker(book.Heading, uikit.Items(book.Entries),
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
 		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
 	)
@@ -208,8 +207,8 @@ func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.entries.StatusMessage(fmt.Sprintf("Error parsing %s: %v", item.CastFile, err))
 			break
 		}
-		visH := ui.OverlayBodyHeight(m.height, 4)
-		visW := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding
+		visH := uikit.OverlayBodyHeight(m.height, 4)
+		visW := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding
 		m.player = NewPlayer(cast, visH)
 		m.player.SetWidth(visW)
 		m.level = levelOverlay
@@ -228,8 +227,8 @@ func (m *model) openPage(item Entry) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	v := mdview.NewViewer(item.Cmd, string(data))
-	w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding
-	v.SetSize(w, ui.OverlayBodyHeight(m.height, 4))
+	w := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding
+	v.SetSize(w, uikit.OverlayBodyHeight(m.height, 4))
 	m.viewer = v
 	m.level = levelOverlay
 	return m, nil
@@ -361,7 +360,7 @@ func (m *model) View() tea.View {
 	}
 
 	fg := m.renderOverlay()
-	v := tea.NewView(ui.Compose(fg, bg))
+	v := tea.NewView(uikit.Compose(fg, bg))
 	v.AltScreen = true
 	return v
 }
@@ -371,7 +370,7 @@ func (m *model) renderOverlay() string {
 
 	// Player-only overlay: clean fit for OverlayBox.
 	if m.viewer == nil {
-		return kit.OverlayBox{
+		return uikit.OverlayBox{
 			Title: entry.Cmd,
 			Body:  m.player.View(),
 			Hints: []string{"space pause/play", "r restart", "esc close"},
@@ -380,30 +379,30 @@ func (m *model) renderOverlay() string {
 
 	// Viewer overlay has conditional hints (search mode, match count,
 	// scroll percentage with dim styling) — render manually.
-	w := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW)
+	w := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW)
 
 	var b strings.Builder
-	b.WriteString(ui.TUI.HeaderSection().Render(" " + entry.Cmd + " "))
+	b.WriteString(uikit.TUI.HeaderSection().Render(" " + entry.Cmd + " "))
 	b.WriteString("\n\n")
 	b.WriteString(m.viewer.View())
 
 	if !m.viewer.Searching() {
 		b.WriteString("\n\n")
 		pct := fmt.Sprintf("%d%%", m.viewer.ScrollPercent())
-		hints := ui.TUI.HeaderHint().Render("↑/↓ scroll") + "  " +
-			ui.TUI.HeaderHint().Render("/ search") + "  " +
-			ui.TUI.HeaderHint().Render("e export") + "  " +
-			ui.TUI.HeaderHint().Render("q/esc close")
+		hints := uikit.TUI.HeaderHint().Render("↑/↓ scroll") + "  " +
+			uikit.TUI.HeaderHint().Render("/ search") + "  " +
+			uikit.TUI.HeaderHint().Render("e export") + "  " +
+			uikit.TUI.HeaderHint().Render("q/esc close")
 		if m.viewer.Query() != "" {
-			hints += "  " + ui.TUI.HeaderHint().Render(
+			hints += "  " + uikit.TUI.HeaderHint().Render(
 				fmt.Sprintf("n/N next/prev (%d matches)", m.viewer.MatchCount()),
 			)
 		}
-		hints += "  " + ui.TUI.Dim().Render(pct)
+		hints += "  " + uikit.TUI.Dim().Render(pct)
 		b.WriteString(hints)
 	}
 
-	return ui.TUI.OverlayBox().Width(w).Render(b.String())
+	return uikit.TUI.OverlayBox().Width(w).Render(b.String())
 }
 
 // exportedMsg carries the result of an export attempt.
@@ -425,7 +424,7 @@ func (m *model) exportPage(entry Entry) tea.Cmd {
 // preRenderPages returns a Cmd that renders all page-based entries in the
 // background so they're cached by the time the user opens them.
 func (m *model) preRenderPages() tea.Cmd {
-	contentW := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding - 2
+	contentW := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding - 2
 	if contentW < 20 {
 		contentW = 20
 	}
@@ -456,5 +455,5 @@ func (m *model) preRenderPages() tea.Cmd {
 // Run launches the interactive guide TUI with the given books.
 func Run(books []Book) error {
 	mdview.DetectStyle() // probe terminal before bubbletea takes over stdin
-	return kit.Run(newModel(books))
+	return uikit.Run(newModel(books))
 }

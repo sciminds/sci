@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/tui/kit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 func TestCloudListModel_ViewAtZeroSize(t *testing.T) {
@@ -67,12 +66,12 @@ func TestFileItem_DescriptionWithUserDesc(t *testing.T) {
 
 func TestDeleteResultIsKitResult(t *testing.T) {
 	t.Parallel()
-	// The deleteFile command should produce a kit.Result[deleteOK] message,
+	// The deleteFile command should produce a uikit.Result[deleteOK] message,
 	// not the old deleteResultMsg type.
-	var msg tea.Msg = kit.Result[deleteOK]{Value: deleteOK{name: "test.csv"}}
-	r, ok := msg.(kit.Result[deleteOK])
+	var msg tea.Msg = uikit.Result[deleteOK]{Value: deleteOK{name: "test.csv"}}
+	r, ok := msg.(uikit.Result[deleteOK])
 	if !ok {
-		t.Fatalf("expected kit.Result[deleteOK], got %T", msg)
+		t.Fatalf("expected uikit.Result[deleteOK], got %T", msg)
 	}
 	if r.Value.name != "test.csv" {
 		t.Errorf("name = %q, want %q", r.Value.name, "test.csv")
@@ -81,10 +80,10 @@ func TestDeleteResultIsKitResult(t *testing.T) {
 
 func TestDownloadResultIsKitResult(t *testing.T) {
 	t.Parallel()
-	var msg tea.Msg = kit.Result[downloadOK]{Value: downloadOK{name: "data.tar", path: "data.tar"}}
-	r, ok := msg.(kit.Result[downloadOK])
+	var msg tea.Msg = uikit.Result[downloadOK]{Value: downloadOK{name: "data.tar", path: "data.tar"}}
+	r, ok := msg.(uikit.Result[downloadOK])
 	if !ok {
-		t.Fatalf("expected kit.Result[downloadOK], got %T", msg)
+		t.Fatalf("expected uikit.Result[downloadOK], got %T", msg)
 	}
 	if r.Value.name != "data.tar" {
 		t.Errorf("name = %q, want %q", r.Value.name, "data.tar")
@@ -96,7 +95,7 @@ func TestDownloadResultIsKitResult(t *testing.T) {
 
 func TestDeleteResultWithError(t *testing.T) {
 	t.Parallel()
-	msg := kit.Result[deleteOK]{
+	msg := uikit.Result[deleteOK]{
 		Value: deleteOK{name: "fail.csv"},
 		Err:   errTestDelete,
 	}
@@ -115,7 +114,7 @@ func TestModelHandlesDeleteResult(t *testing.T) {
 	entries := []SharedEntry{{Name: "a.csv", Type: "file", Size: 100}}
 	m := newCloudListModel(entries, nil)
 	// Simulate receiving a successful delete result.
-	updated, _ := m.Update(kit.Result[deleteOK]{Value: deleteOK{name: "a.csv"}})
+	updated, _ := m.Update(uikit.Result[deleteOK]{Value: deleteOK{name: "a.csv"}})
 	_ = updated // should not panic
 }
 
@@ -124,14 +123,14 @@ func TestModelHandlesDownloadResult(t *testing.T) {
 	entries := []SharedEntry{{Name: "a.csv", Type: "file", Size: 100}}
 	m := newCloudListModel(entries, nil)
 	// Simulate receiving a successful download result.
-	updated, _ := m.Update(kit.Result[downloadOK]{Value: downloadOK{name: "a.csv", path: "a.csv"}})
+	updated, _ := m.Update(uikit.Result[downloadOK]{Value: downloadOK{name: "a.csv", path: "a.csv"}})
 	_ = updated // should not panic
 }
 
 func TestFileItem_DescriptionNoDesc(t *testing.T) {
 	t.Parallel()
 	// Ensure dim style is used for the "no description" case
-	_ = ui.TUI // ensure styles are initialized
+	_ = uikit.TUI // ensure styles are initialized
 	item := fileItem{entry: SharedEntry{Type: "file", Size: 512}}
 	desc := item.Description()
 	if desc == "" {

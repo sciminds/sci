@@ -18,8 +18,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/dustin/go-humanize"
 	"github.com/sciminds/cli/internal/cloud"
-	"github.com/sciminds/cli/internal/tui/kit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // ErrInterrupted signals the user interrupted the TUI (Ctrl-C).
@@ -40,7 +39,7 @@ func (i fileItem) Title() string { return i.entry.Name }
 
 // Description implements list.DefaultItem.
 func (i fileItem) Description() string {
-	sizeType := ui.TUI.Dim().Render(fmt.Sprintf("%s  %s", i.entry.Type, humanize.Bytes(uint64(i.entry.Size))))
+	sizeType := uikit.TUI.Dim().Render(fmt.Sprintf("%s  %s", i.entry.Type, humanize.Bytes(uint64(i.entry.Size))))
 	if i.entry.Description != "" {
 		return i.entry.Description + "\n" + sizeType
 	}
@@ -76,7 +75,7 @@ func newCloudDelegateKeyMap() *cloudDelegateKeyMap {
 }
 
 // ── Async result types ────────────────────────────────────────────────────
-// Used with kit.AsyncCmdCtx → kit.Result[T] for type-safe dispatch.
+// Used with uikit.AsyncCmdCtx → uikit.Result[T] for type-safe dispatch.
 
 type deleteOK struct{ name string }
 type downloadOK struct{ name, path string }
@@ -84,7 +83,7 @@ type downloadOK struct{ name, path string }
 // ── Delegate ───────────────────────────────────────────────────────────────
 
 func newCloudDelegate(keys *cloudDelegateKeyMap, client *cloud.Client, pendingDelete *string) list.DefaultDelegate {
-	d := ui.NewListDelegate()
+	d := uikit.NewListDelegate()
 
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		selected, ok := m.SelectedItem().(fileItem)
@@ -105,26 +104,26 @@ func newCloudDelegate(keys *cloudDelegateKeyMap, client *cloud.Client, pendingDe
 				*pendingDelete = ""
 				m.RemoveItem(m.Index())
 				return tea.Batch(
-					m.NewStatusMessage(ui.TUI.Warn().Render("Deleting "+name+"…")),
+					m.NewStatusMessage(uikit.TUI.Warn().Render("Deleting "+name+"…")),
 					deleteFile(client, name),
 				)
 			}
 			// First press → arm confirmation.
 			*pendingDelete = name
-			return m.NewStatusMessage(ui.TUI.Warn().Render("Press x again to delete " + name))
+			return m.NewStatusMessage(uikit.TUI.Warn().Render("Press x again to delete " + name))
 
 		case key.Matches(keyMsg, keys.copyURL):
 			*pendingDelete = ""
 			if err := clipboard.WriteAll(selected.entry.URL); err != nil {
-				return m.NewStatusMessage(ui.TUI.Fail().Render("Copy failed: " + err.Error()))
+				return m.NewStatusMessage(uikit.TUI.Fail().Render("Copy failed: " + err.Error()))
 			}
-			return m.NewStatusMessage(ui.TUI.Pass().Render("Copied URL for " + selected.entry.Name))
+			return m.NewStatusMessage(uikit.TUI.Pass().Render("Copied URL for " + selected.entry.Name))
 
 		case key.Matches(keyMsg, keys.download):
 			*pendingDelete = ""
 			name := selected.entry.Name
 			return tea.Batch(
-				m.NewStatusMessage(ui.TUI.Warn().Render("Downloading "+name+"…")),
+				m.NewStatusMessage(uikit.TUI.Warn().Render("Downloading "+name+"…")),
 				downloadFile(client, name),
 			)
 
@@ -146,13 +145,13 @@ func newCloudDelegate(keys *cloudDelegateKeyMap, client *cloud.Client, pendingDe
 // ── Async commands ─────────────────────────────────────────────────────────
 
 func deleteFile(client *cloud.Client, name string) tea.Cmd {
-	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (deleteOK, error) {
+	return uikit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (deleteOK, error) {
 		return deleteOK{name: name}, client.Delete(ctx, name)
 	})
 }
 
 func downloadFile(client *cloud.Client, name string) tea.Cmd {
-	return kit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (downloadOK, error) {
+	return uikit.AsyncCmdCtx(context.Background(), cmdTimeout, func(ctx context.Context) (downloadOK, error) {
 		outPath := filepath.Base(name)
 		f, err := os.Create(outPath)
 		if err != nil {
@@ -223,16 +222,16 @@ func (m cloudListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(msg.Width, msg.Height)
 		return m, nil
-	case kit.Result[deleteOK]:
+	case uikit.Result[deleteOK]:
 		if msg.Err != nil {
-			return m, m.list.NewStatusMessage(ui.TUI.Fail().Render("Delete failed: " + msg.Err.Error()))
+			return m, m.list.NewStatusMessage(uikit.TUI.Fail().Render("Delete failed: " + msg.Err.Error()))
 		}
-		return m, m.list.NewStatusMessage(ui.TUI.Pass().Render("Deleted " + msg.Value.name))
-	case kit.Result[downloadOK]:
+		return m, m.list.NewStatusMessage(uikit.TUI.Pass().Render("Deleted " + msg.Value.name))
+	case uikit.Result[downloadOK]:
 		if msg.Err != nil {
-			return m, m.list.NewStatusMessage(ui.TUI.Fail().Render("Download failed: " + msg.Err.Error()))
+			return m, m.list.NewStatusMessage(uikit.TUI.Fail().Render("Download failed: " + msg.Err.Error()))
 		}
-		return m, m.list.NewStatusMessage(ui.TUI.Pass().Render("Downloaded " + msg.Value.path))
+		return m, m.list.NewStatusMessage(uikit.TUI.Pass().Render("Downloaded " + msg.Value.path))
 	}
 
 	var cmd tea.Cmd
@@ -249,7 +248,7 @@ func (m cloudListModel) View() tea.View {
 
 // RunCloudListTUI launches the interactive cloud file manager.
 func RunCloudListTUI(entries []SharedEntry, client *cloud.Client) error {
-	if err := kit.Run(newCloudListModel(entries, client)); err != nil {
+	if err := uikit.Run(newCloudListModel(entries, client)); err != nil {
 		if errors.Is(err, tea.ErrInterrupted) {
 			return ErrInterrupted
 		}

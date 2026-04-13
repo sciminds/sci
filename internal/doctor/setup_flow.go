@@ -14,6 +14,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -49,21 +50,21 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 		err := r.BundleDump(brewfilePath)
 		if err != nil && !ui.IsQuiet() {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				ui.SymWarn, ui.TUI.Warn().Render("Could not capture installed packages: "+err.Error()))
+				uikit.SymWarn, uikit.TUI.Warn().Render("Could not capture installed packages: "+err.Error()))
 		} else if err == nil && !ui.IsQuiet() {
 			data, _ := os.ReadFile(brewfilePath)
 			n := len(brew.ParseBrewfileNames(string(data)))
 			fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
-				ui.SymOK, ui.TUI.TextBlue().Render(brewfilePath), n)
+				uikit.SymOK, uikit.TUI.TextBlue().Render(brewfilePath), n)
 		}
 	} else {
 		syncResult, err := brew.Sync(r, brewfilePath)
 		if err != nil && !ui.IsQuiet() {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				ui.SymWarn, ui.TUI.Warn().Render("Could not sync Brewfile with system: "+err.Error()))
+				uikit.SymWarn, uikit.TUI.Warn().Render("Could not sync Brewfile with system: "+err.Error()))
 		} else if err == nil {
 			if msg := syncResult.Human(); msg != "" && !ui.IsQuiet() {
-				fmt.Fprintf(os.Stderr, "  %s %s", ui.SymOK, msg)
+				fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
 			}
 		}
 	}
@@ -75,7 +76,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 			names := setupEntryNames(missingEntries)
 			fmt.Fprintf(os.Stderr, "\n  sci requires: %s %s\n",
 				strings.Join(names, ", "),
-				ui.TUI.Dim().Render("(not in your Brewfile)"))
+				uikit.TUI.Dim().Render("(not in your Brewfile)"))
 		}
 
 		// In quiet mode this auto-confirms (IsQuiet check inside).
@@ -84,13 +85,13 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 			result.AppendError = appendErr.Error()
 			if !ui.IsQuiet() {
 				fmt.Fprintf(os.Stderr, "  %s %s\n",
-					ui.SymWarn, ui.TUI.Warn().Render("Could not add required packages: "+appendErr.Error()))
+					uikit.SymWarn, uikit.TUI.Warn().Render("Could not add required packages: "+appendErr.Error()))
 			}
 		} else {
 			result.PackagesAdded = added
 			if !ui.IsQuiet() {
 				fmt.Fprintf(os.Stderr, "  %s Added %s to Brewfile\n",
-					ui.SymOK, strings.Join(added, ", "))
+					uikit.SymOK, strings.Join(added, ", "))
 			}
 		}
 	}
@@ -101,7 +102,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 		result.ToolCheckError = toolErr.Error()
 		if !ui.IsQuiet() {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				ui.SymWarn, ui.TUI.Warn().Render("Could not check tools: "+toolErr.Error()))
+				uikit.SymWarn, uikit.TUI.Warn().Render("Could not check tools: "+toolErr.Error()))
 		}
 	}
 	result.Tools = tools
@@ -170,8 +171,8 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	if !ui.IsQuiet() {
 		fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(result.Outdated))
 		for _, pkg := range result.Outdated {
-			arrow := ui.TUI.TextPink().Render(" → ")
-			version := ui.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+			arrow := uikit.TUI.TextPink().Render(" → ")
+			version := uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 			fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
 		}
 		fmt.Fprintln(os.Stderr)

@@ -15,9 +15,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/sciminds/cli/internal/tui/compose"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 const (
@@ -39,7 +38,7 @@ func (m *Model) View() tea.View {
 }
 
 func (m *Model) buildView() string {
-	if m.width < ui.MinUsableWidth || m.height < ui.MinUsableHeight {
+	if m.width < uikit.MinUsableWidth || m.height < uikit.MinUsableHeight {
 		return m.buildTerminalTooSmallView()
 	}
 
@@ -74,8 +73,8 @@ func (m *Model) buildView() string {
 
 	for _, o := range overlays {
 		if o.active {
-			fg := m.zones.Mark(zoneOverlay, ui.CancelFaint(o.render()))
-			base = ui.CenterOverlay(fg, ui.DimBackground(base))
+			fg := m.zones.Mark(zoneOverlay, uikit.CancelFaint(o.render()))
+			base = uikit.CenterOverlay(fg, uikit.DimBackground(base))
 		}
 	}
 
@@ -91,7 +90,7 @@ func (m *Model) buildTerminalTooSmallView() string {
 			fmt.Sprintf(
 				"%dx%d \u2014 need at least %dx%d",
 				m.width, m.height,
-				ui.MinUsableWidth, ui.MinUsableHeight,
+				uikit.MinUsableWidth, uikit.MinUsableHeight,
 			),
 		),
 	)
@@ -128,7 +127,7 @@ func (m *Model) buildBaseView() string {
 				path = osc8Link("file://"+m.dbPath, path)
 			}
 			label := m.styles.HeaderHint().Render(path)
-			tabs = compose.Spread(m.width, tabs, label)
+			tabs = uikit.Spread(m.width, tabs, label)
 		}
 	}
 

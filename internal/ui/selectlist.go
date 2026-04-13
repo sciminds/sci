@@ -5,7 +5,10 @@ package ui
 
 import (
 	"fmt"
+
 	"strings"
+
+	"github.com/sciminds/cli/internal/tui/uikit"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -144,7 +147,7 @@ func NewSelectListKeys() SelectListKeys {
 
 // ShortHelp implements help.KeyMap.
 func (k SelectListKeys) ShortHelp() []key.Binding {
-	return []key.Binding{BindUp, BindDown, k.Toggle, k.All, BindEnter, BindQuit}
+	return []key.Binding{uikit.BindUp, uikit.BindDown, k.Toggle, k.All, uikit.BindEnter, uikit.BindQuit}
 }
 
 // FullHelp implements help.KeyMap.
@@ -163,24 +166,24 @@ func (sl SelectList) Update(msg tea.Msg) (SelectList, tea.Cmd) {
 	}
 
 	switch keyMsg.String() {
-	case KeyUp, KeyK:
+	case uikit.KeyUp, uikit.KeyK:
 		if sl.cursor > 0 {
 			sl.cursor--
 		}
-	case KeyDown, KeyJ:
+	case uikit.KeyDown, uikit.KeyJ:
 		if sl.cursor < len(sl.items)-1 {
 			sl.cursor++
 		}
-	case KeySpace:
+	case uikit.KeySpace:
 		if sl.cursor >= 0 && sl.cursor < len(sl.items) {
 			sl.items[sl.cursor].selected = !sl.items[sl.cursor].selected
 		}
-	case KeyA:
+	case uikit.KeyA:
 		allSelected := lo.EveryBy(sl.items, func(e selectEntry) bool { return e.selected })
 		for i := range sl.items {
 			sl.items[i].selected = !allSelected
 		}
-	case KeyEnter:
+	case uikit.KeyEnter:
 		anySelected := lo.SomeBy(sl.items, func(e selectEntry) bool { return e.selected })
 		if !anySelected {
 			return sl, tea.Quit
@@ -198,7 +201,7 @@ func (sl SelectList) View() string {
 	var lines []string
 
 	if sl.heading != "" {
-		lines = append(lines, TUI.Heading().Render(sl.heading))
+		lines = append(lines, uikit.TUI.Heading().Render(sl.heading))
 		lines = append(lines, "")
 	}
 
@@ -220,16 +223,16 @@ func (sl SelectList) View() string {
 func RenderSelectItemLine(name string, selected, isCursor bool) string {
 	cursor := "  "
 	if isCursor {
-		cursor = TUI.TextBlue().Render(" " + IconCursor)
+		cursor = uikit.TUI.TextBlue().Render(" " + uikit.IconCursor)
 	}
 
-	marker := TUI.TextPink().Render(IconPending)
+	marker := uikit.TUI.TextPink().Render(uikit.IconPending)
 	if selected {
-		marker = TUI.Pass().Render(IconDot)
+		marker = uikit.TUI.Pass().Render(uikit.IconDot)
 	}
 
 	if isCursor {
-		name = TUI.Cursor().Render(" " + name + " ")
+		name = uikit.TUI.Cursor().Render(" " + name + " ")
 	}
 
 	return fmt.Sprintf("%s %s %s", cursor, marker, name)

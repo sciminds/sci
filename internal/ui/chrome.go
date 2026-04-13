@@ -6,6 +6,8 @@ package ui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // MaxDividerWidth is the maximum width for horizontal dividers in TUI views.
@@ -17,7 +19,7 @@ const MaxDividerWidth = 60
 //
 // Thin wrapper around [Spread] retained for readability at call sites.
 func FooterBar(left, right string, width int) string {
-	return Spread(width, left, right)
+	return uikit.Spread(width, left, right)
 }
 
 // SummaryKind controls how a summary part is styled.
@@ -52,15 +54,15 @@ func SummaryLine(parts ...SummaryPart) string {
 		var s string
 		switch p.Kind {
 		case SummarySuccess:
-			s = TUI.TextGreenBold().Render(text)
+			s = uikit.TUI.TextGreenBold().Render(text)
 		case SummaryDanger:
-			s = TUI.TextRedBold().Render(text)
+			s = uikit.TUI.TextRedBold().Render(text)
 		case SummaryDim:
-			s = TUI.Dim().Render(text)
+			s = uikit.TUI.Dim().Render(text)
 		}
 		rendered = append(rendered, s)
 	}
-	sep := TUI.TextPink().Render(" · ")
+	sep := uikit.TUI.TextPink().Render(" · ")
 	return strings.Join(rendered, sep)
 }
 
@@ -72,11 +74,11 @@ func StatusRow(icon, label string) string {
 // PageLayout composes a standard TUI page: title header, body, and footer bar,
 // all wrapped in the shared Page() style.
 func PageLayout(title, body, footerLeft, footerRight string, width int) string {
-	header := TUI.Title().Render(title)
-	left := TUI.Footer().Render(footerLeft)
+	header := uikit.TUI.Title().Render(title)
+	left := uikit.TUI.Footer().Render(footerLeft)
 	right := footerRight
-	bottomBar := FooterBar(left, right, ContentWidth(width))
+	bottomBar := FooterBar(left, right, uikit.ContentWidth(width))
 
 	page := fmt.Sprintf("%s\n\n%s\n\n%s", header, body, bottomBar)
-	return TUI.Page().Render(page)
+	return uikit.TUI.Page().Render(page)
 }

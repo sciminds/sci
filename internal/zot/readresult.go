@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -24,29 +24,29 @@ func (r ListResult) JSON() any { return r }
 func (r ListResult) Human() string {
 	if r.Count == 0 {
 		if r.Query != "" {
-			return fmt.Sprintf("  %s no results for %q\n", ui.TUI.Dim().Render("·"), r.Query)
+			return fmt.Sprintf("  %s no results for %q\n", uikit.TUI.Dim().Render("·"), r.Query)
 		}
-		return fmt.Sprintf("  %s no items\n", ui.TUI.Dim().Render("·"))
+		return fmt.Sprintf("  %s no items\n", uikit.TUI.Dim().Render("·"))
 	}
 	var b strings.Builder
 	for _, it := range r.Items {
 		writeItemLine(&b, it)
 	}
-	fmt.Fprintf(&b, "\n  %s %d item(s)\n", ui.SymArrow, r.Count)
+	fmt.Fprintf(&b, "\n  %s %d item(s)\n", uikit.SymArrow, r.Count)
 	return b.String()
 }
 
 func writeItemLine(b *strings.Builder, it local.Item) {
 	title := it.Title
 	if title == "" {
-		title = ui.TUI.Dim().Render("(untitled)")
+		title = uikit.TUI.Dim().Render("(untitled)")
 	}
 	year := ""
 	if d := cleanDate(it.Date); len(d) >= 4 {
-		year = " " + ui.TUI.Dim().Render("("+d[:4]+")")
+		year = " " + uikit.TUI.Dim().Render("("+d[:4]+")")
 	}
 	fmt.Fprintf(b, "  %s  %s%s\n",
-		ui.TUI.TextBlue().Render(it.Key),
+		uikit.TUI.TextBlue().Render(it.Key),
 		title,
 		year,
 	)
@@ -57,7 +57,7 @@ func writeItemLine(b *strings.Builder, it local.Item) {
 	if it.DOI != "" {
 		meta += " · " + it.DOI
 	}
-	fmt.Fprintf(b, "    %s\n", ui.TUI.Dim().Render(meta))
+	fmt.Fprintf(b, "    %s\n", uikit.TUI.Dim().Render(meta))
 }
 
 // ItemResult is returned for `zot read <key>`.
@@ -76,10 +76,10 @@ func (r ItemResult) Human() string {
 	if title == "" {
 		title = "(untitled)"
 	}
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render(title))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render(title))
 	fmt.Fprintf(&b, "  %s  %s\n\n",
-		ui.TUI.Dim().Render(it.Key),
-		ui.TUI.Dim().Render(it.Type),
+		uikit.TUI.Dim().Render(it.Key),
+		uikit.TUI.Dim().Render(it.Type),
 	)
 	if len(it.Creators) > 0 {
 		parts := lo.Map(it.Creators, func(c local.Creator, _ int) string {
@@ -88,25 +88,25 @@ func (r ItemResult) Human() string {
 			}
 			return strings.TrimSpace(c.First + " " + c.Last)
 		})
-		fmt.Fprintf(&b, "  %s %s\n", ui.TUI.Dim().Render("authors:"), strings.Join(parts, ", "))
+		fmt.Fprintf(&b, "  %s %s\n", uikit.TUI.Dim().Render("authors:"), strings.Join(parts, ", "))
 	}
 	writeField(&b, "date", cleanDate(it.Date))
 	writeField(&b, "publication", it.Publication)
 	writeField(&b, "doi", it.DOI)
 	writeField(&b, "url", it.URL)
 	if it.Abstract != "" {
-		fmt.Fprintf(&b, "\n  %s\n  %s\n", ui.TUI.Dim().Render("abstract:"), it.Abstract)
+		fmt.Fprintf(&b, "\n  %s\n  %s\n", uikit.TUI.Dim().Render("abstract:"), it.Abstract)
 	}
 	if len(it.Tags) > 0 {
-		fmt.Fprintf(&b, "\n  %s %s\n", ui.TUI.Dim().Render("tags:"), strings.Join(it.Tags, ", "))
+		fmt.Fprintf(&b, "\n  %s %s\n", uikit.TUI.Dim().Render("tags:"), strings.Join(it.Tags, ", "))
 	}
 	if len(it.Collections) > 0 {
-		fmt.Fprintf(&b, "  %s %s\n", ui.TUI.Dim().Render("collections:"), strings.Join(it.Collections, ", "))
+		fmt.Fprintf(&b, "  %s %s\n", uikit.TUI.Dim().Render("collections:"), strings.Join(it.Collections, ", "))
 	}
 	if len(it.Attachments) > 0 {
-		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("attachments:"))
+		fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Dim().Render("attachments:"))
 		for _, a := range it.Attachments {
-			fmt.Fprintf(&b, "    %s  %s\n", ui.TUI.TextBlue().Render(a.Key), a.Filename)
+			fmt.Fprintf(&b, "    %s  %s\n", uikit.TUI.TextBlue().Render(a.Key), a.Filename)
 		}
 	}
 	return b.String() + "\n"
@@ -126,7 +126,7 @@ func writeField(b *strings.Builder, label, value string) {
 	if value == "" {
 		return
 	}
-	fmt.Fprintf(b, "  %s %s\n", ui.TUI.Dim().Render(label+":"), value)
+	fmt.Fprintf(b, "  %s %s\n", uikit.TUI.Dim().Render(label+":"), value)
 }
 
 // ChildItemView is the zot-package-facing view of a child item as
@@ -161,17 +161,17 @@ func (r ChildrenListResult) JSON() any { return r }
 func (r ChildrenListResult) Human() string {
 	var b strings.Builder
 	if r.Count == 0 {
-		fmt.Fprintf(&b, "  %s %s has no children\n", ui.SymArrow, r.ParentKey)
+		fmt.Fprintf(&b, "  %s %s has no children\n", uikit.SymArrow, r.ParentKey)
 		return b.String()
 	}
 	fmt.Fprintf(&b, "\n  %s %s\n\n",
-		ui.TUI.Dim().Render("children of"),
-		ui.TUI.TextBlue().Render(r.ParentKey),
+		uikit.TUI.Dim().Render("children of"),
+		uikit.TUI.TextBlue().Render(r.ParentKey),
 	)
 	for _, ch := range r.Children {
 		fmt.Fprintf(&b, "    %s  %s",
-			ui.TUI.TextBlue().Render(ch.Key),
-			ui.TUI.Dim().Render(childTypeLabel(ch.ItemType)),
+			uikit.TUI.TextBlue().Render(ch.Key),
+			uikit.TUI.Dim().Render(childTypeLabel(ch.ItemType)),
 		)
 		// One-line descriptor varies by type:
 		// attachment → contentType + filename
@@ -190,12 +190,12 @@ func (r ChildrenListResult) Human() string {
 				snippet = "[" + strings.Join(ch.Tags, ", ") + "]"
 			}
 			if snippet != "" {
-				fmt.Fprintf(&b, "  %s", ui.TUI.Dim().Render(snippet))
+				fmt.Fprintf(&b, "  %s", uikit.TUI.Dim().Render(snippet))
 			}
 		}
 		fmt.Fprintln(&b)
 	}
-	fmt.Fprintf(&b, "\n  %s %d child item(s)\n", ui.SymArrow, r.Count)
+	fmt.Fprintf(&b, "\n  %s %d child item(s)\n", uikit.SymArrow, r.Count)
 	return b.String()
 }
 
@@ -252,17 +252,17 @@ func (r CollectionListResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r CollectionListResult) Human() string {
 	if r.Count == 0 {
-		return fmt.Sprintf("  %s no collections\n", ui.TUI.Dim().Render("·"))
+		return fmt.Sprintf("  %s no collections\n", uikit.TUI.Dim().Render("·"))
 	}
 	var b strings.Builder
 	for _, c := range r.Collections {
 		fmt.Fprintf(&b, "  %s  %s %s\n",
-			ui.TUI.TextBlue().Render(c.Key),
+			uikit.TUI.TextBlue().Render(c.Key),
 			c.Name,
-			ui.TUI.Dim().Render(fmt.Sprintf("(%d)", c.ItemCount)),
+			uikit.TUI.Dim().Render(fmt.Sprintf("(%d)", c.ItemCount)),
 		)
 	}
-	fmt.Fprintf(&b, "\n  %s %d collection(s)\n", ui.SymArrow, r.Count)
+	fmt.Fprintf(&b, "\n  %s %d collection(s)\n", uikit.SymArrow, r.Count)
 	return b.String()
 }
 
@@ -278,16 +278,16 @@ func (r TagListResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r TagListResult) Human() string {
 	if r.Count == 0 {
-		return fmt.Sprintf("  %s no tags\n", ui.TUI.Dim().Render("·"))
+		return fmt.Sprintf("  %s no tags\n", uikit.TUI.Dim().Render("·"))
 	}
 	var b strings.Builder
 	for _, t := range r.Tags {
 		fmt.Fprintf(&b, "  %s  %s\n",
-			ui.TUI.Dim().Render(fmt.Sprintf("%5d", t.Count)),
+			uikit.TUI.Dim().Render(fmt.Sprintf("%5d", t.Count)),
 			t.Name,
 		)
 	}
-	fmt.Fprintf(&b, "\n  %s %d tag(s)\n", ui.SymArrow, r.Count)
+	fmt.Fprintf(&b, "\n  %s %d tag(s)\n", uikit.SymArrow, r.Count)
 	return b.String()
 }
 
@@ -304,17 +304,17 @@ func (r StatsResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r StatsResult) Human() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Library stats"))
-	fmt.Fprintf(&b, "  %s %s\n", ui.TUI.Dim().Render("data:"), r.DataDir)
-	fmt.Fprintf(&b, "  %s schema v%d\n\n", ui.TUI.Dim().Render("  ·  "), r.Schema)
-	fmt.Fprintf(&b, "  %s %d\n", ui.TUI.Dim().Render("items:         "), r.Stats.TotalItems)
-	fmt.Fprintf(&b, "  %s %d\n", ui.TUI.Dim().Render("with DOI:      "), r.Stats.WithDOI)
-	fmt.Fprintf(&b, "  %s %d\n", ui.TUI.Dim().Render("with abstract: "), r.Stats.WithAbstract)
-	fmt.Fprintf(&b, "  %s %d\n", ui.TUI.Dim().Render("with PDF:      "), r.Stats.WithAttachment)
-	fmt.Fprintf(&b, "  %s %d\n", ui.TUI.Dim().Render("collections:   "), r.Stats.Collections)
-	fmt.Fprintf(&b, "  %s %d\n\n", ui.TUI.Dim().Render("tags:          "), r.Stats.Tags)
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render("Library stats"))
+	fmt.Fprintf(&b, "  %s %s\n", uikit.TUI.Dim().Render("data:"), r.DataDir)
+	fmt.Fprintf(&b, "  %s schema v%d\n\n", uikit.TUI.Dim().Render("  ·  "), r.Schema)
+	fmt.Fprintf(&b, "  %s %d\n", uikit.TUI.Dim().Render("items:         "), r.Stats.TotalItems)
+	fmt.Fprintf(&b, "  %s %d\n", uikit.TUI.Dim().Render("with DOI:      "), r.Stats.WithDOI)
+	fmt.Fprintf(&b, "  %s %d\n", uikit.TUI.Dim().Render("with abstract: "), r.Stats.WithAbstract)
+	fmt.Fprintf(&b, "  %s %d\n", uikit.TUI.Dim().Render("with PDF:      "), r.Stats.WithAttachment)
+	fmt.Fprintf(&b, "  %s %d\n", uikit.TUI.Dim().Render("collections:   "), r.Stats.Collections)
+	fmt.Fprintf(&b, "  %s %d\n\n", uikit.TUI.Dim().Render("tags:          "), r.Stats.Tags)
 	if len(r.Stats.ByType) > 0 {
-		fmt.Fprintf(&b, "  %s\n", ui.TUI.Dim().Render("by type:"))
+		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("by type:"))
 		// Sort by count desc for readability.
 		type kv struct {
 			k string
@@ -378,13 +378,13 @@ func (r LibraryExportResult) Human() string {
 		b.WriteString(r.Body)
 		b.WriteString("\n")
 	} else {
-		fmt.Fprintf(&b, "  %s wrote %s to %s\n", ui.SymOK, r.Format, r.OutPath)
+		fmt.Fprintf(&b, "  %s wrote %s to %s\n", uikit.SymOK, r.Format, r.OutPath)
 		if r.KeymapPath != "" {
-			fmt.Fprintf(&b, "    %s %s\n", ui.TUI.Dim().Render("keymap:"), r.KeymapPath)
+			fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("keymap:"), r.KeymapPath)
 		}
 	}
 	fmt.Fprintf(&b, "    %s %d item(s): %d pinned, %d synthesized",
-		ui.TUI.Dim().Render("·"),
+		uikit.TUI.Dim().Render("·"),
 		r.Stats.Total, r.Stats.Pinned, r.Stats.Synthesized)
 	if r.Stats.Drifted > 0 {
 		fmt.Fprintf(&b, ", %d drifted", r.Stats.Drifted)
@@ -406,9 +406,9 @@ func (r OpenResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r OpenResult) Human() string {
-	sym := ui.SymOK
+	sym := uikit.SymOK
 	if !r.Launched {
-		sym = ui.SymFail
+		sym = uikit.SymFail
 	}
-	return fmt.Sprintf("  %s %s\n    %s\n", sym, r.Message, ui.TUI.Dim().Render(r.Path))
+	return fmt.Sprintf("  %s %s\n    %s\n", sym, r.Message, uikit.TUI.Dim().Render(r.Path))
 }

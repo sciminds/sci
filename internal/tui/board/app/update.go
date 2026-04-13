@@ -3,7 +3,7 @@ package app
 import (
 	tea "charm.land/bubbletea/v2"
 	engine "github.com/sciminds/cli/internal/board"
-	"github.com/sciminds/cli/internal/tui/kit"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Update is the top-level message dispatcher. Window resizes and async
@@ -15,7 +15,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 
-	case kit.Result[[]string]: // listBoardsCmd result
+	case uikit.Result[[]string]: // listBoardsCmd result
 		if msg.Err != nil {
 			m.setStatusError("list boards: " + msg.Err.Error())
 			return m, nil
@@ -34,14 +34,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case kit.Result[engine.Board]: // loadBoardCmd result
+	case uikit.Result[engine.Board]: // loadBoardCmd result
 		if msg.Err != nil {
 			m.setStatusError("load board: " + msg.Err.Error())
 			return m, nil
 		}
 		m.current = msg.Value
 		m.screen = screenGrid
-		m.cur = kit.Grid2D{Col: 0, Row: -1}
+		m.cur = uikit.Grid2D{Col: 0, Row: -1}
 		m.gridScroll = 0
 		m.collapsed = map[string]bool{}
 		// One-shot: apply initialGridCol on the next board load (the
@@ -58,7 +58,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.setStatusInfo("loaded " + msg.Value.Title)
 		return m, pollCmd(m.store, msg.Value.ID, m.lastSeen)
 
-	case kit.Result[struct{}]: // AppendCmd result
+	case uikit.Result[struct{}]: // AppendCmd result
 		if msg.Err != nil {
 			m.setStatusError("sync: " + msg.Err.Error())
 		}

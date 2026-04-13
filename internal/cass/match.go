@@ -9,6 +9,7 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -196,13 +197,13 @@ func (r *MatchResult) Human() string {
 		fmt.Fprintf(&b, "  %s\n", d)
 	}
 	if r.Matched > 0 {
-		fmt.Fprintf(&b, "\n  %s %d student(s) matched\n", ui.SymOK, r.Matched)
+		fmt.Fprintf(&b, "\n  %s %d student(s) matched\n", uikit.SymOK, r.Matched)
 	}
 	if r.Unmatched > 0 {
-		fmt.Fprintf(&b, "  %s %d student(s) still unmatched\n", ui.SymWarn, r.Unmatched)
+		fmt.Fprintf(&b, "  %s %d student(s) still unmatched\n", uikit.SymWarn, r.Unmatched)
 	}
 	if r.Matched == 0 && r.Unmatched == 0 {
-		fmt.Fprintf(&b, "  %s All students already matched.\n", ui.SymOK)
+		fmt.Fprintf(&b, "  %s All students already matched.\n", uikit.SymOK)
 	}
 	return b.String()
 }

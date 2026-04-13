@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/zot/hygiene"
 )
 
@@ -28,9 +28,9 @@ func (r MissingResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Missing-field coverage"))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render("Missing-field coverage"))
 	fmt.Fprintf(&b, "  %s %d items scanned\n\n",
-		ui.TUI.Dim().Render("·"), r.Report.Scanned)
+		uikit.TUI.Dim().Render("·"), r.Report.Scanned)
 
 	if stats, ok := r.Report.Stats.(hygiene.MissingStats); ok {
 		for _, c := range stats.Coverage {
@@ -42,15 +42,15 @@ func (r MissingResult) Human() string {
 	}
 
 	if len(r.Report.Findings) == 0 {
-		fmt.Fprintf(&b, "\n  %s no missing fields\n", ui.SymOK)
+		fmt.Fprintf(&b, "\n  %s no missing fields\n", uikit.SymOK)
 		return b.String()
 	}
 
 	counts := r.Report.CountBySeverity()
 	fmt.Fprintf(&b, "\n  %s %s  %s %s  %s %s\n",
-		ui.SymFail, ui.TUI.Fail().Render(fmt.Sprintf("%d error", counts[hygiene.SevError])),
-		ui.SymWarn, ui.TUI.Warn().Render(fmt.Sprintf("%d warn", counts[hygiene.SevWarn])),
-		ui.TUI.Dim().Render("·"), ui.TUI.Dim().Render(fmt.Sprintf("%d info", counts[hygiene.SevInfo])),
+		uikit.SymFail, uikit.TUI.Fail().Render(fmt.Sprintf("%d error", counts[hygiene.SevError])),
+		uikit.SymWarn, uikit.TUI.Warn().Render(fmt.Sprintf("%d warn", counts[hygiene.SevWarn])),
+		uikit.TUI.Dim().Render("·"), uikit.TUI.Dim().Render(fmt.Sprintf("%d info", counts[hygiene.SevInfo])),
 	)
 
 	// Sort findings by severity desc so errors lead. Stable-sort preserves
@@ -66,14 +66,14 @@ func (r MissingResult) Human() string {
 		show = show[:r.Limit]
 	}
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("findings:"))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Dim().Render("findings:"))
 	for _, f := range show {
 		title := f.Title
 		if title == "" {
-			title = ui.TUI.Dim().Render("(untitled)")
+			title = uikit.TUI.Dim().Render("(untitled)")
 		}
 		fmt.Fprintf(&b, "    %s  %s %-9s %s\n",
-			ui.TUI.TextBlue().Render(f.ItemKey),
+			uikit.TUI.TextBlue().Render(f.ItemKey),
 			severityIcon(f.Severity),
 			styleSeverity(f.Severity, f.Kind),
 			title,
@@ -81,31 +81,31 @@ func (r MissingResult) Human() string {
 	}
 	if truncated > 0 {
 		fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
-			ui.TUI.Dim().Render("…"), truncated)
+			uikit.TUI.Dim().Render("…"), truncated)
 	}
-	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", ui.SymArrow, len(r.Report.Findings))
+	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", uikit.SymArrow, len(r.Report.Findings))
 	return b.String()
 }
 
 func severityIcon(s hygiene.Severity) string {
 	switch s {
 	case hygiene.SevError:
-		return ui.SymFail
+		return uikit.SymFail
 	case hygiene.SevWarn:
-		return ui.SymWarn
+		return uikit.SymWarn
 	default:
-		return ui.TUI.Dim().Render("·")
+		return uikit.TUI.Dim().Render("·")
 	}
 }
 
 func styleSeverity(s hygiene.Severity, text string) string {
 	switch s {
 	case hygiene.SevError:
-		return ui.TUI.Fail().Render(text)
+		return uikit.TUI.Fail().Render(text)
 	case hygiene.SevWarn:
-		return ui.TUI.Warn().Render(text)
+		return uikit.TUI.Warn().Render(text)
 	default:
-		return ui.TUI.Dim().Render(text)
+		return uikit.TUI.Dim().Render(text)
 	}
 }
 
@@ -135,9 +135,9 @@ func (r InvalidResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Field-value validation"))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render("Field-value validation"))
 	fmt.Fprintf(&b, "  %s %d field values scanned\n\n",
-		ui.TUI.Dim().Render("·"), r.Report.Scanned)
+		uikit.TUI.Dim().Render("·"), r.Report.Scanned)
 
 	if stats, ok := r.Report.Stats.(hygiene.InvalidStats); ok {
 		for _, c := range stats.PerField {
@@ -145,20 +145,20 @@ func (r InvalidResult) Human() string {
 			fmt.Fprintf(&b, "    %-10s %s  %5d / %-5d good  %5.1f%%  %s\n",
 				c.Field, bar,
 				c.Scanned-c.Bad, c.Scanned, c.PercentGood,
-				ui.TUI.Dim().Render(fmt.Sprintf("(%d bad)", c.Bad)),
+				uikit.TUI.Dim().Render(fmt.Sprintf("(%d bad)", c.Bad)),
 			)
 		}
 	}
 
 	if len(r.Report.Findings) == 0 {
-		fmt.Fprintf(&b, "\n  %s no invalid values\n", ui.SymOK)
+		fmt.Fprintf(&b, "\n  %s no invalid values\n", uikit.SymOK)
 		return b.String()
 	}
 
 	counts := r.Report.CountBySeverity()
 	fmt.Fprintf(&b, "\n  %s %s  %s %s\n",
-		ui.SymWarn, ui.TUI.Warn().Render(fmt.Sprintf("%d warn", counts[hygiene.SevWarn])),
-		ui.TUI.Dim().Render("·"), ui.TUI.Dim().Render(fmt.Sprintf("%d info", counts[hygiene.SevInfo])),
+		uikit.SymWarn, uikit.TUI.Warn().Render(fmt.Sprintf("%d warn", counts[hygiene.SevWarn])),
+		uikit.TUI.Dim().Render("·"), uikit.TUI.Dim().Render(fmt.Sprintf("%d info", counts[hygiene.SevInfo])),
 	)
 
 	show := r.Report.Findings
@@ -168,23 +168,23 @@ func (r InvalidResult) Human() string {
 		show = show[:r.Limit]
 	}
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("findings:"))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Dim().Render("findings:"))
 	for _, f := range show {
 		title := f.Title
 		if title == "" {
-			title = ui.TUI.Dim().Render("(untitled)")
+			title = uikit.TUI.Dim().Render("(untitled)")
 		}
 		fmt.Fprintf(&b, "    %s  %s %s\n",
-			ui.TUI.TextBlue().Render(f.ItemKey),
+			uikit.TUI.TextBlue().Render(f.ItemKey),
 			styleSeverity(f.Severity, f.Message),
 			title,
 		)
 	}
 	if truncated > 0 {
 		fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
-			ui.TUI.Dim().Render("…"), truncated)
+			uikit.TUI.Dim().Render("…"), truncated)
 	}
-	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", ui.SymArrow, len(r.Report.Findings))
+	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", uikit.SymArrow, len(r.Report.Findings))
 	return b.String()
 }
 
@@ -206,10 +206,10 @@ func (r OrphansResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Orphan scan"))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render("Orphan scan"))
 	stats, _ := r.Report.Stats.(hygiene.OrphansStats)
 	fmt.Fprintf(&b, "  %s %d total orphan(s) across %d kind(s)\n\n",
-		ui.TUI.Dim().Render("·"),
+		uikit.TUI.Dim().Render("·"),
 		stats.Total,
 		len(stats.CountsByKind),
 	)
@@ -221,22 +221,22 @@ func (r OrphansResult) Human() string {
 		if !ran {
 			continue
 		}
-		marker := ui.TUI.Dim().Render("·")
+		marker := uikit.TUI.Dim().Render("·")
 		if count > 0 {
 			switch k {
 			case hygiene.OrphanMissingFile:
-				marker = ui.SymFail
+				marker = uikit.SymFail
 			case hygiene.OrphanStandaloneAttachment:
-				marker = ui.SymWarn
+				marker = uikit.SymWarn
 			default:
-				marker = ui.TUI.TextBlue().Render("●")
+				marker = uikit.TUI.TextBlue().Render("●")
 			}
 		}
 		fmt.Fprintf(&b, "    %s  %-24s %d\n", marker, string(k), count)
 	}
 
 	if stats.Total == 0 {
-		fmt.Fprintf(&b, "\n  %s no orphans found\n", ui.SymOK)
+		fmt.Fprintf(&b, "\n  %s no orphans found\n", uikit.SymOK)
 		return b.String()
 	}
 
@@ -251,7 +251,7 @@ func (r OrphansResult) Human() string {
 			continue
 		}
 		fmt.Fprintf(&b, "\n  %s %s\n",
-			ui.TUI.Dim().Render("─"),
+			uikit.TUI.Dim().Render("─"),
 			styleSeverity(severityForOrphanKind(k), string(k)),
 		)
 		show := gs
@@ -263,22 +263,22 @@ func (r OrphansResult) Human() string {
 		for _, f := range show {
 			label := f.Title
 			if label == "" {
-				label = ui.TUI.Dim().Render("(none)")
+				label = uikit.TUI.Dim().Render("(none)")
 			}
 			if f.ItemKey != "" {
 				fmt.Fprintf(&b, "    %s  %s\n",
-					ui.TUI.TextBlue().Render(f.ItemKey), label)
+					uikit.TUI.TextBlue().Render(f.ItemKey), label)
 			} else {
 				fmt.Fprintf(&b, "    %s\n", label)
 			}
 		}
 		if truncated > 0 {
 			fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
-				ui.TUI.Dim().Render("…"), truncated)
+				uikit.TUI.Dim().Render("…"), truncated)
 		}
 	}
 
-	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", ui.SymArrow, stats.Total)
+	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", uikit.SymArrow, stats.Total)
 	return b.String()
 }
 
@@ -316,22 +316,22 @@ func (r DuplicatesResult) Human() string {
 	var b strings.Builder
 	stats, _ := r.Report.Stats.(hygiene.DuplicatesStats)
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Duplicate clusters"))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render("Duplicate clusters"))
 	fuzzLabel := "fuzzy=off"
 	if stats.Fuzzy {
 		fuzzLabel = fmt.Sprintf("fuzzy=on threshold=%.2f", stats.Threshold)
 	}
 	fmt.Fprintf(&b, "  %s %d items scanned  %s strategy=%s  %s %s\n",
-		ui.TUI.Dim().Render("·"),
+		uikit.TUI.Dim().Render("·"),
 		stats.Scanned,
-		ui.TUI.Dim().Render("·"),
+		uikit.TUI.Dim().Render("·"),
 		stats.Strategy,
-		ui.TUI.Dim().Render("·"),
+		uikit.TUI.Dim().Render("·"),
 		fuzzLabel,
 	)
 
 	if len(r.Report.Clusters) == 0 {
-		fmt.Fprintf(&b, "\n  %s no duplicate clusters found\n", ui.SymOK)
+		fmt.Fprintf(&b, "\n  %s no duplicate clusters found\n", uikit.SymOK)
 		return b.String()
 	}
 
@@ -350,40 +350,40 @@ func (r DuplicatesResult) Human() string {
 		scoreStr := fmt.Sprintf("%.2f", c.Score)
 		fmt.Fprintf(&b, "  %s %s %s\n",
 			matchTypeBadge(c.MatchType),
-			ui.TUI.Dim().Render("score"),
-			ui.TUI.TextBlue().Render(scoreStr),
+			uikit.TUI.Dim().Render("score"),
+			uikit.TUI.TextBlue().Render(scoreStr),
 		)
 		for _, m := range c.Members {
 			title := m.Title
 			if title == "" {
-				title = ui.TUI.Dim().Render("(untitled)")
+				title = uikit.TUI.Dim().Render("(untitled)")
 			}
 			pdfMarker := ""
 			if m.PDFCount > 0 {
-				pdfMarker = " " + ui.TUI.Dim().Render("[pdf]")
+				pdfMarker = " " + uikit.TUI.Dim().Render("[pdf]")
 			}
 			year := ""
 			if d := cleanDate(m.Date); len(d) >= 4 {
-				year = " " + ui.TUI.Dim().Render("("+d[:4]+")")
+				year = " " + uikit.TUI.Dim().Render("("+d[:4]+")")
 			}
 			fmt.Fprintf(&b, "    %s  %s%s%s\n",
-				ui.TUI.TextBlue().Render(m.Key),
+				uikit.TUI.TextBlue().Render(m.Key),
 				title,
 				year,
 				pdfMarker,
 			)
 			if m.DOI != "" {
-				fmt.Fprintf(&b, "      %s %s\n", ui.TUI.Dim().Render("doi:"), m.DOI)
+				fmt.Fprintf(&b, "      %s %s\n", uikit.TUI.Dim().Render("doi:"), m.DOI)
 			}
 		}
 	}
 
 	if truncated > 0 {
 		fmt.Fprintf(&b, "\n    %s %d more cluster(s) (use --limit 0 or --json for all)\n",
-			ui.TUI.Dim().Render("…"), truncated)
+			uikit.TUI.Dim().Render("…"), truncated)
 	}
 	fmt.Fprintf(&b, "\n  %s %d cluster(s), %d item(s)\n",
-		ui.SymArrow, stats.ClusterCount, stats.ItemsInGroups,
+		uikit.SymArrow, stats.ClusterCount, stats.ItemsInGroups,
 	)
 	return b.String()
 }
@@ -405,12 +405,12 @@ func (r CitekeysResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Cite-key validation"))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render("Cite-key validation"))
 	stats, _ := r.Report.Stats.(hygiene.CitekeysStats)
 	fmt.Fprintf(&b, "  %s %d items scanned  %s %d stored  %s %d unstored\n\n",
-		ui.TUI.Dim().Render("·"), stats.Scanned,
-		ui.TUI.Dim().Render("·"), stats.Stored,
-		ui.TUI.Dim().Render("·"), stats.Unstored,
+		uikit.TUI.Dim().Render("·"), stats.Scanned,
+		uikit.TUI.Dim().Render("·"), stats.Stored,
+		uikit.TUI.Dim().Render("·"), stats.Unstored,
 	)
 
 	// Coverage breakdown, scored against stored keys so Unstored items
@@ -426,20 +426,20 @@ func (r CitekeysResult) Human() string {
 	)
 	fmt.Fprintf(&b, "    %-10s %s %d non-canonical  %s %d invalid  %s %d collisions\n",
 		" ",
-		ui.TUI.Warn().Render("·"), stats.NonCanonical,
-		ui.TUI.Fail().Render("·"), stats.Invalid,
-		ui.TUI.Fail().Render("·"), stats.Collisions,
+		uikit.TUI.Warn().Render("·"), stats.NonCanonical,
+		uikit.TUI.Fail().Render("·"), stats.Invalid,
+		uikit.TUI.Fail().Render("·"), stats.Collisions,
 	)
 
 	if len(r.Report.Findings) == 0 {
-		fmt.Fprintf(&b, "\n  %s every stored cite-key is canonical\n", ui.SymOK)
+		fmt.Fprintf(&b, "\n  %s every stored cite-key is canonical\n", uikit.SymOK)
 		return b.String()
 	}
 
 	counts := r.Report.CountBySeverity()
 	fmt.Fprintf(&b, "\n  %s %s  %s %s\n",
-		ui.SymFail, ui.TUI.Fail().Render(fmt.Sprintf("%d error", counts[hygiene.SevError])),
-		ui.SymWarn, ui.TUI.Warn().Render(fmt.Sprintf("%d warn", counts[hygiene.SevWarn])),
+		uikit.SymFail, uikit.TUI.Fail().Render(fmt.Sprintf("%d error", counts[hygiene.SevError])),
+		uikit.SymWarn, uikit.TUI.Warn().Render(fmt.Sprintf("%d warn", counts[hygiene.SevWarn])),
 	)
 
 	sorted := make([]hygiene.Finding, len(r.Report.Findings))
@@ -453,25 +453,25 @@ func (r CitekeysResult) Human() string {
 		show = show[:r.Limit]
 	}
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("findings:"))
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Dim().Render("findings:"))
 	for _, f := range show {
 		title := f.Title
 		if title == "" {
-			title = ui.TUI.Dim().Render("(untitled)")
+			title = uikit.TUI.Dim().Render("(untitled)")
 		}
 		fmt.Fprintf(&b, "    %s  %s %-13s %s\n",
-			ui.TUI.TextBlue().Render(f.ItemKey),
+			uikit.TUI.TextBlue().Render(f.ItemKey),
 			severityIcon(f.Severity),
 			styleSeverity(f.Severity, f.Kind),
 			title,
 		)
-		fmt.Fprintf(&b, "      %s\n", ui.TUI.Dim().Render(f.Message))
+		fmt.Fprintf(&b, "      %s\n", uikit.TUI.Dim().Render(f.Message))
 	}
 	if truncated > 0 {
 		fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
-			ui.TUI.Dim().Render("…"), truncated)
+			uikit.TUI.Dim().Render("…"), truncated)
 	}
-	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", ui.SymArrow, len(r.Report.Findings))
+	fmt.Fprintf(&b, "\n  %s %d finding(s)\n", uikit.SymArrow, len(r.Report.Findings))
 	return b.String()
 }
 
@@ -480,13 +480,13 @@ func (r CitekeysResult) Human() string {
 func matchTypeBadge(kind string) string {
 	switch kind {
 	case "doi":
-		return ui.TUI.Pass().Render("[" + kind + "]")
+		return uikit.TUI.Pass().Render("[" + kind + "]")
 	case "title-exact":
-		return ui.TUI.TextBlue().Render("[" + kind + "]")
+		return uikit.TUI.TextBlue().Render("[" + kind + "]")
 	case "title-fuzzy":
-		return ui.TUI.Warn().Render("[" + kind + "]")
+		return uikit.TUI.Warn().Render("[" + kind + "]")
 	default:
-		return ui.TUI.Dim().Render("[" + kind + "]")
+		return uikit.TUI.Dim().Render("[" + kind + "]")
 	}
 }
 
@@ -502,7 +502,7 @@ func coverageBar(pct float64, width int) string {
 	}
 	filled := int(pct/100*float64(width) + 0.5)
 	var b strings.Builder
-	b.WriteString(ui.TUI.TextBlue().Render(strings.Repeat("█", filled)))
-	b.WriteString(ui.TUI.Dim().Render(strings.Repeat("░", width-filled)))
+	b.WriteString(uikit.TUI.TextBlue().Render(strings.Repeat("█", filled)))
+	b.WriteString(uikit.TUI.Dim().Render(strings.Repeat("░", width-filled)))
 	return b.String()
 }

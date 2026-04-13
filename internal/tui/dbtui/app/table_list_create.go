@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // ── Create empty table ──────────────────────────────────────────────────────
@@ -160,7 +161,7 @@ func (m *Model) tableListStartDerive() {
 	ta.SetValue("SELECT ")
 	ta.Focus()
 	ta.CharLimit = 0
-	ta.SetWidth(ui.OverlayWidth(m.width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
+	ta.SetWidth(uikit.OverlayWidth(m.width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
 	taH := m.height - deriveSQLChrome
 	if taH < deriveSQLMinH {
 		taH = deriveSQLMinH

@@ -8,8 +8,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/sciminds/cli/internal/tui/compose"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Overlay dimension bounds and layout constants for the table list and file browser.
@@ -44,8 +43,8 @@ func (m *Model) buildTableListOverlay() string {
 	if tl.Adding {
 		minW, maxW = fileBrowserMinW, fileBrowserMaxW
 	}
-	contentW := ui.OverlayWidth(m.width, minW, maxW)
-	innerW := contentW - ui.OverlayBoxPadding
+	contentW := uikit.OverlayWidth(m.width, minW, maxW)
+	innerW := contentW - uikit.OverlayBoxPadding
 
 	if tl.Adding {
 		return m.buildAddFileOverlay(contentW, innerW)
@@ -85,7 +84,7 @@ func (m *Model) buildTableListOverlay() string {
 			maxNameW = innerW - tableListNameAlignReserve
 		}
 
-		maxVisible := ui.OverlayBodyHeight(m.height, tableListExtraChrome)
+		maxVisible := uikit.OverlayBodyHeight(m.height, tableListExtraChrome)
 		if maxVisible > len(tl.Tables) {
 			maxVisible = len(tl.Tables)
 		}
@@ -120,7 +119,7 @@ func (m *Model) buildTableListOverlay() string {
 			shapeStyled := m.styles.HeaderHint().Render(shape)
 
 			// Pad name to align shape column (+2 for separator gap).
-			paddedName := compose.PadRight(name, maxNameW+2)
+			paddedName := uikit.PadRight(name, maxNameW+2)
 
 			if selected && tl.Renaming {
 				// Show textinput for rename
@@ -130,7 +129,7 @@ func (m *Model) buildTableListOverlay() string {
 			} else if selected {
 				pointer := m.styles.TextBlueBold().Render(symTriRight + " ")
 				nameStyled := m.styles.TextBlueBold().Render(name)
-				paddedStyled := compose.PadRight(nameStyled, maxNameW+2)
+				paddedStyled := uikit.PadRight(nameStyled, maxNameW+2)
 				line := pointer + paddedStyled + shapeStyled
 				if lipgloss.Width(line) > innerW {
 					line = m.styles.Base().MaxWidth(innerW).Render(line)

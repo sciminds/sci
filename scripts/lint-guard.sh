@@ -185,6 +185,7 @@ fi
 
 drain_exempt=(
 	"internal/ui/spinner.go"
+	"internal/tui/uikit/"
 	"internal/tui/dbtui/"
 	"internal/tui/board/"
 )
@@ -221,7 +222,7 @@ done
 # are allowed — they exist specifically to be importable by standalone binaries.
 
 standalone_allowed=(
-	"github.com/sciminds/cli/internal/tui/compose"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 isolated_pkgs=("internal/tui/dbtui")
@@ -367,7 +368,7 @@ scriptable_exempt=(
 	"internal/mdview/"
 	"internal/ui/spinner.go"
 	"internal/cmdutil/confirm.go"
-	"internal/tui/kit/"
+	"internal/tui/uikit/"
 )
 
 # ── Step 1: Discover call sites via ast-grep ────────────────────────────────

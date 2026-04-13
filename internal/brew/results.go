@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // AddResult is returned by Add.
@@ -80,8 +80,8 @@ func (r UpdateResult) Human() string {
 		fmt.Fprintf(&b, "Upgraded %d package(s):\n\n", len(r.Outdated))
 	}
 	for _, pkg := range r.Outdated {
-		arrow := ui.TUI.TextPink().Render(" → ")
-		version := ui.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+		arrow := uikit.TUI.TextPink().Render(" → ")
+		version := uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 		fmt.Fprintf(&b, "  %s %s\n", pkg.Name, version)
 	}
 	return b.String()

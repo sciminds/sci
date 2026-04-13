@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // SetupResult is returned by sci lab setup.
@@ -20,7 +20,7 @@ func (r SetupResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r SetupResult) Human() string {
-	sym := lo.Ternary(r.OK, ui.SymOK, ui.SymFail)
+	sym := lo.Ternary(r.OK, uikit.SymOK, uikit.SymFail)
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s %s\n", sym, r.Message)
 	return b.String()
@@ -38,7 +38,7 @@ func (r LsResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r LsResult) Human() string {
 	if r.Raw == "" {
-		return fmt.Sprintf("  %s empty directory: %s\n", ui.TUI.Dim().Render("·"), r.Path)
+		return fmt.Sprintf("  %s empty directory: %s\n", uikit.TUI.Dim().Render("·"), r.Path)
 	}
 	return r.Raw
 }

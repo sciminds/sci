@@ -9,7 +9,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // DocResult is the top-level result returned by `sci doctor`.
@@ -118,48 +118,48 @@ func (r DocResult) Human() string {
 	pass, fail, warn := 0, 0, 0
 
 	for _, sec := range r.Sections {
-		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Bold().Render(sec.Name))
+		fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Bold().Render(sec.Name))
 		for _, c := range sec.Checks {
-			sym := ui.SymOK
+			sym := uikit.SymOK
 			switch c.Status {
 			case StatusFail:
-				sym = ui.SymFail
+				sym = uikit.SymFail
 				fail++
 			case StatusWarn:
-				sym = ui.SymWarn
+				sym = uikit.SymWarn
 				warn++
 			default:
 				pass++
 			}
-			fmt.Fprintf(&b, "    %s %-20s %s\n", sym, c.Label, ui.TUI.Dim().Render(c.Message))
+			fmt.Fprintf(&b, "    %s %-20s %s\n", sym, c.Label, uikit.TUI.Dim().Render(c.Message))
 		}
 	}
 
 	// Tools summary (one line instead of full list)
 	if r.ToolCheckError != "" {
-		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Bold().Render("Tools"))
-		fmt.Fprintf(&b, "    %s %-20s %s\n", ui.SymWarn, "status",
-			ui.TUI.Warn().Render("could not check: "+r.ToolCheckError))
+		fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Bold().Render("Tools"))
+		fmt.Fprintf(&b, "    %s %-20s %s\n", uikit.SymWarn, "status",
+			uikit.TUI.Warn().Render("could not check: "+r.ToolCheckError))
 	} else if len(r.Tools) > 0 {
 		installed := lo.CountBy(r.Tools, func(t ToolInfo) bool {
 			return t.Installed
 		})
-		sym := lo.Ternary(installed < len(r.Tools), ui.SymFail, ui.SymOK)
-		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Bold().Render("Tools"))
+		sym := lo.Ternary(installed < len(r.Tools), uikit.SymFail, uikit.SymOK)
+		fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Bold().Render("Tools"))
 		fmt.Fprintf(&b, "    %s %-20s %s\n", sym, "installed",
-			ui.TUI.Dim().Render(fmt.Sprintf("%d/%d", installed, len(r.Tools))))
+			uikit.TUI.Dim().Render(fmt.Sprintf("%d/%d", installed, len(r.Tools))))
 	}
 
 	// Summary line — only shown when there are problems.
 	if fail > 0 || warn > 0 {
 		var parts []string
 		if fail > 0 {
-			parts = append(parts, ui.TUI.Fail().Render(fmt.Sprintf("%d failed", fail)))
+			parts = append(parts, uikit.TUI.Fail().Render(fmt.Sprintf("%d failed", fail)))
 		}
 		if warn > 0 {
-			parts = append(parts, ui.TUI.Warn().Render(fmt.Sprintf("%d warnings", warn)))
+			parts = append(parts, uikit.TUI.Warn().Render(fmt.Sprintf("%d warnings", warn)))
 		}
-		fmt.Fprintf(&b, "\n  %s\n", strings.Join(parts, ui.TUI.Dim().Render(" · ")))
+		fmt.Fprintf(&b, "\n  %s\n", strings.Join(parts, uikit.TUI.Dim().Render(" · ")))
 	}
 	fmt.Fprintln(&b)
 

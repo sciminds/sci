@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // toolDescs maps tool names to user-friendly descriptions.
@@ -67,13 +67,13 @@ func newReccsModel(entries []brew.BrewfileEntry, missing map[string]bool) reccsM
 		if desc == "" {
 			desc = e.Type + " package"
 		}
-		desc += ui.TUI.TextPink().Render("  " + e.Type)
+		desc += uikit.TUI.TextPink().Render("  " + e.Type)
 		filtered = append(filtered, e)
 		items = append(items, reccsItem{entry: e, desc: desc})
 	}
 
 	title := fmt.Sprintf("Recommended tools — %d available", len(items))
-	delegate := ui.NewListDelegate()
+	delegate := uikit.NewListDelegate()
 	l := list.New(items, delegate, 0, 0)
 	l.Title = title
 	l.SetShowStatusBar(true)

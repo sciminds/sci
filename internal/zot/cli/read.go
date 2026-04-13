@@ -8,7 +8,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
@@ -42,7 +42,7 @@ func openLocalDB() (*zot.Config, local.Reader, error) {
 	}
 	if db.SchemaOutOfRange() {
 		fmt.Fprintf(os.Stderr, "  %s Zotero schema version %d is outside the tested range [%d, %d] — proceeding anyway\n",
-			ui.SymArrow, db.SchemaVersion(), local.MinTestedSchemaVersion, local.MaxTestedSchemaVersion)
+			uikit.SymArrow, db.SchemaVersion(), local.MinTestedSchemaVersion, local.MaxTestedSchemaVersion)
 	}
 	return cfg, db, nil
 }

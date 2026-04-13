@@ -8,7 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Update implements tea.Model.
@@ -17,13 +17,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.help.SetWidth(msg.Width - ui.OverlayMargin) // account for overlay padding
+		m.help.SetWidth(msg.Width - uikit.OverlayMargin) // account for overlay padding
 		m.resizeTables()
 		if m.notePreview != nil {
 			m.notePreview.Overlay = m.notePreview.Overlay.Resize(msg.Width, msg.Height)
 		}
 		if ce := m.cellEditor; ce != nil {
-			ce.Editor.SetWidth(ui.OverlayWidth(msg.Width, cellEditorMinW, cellEditorMaxW) - cellEditorWidthInset)
+			ce.Editor.SetWidth(uikit.OverlayWidth(msg.Width, cellEditorMinW, cellEditorMaxW) - cellEditorWidthInset)
 			taH := msg.Height - cellEditorChrome
 			if taH < cellEditorMinH {
 				taH = cellEditorMinH
@@ -31,7 +31,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ce.Editor.SetHeight(taH)
 		}
 		if tl := m.tableList; tl != nil && tl.Deriving {
-			tl.DeriveSQL.SetWidth(ui.OverlayWidth(msg.Width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
+			tl.DeriveSQL.SetWidth(uikit.OverlayWidth(msg.Width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
 			taH := msg.Height - deriveSQLChrome
 			if taH < deriveSQLMinH {
 				taH = deriveSQLMinH

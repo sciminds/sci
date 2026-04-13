@@ -11,7 +11,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/proj"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // ManagedFiles are the config files that proj config manages.
@@ -47,13 +47,13 @@ func (r SyncResult) Human() string {
 	})
 	for _, c := range r.Changed {
 		if c.Changed {
-			fmt.Fprintf(&b, "    %s %s\n", ui.SymOK, c.Path)
+			fmt.Fprintf(&b, "    %s %s\n", uikit.SymOK, c.Path)
 		}
 	}
 	if changed == 0 {
-		fmt.Fprintf(&b, "  %s All managed files are up to date.\n", ui.SymOK)
+		fmt.Fprintf(&b, "  %s All managed files are up to date.\n", uikit.SymOK)
 	} else {
-		sym := lo.Ternary(r.DryRun, ui.SymWarn, ui.SymOK)
+		sym := lo.Ternary(r.DryRun, uikit.SymWarn, uikit.SymOK)
 		verb := lo.Ternary(r.DryRun, "would be updated", "updated")
 		fmt.Fprintf(&b, "  %s %d file(s) %s.\n", sym, changed, verb)
 	}

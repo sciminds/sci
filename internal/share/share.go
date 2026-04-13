@@ -28,6 +28,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/netutil"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -63,7 +64,7 @@ func Auth() (*AuthResult, error) {
 	// Show the user code and verification URL.
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "  Go to:  %s\n", dc.VerificationURI)
-	fmt.Fprintf(os.Stderr, "  Code:   %s\n", ui.TUI.Bold().Render(dc.UserCode))
+	fmt.Fprintf(os.Stderr, "  Code:   %s\n", uikit.TUI.Bold().Render(dc.UserCode))
 	fmt.Fprintln(os.Stderr)
 
 	// Best-effort open browser.

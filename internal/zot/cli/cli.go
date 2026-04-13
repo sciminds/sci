@@ -8,12 +8,12 @@
 package cli
 
 import (
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/urfave/cli/v3"
 )
 
 // experimental is the colored "[experimental]" tag prepended to Usage strings.
-var experimental = ui.TUI.TextPink().Render("[experimental]")
+var experimental = uikit.TUI.TextPink().Render("[experimental]")
 
 // Commands returns the full zot subcommand tree.
 // Entry points wrap this in their own root cli.Command.

@@ -5,7 +5,7 @@ import (
 	"github.com/samber/lo"
 	engine "github.com/sciminds/cli/internal/board"
 	"github.com/sciminds/cli/internal/tui/board/ui"
-	"github.com/sciminds/cli/internal/tui/kit"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // Model is the single Bubble Tea model for the board TUI. See doc.go for
@@ -25,14 +25,14 @@ type Model struct {
 
 	// Grid / Detail
 	current        engine.Board // folded state of the currently-open board
-	cur            kit.Grid2D
+	cur            uikit.Grid2D
 	lastSeen       string          // last event ID seen (for Poll)
 	gridScroll     int             // leftmost visible column in windowed mode
 	collapsed      map[string]bool // column IDs currently rendered as collapsed strips
 	initialGridCol int             // cursor column to apply when initialBoard first loads
 
 	// ── Routing ─────────────────────────────────────────
-	router kit.Router[screen, *Model]
+	router uikit.Router[screen, *Model]
 
 	// ── Layout ───────────────────────────────────────────
 	width  int
@@ -48,7 +48,7 @@ func NewModel(store *engine.Store, initialBoard string) *Model {
 		initialBoard:   initialBoard,
 		screen:         screenPicker,
 		styles:         ui.TUI,
-		cur:            kit.Grid2D{Col: 0, Row: -1},
+		cur:            uikit.Grid2D{Col: 0, Row: -1},
 		collapsed:      map[string]bool{},
 		initialGridCol: -1,
 	}
@@ -58,8 +58,8 @@ func NewModel(store *engine.Store, initialBoard string) *Model {
 
 // buildRouter wires each screen to its View / Keys / Title / Help.
 // Called once at construction time.
-func buildRouter() kit.Router[screen, *Model] {
-	return kit.NewRouter(map[screen]kit.Screen[*Model]{
+func buildRouter() uikit.Router[screen, *Model] {
+	return uikit.NewRouter(map[screen]uikit.Screen[*Model]{
 		screenPicker: {
 			View:  (*Model).viewPicker,
 			Keys:  (*Model).handlePickerKey,

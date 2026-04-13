@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 func TestTUISingletonNotNil(t *testing.T) {
@@ -34,7 +36,7 @@ func TestStyleAccessorsNonZero(t *testing.T) {
 }
 
 func TestOverlayViewAtZeroSize(t *testing.T) {
-	o := NewOverlay("title", "content", 0, 0)
+	o := uikit.NewOverlay("title", "content", 0, 0)
 	_ = o.View() // must not panic
 }
 
@@ -46,11 +48,11 @@ func TestOverlayWidth(t *testing.T) {
 	}{
 		{"clamps to min", 10, 30, 80, 30},
 		{"clamps to max", 200, 30, 80, 80},
-		{"within range", 60, 30, 80, 60 - OverlayMargin},
+		{"within range", 60, 30, 80, 60 - uikit.OverlayMargin},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := OverlayWidth(tt.termW, tt.min, tt.max)
+			got := uikit.OverlayWidth(tt.termW, tt.min, tt.max)
 			if got != tt.want {
 				t.Errorf("OverlayWidth(%d, %d, %d) = %d, want %d",
 					tt.termW, tt.min, tt.max, got, tt.want)
@@ -60,21 +62,21 @@ func TestOverlayWidth(t *testing.T) {
 }
 
 func TestDimBackground(t *testing.T) {
-	result := DimBackground("hello")
+	result := uikit.DimBackground("hello")
 	if !strings.Contains(result, "\033[2m") {
 		t.Error("DimBackground should contain SGR 2 (faint)")
 	}
 }
 
 func TestCancelFaint(t *testing.T) {
-	result := CancelFaint("hello")
+	result := uikit.CancelFaint("hello")
 	if !strings.Contains(result, "\033[22m") {
 		t.Error("CancelFaint should contain SGR 22 (cancel faint)")
 	}
 }
 
 func TestWordWrap(t *testing.T) {
-	got := WordWrap("one two three four five", 10)
+	got := uikit.WordWrap("one two three four five", 10)
 	lines := strings.Split(got, "\n")
 	if len(lines) < 2 {
 		t.Errorf("expected wrapping, got %d lines: %q", len(lines), got)

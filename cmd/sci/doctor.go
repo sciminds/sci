@@ -14,6 +14,7 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/doctor"
 	"github.com/sciminds/cli/internal/netutil"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -89,7 +90,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	if !netutil.Online() {
 		if !isJSON {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				ui.SymWarn, ui.TUI.Warn().Render("No internet connection — skipping Homebrew checks"))
+				uikit.SymWarn, uikit.TUI.Warn().Render("No internet connection — skipping Homebrew checks"))
 		}
 		if isJSON {
 			cmdutil.Output(cmd, result)
@@ -116,7 +117,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	if !isJSON && !created {
 		fmt.Fprintf(os.Stderr, "\n  %s Found Brewfile at %s\n",
-			ui.SymArrow, ui.TUI.TextBlue().Render(brewfilePath))
+			uikit.SymArrow, uikit.TUI.TextBlue().Render(brewfilePath))
 	}
 
 	// ── Steps 3b–4: Sync, required packages, tool check & install ──────
@@ -149,19 +150,19 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		dumpErr := runner.BundleDumpLive(brewfilePath)
 		if dumpErr != nil {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				ui.SymWarn, ui.TUI.Warn().Render("Could not capture installed packages: "+dumpErr.Error()))
+				uikit.SymWarn, uikit.TUI.Warn().Render("Could not capture installed packages: "+dumpErr.Error()))
 		} else {
 			n := len(brew.ParseBrewfileNames(mustReadFile(brewfilePath)))
 			fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
-				ui.SymOK, ui.TUI.TextBlue().Render(brewfilePath), n)
+				uikit.SymOK, uikit.TUI.TextBlue().Render(brewfilePath), n)
 		}
 	} else {
 		syncResult, syncErr := brew.Sync(runner, brewfilePath)
 		if syncErr != nil {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				ui.SymWarn, ui.TUI.Warn().Render("Could not sync Brewfile with system: "+syncErr.Error()))
+				uikit.SymWarn, uikit.TUI.Warn().Render("Could not sync Brewfile with system: "+syncErr.Error()))
 		} else if msg := syncResult.Human(); msg != "" {
-			fmt.Fprintf(os.Stderr, "  %s %s", ui.SymOK, msg)
+			fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
 		}
 	}
 
@@ -174,7 +175,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		names := entryNames(missingEntries)
 		fmt.Fprintf(os.Stderr, "\n  sci requires: %s %s\n",
 			strings.Join(names, ", "),
-			ui.TUI.Dim().Render("(not in your Brewfile)"))
+			uikit.TUI.Dim().Render("(not in your Brewfile)"))
 
 		addErr := cmdutil.ConfirmYes("Add them?")
 		if addErr == nil {
@@ -183,7 +184,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 				return fmt.Errorf("add required packages: %w", appendErr)
 			}
 			fmt.Fprintf(os.Stderr, "  %s Added %s to Brewfile\n",
-				ui.SymOK, strings.Join(added, ", "))
+				uikit.SymOK, strings.Join(added, ", "))
 		} else if !errors.Is(addErr, cmdutil.ErrCancelled) {
 			return addErr
 		}
@@ -202,7 +203,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	if toolCheckErr != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-			ui.SymWarn, ui.TUI.Warn().Render("Could not check tools: "+toolCheckErr.Error()))
+			uikit.SymWarn, uikit.TUI.Warn().Render("Could not check tools: "+toolCheckErr.Error()))
 		// Can't install if we don't know what's missing — skip to update check.
 		return runDoctorUpdateCheck(runner)
 	}
@@ -221,7 +222,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 		if errors.Is(installErr, cmdutil.ErrCancelled) {
 			fmt.Fprintf(os.Stderr, "\n  To install manually:\n")
-			fmt.Fprintf(os.Stderr, "    %s sci tools install\n", ui.SymArrow)
+			fmt.Fprintf(os.Stderr, "    %s sci tools install\n", uikit.SymArrow)
 			fmt.Fprintln(os.Stderr)
 		} else if installErr != nil {
 			return nil
@@ -231,9 +232,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 			_ = instResult.Output
 			if spinErr != nil {
 				fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-					ui.SymFail, ui.TUI.Fail().Render("Install failed: "+spinErr.Error()))
+					uikit.SymFail, uikit.TUI.Fail().Render("Install failed: "+spinErr.Error()))
 				fmt.Fprintf(os.Stderr, "\n  To install manually:\n")
-				fmt.Fprintf(os.Stderr, "    %s sci tools install\n", ui.SymArrow)
+				fmt.Fprintf(os.Stderr, "    %s sci tools install\n", uikit.SymArrow)
 				fmt.Fprintln(os.Stderr)
 			}
 		}
@@ -260,13 +261,13 @@ func printToolSummary(tools []doctor.ToolInfo) {
 	installed := lo.CountBy(tools, func(t doctor.ToolInfo) bool {
 		return t.Installed
 	})
-	sym := ui.SymOK
+	sym := uikit.SymOK
 	if installed < len(tools) {
-		sym = ui.SymFail
+		sym = uikit.SymFail
 	}
-	fmt.Fprintf(os.Stderr, "\n  %s\n", ui.TUI.Bold().Render("Tools"))
+	fmt.Fprintf(os.Stderr, "\n  %s\n", uikit.TUI.Bold().Render("Tools"))
 	fmt.Fprintf(os.Stderr, "    %s %-20s %s\n", sym, "installed",
-		ui.TUI.Dim().Render(fmt.Sprintf("%d/%d", installed, len(tools))))
+		uikit.TUI.Dim().Render(fmt.Sprintf("%d/%d", installed, len(tools))))
 }
 
 // entryNames extracts names from a slice of BrewfileEntry.
@@ -294,7 +295,7 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 	result, err := brew.Update(runner, true)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
-			ui.SymWarn, ui.TUI.Warn().Render("Could not check for updates: "+err.Error()))
+			uikit.SymWarn, uikit.TUI.Warn().Render("Could not check for updates: "+err.Error()))
 		return nil
 	}
 
@@ -305,8 +306,8 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 
 	fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(result.Outdated))
 	for _, pkg := range result.Outdated {
-		arrow := ui.TUI.TextPink().Render(" → ")
-		version := ui.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+		arrow := uikit.TUI.TextPink().Render(" → ")
+		version := uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 		fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
 	}
 	fmt.Fprintln(os.Stderr)
@@ -314,7 +315,7 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 	upgradeErr := cmdutil.ConfirmYes("Upgrade outdated packages?")
 	if errors.Is(upgradeErr, cmdutil.ErrCancelled) {
 		fmt.Fprintf(os.Stderr, "\n  To upgrade manually:\n")
-		fmt.Fprintf(os.Stderr, "    %s sci tools update\n", ui.SymArrow)
+		fmt.Fprintf(os.Stderr, "    %s sci tools update\n", uikit.SymArrow)
 		fmt.Fprintln(os.Stderr)
 		return nil
 	}
@@ -326,9 +327,9 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 	_, err = brew.UpgradeOnly(runner)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
-			ui.SymFail, ui.TUI.Fail().Render("Upgrade failed: "+err.Error()))
+			uikit.SymFail, uikit.TUI.Fail().Render("Upgrade failed: "+err.Error()))
 		fmt.Fprintf(os.Stderr, "\n  To upgrade manually:\n")
-		fmt.Fprintf(os.Stderr, "    %s sci tools update\n", ui.SymArrow)
+		fmt.Fprintf(os.Stderr, "    %s sci tools update\n", uikit.SymArrow)
 		fmt.Fprintln(os.Stderr)
 		return nil
 	}
@@ -338,7 +339,7 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 }
 
 func printAllSet() {
-	fmt.Fprintf(os.Stderr, "\n  🧠 %s\n\n", ui.TUI.Pass().Render("You're all set up!"))
+	fmt.Fprintf(os.Stderr, "\n  🧠 %s\n\n", uikit.TUI.Pass().Render("You're all set up!"))
 }
 
 // promptGitIdentity checks whether git user.name or user.email are missing
@@ -378,13 +379,13 @@ func promptGitIdentity(result doctor.DocResult) error {
 		if err := exec.Command("git", "config", "--global", "user.name", name).Run(); err != nil {
 			return fmt.Errorf("set git user.name: %w", err)
 		}
-		fmt.Fprintf(os.Stderr, "  %s Set git user.name to %s\n", ui.SymOK, ui.TUI.TextBlue().Render(name))
+		fmt.Fprintf(os.Stderr, "  %s Set git user.name to %s\n", uikit.SymOK, uikit.TUI.TextBlue().Render(name))
 	}
 	if email != "" {
 		if err := exec.Command("git", "config", "--global", "user.email", email).Run(); err != nil {
 			return fmt.Errorf("set git user.email: %w", err)
 		}
-		fmt.Fprintf(os.Stderr, "  %s Set git user.email to %s\n", ui.SymOK, ui.TUI.TextBlue().Render(email))
+		fmt.Fprintf(os.Stderr, "  %s Set git user.email to %s\n", uikit.SymOK, uikit.TUI.TextBlue().Render(email))
 	}
 
 	return nil

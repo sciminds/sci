@@ -9,6 +9,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/extract"
@@ -272,9 +273,9 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 				case extract.EventProcessing:
 					t.Status(ev.Document)
 				case extract.EventFinished:
-					t.Advance("extracted", fmt.Sprintf("%s %s (%.1fs)", ui.SymOK, ev.Document, ev.Duration.Seconds()))
+					t.Advance("extracted", fmt.Sprintf("%s %s (%.1fs)", uikit.SymOK, ev.Document, ev.Duration.Seconds()))
 				case extract.EventFailed:
-					t.Advance("failed", fmt.Sprintf("%s %s", ui.SymFail, ev.Document))
+					t.Advance("failed", fmt.Sprintf("%s %s", uikit.SymFail, ev.Document))
 				}
 			},
 			OnItemDone: func(i int, outcome extract.BatchOutcome) {
@@ -289,10 +290,10 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 				}
 				name := outcome.Item.Request.PDFName
 				if outcome.Err != nil {
-					t.Advance("failed", fmt.Sprintf("%s %s: %s", ui.SymFail, name, outcome.Err))
+					t.Advance("failed", fmt.Sprintf("%s %s: %s", uikit.SymFail, name, outcome.Err))
 					return
 				}
-				t.Advance("posted", fmt.Sprintf("%s %s", ui.SymOK, name))
+				t.Advance("posted", fmt.Sprintf("%s %s", uikit.SymOK, name))
 			},
 		})
 		batchResult = res

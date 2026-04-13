@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/sciminds/cli/internal/vid"
 	"github.com/urfave/cli/v3"
@@ -611,7 +612,7 @@ func runVidCompress(_ context.Context, cmd *cli.Command) error {
 		newInfo, _ := os.Stat(out)
 		if origInfo != nil && newInfo != nil {
 			pct := (1 - float64(newInfo.Size())/float64(origInfo.Size())) * 100
-			ui.OK(out + " " + ui.TUI.Dim().Render(fmt.Sprintf("(%.0f%% smaller)", pct)))
+			ui.OK(out + " " + uikit.TUI.Dim().Render(fmt.Sprintf("(%.0f%% smaller)", pct)))
 		} else {
 			ui.OK(out)
 		}

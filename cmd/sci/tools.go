@@ -10,6 +10,7 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/doctor"
 	"github.com/sciminds/cli/internal/netutil"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -158,15 +159,15 @@ func syncBrewfile(file string) {
 	if !netutil.Online() {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "  %s Ensuring Brewfile is up-to-date…\n", ui.SymArrow)
+	fmt.Fprintf(os.Stderr, "  %s Ensuring Brewfile is up-to-date…\n", uikit.SymArrow)
 	result, err := brew.Sync(brew.BundleRunner{}, file)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
-			ui.SymWarn, ui.TUI.Warn().Render("Could not sync Brewfile: "+err.Error()))
+			uikit.SymWarn, uikit.TUI.Warn().Render("Could not sync Brewfile: "+err.Error()))
 		return
 	}
 	if msg := result.Human(); msg != "" {
-		fmt.Fprintf(os.Stderr, "  %s %s", ui.SymArrow, msg)
+		fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymArrow, msg)
 	}
 }
 
@@ -206,7 +207,7 @@ func detectPkgType(pkg string) (string, error) {
 	case 0:
 		return "", fmt.Errorf("package %q not found in Homebrew or PyPI — use --formula, --cask, or --uv to specify the type explicitly", pkg)
 	case 1:
-		fmt.Fprintf(os.Stderr, "  %s Detected as %s\n", ui.SymArrow, matches[0].Type)
+		fmt.Fprintf(os.Stderr, "  %s Detected as %s\n", uikit.SymArrow, matches[0].Type)
 		return matches[0].Type, nil
 	default:
 		return promptPkgType(pkg, matches)

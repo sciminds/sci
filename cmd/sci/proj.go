@@ -12,7 +12,7 @@ import (
 	"github.com/sciminds/cli/internal/proj"
 	projnew "github.com/sciminds/cli/internal/proj/new"
 	configTUI "github.com/sciminds/cli/internal/proj/new/tui"
-	"github.com/sciminds/cli/internal/tui/kit"
+	"github.com/sciminds/cli/internal/tui/uikit"
 	"github.com/sciminds/cli/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -229,7 +229,7 @@ func runProjConfig(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	m, err := kit.RunModel(configTUI.New(configTUI.Options{Dir: dir, Files: files}))
+	m, err := uikit.RunModel(configTUI.New(configTUI.Options{Dir: dir, Files: files}))
 	if err != nil {
 		return fmt.Errorf("config TUI: %w", err)
 	}

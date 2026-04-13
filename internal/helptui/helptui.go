@@ -9,8 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/sciminds/cli/internal/guide"
-	"github.com/sciminds/cli/internal/tui/kit"
-	"github.com/sciminds/cli/internal/ui"
+	"github.com/sciminds/cli/internal/tui/uikit"
 )
 
 // level tracks navigation depth.
@@ -25,8 +24,8 @@ const (
 // model is the Bubble Tea model for the interactive help TUI.
 type model struct {
 	groups   []CommandGroup
-	commands kit.ListPicker // level 0: command picker
-	subs     kit.ListPicker // level 1: subcommand list
+	commands uikit.ListPicker // level 0: command picker
+	subs     uikit.ListPicker // level 1: subcommand list
 	player   *guide.Player
 	level    level
 	group    *CommandGroup // current group at level 1+
@@ -36,7 +35,7 @@ type model struct {
 }
 
 func newModel(groups []CommandGroup) *model {
-	lp := kit.NewListPicker("Commands", kit.Items(groups),
+	lp := uikit.NewListPicker("Commands", uikit.Items(groups),
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
 		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 	)
@@ -70,8 +69,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.subs.SetSize(msg.Width, msg.Height-m.descHeight())
 		}
 		if m.player != nil {
-			m.player.SetHeight(ui.OverlayBodyHeight(m.height, 4))
-			m.player.SetWidth(ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding)
+			m.player.SetHeight(uikit.OverlayBodyHeight(m.height, 4))
+			m.player.SetWidth(uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding)
 		}
 		return m, nil
 
@@ -135,7 +134,7 @@ func (m *model) updateCommands(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m *model) openGroup(g CommandGroup) {
 	m.group = &g
-	m.subs = kit.NewListPicker(g.Name, kit.Items(g.Subs),
+	m.subs = uikit.NewListPicker(g.Name, uikit.Items(g.Subs),
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play demo")),
 		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
 	)
@@ -177,8 +176,8 @@ func (m *model) updateSubs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.subs.StatusMessage(fmt.Sprintf("error: %v", err))
 			break
 		}
-		visH := ui.OverlayBodyHeight(m.height, 4)
-		visW := ui.OverlayWidth(m.width, ui.OverlayMinW, ui.OverlayMaxW) - ui.OverlayBoxPadding
+		visH := uikit.OverlayBodyHeight(m.height, 4)
+		visW := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding
 		m.player = guide.NewPlayer(cast, visH)
 		m.player.SetWidth(visW)
 		m.level = levelOverlay
@@ -236,7 +235,7 @@ func (m *model) renderDesc() string {
 	if w < 20 {
 		w = 20
 	}
-	body := ui.TUI.TextMid().Width(w).Render(m.group.LongDesc)
+	body := uikit.TUI.TextMid().Width(w).Render(m.group.LongDesc)
 	// one blank line below the description to separate from items
 	return body + "\n"
 }
@@ -279,14 +278,14 @@ func (m *model) View() tea.View {
 	}
 
 	fg := m.renderOverlay()
-	v := tea.NewView(ui.Compose(fg, bg))
+	v := tea.NewView(uikit.Compose(fg, bg))
 	v.AltScreen = true
 	return v
 }
 
 func (m *model) renderOverlay() string {
 	sub, _ := m.subs.SelectedItem().(SubCommand)
-	return kit.OverlayBox{
+	return uikit.OverlayBox{
 		Title: sub.Name,
 		Body:  m.player.View(),
 		Hints: []string{"space pause/play", "r restart", "esc close"},
@@ -297,11 +296,11 @@ func (m *model) renderOverlay() string {
 
 // Run launches the interactive help TUI showing all command groups.
 func Run(groups []CommandGroup) error {
-	return kit.Run(newModel(groups))
+	return uikit.Run(newModel(groups))
 }
 
 // RunGroup launches the help TUI for a single command group, skipping the
 // top-level picker.
 func RunGroup(g *CommandGroup) error {
-	return kit.Run(newModelForGroup(g))
+	return uikit.Run(newModelForGroup(g))
 }
