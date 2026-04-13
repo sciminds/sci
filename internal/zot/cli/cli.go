@@ -23,6 +23,8 @@ import "github.com/urfave/cli/v3"
 //	collection <subcommand>     collections (list/create/delete/add/remove)
 //	tags    <subcommand>        tags (list/add/remove/delete)
 //	notes   <subcommand>        docling extraction notes (list/read/add/update/delete)
+//	llm     <subcommand>        LLM-agent tools for querying docling notes
+//	                            llm {catalog,read,query}
 //	doctor  [subcommand]        hygiene: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates}
 //	extract <parent-key>        run docling PDF extraction pipeline
@@ -42,6 +44,7 @@ func Commands() []*cli.Command {
 		collectionCommand(),
 		tagsCommand(),
 		notesCommand(),
+		llmCommand(),
 		doctorCommand(),
 		extractCommand(),
 		extractLibCommand(),

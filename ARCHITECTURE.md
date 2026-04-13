@@ -6,11 +6,10 @@ This is a tour of how `sci` is built, written for someone who's comfortable with
 
 `sci` is a CLI toolkit for academic computing on macOS. It ships as a single static binary — no Python install, no Node, no `brew install` chain. Drop the binary on a machine and it works.
 
-The repo currently produces four binaries:
+The repo currently produces three binaries:
 
 - **`sci`** — the umbrella CLI (`sci db …`, `sci proj …`, `sci cass …`, etc.)
 - **`dbtui`** — a standalone SQLite browser (also reachable as `sci view`)
-- **`markdb`** — a standalone Markdown→SQLite tool (also reachable as `sci markdb`)
 - **`zot`** — experimental Zotero CLI (also reachable as `sci zot`)
 
 We picked Go for three reasons. First, it's typed and compiled, which means TDD with an LLM is reliable — the compiler catches the dumb stuff before tests even run. Second, single static binaries cross-compile from anything to anything; distribution is "upload to a GitHub release". Third, Eshin wanted to learn Go. All three reasons are still load-bearing.
@@ -42,9 +41,9 @@ Almost everything in `sci` that persists state uses SQLite, via `modernc.org/sql
 There are two ways we talk to SQLite, and the split matters:
 
 - **`pocketbase/dbx`** in `internal/db/data/`. A typed query builder, ergonomic for the database-manager commands (create, import, rename, etc.).
-- **Raw `database/sql`** in `internal/tui/dbtui/data/`, `internal/markdb/`, `internal/zot/local/`, and `internal/board/` (LocalCache).
+- **Raw `database/sql`** in `internal/tui/dbtui/data/`, `internal/zot/local/`, and `internal/board/` (LocalCache).
 
-The raw-SQL packages exist for two reasons. Either they need dynamic SQL the query builder can't express cleanly (FTS5, virtual tables, user-supplied queries), or they ship as standalone binaries (`dbtui`, `markdb`, `zot`) and we don't want to drag the entire pocketbase dependency into a 20MB tool. Both reasons are fine. Pick the right one when you add a new package.
+The raw-SQL packages exist for two reasons. Either they need dynamic SQL the query builder can't express cleanly (FTS5, virtual tables, user-supplied queries), or they ship as standalone binaries (`dbtui`, `zot`) and we don't want to drag the entire pocketbase dependency into a 20MB tool. Both reasons are fine. Pick the right one when you add a new package.
 
 ## Bubbletea, gently
 
@@ -102,7 +101,7 @@ The catch: once you `syscall.Exec`, your test can't observe what happened. So ev
 
 ## Two-surface CLIs
 
-`dbtui`, `markdb`, and `zot` exist as both standalone binaries (`cmd/dbtui/`, `cmd/markdb/`, `cmd/zot/`) and as `sci` subcommands (`sci view`, `sci markdb`, `sci zot`). To avoid duplicating wiring, the full urfave/cli command tree lives in `internal/<pkg>/cli.Commands()`, and both entry points import it. Add a subcommand in one place, it shows up in both surfaces. If you're tempted to write the same flag declaration twice, stop and find the shared `cli.Commands()`.
+`dbtui` and `zot` exist as both standalone binaries (`cmd/dbtui/`, `cmd/zot/`) and as `sci` subcommands (`sci view`, `sci zot`). To avoid duplicating wiring, the full urfave/cli command tree lives in `internal/<pkg>/cli.Commands()`, and both entry points import it. Add a subcommand in one place, it shows up in both surfaces. If you're tempted to write the same flag declaration twice, stop and find the shared `cli.Commands()`.
 
 ## The odd one out: `internal/board/`
 

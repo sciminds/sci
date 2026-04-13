@@ -2,6 +2,7 @@
 
 ## Workflow
 
+- **Audience: Python/JS developers learning Go.** Prefer `lo` over hand-rolled loops, explicit over clever, readable over terse.
 - **`just ok` is the gate.** Run after every change. Never invoke `go build` / `go test` / `gofmt` directly — always go through `justfile` recipes (`just test`, `just run …`, `just lint`, etc.). If you need a recipe that doesn't exist, add it.
 - **TDD by default** for new features and bug fixes: write the failing test first, then make it pass. Skip TDD only for trivial edits (typos, doc tweaks, one-line refactors).
 - **Bubbletea work → invoke the `bubbletea` skill** before designing layouts, fixing rendering bugs, or adding mouse/keyboard handling. Its `references/golden-rules.md` prevents the most common border/overflow bugs. Required for any new TUI screen.
@@ -11,6 +12,7 @@
 
 ```
 just ok              # gate: fmt + vet + lint + test + build
+just test-pkg PKG    # single-package tests (fast TDD loop): just test-pkg ./internal/zot
 just test-slow       # proj/new integration (~4 min, SLOW=1, needs pixi/uv/quarto/marimo/typst/node)
 just test-canvas     # cass integration (needs CANVAS_TOKEN in .env + gh auth login)
 just test-board-live # R2 round-trip + privacy assertion (BOARD_LIVE=1)
@@ -39,7 +41,7 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 
 - **`cmdutil.Result`:** every command returns `JSON() any` + `Human() string`; emit via `cmdutil.Output(cmd, result)`.
 - **CLI framework:** urfave/cli v3. All flags use `Local: true`.
-- **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/`, `internal/markdb/`, `internal/zot/local/`, `internal/board/` LocalCache. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
+- **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/`, `internal/zot/local/`, `internal/board/` LocalCache. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
 - **Bubbletea v2 + bubbles v2** everywhere. No v1 imports.
 - **No inline `lipgloss.NewStyle()`** outside `internal/ui/` or `internal/tui/*/ui/`. Access via the `ui.TUI` singleton. `huh` forms use `ui.HuhTheme()` + `ui.HuhKeyMap()`.
 - **`kit` first for TUI components.** Read `internal/tui/kit/README.md` for the full primitive catalog (ListPicker, OverlayBox, AsyncCmd, Screen/Router, Chrome, Grid2D). Prefer kit over hand-wiring bubbles directly. Extend kit when a pattern appears in ≥ 2 TUIs.
