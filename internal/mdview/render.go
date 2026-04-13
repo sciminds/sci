@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
+	"github.com/samber/lo"
 )
 
 var (
@@ -33,11 +34,7 @@ type renderCacheKey struct {
 // response escape sequences get misread as keyboard input.
 func DetectStyle() {
 	styleOnce.Do(func() {
-		if termenv.HasDarkBackground() {
-			styleName = "dark"
-		} else {
-			styleName = "light"
-		}
+		styleName = lo.Ternary(termenv.HasDarkBackground(), "dark", "light")
 	})
 }
 
@@ -46,10 +43,7 @@ func DetectStyle() {
 // concurrent use, so the lock spans the Render call itself.
 func renderLocked(markdown string, width int) (string, error) {
 	if cachedRenderer == nil || cachedWidth != width {
-		style := styleName
-		if style == "" {
-			style = "dark"
-		}
+		style, _ := lo.Coalesce(styleName, "dark")
 		r, err := glamour.NewTermRenderer(
 			glamour.WithStandardStyle(style),
 			glamour.WithWordWrap(width),

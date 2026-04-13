@@ -110,17 +110,10 @@ func severityForOrphan(k OrphanKind) Severity {
 // or empty input falls back to defaultOrphanKinds (not AllOrphanKinds —
 // the default excludes noisy/expensive sub-checks).
 func orphanKindsSelected(kinds []OrphanKind) map[OrphanKind]struct{} {
-	out := map[OrphanKind]struct{}{}
 	if len(kinds) == 0 {
-		for _, k := range defaultOrphanKinds {
-			out[k] = struct{}{}
-		}
-		return out
+		return lo.Keyify(defaultOrphanKinds)
 	}
-	for _, k := range kinds {
-		out[k] = struct{}{}
-	}
-	return out
+	return lo.Keyify(kinds)
 }
 
 // Orphans runs the configured sub-checks and returns a Report with one
@@ -179,10 +172,7 @@ func Orphans(db local.Reader, opts OrphansOptions) (*Report, error) {
 			return nil, err
 		}
 		for _, n := range ns {
-			title := n.Title
-			if title == "" {
-				title = "(untitled note)"
-			}
+			title := lo.Ternary(n.Title != "", n.Title, "(untitled note)")
 			findings = append(findings, Finding{
 				Check:    "orphans",
 				Kind:     string(OrphanStandaloneNote),

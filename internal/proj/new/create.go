@@ -56,11 +56,9 @@ func (r CreateResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r CreateResult) Human() string {
 	var b strings.Builder
-	if r.DryRun {
-		fmt.Fprintf(&b, "  %s would create %d files in %s\n", ui.SymWarn, len(r.Files), ui.TUI.Accent().Render(r.ProjectDir))
-	} else {
-		fmt.Fprintf(&b, "  %s Created %d files in %s\n", ui.SymOK, len(r.Files), ui.TUI.Accent().Render(r.ProjectDir))
-	}
+	sym := lo.Ternary(r.DryRun, ui.SymWarn, ui.SymOK)
+	verb := lo.Ternary(r.DryRun, "would create", "Created")
+	fmt.Fprintf(&b, "  %s %s %d files in %s\n", sym, verb, len(r.Files), ui.TUI.Accent().Render(r.ProjectDir))
 	for _, f := range r.Files {
 		fmt.Fprintf(&b, "    %s\n", ui.TUI.Dim().Render(f))
 	}

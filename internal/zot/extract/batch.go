@@ -206,14 +206,8 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	outcomes := make([]BatchOutcome, len(in.Items))
 	result := &BatchResult{Outcomes: outcomes}
 
-	now := time.Now
-	if in.Now != nil {
-		now = in.Now
-	}
-	tags := in.Tags
-	if tags == nil {
-		tags = defaultTags
-	}
+	now := lo.Ternary(in.Now != nil, in.Now, time.Now)
+	tags := lo.Ternary(in.Tags != nil, in.Tags, defaultTags)
 
 	// ── Phase 1: classify each item ──
 	// Indices of items that need docling extraction.
@@ -261,12 +255,9 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	}
 
 	// Count cached items for phase notification.
-	var nCached int
-	for i := range in.Items {
-		if outcomes[i].Action == ActionCreate && outcomes[i].FromCache {
-			nCached++
-		}
-	}
+	nCached := lo.CountBy(outcomes, func(o BatchOutcome) bool {
+		return o.Action == ActionCreate && o.FromCache
+	})
 
 	// ── Phase 2: post notes for cached items first ──
 	// Flushes prior extraction runs to Zotero before starting new
@@ -453,12 +444,9 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 
 	// ── Phase 4: post notes for freshly extracted items ──
 	// Count how many fresh items need posting (no error, not from cache).
-	var nFresh int
-	for i := range in.Items {
-		if outcomes[i].Err == nil && outcomes[i].Action == ActionCreate && !outcomes[i].FromCache {
-			nFresh++
-		}
-	}
+	nFresh := lo.CountBy(outcomes, func(o BatchOutcome) bool {
+		return o.Err == nil && o.Action == ActionCreate && !o.FromCache
+	})
 	if nFresh > 0 {
 		if in.OnPhase != nil {
 			in.OnPhase(PhasePostFresh, nFresh)

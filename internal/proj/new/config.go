@@ -52,10 +52,10 @@ func (r SyncResult) Human() string {
 	}
 	if changed == 0 {
 		fmt.Fprintf(&b, "  %s All managed files are up to date.\n", ui.SymOK)
-	} else if r.DryRun {
-		fmt.Fprintf(&b, "  %s %d file(s) would be updated.\n", ui.SymWarn, changed)
 	} else {
-		fmt.Fprintf(&b, "  %s %d file(s) updated.\n", ui.SymOK, changed)
+		sym := lo.Ternary(r.DryRun, ui.SymWarn, ui.SymOK)
+		verb := lo.Ternary(r.DryRun, "would be updated", "updated")
+		fmt.Fprintf(&b, "  %s %d file(s) %s.\n", sym, changed, verb)
 	}
 	return b.String()
 }

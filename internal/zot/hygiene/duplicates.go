@@ -103,14 +103,9 @@ func RunDuplicates(cands []DuplicateCandidate, opts DuplicatesOptions) []Cluster
 
 	out := doiClusters
 	for _, c := range titleClusters {
-		overlap := false
-		for _, m := range c.Members {
-			if claimed[m.Key] {
-				overlap = true
-				break
-			}
-		}
-		if overlap {
+		if lo.ContainsBy(c.Members, func(m ClusterMember) bool {
+			return claimed[m.Key]
+		}) {
 			continue
 		}
 		for _, m := range c.Members {
@@ -181,20 +176,18 @@ func ClusterByDOI(cands []DuplicateCandidate) []Cluster {
 
 	keys := slices.Sorted(maps.Keys(buckets))
 
-	var out []Cluster
-	for _, k := range keys {
+	return lo.FilterMap(keys, func(k string, _ int) (Cluster, bool) {
 		members := buckets[k]
 		if len(members) < 2 {
-			continue
+			return Cluster{}, false
 		}
-		out = append(out, Cluster{
+		return Cluster{
 			Check:     "duplicates",
 			MatchType: "doi",
 			Score:     1.0,
 			Members:   toMembers(members),
-		})
-	}
-	return out
+		}, true
+	})
 }
 
 // normalizeDOI folds superficial differences (whitespace, case, URL
@@ -357,10 +350,9 @@ func ClusterByTitle(cands []DuplicateCandidate, threshold float64, fuzzy bool) [
 			continue
 		}
 		claimed[iIdx] = true
-		members := make([]DuplicateCandidate, 0, len(cluster))
-		for _, idx := range cluster {
-			members = append(members, entries[idx].cand)
-		}
+		members := lo.Map(cluster, func(idx int, _ int) DuplicateCandidate {
+			return entries[idx].cand
+		})
 		out = append(out, Cluster{
 			Check:     "duplicates",
 			MatchType: "title-fuzzy",

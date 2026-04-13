@@ -82,13 +82,9 @@ func NewSelectList(items []SelectItem, opts ...SelectListOption) SelectList {
 
 // SelectedIndices returns the indices of selected items.
 func (sl SelectList) SelectedIndices() []int {
-	var indices []int
-	for i, e := range sl.items {
-		if e.selected {
-			indices = append(indices, i)
-		}
-	}
-	return indices
+	return lo.FilterMap(sl.items, func(e selectEntry, i int) (int, bool) {
+		return i, e.selected
+	})
 }
 
 // SelectedCount returns how many items are selected.
@@ -180,24 +176,12 @@ func (sl SelectList) Update(msg tea.Msg) (SelectList, tea.Cmd) {
 			sl.items[sl.cursor].selected = !sl.items[sl.cursor].selected
 		}
 	case KeyA:
-		allSelected := true
-		for _, e := range sl.items {
-			if !e.selected {
-				allSelected = false
-				break
-			}
-		}
+		allSelected := lo.EveryBy(sl.items, func(e selectEntry) bool { return e.selected })
 		for i := range sl.items {
 			sl.items[i].selected = !allSelected
 		}
 	case KeyEnter:
-		anySelected := false
-		for _, e := range sl.items {
-			if e.selected {
-				anySelected = true
-				break
-			}
-		}
+		anySelected := lo.SomeBy(sl.items, func(e selectEntry) bool { return e.selected })
 		if !anySelected {
 			return sl, tea.Quit
 		}

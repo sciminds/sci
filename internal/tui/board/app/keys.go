@@ -2,6 +2,7 @@ package app
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 )
 
 // handleKey routes a single key press based on the active screen.
@@ -105,13 +106,7 @@ func (m *Model) siblingBoardID(delta int) string {
 	if n < 2 {
 		return ""
 	}
-	idx := -1
-	for i, id := range m.boards {
-		if id == m.current.ID {
-			idx = i
-			break
-		}
-	}
+	idx := lo.IndexOf(m.boards, m.current.ID)
 	if idx < 0 {
 		return ""
 	}

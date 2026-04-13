@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -19,12 +20,9 @@ func (r SetupResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r SetupResult) Human() string {
+	sym := lo.Ternary(r.OK, ui.SymOK, ui.SymFail)
 	var b strings.Builder
-	if r.OK {
-		fmt.Fprintf(&b, "  %s %s\n", ui.SymOK, r.Message)
-	} else {
-		fmt.Fprintf(&b, "  %s %s\n", ui.SymFail, r.Message)
-	}
+	fmt.Fprintf(&b, "  %s %s\n", sym, r.Message)
 	return b.String()
 }
 

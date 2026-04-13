@@ -144,10 +144,7 @@ func (r DocResult) Human() string {
 		installed := lo.CountBy(r.Tools, func(t ToolInfo) bool {
 			return t.Installed
 		})
-		sym := ui.SymOK
-		if installed < len(r.Tools) {
-			sym = ui.SymFail
-		}
+		sym := lo.Ternary(installed < len(r.Tools), ui.SymFail, ui.SymOK)
 		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Bold().Render("Tools"))
 		fmt.Fprintf(&b, "    %s %-20s %s\n", sym, "installed",
 			ui.TUI.Dim().Render(fmt.Sprintf("%d/%d", installed, len(r.Tools))))

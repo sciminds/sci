@@ -52,10 +52,7 @@ func (r OptionalToolsResult) Human() string {
 	}
 	var b strings.Builder
 	for _, t := range r.Tools {
-		status := "missing"
-		if t.Installed {
-			status = "installed"
-		}
+		status := lo.Ternary(t.Installed, "installed", "missing")
 		fmt.Fprintf(&b, "  %s (%s): %s\n", t.Name, t.Type, status)
 	}
 	return b.String()
@@ -136,14 +133,7 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 	}
 
 	// All tools already installed — nothing to show.
-	allInstalled := true
-	for _, e := range entries {
-		if missing[e.Name] {
-			allInstalled = false
-			break
-		}
-	}
-	if allInstalled {
+	if lo.NoneBy(entries, func(e brew.BrewfileEntry) bool { return missing[e.Name] }) {
 		return OptionalSetupResult{}, nil
 	}
 

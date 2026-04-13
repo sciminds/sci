@@ -276,16 +276,10 @@ func Sync(r Runner, path string) (SyncResult, error) {
 	})
 
 	// Compute removals: in Brewfile but not on system (scannable types only).
-	var toRemove []BrewfileEntry
-	for _, e := range ParseBrewfileEntries(string(existing)) {
-		key := e.Type + "\t" + e.Name
-		if !scannableTypes[e.Type] {
-			continue
-		}
-		if _, onSystem := systemSet[key]; !onSystem {
-			toRemove = append(toRemove, e)
-		}
-	}
+	toRemove := lo.Filter(ParseBrewfileEntries(string(existing)), func(e BrewfileEntry, _ int) bool {
+		_, onSystem := systemSet[e.Type+"\t"+e.Name]
+		return scannableTypes[e.Type] && !onSystem
+	})
 
 	var result SyncResult
 	if len(toAdd) > 0 {

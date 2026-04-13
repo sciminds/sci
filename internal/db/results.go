@@ -55,22 +55,15 @@ func (r InfoResult) counts() (tables, views, virtual int) {
 func (r InfoResult) summaryLabel(nTables, nViews, nVirtual int) string {
 	var parts []string
 	if nTables > 0 {
-		label := "tables"
-		if nTables == 1 {
-			label = "table"
-		}
+		label := lo.Ternary(nTables == 1, "table", "tables")
 		parts = append(parts, ui.TUI.Accent().Render(fmt.Sprintf("%d %s", nTables, label)))
 	}
 	if nViews > 0 {
-		label := "views"
-		if nViews == 1 {
-			label = "view"
-		}
+		label := lo.Ternary(nViews == 1, "view", "views")
 		parts = append(parts, ui.TUI.FgSecondary().Render(fmt.Sprintf("%d %s", nViews, label)))
 	}
 	if nVirtual > 0 {
-		label := "virtual"
-		parts = append(parts, ui.TUI.FgMuted().Render(fmt.Sprintf("%d %s", nVirtual, label)))
+		parts = append(parts, ui.TUI.FgMuted().Render(fmt.Sprintf("%d %s", nVirtual, "virtual")))
 	}
 	if len(parts) == 0 {
 		return "0 tables"
@@ -122,12 +115,10 @@ func writeTableRows(b *strings.Builder, entries []TableEntry, hasViews, hasVirtu
 	if hasVirtual {
 		headerParts = append(headerParts, ui.TUI.FgMuted().Render("virtual"))
 	}
-	var header string
-	if len(headerParts) == 1 {
-		header = "table"
-	} else {
-		header = strings.Join(headerParts, ui.TUI.Dim().Render(" / "))
-	}
+	header := lo.Ternary(len(headerParts) == 1,
+		"table",
+		strings.Join(headerParts, ui.TUI.Dim().Render(" / ")),
+	)
 
 	// Compute column widths from data and header.
 	nameW := visLen(header)
@@ -219,8 +210,6 @@ func (r MutationResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r MutationResult) Human() string {
-	if r.OK {
-		return fmt.Sprintf("  %s %s\n", ui.SymOK, r.Message)
-	}
-	return fmt.Sprintf("  %s %s\n", ui.SymFail, r.Message)
+	sym := lo.Ternary(r.OK, ui.SymOK, ui.SymFail)
+	return fmt.Sprintf("  %s %s\n", sym, r.Message)
 }

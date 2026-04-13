@@ -47,10 +47,7 @@ func (r *DiffResult) Human() string {
 			ui.TUI.Dim().Render("Baseline"),
 			ui.TUI.Dim().Render("Local"))
 		for _, c := range changes {
-			baseline := c.Baseline
-			if baseline == "" {
-				baseline = "-"
-			}
+			baseline := lo.Ternary(c.Baseline == "", "-", c.Baseline)
 			fmt.Fprintf(&b, "    %-25s %-10s → %s\n", c.StudentName, baseline, c.Current)
 		}
 	}
@@ -109,10 +106,7 @@ func DiffLocal(db *DB) (*DiffResult, error) {
 
 	changes := make([]GradeChange, len(rows))
 	for i, r := range rows {
-		baseline := ""
-		if r.Baseline.Valid {
-			baseline = r.Baseline.String
-		}
+		baseline := lo.Ternary(r.Baseline.Valid, r.Baseline.String, "")
 		changes[i] = GradeChange{
 			StudentID:          r.StudentID,
 			StudentName:        nameMap[r.StudentID],
@@ -168,18 +162,9 @@ func (r *RemoteDiffResult) Human() string {
 			ui.TUI.Dim().Render("Canvas"),
 			ui.TUI.Dim().Render("Local"))
 		for _, c := range changes {
-			baseline := c.Baseline
-			if baseline == "" {
-				baseline = "-"
-			}
-			live := c.Live
-			if live == "" {
-				live = "-"
-			}
-			marker := " "
-			if c.Conflict {
-				marker = ui.SymWarn
-			}
+			baseline := lo.Ternary(c.Baseline == "", "-", c.Baseline)
+			live := lo.Ternary(c.Live == "", "-", c.Live)
+			marker := lo.Ternary(c.Conflict, ui.SymWarn, " ")
 			fmt.Fprintf(&b, "  %s %-25s %-10s %-10s → %s\n", marker, c.StudentName, baseline, live, c.Current)
 		}
 	}

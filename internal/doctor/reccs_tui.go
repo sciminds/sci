@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/ui"
 )
@@ -105,12 +106,10 @@ func (m reccsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "enter":
 			if item, ok := m.list.SelectedItem().(reccsItem); ok {
-				for i, e := range m.entries {
-					if e.Name == item.entry.Name {
-						m.chosen = i
-						break
-					}
-				}
+				_, idx, _ := lo.FindIndexOf(m.entries, func(e brew.BrewfileEntry) bool {
+					return e.Name == item.entry.Name
+				})
+				m.chosen = idx
 			}
 			return m, tea.Quit
 		}

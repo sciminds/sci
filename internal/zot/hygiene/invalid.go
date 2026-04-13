@@ -139,17 +139,16 @@ func InvalidFromFieldValues(rows []local.FieldValue) *Report {
 
 	// Build per-field coverage in AllInvalidFields order so the renderer
 	// shows known fields even when they had zero rows.
-	coverage := make([]InvalidFieldCoverage, 0, len(AllInvalidFields))
-	for _, f := range AllInvalidFields {
-		if cov, ok := perField[string(f)]; ok {
-			pct := 0.0
-			if cov.Scanned > 0 {
-				pct = 100 * float64(cov.Scanned-cov.Bad) / float64(cov.Scanned)
-			}
-			cov.PercentGood = pct
-			coverage = append(coverage, *cov)
+	coverage := lo.FilterMap(AllInvalidFields, func(f InvalidField, _ int) (InvalidFieldCoverage, bool) {
+		cov, ok := perField[string(f)]
+		if !ok {
+			return InvalidFieldCoverage{}, false
 		}
-	}
+		if cov.Scanned > 0 {
+			cov.PercentGood = 100 * float64(cov.Scanned-cov.Bad) / float64(cov.Scanned)
+		}
+		return *cov, true
+	})
 
 	return &Report{
 		Check:    "invalid",

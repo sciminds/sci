@@ -26,11 +26,7 @@ func (r CloudResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r CloudResult) Human() string {
 	var b strings.Builder
-	if r.OK {
-		fmt.Fprintf(&b, "  %s %s\n", ui.SymOK, r.Message)
-	} else {
-		fmt.Fprintf(&b, "  %s %s\n", ui.SymFail, r.Message)
-	}
+	fmt.Fprintf(&b, "  %s %s\n", lo.Ternary(r.OK, ui.SymOK, ui.SymFail), r.Message)
 	if r.URL != "" {
 		fmt.Fprintf(&b, "\n  %s  %s\n", ui.TUI.Dim().Render("url"), r.URL)
 		fmt.Fprintf(&b, "  %s  sci cloud get <name>\n", ui.TUI.Dim().Render("get"))
@@ -52,11 +48,7 @@ func (r AuthResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r AuthResult) Human() string {
 	var b strings.Builder
-	if r.OK {
-		fmt.Fprintf(&b, "  %s %s\n", ui.SymOK, r.Message)
-	} else {
-		fmt.Fprintf(&b, "  %s %s\n", ui.SymFail, r.Message)
-	}
+	fmt.Fprintf(&b, "  %s %s\n", lo.Ternary(r.OK, ui.SymOK, ui.SymFail), r.Message)
 	if r.Action == "login" || r.Action == "status" {
 		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("Try these next:"))
 		fmt.Fprintf(&b, "    sci cloud put                 Upload a file\n")

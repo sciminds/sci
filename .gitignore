@@ -29,4 +29,6 @@ tutorials/my_figure*
 pyzotero*/
 zotero*/
 test-pdfs/*
-
+scripts/*.py
+scripts/*.ipynb
+todo.md
