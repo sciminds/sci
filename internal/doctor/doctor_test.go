@@ -73,11 +73,11 @@ func TestCheckIdentity_Structure(t *testing.T) {
 	}
 }
 
-func TestRunAll_ReturnsSections(t *testing.T) {
-	sections := RunAll()
+func TestRunPreflightIdentity_ReturnsSections(t *testing.T) {
+	sections := RunPreflightIdentity()
 
 	if len(sections) != len(checkFuncs) {
-		t.Fatalf("RunAll returned %d sections, want %d", len(sections), len(checkFuncs))
+		t.Fatalf("RunPreflightIdentity returned %d sections, want %d", len(sections), len(checkFuncs))
 	}
 
 	for i, sec := range sections {
@@ -169,8 +169,7 @@ type mockBrewRunner struct {
 	bundleCheckErr error
 	installCalls   []string
 	installErr     error
-	dumpErr        error
-	dumpLiveErr    error
+	leavesErr      error
 	outdated       []brew.OutdatedPackage
 	outdatedErr    error
 	uvOutdated     []brew.OutdatedPackage
@@ -182,11 +181,6 @@ type mockBrewRunner struct {
 	uvUpgradeErr   error
 }
 
-func (m *mockBrewRunner) BundleAdd(_, _, _ string) error           { return nil }
-func (m *mockBrewRunner) BundleRemove(_, _, _ string) error        { return nil }
-func (m *mockBrewRunner) BundleDump(_ string) error                { return m.dumpErr }
-func (m *mockBrewRunner) BundleDumpLive(_ string) error            { return m.dumpLiveErr }
-func (m *mockBrewRunner) BundleCleanup(_ string) (string, error)   { return "", nil }
 func (m *mockBrewRunner) BundleList(_, _ string) ([]string, error) { return nil, nil }
 func (m *mockBrewRunner) Info(_ []string, _ bool) ([]brew.PackageInfo, error) {
 	return nil, nil
@@ -201,7 +195,13 @@ func (m *mockBrewRunner) BundleCheck(_ string) ([]string, error) {
 	return m.missing, m.bundleCheckErr
 }
 
-func (m *mockBrewRunner) Update() error { return m.updateErr }
+func (m *mockBrewRunner) Leaves() ([]string, error)         { return nil, m.leavesErr }
+func (m *mockBrewRunner) ListFormulae() ([]string, error)   { return nil, nil }
+func (m *mockBrewRunner) ListCasks() ([]string, error)      { return nil, nil }
+func (m *mockBrewRunner) Taps() ([]string, error)           { return nil, nil }
+func (m *mockBrewRunner) DirectInstall(_, _ string) error   { return nil }
+func (m *mockBrewRunner) DirectUninstall(_, _ string) error { return nil }
+func (m *mockBrewRunner) Update() error                     { return m.updateErr }
 func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error) {
 	return m.outdated, m.outdatedErr
 }

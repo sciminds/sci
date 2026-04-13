@@ -44,27 +44,22 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 		BrewfileCreated: created,
 	}
 
-	// ── Sync or dump ────────────────────────────────────────────────────
-	if created {
-		err := r.BundleDump(brewfilePath)
-		if err != nil && !uikit.IsQuiet() {
-			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				uikit.SymWarn, uikit.TUI.Warn().Render("Could not capture installed packages: "+err.Error()))
-		} else if err == nil && !uikit.IsQuiet() {
+	// ── Sync Brewfile with system state ─────────────────────────────────
+	syncResult, syncErr := brew.Sync(r, brewfilePath)
+	if syncErr != nil && !uikit.IsQuiet() {
+		msg := "Could not sync Brewfile with system: " + syncErr.Error()
+		if created {
+			msg = "Could not capture installed packages: " + syncErr.Error()
+		}
+		fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymWarn, uikit.TUI.Warn().Render(msg))
+	} else if syncErr == nil && !uikit.IsQuiet() {
+		if created {
 			data, _ := os.ReadFile(brewfilePath)
 			n := len(brew.ParseBrewfileNames(string(data)))
 			fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
 				uikit.SymOK, uikit.TUI.TextBlue().Render(brewfilePath), n)
-		}
-	} else {
-		syncResult, err := brew.Sync(r, brewfilePath)
-		if err != nil && !uikit.IsQuiet() {
-			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				uikit.SymWarn, uikit.TUI.Warn().Render("Could not sync Brewfile with system: "+err.Error()))
-		} else if err == nil {
-			if msg := syncResult.Human(); msg != "" && !uikit.IsQuiet() {
-				fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
-			}
+		} else if msg := syncResult.Human(); msg != "" {
+			fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
 		}
 	}
 

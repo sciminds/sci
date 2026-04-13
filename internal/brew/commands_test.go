@@ -19,24 +19,34 @@ var (
 // ListDetailed fans out BundleList across goroutines, so mutations to
 // listCalls must be guarded.
 type mockRunner struct {
-	mu           sync.Mutex
-	addCalls     []mockCall
-	removeCalls  []mockCall
-	installCalls []string
-	checkCalls   []string
-	cleanupCalls []string
-	dumpContent  string
-	dumpErr      error
-	listCalls    []mockCall
+	mu        sync.Mutex
+	listCalls []mockCall
 
-	installErr  error
-	checkResult []string
-	checkErr    error
-	cleanupErr  error
-	listResult  []string
-	listErr     error
-	infoResult  []PackageInfo
-	infoErr     error
+	installCalls []string
+	installErr   error
+	checkCalls   []string
+	checkResult  []string
+	checkErr     error
+	listResult   []string
+	listErr      error
+	infoResult   []PackageInfo
+	infoErr      error
+
+	// Leaves-based sync fields.
+	leavesResult       []string
+	leavesErr          error
+	listFormulaeResult []string
+	listFormulaeErr    error
+	listCasksResult    []string
+	listCasksErr       error
+	tapsResult         []string
+	tapsErr            error
+
+	// Direct install/uninstall tracking.
+	directInstallCalls   []mockCall
+	directInstallErr     error
+	directUninstallCalls []mockCall
+	directUninstallErr   error
 
 	updateCalls      int
 	updateErr        error
@@ -58,16 +68,6 @@ type mockCall struct {
 	file, pkg, pkgType string
 }
 
-func (m *mockRunner) BundleAdd(file, pkg, pkgType string) error {
-	m.addCalls = append(m.addCalls, mockCall{file, pkg, pkgType})
-	return nil
-}
-
-func (m *mockRunner) BundleRemove(file, pkg, pkgType string) error {
-	m.removeCalls = append(m.removeCalls, mockCall{file, pkg, pkgType})
-	return nil
-}
-
 func (m *mockRunner) BundleInstall(file string) (string, error) {
 	m.installCalls = append(m.installCalls, file)
 	return "installed", m.installErr
@@ -76,25 +76,6 @@ func (m *mockRunner) BundleInstall(file string) (string, error) {
 func (m *mockRunner) BundleCheck(file string) ([]string, error) {
 	m.checkCalls = append(m.checkCalls, file)
 	return m.checkResult, m.checkErr
-}
-
-func (m *mockRunner) BundleDump(file string) error {
-	if m.dumpErr != nil {
-		return m.dumpErr
-	}
-	if m.dumpContent != "" {
-		return os.WriteFile(file, []byte(m.dumpContent), 0o644)
-	}
-	return nil
-}
-
-func (m *mockRunner) BundleDumpLive(file string) error {
-	return m.BundleDump(file)
-}
-
-func (m *mockRunner) BundleCleanup(file string) (string, error) {
-	m.cleanupCalls = append(m.cleanupCalls, file)
-	return "cleaned", m.cleanupErr
 }
 
 func (m *mockRunner) BundleList(file, pkgType string) ([]string, error) {
@@ -106,6 +87,32 @@ func (m *mockRunner) BundleList(file, pkgType string) ([]string, error) {
 
 func (m *mockRunner) Info(_ []string, _ bool) ([]PackageInfo, error) {
 	return m.infoResult, m.infoErr
+}
+
+func (m *mockRunner) Leaves() ([]string, error) {
+	return m.leavesResult, m.leavesErr
+}
+
+func (m *mockRunner) ListFormulae() ([]string, error) {
+	return m.listFormulaeResult, m.listFormulaeErr
+}
+
+func (m *mockRunner) ListCasks() ([]string, error) {
+	return m.listCasksResult, m.listCasksErr
+}
+
+func (m *mockRunner) Taps() ([]string, error) {
+	return m.tapsResult, m.tapsErr
+}
+
+func (m *mockRunner) DirectInstall(pkg, pkgType string) error {
+	m.directInstallCalls = append(m.directInstallCalls, mockCall{pkg: pkg, pkgType: pkgType})
+	return m.directInstallErr
+}
+
+func (m *mockRunner) DirectUninstall(pkg, pkgType string) error {
+	m.directUninstallCalls = append(m.directUninstallCalls, mockCall{pkg: pkg, pkgType: pkgType})
+	return m.directUninstallErr
 }
 
 func (m *mockRunner) Update() error {
@@ -148,106 +155,122 @@ func brewfile(t *testing.T, content string) string {
 func TestAdd_HappyPath(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, `brew "existing"`)
-	m := &mockRunner{}
+	m := &mockRunner{
+		// After DirectInstall, Sync sees both existing and htop as leaves.
+		leavesResult:       []string{"existing", "htop"},
+		listFormulaeResult: []string{"existing", "htop"},
+	}
 
 	result, err := Add(m, bf, "htop", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Runner was called in correct order: add then install
-	if len(m.addCalls) != 1 {
-		t.Fatalf("expected 1 add call, got %d", len(m.addCalls))
+	if len(m.directInstallCalls) != 1 {
+		t.Fatalf("expected 1 DirectInstall call, got %d", len(m.directInstallCalls))
 	}
-	if m.addCalls[0].pkg != "htop" {
-		t.Errorf("add pkg = %q, want %q", m.addCalls[0].pkg, "htop")
-	}
-	if len(m.installCalls) != 1 {
-		t.Fatalf("expected 1 install call, got %d", len(m.installCalls))
+	if m.directInstallCalls[0].pkg != "htop" {
+		t.Errorf("DirectInstall pkg = %q, want %q", m.directInstallCalls[0].pkg, "htop")
 	}
 
 	if result.Package != "htop" {
 		t.Errorf("result.Package = %q, want %q", result.Package, "htop")
+	}
+
+	// Brewfile should now contain htop via Sync.
+	got, _ := os.ReadFile(bf)
+	if !strings.Contains(string(got), "htop") {
+		t.Errorf("Brewfile should contain htop after Sync:\n%s", got)
 	}
 }
 
 func TestAdd_WithType(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, "")
-	m := &mockRunner{}
+	m := &mockRunner{
+		listCasksResult: []string{"firefox"},
+	}
 
 	_, err := Add(m, bf, "firefox", "cask")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if m.addCalls[0].pkgType != "cask" {
-		t.Errorf("add pkgType = %q, want %q", m.addCalls[0].pkgType, "cask")
+	if m.directInstallCalls[0].pkgType != "cask" {
+		t.Errorf("DirectInstall pkgType = %q, want %q", m.directInstallCalls[0].pkgType, "cask")
 	}
 }
 
-func TestAdd_RollbackOnInstallFailure(t *testing.T) {
+func TestAdd_BrewfileUnchangedOnInstallFailure(t *testing.T) {
 	t.Parallel()
 	original := `brew "existing"` + "\n"
 	bf := brewfile(t, original)
-	m := &mockRunner{installErr: errors.New("install failed")}
+	m := &mockRunner{directInstallErr: errors.New("install failed")}
 
 	_, err := Add(m, bf, "htop", "")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 
-	// Brewfile should be restored to original content
+	// Brewfile should be untouched — Sync never ran because DirectInstall failed.
 	got, readErr := os.ReadFile(bf)
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
 	if string(got) != original {
-		t.Errorf("Brewfile not restored.\ngot:  %q\nwant: %q", string(got), original)
+		t.Errorf("Brewfile should be unchanged.\ngot:  %q\nwant: %q", string(got), original)
 	}
 }
 
 func TestRemove_HappyPath(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, `brew "htop"`+"\n"+`brew "curl"`+"\n")
-	m := &mockRunner{}
+	m := &mockRunner{
+		// After DirectUninstall, only curl remains as a leaf.
+		leavesResult:       []string{"curl"},
+		listFormulaeResult: []string{"curl"},
+	}
 
 	result, err := Remove(m, bf, "htop", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(m.removeCalls) != 1 {
-		t.Fatalf("expected 1 remove call, got %d", len(m.removeCalls))
+	if len(m.directUninstallCalls) != 1 {
+		t.Fatalf("expected 1 DirectUninstall call, got %d", len(m.directUninstallCalls))
 	}
-	if m.removeCalls[0].pkg != "htop" {
-		t.Errorf("remove pkg = %q, want %q", m.removeCalls[0].pkg, "htop")
-	}
-	if len(m.cleanupCalls) != 1 {
-		t.Fatalf("expected 1 cleanup call, got %d", len(m.cleanupCalls))
+	if m.directUninstallCalls[0].pkg != "htop" {
+		t.Errorf("DirectUninstall pkg = %q, want %q", m.directUninstallCalls[0].pkg, "htop")
 	}
 	if result.Package != "htop" {
 		t.Errorf("result.Package = %q, want %q", result.Package, "htop")
 	}
+
+	// htop should be removed from Brewfile via Sync.
+	got, _ := os.ReadFile(bf)
+	if strings.Contains(string(got), "htop") {
+		t.Errorf("Brewfile should not contain htop after Remove:\n%s", got)
+	}
 }
 
-func TestRemove_RollbackOnCleanupFailure(t *testing.T) {
+func TestRemove_BrewfileUnchangedOnUninstallFailure(t *testing.T) {
 	t.Parallel()
 	original := `brew "htop"` + "\n" + `brew "curl"` + "\n"
 	bf := brewfile(t, original)
-	m := &mockRunner{cleanupErr: errors.New("cleanup failed")}
+	m := &mockRunner{directUninstallErr: errors.New("uninstall failed")}
 
 	_, err := Remove(m, bf, "htop", "")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 
+	// Brewfile should be untouched — Sync never ran because DirectUninstall failed.
 	got, readErr := os.ReadFile(bf)
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
 	if string(got) != original {
-		t.Errorf("Brewfile not restored.\ngot:  %q\nwant: %q", string(got), original)
+		t.Errorf("Brewfile should be unchanged.\ngot:  %q\nwant: %q", string(got), original)
 	}
 }
 
@@ -733,7 +756,7 @@ func TestSyncResult_Human_Both(t *testing.T) {
 func TestSync_NoChanges(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\n")
-	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
+	m := &mockRunner{leavesResult: []string{"htop"}, listFormulaeResult: []string{"htop"}}
 
 	result, err := Sync(m, bf)
 	if err != nil {
@@ -747,7 +770,7 @@ func TestSync_NoChanges(t *testing.T) {
 func TestSync_AddsBrewEntries(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\n")
-	m := &mockRunner{dumpContent: "brew \"htop\"\nbrew \"curl\"\n"}
+	m := &mockRunner{leavesResult: []string{"htop", "curl"}, listFormulaeResult: []string{"htop", "curl"}}
 
 	result, err := Sync(m, bf)
 	if err != nil {
@@ -785,7 +808,7 @@ func TestSync_AddsUVEntries(t *testing.T) {
 func TestSync_RemovesBrewEntries(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\nbrew \"wget\"\n")
-	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
+	m := &mockRunner{leavesResult: []string{"htop"}, listFormulaeResult: []string{"htop"}}
 
 	result, err := Sync(m, bf)
 	if err != nil {
@@ -827,8 +850,9 @@ func TestSync_Bidirectional(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\nuv \"ruff\"\n")
 	m := &mockRunner{
-		dumpContent:      "brew \"htop\"\nbrew \"curl\"\n",
-		uvToolListResult: []string{"marimo"},
+		leavesResult:       []string{"htop", "curl"},
+		listFormulaeResult: []string{"htop", "curl"},
+		uvToolListResult:   []string{"marimo"},
 	}
 
 	result, err := Sync(m, bf)
@@ -843,10 +867,10 @@ func TestSync_Bidirectional(t *testing.T) {
 	}
 }
 
-func TestSync_DumpError(t *testing.T) {
+func TestSync_LeavesError(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, "")
-	m := &mockRunner{dumpErr: errors.New("dump failed")}
+	m := &mockRunner{leavesErr: errors.New("leaves failed")}
 
 	_, err := Sync(m, bf)
 	if err == nil {
@@ -869,7 +893,7 @@ func TestSync_IgnoresUnscannableTypes(t *testing.T) {
 	t.Parallel()
 	// go and cargo entries in Brewfile should not be removed even if not detected
 	bf := brewfile(t, "brew \"htop\"\ngo \"github.com/foo/bar\"\ncargo \"ripgrep\"\n")
-	m := &mockRunner{dumpContent: "brew \"htop\"\n"}
+	m := &mockRunner{leavesResult: []string{"htop"}, listFormulaeResult: []string{"htop"}}
 
 	result, err := Sync(m, bf)
 	if err != nil {
@@ -882,6 +906,57 @@ func TestSync_IgnoresUnscannableTypes(t *testing.T) {
 	got, _ := os.ReadFile(bf)
 	if !strings.Contains(string(got), "go \"github.com/foo/bar\"") {
 		t.Errorf("go entry should be preserved:\n%s", got)
+	}
+}
+
+func TestSync_KeepsDepOnlyFormulae(t *testing.T) {
+	t.Parallel()
+	// sqlite is in the Brewfile and installed (as a dependency of another
+	// formula), but NOT a leaf. Sync should not remove it.
+	bf := brewfile(t, "brew \"htop\"\nbrew \"sqlite\"\n")
+	m := &mockRunner{
+		leavesResult:       []string{"htop"},           // sqlite not a leaf
+		listFormulaeResult: []string{"htop", "sqlite"}, // but it IS installed
+	}
+
+	result, err := Sync(m, bf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Removed != 0 {
+		t.Errorf("expected 0 removed (sqlite is installed as dep), got %d", result.Removed)
+	}
+
+	got, _ := os.ReadFile(bf)
+	if !strings.Contains(string(got), "sqlite") {
+		t.Errorf("Brewfile should still contain sqlite:\n%s", got)
+	}
+}
+
+func TestSync_KeepsTapFormulae(t *testing.T) {
+	t.Parallel()
+	// Tap formulae like oven-sh/bun/bun appear with full names in both
+	// leaves and list --formula --full-name. Sync must match them correctly.
+	bf := brewfile(t, "brew \"oven-sh/bun/bun\"\n")
+	m := &mockRunner{
+		leavesResult:       []string{"oven-sh/bun/bun"},
+		listFormulaeResult: []string{"oven-sh/bun/bun"},
+	}
+
+	result, err := Sync(m, bf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Removed != 0 {
+		t.Errorf("expected 0 removed, got %d", result.Removed)
+	}
+	if result.Added != 0 {
+		t.Errorf("expected 0 added, got %d", result.Added)
+	}
+
+	got, _ := os.ReadFile(bf)
+	if !strings.Contains(string(got), "oven-sh/bun/bun") {
+		t.Errorf("Brewfile should still contain oven-sh/bun/bun:\n%s", got)
 	}
 }
 
@@ -1129,11 +1204,13 @@ func TestUpgradeOnly_NothingOutdated(t *testing.T) {
 func TestSync_AdditionsAreSorted(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, "")
-	// Dump returns packages in a specific order — Sync should sort additions
-	// so the Brewfile is deterministic regardless of map iteration order.
+	// Sync should sort additions so the Brewfile is deterministic
+	// regardless of map iteration order.
 	m := &mockRunner{
-		dumpContent:      "cask \"zed\"\nbrew \"wget\"\nbrew \"curl\"\ncask \"alacritty\"\n",
-		uvToolListResult: []string{"ruff", "marimo"},
+		leavesResult:       []string{"wget", "curl"},
+		listFormulaeResult: []string{"wget", "curl"},
+		listCasksResult:    []string{"zed", "alacritty"},
+		uvToolListResult:   []string{"ruff", "marimo"},
 	}
 
 	_, err := Sync(m, bf)

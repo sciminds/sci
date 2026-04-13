@@ -65,13 +65,7 @@ func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
 		return OptionalToolsResult{}, nil
 	}
 
-	var missing map[string]bool
-	if err := uikit.RunWithSpinner("Checking for required tools…", func() error {
-		missing = missingSet(r, BrewfileOptional)
-		return nil
-	}); err != nil {
-		return OptionalToolsResult{}, err
-	}
+	missing := missingSet(r, BrewfileOptional)
 
 	tools := lo.Map(entries, func(e brew.BrewfileEntry, _ int) OptionalToolInfo {
 		return OptionalToolInfo{
@@ -85,8 +79,9 @@ func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
 
 // InstallOptionalTool installs a named optional tool without interactive
 // prompts. Returns an error if the tool is not in the optional list or is
-// already installed.
-func InstallOptionalTool(r brew.Runner, name string) (OptionalSetupResult, error) {
+// already installed. When brewfilePath is non-empty, the Brewfile is synced
+// after install so the new package appears immediately.
+func InstallOptionalTool(r brew.Runner, name, brewfilePath string) (OptionalSetupResult, error) {
 	entries := brew.ParseBrewfileEntries(BrewfileOptional)
 	entry, ok := lo.Find(entries, func(e brew.BrewfileEntry) bool {
 		return e.Name == name
@@ -101,35 +96,29 @@ func InstallOptionalTool(r brew.Runner, name string) (OptionalSetupResult, error
 		return OptionalSetupResult{}, fmt.Errorf("tool %q is already installed", name)
 	}
 
-	tmpFile, err := brew.WriteTempBrewfile(entry.Line + "\n")
-	if err != nil {
-		return OptionalSetupResult{}, fmt.Errorf("write temp brewfile: %w", err)
+	if err := r.DirectInstall(entry.Name, brewfileTypeToPkgType(entry.Type)); err != nil {
+		return OptionalSetupResult{}, fmt.Errorf("install %s: %w", name, err)
 	}
-	defer func() { _ = os.Remove(tmpFile) }()
 
-	output, err := r.BundleInstall(tmpFile)
-	if err != nil {
-		return OptionalSetupResult{}, fmt.Errorf("brew bundle install: %w", err)
+	if brewfilePath != "" {
+		if _, err := brew.Sync(r, brewfilePath); err != nil {
+			return OptionalSetupResult{}, fmt.Errorf("sync brewfile: %w", err)
+		}
 	}
-	return OptionalSetupResult{Installed: []string{name}, Output: output}, nil
+
+	return OptionalSetupResult{Installed: []string{name}}, nil
 }
 
 // RunOptionalSetup presents a list of uninstalled optional tools and installs
-// the user's selection via brew bundle install.
-func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
+// the user's selection via direct install. When brewfilePath is non-empty, the
+// Brewfile is synced after install.
+func RunOptionalSetup(r brew.Runner, brewfilePath string) (OptionalSetupResult, error) {
 	entries := brew.ParseBrewfileEntries(BrewfileOptional)
 	if len(entries) == 0 {
 		return OptionalSetupResult{}, nil
 	}
 
-	// Detect which optional tools are already installed (behind a spinner).
-	var missing map[string]bool
-	if err := uikit.RunWithSpinner("Checking for required tools…", func() error {
-		missing = missingSet(r, BrewfileOptional)
-		return nil
-	}); err != nil {
-		return OptionalSetupResult{}, err
-	}
+	missing := missingSet(r, BrewfileOptional)
 
 	// All tools already installed — nothing to show.
 	if lo.NoneBy(entries, func(e brew.BrewfileEntry) bool { return missing[e.Name] }) {
@@ -147,19 +136,28 @@ func RunOptionalSetup(r brew.Runner) (OptionalSetupResult, error) {
 
 	chosen := model.entries[model.chosen]
 
-	// Build a temp Brewfile with just the selected entry.
-	tmpFile, err := brew.WriteTempBrewfile(chosen.Line + "\n")
-	if err != nil {
-		return OptionalSetupResult{}, fmt.Errorf("write temp brewfile: %w", err)
-	}
-	defer func() { _ = os.Remove(tmpFile) }()
-
-	output, err := r.BundleInstall(tmpFile)
-	if err != nil {
-		return OptionalSetupResult{}, fmt.Errorf("brew bundle install: %w", err)
+	if err := r.DirectInstall(chosen.Name, brewfileTypeToPkgType(chosen.Type)); err != nil {
+		return OptionalSetupResult{}, fmt.Errorf("install %s: %w", chosen.Name, err)
 	}
 
-	return OptionalSetupResult{Installed: []string{chosen.Name}, Output: output}, nil
+	if brewfilePath != "" {
+		if _, err := brew.Sync(r, brewfilePath); err != nil {
+			return OptionalSetupResult{}, fmt.Errorf("sync brewfile: %w", err)
+		}
+	}
+
+	return OptionalSetupResult{Installed: []string{chosen.Name}}, nil
+}
+
+// brewfileTypeToPkgType maps Brewfile entry types ("brew", "cask", "uv")
+// to the package type strings that DirectInstall expects.
+func brewfileTypeToPkgType(typ string) string {
+	switch typ {
+	case "brew":
+		return "formula"
+	default:
+		return typ
+	}
 }
 
 // missingSet runs BundleCheck against the given Brewfile content and returns

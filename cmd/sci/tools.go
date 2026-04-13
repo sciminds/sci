@@ -251,11 +251,9 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	if !toolsDryRun {
-		syncBrewfile(file)
-	}
+	runner := brew.BundleRunner{}
 
-	// With a package argument: add to Brewfile and install.
+	// With a package argument: update registry, install directly, sync Brewfile.
 	if cmd.NArg() > 0 {
 		pkg := cmd.Args().First()
 		pkgType := resolveToolsPkgType()
@@ -276,30 +274,35 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 			return nil
 		}
 
-		fmt.Fprintf(os.Stderr, "  Adding %s…\n", pkg)
-		result, addErr := brew.Add(brew.BundleRunner{}, file, pkg, pkgType)
+		fmt.Fprintf(os.Stderr, "  Updating package registry…\n")
+		if err := runner.Update(); err != nil {
+			return fmt.Errorf("brew update: %w", err)
+		}
+
+		fmt.Fprintf(os.Stderr, "  Installing %s…\n", pkg)
+		result, addErr := brew.Add(runner, file, pkg, pkgType)
 		if addErr != nil {
 			return addErr
 		}
 
-		syncBrewfile(file)
 		cmdutil.Output(cmd, result)
 		return nil
 	}
 
-	// No arguments: sync all packages from the Brewfile.
+	// No arguments: sync Brewfile, then install all declared packages.
 	if toolsDryRun {
 		uikit.Hint(fmt.Sprintf("would install all packages from %s", file))
 		return nil
 	}
 
+	syncBrewfile(file)
+
 	fmt.Fprintf(os.Stderr, "  Installing from Brewfile…\n")
-	result, instErr := brew.Install(brew.BundleRunner{}, file)
+	result, instErr := brew.Install(runner, file)
 	if instErr != nil {
 		return instErr
 	}
 
-	syncBrewfile(file)
 	cmdutil.Output(cmd, result)
 	return nil
 }
@@ -316,10 +319,6 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	if !toolsDryRun {
-		syncBrewfile(file)
-	}
-
 	pkg := cmd.Args().First()
 
 	if toolsDryRun {
@@ -333,7 +332,6 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 		return rmErr
 	}
 
-	syncBrewfile(file)
 	cmdutil.Output(cmd, result)
 	return nil
 }
@@ -381,18 +379,12 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no internet connection — sci tools update requires network access")
 	}
 
-	runner := brew.BundleRunner{}
-
-	if !toolsDryRun {
-		if file, err := resolveToolsFile(); err == nil {
-			syncBrewfile(file)
-		}
-	}
-
 	if toolsDryRun {
 		uikit.Hint("would update the registry and upgrade outdated packages")
 		return nil
 	}
+
+	runner := brew.BundleRunner{}
 
 	fmt.Fprintf(os.Stderr, "  Updating package registry…\n")
 	result, err := brew.Update(runner, false)
@@ -412,18 +404,12 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no internet connection — sci tools outdated requires network access")
 	}
 
-	runner := brew.BundleRunner{}
-
-	if !toolsDryRun {
-		if file, err := resolveToolsFile(); err == nil {
-			syncBrewfile(file)
-		}
-	}
-
 	if toolsDryRun {
 		uikit.Hint("would update the registry and list outdated packages")
 		return nil
 	}
+
+	runner := brew.BundleRunner{}
 
 	fmt.Fprintf(os.Stderr, "  Checking for outdated packages…\n")
 	result, err := brew.Update(runner, true)
@@ -431,19 +417,12 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	if file, err := resolveToolsFile(); err == nil {
-		syncBrewfile(file)
-	}
 	cmdutil.Output(cmd, result)
 	return nil
 }
 
 func runToolsReccs(_ context.Context, cmd *cli.Command, installName string) error {
 	runner := brew.BundleRunner{}
-
-	if file, err := resolveToolsFile(); err == nil {
-		syncBrewfile(file)
-	}
 
 	if cmdutil.IsJSON(cmd) {
 		result, err := doctor.ListOptionalTools(runner)
@@ -454,21 +433,18 @@ func runToolsReccs(_ context.Context, cmd *cli.Command, installName string) erro
 		return nil
 	}
 
+	// Resolve Brewfile path so install functions can sync it afterward.
+	brewfilePath, _ := resolveToolsFile()
+
 	var result doctor.OptionalSetupResult
 	var err error
 	if installName != "" {
-		result, err = doctor.InstallOptionalTool(runner, installName)
+		result, err = doctor.InstallOptionalTool(runner, installName, brewfilePath)
 	} else {
-		result, err = doctor.RunOptionalSetup(runner)
+		result, err = doctor.RunOptionalSetup(runner, brewfilePath)
 	}
 	if err != nil {
 		return err
-	}
-
-	if len(result.Installed) > 0 {
-		if file, err := resolveToolsFile(); err == nil {
-			syncBrewfile(file)
-		}
 	}
 
 	cmdutil.Output(cmd, result)

@@ -263,38 +263,38 @@ func TestRunSetup_BundleCheckError(t *testing.T) {
 	}
 }
 
-// TestRunSetup_DumpError verifies that when BundleDump fails on a newly
-// created Brewfile, the rest of the flow still runs.
-func TestRunSetup_DumpError(t *testing.T) {
+// TestRunSetup_SyncError verifies that when Sync fails (e.g. brew leaves
+// errors), the rest of the flow still runs.
+func TestRunSetup_SyncError(t *testing.T) {
 	uikit.SetQuiet(true)
 	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
 	mock := &mockBrewRunner{
-		dumpErr: fmt.Errorf("permission denied"),
-		missing: []string{},
+		leavesErr: fmt.Errorf("brew leaves failed"),
+		missing:   []string{},
 	}
 
 	result := RunSetup(mock, tmpFile, true)
 
-	// Dump failed but flow should continue — tools should still be checked.
+	// Sync failed but flow should continue — tools should still be checked.
 	if result.Tools == nil {
-		t.Fatal("expected Tools to be populated even when dump fails")
+		t.Fatal("expected Tools to be populated even when sync fails")
 	}
 }
 
-// TestRunSetup_SyncDumpLiveError verifies that when Sync fails on an existing
-// Brewfile (via BundleDumpLive error), the rest of the flow still runs.
-func TestRunSetup_SyncDumpLiveError(t *testing.T) {
+// TestRunSetup_SyncErrorExisting verifies that when Sync fails on an existing
+// Brewfile, the rest of the flow still runs.
+func TestRunSetup_SyncErrorExisting(t *testing.T) {
 	uikit.SetQuiet(true)
 	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
 	mock := &mockBrewRunner{
-		dumpLiveErr: fmt.Errorf("pty unavailable"),
-		missing:     []string{},
+		leavesErr: fmt.Errorf("brew leaves failed"),
+		missing:   []string{},
 	}
 
 	result := RunSetup(mock, tmpFile, false)

@@ -193,63 +193,77 @@ var scannableTypes = map[string]bool{
 }
 
 // Sync reconciles the Brewfile at path with the actual system state.
-// It runs brew bundle dump and uv tool list concurrently, then:
-//   - appends entries that are installed but missing from the Brewfile
-//   - removes entries that are declared but no longer installed
+// It queries multiple brew commands concurrently:
+//   - brew leaves -r      → user-requested formulae (used for additions)
+//   - brew list --formula  → all installed formulae incl. deps (used for removals)
+//   - brew list --cask     → installed casks
+//   - brew tap             → user-added taps
+//   - uv tool list         → installed uv tools
+//
+// Additions use leaves (only auto-add user-intentional packages).
+// Removals use the full formula list (don't strip Brewfile entries for packages
+// that are installed as dependencies, e.g. rsync, sqlite).
 //
 // Only entries of scannable types (brew, cask, tap, uv) are candidates
 // for removal; unknown types are left untouched.
 func Sync(r Runner, path string) (SyncResult, error) {
-	// Dump brew state to a temp file and list uv tools concurrently.
-	tmp, err := os.CreateTemp("", "sci-sync-dump-*")
-	if err != nil {
-		return SyncResult{}, fmt.Errorf("create temp dump file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	_ = tmp.Close()
-	defer func() { _ = os.Remove(tmpPath) }()
-
 	var (
-		uvTools        []string
-		dumpErr, uvErr error
-		wg             sync.WaitGroup
+		leaves, formulae, casks, taps, uvTools           []string
+		leavesErr, formulaeErr, casksErr, tapsErr, uvErr error
+		wg                                               sync.WaitGroup
 	)
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		dumpErr = r.BundleDumpLive(tmpPath)
-	}()
-	go func() {
-		defer wg.Done()
-		uvTools, uvErr = r.UVToolList()
-	}()
+	wg.Add(5)
+	go func() { defer wg.Done(); leaves, leavesErr = r.Leaves() }()
+	go func() { defer wg.Done(); formulae, formulaeErr = r.ListFormulae() }()
+	go func() { defer wg.Done(); casks, casksErr = r.ListCasks() }()
+	go func() { defer wg.Done(); taps, tapsErr = r.Taps() }()
+	go func() { defer wg.Done(); uvTools, uvErr = r.UVToolList() }()
 	wg.Wait()
 
-	if dumpErr != nil {
-		return SyncResult{}, fmt.Errorf("brew bundle dump: %w", dumpErr)
+	if leavesErr != nil {
+		return SyncResult{}, fmt.Errorf("brew leaves: %w", leavesErr)
+	}
+	if formulaeErr != nil {
+		return SyncResult{}, fmt.Errorf("brew list --formula: %w", formulaeErr)
+	}
+	if casksErr != nil {
+		return SyncResult{}, fmt.Errorf("brew list --cask: %w", casksErr)
+	}
+	if tapsErr != nil {
+		return SyncResult{}, fmt.Errorf("brew tap: %w", tapsErr)
 	}
 	if uvErr != nil {
 		return SyncResult{}, fmt.Errorf("uv tool list: %w", uvErr)
 	}
 
-	// Build the system set from dump + uv tools.
-	dumpContent, err := os.ReadFile(tmpPath)
-	if err != nil {
-		return SyncResult{}, fmt.Errorf("read dump: %w", err)
-	}
-	systemSet := lo.SliceToMap(ParseBrewfileEntries(string(dumpContent)), func(e BrewfileEntry) (string, BrewfileEntry) {
-		return e.Type + "\t" + e.Name, e
-	})
-	for _, name := range uvTools {
-		key := "uv\t" + name
-		if _, ok := systemSet[key]; !ok {
-			systemSet[key] = BrewfileEntry{
-				Type: "uv",
-				Name: name,
-				Line: fmt.Sprintf("uv %q", name),
-			}
+	// addSet: packages eligible to be added to the Brewfile (leaves only for
+	// brew formulae — we don't auto-add transitive deps).
+	nameToEntry := func(typ string) func(string) (string, BrewfileEntry) {
+		return func(name string) (string, BrewfileEntry) {
+			return typ + "\t" + name, BrewfileEntry{Type: typ, Name: name, Line: fmt.Sprintf("%s %q", typ, name)}
 		}
 	}
+	addSet := lo.Assign(
+		lo.SliceToMap(leaves, nameToEntry("brew")),
+		lo.SliceToMap(casks, nameToEntry("cask")),
+		lo.SliceToMap(taps, nameToEntry("tap")),
+		lo.SliceToMap(uvTools, nameToEntry("uv")),
+	)
+
+	// installedSet: all installed packages (full formula list, not just leaves).
+	// Used to decide what NOT to remove — a Brewfile entry for a package that's
+	// installed as a dependency (e.g. rsync, sqlite) should be kept.
+	toKey := func(typ string) func(string) (string, bool) {
+		return func(name string) (string, bool) {
+			return typ + "\t" + name, true
+		}
+	}
+	installedSet := lo.Assign(
+		lo.SliceToMap(formulae, toKey("brew")),
+		lo.SliceToMap(casks, toKey("cask")),
+		lo.SliceToMap(taps, toKey("tap")),
+		lo.SliceToMap(uvTools, toKey("uv")),
+	)
 
 	// Read the existing Brewfile.
 	existing, err := os.ReadFile(path)
@@ -260,13 +274,11 @@ func Sync(r Runner, path string) (SyncResult, error) {
 		return e.Type + "\t" + e.Name, true
 	})
 
-	// Compute additions: in system but not in Brewfile.
-	var toAdd []BrewfileEntry
-	for key, e := range systemSet {
-		if !brewfileSet[key] {
-			toAdd = append(toAdd, e)
-		}
-	}
+	// Compute additions: in addSet but not in Brewfile.
+	toAdd := lo.MapToSlice(
+		lo.OmitByKeys(addSet, lo.Keys(brewfileSet)),
+		func(_ string, e BrewfileEntry) BrewfileEntry { return e },
+	)
 	// Sort for deterministic Brewfile output (map iteration is random).
 	slices.SortFunc(toAdd, func(a, b BrewfileEntry) int {
 		if c := cmp.Compare(a.Type, b.Type); c != 0 {
@@ -275,10 +287,10 @@ func Sync(r Runner, path string) (SyncResult, error) {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
-	// Compute removals: in Brewfile but not on system (scannable types only).
+	// Compute removals: in Brewfile but not installed (scannable types only).
+	// Uses the full installedSet so dep-only formulae aren't incorrectly removed.
 	toRemove := lo.Filter(ParseBrewfileEntries(string(existing)), func(e BrewfileEntry, _ int) bool {
-		_, onSystem := systemSet[e.Type+"\t"+e.Name]
-		return scannableTypes[e.Type] && !onSystem
+		return scannableTypes[e.Type] && !installedSet[e.Type+"\t"+e.Name]
 	})
 
 	var result SyncResult

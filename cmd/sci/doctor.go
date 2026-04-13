@@ -65,13 +65,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// ── Step 1–2: Pre-flight + Identity checks ──────────────────────────
 	var result doctor.DocResult
-	err := uikit.RunWithSpinner("Checking your computer setup…", func() error {
-		result.Sections = doctor.RunAll()
-		return nil
-	})
-	if err != nil {
-		return err
-	}
+	result.Sections = doctor.RunPreflightIdentity()
 
 	// In human mode, print checks immediately so the user sees progress.
 	if !isJSON {
@@ -145,24 +139,20 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	// ── Interactive path (human mode) ───────────────────────────────────
 
 	// Step 3b: Reconcile Brewfile with system.
-	if created {
-		dumpErr := runner.BundleDumpLive(brewfilePath)
-		if dumpErr != nil {
-			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				uikit.SymWarn, uikit.TUI.Warn().Render("Could not capture installed packages: "+dumpErr.Error()))
-		} else {
-			n := len(brew.ParseBrewfileNames(mustReadFile(brewfilePath)))
-			fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
-				uikit.SymOK, uikit.TUI.TextBlue().Render(brewfilePath), n)
+	syncResult, syncErr := brew.Sync(runner, brewfilePath)
+	if syncErr != nil {
+		msg := "Could not sync Brewfile with system: " + syncErr.Error()
+		if created {
+			msg = "Could not capture installed packages: " + syncErr.Error()
 		}
-	} else {
-		syncResult, syncErr := brew.Sync(runner, brewfilePath)
-		if syncErr != nil {
-			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-				uikit.SymWarn, uikit.TUI.Warn().Render("Could not sync Brewfile with system: "+syncErr.Error()))
-		} else if msg := syncResult.Human(); msg != "" {
-			fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
-		}
+		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
+			uikit.SymWarn, uikit.TUI.Warn().Render(msg))
+	} else if created {
+		n := len(brew.ParseBrewfileNames(mustReadFile(brewfilePath)))
+		fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
+			uikit.SymOK, uikit.TUI.TextBlue().Render(brewfilePath), n)
+	} else if msg := syncResult.Human(); msg != "" {
+		fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
 	}
 
 	// Step 3c: Ensure required packages are declared.

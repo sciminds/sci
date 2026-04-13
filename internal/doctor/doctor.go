@@ -68,14 +68,14 @@ type ToolInfo struct {
 // Runner
 // ---------------------------------------------------------------------------
 
-// checkFuncs is the ordered list of check modules executed by [RunAll].
+// checkFuncs is the ordered list of check modules executed by [RunPreflightIdentity].
 var checkFuncs = []func() CheckSection{
 	checkPreflight,
 	checkIdentity,
 }
 
-// RunAll runs all check modules concurrently and returns sections in order.
-func RunAll() []CheckSection {
+// RunPreflightIdentity runs all check modules concurrently and returns sections in order.
+func RunPreflightIdentity() []CheckSection {
 	sections := make([]CheckSection, len(checkFuncs))
 	var wg sync.WaitGroup
 	wg.Add(len(checkFuncs))

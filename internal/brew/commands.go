@@ -3,50 +3,33 @@ package brew
 import (
 	"cmp"
 	"fmt"
-	"os"
 	"slices"
 	"sync"
 
 	"github.com/samber/lo"
 )
 
-// Add adds a package to the Brewfile and installs it.
-// If install fails, the Brewfile is restored to its previous state.
+// Add installs a package directly and syncs the Brewfile to pick it up.
 func Add(r Runner, file, pkg, pkgType string) (AddResult, error) {
-	backup, err := os.ReadFile(file)
-	if err != nil {
-		return AddResult{}, fmt.Errorf("read brewfile: %w", err)
+	if err := r.DirectInstall(pkg, pkgType); err != nil {
+		return AddResult{}, fmt.Errorf("install %s: %w", pkg, err)
 	}
 
-	if err := r.BundleAdd(file, pkg, pkgType); err != nil {
-		return AddResult{}, fmt.Errorf("bundle add: %w", err)
-	}
-
-	if _, err := r.BundleInstall(file); err != nil {
-		// Rollback: restore the Brewfile.
-		_ = os.WriteFile(file, backup, 0o644)
-		return AddResult{}, fmt.Errorf("bundle install (rolled back): %w", err)
+	if _, err := Sync(r, file); err != nil {
+		return AddResult{}, fmt.Errorf("sync brewfile: %w", err)
 	}
 
 	return AddResult{Package: pkg, Type: pkgType}, nil
 }
 
-// Remove removes a package from the Brewfile and cleans up.
-// If cleanup fails, the Brewfile is restored to its previous state.
+// Remove uninstalls a package directly and syncs the Brewfile to drop it.
 func Remove(r Runner, file, pkg, pkgType string) (RemoveResult, error) {
-	backup, err := os.ReadFile(file)
-	if err != nil {
-		return RemoveResult{}, fmt.Errorf("read brewfile: %w", err)
+	if err := r.DirectUninstall(pkg, pkgType); err != nil {
+		return RemoveResult{}, fmt.Errorf("uninstall %s: %w", pkg, err)
 	}
 
-	if err := r.BundleRemove(file, pkg, pkgType); err != nil {
-		return RemoveResult{}, fmt.Errorf("bundle remove: %w", err)
-	}
-
-	if _, err := r.BundleCleanup(file); err != nil {
-		// Rollback: restore the Brewfile.
-		_ = os.WriteFile(file, backup, 0o644)
-		return RemoveResult{}, fmt.Errorf("bundle cleanup (rolled back): %w", err)
+	if _, err := Sync(r, file); err != nil {
+		return RemoveResult{}, fmt.Errorf("sync brewfile: %w", err)
 	}
 
 	return RemoveResult{Package: pkg, Type: pkgType}, nil

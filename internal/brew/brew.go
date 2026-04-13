@@ -1,4 +1,4 @@
-// Package brew wraps brew bundle commands to provide atomic Brewfile-synced
+// Package brew wraps Homebrew and uv commands to provide Brewfile-synced
 // package management. The Runner interface enables testing without shelling out.
 package brew
 
@@ -40,17 +40,18 @@ type PackageInfo struct {
 	Type    string `json:"type"` // "formula", "cask", "uv", "go", "cargo"
 }
 
-// Runner abstracts brew bundle commands for testability.
+// Runner abstracts brew commands for testability.
 type Runner interface {
-	BundleAdd(file, pkg, pkgType string) error
-	BundleRemove(file, pkg, pkgType string) error
 	BundleInstall(file string) (string, error)
 	BundleCheck(file string) ([]string, error)
-	BundleCleanup(file string) (string, error)
-	BundleDump(file string) error
-	BundleDumpLive(file string) error
 	BundleList(file, pkgType string) ([]string, error)
 	Info(names []string, isCask bool) ([]PackageInfo, error)
+	Leaves() ([]string, error)
+	ListFormulae() ([]string, error)
+	ListCasks() ([]string, error)
+	Taps() ([]string, error)
+	DirectInstall(pkg, pkgType string) error
+	DirectUninstall(pkg, pkgType string) error
 	Update() error
 	Outdated() ([]OutdatedPackage, error)
 	Upgrade() (string, error)
@@ -59,30 +60,8 @@ type Runner interface {
 	UVToolList() ([]string, error)
 }
 
-// BundleRunner shells out to brew bundle.
+// BundleRunner shells out to brew.
 type BundleRunner struct{}
-
-// BundleAdd implements Runner.
-func (BundleRunner) BundleAdd(file, pkg, pkgType string) error {
-	args := []string{"bundle", "add", "--file=" + file}
-	if pkgType != "" {
-		args = append(args, "--"+pkgType)
-	}
-	args = append(args, pkg)
-	_, err := runBrewDirect(args...)
-	return err
-}
-
-// BundleRemove implements Runner.
-func (BundleRunner) BundleRemove(file, pkg, pkgType string) error {
-	args := []string{"bundle", "remove", "--file=" + file}
-	if pkgType != "" {
-		args = append(args, "--"+pkgType)
-	}
-	args = append(args, pkg)
-	_, err := runBrewDirect(args...)
-	return err
-}
 
 // BundleInstall implements Runner.
 func (BundleRunner) BundleInstall(file string) (string, error) {
@@ -107,25 +86,6 @@ func (BundleRunner) BundleCheck(file string) ([]string, error) {
 	return parseBundleCheck(s), nil
 }
 
-// BundleDump runs `brew bundle dump` to write the current system state to file.
-// It uses --force to overwrite and --no-vscode to skip editor extensions.
-func (BundleRunner) BundleDump(file string) error {
-	_, err := runBrewOutputLocal("bundle", "dump", "--force", "--no-vscode", "--file="+file)
-	return err
-}
-
-// BundleDumpLive is like BundleDump but connects stdin so interactive
-// prompts (e.g. sudo password) are visible.
-func (BundleRunner) BundleDumpLive(file string) error {
-	_, err := runBrewLiveLocal("bundle", "dump", "--force", "--no-vscode", "--file="+file)
-	return err
-}
-
-// BundleCleanup implements Runner.
-func (BundleRunner) BundleCleanup(file string) (string, error) {
-	return runBrewLive("bundle", "cleanup", "--force", "--file="+file)
-}
-
 // BundleList implements Runner.
 func (BundleRunner) BundleList(file, pkgType string) ([]string, error) {
 	args := []string{"bundle", "list", "--file=" + file}
@@ -139,6 +99,89 @@ func (BundleRunner) BundleList(file, pkgType string) ([]string, error) {
 		return nil, err
 	}
 	return splitLines(out), nil
+}
+
+// Leaves implements Runner. Returns user-requested formulae (not deps).
+func (BundleRunner) Leaves() ([]string, error) {
+	out, err := runBrewOutputLocal("leaves", "-r")
+	if err != nil {
+		return nil, err
+	}
+	return splitLines(out), nil
+}
+
+// ListFormulae implements Runner. Returns all installed formulae (leaves + deps)
+// with full tap-qualified names (e.g. "oven-sh/bun/bun" not just "bun").
+func (BundleRunner) ListFormulae() ([]string, error) {
+	out, err := runBrewOutputLocal("list", "--formula", "--full-name", "-1")
+	if err != nil {
+		return nil, err
+	}
+	return splitLines(out), nil
+}
+
+// ListCasks implements Runner. Returns all installed casks.
+func (BundleRunner) ListCasks() ([]string, error) {
+	out, err := runBrewOutputLocal("list", "--cask")
+	if err != nil {
+		return nil, err
+	}
+	return splitLines(out), nil
+}
+
+// Taps implements Runner. Returns user-added taps.
+func (BundleRunner) Taps() ([]string, error) {
+	out, err := runBrewOutputLocal("tap")
+	if err != nil {
+		return nil, err
+	}
+	return splitLines(out), nil
+}
+
+// DirectInstall implements Runner. Installs a single package by type.
+func (BundleRunner) DirectInstall(pkg, pkgType string) error {
+	switch pkgType {
+	case "", "formula", "brew":
+		_, err := runBrewLive("install", pkg)
+		return err
+	case "cask":
+		_, err := runBrewLive("install", "--cask", pkg)
+		return err
+	case "tap":
+		_, err := runBrewLive("tap", pkg)
+		return err
+	case "uv":
+		cmd := exec.Command("uv", "tool", "install", pkg)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	default:
+		return fmt.Errorf("unsupported package type for direct install: %s", pkgType)
+	}
+}
+
+// DirectUninstall implements Runner. Uninstalls a single package by type.
+func (BundleRunner) DirectUninstall(pkg, pkgType string) error {
+	switch pkgType {
+	case "", "formula", "brew":
+		_, err := runBrewLive("uninstall", pkg)
+		return err
+	case "cask":
+		_, err := runBrewLive("uninstall", "--cask", pkg)
+		return err
+	case "tap":
+		_, err := runBrewLive("untap", pkg)
+		return err
+	case "uv":
+		cmd := exec.Command("uv", "tool", "uninstall", pkg)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	default:
+		return fmt.Errorf("unsupported package type for direct uninstall: %s", pkgType)
+	}
 }
 
 // Info fetches descriptions for formulae or casks via brew info --json=v2.
@@ -346,11 +389,6 @@ func runBrewOutputLocal(args ...string) (string, error) {
 // output parsing. The PTY just forces line-buffered output from brew.
 func runBrewLive(args ...string) (string, error) {
 	return runBrewLiveWithEnv(nil, args...)
-}
-
-// runBrewLiveLocal is like runBrewLive but suppresses brew's auto-update.
-func runBrewLiveLocal(args ...string) (string, error) {
-	return runBrewLiveWithEnv(offlineEnv(), args...)
 }
 
 func runBrewLiveWithEnv(env []string, args ...string) (string, error) {
