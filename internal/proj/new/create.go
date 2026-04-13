@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -133,10 +134,9 @@ func Create(opts CreateOptions) (*CreateResult, error) {
 
 	// Run post-steps
 	steps := DefaultPostSteps(opts.PkgManager)
-	var stepLabels []string
-	for _, s := range steps {
-		stepLabels = append(stepLabels, s.Label)
-	}
+	stepLabels := lo.Map(steps, func(s PostStep, _ int) string {
+		return s.Label
+	})
 	if err := RunPostSteps(steps, dest, nil); err != nil {
 		// Post-step errors are non-fatal
 		fmt.Fprintf(os.Stderr, "warning: post-step failed: %v\n", err)

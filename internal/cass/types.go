@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -31,13 +32,12 @@ func (r *PullResult) Human() string {
 		for _, d := range cl.Details {
 			fmt.Fprintf(&b, "    %s\n", d)
 		}
-		var parts []string
-		if cl.Added > 0 {
-			parts = append(parts, fmt.Sprintf("%d new", cl.Added))
-		}
-		if cl.Updated > 0 {
-			parts = append(parts, fmt.Sprintf("%d updated", cl.Updated))
-		}
+		parts := lo.FilterMap([]lo.Tuple2[int, string]{
+			{A: cl.Added, B: "new"},
+			{A: cl.Updated, B: "updated"},
+		}, func(t lo.Tuple2[int, string], _ int) (string, bool) {
+			return fmt.Sprintf("%d %s", t.A, t.B), t.A > 0
+		})
 		fmt.Fprintf(&b, "    %s\n", ui.TUI.Dim().Render(strings.Join(parts, ", ")))
 	}
 	return b.String()

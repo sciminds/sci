@@ -22,6 +22,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/ui"
 )
 
@@ -122,19 +123,18 @@ func BuildUVArgs(tool Tool, env EnvInfo, extraPkgs []string) []string {
 		return nil
 
 	case EnvUV:
-		args := []string{"run", "--project", env.Dir, "--with", tool.Pkg}
-		for _, p := range extraPkgs {
-			args = append(args, "--with", p)
-		}
+		withFlags := lo.FlatMap(extraPkgs, func(p string, _ int) []string {
+			return []string{"--with", p}
+		})
+		args := slices.Concat([]string{"run", "--project", env.Dir, "--with", tool.Pkg}, withFlags)
 		return slices.Concat(args, []string{"--"}, tool.UVRun)
 
 	default: // EnvNone — ephemeral
-		allPkgs := slices.Concat([]string{tool.Pkg}, tool.DefaultPkgs)
-		allPkgs = append(allPkgs, extraPkgs...)
-		args := []string{"run"}
-		for _, p := range allPkgs {
-			args = append(args, "--with", p)
-		}
+		allPkgs := slices.Concat([]string{tool.Pkg}, tool.DefaultPkgs, extraPkgs)
+		withFlags := lo.FlatMap(allPkgs, func(p string, _ int) []string {
+			return []string{"--with", p}
+		})
+		args := slices.Concat([]string{"run"}, withFlags)
 		return slices.Concat(args, []string{"--"}, tool.UVRun)
 	}
 }
@@ -174,8 +174,7 @@ func RunTool(dir string, tool Tool, extraPkgs []string, ignoreExisting bool) err
 	case EnvUV:
 		fmt.Printf("Detected uv project in %s\n\n", ui.TUI.Accent().Render(env.Dir))
 	default:
-		allPkgs := slices.Concat([]string{tool.Pkg}, tool.DefaultPkgs)
-		allPkgs = append(allPkgs, extraPkgs...)
+		allPkgs := slices.Concat([]string{tool.Pkg}, tool.DefaultPkgs, extraPkgs)
 		fmt.Printf("Starting %s with: %s\n\n", tool.Label, ui.TUI.Accent().Render(strings.Join(allPkgs, ", ")))
 	}
 

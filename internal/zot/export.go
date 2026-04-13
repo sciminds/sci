@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/local"
 )
@@ -254,19 +255,17 @@ func bibEscape(s string) string {
 }
 
 func bibAuthors(creators []local.Creator, kind string) string {
-	parts := make([]string, 0, len(creators))
-	for _, c := range creators {
+	parts := lo.FilterMap(creators, func(c local.Creator, _ int) (string, bool) {
 		if c.Type != kind && (kind != "author" || c.Type != "") {
-			continue
+			return "", false
 		}
 		if c.Name != "" {
 			// Institutional author: escape content, then wrap in protective
 			// braces so BibTeX does not try to parse "Last, First".
-			parts = append(parts, "{"+bibEscape(c.Name)+"}")
-		} else {
-			parts = append(parts, bibEscape(c.Last)+", "+bibEscape(c.First))
+			return "{" + bibEscape(c.Name) + "}", true
 		}
-	}
+		return bibEscape(c.Last) + ", " + bibEscape(c.First), true
+	})
 	return strings.Join(parts, " and ")
 }
 

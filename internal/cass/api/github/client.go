@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cass/api"
 )
 
@@ -124,10 +125,8 @@ func GetConcurrent[T any](ctx context.Context, c *Client, paths []string, params
 	}
 	wg.Wait()
 
-	for _, err := range errs {
-		if err != nil {
-			return nil, err
-		}
+	if err, ok := lo.Find(errs, func(e error) bool { return e != nil }); ok {
+		return nil, err
 	}
 	return results, nil
 }

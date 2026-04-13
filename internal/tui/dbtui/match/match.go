@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/sahilm/fuzzy"
+	"github.com/samber/lo"
 )
 
 // Fuzzy scores how well query matches target using case-insensitive fuzzy matching.
@@ -84,18 +85,14 @@ func ParseClauses(query string) [][]Clause {
 
 	// Split on " | " for OR groups.
 	orParts := strings.Split(q, " | ")
-	var groups [][]Clause
-	for _, part := range orParts {
+	return lo.FilterMap(orParts, func(part string, _ int) ([]Clause, bool) {
 		part = strings.TrimSpace(part)
 		if part == "" {
-			continue
+			return nil, false
 		}
 		group := parseAndGroup(part)
-		if len(group) > 0 {
-			groups = append(groups, group)
-		}
-	}
-	return groups
+		return group, len(group) > 0
+	})
 }
 
 // parseAndGroup parses a single OR branch into AND-clauses.
@@ -111,18 +108,18 @@ func parseAndGroup(q string) []Clause {
 // parseColumnClauses parses one or more @col: value segments.
 func parseColumnClauses(q string) []Clause {
 	parts := splitClauses(q)
-	clauses := make([]Clause, 0, len(parts))
-	for _, part := range parts {
+	clauses := lo.FilterMap(parts, func(part string, _ int) (Clause, bool) {
 		part = strings.TrimSpace(part)
 		if part == "" {
-			continue
+			return Clause{}, false
 		}
 		c := parseSingleClause(part)
-		if c.Column != "" {
-			applyNegate(&c)
-			clauses = append(clauses, c)
+		if c.Column == "" {
+			return Clause{}, false
 		}
-	}
+		applyNegate(&c)
+		return c, true
+	})
 	if len(clauses) == 0 {
 		c := Clause{Terms: q}
 		applyNegate(&c)
