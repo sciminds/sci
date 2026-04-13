@@ -11,11 +11,11 @@ import (
 
 // Palette holds resolved colors for a specific light/dark mode.
 type Palette struct {
-	Accent    color.Color
-	Secondary color.Color
-	Success   color.Color
-	Danger    color.Color
-	Muted     color.Color
+	Blue   color.Color
+	Orange color.Color
+	Green  color.Color
+	Red    color.Color
+	Pink   color.Color
 
 	TextBright color.Color
 	TextMid    color.Color
@@ -30,11 +30,11 @@ type Palette struct {
 func NewPalette(isDark bool) Palette {
 	ld := lipgloss.LightDark(isDark)
 	return Palette{
-		Accent:    ld(lipgloss.Color("#0072B2"), lipgloss.Color("#56B4E9")),
-		Secondary: ld(lipgloss.Color("#D55E00"), lipgloss.Color("#E69F00")),
-		Success:   ld(lipgloss.Color("#007A5A"), lipgloss.Color("#009E73")),
-		Danger:    ld(lipgloss.Color("#CC3311"), lipgloss.Color("#D55E00")),
-		Muted:     ld(lipgloss.Color("#AA4499"), lipgloss.Color("#CC79A7")),
+		Blue:   ld(lipgloss.Color("#0072B2"), lipgloss.Color("#56B4E9")),
+		Orange: ld(lipgloss.Color("#D55E00"), lipgloss.Color("#E69F00")),
+		Green:  ld(lipgloss.Color("#007A5A"), lipgloss.Color("#009E73")),
+		Red:    ld(lipgloss.Color("#CC3311"), lipgloss.Color("#D55E00")),
+		Pink:   ld(lipgloss.Color("#AA4499"), lipgloss.Color("#CC79A7")),
 
 		TextBright: ld(lipgloss.Color("#1F2937"), lipgloss.Color("#E5E7EB")),
 		TextMid:    ld(lipgloss.Color("#4B5563"), lipgloss.Color("#9CA3AF")),

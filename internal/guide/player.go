@@ -198,11 +198,11 @@ func (p *Player) View() string {
 	var status string
 	switch {
 	case p.finished:
-		status = ui.TUI.FgSuccess().Render("done")
+		status = ui.TUI.TextGreen().Render("done")
 	case p.paused:
-		status = ui.TUI.FgSecondary().Render("paused")
+		status = ui.TUI.TextOrange().Render("paused")
 	default:
-		status = ui.TUI.FgAccent().Render("playing")
+		status = ui.TUI.TextBlue().Render("playing")
 	}
 	b.WriteString(status + "  " + ui.TUI.Dim().Render(progress))
 

@@ -40,7 +40,7 @@ func (r LLMCatalogResult) Human() string {
 	fmt.Fprintf(&b, "\n  %s\n\n", ui.TUI.Dim().Render("docling note catalog"))
 	for _, e := range r.Entries {
 		fmt.Fprintf(&b, "  %s  %s",
-			ui.TUI.Accent().Render(e.Key),
+			ui.TUI.TextBlue().Render(e.Key),
 			e.Title,
 		)
 		if e.DOI != "" {

@@ -127,12 +127,12 @@ func (m *Model) buildTableListOverlay() string {
 
 			if selected && tl.Renaming {
 				// Show textinput for rename
-				pointer := m.styles.AccentBold().Render(symTriRight + " ")
+				pointer := m.styles.TextBlueBold().Render(symTriRight + " ")
 				line := pointer + tl.RenameInput.View()
 				b.WriteString(line)
 			} else if selected {
-				pointer := m.styles.AccentBold().Render(symTriRight + " ")
-				nameStyled := m.styles.AccentBold().Render(name)
+				pointer := m.styles.TextBlueBold().Render(symTriRight + " ")
+				nameStyled := m.styles.TextBlueBold().Render(name)
 				line := pointer + nameStyled + padding + shapeStyled
 				if lipgloss.Width(line) > innerW {
 					line = m.styles.Base().MaxWidth(innerW).Render(line)

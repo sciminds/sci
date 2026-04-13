@@ -54,7 +54,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 			data, _ := os.ReadFile(brewfilePath)
 			n := len(brew.ParseBrewfileNames(string(data)))
 			fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
-				ui.SymOK, ui.TUI.Accent().Render(brewfilePath), n)
+				ui.SymOK, ui.TUI.TextBlue().Render(brewfilePath), n)
 		}
 	} else {
 		syncResult, err := brew.Sync(r, brewfilePath)
@@ -170,8 +170,8 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	if !ui.IsQuiet() {
 		fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(result.Outdated))
 		for _, pkg := range result.Outdated {
-			arrow := ui.TUI.Muted().Render(" → ")
-			version := ui.TUI.Muted().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+			arrow := ui.TUI.TextPink().Render(" → ")
+			version := ui.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 			fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
 		}
 		fmt.Fprintln(os.Stderr)

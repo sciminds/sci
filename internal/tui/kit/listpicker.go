@@ -23,7 +23,7 @@ func NewListPicker(title string, items []list.Item, hints ...key.Binding) ListPi
 	d := ui.NewListDelegate()
 	l := list.New(items, d, 0, 0)
 	l.Title = title
-	l.Styles.Title = ui.TUI.AccentBold()
+	l.Styles.Title = ui.TUI.TextBlueBold()
 	l.SetFilteringEnabled(true)
 	l.SetShowStatusBar(true)
 	if len(hints) > 0 {

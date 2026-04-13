@@ -206,7 +206,7 @@ func minimalModel() *Model {
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = ui.TUI.FgAccent()
+	s.Style = ui.TUI.TextBlue()
 
 	return &Model{
 		zones:   zone.New(),

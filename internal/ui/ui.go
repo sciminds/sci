@@ -41,6 +41,6 @@ func Header(msg string) { _, _ = fmt.Fprintf(statusOut(), "\n  %s\n\n", TUI.Bold
 
 // NextStep prints a suggested next action after a command completes.
 func NextStep(cmd, desc string) {
-	_, _ = fmt.Fprintf(statusOut(), "\n  %s %s\n", SymArrow, TUI.Accent().Render(cmd))
+	_, _ = fmt.Fprintf(statusOut(), "\n  %s %s\n", SymArrow, TUI.TextBlue().Render(cmd))
 	Hint(desc)
 }

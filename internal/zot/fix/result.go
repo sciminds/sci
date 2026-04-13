@@ -35,7 +35,7 @@ func (r CitekeyFixResult) Human() string {
 	if r.Result.Applied {
 		header = "Cite-key fix (applied)"
 	}
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render(header))
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render(header))
 
 	total := len(r.Result.Targets)
 	if total == 0 {
@@ -90,7 +90,7 @@ func (r CitekeyFixResult) Human() string {
 		}
 		fmt.Fprintf(&b, "    %s  %s  %-13s %s %s %s\n",
 			icon,
-			ui.TUI.Accent().Render(tg.ItemKey),
+			ui.TUI.TextBlue().Render(tg.ItemKey),
 			ui.TUI.Warn().Render(tg.Reason),
 			ui.TUI.Dim().Render(old),
 			ui.TUI.Dim().Render("→"),
@@ -115,7 +115,7 @@ func (r CitekeyFixResult) Human() string {
 		)
 	} else {
 		fmt.Fprintf(&b, "\n  %s dry-run only — pass %s to write through the Zotero Web API\n",
-			ui.SymArrow, ui.TUI.Accent().Render("--apply"),
+			ui.SymArrow, ui.TUI.TextBlue().Render("--apply"),
 		)
 	}
 	return b.String()

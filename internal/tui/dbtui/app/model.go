@@ -109,7 +109,7 @@ func NewModel(store data.DataStore, dbPath string, readOnly bool) (*Model, error
 	h := ui.NewHelp()
 	h.ShowAll = true // help overlay always shows full bindings
 
-	s := spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(ui.TUI.FgAccent()))
+	s := spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(ui.TUI.TextBlue()))
 
 	var vl data.ViewLister
 	if hasViews {

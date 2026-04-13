@@ -28,7 +28,7 @@ func (r MissingResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Missing-field coverage"))
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Missing-field coverage"))
 	fmt.Fprintf(&b, "  %s %d items scanned\n\n",
 		ui.TUI.Dim().Render("·"), r.Report.Scanned)
 
@@ -73,7 +73,7 @@ func (r MissingResult) Human() string {
 			title = ui.TUI.Dim().Render("(untitled)")
 		}
 		fmt.Fprintf(&b, "    %s  %s %-9s %s\n",
-			ui.TUI.Accent().Render(f.ItemKey),
+			ui.TUI.TextBlue().Render(f.ItemKey),
 			severityIcon(f.Severity),
 			styleSeverity(f.Severity, f.Kind),
 			title,
@@ -135,7 +135,7 @@ func (r InvalidResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Field-value validation"))
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Field-value validation"))
 	fmt.Fprintf(&b, "  %s %d field values scanned\n\n",
 		ui.TUI.Dim().Render("·"), r.Report.Scanned)
 
@@ -175,7 +175,7 @@ func (r InvalidResult) Human() string {
 			title = ui.TUI.Dim().Render("(untitled)")
 		}
 		fmt.Fprintf(&b, "    %s  %s %s\n",
-			ui.TUI.Accent().Render(f.ItemKey),
+			ui.TUI.TextBlue().Render(f.ItemKey),
 			styleSeverity(f.Severity, f.Message),
 			title,
 		)
@@ -206,7 +206,7 @@ func (r OrphansResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Orphan scan"))
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Orphan scan"))
 	stats, _ := r.Report.Stats.(hygiene.OrphansStats)
 	fmt.Fprintf(&b, "  %s %d total orphan(s) across %d kind(s)\n\n",
 		ui.TUI.Dim().Render("·"),
@@ -229,7 +229,7 @@ func (r OrphansResult) Human() string {
 			case hygiene.OrphanStandaloneAttachment:
 				marker = ui.SymWarn
 			default:
-				marker = ui.TUI.Accent().Render("●")
+				marker = ui.TUI.TextBlue().Render("●")
 			}
 		}
 		fmt.Fprintf(&b, "    %s  %-24s %d\n", marker, string(k), count)
@@ -267,7 +267,7 @@ func (r OrphansResult) Human() string {
 			}
 			if f.ItemKey != "" {
 				fmt.Fprintf(&b, "    %s  %s\n",
-					ui.TUI.Accent().Render(f.ItemKey), label)
+					ui.TUI.TextBlue().Render(f.ItemKey), label)
 			} else {
 				fmt.Fprintf(&b, "    %s\n", label)
 			}
@@ -316,7 +316,7 @@ func (r DuplicatesResult) Human() string {
 	var b strings.Builder
 	stats, _ := r.Report.Stats.(hygiene.DuplicatesStats)
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Duplicate clusters"))
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Duplicate clusters"))
 	fuzzLabel := "fuzzy=off"
 	if stats.Fuzzy {
 		fuzzLabel = fmt.Sprintf("fuzzy=on threshold=%.2f", stats.Threshold)
@@ -351,7 +351,7 @@ func (r DuplicatesResult) Human() string {
 		fmt.Fprintf(&b, "  %s %s %s\n",
 			matchTypeBadge(c.MatchType),
 			ui.TUI.Dim().Render("score"),
-			ui.TUI.Accent().Render(scoreStr),
+			ui.TUI.TextBlue().Render(scoreStr),
 		)
 		for _, m := range c.Members {
 			title := m.Title
@@ -367,7 +367,7 @@ func (r DuplicatesResult) Human() string {
 				year = " " + ui.TUI.Dim().Render("("+d[:4]+")")
 			}
 			fmt.Fprintf(&b, "    %s  %s%s%s\n",
-				ui.TUI.Accent().Render(m.Key),
+				ui.TUI.TextBlue().Render(m.Key),
 				title,
 				year,
 				pdfMarker,
@@ -405,7 +405,7 @@ func (r CitekeysResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Cite-key validation"))
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Cite-key validation"))
 	stats, _ := r.Report.Stats.(hygiene.CitekeysStats)
 	fmt.Fprintf(&b, "  %s %d items scanned  %s %d stored  %s %d unstored\n\n",
 		ui.TUI.Dim().Render("·"), stats.Scanned,
@@ -460,7 +460,7 @@ func (r CitekeysResult) Human() string {
 			title = ui.TUI.Dim().Render("(untitled)")
 		}
 		fmt.Fprintf(&b, "    %s  %s %-13s %s\n",
-			ui.TUI.Accent().Render(f.ItemKey),
+			ui.TUI.TextBlue().Render(f.ItemKey),
 			severityIcon(f.Severity),
 			styleSeverity(f.Severity, f.Kind),
 			title,
@@ -482,7 +482,7 @@ func matchTypeBadge(kind string) string {
 	case "doi":
 		return ui.TUI.Pass().Render("[" + kind + "]")
 	case "title-exact":
-		return ui.TUI.Accent().Render("[" + kind + "]")
+		return ui.TUI.TextBlue().Render("[" + kind + "]")
 	case "title-fuzzy":
 		return ui.TUI.Warn().Render("[" + kind + "]")
 	default:
@@ -502,7 +502,7 @@ func coverageBar(pct float64, width int) string {
 	}
 	filled := int(pct/100*float64(width) + 0.5)
 	var b strings.Builder
-	b.WriteString(ui.TUI.Accent().Render(strings.Repeat("█", filled)))
+	b.WriteString(ui.TUI.TextBlue().Render(strings.Repeat("█", filled)))
 	b.WriteString(ui.TUI.Dim().Render(strings.Repeat("░", width-filled)))
 	return b.String()
 }

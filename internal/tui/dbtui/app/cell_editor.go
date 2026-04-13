@@ -65,7 +65,7 @@ func (m *Model) openCellEditor() {
 	styles := ta.Styles()
 	styles.Focused.CursorLine = styles.Focused.CursorLine.UnsetBackground()
 	styles.Focused.Base = styles.Focused.Base.
-		BorderForeground(ui.TUI.Palette().Accent)
+		BorderForeground(ui.TUI.Palette().Blue)
 	ta.SetStyles(styles)
 	ta.Placeholder = "empty (NULL)"
 

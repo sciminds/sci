@@ -292,12 +292,12 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 			}
 
 			if selected {
-				pointer := m.styles.AccentBold().Render(symTriRight + " ")
+				pointer := m.styles.TextBlueBold().Render(symTriRight + " ")
 				if entry.IsDir {
-					nameStyled := m.styles.AccentBold().Render(name)
+					nameStyled := m.styles.TextBlueBold().Render(name)
 					b.WriteString(pointer + nameStyled)
 				} else {
-					nameStyled := m.styles.AccentBold().Render(name)
+					nameStyled := m.styles.TextBlueBold().Render(name)
 					b.WriteString(pointer + nameStyled)
 				}
 			} else {

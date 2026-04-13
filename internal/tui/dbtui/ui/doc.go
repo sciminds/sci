@@ -9,7 +9,7 @@
 // The package-level variable [TUI] is a pre-built [Styles] instance.
 // Access styles through its methods:
 //
-//	ui.TUI.Accent().Render("highlighted text")
+//	ui.TUI.TextBlue().Render("highlighted text")
 //	ui.TUI.Error().Render("something went wrong")
 //	ui.TUI.OverlayBox().Width(40).Render(content)
 //

@@ -496,7 +496,7 @@ func renderCell(
 	// Search highlighting: render matched positions with accent style.
 	if len(searchPositions) > 0 && hl != highlightVisual && hl != highlightVisualCursor {
 		truncated := ansi.Truncate(value, width, symEllipsis)
-		highlighted := highlightFuzzyPositions(truncated, searchPositions, style, ui.TUI.AccentBold())
+		highlighted := highlightFuzzyPositions(truncated, searchPositions, style, ui.TUI.TextBlueBold())
 		textW := lipgloss.Width(truncated)
 		if pad := width - textW; pad > 0 {
 			if spec.Align == alignRight {

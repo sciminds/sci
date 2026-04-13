@@ -95,7 +95,7 @@ func cloudPutCommand() *cli.Command {
 
 			// Warn about public access.
 			fmt.Fprintf(os.Stderr, "\n  %s This creates a public URL for file access. Do not share sensitive or personally identifying information.\n", ui.SymWarn)
-			fmt.Fprintf(os.Stderr, "    Use %s for private lab storage.\n\n", ui.TUI.Accent().Render("sci lab put"))
+			fmt.Fprintf(os.Stderr, "    Use %s for private lab storage.\n\n", ui.TUI.TextBlue().Render("sci lab put"))
 
 			name := putName
 			desc := putDesc

@@ -67,7 +67,7 @@ func newReccsModel(entries []brew.BrewfileEntry, missing map[string]bool) reccsM
 		if desc == "" {
 			desc = e.Type + " package"
 		}
-		desc += ui.TUI.Muted().Render("  " + e.Type)
+		desc += ui.TUI.TextPink().Render("  " + e.Type)
 		filtered = append(filtered, e)
 		items = append(items, reccsItem{entry: e, desc: desc})
 	}

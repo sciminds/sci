@@ -39,11 +39,11 @@ func makeListItem(p PackageInfo) listItem {
 	var desc string
 	switch {
 	case p.Desc != "" && p.Version != "":
-		desc = p.Desc + ui.TUI.Muted().Render("  "+p.Version)
+		desc = p.Desc + ui.TUI.TextPink().Render("  "+p.Version)
 	case p.Desc != "":
 		desc = p.Desc
 	case p.Version != "":
-		desc = ui.TUI.Muted().Render(p.Version)
+		desc = ui.TUI.TextPink().Render(p.Version)
 	default:
 		desc = ui.TUI.Dim().Render("no description")
 	}

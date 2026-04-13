@@ -57,7 +57,7 @@ func (m Model) View() tea.View {
 	case phaseSelecting:
 		body = m.selectList.View()
 	case phaseApplying:
-		body = m.spinner.View() + ui.TUI.FgAccent().Render(fmt.Sprintf("Applying %d files…", m.selectList.SelectedCount()))
+		body = m.spinner.View() + ui.TUI.TextBlue().Render(fmt.Sprintf("Applying %d files…", m.selectList.SelectedCount()))
 	case phaseDone:
 		body = m.viewDone()
 	}

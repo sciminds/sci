@@ -220,10 +220,10 @@ func (sl SelectList) View() string {
 func RenderSelectItemLine(name string, selected, isCursor bool) string {
 	cursor := "  "
 	if isCursor {
-		cursor = TUI.Accent().Render(" " + IconCursor)
+		cursor = TUI.TextBlue().Render(" " + IconCursor)
 	}
 
-	marker := TUI.Muted().Render(IconPending)
+	marker := TUI.TextPink().Render(IconPending)
 	if selected {
 		marker = TUI.Pass().Render(IconDot)
 	}

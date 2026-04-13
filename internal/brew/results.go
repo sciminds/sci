@@ -80,8 +80,8 @@ func (r UpdateResult) Human() string {
 		fmt.Fprintf(&b, "Upgraded %d package(s):\n\n", len(r.Outdated))
 	}
 	for _, pkg := range r.Outdated {
-		arrow := ui.TUI.Muted().Render(" → ")
-		version := ui.TUI.Muted().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+		arrow := ui.TUI.TextPink().Render(" → ")
+		version := ui.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 		fmt.Fprintf(&b, "  %s %s\n", pkg.Name, version)
 	}
 	return b.String()

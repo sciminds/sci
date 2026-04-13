@@ -257,7 +257,7 @@ func (r *initResult) Human() string {
 	if r.HasClassroom {
 		out += fmt.Sprintf("  %s GitHub Classroom configured\n", ui.SymOK)
 	}
-	out += fmt.Sprintf("\n  Next: run %s to fetch course data\n", ui.TUI.Accent().Render("sci cass pull"))
+	out += fmt.Sprintf("\n  Next: run %s to fetch course data\n", ui.TUI.TextBlue().Render("sci cass pull"))
 	return out
 }
 

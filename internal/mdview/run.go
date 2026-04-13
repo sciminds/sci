@@ -38,7 +38,7 @@ func (m *Model) initPicker() {
 	d := ui.NewListDelegate()
 	l := list.New(items, d, 0, 0)
 	l.Title = "Markdown Files"
-	l.Styles.Title = ui.TUI.AccentBold()
+	l.Styles.Title = ui.TUI.TextBlueBold()
 	l.SetFilteringEnabled(true)
 	l.SetShowStatusBar(true)
 	m.picker = l

@@ -252,7 +252,7 @@ func (m *Model) tabUnderline() string {
 	style := m.styles.TabUnderline()
 	switch m.mode {
 	case modeEdit:
-		style = m.styles.SecondaryText()
+		style = m.styles.TextOrange()
 	case modeVisual:
 		style = m.styles.FilterMark() // muted color
 	}
@@ -378,7 +378,7 @@ func (m *Model) viewportPinContext(tab *Tab, vp tableViewport) pinRenderContext 
 
 func (m *Model) buildLoadingView() string {
 	name := m.tabs[m.active].Name
-	label := m.spinner.View() + " " + m.styles.AccentBold().Render("Loading "+name+"…")
+	label := m.spinner.View() + " " + m.styles.TextBlueBold().Render("Loading "+name+"…")
 	bodyH := m.height - loadingChromeLines
 	if bodyH < minLoadingBodyH {
 		bodyH = minLoadingBodyH

@@ -79,7 +79,7 @@ func Convert(input, output string) (*ConvertResult, error) {
 
 	// Ensure uvx is available
 	if _, err := exec.LookPath("uvx"); err != nil {
-		return nil, fmt.Errorf("uvx not found — run %s to install it", ui.TUI.Accent().Render("sci doctor check"))
+		return nil, fmt.Errorf("uvx not found — run %s to install it", ui.TUI.TextBlue().Render("sci doctor check"))
 	}
 
 	// Build jupytext args

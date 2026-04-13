@@ -13,7 +13,7 @@ import (
 )
 
 // experimental is the colored "[experimental]" tag prepended to Usage strings.
-var experimental = ui.TUI.Muted().Render("[experimental]")
+var experimental = ui.TUI.TextPink().Render("[experimental]")
 
 // Commands returns the full zot subcommand tree.
 // Entry points wrap this in their own root cli.Command.

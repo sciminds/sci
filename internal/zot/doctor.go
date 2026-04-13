@@ -164,7 +164,7 @@ func (r *DoctorResult) Human() string {
 	}
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Library Health"))
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Library Health"))
 	deepLabel := "fast mode"
 	if r.Deep {
 		deepLabel = "deep mode"

@@ -56,14 +56,14 @@ func (r InfoResult) summaryLabel(nTables, nViews, nVirtual int) string {
 	var parts []string
 	if nTables > 0 {
 		label := lo.Ternary(nTables == 1, "table", "tables")
-		parts = append(parts, ui.TUI.Accent().Render(fmt.Sprintf("%d %s", nTables, label)))
+		parts = append(parts, ui.TUI.TextBlue().Render(fmt.Sprintf("%d %s", nTables, label)))
 	}
 	if nViews > 0 {
 		label := lo.Ternary(nViews == 1, "view", "views")
-		parts = append(parts, ui.TUI.FgSecondary().Render(fmt.Sprintf("%d %s", nViews, label)))
+		parts = append(parts, ui.TUI.TextOrange().Render(fmt.Sprintf("%d %s", nViews, label)))
 	}
 	if nVirtual > 0 {
-		parts = append(parts, ui.TUI.FgMuted().Render(fmt.Sprintf("%d %s", nVirtual, "virtual")))
+		parts = append(parts, ui.TUI.TextPink().Render(fmt.Sprintf("%d %s", nVirtual, "virtual")))
 	}
 	if len(parts) == 0 {
 		return "0 tables"
@@ -108,12 +108,12 @@ func writeTableRows(b *strings.Builder, entries []TableEntry, hasViews, hasVirtu
 
 	// Build header first so we can factor its visual width into column sizing.
 	var headerParts []string
-	headerParts = append(headerParts, ui.TUI.Accent().Render("table"))
+	headerParts = append(headerParts, ui.TUI.TextBlue().Render("table"))
 	if hasViews {
-		headerParts = append(headerParts, ui.TUI.FgSecondary().Render("view"))
+		headerParts = append(headerParts, ui.TUI.TextOrange().Render("view"))
 	}
 	if hasVirtual {
-		headerParts = append(headerParts, ui.TUI.FgMuted().Render("virtual"))
+		headerParts = append(headerParts, ui.TUI.TextPink().Render("virtual"))
 	}
 	header := lo.Ternary(len(headerParts) == 1,
 		"table",
@@ -153,11 +153,11 @@ func writeTableRows(b *strings.Builder, entries []TableEntry, hasViews, hasVirtu
 		var name string
 		switch {
 		case t.IsView:
-			name = ui.TUI.FgSecondary().Render(t.Name)
+			name = ui.TUI.TextOrange().Render(t.Name)
 		case t.IsVirtual:
-			name = ui.TUI.FgMuted().Render(t.Name)
+			name = ui.TUI.TextPink().Render(t.Name)
 		default:
-			name = ui.TUI.Accent().Render(t.Name)
+			name = ui.TUI.TextBlue().Render(t.Name)
 		}
 		namePad := nameW - visLen(name)
 		if namePad < 0 {

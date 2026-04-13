@@ -222,7 +222,7 @@ func (m runnerModel) View() tea.View {
 
 	// Line 1: spinner + title + fraction
 	b.WriteString(m.spinner.View())
-	b.WriteString(TUI.FgAccent().Render(m.title))
+	b.WriteString(TUI.TextBlue().Render(m.title))
 	if m.progress && m.total > 0 {
 		b.WriteString(TUI.Dim().Render(fmt.Sprintf("  %d/%d", m.current, m.total)))
 	}
@@ -254,7 +254,7 @@ func (m runnerModel) viewProgress(b *strings.Builder) {
 		}
 		pct := 100 * m.current / m.total
 		b.WriteString("  ")
-		b.WriteString(TUI.FgAccent().Render(strings.Repeat("█", filled)))
+		b.WriteString(TUI.TextBlue().Render(strings.Repeat("█", filled)))
 		b.WriteString(TUI.Dim().Render(strings.Repeat("░", barWidth-filled)))
 		b.WriteString(TUI.Dim().Render(fmt.Sprintf(" %d%%", pct)))
 		b.WriteByte('\n')

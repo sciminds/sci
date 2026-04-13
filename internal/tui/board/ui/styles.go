@@ -103,7 +103,7 @@ func New(isDark bool) *Styles {
 		palette: p,
 
 		Title: lipgloss.NewStyle().
-			Foreground(p.Accent).
+			Foreground(p.Blue).
 			Bold(true).
 			Padding(0, 1),
 		Subtitle: lipgloss.NewStyle().
@@ -112,7 +112,7 @@ func New(isDark bool) *Styles {
 			Foreground(p.TextMid).
 			Padding(0, 1),
 		StatusErr: lipgloss.NewStyle().
-			Foreground(p.Danger).
+			Foreground(p.Red).
 			Padding(0, 1),
 		Help: lipgloss.NewStyle().
 			Foreground(p.TextDim),
@@ -127,7 +127,7 @@ func New(isDark bool) *Styles {
 			Padding(0, 2),
 		PickerSelected: lipgloss.NewStyle().
 			Foreground(p.OnAccent).
-			Background(p.Accent).
+			Background(p.Blue).
 			Padding(0, 2).
 			Bold(true),
 		PickerHint: lipgloss.NewStyle().
@@ -141,7 +141,7 @@ func New(isDark bool) *Styles {
 			Padding(0, 1),
 		ColumnFocus: lipgloss.NewStyle().
 			Border(border).
-			BorderForeground(p.Accent).
+			BorderForeground(p.Blue).
 			Padding(0, 1),
 		ColumnCollapsed: lipgloss.NewStyle().
 			Border(border).
@@ -149,10 +149,10 @@ func New(isDark bool) *Styles {
 			Padding(0, 1).
 			Faint(true),
 		ScrollIndicator: lipgloss.NewStyle().
-			Foreground(p.Accent).
+			Foreground(p.Blue).
 			Bold(true),
 		ColumnTitle: lipgloss.NewStyle().
-			Foreground(p.Accent).
+			Foreground(p.Blue).
 			Bold(true).
 			Underline(true),
 		ColumnCount: lipgloss.NewStyle().
@@ -167,7 +167,7 @@ func New(isDark bool) *Styles {
 		CardSelected: lipgloss.NewStyle().
 			Foreground(p.TextBright).
 			Border(cardBorder).
-			BorderForeground(p.Accent).
+			BorderForeground(p.Blue).
 			Padding(CardPaddingY, CardPaddingX).
 			Bold(true),
 		CardTitle: lipgloss.NewStyle().
@@ -176,17 +176,17 @@ func New(isDark bool) *Styles {
 		CardMeta: lipgloss.NewStyle().
 			Foreground(p.TextDim),
 		CardLabel: lipgloss.NewStyle().
-			Foreground(p.Secondary),
+			Foreground(p.Orange),
 		CardPriority: lipgloss.NewStyle().
-			Foreground(p.Secondary).
+			Foreground(p.Orange).
 			Bold(true),
 
 		DetailFrame: lipgloss.NewStyle().
 			Border(border).
-			BorderForeground(p.Accent).
+			BorderForeground(p.Blue).
 			Padding(1, 2),
 		DetailHeading: lipgloss.NewStyle().
-			Foreground(p.Accent).
+			Foreground(p.Blue).
 			Bold(true),
 		DetailBody: lipgloss.NewStyle().
 			Foreground(p.TextMid),

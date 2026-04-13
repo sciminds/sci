@@ -59,15 +59,15 @@ func SummaryLine(parts ...SummaryPart) string {
 		var s string
 		switch p.Kind {
 		case SummarySuccess:
-			s = TUI.SuccessBold().Render(text)
+			s = TUI.TextGreenBold().Render(text)
 		case SummaryDanger:
-			s = TUI.DangerBold().Render(text)
+			s = TUI.TextRedBold().Render(text)
 		case SummaryDim:
 			s = TUI.Dim().Render(text)
 		}
 		rendered = append(rendered, s)
 	}
-	sep := TUI.Muted().Render(" · ")
+	sep := TUI.TextPink().Render(" · ")
 	return strings.Join(rendered, sep)
 }
 

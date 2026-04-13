@@ -333,7 +333,7 @@ func (m *Model) statusLine() string {
 	pct := scrollPercent(&m.vp)
 
 	title := m.pages[m.current].Name
-	left := ui.TUI.AccentBold().Render(" " + title + " ")
+	left := ui.TUI.TextBlueBold().Render(" " + title + " ")
 
 	nav := "/ search  q quit"
 	if m.multi {

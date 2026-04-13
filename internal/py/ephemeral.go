@@ -172,10 +172,10 @@ func RunTool(dir string, tool Tool, extraPkgs []string, ignoreExisting bool) err
 
 	switch env.Kind {
 	case EnvUV:
-		fmt.Printf("Detected uv project in %s\n\n", ui.TUI.Accent().Render(env.Dir))
+		fmt.Printf("Detected uv project in %s\n\n", ui.TUI.TextBlue().Render(env.Dir))
 	default:
 		allPkgs := slices.Concat([]string{tool.Pkg}, tool.DefaultPkgs, extraPkgs)
-		fmt.Printf("Starting %s with: %s\n\n", tool.Label, ui.TUI.Accent().Render(strings.Join(allPkgs, ", ")))
+		fmt.Printf("Starting %s with: %s\n\n", tool.Label, ui.TUI.TextBlue().Render(strings.Join(allPkgs, ", ")))
 	}
 
 	return syscall.Exec(uvBin, slices.Concat([]string{"uv"}, args), os.Environ())
@@ -189,18 +189,18 @@ func runPixiTool(dir string, tool Tool) error {
 		return fmt.Errorf(
 			"pixi environment found but no python at %s\nRun %s first",
 			python,
-			ui.TUI.Accent().Render("pixi install"),
+			ui.TUI.TextBlue().Render("pixi install"),
 		)
 	}
 
-	fmt.Printf("Detected pixi environment in %s\n\n", ui.TUI.Accent().Render(dir))
+	fmt.Printf("Detected pixi environment in %s\n\n", ui.TUI.TextBlue().Render(dir))
 	return syscall.Exec(python, cmd, os.Environ())
 }
 
 func requireUV() (string, error) {
 	bin, err := exec.LookPath("uv")
 	if err != nil {
-		return "", fmt.Errorf("uv not found — run %s to install it", ui.TUI.Accent().Render("sci doctor check"))
+		return "", fmt.Errorf("uv not found — run %s to install it", ui.TUI.TextBlue().Render("sci doctor check"))
 	}
 	return bin, nil
 }

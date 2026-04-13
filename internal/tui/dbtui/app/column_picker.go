@@ -26,7 +26,7 @@ func gapSeparators(
 		return nil, nil
 	}
 	collapsedSep := ui.TUI.TableSeparator().Render(" ") +
-		ui.TUI.SecondaryText().Render("\u22ef") +
+		ui.TUI.TextOrange().Render("\u22ef") +
 		ui.TUI.TableSeparator().Render(" ")
 
 	plainSeps = make([]string, n-1)
@@ -206,7 +206,7 @@ func (m *Model) buildColumnPickerOverlay() string {
 		label := fmt.Sprintf("  %s", spec.Title)
 		if i == m.columnPicker.Cursor {
 			label = fmt.Sprintf("%s %s", symTriRight, spec.Title)
-			b.WriteString(m.styles.AccentBold().Render(label))
+			b.WriteString(m.styles.TextBlueBold().Render(label))
 		} else {
 			b.WriteString(m.styles.HeaderHint().Render(label))
 		}

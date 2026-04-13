@@ -46,7 +46,7 @@ func writeItemLine(b *strings.Builder, it local.Item) {
 		year = " " + ui.TUI.Dim().Render("("+d[:4]+")")
 	}
 	fmt.Fprintf(b, "  %s  %s%s\n",
-		ui.TUI.Accent().Render(it.Key),
+		ui.TUI.TextBlue().Render(it.Key),
 		title,
 		year,
 	)
@@ -76,7 +76,7 @@ func (r ItemResult) Human() string {
 	if title == "" {
 		title = "(untitled)"
 	}
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render(title))
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render(title))
 	fmt.Fprintf(&b, "  %s  %s\n\n",
 		ui.TUI.Dim().Render(it.Key),
 		ui.TUI.Dim().Render(it.Type),
@@ -106,7 +106,7 @@ func (r ItemResult) Human() string {
 	if len(it.Attachments) > 0 {
 		fmt.Fprintf(&b, "\n  %s\n", ui.TUI.Dim().Render("attachments:"))
 		for _, a := range it.Attachments {
-			fmt.Fprintf(&b, "    %s  %s\n", ui.TUI.Accent().Render(a.Key), a.Filename)
+			fmt.Fprintf(&b, "    %s  %s\n", ui.TUI.TextBlue().Render(a.Key), a.Filename)
 		}
 	}
 	return b.String() + "\n"
@@ -166,11 +166,11 @@ func (r ChildrenListResult) Human() string {
 	}
 	fmt.Fprintf(&b, "\n  %s %s\n\n",
 		ui.TUI.Dim().Render("children of"),
-		ui.TUI.Accent().Render(r.ParentKey),
+		ui.TUI.TextBlue().Render(r.ParentKey),
 	)
 	for _, ch := range r.Children {
 		fmt.Fprintf(&b, "    %s  %s",
-			ui.TUI.Accent().Render(ch.Key),
+			ui.TUI.TextBlue().Render(ch.Key),
 			ui.TUI.Dim().Render(childTypeLabel(ch.ItemType)),
 		)
 		// One-line descriptor varies by type:
@@ -257,7 +257,7 @@ func (r CollectionListResult) Human() string {
 	var b strings.Builder
 	for _, c := range r.Collections {
 		fmt.Fprintf(&b, "  %s  %s %s\n",
-			ui.TUI.Accent().Render(c.Key),
+			ui.TUI.TextBlue().Render(c.Key),
 			c.Name,
 			ui.TUI.Dim().Render(fmt.Sprintf("(%d)", c.ItemCount)),
 		)
@@ -304,7 +304,7 @@ func (r StatsResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r StatsResult) Human() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.AccentBold().Render("Library stats"))
+	fmt.Fprintf(&b, "\n  %s\n", ui.TUI.TextBlueBold().Render("Library stats"))
 	fmt.Fprintf(&b, "  %s %s\n", ui.TUI.Dim().Render("data:"), r.DataDir)
 	fmt.Fprintf(&b, "  %s schema v%d\n\n", ui.TUI.Dim().Render("  ·  "), r.Schema)
 	fmt.Fprintf(&b, "  %s %d\n", ui.TUI.Dim().Render("items:         "), r.Stats.TotalItems)

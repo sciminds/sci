@@ -19,34 +19,34 @@ func HuhTheme() huh.ThemeFunc {
 		f := &t.Focused
 		f.Base = f.Base.BorderForeground(p.Border)
 		f.Card = f.Base
-		f.Title = f.Title.Foreground(p.Accent).Bold(true)
-		f.NoteTitle = f.NoteTitle.Foreground(p.Accent).Bold(true)
+		f.Title = f.Title.Foreground(p.Blue).Bold(true)
+		f.NoteTitle = f.NoteTitle.Foreground(p.Blue).Bold(true)
 		f.Description = f.Description.Foreground(p.TextMid)
-		f.ErrorIndicator = f.ErrorIndicator.Foreground(p.Danger)
-		f.ErrorMessage = f.ErrorMessage.Foreground(p.Danger)
+		f.ErrorIndicator = f.ErrorIndicator.Foreground(p.Red)
+		f.ErrorMessage = f.ErrorMessage.Foreground(p.Red)
 
 		// Select
-		f.SelectSelector = f.SelectSelector.Foreground(p.Secondary)
-		f.NextIndicator = f.NextIndicator.Foreground(p.Secondary)
-		f.PrevIndicator = f.PrevIndicator.Foreground(p.Secondary)
+		f.SelectSelector = f.SelectSelector.Foreground(p.Orange)
+		f.NextIndicator = f.NextIndicator.Foreground(p.Orange)
+		f.PrevIndicator = f.PrevIndicator.Foreground(p.Orange)
 		f.Option = f.Option.Foreground(p.TextBright)
-		f.SelectedOption = f.SelectedOption.Foreground(p.Success)
-		f.SelectedPrefix = lipgloss.NewStyle().Foreground(p.Success).SetString("✓ ")
+		f.SelectedOption = f.SelectedOption.Foreground(p.Green)
+		f.SelectedPrefix = lipgloss.NewStyle().Foreground(p.Green).SetString("✓ ")
 		f.UnselectedPrefix = lipgloss.NewStyle().Foreground(p.TextMid).SetString("• ")
 		f.UnselectedOption = f.UnselectedOption.Foreground(p.TextBright)
 
 		// Multi-select
-		f.MultiSelectSelector = f.MultiSelectSelector.Foreground(p.Secondary)
+		f.MultiSelectSelector = f.MultiSelectSelector.Foreground(p.Orange)
 
 		// Buttons
-		f.FocusedButton = f.FocusedButton.Foreground(p.OnAccent).Background(p.Accent)
+		f.FocusedButton = f.FocusedButton.Foreground(p.OnAccent).Background(p.Blue)
 		f.Next = f.FocusedButton
 		f.BlurredButton = f.BlurredButton.Foreground(p.TextMid).Background(p.Surface)
 
 		// Text input
-		f.TextInput.Cursor = f.TextInput.Cursor.Foreground(p.Accent)
+		f.TextInput.Cursor = f.TextInput.Cursor.Foreground(p.Blue)
 		f.TextInput.Placeholder = f.TextInput.Placeholder.Foreground(p.TextDim)
-		f.TextInput.Prompt = f.TextInput.Prompt.Foreground(p.Secondary)
+		f.TextInput.Prompt = f.TextInput.Prompt.Foreground(p.Orange)
 		f.TextInput.Text = f.TextInput.Text.Foreground(p.TextBright)
 
 		// Blurred: same styles but hidden border

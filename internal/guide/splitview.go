@@ -215,7 +215,7 @@ func (s *splitView) viewSideBySide() string {
 		Height(bodyH).
 		BorderLeft(true).
 		BorderStyle(lipgloss.ThickBorder()).
-		BorderLeftForeground(ui.TUI.Palette().Accent).
+		BorderLeftForeground(ui.TUI.Palette().Blue).
 		PaddingLeft(1).
 		Render(rightContent)
 
@@ -242,7 +242,7 @@ func (s *splitView) viewStacked() string {
 		Height(topH).
 		Render(topContent)
 
-	divider := ui.TUI.FgAccent().
+	divider := ui.TUI.TextBlue().
 		Render(strings.Repeat("━", s.width))
 
 	botContent := s.player.View() + "\n" + s.playerFooter(s.width)

@@ -116,7 +116,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	if !isJSON && !created {
 		fmt.Fprintf(os.Stderr, "\n  %s Found Brewfile at %s\n",
-			ui.SymArrow, ui.TUI.Accent().Render(brewfilePath))
+			ui.SymArrow, ui.TUI.TextBlue().Render(brewfilePath))
 	}
 
 	// ── Steps 3b–4: Sync, required packages, tool check & install ──────
@@ -153,7 +153,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		} else {
 			n := len(brew.ParseBrewfileNames(mustReadFile(brewfilePath)))
 			fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
-				ui.SymOK, ui.TUI.Accent().Render(brewfilePath), n)
+				ui.SymOK, ui.TUI.TextBlue().Render(brewfilePath), n)
 		}
 	} else {
 		syncResult, syncErr := brew.Sync(runner, brewfilePath)
@@ -305,8 +305,8 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 
 	fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(result.Outdated))
 	for _, pkg := range result.Outdated {
-		arrow := ui.TUI.Muted().Render(" → ")
-		version := ui.TUI.Muted().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+		arrow := ui.TUI.TextPink().Render(" → ")
+		version := ui.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 		fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
 	}
 	fmt.Fprintln(os.Stderr)
@@ -378,13 +378,13 @@ func promptGitIdentity(result doctor.DocResult) error {
 		if err := exec.Command("git", "config", "--global", "user.name", name).Run(); err != nil {
 			return fmt.Errorf("set git user.name: %w", err)
 		}
-		fmt.Fprintf(os.Stderr, "  %s Set git user.name to %s\n", ui.SymOK, ui.TUI.Accent().Render(name))
+		fmt.Fprintf(os.Stderr, "  %s Set git user.name to %s\n", ui.SymOK, ui.TUI.TextBlue().Render(name))
 	}
 	if email != "" {
 		if err := exec.Command("git", "config", "--global", "user.email", email).Run(); err != nil {
 			return fmt.Errorf("set git user.email: %w", err)
 		}
-		fmt.Fprintf(os.Stderr, "  %s Set git user.email to %s\n", ui.SymOK, ui.TUI.Accent().Render(email))
+		fmt.Fprintf(os.Stderr, "  %s Set git user.email to %s\n", ui.SymOK, ui.TUI.TextBlue().Render(email))
 	}
 
 	return nil

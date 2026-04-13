@@ -48,7 +48,7 @@ func renderHelp(w io.Writer, c *cli.Command) {
 	// ── Banner (root only) ────────────────────────────────────────────────
 	if isRoot {
 		p()
-		p(TUI.AccentBold().Render("  🔬🧠 sci") + " " + TUI.Dim().Render("— your scientific computing toolkit"))
+		p(TUI.TextBlueBold().Render("  🔬🧠 sci") + " " + TUI.Dim().Render("— your scientific computing toolkit"))
 	}
 
 	// ── Description (skip for root — banner covers it) ───────────────────
@@ -168,7 +168,7 @@ func buildUsageLine(c *cli.Command) string {
 }
 
 func printCommandCli(w io.Writer, cmd *cli.Command, padding int) {
-	name := TUI.FgAccent().Render(rpad(cmd.Name, padding))
+	name := TUI.TextBlue().Render(rpad(cmd.Name, padding))
 	desc := TUI.TextMid().Render(cmd.Usage)
 	_, _ = fmt.Fprintf(w, "    %s%s\n", name, desc)
 }
@@ -211,7 +211,7 @@ func rpad(s string, padding int) string {
 
 func categoryHeading(name string) string {
 	if name == "Experimental" {
-		return TUI.MutedBold().Render(name)
+		return TUI.TextPinkBold().Render(name)
 	}
 	return TUI.HelpSection().Render(name)
 }

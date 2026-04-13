@@ -58,7 +58,7 @@ func (r CreateResult) Human() string {
 	var b strings.Builder
 	sym := lo.Ternary(r.DryRun, ui.SymWarn, ui.SymOK)
 	verb := lo.Ternary(r.DryRun, "would create", "Created")
-	fmt.Fprintf(&b, "  %s %s %d files in %s\n", sym, verb, len(r.Files), ui.TUI.Accent().Render(r.ProjectDir))
+	fmt.Fprintf(&b, "  %s %s %d files in %s\n", sym, verb, len(r.Files), ui.TUI.TextBlue().Render(r.ProjectDir))
 	for _, f := range r.Files {
 		fmt.Fprintf(&b, "    %s\n", ui.TUI.Dim().Render(f))
 	}

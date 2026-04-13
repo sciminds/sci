@@ -107,7 +107,7 @@ func (m *Model) visualModeStatusHelp(modeBadge string) string {
 	}
 	if selCount > 0 {
 		selLabel := fmt.Sprintf("%d selected", selCount)
-		hints = append(hints, statusHint{ID: "sel", Full: m.styles.AccentBold().Render(selLabel), Priority: 0, Required: true})
+		hints = append(hints, statusHint{ID: "sel", Full: m.styles.TextBlueBold().Render(selLabel), Priority: 0, Required: true})
 	}
 	hints = append(hints,
 		statusHint{ID: "del", Full: m.helpItem(keyD, "delete"), Compact: m.renderKeys(keyD), Priority: 1},

@@ -124,7 +124,7 @@ func (m *Model) buildCreateTableOverlay(contentW, innerW int) string {
 		before := string(ed.Buf[:ed.Cursor])
 		after := string(ed.Buf[ed.Cursor:])
 		b.WriteString(before)
-		b.WriteString(m.styles.AccentBold().Render("│"))
+		b.WriteString(m.styles.TextBlueBold().Render("│"))
 		b.WriteString(after)
 	}
 
@@ -309,7 +309,7 @@ func (m *Model) buildDeriveOverlay(contentW int) string {
 	// SQL label + editor.
 	sqlLabel := "SQL"
 	if tl.DeriveFocus == 0 {
-		sqlLabel = m.styles.Accent().Render("SQL")
+		sqlLabel = m.styles.TextBlue().Render("SQL")
 	}
 	b.WriteString(sqlLabel + "\n")
 	b.WriteString(tl.DeriveSQL.View())
@@ -318,7 +318,7 @@ func (m *Model) buildDeriveOverlay(contentW int) string {
 	// Name label + editor.
 	nameLabel := "Name"
 	if tl.DeriveFocus == 1 {
-		nameLabel = m.styles.Accent().Render("Name")
+		nameLabel = m.styles.TextBlue().Render("Name")
 	}
 	b.WriteString(nameLabel + "\n")
 	b.WriteString(tl.DeriveName.View())

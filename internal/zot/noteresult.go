@@ -35,7 +35,7 @@ func (r NotesListResult) Human() string {
 	if r.ParentKey != "" {
 		fmt.Fprintf(&b, "\n  %s %s\n\n",
 			ui.TUI.Dim().Render("docling notes for"),
-			ui.TUI.Accent().Render(r.ParentKey),
+			ui.TUI.TextBlue().Render(r.ParentKey),
 		)
 	} else {
 		fmt.Fprintf(&b, "\n  %s\n\n", ui.TUI.Dim().Render("docling notes"))
@@ -43,7 +43,7 @@ func (r NotesListResult) Human() string {
 	for _, n := range r.Notes {
 		snippet := noteSnippet(n.Body)
 		fmt.Fprintf(&b, "  %s  %s",
-			ui.TUI.Accent().Render(n.NoteKey),
+			ui.TUI.TextBlue().Render(n.NoteKey),
 			ui.TUI.Dim().Render(n.ParentKey),
 		)
 		if n.ParentTitle != "" {
@@ -70,7 +70,7 @@ func (r NoteReadResult) JSON() any { return r.Note }
 func (r NoteReadResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n  %s  %s\n",
-		ui.TUI.Accent().Render(r.Note.Key),
+		ui.TUI.TextBlue().Render(r.Note.Key),
 		ui.TUI.Dim().Render("note"),
 	)
 	if r.Note.ParentKey != "" {
