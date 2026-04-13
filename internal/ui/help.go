@@ -110,7 +110,7 @@ func renderHelp(w io.Writer, c *cli.Command) {
 				}
 				printed[name] = true
 				p()
-				p(TUI.HelpSection().Render(name))
+				p(categoryHeading(name))
 				sorted := sortedCommands(cat.VisibleCommands())
 				for _, sub := range sorted {
 					printCommandCli(w, sub, padding)
@@ -121,7 +121,7 @@ func renderHelp(w io.Writer, c *cli.Command) {
 					continue
 				}
 				p()
-				p(TUI.HelpSection().Render(cat.Name()))
+				p(categoryHeading(cat.Name()))
 				sorted := sortedCommands(cat.VisibleCommands())
 				for _, sub := range sorted {
 					printCommandCli(w, sub, padding)
@@ -207,6 +207,13 @@ func maxFlagNameLen(flags []cli.Flag) int {
 func rpad(s string, padding int) string {
 	f := fmt.Sprintf("%%-%ds", padding)
 	return fmt.Sprintf(f, s)
+}
+
+func categoryHeading(name string) string {
+	if name == "Experimental" {
+		return TUI.MutedBold().Render(name)
+	}
+	return TUI.HelpSection().Render(name)
 }
 
 func maxNameLen(cmds []*cli.Command) int {

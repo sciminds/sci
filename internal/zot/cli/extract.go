@@ -30,7 +30,7 @@ var (
 func extractCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "extract",
-		Usage: "Run the docling PDF extraction pipeline",
+		Usage: experimental + " Run the docling PDF extraction pipeline",
 		Description: "$ zot extract 6R45EVSB                           # dry-run preview\n" +
 			"$ zot extract 6R45EVSB --apply                    # post markdown note to Zotero\n" +
 			"$ zot extract 6R45EVSB --html --apply             # post rendered HTML note\n" +

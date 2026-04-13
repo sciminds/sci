@@ -13,7 +13,7 @@ import (
 func llmCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "llm",
-		Usage: "LLM-agent tools for querying docling notes",
+		Usage: experimental + " LLM-agent tools for querying docling notes",
 		Description: "$ zot llm catalog                        # compact paper index\n" +
 			"$ zot llm read ABC123                    # full note content\n" +
 			"$ zot llm query -s transformers -- .h2   # filter + mq pipeline",

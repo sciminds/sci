@@ -31,7 +31,7 @@ var (
 func extractLibCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "extract-lib",
-		Usage: "Bulk-extract every PDF in the library into Zotero child notes (via docling)",
+		Usage: experimental + " Bulk-extract every PDF in the library into Zotero child notes (via docling)",
 		Description: "Runs `docling` on every parent item that has a PDF attachment.\n" +
 			"\n" +
 			"By default, extracted markdown is cached locally but NOT posted to Zotero.\n" +

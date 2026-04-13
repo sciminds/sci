@@ -7,7 +7,13 @@
 // Both share identical behavior: any change here shows up in both surfaces.
 package cli
 
-import "github.com/urfave/cli/v3"
+import (
+	"github.com/sciminds/cli/internal/ui"
+	"github.com/urfave/cli/v3"
+)
+
+// experimental is the colored "[experimental]" tag prepended to Usage strings.
+var experimental = ui.TUI.Muted().Render("[experimental]")
 
 // Commands returns the full zot subcommand tree.
 // Entry points wrap this in their own root cli.Command.
@@ -23,12 +29,12 @@ import "github.com/urfave/cli/v3"
 //	collection <subcommand>     collections (list/create/delete/add/remove)
 //	tags    <subcommand>        tags (list/add/remove/delete)
 //	notes   <subcommand>        docling extraction notes (list/read/add/update/delete)
-//	llm     <subcommand>        LLM-agent tools for querying docling notes
+//	llm     <subcommand>        [experimental] LLM-agent tools for querying docling notes
 //	                            llm {catalog,read,query}
 //	doctor  [subcommand]        hygiene: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates}
-//	extract <parent-key>        run docling PDF extraction pipeline
-//	extract-lib                 bulk extract every PDF → child note (via docling)
+//	extract <parent-key>        [experimental] run docling PDF extraction pipeline
+//	extract-lib                 [experimental] bulk extract every PDF → child note (via docling)
 //
 // `item`, `collection`, and `tags` all reuse the leaf commands defined in
 // read.go / write.go — the wrapper functions below just parent them under
