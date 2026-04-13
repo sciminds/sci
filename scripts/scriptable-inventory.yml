@@ -1,6 +1,6 @@
 # scriptable-inventory.yml — Interactive ↔ Non-interactive parity tracker
 #
-# Every huh.New* prompt and tea.NewProgram/kit.Run TUI launch (outside exempt
+# Every huh.New* prompt and tea.NewProgram/uikit.Run TUI launch (outside exempt
 # paths) must have an entry here. lint-guard rule 13 fails the build when an
 # unregistered call site appears.
 #
@@ -23,7 +23,7 @@
 #   internal/tui/board/     — standalone TUI app
 #   internal/ui/spinner.go  — progress display, not user input
 #   internal/cmdutil/       — shared helpers (callers are tracked)
-#   internal/tui/kit/       — shared TUI infra (callers are tracked)
+#   internal/tui/uikit/     — shared TUI infra (callers are tracked)
 
 commands:
 
@@ -104,7 +104,7 @@ commands:
     file: cmd/sci/proj.go
     prompts:
       - id: config-tui
-        type: kit.RunModel
+        type: uikit.RunModel
         nth: 1
         line: 232
         description: "Interactive config sync reviewer"
@@ -196,7 +196,7 @@ commands:
     file: internal/share/listtui.go
     prompts:
       - id: cloud-list-tui
-        type: kit.Run
+        type: uikit.Run
         nth: 1
         line: 252
         description: "Interactive cloud file browser"
@@ -232,7 +232,7 @@ commands:
     file: internal/brew/list.go
     prompts:
       - id: tools-list-tui
-        type: kit.Run
+        type: uikit.Run
         nth: 1
         line: 118
         description: "Interactive package browser"
@@ -244,7 +244,7 @@ commands:
     file: internal/doctor/setup.go
     prompts:
       - id: reccs-tui
-        type: kit.RunModel
+        type: uikit.RunModel
         nth: 1
         line: 151
         description: "Interactive optional tools installer"
@@ -284,7 +284,7 @@ commands:
     file: internal/helptui/helptui.go
     prompts:
       - id: help-browser
-        type: kit.Run
+        type: uikit.Run
         nth: 1
         line: 300
         description: "Interactive help browser"
@@ -292,7 +292,7 @@ commands:
         reason: "Read-only browser, no actionable output to script"
 
       - id: help-group-browser
-        type: kit.Run
+        type: uikit.Run
         nth: 2
         line: 306
         description: "Interactive help group browser"
@@ -304,7 +304,7 @@ commands:
     file: internal/guide/guide.go
     prompts:
       - id: guide-browser
-        type: kit.Run
+        type: uikit.Run
         nth: 1
         line: 459
         description: "Interactive learning guide"
