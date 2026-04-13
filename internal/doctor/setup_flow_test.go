@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/cliui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // TestRunSetup_CreatedBrewfile tests that RunSetup dumps system state into a
 // newly created Brewfile, checks required packages, and installs missing tools.
 func TestRunSetup_CreatedBrewfile(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	// Create a temp Brewfile with just git — simulates a fresh dump.
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
@@ -59,8 +59,8 @@ func TestRunSetup_CreatedBrewfile(t *testing.T) {
 
 // TestRunSetup_ExistingBrewfile tests the sync path for a pre-existing Brewfile.
 func TestRunSetup_ExistingBrewfile(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	// Brewfile already has git — simulates an existing setup.
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
@@ -81,8 +81,8 @@ func TestRunSetup_ExistingBrewfile(t *testing.T) {
 
 // TestRunSetup_InstallError records install failures in InstallError.
 func TestRunSetup_InstallError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
@@ -107,8 +107,8 @@ func TestRunSetup_InstallError(t *testing.T) {
 
 // TestRunSetup_NoMissingTools skips install when everything is present.
 func TestRunSetup_NoMissingTools(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	// Write a Brewfile that already has all required packages.
 	tmpFile := writeTmpBrewfile(t, Brewfile)
@@ -129,8 +129,8 @@ func TestRunSetup_NoMissingTools(t *testing.T) {
 
 // TestRunSetup_OutdatedUpgrade checks that outdated packages are detected and upgraded.
 func TestRunSetup_OutdatedUpgrade(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
@@ -165,8 +165,8 @@ func TestRunSetup_OutdatedUpgrade(t *testing.T) {
 
 // TestRunSetup_NothingOutdated verifies no upgrade when everything is current.
 func TestRunSetup_NothingOutdated(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
@@ -187,8 +187,8 @@ func TestRunSetup_NothingOutdated(t *testing.T) {
 
 // TestRunSetup_UpdateError records update failures in UpdateError.
 func TestRunSetup_UpdateError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
@@ -206,8 +206,8 @@ func TestRunSetup_UpdateError(t *testing.T) {
 
 // TestRunSetup_BrewOnlyUpgrade only calls brew upgrade when only brew packages are outdated.
 func TestRunSetup_BrewOnlyUpgrade(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
@@ -238,8 +238,8 @@ func TestRunSetup_BrewOnlyUpgrade(t *testing.T) {
 // TestRunSetup_BundleCheckError verifies that when BundleCheck fails (e.g.
 // brew is borked), ToolCheckError is populated and no install is attempted.
 func TestRunSetup_BundleCheckError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
@@ -266,8 +266,8 @@ func TestRunSetup_BundleCheckError(t *testing.T) {
 // TestRunSetup_DumpError verifies that when BundleDump fails on a newly
 // created Brewfile, the rest of the flow still runs.
 func TestRunSetup_DumpError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
@@ -287,8 +287,8 @@ func TestRunSetup_DumpError(t *testing.T) {
 // TestRunSetup_SyncDumpLiveError verifies that when Sync fails on an existing
 // Brewfile (via BundleDumpLive error), the rest of the flow still runs.
 func TestRunSetup_SyncDumpLiveError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
@@ -308,8 +308,8 @@ func TestRunSetup_SyncDumpLiveError(t *testing.T) {
 // TestRunSetup_AppendError verifies that when required packages can't be
 // added to the Brewfile, the error is recorded.
 func TestRunSetup_AppendError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	// Create a Brewfile that's missing required packages, then make it
 	// read-only so AppendEntries fails.
@@ -331,8 +331,8 @@ func TestRunSetup_AppendError(t *testing.T) {
 // TestRunSetup_OutdatedBrewError verifies that a brew Outdated() error is
 // recorded in UpdateError.
 func TestRunSetup_OutdatedBrewError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
@@ -351,8 +351,8 @@ func TestRunSetup_OutdatedBrewError(t *testing.T) {
 // TestRunSetup_OutdatedUVError verifies that a uv UVOutdated() error is
 // recorded in UpdateError even when brew Outdated() succeeds.
 func TestRunSetup_OutdatedUVError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
@@ -371,8 +371,8 @@ func TestRunSetup_OutdatedUVError(t *testing.T) {
 // TestRunSetup_UpgradeError verifies that outdated packages are detected but
 // when Upgrade() fails, no packages are marked as upgraded.
 func TestRunSetup_UpgradeError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
@@ -400,8 +400,8 @@ func TestRunSetup_UpgradeError(t *testing.T) {
 // TestRunSetup_UVUpgradeError verifies that when brew upgrade succeeds but
 // uv upgrade fails, the error is still recorded.
 func TestRunSetup_UVUpgradeError(t *testing.T) {
-	cliui.SetQuiet(true)
-	defer cliui.SetQuiet(false)
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 

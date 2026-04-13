@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/selfupdate"
 	"github.com/sciminds/cli/internal/uikit"
@@ -24,7 +23,7 @@ func updateCommand() *cli.Command {
 func runUpdate(_ context.Context, cmd *cli.Command) error {
 	var result selfupdate.CheckResult
 
-	err := cliui.RunWithSpinner("Checking for updates…", func() error {
+	err := uikit.RunWithSpinner("Checking for updates…", func() error {
 		result = selfupdate.Check()
 		if result.Error != "" {
 			return fmt.Errorf("%s", result.Error)
@@ -44,7 +43,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 	latest := selfupdate.ShortSHA(result.LatestSHA)
 
 	if !result.Available {
-		cliui.OK(fmt.Sprintf("sci is up to date (%s)", current))
+		uikit.OK(fmt.Sprintf("sci is up to date (%s)", current))
 		return nil
 	}
 
@@ -54,7 +53,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 
 	fmt.Printf("  %s New version available: %s → %s\n", uikit.SymArrow, current, uikit.TUI.TextBlue().Render(latest))
 
-	err = cliui.RunWithSpinner("Downloading…", func() error {
+	err = uikit.RunWithSpinner("Downloading…", func() error {
 		_, uerr := selfupdate.Update(result.DownloadURL)
 		return uerr
 	})
@@ -62,7 +61,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	cliui.OK(fmt.Sprintf("Updated to %s", latest))
+	uikit.OK(fmt.Sprintf("Updated to %s", latest))
 	return nil
 }
 

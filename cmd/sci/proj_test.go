@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/cliui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 func TestProjNew_JSONRequiresNameArg(t *testing.T) {
-	cliui.SetQuiet(false)
-	t.Cleanup(func() { cliui.SetQuiet(false) })
+	uikit.SetQuiet(false)
+	t.Cleanup(func() { uikit.SetQuiet(false) })
 
 	root := buildRoot()
 

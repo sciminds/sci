@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/vid"
@@ -283,7 +282,7 @@ func runVidMute(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !vidDryRun {
-		cliui.OK(out)
+		uikit.OK(out)
 	}
 	return nil
 }
@@ -311,7 +310,7 @@ func runVidStripSubs(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !vidDryRun {
-		cliui.OK(out)
+		uikit.OK(out)
 	}
 	return nil
 }
@@ -352,7 +351,7 @@ func runVidSpeed(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !vidDryRun {
-		cliui.OK(out)
+		uikit.OK(out)
 	}
 	return nil
 }
@@ -396,7 +395,7 @@ func runVidCut(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !vidDryRun {
-		cliui.OK(out)
+		uikit.OK(out)
 	}
 	return nil
 }
@@ -434,7 +433,7 @@ func runVidResize(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !vidDryRun {
-		cliui.OK(out)
+		uikit.OK(out)
 	}
 	return nil
 }
@@ -472,7 +471,7 @@ func runVidExtractAudio(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !vidDryRun {
-		cliui.OK(out)
+		uikit.OK(out)
 	}
 	return nil
 }
@@ -516,7 +515,7 @@ func runVidConvert(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !vidDryRun {
-		cliui.OK(out)
+		uikit.OK(out)
 	}
 	return nil
 }
@@ -569,7 +568,7 @@ func runVidGif(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if !vidDryRun {
-		cliui.OK(out)
+		uikit.OK(out)
 	}
 	return nil
 }
@@ -612,9 +611,9 @@ func runVidCompress(_ context.Context, cmd *cli.Command) error {
 		newInfo, _ := os.Stat(out)
 		if origInfo != nil && newInfo != nil {
 			pct := (1 - float64(newInfo.Size())/float64(origInfo.Size())) * 100
-			cliui.OK(out + " " + uikit.TUI.Dim().Render(fmt.Sprintf("(%.0f%% smaller)", pct)))
+			uikit.OK(out + " " + uikit.TUI.Dim().Render(fmt.Sprintf("(%.0f%% smaller)", pct)))
 		} else {
-			cliui.OK(out)
+			uikit.OK(out)
 		}
 	}
 	return nil

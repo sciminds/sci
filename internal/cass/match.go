@@ -9,7 +9,7 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cliui"
+	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -302,7 +302,7 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 				Title(fmt.Sprintf("Match GitHub user: %s", ghName)).
 				Options(options...).
 				Value(&choice),
-		)).WithTheme(cliui.HuhTheme()).WithKeyMap(cliui.HuhKeyMap()).Run(); err != nil {
+		)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap()).Run(); err != nil {
 			return result, err
 		}
 

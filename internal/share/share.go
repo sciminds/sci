@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/uikit"
@@ -74,7 +73,7 @@ func Auth() (*AuthResult, error) {
 
 	// Poll for approval.
 	var resp *cloud.TokenResponse
-	if err := cliui.RunWithSpinner("Waiting for GitHub authorization", func() error {
+	if err := uikit.RunWithSpinner("Waiting for GitHub authorization", func() error {
 		var pollErr error
 		resp, pollErr = cloud.PollForToken(ctx, cloud.DefaultWorkerURL, dc.DeviceCode, time.Duration(dc.Interval)*time.Second)
 		return pollErr
@@ -184,7 +183,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		}
 		tmpZipPath := tmpZip.Name()
 		_ = tmpZip.Close() // zipDir will create/overwrite the file
-		if err := cliui.RunWithSpinner("Packing "+stem, func() error {
+		if err := uikit.RunWithSpinner("Packing "+stem, func() error {
 			return zipDir(absPath, tmpZipPath)
 		}); err != nil {
 			_ = os.Remove(tmpZipPath)
@@ -227,7 +226,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 	}
 
 	var result *CloudResult
-	if err := cliui.RunWithSpinner("Uploading "+name, func() error {
+	if err := uikit.RunWithSpinner("Uploading "+name, func() error {
 		f, openErr := os.Open(absPath)
 		if openErr != nil {
 			return openErr
@@ -268,7 +267,7 @@ func Unshare(name string) (*CloudResult, error) {
 
 	filename := ensureExtension(name)
 
-	if err := cliui.RunWithSpinner("Removing "+filename, func() error {
+	if err := uikit.RunWithSpinner("Removing "+filename, func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), metadataTimeout)
 		defer cancel()
 		exists, existsErr := c.Exists(ctx, filename)
@@ -314,7 +313,7 @@ func sharedWithOpts(c *cloud.Client, plain, allUsers bool) (*SharedListResult, e
 		if err != nil {
 			return nil, netutil.Wrap("listing files", err)
 		}
-	} else if err := cliui.RunWithSpinner(spinnerMsg, func() error {
+	} else if err := uikit.RunWithSpinner(spinnerMsg, func() error {
 		var listErr error
 		objects, listErr = listFn(listCtx)
 		return listErr
@@ -402,7 +401,7 @@ func Get(name string) (*CloudResult, error) {
 
 	outPath := filepath.Base(filename)
 	dl := downloadFunc(c, filename)
-	if err := cliui.RunWithSpinner("Downloading "+filepath.Base(filename), func() error {
+	if err := uikit.RunWithSpinner("Downloading "+filepath.Base(filename), func() error {
 		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
 		defer dlCancel()
 		f, createErr := os.Create(outPath)
@@ -421,7 +420,7 @@ func Get(name string) (*CloudResult, error) {
 	// Auto-extract zip files.
 	if filepath.Ext(outPath) == ".zip" {
 		extractDir := nameFromFile(filename)
-		if err := cliui.RunWithSpinner("Extracting "+filepath.Base(filename), func() error {
+		if err := uikit.RunWithSpinner("Extracting "+filepath.Base(filename), func() error {
 			return unzip(outPath, extractDir)
 		}); err != nil {
 			return nil, fmt.Errorf("extracting: %w", err)

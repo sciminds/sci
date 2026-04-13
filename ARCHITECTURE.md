@@ -85,13 +85,13 @@ There's a `bubbletea` skill in `.claude/skills/bubbletea/` with production templ
 
 ## Styling, in one place
 
-Every `lipgloss.NewStyle()` in the codebase lives in either `internal/uikit/` (shared styling foundation), `internal/cliui/` (CLI-specific helpers — spinners, prompts, headers), or `internal/tui/<app>/ui/` (for a specific TUI). Code asks for styles via the `uikit.TUI` singleton:
+Every `lipgloss.NewStyle()` in the codebase lives in either `internal/uikit/` (shared styling foundation) or `internal/tui/<app>/ui/` (for a specific TUI). Code asks for styles via the `uikit.TUI` singleton:
 
 ```go
 fmt.Println(uikit.TUI.Header("hello"))
 ```
 
-The reason is uniformity — every command should look like every other command — and the ability to retheme everything in one place. Inline `lipgloss.NewStyle()` calls outside `uikit/` and `*/ui/` packages are a lint error. `huh` forms (we use them for interactive prompts) plug into `cliui.HuhTheme()` and `cliui.HuhKeyMap()` for the same reason.
+The reason is uniformity — every command should look like every other command — and the ability to retheme everything in one place. Inline `lipgloss.NewStyle()` calls outside `uikit/` and `*/ui/` packages are a lint error. `huh` forms (we use them for interactive prompts) plug into `cmdutil.HuhTheme()` and `cmdutil.HuhKeyMap()` for the same reason.
 
 ## Process-replacing exec
 
@@ -115,7 +115,7 @@ It's a CRDT, basically, but a very small one. Read `internal/board/CLAUDE.md` if
 
 - **A command's wiring** — start at `cmd/sci/<area>.go`, follow it into `internal/<area>/`.
 - **A TUI's behavior** — start at `internal/tui/<name>/app/update.go` and follow message types.
-- **Styles** — `internal/uikit/` for shared primitives, `internal/cliui/` for CLI helpers, `internal/tui/<name>/ui/` for that specific TUI.
+- **Styles** — `internal/uikit/` for shared primitives and components, `internal/tui/<name>/ui/` for that specific TUI.
 - **Cross-cutting rules and the workflow gate** — repo-root `CLAUDE.md`.
 - **Non-obvious package decisions** — the `CLAUDE.md` inside that package. They exist for `board/`, `tui/board/`, `tui/dbtui/`, and `zot/`.
 - **The current package set** — `ls internal/`. Each package has a doc comment on its `package` declaration. We don't maintain a hand-curated table because they rot.

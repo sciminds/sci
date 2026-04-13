@@ -1,4 +1,4 @@
-package cliui
+package cmdutil
 
 // huh_theme.go — custom [huh.Theme] built from the Wong palette. Isolated
 // from styles.go so huh is not a transitive dependency for all ui importers.

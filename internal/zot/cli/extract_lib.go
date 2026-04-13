@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
@@ -145,7 +144,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	// before applying --limit. This ensures --limit picks up the next
 	// N truly-unextracted items instead of re-selecting cached ones.
 	var items []extract.BatchItem
-	err = cliui.RunWithSpinner("Planning extraction...", func() error {
+	err = uikit.RunWithSpinner("Planning extraction...", func() error {
 		items = extract.PlanBatch(ctx, reqs, planJobs, extractLibForce, hasExisting)
 		return nil
 	})
@@ -238,7 +237,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	err = cliui.RunWithProgress("Planning...", func(t *cliui.ProgressTracker) error {
+	err = uikit.RunWithProgress("Planning...", func(t *uikit.ProgressTracker) error {
 		t.SetTotal(nCreate)
 
 		var curPhase extract.BatchPhase

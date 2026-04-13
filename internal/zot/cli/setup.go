@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"charm.land/huh/v2"
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/urfave/cli/v3"
@@ -114,7 +113,7 @@ func runSetup(_ context.Context, cmd *cli.Command) error {
 					Description("Zotero's data dir (contains zotero.sqlite)").
 					Value(&dataDir).
 					Validate(func(s string) error { return zot.ValidateDataDir(s) }),
-			)).WithTheme(cliui.HuhTheme()).WithKeyMap(cliui.HuhKeyMap())
+			)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap())
 			if err := form.Run(); err != nil {
 				return err
 			}

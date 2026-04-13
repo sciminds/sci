@@ -6,13 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 func TestLabSetup_JSONRequiresUser(t *testing.T) {
-	cliui.SetQuiet(false)
-	t.Cleanup(func() { cliui.SetQuiet(false) })
+	uikit.SetQuiet(false)
+	t.Cleanup(func() { uikit.SetQuiet(false) })
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

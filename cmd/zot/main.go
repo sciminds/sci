@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/version"
@@ -30,7 +29,7 @@ func main() {
 			cmdutil.JSONFlag(&jsonOutput),
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			cliui.SetQuiet(cmdutil.IsJSON(cmd))
+			uikit.SetQuiet(cmdutil.IsJSON(cmd))
 			return ctx, nil
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
@@ -41,7 +40,7 @@ func main() {
 		HideVersion:     true,
 		Commands:        zotcli.Commands(),
 	}
-	cliui.SetupHelp(root)
+	cmdutil.SetupHelp(root)
 
 	if err := root.Run(context.Background(), os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n", uikit.SymFail, err)

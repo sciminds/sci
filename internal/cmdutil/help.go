@@ -1,4 +1,4 @@
-package cliui
+package cmdutil
 
 // help.go — styled help output for urfave/cli v3, replacing the default
 // HelpPrinter with project-branded formatting.

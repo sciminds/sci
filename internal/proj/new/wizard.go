@@ -7,8 +7,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-
-	"github.com/sciminds/cli/internal/cliui"
+	"github.com/sciminds/cli/internal/cmdutil"
 )
 
 // RunWizard runs an interactive huh form to populate CreateOptions.
@@ -73,7 +72,7 @@ func RunWizard(opts *CreateOptions) error {
 				Placeholder("").
 				Value(&opts.Description),
 		),
-	).WithTheme(cliui.HuhTheme()).WithKeyMap(cliui.HuhKeyMap())
+	).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap())
 
 	return form.Run()
 }

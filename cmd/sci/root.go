@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/selfupdate"
 	dbtui "github.com/sciminds/cli/internal/tui/dbtui/app"
@@ -33,7 +32,7 @@ func buildRoot() *cli.Command {
 			cmdutil.JSONFlag(&jsonOutput),
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			cliui.SetQuiet(cmdutil.IsJSON(cmd))
+			uikit.SetQuiet(cmdutil.IsJSON(cmd))
 			updateNotice = selfupdate.ReadCachedNotice()
 			go selfupdate.RefreshCache()
 			return ctx, nil
@@ -75,7 +74,7 @@ func buildRoot() *cli.Command {
 			zotCommand(),
 		},
 	}
-	cliui.SetupHelp(root)
+	cmdutil.SetupHelp(root)
 	return root
 }
 

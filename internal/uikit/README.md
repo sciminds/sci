@@ -105,7 +105,7 @@ sci (cmd/sci)          ──┐
 dbtui (cmd/dbtui)      ──┤── all import ──▶  internal/uikit/
 zot (cmd/zot)          ──┘
 
-internal/cliui/        ── CLI-specific layer (spinner, help, huh theme)
+internal/cmdutil/      ── CLI-framework glue (help renderer, huh theme)
                           imports uikit for styles/palette
 
 internal/tui/dbtui/ui/ ── dbtui-specific styles (own TUI singleton)

@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"charm.land/huh/v2"
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/proj"
 	projnew "github.com/sciminds/cli/internal/proj/new"
@@ -204,7 +203,7 @@ func runProjNew(_ context.Context, cmd *cli.Command) error {
 
 	cmdutil.Output(cmd, *result)
 	if !cmdutil.IsJSON(cmd) {
-		cliui.NextStep("cd "+opts.Name+" && sci py repl", "Jump into your new project")
+		uikit.NextStep("cd "+opts.Name+" && sci py repl", "Jump into your new project")
 	}
 	return nil
 }

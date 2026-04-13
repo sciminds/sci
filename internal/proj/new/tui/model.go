@@ -12,7 +12,6 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cliui"
 	projnew "github.com/sciminds/cli/internal/proj/new"
 	"github.com/sciminds/cli/internal/uikit"
 )
@@ -40,7 +39,7 @@ type fileEntry struct {
 	applied bool
 }
 
-// SelectTitle implements cliui.SelectItem.
+// SelectTitle implements uikit.SelectItem.
 func (f fileEntry) SelectTitle() string { return f.file.Path }
 
 func (f fileEntry) statusLabel() string {
@@ -75,7 +74,7 @@ type Model struct {
 	help    help.Model
 	spinner spinner.Model
 
-	selectList cliui.SelectList
+	selectList uikit.SelectList
 	dir        string
 	files      []fileEntry
 
@@ -92,7 +91,7 @@ type Options struct {
 // New creates a new proj config TUI model.
 func New(opts Options) Model {
 	files := make([]fileEntry, len(opts.Files))
-	items := make([]cliui.SelectItem, len(opts.Files))
+	items := make([]uikit.SelectItem, len(opts.Files))
 	selected := make([]bool, len(opts.Files))
 	for i, f := range opts.Files {
 		files[i] = fileEntry{file: f}
@@ -100,10 +99,10 @@ func New(opts Options) Model {
 		selected[i] = f.Changed
 	}
 
-	sl := cliui.NewSelectList(items,
-		cliui.WithHeading("Select config files to apply"),
-		cliui.WithSelected(selected),
-		cliui.WithRenderItem(renderFileItem),
+	sl := uikit.NewSelectList(items,
+		uikit.WithHeading("Select config files to apply"),
+		uikit.WithSelected(selected),
+		uikit.WithRenderItem(renderFileItem),
 	)
 
 	s := spinner.New(
@@ -121,9 +120,9 @@ func New(opts Options) Model {
 	}
 }
 
-func renderFileItem(item cliui.SelectItem, selected, isCursor bool) string {
+func renderFileItem(item uikit.SelectItem, selected, isCursor bool) string {
 	f := item.(fileEntry)
-	line := cliui.RenderSelectItemLine(f.file.Path, selected, isCursor)
+	line := uikit.RenderSelectItemLine(f.file.Path, selected, isCursor)
 	statusStr := uikit.TUI.Dim().Render("(" + f.statusLabel() + ")")
 	return line + "  " + statusStr
 }
@@ -235,7 +234,7 @@ func (m Model) footerRight() string {
 	var km help.KeyMap
 	switch m.phase {
 	case phaseSelecting:
-		km = cliui.NewSelectListKeys()
+		km = uikit.NewSelectListKeys()
 	case phaseDone:
 		km = doneKeys{}
 	}

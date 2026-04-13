@@ -43,10 +43,10 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 - **CLI framework:** urfave/cli v3. All flags use `Local: true`.
 - **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/`, `internal/zot/local/`, `internal/board/` LocalCache. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
 - **Bubbletea v2 + bubbles v2** everywhere. No v1 imports.
-- **No inline `lipgloss.NewStyle()`** outside `internal/uikit/` or `internal/tui/*/ui/`. Access via the `uikit.TUI` singleton. `huh` forms use `cliui.HuhTheme()` + `cliui.HuhKeyMap()`.
+- **No inline `lipgloss.NewStyle()`** outside `internal/uikit/` or `internal/tui/*/ui/`. Access via the `uikit.TUI` singleton. `huh` forms use `cmdutil.HuhTheme()` + `cmdutil.HuhKeyMap()`.
 - **`uikit` first for TUI components.** Read `internal/uikit/doc.go` for the full catalog: colors (Palette, Styles, icons), input (keys, keymaps), layout (constants, Spread/Fit/Pad), components (Chrome, Overlay, OverlayBox, ListPicker, Grid2D, Screen/Router, AsyncCmd), and runtime (Run/RunModel, DrainStdin). Prefer uikit over hand-wiring bubbles directly. Extend uikit when a pattern appears in ≥ 2 TUIs.
 - **Process-replacing exec** (REPL, marimo, quarto) via `syscall.Exec`, not `exec.Command`. Export `Build*Args` helpers for tests.
-- **Reuse shared infra** (`cmdutil`, `uikit`, `cliui`, `netutil`) — don't re-implement spinners, confirms, lists, or styling per-package.
+- **Reuse shared infra** (`cmdutil`, `uikit`, `netutil`) — don't re-implement spinners, confirms, lists, or styling per-package.
 - **New TUI apps** go under `internal/tui/<name>/` and follow the dbtui split (`app/`, `ui/`, root-pkg `Run` entry).
 - **Two-surface CLIs** (e.g. `zot`): full command tree lives in `internal/<pkg>/cli.Commands()`; both `cmd/<pkg>/main.go` and `cmd/sci/<pkg>.go` import it. Never duplicate wiring.
 

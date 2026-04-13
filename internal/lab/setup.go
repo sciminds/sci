@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/sciminds/cli/internal/cliui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // Setup runs the interactive lab configuration flow:
@@ -39,7 +39,7 @@ func Setup(user string) (*SetupResult, error) {
 	keyPath := findSSHKey(home)
 	if keyPath == "" {
 		keyPath = filepath.Join(sshDir, "id_ed25519")
-		cliui.Header("Generating SSH key")
+		uikit.Header("Generating SSH key")
 		fmt.Fprintf(os.Stderr, "  No key found — generating %s\n", keyPath)
 		fmt.Fprintf(os.Stderr, "  Press Enter to accept defaults (empty passphrase is OK).\n\n")
 		cmd := exec.Command("ssh-keygen", "-t", "ed25519", "-f", keyPath)
@@ -50,7 +50,7 @@ func Setup(user string) (*SetupResult, error) {
 			return nil, fmt.Errorf("ssh-keygen failed: %w", err)
 		}
 	} else {
-		cliui.OK("SSH key found: " + keyPath)
+		uikit.OK("SSH key found: " + keyPath)
 	}
 
 	// 3. Configure SSH alias with ControlMaster (needed before testing connection).
@@ -60,10 +60,10 @@ func Setup(user string) (*SetupResult, error) {
 
 	// 4. Test if key auth already works — skip ssh-copy-id if so.
 	if exec.Command("ssh", "-o", "ConnectTimeout=10", "-o", "BatchMode=yes", alias, "echo", "ok").Run() == nil {
-		cliui.OK("SSH key auth already works — skipping ssh-copy-id")
+		uikit.OK("SSH key auth already works — skipping ssh-copy-id")
 	} else {
 		// 5. Copy key to server.
-		cliui.Header("Copying SSH key to " + Host)
+		uikit.Header("Copying SSH key to " + Host)
 		fmt.Fprintf(os.Stderr, "  You'll be prompted for your password (and possibly Duo 2FA).\n\n")
 		copyCmd := exec.Command("ssh-copy-id", "-i", keyPath+".pub", user+"@"+Host)
 		copyCmd.Stdin = os.Stdin
@@ -76,7 +76,7 @@ func Setup(user string) (*SetupResult, error) {
 
 	// 6. Test connection.
 	var testErr error
-	if err := cliui.RunWithSpinnerStatus("Testing SSH connection", func(setStatus func(string)) error {
+	if err := uikit.RunWithSpinnerStatus("Testing SSH connection", func(setStatus func(string)) error {
 		testErr = exec.Command("ssh", "-o", "ConnectTimeout=10", alias, "echo", "ok").Run()
 		if testErr != nil {
 			setStatus("failed")
@@ -129,7 +129,7 @@ func configureSSH(alias, user, keyPath, home string) error {
 	data, _ := os.ReadFile(configPath)
 	re := regexp.MustCompile(`(?m)^Host\s+` + regexp.QuoteMeta(alias) + `\s*$`)
 	if re.Match(data) {
-		cliui.OK("SSH config alias " + alias + " already exists")
+		uikit.OK("SSH config alias " + alias + " already exists")
 		return nil
 	}
 
@@ -156,6 +156,6 @@ Host %s
 		return fmt.Errorf("write SSH config: %w", err)
 	}
 
-	cliui.OK("Added SSH config alias: " + alias)
+	uikit.OK("Added SSH config alias: " + alias)
 	return nil
 }

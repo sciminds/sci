@@ -13,7 +13,6 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/cliui"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 )
@@ -48,10 +47,10 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	// ── Sync or dump ────────────────────────────────────────────────────
 	if created {
 		err := r.BundleDump(brewfilePath)
-		if err != nil && !cliui.IsQuiet() {
+		if err != nil && !uikit.IsQuiet() {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 				uikit.SymWarn, uikit.TUI.Warn().Render("Could not capture installed packages: "+err.Error()))
-		} else if err == nil && !cliui.IsQuiet() {
+		} else if err == nil && !uikit.IsQuiet() {
 			data, _ := os.ReadFile(brewfilePath)
 			n := len(brew.ParseBrewfileNames(string(data)))
 			fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
@@ -59,11 +58,11 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 		}
 	} else {
 		syncResult, err := brew.Sync(r, brewfilePath)
-		if err != nil && !cliui.IsQuiet() {
+		if err != nil && !uikit.IsQuiet() {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 				uikit.SymWarn, uikit.TUI.Warn().Render("Could not sync Brewfile with system: "+err.Error()))
 		} else if err == nil {
-			if msg := syncResult.Human(); msg != "" && !cliui.IsQuiet() {
+			if msg := syncResult.Human(); msg != "" && !uikit.IsQuiet() {
 				fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
 			}
 		}
@@ -72,7 +71,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	// ── Ensure required packages are declared ───────────────────────────
 	missingEntries, err := brew.MissingEntries(brewfilePath, Brewfile)
 	if err == nil && len(missingEntries) > 0 {
-		if !cliui.IsQuiet() {
+		if !uikit.IsQuiet() {
 			names := setupEntryNames(missingEntries)
 			fmt.Fprintf(os.Stderr, "\n  sci requires: %s %s\n",
 				strings.Join(names, ", "),
@@ -83,13 +82,13 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 		added, appendErr := brew.AppendEntries(brewfilePath, missingEntries)
 		if appendErr != nil {
 			result.AppendError = appendErr.Error()
-			if !cliui.IsQuiet() {
+			if !uikit.IsQuiet() {
 				fmt.Fprintf(os.Stderr, "  %s %s\n",
 					uikit.SymWarn, uikit.TUI.Warn().Render("Could not add required packages: "+appendErr.Error()))
 			}
 		} else {
 			result.PackagesAdded = added
-			if !cliui.IsQuiet() {
+			if !uikit.IsQuiet() {
 				fmt.Fprintf(os.Stderr, "  %s Added %s to Brewfile\n",
 					uikit.SymOK, strings.Join(added, ", "))
 			}
@@ -100,7 +99,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	tools, toolErr := RunToolChecks(r, brewfilePath)
 	if toolErr != nil {
 		result.ToolCheckError = toolErr.Error()
-		if !cliui.IsQuiet() {
+		if !uikit.IsQuiet() {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 				uikit.SymWarn, uikit.TUI.Warn().Render("Could not check tools: "+toolErr.Error()))
 		}
@@ -128,7 +127,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	}
 
 	// ── Check for outdated packages ────────────────────────────────────
-	if !cliui.IsQuiet() {
+	if !uikit.IsQuiet() {
 		fmt.Fprintf(os.Stderr, "\n  Checking for outdated packages…\n")
 	}
 
@@ -168,7 +167,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	}
 
 	// Show outdated packages and prompt for upgrade.
-	if !cliui.IsQuiet() {
+	if !uikit.IsQuiet() {
 		fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(result.Outdated))
 		for _, pkg := range result.Outdated {
 			arrow := uikit.TUI.TextPink().Render(" → ")
