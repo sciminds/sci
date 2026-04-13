@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 var (
@@ -142,13 +144,7 @@ func fixReturnTuples(text string) string {
 		}
 
 		// Merge
-		merged := make(map[string]bool)
-		for k := range existing {
-			merged[k] = true
-		}
-		for k := range names {
-			merged[k] = true
-		}
+		merged := lo.Assign(existing, names)
 		if len(merged) == len(existing) {
 			return match
 		}
@@ -193,14 +189,13 @@ func admonitionToBlockquote(indent, title, body string) string {
 		indent + "> **" + title + "**",
 		indent + ">",
 	}
-	for _, line := range strings.Split(body, "\n") {
+	lines = append(lines, lo.Map(strings.Split(body, "\n"), func(line string, _ int) string {
 		stripped := strings.TrimRight(line, " \t")
 		if stripped != "" {
-			lines = append(lines, indent+"> "+strings.TrimLeft(stripped, " \t"))
-		} else {
-			lines = append(lines, indent+">")
+			return indent + "> " + strings.TrimLeft(stripped, " \t")
 		}
-	}
+		return indent + ">"
+	})...)
 	// Remove trailing empty blockquote lines
 	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == ">" {
 		lines = lines[:len(lines)-1]

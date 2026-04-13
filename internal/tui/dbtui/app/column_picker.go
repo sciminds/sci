@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
@@ -96,13 +98,9 @@ func renderHiddenBadges(
 
 // hiddenColumnIndices returns spec indices where HideOrder > 0, in table order.
 func hiddenColumnIndices(specs []columnSpec) []int {
-	var indices []int
-	for i, s := range specs {
-		if s.HideOrder > 0 {
-			indices = append(indices, i)
-		}
-	}
-	return indices
+	return lo.FilterMap(specs, func(s columnSpec, i int) (int, bool) {
+		return i, s.HideOrder > 0
+	})
 }
 
 // openColumnPicker opens the hidden-column picker.

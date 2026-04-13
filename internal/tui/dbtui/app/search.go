@@ -14,6 +14,7 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 )
@@ -113,17 +114,13 @@ func resolveGroups(groups [][]match.Clause, tab *Tab) ([]resolvedGroup, bool) {
 			}
 			sc := -1
 			if c.Column != "" {
-				found := false
-				for i, spec := range tab.Specs {
-					if strings.EqualFold(spec.Title, c.Column) || strings.EqualFold(spec.DBName, c.Column) {
-						sc = i
-						found = true
-						break
-					}
-				}
+				_, idx, found := lo.FindIndexOf(tab.Specs, func(spec columnSpec) bool {
+					return strings.EqualFold(spec.Title, c.Column) || strings.EqualFold(spec.DBName, c.Column)
+				})
 				if !found {
 					return nil, false
 				}
+				sc = idx
 			}
 			rg = append(rg, resolvedClause{terms: c.Terms, scopedCol: sc, negate: c.Negate})
 		}

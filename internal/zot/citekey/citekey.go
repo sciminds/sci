@@ -13,6 +13,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/samber/lo"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
@@ -192,38 +193,29 @@ func ExtractNote(extra string) string {
 		return ""
 	}
 	lines := strings.Split(extra, "\n")
-	kept := lines[:0]
-	for _, ln := range lines {
-		if strings.HasPrefix(ln, "Citation Key:") {
-			continue
-		}
-		kept = append(kept, ln)
-	}
+	kept := lo.Filter(lines, func(ln string, _ int) bool {
+		return !strings.HasPrefix(ln, "Citation Key:")
+	})
 	return strings.TrimSpace(strings.Join(kept, "\n"))
 }
 
 // firstCreatorToken picks the lowest-OrderIdx author (falling back to
 // editor if no authors exist) and returns its normalized last-name token.
 func firstCreatorToken(cs []local.Creator) string {
-	pickLowest := func(accept func(local.Creator) bool) *local.Creator {
-		var best *local.Creator
-		for i := range cs {
-			if !accept(cs[i]) {
-				continue
-			}
-			if best == nil || cs[i].OrderIdx < best.OrderIdx {
-				best = &cs[i]
-			}
-		}
-		return best
+	cmpIdx := func(a, b local.Creator) bool { return a.OrderIdx < b.OrderIdx }
+
+	candidates := lo.Filter(cs, func(c local.Creator, _ int) bool {
+		return c.Type == "author" || c.Type == ""
+	})
+	if len(candidates) == 0 {
+		candidates = lo.Filter(cs, func(c local.Creator, _ int) bool {
+			return c.Type == "editor"
+		})
 	}
-	c := pickLowest(func(c local.Creator) bool { return c.Type == "author" || c.Type == "" })
-	if c == nil {
-		c = pickLowest(func(c local.Creator) bool { return c.Type == "editor" })
-	}
-	if c == nil {
+	if len(candidates) == 0 {
 		return ""
 	}
+	c := lo.MinBy(candidates, cmpIdx)
 	name := c.Last
 	if name == "" {
 		name = c.Name // institutional author (fieldMode=1)

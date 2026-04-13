@@ -3,6 +3,8 @@ package local
 import (
 	"fmt"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 // DuplicateCandidate is the pared-down per-item view the duplicate
@@ -257,13 +259,8 @@ func (d *DB) ScanFieldValues(fields []string) ([]FieldValue, error) {
 	if len(fields) == 0 {
 		return nil, nil
 	}
-	placeholders := make([]string, len(fields))
-	args := make([]any, 0, len(fields)+1)
-	for i, f := range fields {
-		placeholders[i] = "?"
-		args = append(args, f)
-	}
-	args = append(args, d.libraryID)
+	placeholders := lo.Times(len(fields), func(_ int) string { return "?" })
+	args := append(lo.Map(fields, func(f string, _ int) any { return f }), d.libraryID)
 
 	q := `
 SELECT i.key,

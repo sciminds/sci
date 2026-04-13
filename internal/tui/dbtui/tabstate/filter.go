@@ -4,9 +4,11 @@ package tabstate
 // recompute visible rows, and render filter indicators in headers.
 
 import (
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/table"
+	"github.com/samber/lo"
 )
 
 // HasPins returns true if the tab has any active pin filters.
@@ -58,16 +60,9 @@ func CellDisplayValue(c Cell) string {
 // MatchesAllPins returns true if a row matches all pin filters (AND semantics).
 // Each pin's values use OR semantics within the same column.
 func MatchesAllPins(cellRow []Cell, pins []FilterPin) bool {
-	for _, pin := range pins {
-		if pin.Col >= len(cellRow) {
-			return false
-		}
-		cellVal := CellDisplayValue(cellRow[pin.Col])
-		if !pin.Values[cellVal] {
-			return false
-		}
-	}
-	return true
+	return lo.EveryBy(pins, func(pin FilterPin) bool {
+		return pin.Col < len(cellRow) && pin.Values[CellDisplayValue(cellRow[pin.Col])]
+	})
 }
 
 // ApplyRowFilter recomputes CellRows based on pins and filter settings.
@@ -125,7 +120,5 @@ func SnapshotPostPin(tab *Tab) {
 
 // CopyMeta returns a shallow copy of a RowMeta slice.
 func CopyMeta(src []RowMeta) []RowMeta {
-	dst := make([]RowMeta, len(src))
-	copy(dst, src)
-	return dst
+	return slices.Clone(src)
 }

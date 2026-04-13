@@ -3,7 +3,9 @@ package hygiene
 import (
 	"cmp"
 	"slices"
+	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/local"
 )
@@ -141,17 +143,7 @@ func Citekeys(db local.Reader) (*Report, error) {
 // the current item so the rendered message reads like "shared by X, Y"
 // rather than "shared by SELF, X, Y".
 func joinKeys(all []string, self string) string {
-	var out string
-	for _, k := range all {
-		if k == self {
-			continue
-		}
-		if out != "" {
-			out += ", "
-		}
-		out += k
-	}
-	return out
+	return strings.Join(lo.Without(all, self), ", ")
 }
 
 // quote wraps a cite-key in backticks for display. Avoids the ambiguity
