@@ -7,6 +7,20 @@ import (
 	"github.com/samber/lo"
 )
 
+// NewListDelegate returns a list.DefaultDelegate styled to match the TUI theme.
+// Used by the help browser and glossary TUIs.
+func NewListDelegate() list.DefaultDelegate {
+	p := TUI.palette
+	d := list.NewDefaultDelegate()
+	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
+		Foreground(p.Blue).
+		BorderLeftForeground(p.Blue)
+	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
+		Foreground(p.Blue).
+		BorderLeftForeground(p.Blue)
+	return d
+}
+
 // ListPicker wraps [list.Model] with the standard project styling:
 // filtered search, status bar, accent-styled title, and custom hint
 // keys. It eliminates the repeated 10-line constructor + filtering

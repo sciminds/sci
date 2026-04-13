@@ -1,6 +1,6 @@
 package uikit
 
-// keys.go — string constants for keyboard keys, replacing bare literals in
+// input_keys.go — string constants for keyboard keys, replacing bare literals in
 // Bubble Tea switch cases.
 //
 // Key constants — use these instead of bare string literals in switch cases.

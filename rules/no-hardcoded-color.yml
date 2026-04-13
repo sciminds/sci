@@ -5,9 +5,9 @@ rule:
 severity: error
 message: |
   Hardcoded lipgloss.Color() is only allowed in palette/style files.
-  Define colors in internal/uikit/palette.go and reference via uikit.TUI.Palette().
+  Define colors in internal/uikit/color_palette.go and reference via uikit.TUI.Palette().
 ignores:
-  - "internal/uikit/palette.go"
-  - "internal/uikit/styles.go"
+  - "internal/uikit/color_palette.go"
+  - "internal/uikit/color_styles.go"
   - "internal/tui/*/ui/palette.go"
   - "internal/tui/*/ui/styles.go"

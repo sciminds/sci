@@ -1,6 +1,6 @@
 package uikit
 
-// keymap.go — reusable Bubble Tea key bindings (quit, arrows, tab) that each
+// input_keymap.go — reusable Bubble Tea key bindings (quit, arrows, tab) that each
 // TUI model composes into its own KeyMap.
 
 import (

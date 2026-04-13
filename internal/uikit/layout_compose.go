@@ -1,4 +1,4 @@
-// compose.go — declarative layout composition utilities built on lipgloss.
+// layout_compose.go — declarative layout composition utilities built on lipgloss.
 
 package uikit
 
@@ -117,4 +117,61 @@ func Fit(s string, width int, pos lipgloss.Position) string {
 // FitRight is [Fit] with right-alignment (numeric columns).
 func FitRight(s string, width int) string {
 	return Fit(s, width, lipgloss.Right)
+}
+
+// ── FitHeight: pad or truncate to exact row count ─────────────────────────
+
+// FitHeight pads or truncates s so it contains exactly h newline-
+// delimited lines. Useful for any region that must fill an exact number
+// of rows (e.g. Chrome body, viewport panes).
+func FitHeight(s string, h int) string {
+	if h <= 0 {
+		return ""
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) > h {
+		lines = lines[:h]
+	}
+	for len(lines) < h {
+		lines = append(lines, "")
+	}
+	return strings.Join(lines, "\n")
+}
+
+// ── WordWrap: paragraph-aware word wrapping ────────────────────────────────
+
+// WordWrap wraps text at maxW, preserving paragraph breaks (newlines).
+func WordWrap(text string, maxW int) string {
+	if maxW <= 0 || text == "" {
+		return text
+	}
+	var result strings.Builder
+	for _, paragraph := range strings.Split(text, "\n") {
+		if result.Len() > 0 {
+			result.WriteByte('\n')
+		}
+		words := strings.Fields(paragraph)
+		if len(words) == 0 {
+			continue
+		}
+		lineW := 0
+		for i, word := range words {
+			ww := lipgloss.Width(word)
+			if i == 0 {
+				result.WriteString(word)
+				lineW = ww
+				continue
+			}
+			if lineW+1+ww > maxW {
+				result.WriteByte('\n')
+				result.WriteString(word)
+				lineW = ww
+			} else {
+				result.WriteByte(' ')
+				result.WriteString(word)
+				lineW += 1 + ww
+			}
+		}
+	}
+	return result.String()
 }

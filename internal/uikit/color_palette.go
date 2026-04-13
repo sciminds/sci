@@ -1,7 +1,7 @@
 package uikit
 
-// palette.go — Wong colorblind-safe palette shared across all TUI and CLI
-// output. Colors are resolved once at init based on terminal background.
+// color_palette.go — Wong colorblind-safe palette shared across all TUI and
+// CLI output. Colors are resolved once at init based on terminal background.
 
 import (
 	"image/color"
@@ -52,13 +52,3 @@ func NewPalette(isDark bool) Palette {
 func DetectDark() bool {
 	return lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
 }
-
-// ── Pre-rendered symbols for non-TUI CLI output ─────────────────────────────
-
-// Pre-rendered symbols for non-TUI CLI output.
-var (
-	SymOK    = TUI.Pass().Render(IconPass)
-	SymFail  = TUI.Fail().Render(IconFail)
-	SymWarn  = TUI.Warn().Render(IconWarn)
-	SymArrow = TUI.TextBlue().Render(IconArrow)
-)

@@ -1,10 +1,6 @@
 package uikit
 
-import (
-	"strings"
-
-	"charm.land/lipgloss/v2"
-)
+import "charm.land/lipgloss/v2"
 
 // Chrome renders a three-part vertical layout: title bar, body, and
 // status bar — the standard TUI "chrome" that wraps every screen.
@@ -40,21 +36,4 @@ func (c Chrome) Render(width, height int) string {
 	body = FitHeight(body, bodyH)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, body, status)
-}
-
-// FitHeight pads or truncates s so it contains exactly h newline-
-// delimited lines. Useful outside Chrome for any region that must fill
-// an exact number of rows.
-func FitHeight(s string, h int) string {
-	if h <= 0 {
-		return ""
-	}
-	lines := strings.Split(s, "\n")
-	if len(lines) > h {
-		lines = lines[:h]
-	}
-	for len(lines) < h {
-		lines = append(lines, "")
-	}
-	return strings.Join(lines, "\n")
 }

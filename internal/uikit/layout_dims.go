@@ -1,6 +1,6 @@
 package uikit
 
-// layout.go — dimension constants and clamping helpers for safe rendering when
+// layout_dims.go — dimension constants and clamping helpers for safe rendering when
 // Bubble Tea's initial WindowSizeMsg has not yet arrived (width/height = 0).
 
 // ── Dimension guards ────────────────────────────────────────────────────────

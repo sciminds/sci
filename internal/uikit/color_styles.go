@@ -1,12 +1,11 @@
 package uikit
 
-// styles.go — the single source of truth for all lipgloss styles. Command-
-// specific aliases are fine, but new visual styles belong here.
+// color_styles.go — the single source of truth for all lipgloss styles.
+// Command-specific aliases are fine, but new visual styles belong here.
 
 import (
 	"strings"
 
-	"charm.land/bubbles/v2/list"
 	"charm.land/lipgloss/v2"
 )
 
@@ -501,20 +500,6 @@ func (s *Styles) HelpUsage() lipgloss.Style { return s.helpUsage }
 
 // SpinnerDot returns the spinner dot style.
 func (s *Styles) SpinnerDot() lipgloss.Style { return s.spinnerDot }
-
-// NewListDelegate returns a list.DefaultDelegate styled to match the TUI theme.
-// Used by the help browser and glossary TUIs.
-func NewListDelegate() list.DefaultDelegate {
-	p := TUI.palette
-	d := list.NewDefaultDelegate()
-	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
-		Foreground(p.Blue).
-		BorderLeftForeground(p.Blue)
-	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
-		Foreground(p.Blue).
-		BorderLeftForeground(p.Blue)
-	return d
-}
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
 

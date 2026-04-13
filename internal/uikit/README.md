@@ -1,12 +1,15 @@
-# tui/uikit — shared visual foundation
+# uikit — shared visual foundation
 
 The single import for styles, layout, and components across all three
 binaries (`sci`, `dbtui`, `zot`). Zero project-specific dependencies
 (no pocketbase, no urfave/cli) so standalone binaries stay lean.
 
+Files are organized by layer prefix: `color_`, `input_`, `layout_`,
+`ui_`, `run_`.
+
 ## Layers
 
-### Colors — `palette.go`, `styles.go`, `icons.go`
+### Colors — `color_palette.go`, `color_styles.go`, `color_icons.go`
 
 Wong colorblind-safe palette resolved for light/dark terminals at init.
 `TUI` is the package-level `*Styles` singleton — ~70 pre-built lipgloss
@@ -21,7 +24,7 @@ p := uikit.TUI.Palette()  // raw colors when you need them
 `SurfaceRaised` is the palette slot for elevated backgrounds (used by
 dbtui's cursor highlight vs the default `Surface`).
 
-### Input — `keys.go`, `keymap.go`
+### Input — `input_keys.go`, `input_keymap.go`
 
 Key constants (`KeyQ`, `KeyEnter`, `KeyEsc`, …) replace bare string
 literals in Bubbletea switch cases. Shared bindings (`BindQuit`,
@@ -33,7 +36,7 @@ case uikit.KeyQ, uikit.KeyEsc:
     return m, tea.Quit
 ```
 
-### Layout — `layout.go`, `compose.go`
+### Layout — `layout_dims.go`, `layout_compose.go`
 
 Dimension constants (`MinUsableWidth`, `FallbackHeight`,
 `PageChromeLines`, `OverlayMargin`, …), clamping helpers
@@ -43,20 +46,21 @@ composition utilities:
 ```go
 uikit.Spread(width, left, right)     // left + right in fixed width
 uikit.Fit(text, width, lipgloss.Left) // truncate + pad
+uikit.FitHeight(body, height)         // pad/truncate to exact rows
+uikit.WordWrap(text, maxW)            // paragraph-aware wrapping
 uikit.Center(width, text)
 ```
 
-### Components
+### UI Components — `ui_chrome.go`, `ui_overlay.go`, `ui_overlaybox.go`, `ui_listpicker.go`, `ui_grid2d.go`, `ui_screen.go`
 
 | Primitive | File | What it does |
 |-----------|------|-------------|
-| `Chrome` | `chrome.go` | Title / body / status sandwich — body gets leftover height |
-| `Overlay` | `overlay.go` | Scrollable modal panel + compositing (`CenterOverlay`, `DimBackground`, `Compose`) |
-| `OverlayBox` | `overlaybox.go` | Styled modal with title, body, and hint footer |
-| `ListPicker` | `listpicker.go` | Pre-styled filterable list, one-line construction |
-| `Grid2D` | `grid2d.go` | 2-D cursor with move, clamp, and wrap |
-| `Screen` / `Router` | `screen.go` | Dispatch table — kills 4-way switch statements |
-| `AsyncCmd` | `async.go` | Generic `tea.Cmd` → `Result[T]` |
+| `Chrome` | `ui_chrome.go` | Title / body / status sandwich — body gets leftover height |
+| `Overlay` | `ui_overlay.go` | Scrollable modal panel + compositing (`CenterOverlay`, `DimBackground`, `Compose`) |
+| `OverlayBox` | `ui_overlaybox.go` | Styled modal with title, body, and hint footer |
+| `ListPicker` | `ui_listpicker.go` | Pre-styled filterable list, one-line construction |
+| `Grid2D` | `ui_grid2d.go` | 2-D cursor with move, clamp, and wrap |
+| `Screen` / `Router` | `ui_screen.go` | Dispatch table — kills 4-way switch statements |
 
 **Chrome + Router** work together naturally:
 
@@ -69,11 +73,13 @@ chrome := uikit.Chrome{
 return chrome.Render(m.width, m.height)
 ```
 
-### Runtime — `run.go`, `drain.go`
+### Runtime — `run_async.go`, `run_program.go`, `run_drain.go`
 
 `Run` / `RunModel` launch a Bubbletea program and drain stdin
 afterwards (absorbs stale DECRQM terminal responses). `DrainStdin`
 is also exported for callers that manage their own `tea.Program`.
+`AsyncCmd` / `AsyncCmdCtx` wrap fallible functions into `tea.Cmd`
+returning `Result[T]`.
 
 ## Testing
 

@@ -1,7 +1,7 @@
 package uikit
 
-// overlay.go — scrollable modal panel (help, detail views) rendered on top of
-// other content. The parent model composites it via [Compose].
+// ui_overlay.go — scrollable modal panel (help, detail views) rendered on top
+// of other content. The parent model composites it via [Compose].
 
 import (
 	"fmt"
@@ -232,42 +232,6 @@ func OverlayWidth(termW, minW, maxW int) int {
 // Compose is a convenience for CenterOverlay(CancelFaint(fg), DimBackground(bg)).
 func Compose(fg, bg string) string {
 	return CenterOverlay(CancelFaint(fg), DimBackground(bg))
-}
-
-// WordWrap wraps text at maxW, preserving paragraph breaks (newlines).
-func WordWrap(text string, maxW int) string {
-	if maxW <= 0 || text == "" {
-		return text
-	}
-	var result strings.Builder
-	for _, paragraph := range strings.Split(text, "\n") {
-		if result.Len() > 0 {
-			result.WriteByte('\n')
-		}
-		words := strings.Fields(paragraph)
-		if len(words) == 0 {
-			continue
-		}
-		lineW := 0
-		for i, word := range words {
-			ww := lipgloss.Width(word)
-			if i == 0 {
-				result.WriteString(word)
-				lineW = ww
-				continue
-			}
-			if lineW+1+ww > maxW {
-				result.WriteByte('\n')
-				result.WriteString(word)
-				lineW = ww
-			} else {
-				result.WriteByte(' ')
-				result.WriteString(word)
-				lineW += 1 + ww
-			}
-		}
-	}
-	return result.String()
 }
 
 // prependLines wraps every line of s with prefix/suffix.
