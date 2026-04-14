@@ -245,6 +245,7 @@ func promptPkgType(pkg string, matches []brew.DetectedPackage) (string, error) {
 	if err := form.Run(); err != nil {
 		return "", err
 	}
+	uikit.DrainStdin()
 	return selected, nil
 }
 
