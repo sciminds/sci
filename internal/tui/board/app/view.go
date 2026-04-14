@@ -19,12 +19,15 @@ func (m *Model) buildView() string {
 		return ""
 	}
 
-	chrome := uikit.Chrome{
-		Title: func(w int) string {
+	return uikit.VStack(m.width, m.height).
+		Fixed(func(w int) string {
 			raw := m.router.Title(m.screen, m, w)
 			return m.styles.Title.Render(truncate(raw, w-2))
-		},
-		Status: func(w int) string {
+		}).
+		Flex(1, func(w, h int) string {
+			return m.router.View(m.screen, m, w, h)
+		}).
+		Fixed(func(w int) string {
 			text := m.status.text
 			if text == "" {
 				text = m.router.Help(m.screen)
@@ -34,13 +37,8 @@ func (m *Model) buildView() string {
 				style = m.styles.StatusErr
 			}
 			return style.Render(truncate(text, w-2))
-		},
-		Body: func(w, h int) string {
-			return m.router.View(m.screen, m, w, h)
-		},
-	}
-
-	return chrome.Render(m.width, m.height)
+		}).
+		Render()
 }
 
 // truncate cuts s to at most n visible cells, appending … if it overflowed.

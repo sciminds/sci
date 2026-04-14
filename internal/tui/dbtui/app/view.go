@@ -82,18 +82,19 @@ func (m *Model) buildView() string {
 }
 
 func (m *Model) buildTerminalTooSmallView() string {
-	panel := lipgloss.JoinVertical(
-		lipgloss.Center,
-		m.styles.Error().Render("Terminal too small"),
-		"",
-		m.styles.HeaderHint().Render(
-			fmt.Sprintf(
-				"%dx%d \u2014 need at least %dx%d",
-				m.width, m.height,
-				uikit.MinUsableWidth, uikit.MinUsableHeight,
-			),
-		),
-	)
+	panel := uikit.VStack(m.width, 3).
+		Fixed(func(_ int) string { return m.styles.Error().Render("Terminal too small") }).
+		Fixed(func(_ int) string { return "" }).
+		Fixed(func(_ int) string {
+			return m.styles.HeaderHint().Render(
+				fmt.Sprintf(
+					"%dx%d \u2014 need at least %dx%d",
+					m.width, m.height,
+					uikit.MinUsableWidth, uikit.MinUsableHeight,
+				),
+			)
+		}).
+		Render()
 	return lipgloss.Place(
 		m.width, m.height,
 		lipgloss.Center, lipgloss.Center,
@@ -107,15 +108,6 @@ func (m *Model) buildBaseView() string {
 	}
 
 	tabs := m.tabsView()
-	tabLine := m.tabUnderline()
-
-	var content string
-	if tab := m.effectiveTab(); tab != nil {
-		content = m.tableView(tab)
-	} else if m.active >= 0 && m.active < len(m.tabs) && m.tabs[m.active].Loading {
-		content = m.buildLoadingView()
-	}
-	status := m.statusView()
 
 	// Right-align db path on the tab row.
 	if m.dbPath != "" {
@@ -131,23 +123,29 @@ func (m *Model) buildBaseView() string {
 		}
 	}
 
-	upper := lipgloss.JoinVertical(lipgloss.Left, "", tabs, tabLine)
+	var content string
+	if tab := m.effectiveTab(); tab != nil {
+		content = m.tableView(tab)
+	} else if m.active >= 0 && m.active < len(m.tabs) && m.tabs[m.active].Loading {
+		content = m.buildLoadingView()
+	}
+
+	stack := uikit.VStack(m.width, m.height).
+		Fixed(func(w int) string { return "" }).
+		Fixed(func(_ int) string { return tabs }).
+		Fixed(func(_ int) string { return m.tabUnderline() })
+
 	if content != "" {
-		upper = lipgloss.JoinVertical(lipgloss.Left, upper, content)
+		stack.Fixed(func(_ int) string { return content })
 	}
 
-	upperH := lipgloss.Height(upper)
-	statusH := lipgloss.Height(status)
-	gap := m.height - upperH - statusH + 1
-	if gap < 1 {
-		gap = 1
-	}
-
-	var b strings.Builder
-	b.WriteString(upper)
-	b.WriteString(strings.Repeat("\n", gap))
-	b.WriteString(status)
-	return clampLines(b.String(), m.width)
+	return clampLines(
+		stack.
+			Flex(1, func(_, _ int) string { return "" }).
+			Fixed(func(_ int) string { return m.statusView() }).
+			Render(),
+		m.width,
+	)
 }
 
 func (m *Model) tabsView() string {
@@ -384,12 +382,14 @@ func (m *Model) buildLoadingView() string {
 }
 
 func (m *Model) buildEmptyDBView() string {
-	panel := lipgloss.JoinVertical(
-		lipgloss.Center,
-		m.styles.HeaderSection().Render(" Empty database "),
-		"",
-		m.styles.HeaderHint().Render("Press "+m.keycap(keyT)+" to manage tables"),
-	)
+	panel := uikit.VStack(m.width, 3).
+		Fixed(func(_ int) string { return m.styles.HeaderSection().Render(" Empty database ") }).
+		Fixed(func(_ int) string { return "" }).
+		Fixed(func(_ int) string {
+			return m.styles.HeaderHint().Render("Press " + m.keycap(keyT) + " to manage tables")
+		}).
+		Render()
+
 	// Right-align db path in the top-right corner.
 	var topLine string
 	if m.dbPath != "" {
