@@ -91,7 +91,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	}
 
 	// ── Check & install tools ───────────────────────────────────────────
-	tools, toolErr := RunToolChecks(r, brewfilePath)
+	tools, toolErr := RunToolChecks(r)
 	if toolErr != nil {
 		result.ToolCheckError = toolErr.Error()
 		if !uikit.IsQuiet() {
@@ -106,16 +106,20 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	})
 
 	if len(missingTools) > 0 {
-		// Install missing tools.
-		_, installErr := r.BundleInstall(brewfilePath)
-		if installErr != nil {
-			result.InstallError = installErr.Error()
+		// Read the Brewfile to determine types of missing packages.
+		content, readErr := os.ReadFile(brewfilePath)
+		if readErr != nil {
+			result.InstallError = readErr.Error()
 		} else {
-			result.ToolsInstalled = missingTools
-			// Update Tools to reflect post-install state.
-			for i := range result.Tools {
-				if !result.Tools[i].Installed {
-					result.Tools[i].Installed = true
+			installErr := installMissing(r, string(content), missingTools)
+			if installErr != nil {
+				result.InstallError = installErr.Error()
+			} else {
+				result.ToolsInstalled = missingTools
+				for i := range result.Tools {
+					if !result.Tools[i].Installed {
+						result.Tools[i].Installed = true
+					}
 				}
 			}
 		}
@@ -194,6 +198,38 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 
 	result.Upgraded = result.Outdated
 	return result
+}
+
+// installMissing installs the named packages from the Brewfile content,
+// grouped by type: taps → formulae → casks → uv tools.
+func installMissing(r brew.Runner, content string, names []string) error {
+	entries := brew.ParseBrewfileEntries(content)
+	nameSet := lo.SliceToMap(names, func(n string) (string, bool) { return n, true })
+
+	groups := lo.GroupBy(
+		lo.Filter(entries, func(e brew.BrewfileEntry, _ int) bool { return nameSet[e.Name] }),
+		func(e brew.BrewfileEntry) string { return e.Type },
+	)
+	toNames := func(typ string) []string {
+		return lo.Map(groups[typ], func(e brew.BrewfileEntry, _ int) string { return e.Name })
+	}
+
+	// Taps first (individually).
+	for _, name := range toNames("tap") {
+		if err := r.DirectInstall(name, "tap"); err != nil {
+			return fmt.Errorf("tap %s: %w", name, err)
+		}
+	}
+	if err := r.InstallFormulae(toNames("brew")); err != nil {
+		return fmt.Errorf("install formulae: %w", err)
+	}
+	if err := r.InstallCasks(toNames("cask")); err != nil {
+		return fmt.Errorf("install casks: %w", err)
+	}
+	if err := r.InstallUVTools(toNames("uv")); err != nil {
+		return fmt.Errorf("install uv tools: %w", err)
+	}
+	return nil
 }
 
 func setupEntryNames(entries []brew.BrewfileEntry) []string {

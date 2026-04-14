@@ -3,6 +3,7 @@ package brew
 import (
 	"cmp"
 	"fmt"
+	"os"
 	"slices"
 	"sync"
 
@@ -35,22 +36,73 @@ func Remove(r Runner, file, pkg, pkgType string) (RemoveResult, error) {
 	return RemoveResult{Package: pkg, Type: pkgType}, nil
 }
 
-// Install installs all packages from the Brewfile.
+// Install installs missing packages from the Brewfile. It collects a system
+// snapshot, diffs against the Brewfile entries, and batch-installs each type
+// in order: taps → formulae → casks → uv tools.
 func Install(r Runner, file string) (InstallResult, error) {
-	out, err := r.BundleInstall(file)
+	content, err := os.ReadFile(file)
 	if err != nil {
-		return InstallResult{}, fmt.Errorf("bundle install: %w", err)
+		return InstallResult{}, fmt.Errorf("read Brewfile: %w", err)
 	}
-	return InstallResult{Output: out}, nil
+
+	snap, err := CollectSnapshot(r)
+	if err != nil {
+		return InstallResult{}, fmt.Errorf("collect snapshot: %w", err)
+	}
+
+	entries := ParseBrewfileEntries(string(content))
+	missing := lo.Filter(entries, func(e BrewfileEntry, _ int) bool {
+		return !snap.IsInstalled(e.Type, e.Name)
+	})
+
+	if len(missing) == 0 {
+		return InstallResult{}, nil
+	}
+
+	// Group by type.
+	groups := lo.GroupBy(missing, func(e BrewfileEntry) string { return e.Type })
+	names := func(typ string) []string {
+		return lo.Map(groups[typ], func(e BrewfileEntry, _ int) string { return e.Name })
+	}
+
+	// Install taps individually (needed before tap-qualified formulae).
+	for _, name := range names("tap") {
+		if err := r.DirectInstall(name, "tap"); err != nil {
+			return InstallResult{}, fmt.Errorf("tap %s: %w", name, err)
+		}
+	}
+
+	if err := r.InstallFormulae(names("brew")); err != nil {
+		return InstallResult{}, fmt.Errorf("install formulae: %w", err)
+	}
+	if err := r.InstallCasks(names("cask")); err != nil {
+		return InstallResult{}, fmt.Errorf("install casks: %w", err)
+	}
+	if err := r.InstallUVTools(names("uv")); err != nil {
+		return InstallResult{}, fmt.Errorf("install uv tools: %w", err)
+	}
+
+	return InstallResult{}, nil
 }
 
 // List lists packages from the Brewfile, optionally filtered by type.
-func List(r Runner, file, pkgType string) (ListResult, error) {
-	pkgs, err := r.BundleList(file, pkgType)
+// Parses the Brewfile directly — no subprocess needed.
+func List(file, pkgType string) (ListResult, error) {
+	content, err := os.ReadFile(file)
 	if err != nil {
-		return ListResult{}, fmt.Errorf("bundle list: %w", err)
+		return ListResult{}, fmt.Errorf("read Brewfile: %w", err)
 	}
-	return ListResult{Packages: pkgs, Type: pkgType}, nil
+
+	entries := ParseBrewfileEntries(string(content))
+	if pkgType != "" {
+		entries = lo.Filter(entries, func(e BrewfileEntry, _ int) bool {
+			// Callers pass "formula" but Brewfile uses "brew".
+			return e.Type == pkgType || (pkgType == "formula" && e.Type == "brew")
+		})
+	}
+
+	names := lo.Map(entries, func(e BrewfileEntry, _ int) string { return e.Name })
+	return ListResult{Packages: names, Type: pkgType}, nil
 }
 
 // Update refreshes the Homebrew registry and optionally upgrades outdated packages.
@@ -151,38 +203,27 @@ func runUpgrades(r Runner, brewOutdated, uvOutdated []OutdatedPackage) (string, 
 	return upgradeOut, nil
 }
 
-// ListDetailed fetches formulae and casks with descriptions in parallel.
-// Returns a combined slice of PackageInfo sorted by type (formulae first, then casks).
+// ListDetailed parses the Brewfile for formula/cask names, fetches descriptions
+// via brew info in parallel, and returns a sorted combined slice.
 func ListDetailed(r Runner, file string) ([]PackageInfo, error) {
-	var (
-		formulae, casks []string
-		wg              sync.WaitGroup
-		formulaeErr     error
-		casksErr        error
-	)
-
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		formulae, formulaeErr = r.BundleList(file, "formula")
-	}()
-	go func() {
-		defer wg.Done()
-		casks, casksErr = r.BundleList(file, "cask")
-	}()
-	wg.Wait()
-
-	if formulaeErr != nil {
-		return nil, fmt.Errorf("list formulae: %w", formulaeErr)
+	content, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("read Brewfile: %w", err)
 	}
-	if casksErr != nil {
-		return nil, fmt.Errorf("list casks: %w", casksErr)
-	}
+
+	entries := ParseBrewfileEntries(string(content))
+	formulae := lo.FilterMap(entries, func(e BrewfileEntry, _ int) (string, bool) {
+		return e.Name, e.Type == "brew"
+	})
+	casks := lo.FilterMap(entries, func(e BrewfileEntry, _ int) (string, bool) {
+		return e.Name, e.Type == "cask"
+	})
 
 	// Fetch descriptions in parallel.
 	var (
 		formulaeInfo, casksInfo []PackageInfo
 		fInfoErr, cInfoErr      error
+		wg                      sync.WaitGroup
 	)
 
 	wg.Add(2)

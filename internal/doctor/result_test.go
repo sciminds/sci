@@ -208,7 +208,7 @@ func TestJSON_IncludesInstallError(t *testing.T) {
 				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
 			}},
 		},
-		InstallError: "brew bundle failed",
+		InstallError: "install failed",
 	}
 
 	raw, err := json.Marshal(r.JSON())
@@ -217,7 +217,7 @@ func TestJSON_IncludesInstallError(t *testing.T) {
 	}
 	s := string(raw)
 
-	if !strings.Contains(s, `"install_error":"brew bundle failed"`) {
+	if !strings.Contains(s, `"install_error":"install failed"`) {
 		t.Errorf("expected install_error in JSON, got %s", s)
 	}
 }

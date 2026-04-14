@@ -48,7 +48,7 @@ func doctorCommand() *cli.Command {
 }
 
 func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
-	runner := brew.BundleRunner{}
+	runner := brew.BrewRunner{}
 	isJSON := cmdutil.IsJSON(cmd)
 
 	// ── Step 0: Apply git identity flags ────────────────────────────────
@@ -183,7 +183,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	var toolInfos []doctor.ToolInfo
 	var toolCheckErr error
 	err = uikit.RunWithSpinner("Checking for required tools…", func() error {
-		toolInfos, toolCheckErr = doctor.RunToolChecks(runner, brewfilePath)
+		toolInfos, toolCheckErr = doctor.RunToolChecks(runner)
 		return nil
 	})
 	if err != nil {

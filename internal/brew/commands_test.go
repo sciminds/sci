@@ -5,32 +5,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 )
 
 // Compile-time interface assertions.
 var (
-	_ Runner = BundleRunner{}
+	_ Runner = BrewRunner{}
 	_ Runner = (*mockRunner)(nil)
 )
 
 // mockRunner records calls and returns preset results.
-// ListDetailed fans out BundleList across goroutines, so mutations to
-// listCalls must be guarded.
 type mockRunner struct {
-	mu        sync.Mutex
-	listCalls []mockCall
-
-	installCalls []string
-	installErr   error
-	checkCalls   []string
-	checkResult  []string
-	checkErr     error
-	listResult   []string
-	listErr      error
-	infoResult   []PackageInfo
-	infoErr      error
+	infoResult     []PackageInfo
+	infoCaskResult []PackageInfo
+	infoErr        error
 
 	// Leaves-based sync fields.
 	leavesResult       []string
@@ -47,6 +35,14 @@ type mockRunner struct {
 	directInstallErr     error
 	directUninstallCalls []mockCall
 	directUninstallErr   error
+
+	// Batch install tracking.
+	installFormulaeCalls [][]string
+	installFormulaeErr   error
+	installCasksCalls    [][]string
+	installCasksErr      error
+	installUVToolsCalls  [][]string
+	installUVToolsErr    error
 
 	updateCalls      int
 	updateErr        error
@@ -65,27 +61,13 @@ type mockRunner struct {
 }
 
 type mockCall struct {
-	file, pkg, pkgType string
+	pkg, pkgType string
 }
 
-func (m *mockRunner) BundleInstall(file string) (string, error) {
-	m.installCalls = append(m.installCalls, file)
-	return "installed", m.installErr
-}
-
-func (m *mockRunner) BundleCheck(file string) ([]string, error) {
-	m.checkCalls = append(m.checkCalls, file)
-	return m.checkResult, m.checkErr
-}
-
-func (m *mockRunner) BundleList(file, pkgType string) ([]string, error) {
-	m.mu.Lock()
-	m.listCalls = append(m.listCalls, mockCall{file: file, pkgType: pkgType})
-	m.mu.Unlock()
-	return m.listResult, m.listErr
-}
-
-func (m *mockRunner) Info(_ []string, _ bool) ([]PackageInfo, error) {
+func (m *mockRunner) Info(_ []string, isCask bool) ([]PackageInfo, error) {
+	if isCask && m.infoCaskResult != nil {
+		return m.infoCaskResult, m.infoErr
+	}
 	return m.infoResult, m.infoErr
 }
 
@@ -113,6 +95,21 @@ func (m *mockRunner) DirectInstall(pkg, pkgType string) error {
 func (m *mockRunner) DirectUninstall(pkg, pkgType string) error {
 	m.directUninstallCalls = append(m.directUninstallCalls, mockCall{pkg: pkg, pkgType: pkgType})
 	return m.directUninstallErr
+}
+
+func (m *mockRunner) InstallFormulae(names []string) error {
+	m.installFormulaeCalls = append(m.installFormulaeCalls, names)
+	return m.installFormulaeErr
+}
+
+func (m *mockRunner) InstallCasks(names []string) error {
+	m.installCasksCalls = append(m.installCasksCalls, names)
+	return m.installCasksErr
+}
+
+func (m *mockRunner) InstallUVTools(names []string) error {
+	m.installUVToolsCalls = append(m.installUVToolsCalls, names)
+	return m.installUVToolsErr
 }
 
 func (m *mockRunner) Update() error {
@@ -276,28 +273,90 @@ func TestRemove_BrewfileUnchangedOnUninstallFailure(t *testing.T) {
 
 func TestInstall_HappyPath(t *testing.T) {
 	t.Parallel()
-	bf := brewfile(t, `brew "htop"`)
-	m := &mockRunner{}
+	bf := brewfile(t, "brew \"htop\"\n")
+	m := &mockRunner{
+		// htop not installed.
+		listFormulaeResult: []string{},
+	}
 
-	result, err := Install(m, bf)
+	_, err := Install(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(m.installCalls) != 1 {
-		t.Fatalf("expected 1 install call, got %d", len(m.installCalls))
+	if len(m.installFormulaeCalls) != 1 {
+		t.Fatalf("expected 1 InstallFormulae call, got %d", len(m.installFormulaeCalls))
 	}
-	if result.Output != "installed" {
-		t.Errorf("result.Output = %q, want %q", result.Output, "installed")
+	if m.installFormulaeCalls[0][0] != "htop" {
+		t.Errorf("InstallFormulae arg = %q, want %q", m.installFormulaeCalls[0][0], "htop")
+	}
+}
+
+func TestInstall_NothingMissing(t *testing.T) {
+	t.Parallel()
+	bf := brewfile(t, "brew \"htop\"\n")
+	m := &mockRunner{
+		listFormulaeResult: []string{"htop"},
+	}
+
+	_, err := Install(m, bf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(m.installFormulaeCalls) != 0 {
+		t.Errorf("expected no InstallFormulae calls, got %d", len(m.installFormulaeCalls))
+	}
+}
+
+func TestInstall_GroupsByType(t *testing.T) {
+	t.Parallel()
+	bf := brewfile(t, "tap \"oven-sh/bun\"\nbrew \"git\"\nbrew \"curl\"\ncask \"firefox\"\nuv \"marimo\"\n")
+	m := &mockRunner{
+		// Nothing installed.
+		listFormulaeResult: []string{},
+		listCasksResult:    []string{},
+		tapsResult:         []string{},
+		uvToolListResult:   []string{},
+	}
+
+	_, err := Install(m, bf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Taps go through DirectInstall.
+	if len(m.directInstallCalls) != 1 {
+		t.Fatalf("expected 1 DirectInstall call (tap), got %d", len(m.directInstallCalls))
+	}
+	if m.directInstallCalls[0].pkg != "oven-sh/bun" || m.directInstallCalls[0].pkgType != "tap" {
+		t.Errorf("DirectInstall = %+v, want tap oven-sh/bun", m.directInstallCalls[0])
+	}
+
+	// Formulae batched.
+	if len(m.installFormulaeCalls) != 1 {
+		t.Fatalf("expected 1 InstallFormulae call, got %d", len(m.installFormulaeCalls))
+	}
+	if len(m.installFormulaeCalls[0]) != 2 {
+		t.Errorf("expected 2 formulae, got %d", len(m.installFormulaeCalls[0]))
+	}
+
+	// Casks batched.
+	if len(m.installCasksCalls) != 1 {
+		t.Fatalf("expected 1 InstallCasks call, got %d", len(m.installCasksCalls))
+	}
+
+	// UV tools batched.
+	if len(m.installUVToolsCalls) != 1 {
+		t.Fatalf("expected 1 InstallUVTools call, got %d", len(m.installUVToolsCalls))
 	}
 }
 
 func TestList_HappyPath(t *testing.T) {
 	t.Parallel()
-	bf := brewfile(t, `brew "htop"`+"\n"+`brew "curl"`)
-	m := &mockRunner{listResult: []string{"htop", "curl"}}
+	bf := brewfile(t, "brew \"htop\"\nbrew \"curl\"\n")
 
-	result, err := List(m, bf, "")
+	result, err := List(bf, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -312,16 +371,35 @@ func TestList_HappyPath(t *testing.T) {
 
 func TestList_WithType(t *testing.T) {
 	t.Parallel()
-	bf := brewfile(t, "")
-	m := &mockRunner{listResult: []string{"firefox"}}
+	bf := brewfile(t, "brew \"htop\"\ncask \"firefox\"\nuv \"marimo\"\n")
 
-	_, err := List(m, bf, "cask")
+	result, err := List(bf, "cask")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if m.listCalls[0].pkgType != "cask" {
-		t.Errorf("list pkgType = %q, want %q", m.listCalls[0].pkgType, "cask")
+	if len(result.Packages) != 1 {
+		t.Fatalf("expected 1 package, got %d", len(result.Packages))
+	}
+	if result.Packages[0] != "firefox" {
+		t.Errorf("result.Packages[0] = %q, want %q", result.Packages[0], "firefox")
+	}
+}
+
+func TestList_FormulaType(t *testing.T) {
+	t.Parallel()
+	bf := brewfile(t, "brew \"htop\"\ncask \"firefox\"\n")
+
+	result, err := List(bf, "formula")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Packages) != 1 {
+		t.Fatalf("expected 1 package, got %d", len(result.Packages))
+	}
+	if result.Packages[0] != "htop" {
+		t.Errorf("result.Packages[0] = %q, want %q", result.Packages[0], "htop")
 	}
 }
 
@@ -363,11 +441,13 @@ func TestParseBrewInfo_Casks(t *testing.T) {
 
 func TestListDetailed_HappyPath(t *testing.T) {
 	t.Parallel()
-	bf := brewfile(t, `brew "htop"`+"\n"+`cask "firefox"`)
+	bf := brewfile(t, "brew \"htop\"\ncask \"firefox\"\n")
 	m := &mockRunner{
-		listResult: []string{"htop"},
 		infoResult: []PackageInfo{
 			{Name: "htop", Desc: "Improved top", Type: "formula"},
+		},
+		infoCaskResult: []PackageInfo{
+			{Name: "firefox", Desc: "Web browser", Type: "cask"},
 		},
 	}
 
@@ -375,60 +455,15 @@ func TestListDetailed_HappyPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(result) < 1 {
-		t.Fatal("expected at least 1 package")
+	if len(result) != 2 {
+		t.Fatalf("expected 2 packages, got %d", len(result))
 	}
-	if result[0].Name != "htop" || result[0].Desc != "Improved top" {
-		t.Errorf("result[0] = %+v", result[0])
+	// Sorted alphabetically.
+	if result[0].Name != "firefox" {
+		t.Errorf("result[0].Name = %q, want %q", result[0].Name, "firefox")
 	}
-}
-
-func TestParseBundleCheck_Satisfied(t *testing.T) {
-	t.Parallel()
-	out := "The Brewfile's dependencies are satisfied.\n"
-	missing := parseBundleCheck(out)
-	if len(missing) != 0 {
-		t.Errorf("expected no missing, got %v", missing)
-	}
-}
-
-func TestParseBundleCheck_Missing(t *testing.T) {
-	t.Parallel()
-	out := `brew bundle can't satisfy your Brewfile's dependencies.
-→ Cask visual-studio-code needs to be installed or updated.
-→ Formula git needs to be installed or updated.
-→ Formula uv needs to be installed or updated.
-Satisfy missing dependencies with ` + "`brew bundle install`.\n"
-
-	missing := parseBundleCheck(out)
-	want := []string{"visual-studio-code", "git", "uv"}
-	if len(missing) != len(want) {
-		t.Fatalf("got %v, want %v", missing, want)
-	}
-	for i := range want {
-		if missing[i] != want[i] {
-			t.Errorf("missing[%d] = %q, want %q", i, missing[i], want[i])
-		}
-	}
-}
-
-func TestParseBundleCheck_UVTools(t *testing.T) {
-	t.Parallel()
-	out := `brew bundle can't satisfy your Brewfile's dependencies.
-→ uv Tool symbex needs to be installed.
-→ uv Tool sqlite-utils needs to be installed.
-→ Formula harper needs to be installed or updated.
-Satisfy missing dependencies with ` + "`brew bundle install`.\n"
-
-	missing := parseBundleCheck(out)
-	want := []string{"symbex", "sqlite-utils", "harper"}
-	if len(missing) != len(want) {
-		t.Fatalf("got %v, want %v", missing, want)
-	}
-	for i := range want {
-		if missing[i] != want[i] {
-			t.Errorf("missing[%d] = %q, want %q", i, missing[i], want[i])
-		}
+	if result[1].Name != "htop" {
+		t.Errorf("result[1].Name = %q, want %q", result[1].Name, "htop")
 	}
 }
 
@@ -1112,41 +1147,6 @@ func TestBrewfileEntry_Label(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// BundleCheck error-handling tests (real runner uses isBundleCheckOutput)
-// ---------------------------------------------------------------------------
-
-func TestIsBundleCheckOutput_MissingDeps(t *testing.T) {
-	t.Parallel()
-	out := "→ Formula git needs to be installed or updated.\n→ Cask firefox needs to be installed or updated.\n"
-	if !isBundleCheckOutput(out) {
-		t.Error("expected true for output with missing deps")
-	}
-}
-
-func TestIsBundleCheckOutput_Satisfied(t *testing.T) {
-	t.Parallel()
-	out := "The Brewfile's dependencies are satisfied.\n"
-	if !isBundleCheckOutput(out) {
-		t.Error("expected true for satisfied output")
-	}
-}
-
-func TestIsBundleCheckOutput_RealError(t *testing.T) {
-	t.Parallel()
-	out := "Error: No such file or directory @ rb_check_realpath_internal\n"
-	if isBundleCheckOutput(out) {
-		t.Error("expected false for a real error message")
-	}
-}
-
-func TestIsBundleCheckOutput_Empty(t *testing.T) {
-	t.Parallel()
-	if isBundleCheckOutput("") {
-		t.Error("expected false for empty output")
-	}
-}
-
-// ---------------------------------------------------------------------------
 // UpgradeOnly tests
 // ---------------------------------------------------------------------------
 
@@ -1229,6 +1229,113 @@ func TestSync_AdditionsAreSorted(t *testing.T) {
 			t.Errorf("entries not sorted: %q > %q\nfull Brewfile:\n%s", prev, curr, got)
 			break
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SystemSnapshot tests
+// ---------------------------------------------------------------------------
+
+func TestCollectSnapshot_HappyPath(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{
+		leavesResult:       []string{"git", "curl"},
+		listFormulaeResult: []string{"git", "curl", "sqlite"},
+		listCasksResult:    []string{"firefox", "zed"},
+		tapsResult:         []string{"oven-sh/bun"},
+		uvToolListResult:   []string{"marimo", "ruff"},
+	}
+
+	snap, err := CollectSnapshot(m)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(snap.Leaves) != 2 {
+		t.Errorf("Leaves = %v, want 2 items", snap.Leaves)
+	}
+	if len(snap.Formulae) != 3 {
+		t.Errorf("Formulae = %v, want 3 items", snap.Formulae)
+	}
+	if len(snap.Casks) != 2 {
+		t.Errorf("Casks = %v, want 2 items", snap.Casks)
+	}
+	if len(snap.Taps) != 1 {
+		t.Errorf("Taps = %v, want 1 item", snap.Taps)
+	}
+	if len(snap.UVTools) != 2 {
+		t.Errorf("UVTools = %v, want 2 items", snap.UVTools)
+	}
+}
+
+func TestCollectSnapshot_LeavesError(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{leavesErr: errors.New("leaves failed")}
+
+	_, err := CollectSnapshot(m)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCollectSnapshot_FormulaeError(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{listFormulaeErr: errors.New("list failed")}
+
+	_, err := CollectSnapshot(m)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCollectSnapshot_UVError(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{uvToolListErr: errors.New("uv failed")}
+
+	_, err := CollectSnapshot(m)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestSystemSnapshot_IsInstalled(t *testing.T) {
+	t.Parallel()
+	snap := SystemSnapshot{
+		Leaves:   []string{"git", "curl"},
+		Formulae: []string{"git", "curl", "sqlite", "oven-sh/bun/bun"},
+		Casks:    []string{"firefox", "zed"},
+		Taps:     []string{"oven-sh/bun"},
+		UVTools:  []string{"marimo", "ruff"},
+	}
+
+	tests := []struct {
+		typ, name string
+		want      bool
+	}{
+		// brew formulae — checks Formulae list (not just Leaves)
+		{"brew", "git", true},
+		{"brew", "sqlite", true},          // dep-only, not in Leaves
+		{"brew", "oven-sh/bun/bun", true}, // tap-qualified
+		{"brew", "node", false},           // not installed
+		// casks
+		{"cask", "firefox", true},
+		{"cask", "slack", false},
+		// taps
+		{"tap", "oven-sh/bun", true},
+		{"tap", "homebrew/core", false},
+		// uv tools
+		{"uv", "marimo", true},
+		{"uv", "symbex", false},
+		// unknown type
+		{"cargo", "ripgrep", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.typ+"/"+tt.name, func(t *testing.T) {
+			got := snap.IsInstalled(tt.typ, tt.name)
+			if got != tt.want {
+				t.Errorf("IsInstalled(%q, %q) = %v, want %v", tt.typ, tt.name, got, tt.want)
+			}
+		})
 	}
 }
 

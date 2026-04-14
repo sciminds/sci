@@ -4,7 +4,7 @@
 //
 //   - Pre-flight: Homebrew, Xcode CLT, shell environment
 //   - Identity: git user.name/email, GitHub CLI auth, SciMinds auth
-//   - Tools: all packages from the embedded Brewfile via `brew bundle check`
+//   - Tools: all packages from the embedded Brewfile via system snapshot
 package doctor
 
 import (
@@ -91,21 +91,17 @@ func RunPreflightIdentity() []CheckSection {
 	return sections
 }
 
-// RunToolChecks runs `brew bundle check` against the user's Brewfile and
-// returns install status for the required (embedded) packages. Returns an
-// error if BundleCheck itself fails (e.g. brew not installed or borked).
-func RunToolChecks(r brew.Runner, brewfilePath string) ([]ToolInfo, error) {
-	missing, err := r.BundleCheck(brewfilePath)
+// RunToolChecks checks the system for required (embedded) packages by
+// collecting a system snapshot and comparing against the embedded Brewfile.
+func RunToolChecks(r brew.Runner) ([]ToolInfo, error) {
+	snap, err := brew.CollectSnapshot(r)
 	if err != nil {
 		return nil, fmt.Errorf("check tools: %w", err)
 	}
-	missingSet := lo.SliceToMap(missing, func(name string) (string, bool) {
-		return name, true
-	})
 
-	all := brew.ParseBrewfileNames(Brewfile)
-	infos := lo.Map(all, func(name string, _ int) ToolInfo {
-		return ToolInfo{Name: name, Installed: !missingSet[name]}
+	entries := brew.ParseBrewfileEntries(Brewfile)
+	infos := lo.Map(entries, func(e brew.BrewfileEntry, _ int) ToolInfo {
+		return ToolInfo{Name: e.Name, Installed: snap.IsInstalled(e.Type, e.Name)}
 	})
 	return infos, nil
 }

@@ -159,7 +159,7 @@ func syncBrewfile(file string) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "  %s Ensuring Brewfile is up-to-date…\n", uikit.SymArrow)
-	result, err := brew.Sync(brew.BundleRunner{}, file)
+	result, err := brew.Sync(brew.BrewRunner{}, file)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
 			uikit.SymWarn, uikit.TUI.Warn().Render("Could not sync Brewfile: "+err.Error()))
@@ -251,7 +251,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	runner := brew.BundleRunner{}
+	runner := brew.BrewRunner{}
 
 	// With a package argument: update registry, install directly, sync Brewfile.
 	if cmd.NArg() > 0 {
@@ -327,7 +327,7 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "  Removing %s…\n", pkg)
-	result, rmErr := brew.Remove(brew.BundleRunner{}, file, pkg, resolveToolsPkgType())
+	result, rmErr := brew.Remove(brew.BrewRunner{}, file, pkg, resolveToolsPkgType())
 	if rmErr != nil {
 		return rmErr
 	}
@@ -344,7 +344,7 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 
 	syncBrewfile(file)
 
-	runner := brew.BundleRunner{}
+	runner := brew.BrewRunner{}
 
 	// Type-specific filter or --json: plain text list.
 	pkgType := resolveToolsPkgType()
@@ -352,7 +352,7 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 		if toolsAll {
 			pkgType = ""
 		}
-		result, listErr := brew.List(runner, file, pkgType)
+		result, listErr := brew.List(file, pkgType)
 		if listErr != nil {
 			return listErr
 		}
@@ -384,7 +384,7 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	runner := brew.BundleRunner{}
+	runner := brew.BrewRunner{}
 
 	fmt.Fprintf(os.Stderr, "  Updating package registry…\n")
 	result, err := brew.Update(runner, false)
@@ -409,7 +409,7 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	runner := brew.BundleRunner{}
+	runner := brew.BrewRunner{}
 
 	fmt.Fprintf(os.Stderr, "  Checking for outdated packages…\n")
 	result, err := brew.Update(runner, true)
@@ -422,7 +422,7 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 }
 
 func runToolsReccs(_ context.Context, cmd *cli.Command, installName string) error {
-	runner := brew.BundleRunner{}
+	runner := brew.BrewRunner{}
 
 	if cmdutil.IsJSON(cmd) {
 		result, err := doctor.ListOptionalTools(runner)

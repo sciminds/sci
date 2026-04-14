@@ -11,7 +11,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
+	"sync"
 
 	"github.com/creack/pty/v2"
 	"github.com/samber/lo"
@@ -40,11 +42,59 @@ type PackageInfo struct {
 	Type    string `json:"type"` // "formula", "cask", "uv", "go", "cargo"
 }
 
+// SystemSnapshot captures the installed state of the system at a point in time.
+// Used by Sync, RunToolChecks, and Install to avoid redundant subprocess calls.
+type SystemSnapshot struct {
+	Leaves   []string // brew leaves -r (user-requested formulae)
+	Formulae []string // brew list --formula --full-name (all installed, incl. deps)
+	Casks    []string // brew list --cask
+	Taps     []string // brew tap
+	UVTools  []string // uv tool list
+}
+
+// CollectSnapshot queries all five data sources concurrently and returns the
+// combined system state. Returns the first error encountered.
+func CollectSnapshot(r Runner) (SystemSnapshot, error) {
+	var (
+		snap SystemSnapshot
+		errs [5]error
+		wg   sync.WaitGroup
+	)
+	wg.Add(5)
+	go func() { defer wg.Done(); snap.Leaves, errs[0] = r.Leaves() }()
+	go func() { defer wg.Done(); snap.Formulae, errs[1] = r.ListFormulae() }()
+	go func() { defer wg.Done(); snap.Casks, errs[2] = r.ListCasks() }()
+	go func() { defer wg.Done(); snap.Taps, errs[3] = r.Taps() }()
+	go func() { defer wg.Done(); snap.UVTools, errs[4] = r.UVToolList() }()
+	wg.Wait()
+
+	for _, err := range errs {
+		if err != nil {
+			return SystemSnapshot{}, err
+		}
+	}
+	return snap, nil
+}
+
+// IsInstalled reports whether a (type, name) pair is present in the snapshot.
+// Uses the Formulae list (all installed, including deps) for brew entries.
+func (s SystemSnapshot) IsInstalled(typ, name string) bool {
+	switch typ {
+	case "brew":
+		return slices.Contains(s.Formulae, name)
+	case "cask":
+		return slices.Contains(s.Casks, name)
+	case "tap":
+		return slices.Contains(s.Taps, name)
+	case "uv":
+		return slices.Contains(s.UVTools, name)
+	default:
+		return false
+	}
+}
+
 // Runner abstracts brew commands for testability.
 type Runner interface {
-	BundleInstall(file string) (string, error)
-	BundleCheck(file string) ([]string, error)
-	BundleList(file, pkgType string) ([]string, error)
 	Info(names []string, isCask bool) ([]PackageInfo, error)
 	Leaves() ([]string, error)
 	ListFormulae() ([]string, error)
@@ -52,6 +102,9 @@ type Runner interface {
 	Taps() ([]string, error)
 	DirectInstall(pkg, pkgType string) error
 	DirectUninstall(pkg, pkgType string) error
+	InstallFormulae(names []string) error
+	InstallCasks(names []string) error
+	InstallUVTools(names []string) error
 	Update() error
 	Outdated() ([]OutdatedPackage, error)
 	Upgrade() (string, error)
@@ -60,49 +113,11 @@ type Runner interface {
 	UVToolList() ([]string, error)
 }
 
-// BundleRunner shells out to brew.
-type BundleRunner struct{}
-
-// BundleInstall implements Runner.
-func (BundleRunner) BundleInstall(file string) (string, error) {
-	return runBrewLive("bundle", "install", "--verbose", "--no-upgrade", "--file="+file)
-}
-
-// BundleCheck runs `brew bundle check --verbose` and returns the names of
-// missing packages. An empty slice means all dependencies are satisfied.
-func (BundleRunner) BundleCheck(file string) ([]string, error) {
-	// brew bundle check exits non-zero when deps are missing — that's normal.
-	// We distinguish "missing deps" from real failures by inspecting the
-	// output: if it contains recognized package lines or the "satisfied"
-	// message, the exit code is just the missing-deps signal. Otherwise
-	// something is actually broken (bad Brewfile, brew not found, etc.).
-	cmd := exec.Command("brew", "bundle", "check", "--verbose", "--file="+file)
-	cmd.Env = offlineEnv()
-	out, err := cmd.CombinedOutput()
-	s := string(out)
-	if err != nil && !isBundleCheckOutput(s) {
-		return nil, fmt.Errorf("brew bundle check: %w: %s", err, s)
-	}
-	return parseBundleCheck(s), nil
-}
-
-// BundleList implements Runner.
-func (BundleRunner) BundleList(file, pkgType string) ([]string, error) {
-	args := []string{"bundle", "list", "--file=" + file}
-	if pkgType != "" {
-		args = append(args, "--"+pkgType)
-	} else {
-		args = append(args, "--all")
-	}
-	out, err := runBrewOutputLocal(args...)
-	if err != nil {
-		return nil, err
-	}
-	return splitLines(out), nil
-}
+// BrewRunner shells out to brew.
+type BrewRunner struct{}
 
 // Leaves implements Runner. Returns user-requested formulae (not deps).
-func (BundleRunner) Leaves() ([]string, error) {
+func (BrewRunner) Leaves() ([]string, error) {
 	out, err := runBrewOutputLocal("leaves", "-r")
 	if err != nil {
 		return nil, err
@@ -112,7 +127,7 @@ func (BundleRunner) Leaves() ([]string, error) {
 
 // ListFormulae implements Runner. Returns all installed formulae (leaves + deps)
 // with full tap-qualified names (e.g. "oven-sh/bun/bun" not just "bun").
-func (BundleRunner) ListFormulae() ([]string, error) {
+func (BrewRunner) ListFormulae() ([]string, error) {
 	out, err := runBrewOutputLocal("list", "--formula", "--full-name", "-1")
 	if err != nil {
 		return nil, err
@@ -121,7 +136,7 @@ func (BundleRunner) ListFormulae() ([]string, error) {
 }
 
 // ListCasks implements Runner. Returns all installed casks.
-func (BundleRunner) ListCasks() ([]string, error) {
+func (BrewRunner) ListCasks() ([]string, error) {
 	out, err := runBrewOutputLocal("list", "--cask")
 	if err != nil {
 		return nil, err
@@ -130,7 +145,7 @@ func (BundleRunner) ListCasks() ([]string, error) {
 }
 
 // Taps implements Runner. Returns user-added taps.
-func (BundleRunner) Taps() ([]string, error) {
+func (BrewRunner) Taps() ([]string, error) {
 	out, err := runBrewOutputLocal("tap")
 	if err != nil {
 		return nil, err
@@ -139,7 +154,7 @@ func (BundleRunner) Taps() ([]string, error) {
 }
 
 // DirectInstall implements Runner. Installs a single package by type.
-func (BundleRunner) DirectInstall(pkg, pkgType string) error {
+func (BrewRunner) DirectInstall(pkg, pkgType string) error {
 	switch pkgType {
 	case "", "formula", "brew":
 		_, err := runBrewLive("install", pkg)
@@ -162,7 +177,7 @@ func (BundleRunner) DirectInstall(pkg, pkgType string) error {
 }
 
 // DirectUninstall implements Runner. Uninstalls a single package by type.
-func (BundleRunner) DirectUninstall(pkg, pkgType string) error {
+func (BrewRunner) DirectUninstall(pkg, pkgType string) error {
 	switch pkgType {
 	case "", "formula", "brew":
 		_, err := runBrewLive("uninstall", pkg)
@@ -184,8 +199,40 @@ func (BundleRunner) DirectUninstall(pkg, pkgType string) error {
 	}
 }
 
+// InstallFormulae implements Runner. Installs multiple formulae in one call.
+func (BrewRunner) InstallFormulae(names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	_, err := runBrewLive(slices.Concat([]string{"install"}, names)...)
+	return err
+}
+
+// InstallCasks implements Runner. Installs multiple casks in one call.
+func (BrewRunner) InstallCasks(names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	_, err := runBrewLive(slices.Concat([]string{"install", "--cask"}, names)...)
+	return err
+}
+
+// InstallUVTools implements Runner. Installs uv tools sequentially (no batch mode).
+func (BrewRunner) InstallUVTools(names []string) error {
+	for _, name := range names {
+		cmd := exec.Command("uv", "tool", "install", name)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("uv tool install %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
 // Info fetches descriptions for formulae or casks via brew info --json=v2.
-func (BundleRunner) Info(names []string, isCask bool) ([]PackageInfo, error) {
+func (BrewRunner) Info(names []string, isCask bool) ([]PackageInfo, error) {
 	if len(names) == 0 {
 		return nil, nil
 	}
@@ -247,13 +294,13 @@ type OutdatedPackage struct {
 }
 
 // Update implements Runner.
-func (BundleRunner) Update() error {
+func (BrewRunner) Update() error {
 	_, err := runBrewLive("update")
 	return err
 }
 
 // Outdated implements Runner.
-func (BundleRunner) Outdated() ([]OutdatedPackage, error) {
+func (BrewRunner) Outdated() ([]OutdatedPackage, error) {
 	out, err := runBrewOutput("outdated", "--json=v2")
 	if err != nil {
 		return nil, err
@@ -262,12 +309,12 @@ func (BundleRunner) Outdated() ([]OutdatedPackage, error) {
 }
 
 // Upgrade implements Runner.
-func (BundleRunner) Upgrade() (string, error) {
+func (BrewRunner) Upgrade() (string, error) {
 	return runBrewLive("upgrade")
 }
 
 // UVOutdated implements Runner.
-func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
+func (BrewRunner) UVOutdated() ([]OutdatedPackage, error) {
 	cmd := exec.Command("uv", "tool", "list", "--outdated")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -277,7 +324,7 @@ func (BundleRunner) UVOutdated() ([]OutdatedPackage, error) {
 }
 
 // UVUpgrade implements Runner.
-func (BundleRunner) UVUpgrade(names []string) (string, error) {
+func (BrewRunner) UVUpgrade(names []string) (string, error) {
 	var out strings.Builder
 	for _, name := range names {
 		cmd := exec.Command("uv", "tool", "upgrade", name)
@@ -292,7 +339,7 @@ func (BundleRunner) UVUpgrade(names []string) (string, error) {
 }
 
 // UVToolList implements Runner.
-func (BundleRunner) UVToolList() ([]string, error) {
+func (BrewRunner) UVToolList() ([]string, error) {
 	cmd := exec.Command("uv", "tool", "list")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -368,7 +415,7 @@ func offlineEnv() []string {
 }
 
 // runBrewOutputLocal is like runBrewOutput but suppresses brew's auto-update.
-// Use for commands that only read local state (bundle list, info, outdated).
+// Use for commands that only read local state (list, info, outdated).
 func runBrewOutputLocal(args ...string) (string, error) {
 	cmd := exec.Command("brew", args...)
 	cmd.Env = offlineEnv()
@@ -382,11 +429,8 @@ func runBrewOutputLocal(args ...string) (string, error) {
 }
 
 // runBrewLive runs a brew command with a PTY for stdout/stderr so output
-// streams in real-time (brew bundle buffers without a PTY). Stdin remains
-// the real terminal so sudo password prompts work via /dev/tty.
-//
-// This is deliberately minimal — no stall detection, no callbacks, no
-// output parsing. The PTY just forces line-buffered output from brew.
+// streams in real-time with line buffering. Stdin remains the real terminal
+// so sudo password prompts work via /dev/tty.
 func runBrewLive(args ...string) (string, error) {
 	return runBrewLiveWithEnv(nil, args...)
 }
@@ -439,27 +483,6 @@ func runBrewOutput(args ...string) (string, error) {
 		return "", fmt.Errorf("%w: %s", err, stderr.String())
 	}
 	return stdout.String(), nil
-}
-
-// isBundleCheckOutput returns true if the output looks like a valid
-// `brew bundle check` response — either listing missing deps or
-// confirming everything is satisfied. Used to distinguish a normal
-// non-zero exit (missing deps) from a real failure (e.g. bad Brewfile).
-func isBundleCheckOutput(s string) bool {
-	return strings.Contains(s, "needs to be installed") ||
-		strings.Contains(s, "dependencies are satisfied")
-}
-
-// parseBundleCheck extracts missing package names from `brew bundle check --verbose` output.
-// Lines look like: "→ Formula git needs to be installed or updated."
-var bundleCheckRe = regexp.MustCompile(`→ (?:Formula|Cask|uv Tool) (\S+) needs to be installed`)
-
-func parseBundleCheck(output string) []string {
-	var missing []string
-	for _, m := range bundleCheckRe.FindAllStringSubmatch(output, -1) {
-		missing = append(missing, m[1])
-	}
-	return missing
 }
 
 // parseUVToolList extracts package names from `uv tool list` output.

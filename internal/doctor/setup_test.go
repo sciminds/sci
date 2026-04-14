@@ -60,11 +60,11 @@ func TestBrewfileEntry_Label(t *testing.T) {
 	}
 }
 
-func TestMissingSet_BundleCheckError(t *testing.T) {
-	// When BundleCheck fails, missingSet should return ALL names as missing
+func TestMissingSet_SnapshotError(t *testing.T) {
+	// When CollectSnapshot fails, missingSet should return ALL names as missing
 	// (not nil/empty, which would hide the problem).
 	mock := &mockBrewRunner{
-		bundleCheckErr: fmt.Errorf("brew borked"),
+		listFormulaeErr: fmt.Errorf("brew borked"),
 	}
 
 	content := `brew "git"
@@ -79,7 +79,7 @@ cask "firefox"
 	// All 3 packages should be in the set (treated as missing).
 	for _, name := range []string{"git", "uv", "firefox"} {
 		if !set[name] {
-			t.Errorf("expected %q to be in missing set on BundleCheck error", name)
+			t.Errorf("expected %q to be in missing set on snapshot error", name)
 		}
 	}
 }

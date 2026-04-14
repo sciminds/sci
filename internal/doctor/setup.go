@@ -4,7 +4,6 @@ package doctor
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/samber/lo"
@@ -160,28 +159,27 @@ func brewfileTypeToPkgType(typ string) string {
 	}
 }
 
-// missingSet runs BundleCheck against the given Brewfile content and returns
-// a set of package names that are not installed. On error, returns a set
-// containing ALL package names from the content (assumes everything is
-// missing) so callers don't incorrectly treat tools as installed.
+// missingSet collects a system snapshot and returns a set of package names
+// from content that are not installed. On error, returns a set containing
+// ALL package names (assumes everything is missing) so callers don't
+// incorrectly treat tools as installed.
 func missingSet(r brew.Runner, content string) map[string]bool {
-	tmpFile, err := brew.WriteTempBrewfile(content)
+	snap, err := brew.CollectSnapshot(r)
 	if err != nil {
 		return allNamesSet(content)
 	}
-	defer func() { _ = os.Remove(tmpFile) }()
-
-	names, err := r.BundleCheck(tmpFile)
-	if err != nil {
-		return allNamesSet(content)
+	entries := brew.ParseBrewfileEntries(content)
+	missing := make(map[string]bool)
+	for _, e := range entries {
+		if !snap.IsInstalled(e.Type, e.Name) {
+			missing[e.Name] = true
+		}
 	}
-	return lo.SliceToMap(names, func(n string) (string, bool) {
-		return n, true
-	})
+	return missing
 }
 
 // allNamesSet returns a set with every package name from a Brewfile marked
-// as missing. Used as a safe fallback when BundleCheck fails.
+// as missing. Used as a safe fallback when CollectSnapshot fails.
 func allNamesSet(content string) map[string]bool {
 	all := brew.ParseBrewfileNames(content)
 	return lo.SliceToMap(all, func(n string) (string, bool) {

@@ -2,7 +2,6 @@ package doctor
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/sciminds/cli/internal/brew"
@@ -133,16 +132,13 @@ func TestBrewfileEmbedded(t *testing.T) {
 }
 
 func TestRunToolChecks(t *testing.T) {
-	// Write a Brewfile containing the embedded required packages so
-	// BundleCheck has something to check against.
-	tmpFile, err := brew.WriteTempBrewfile(Brewfile)
-	if err != nil {
-		t.Fatal(err)
+	mock := &mockBrewRunner{
+		// Simulate: git, node installed as formulae; uv NOT installed.
+		listFormulaeResult: []string{"git", "node", "ffmpeg", "gh", "openssh", "oven-sh/bun/bun", "pixi", "sqlite", "rsync"},
+		listCasksResult:    []string{"1password", "slack", "visual-studio-code", "vlc", "zed", "zoom", "quarto"},
+		uvToolListResult:   []string{"marimo", "mystmd"},
 	}
-	defer func() { _ = os.Remove(tmpFile) }()
-
-	mock := &mockBrewRunner{missing: []string{"uv"}}
-	infos, err := RunToolChecks(mock, tmpFile)
+	infos, err := RunToolChecks(mock)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -151,7 +147,7 @@ func TestRunToolChecks(t *testing.T) {
 		t.Fatal("expected tool infos from embedded Brewfile")
 	}
 
-	// uv should be marked as not installed.
+	// uv should be marked as not installed (missing from formulae list).
 	for _, ti := range infos {
 		if ti.Name == "uv" && ti.Installed {
 			t.Error("expected uv to be marked as not installed")
@@ -159,49 +155,76 @@ func TestRunToolChecks(t *testing.T) {
 		if ti.Name == "git" && !ti.Installed {
 			t.Error("expected git to be marked as installed")
 		}
+		if ti.Name == "node" && !ti.Installed {
+			t.Error("expected node to be marked as installed")
+		}
+		if ti.Name == "marimo" && !ti.Installed {
+			t.Error("expected marimo to be marked as installed")
+		}
 	}
 }
 
 // mockBrewRunner implements brew.Runner for testing.
 // All error fields default to nil (no error), so existing tests are unaffected.
 type mockBrewRunner struct {
-	missing        []string
-	bundleCheckErr error
-	installCalls   []string
-	installErr     error
-	leavesErr      error
-	outdated       []brew.OutdatedPackage
-	outdatedErr    error
-	uvOutdated     []brew.OutdatedPackage
-	uvOutdatedErr  error
-	updateErr      error
-	upgradeCalls   int
-	upgradeErr     error
-	uvUpgCalls     int
-	uvUpgradeErr   error
+	// Snapshot fields — used by CollectSnapshot via RunToolChecks.
+	leavesResult       []string
+	leavesErr          error
+	listFormulaeResult []string
+	listFormulaeErr    error
+	listCasksResult    []string
+	listCasksErr       error
+	tapsResult         []string
+	tapsErr            error
+	uvToolListResult   []string
+	uvToolListErr      error
+
+	// Install tracking.
+	installFormulaeCalls [][]string
+	installFormulaeErr   error
+	installCasksCalls    [][]string
+	installCasksErr      error
+	installUVToolsCalls  [][]string
+	installUVToolsErr    error
+
+	// Update/upgrade.
+	outdated      []brew.OutdatedPackage
+	outdatedErr   error
+	uvOutdated    []brew.OutdatedPackage
+	uvOutdatedErr error
+	updateErr     error
+	upgradeCalls  int
+	upgradeErr    error
+	uvUpgCalls    int
+	uvUpgradeErr  error
 }
 
-func (m *mockBrewRunner) BundleList(_, _ string) ([]string, error) { return nil, nil }
 func (m *mockBrewRunner) Info(_ []string, _ bool) ([]brew.PackageInfo, error) {
 	return nil, nil
 }
 
-func (m *mockBrewRunner) BundleInstall(file string) (string, error) {
-	m.installCalls = append(m.installCalls, file)
-	return "installed", m.installErr
+func (m *mockBrewRunner) Leaves() ([]string, error) { return m.leavesResult, m.leavesErr }
+func (m *mockBrewRunner) ListFormulae() ([]string, error) {
+	return m.listFormulaeResult, m.listFormulaeErr
 }
-
-func (m *mockBrewRunner) BundleCheck(_ string) ([]string, error) {
-	return m.missing, m.bundleCheckErr
-}
-
-func (m *mockBrewRunner) Leaves() ([]string, error)         { return nil, m.leavesErr }
-func (m *mockBrewRunner) ListFormulae() ([]string, error)   { return nil, nil }
-func (m *mockBrewRunner) ListCasks() ([]string, error)      { return nil, nil }
-func (m *mockBrewRunner) Taps() ([]string, error)           { return nil, nil }
+func (m *mockBrewRunner) ListCasks() ([]string, error)      { return m.listCasksResult, m.listCasksErr }
+func (m *mockBrewRunner) Taps() ([]string, error)           { return m.tapsResult, m.tapsErr }
 func (m *mockBrewRunner) DirectInstall(_, _ string) error   { return nil }
 func (m *mockBrewRunner) DirectUninstall(_, _ string) error { return nil }
-func (m *mockBrewRunner) Update() error                     { return m.updateErr }
+func (m *mockBrewRunner) InstallFormulae(names []string) error {
+	m.installFormulaeCalls = append(m.installFormulaeCalls, names)
+	return m.installFormulaeErr
+}
+func (m *mockBrewRunner) InstallCasks(names []string) error {
+	m.installCasksCalls = append(m.installCasksCalls, names)
+	return m.installCasksErr
+}
+func (m *mockBrewRunner) InstallUVTools(names []string) error {
+	m.installUVToolsCalls = append(m.installUVToolsCalls, names)
+	return m.installUVToolsErr
+}
+func (m *mockBrewRunner) UVToolList() ([]string, error) { return m.uvToolListResult, m.uvToolListErr }
+func (m *mockBrewRunner) Update() error                 { return m.updateErr }
 func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error) {
 	return m.outdated, m.outdatedErr
 }
@@ -216,19 +239,11 @@ func (m *mockBrewRunner) UVUpgrade(_ []string) (string, error) {
 	m.uvUpgCalls++
 	return "", m.uvUpgradeErr
 }
-func (m *mockBrewRunner) UVToolList() ([]string, error) { return nil, nil }
-
-func TestRunToolChecks_BundleCheckError(t *testing.T) {
-	tmpFile, err := brew.WriteTempBrewfile(Brewfile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.Remove(tmpFile) }()
-
-	mock := &mockBrewRunner{bundleCheckErr: fmt.Errorf("brew not installed")}
-	infos, err := RunToolChecks(mock, tmpFile)
+func TestRunToolChecks_SnapshotError(t *testing.T) {
+	mock := &mockBrewRunner{listFormulaeErr: fmt.Errorf("brew not installed")}
+	infos, err := RunToolChecks(mock)
 	if err == nil {
-		t.Fatal("expected error from RunToolChecks when BundleCheck fails")
+		t.Fatal("expected error from RunToolChecks when snapshot fails")
 	}
 	if infos != nil {
 		t.Errorf("expected nil infos on error, got %v", infos)

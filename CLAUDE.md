@@ -64,5 +64,5 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 - `install.sh` must be POSIX sh (runs on bare Macs).
 - CI uses a rolling `latest` release tag (delete + recreate on push to main).
 - GitHub Classroom URL IDs are *org* IDs, not classroom IDs — `ResolveClassroomID` maps URL → API ID and caches in `cass.yaml` as `api_id`.
-- `brew bundle check` exits non-zero when deps are missing (normal). `isBundleCheckOutput` in `brew.go` distinguishes that from a real failure.
-- Brewfile is a *lockfile*, not a manifest. `brew.Sync` reconciles bidirectionally with the actual brew/uv state. Resolve its path via `brew.LocateBrewfile()` — never hardcode the XDG default.
+- No `brew bundle` in hot paths. All install/check/list operations use direct `brew` commands and `brew.CollectSnapshot` for reliable name matching. `brew.Sync` reconciles bidirectionally with the actual brew/uv state.
+- Brewfile is a *lockfile*, not a manifest. Resolve its path via `brew.LocateBrewfile()` — never hardcode the XDG default.

@@ -9,6 +9,39 @@ import (
 	"github.com/sciminds/cli/internal/uikit"
 )
 
+// allRequiredFormulae returns the brew formula names from the embedded Brewfile.
+func allRequiredFormulae() []string {
+	var names []string
+	for _, e := range brew.ParseBrewfileEntries(Brewfile) {
+		if e.Type == "brew" {
+			names = append(names, e.Name)
+		}
+	}
+	return names
+}
+
+// allRequiredCasks returns the cask names from the embedded Brewfile.
+func allRequiredCasks() []string {
+	var names []string
+	for _, e := range brew.ParseBrewfileEntries(Brewfile) {
+		if e.Type == "cask" {
+			names = append(names, e.Name)
+		}
+	}
+	return names
+}
+
+// allRequiredUV returns the uv tool names from the embedded Brewfile.
+func allRequiredUV() []string {
+	var names []string
+	for _, e := range brew.ParseBrewfileEntries(Brewfile) {
+		if e.Type == "uv" {
+			names = append(names, e.Name)
+		}
+	}
+	return names
+}
+
 // TestRunSetup_CreatedBrewfile tests that RunSetup dumps system state into a
 // newly created Brewfile, checks required packages, and installs missing tools.
 func TestRunSetup_CreatedBrewfile(t *testing.T) {
@@ -19,7 +52,10 @@ func TestRunSetup_CreatedBrewfile(t *testing.T) {
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
 	mock := &mockBrewRunner{
-		missing: []string{"uv", "pixi"}, // BundleCheck will report these missing
+		// Snapshot: only git is installed; uv and pixi are missing.
+		listFormulaeResult: []string{"git"},
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
 	}
 
 	result := RunSetup(mock, tmpFile, true)
@@ -62,11 +98,13 @@ func TestRunSetup_ExistingBrewfile(t *testing.T) {
 	uikit.SetQuiet(true)
 	defer uikit.SetQuiet(false)
 
-	// Brewfile already has git — simulates an existing setup.
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
 	mock := &mockBrewRunner{
-		missing: []string{}, // all tools installed
+		// Everything installed.
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
 	}
 
 	result := RunSetup(mock, tmpFile, false)
@@ -87,8 +125,11 @@ func TestRunSetup_InstallError(t *testing.T) {
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
 	mock := &mockBrewRunner{
-		missing:    []string{"uv"},
-		installErr: os.ErrPermission,
+		// uv is missing from formulae → will try to install.
+		listFormulaeResult: []string{"git"},
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
+		installFormulaeErr: os.ErrPermission,
 	}
 
 	result := RunSetup(mock, tmpFile, true)
@@ -110,11 +151,12 @@ func TestRunSetup_NoMissingTools(t *testing.T) {
 	uikit.SetQuiet(true)
 	defer uikit.SetQuiet(false)
 
-	// Write a Brewfile that already has all required packages.
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
 	mock := &mockBrewRunner{
-		missing: []string{}, // nothing missing
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
 	}
 
 	result := RunSetup(mock, tmpFile, false)
@@ -135,7 +177,9 @@ func TestRunSetup_OutdatedUpgrade(t *testing.T) {
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
 	mock := &mockBrewRunner{
-		missing: []string{},
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
 		outdated: []brew.OutdatedPackage{
 			{Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
 		},
@@ -170,7 +214,11 @@ func TestRunSetup_NothingOutdated(t *testing.T) {
 
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
-	mock := &mockBrewRunner{missing: []string{}}
+	mock := &mockBrewRunner{
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
+	}
 
 	result := RunSetup(mock, tmpFile, false)
 
@@ -193,8 +241,10 @@ func TestRunSetup_UpdateError(t *testing.T) {
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
 	mock := &mockBrewRunner{
-		missing:   []string{},
-		updateErr: os.ErrPermission,
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
+		updateErr:          os.ErrPermission,
 	}
 
 	result := RunSetup(mock, tmpFile, false)
@@ -212,7 +262,9 @@ func TestRunSetup_BrewOnlyUpgrade(t *testing.T) {
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
 	mock := &mockBrewRunner{
-		missing: []string{},
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
 		outdated: []brew.OutdatedPackage{
 			{Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
 		},
@@ -232,39 +284,36 @@ func TestRunSetup_BrewOnlyUpgrade(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Error-path tests: each exercises a failure mode in RunSetup.
+// Error-path tests
 // ---------------------------------------------------------------------------
 
-// TestRunSetup_BundleCheckError verifies that when BundleCheck fails (e.g.
-// brew is borked), ToolCheckError is populated and no install is attempted.
-func TestRunSetup_BundleCheckError(t *testing.T) {
+// TestRunSetup_SnapshotError verifies that when CollectSnapshot fails
+// (e.g. brew is borked), ToolCheckError is populated and no install is attempted.
+func TestRunSetup_SnapshotError(t *testing.T) {
 	uikit.SetQuiet(true)
 	defer uikit.SetQuiet(false)
 
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 
 	mock := &mockBrewRunner{
-		bundleCheckErr: fmt.Errorf("brew: command not found"),
+		listFormulaeErr: fmt.Errorf("brew: command not found"),
 	}
 
 	result := RunSetup(mock, tmpFile, true)
 
 	if result.ToolCheckError == "" {
-		t.Fatal("expected ToolCheckError to be set when BundleCheck fails")
+		t.Fatal("expected ToolCheckError to be set when snapshot fails")
 	}
 	if result.Tools != nil {
-		t.Errorf("expected nil Tools on BundleCheck error, got %v", result.Tools)
+		t.Errorf("expected nil Tools on snapshot error, got %v", result.Tools)
 	}
 	if len(result.ToolsInstalled) != 0 {
-		t.Error("expected no tools installed when BundleCheck fails")
-	}
-	if len(mock.installCalls) != 0 {
-		t.Error("BundleInstall should not be called when BundleCheck fails")
+		t.Error("expected no tools installed when snapshot fails")
 	}
 }
 
-// TestRunSetup_SyncError verifies that when Sync fails (e.g. brew leaves
-// errors), the rest of the flow still runs.
+// TestRunSetup_SyncError verifies that when Sync fails (e.g. leaves error
+// affects the snapshot), ToolCheckError is set since both share CollectSnapshot.
 func TestRunSetup_SyncError(t *testing.T) {
 	uikit.SetQuiet(true)
 	defer uikit.SetQuiet(false)
@@ -273,35 +322,13 @@ func TestRunSetup_SyncError(t *testing.T) {
 
 	mock := &mockBrewRunner{
 		leavesErr: fmt.Errorf("brew leaves failed"),
-		missing:   []string{},
 	}
 
 	result := RunSetup(mock, tmpFile, true)
 
-	// Sync failed but flow should continue — tools should still be checked.
-	if result.Tools == nil {
-		t.Fatal("expected Tools to be populated even when sync fails")
-	}
-}
-
-// TestRunSetup_SyncErrorExisting verifies that when Sync fails on an existing
-// Brewfile, the rest of the flow still runs.
-func TestRunSetup_SyncErrorExisting(t *testing.T) {
-	uikit.SetQuiet(true)
-	defer uikit.SetQuiet(false)
-
-	tmpFile := writeTmpBrewfile(t, `brew "git"`)
-
-	mock := &mockBrewRunner{
-		leavesErr: fmt.Errorf("brew leaves failed"),
-		missing:   []string{},
-	}
-
-	result := RunSetup(mock, tmpFile, false)
-
-	// Sync failed but flow should continue.
-	if result.Tools == nil {
-		t.Fatal("expected Tools to be populated even when sync fails")
+	// Both Sync and RunToolChecks use CollectSnapshot, so both fail.
+	if result.ToolCheckError == "" {
+		t.Fatal("expected ToolCheckError when snapshot fails")
 	}
 }
 
@@ -311,15 +338,17 @@ func TestRunSetup_AppendError(t *testing.T) {
 	uikit.SetQuiet(true)
 	defer uikit.SetQuiet(false)
 
-	// Create a Brewfile that's missing required packages, then make it
-	// read-only so AppendEntries fails.
 	tmpFile := writeTmpBrewfile(t, `brew "git"`)
 	if err := os.Chmod(tmpFile, 0o444); err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = os.Chmod(tmpFile, 0o644) }()
 
-	mock := &mockBrewRunner{missing: []string{}}
+	mock := &mockBrewRunner{
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
+	}
 
 	result := RunSetup(mock, tmpFile, false)
 
@@ -337,8 +366,10 @@ func TestRunSetup_OutdatedBrewError(t *testing.T) {
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
 	mock := &mockBrewRunner{
-		missing:     []string{},
-		outdatedErr: fmt.Errorf("brew outdated: json parse error"),
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
+		outdatedErr:        fmt.Errorf("brew outdated: json parse error"),
 	}
 
 	result := RunSetup(mock, tmpFile, false)
@@ -357,8 +388,10 @@ func TestRunSetup_OutdatedUVError(t *testing.T) {
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
 	mock := &mockBrewRunner{
-		missing:       []string{},
-		uvOutdatedErr: fmt.Errorf("uv: command not found"),
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
+		uvOutdatedErr:      fmt.Errorf("uv: command not found"),
 	}
 
 	result := RunSetup(mock, tmpFile, false)
@@ -377,7 +410,9 @@ func TestRunSetup_UpgradeError(t *testing.T) {
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
 	mock := &mockBrewRunner{
-		missing: []string{},
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
 		outdated: []brew.OutdatedPackage{
 			{Name: "git", InstalledVersion: "2.44", CurrentVersion: "2.45"},
 		},
@@ -406,7 +441,9 @@ func TestRunSetup_UVUpgradeError(t *testing.T) {
 	tmpFile := writeTmpBrewfile(t, Brewfile)
 
 	mock := &mockBrewRunner{
-		missing: []string{},
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
 		uvOutdated: []brew.OutdatedPackage{
 			{Name: "marimo", InstalledVersion: "0.22", CurrentVersion: "0.23"},
 		},

@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/samber/lo"
 )
@@ -193,12 +192,8 @@ var scannableTypes = map[string]bool{
 }
 
 // Sync reconciles the Brewfile at path with the actual system state.
-// It queries multiple brew commands concurrently:
-//   - brew leaves -r      → user-requested formulae (used for additions)
-//   - brew list --formula  → all installed formulae incl. deps (used for removals)
-//   - brew list --cask     → installed casks
-//   - brew tap             → user-added taps
-//   - uv tool list         → installed uv tools
+// It collects a [SystemSnapshot] (leaves, formulae, casks, taps, uv tools)
+// and diffs against the Brewfile:
 //
 // Additions use leaves (only auto-add user-intentional packages).
 // Removals use the full formula list (don't strip Brewfile entries for packages
@@ -207,33 +202,9 @@ var scannableTypes = map[string]bool{
 // Only entries of scannable types (brew, cask, tap, uv) are candidates
 // for removal; unknown types are left untouched.
 func Sync(r Runner, path string) (SyncResult, error) {
-	var (
-		leaves, formulae, casks, taps, uvTools           []string
-		leavesErr, formulaeErr, casksErr, tapsErr, uvErr error
-		wg                                               sync.WaitGroup
-	)
-	wg.Add(5)
-	go func() { defer wg.Done(); leaves, leavesErr = r.Leaves() }()
-	go func() { defer wg.Done(); formulae, formulaeErr = r.ListFormulae() }()
-	go func() { defer wg.Done(); casks, casksErr = r.ListCasks() }()
-	go func() { defer wg.Done(); taps, tapsErr = r.Taps() }()
-	go func() { defer wg.Done(); uvTools, uvErr = r.UVToolList() }()
-	wg.Wait()
-
-	if leavesErr != nil {
-		return SyncResult{}, fmt.Errorf("brew leaves: %w", leavesErr)
-	}
-	if formulaeErr != nil {
-		return SyncResult{}, fmt.Errorf("brew list --formula: %w", formulaeErr)
-	}
-	if casksErr != nil {
-		return SyncResult{}, fmt.Errorf("brew list --cask: %w", casksErr)
-	}
-	if tapsErr != nil {
-		return SyncResult{}, fmt.Errorf("brew tap: %w", tapsErr)
-	}
-	if uvErr != nil {
-		return SyncResult{}, fmt.Errorf("uv tool list: %w", uvErr)
+	snap, err := CollectSnapshot(r)
+	if err != nil {
+		return SyncResult{}, err
 	}
 
 	// addSet: packages eligible to be added to the Brewfile (leaves only for
@@ -244,10 +215,10 @@ func Sync(r Runner, path string) (SyncResult, error) {
 		}
 	}
 	addSet := lo.Assign(
-		lo.SliceToMap(leaves, nameToEntry("brew")),
-		lo.SliceToMap(casks, nameToEntry("cask")),
-		lo.SliceToMap(taps, nameToEntry("tap")),
-		lo.SliceToMap(uvTools, nameToEntry("uv")),
+		lo.SliceToMap(snap.Leaves, nameToEntry("brew")),
+		lo.SliceToMap(snap.Casks, nameToEntry("cask")),
+		lo.SliceToMap(snap.Taps, nameToEntry("tap")),
+		lo.SliceToMap(snap.UVTools, nameToEntry("uv")),
 	)
 
 	// installedSet: all installed packages (full formula list, not just leaves).
@@ -259,10 +230,10 @@ func Sync(r Runner, path string) (SyncResult, error) {
 		}
 	}
 	installedSet := lo.Assign(
-		lo.SliceToMap(formulae, toKey("brew")),
-		lo.SliceToMap(casks, toKey("cask")),
-		lo.SliceToMap(taps, toKey("tap")),
-		lo.SliceToMap(uvTools, toKey("uv")),
+		lo.SliceToMap(snap.Formulae, toKey("brew")),
+		lo.SliceToMap(snap.Casks, toKey("cask")),
+		lo.SliceToMap(snap.Taps, toKey("tap")),
+		lo.SliceToMap(snap.UVTools, toKey("uv")),
 	)
 
 	// Read the existing Brewfile.
@@ -356,20 +327,4 @@ func RemoveEntries(path string, entries []BrewfileEntry) ([]string, error) {
 		return nil, fmt.Errorf("write Brewfile: %w", err)
 	}
 	return removed, nil
-}
-
-// WriteTempBrewfile writes content to a temp file and returns its path.
-// The caller is responsible for removing it.
-func WriteTempBrewfile(content string) (string, error) {
-	f, err := os.CreateTemp("", "sci-brewfile-*")
-	if err != nil {
-		return "", err
-	}
-	if _, err := f.WriteString(content); err != nil {
-		_ = f.Close()
-		_ = os.Remove(f.Name())
-		return "", err
-	}
-	_ = f.Close()
-	return f.Name(), nil
 }
