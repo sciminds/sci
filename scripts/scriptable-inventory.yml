@@ -111,56 +111,24 @@ commands:
         bypass: "--apply"
         status: covered
 
-  # ── cass setup ─────────────────────────────────────────────────────────────
-  cass-setup:
-    file: cmd/sci/cass.go
-    prompts:
-      - id: replace-token
-        type: huh.NewConfirm
-        nth: 1
-        line: 91
-        description: "Replace existing Canvas token?"
-        bypass: "--token (overwrites implicitly)"
-        status: covered
-
-      - id: token-input
-        type: huh.NewInput
-        nth: 1
-        line: 106
-        description: "Canvas API token"
-        bypass: "--token"
-        status: covered
-
   # ── cass init ──────────────────────────────────────────────────────────────
   cass-init:
     file: cmd/sci/cass.go
     prompts:
       - id: canvas-url
         type: huh.NewInput
-        nth: 2
-        line: 186
+        nth: 1
+        line: 180
         description: "Canvas course URL"
         bypass: "--canvas-url"
         status: covered
 
       - id: classroom-url
         type: huh.NewInput
-        nth: 3
-        line: 194
+        nth: 2
+        line: 188
         description: "GitHub Classroom URL"
         bypass: "--classroom-url"
-        status: covered
-
-  # ── cass match ─────────────────────────────────────────────────────────────
-  cass-match:
-    file: internal/cass/match.go
-    prompts:
-      - id: match-select
-        type: huh.NewSelect
-        nth: 1
-        line: 300
-        description: "Manual student matching"
-        bypass: "--auto"
         status: covered
 
   # ── cloud put ──────────────────────────────────────────────────────────────
@@ -183,14 +151,6 @@ commands:
         bypass: "--desc"
         status: covered
 
-      - id: overwrite-confirm
-        type: huh.NewConfirm
-        nth: 1
-        line: 142
-        description: "Overwrite existing file?"
-        bypass: "--force"
-        status: covered
-
   # ── cloud list ─────────────────────────────────────────────────────────────
   cloud-list:
     file: internal/share/listtui.go
@@ -201,30 +161,6 @@ commands:
         line: 252
         description: "Interactive cloud file browser"
         bypass: "--plain or --json"
-        status: covered
-
-  # ── lab setup ──────────────────────────────────────────────────────────────
-  lab-setup:
-    file: cmd/sci/lab.go
-    prompts:
-      - id: ssh-username
-        type: huh.NewInput
-        nth: 1
-        line: 67
-        description: "SSH username"
-        bypass: "--user"
-        status: covered
-
-  # ── tools install ──────────────────────────────────────────────────────────
-  tools-install:
-    file: cmd/sci/tools.go
-    prompts:
-      - id: pkg-type-select
-        type: huh.NewSelect
-        nth: 1
-        line: 231
-        description: "Package type disambiguation"
-        bypass: "type flags (--cask, --tap, --uv, --go, --cargo)"
         status: covered
 
   # ── tools list ─────────────────────────────────────────────────────────────

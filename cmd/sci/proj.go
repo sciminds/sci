@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 
-	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/proj"
 	projnew "github.com/sciminds/cli/internal/proj/new"
@@ -189,7 +188,7 @@ func runProjNew(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("project name argument is required in --json mode")
 	} else {
 		if err := projnew.RunWizard(&opts); err != nil {
-			if errors.Is(err, huh.ErrUserAborted) {
+			if errors.Is(err, uikit.ErrFormAborted) {
 				return nil
 			}
 			return err

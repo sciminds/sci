@@ -504,6 +504,44 @@ if [[ -f "$inventory" ]]; then
 	fi
 fi
 
+# ── Rule 14: No raw huh .Run() — use uikit.RunForm ──────────────────────────
+# huh forms run bubbletea internally. After .Run(), stdin must be drained to
+# absorb stale DECRQM responses. uikit.RunForm handles theme, keymap, and
+# drain in one call. Files outside internal/uikit/ and internal/cmdutil/ that
+# import huh must not call .Run() directly.
+
+huh_raw_exempt=(
+	"internal/uikit/"
+	"internal/cmdutil/"
+)
+
+huh_files=$(rg -l 'charm\.land/huh/v2' --type go --glob '!*_test.go' \
+	--glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
+
+for f in $huh_files; do
+	skip=false
+	for exempt in "${huh_raw_exempt[@]}"; do
+		if [[ "$f" == *"$exempt"* ]]; then
+			skip=true
+			break
+		fi
+	done
+	$skip && continue
+
+	# Check for huh.NewForm(...).Run() or form.Run() patterns — but not
+	# exec.Command(...).Run() or other unrelated .Run() calls.
+	# We look for huh.NewForm in the file AND a .Run() call on a line that
+	# contains huh or form (case-insensitive) but not exec.Command.
+	if rg -q 'huh\.NewForm' "$f" 2>/dev/null; then
+		raw_run=$(rg -n '\.Run\(\)' "$f" 2>/dev/null | rg -iv 'exec\.Command|cmd\.Run|\.Start' | rg -i 'form\|huh\|WithTheme\|WithKeyMap' || true)
+		if [[ -n "$raw_run" ]]; then
+			echo "FAIL [no-raw-huh-run] $f calls .Run() on a huh form directly — use uikit.RunForm():"
+			echo "$raw_run"
+			fail "no-raw-huh-run"
+		fi
+	fi
+done
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
 	echo ""

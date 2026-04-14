@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -112,7 +113,7 @@ func cloudPutCommand() *cli.Command {
 			// Interactive flow when --name is not provided.
 			if name == "" {
 				defaultName := share.DefaultShareName(filePath)
-				if err := huh.NewForm(huh.NewGroup(
+				if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
 					huh.NewInput().
 						Title("Upload name").
 						Description("Name used to get/remove this file").
@@ -122,7 +123,7 @@ func cloudPutCommand() *cli.Command {
 						Title("Description").
 						Description("Optional — shown in cloud list").
 						Value(&desc),
-				)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap()).Run(); err != nil {
+				))); err != nil {
 					return err
 				}
 				if name == "" {
@@ -137,17 +138,12 @@ func cloudPutCommand() *cli.Command {
 					return err
 				}
 				if exists {
-					var overwrite bool
-					if err := huh.NewForm(huh.NewGroup(
-						huh.NewConfirm().
-							Title(fmt.Sprintf("File %q already exists. Overwrite?", name)).
-							Value(&overwrite),
-					)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap()).Run(); err != nil {
+					if err := cmdutil.Confirm(fmt.Sprintf("File %q already exists. Overwrite?", name)); err != nil {
+						if errors.Is(err, cmdutil.ErrCancelled) {
+							uikit.Hint("cancelled")
+							return nil
+						}
 						return err
-					}
-					if !overwrite {
-						uikit.Hint("cancelled")
-						return nil
 					}
 					force = true
 				}

@@ -8,6 +8,7 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/urfave/cli/v3"
 )
@@ -97,7 +98,7 @@ func runSetup(_ context.Context, cmd *cli.Command) error {
 		}
 		needForm := apiKey == "" || libraryID == "" || dataDir == ""
 		if needForm {
-			form := huh.NewForm(huh.NewGroup(
+			if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
 				huh.NewInput().
 					Title("Zotero API key").
 					Description("From https://www.zotero.org/settings/keys").
@@ -113,8 +114,7 @@ func runSetup(_ context.Context, cmd *cli.Command) error {
 					Description("Zotero's data dir (contains zotero.sqlite)").
 					Value(&dataDir).
 					Validate(func(s string) error { return zot.ValidateDataDir(s) }),
-			)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap())
-			if err := form.Run(); err != nil {
+			))); err != nil {
 				return err
 			}
 		}

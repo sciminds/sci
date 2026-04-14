@@ -356,10 +356,7 @@ func promptGitIdentity(result doctor.DocResult) error {
 			Value(&email))
 	}
 
-	if err := huh.NewForm(huh.NewGroup(fields...)).
-		WithTheme(cmdutil.HuhTheme()).
-		WithKeyMap(cmdutil.HuhKeyMap()).
-		Run(); err != nil {
+	if err := uikit.RunForm(huh.NewForm(huh.NewGroup(fields...))); err != nil {
 		return err
 	}
 

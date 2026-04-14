@@ -36,6 +36,15 @@
 //   - [Screen] / [Router] — dispatch table that replaces repeated switch statements.
 //   - [RunWithSpinner] / [RunWithProgress] — inline spinner and progress bar.
 //
+// # Forms (ui_form.go)
+//
+//   - [RunForm] — run a huh form with project theme, keymap, and stdin drain.
+//   - [Input] / [InputInto] — single text input prompt.
+//   - [Select] — single select prompt.
+//   - [HuhTheme] / [HuhKeyMap] — project theming for huh forms.
+//   - [ErrFormQuiet] — returned when a form needs input but quiet mode is active.
+//   - [ErrFormAborted] — re-export of huh.ErrUserAborted for callers.
+//
 // # Runtime (run_async.go, run_program.go, run_drain.go, run_quiet.go)
 //
 //   - [AsyncCmd] / [AsyncCmdCtx] — generic async tea.Cmd with [Result].

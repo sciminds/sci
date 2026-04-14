@@ -232,21 +232,7 @@ func promptPkgType(pkg string, matches []brew.DetectedPackage) (string, error) {
 		options[i] = huh.NewOption(label, m.Type)
 	}
 
-	var selected string
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title(fmt.Sprintf("%q was found in multiple registries", pkg)).
-				Options(options...).
-				Value(&selected),
-		),
-	).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap())
-
-	if err := form.Run(); err != nil {
-		return "", err
-	}
-	uikit.DrainStdin()
-	return selected, nil
+	return uikit.Select(fmt.Sprintf("%q was found in multiple registries", pkg), options)
 }
 
 func runToolsInstall(_ context.Context, cmd *cli.Command) error {

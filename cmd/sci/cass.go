@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -87,35 +88,28 @@ func cassSetupCommand() *cli.Command {
 			existing, _ := cass.LoadCanvasToken(credPath)
 			if existing != "" {
 				fmt.Fprintf(os.Stderr, "  %s Canvas API token already configured.\n", uikit.SymOK)
-				overwrite := false
-				if err := huh.NewForm(huh.NewGroup(
-					huh.NewConfirm().
-						Title("Replace existing token?").
-						Value(&overwrite),
-				)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap()).Run(); err != nil {
+				if err := cmdutil.Confirm("Replace existing token?"); err != nil {
+					if errors.Is(err, cmdutil.ErrCancelled) {
+						uikit.Hint("cancelled")
+						return nil
+					}
 					return err
-				}
-				if !overwrite {
-					uikit.Hint("cancelled")
-					return nil
 				}
 			}
 
 			token := tokenFlag
 			if token == "" {
-				if err := huh.NewForm(huh.NewGroup(
-					huh.NewInput().
-						Title("Canvas API token").
-						Description("Paste the token from Canvas → Account → Settings → Approved Integrations").
-						EchoMode(huh.EchoModePassword).
-						Value(&token).
-						Validate(func(s string) error {
-							if len(s) < 10 {
-								return fmt.Errorf("token too short")
-							}
-							return nil
-						}),
-				)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap()).Run(); err != nil {
+				if err := uikit.InputInto(&token,
+					"Canvas API token",
+					"Paste the token from Canvas → Account → Settings → Approved Integrations",
+					uikit.WithEchoMode(huh.EchoModePassword),
+					uikit.WithValidation(func(s string) error {
+						if len(s) < 10 {
+							return fmt.Errorf("token too short")
+						}
+						return nil
+					}),
+				); err != nil {
 					return err
 				}
 			}
@@ -183,7 +177,7 @@ func cassInitCommand() *cli.Command {
 				}
 			} else if canvasURL == "" {
 				// Interactive mode — prompt for URLs.
-				if err := huh.NewForm(huh.NewGroup(
+				if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
 					huh.NewInput().
 						Title("Canvas course URL").
 						Description("Paste the full URL from your browser (e.g. https://canvas.ucsd.edu/courses/12345)").
@@ -203,7 +197,7 @@ func cassInitCommand() *cli.Command {
 							_, err := cass.ParseClassroomURL(s)
 							return err
 						}),
-				)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap()).Run(); err != nil {
+				))); err != nil {
 					return err
 				}
 			}

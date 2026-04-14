@@ -12,16 +12,6 @@ import (
 	"github.com/sciminds/cli/internal/uikit"
 )
 
-// runForm runs a huh form and drains stdin afterward to absorb any stale
-// DECRQM terminal responses left by bubbletea (which huh uses internally).
-// Without the drain, subsequent commands that read stdin (e.g. brew via PTY)
-// can hang on the leftover bytes.
-func runForm(f *huh.Form) error {
-	err := f.Run()
-	uikit.DrainStdin()
-	return err
-}
-
 // ErrCancelled is returned when the user declines a confirmation prompt.
 var ErrCancelled = errors.New("cancelled")
 
@@ -33,13 +23,13 @@ func Confirm(msg string) error {
 		return nil
 	}
 	confirmed := false
-	if err := runForm(huh.NewForm(huh.NewGroup(
+	if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
 		huh.NewConfirm().
 			Title(msg).
 			Affirmative("Yes").
 			Negative("No").
 			Value(&confirmed),
-	)).WithTheme(HuhTheme()).WithKeyMap(HuhKeyMap())); err != nil {
+	))); err != nil {
 		return err
 	}
 	if !confirmed {
@@ -56,13 +46,13 @@ func ConfirmYes(msg string) error {
 		return nil
 	}
 	confirmed := true
-	if err := runForm(huh.NewForm(huh.NewGroup(
+	if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
 		huh.NewConfirm().
 			Title(msg).
 			Affirmative("Yes").
 			Negative("No").
 			Value(&confirmed),
-	)).WithTheme(HuhTheme()).WithKeyMap(HuhKeyMap())); err != nil {
+	))); err != nil {
 		return err
 	}
 	if !confirmed {

@@ -9,7 +9,6 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -296,13 +295,8 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 		}
 		options = append(options, huh.NewOption("Skip", -1))
 
-		var choice int
-		if err := huh.NewForm(huh.NewGroup(
-			huh.NewSelect[int]().
-				Title(fmt.Sprintf("Match GitHub user: %s", ghName)).
-				Options(options...).
-				Value(&choice),
-		)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap()).Run(); err != nil {
+		choice, err := uikit.Select(fmt.Sprintf("Match GitHub user: %s", ghName), options)
+		if err != nil {
 			return result, err
 		}
 

@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/lab"
 	"github.com/sciminds/cli/internal/netutil"
@@ -63,12 +62,7 @@ func labSetupCommand() *cli.Command {
 			}
 
 			if user == "" {
-				if err := huh.NewForm(huh.NewGroup(
-					huh.NewInput().
-						Title("SSH username").
-						Description("Your UCSD username for " + lab.Host).
-						Value(&user),
-				)).WithTheme(cmdutil.HuhTheme()).WithKeyMap(cmdutil.HuhKeyMap()).Run(); err != nil {
+				if err := uikit.InputInto(&user, "SSH username", "Your UCSD username for "+lab.Host); err != nil {
 					return err
 				}
 			}
