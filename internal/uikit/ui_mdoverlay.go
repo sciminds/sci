@@ -17,69 +17,56 @@ import (
 type MarkdownOverlay struct {
 	title    string
 	markdown string // raw markdown — retained for resize and RawContent
+	rendered string // glamour output — retained for search restore
 	vp       viewport.Model
 	width    int // 0 until sized
+	search   overlaySearch
 }
 
 // NewMarkdownOverlay creates an auto-sized markdown overlay. The content is
 // rendered via glamour at the appropriate width; the viewport height shrinks
 // to fit short content so there is no empty space.
 func NewMarkdownOverlay(title, markdown string, termW, termH int) MarkdownOverlay {
-	w := OverlayWidth(termW, OverlayMinW, OverlayMaxW)
-	innerW := w - OverlayBoxPadding
+	innerW := OverlayWidth(termW, OverlayMinW, OverlayMaxW) - OverlayBoxPadding
 	if innerW < 1 {
 		innerW = 1
 	}
-
 	rendered := renderMarkdownForOverlay(markdown, innerW)
-
-	maxBodyH := OverlayBodyHeight(termH, 0)
-	contentLines := strings.Count(rendered, "\n") + 1
-	bodyH := contentLines
-	if bodyH > maxBodyH {
-		bodyH = maxBodyH
-	}
-	if bodyH < OverlayMinH {
-		bodyH = OverlayMinH
-	}
+	boxW, _, bodyH := overlayDims(rendered, termW, termH)
 
 	vp := viewport.New(viewport.WithWidth(innerW), viewport.WithHeight(bodyH))
 	vp.SetContent(rendered)
 
-	return MarkdownOverlay{title: title, markdown: markdown, vp: vp, width: w}
+	return MarkdownOverlay{title: title, markdown: markdown, rendered: rendered, vp: vp, width: boxW, search: newOverlaySearch()}
 }
 
 // Resize recalculates the overlay dimensions for the given terminal size,
 // re-rendering content at the new width.
 func (o MarkdownOverlay) Resize(termW, termH int) MarkdownOverlay {
-	w := OverlayWidth(termW, OverlayMinW, OverlayMaxW)
-	innerW := w - OverlayBoxPadding
+	innerW := OverlayWidth(termW, OverlayMinW, OverlayMaxW) - OverlayBoxPadding
 	if innerW < 1 {
 		innerW = 1
 	}
-
 	rendered := renderMarkdownForOverlay(o.markdown, innerW)
+	boxW, _, bodyH := overlayDims(rendered, termW, termH)
 
-	maxBodyH := OverlayBodyHeight(termH, 0)
-	contentLines := strings.Count(rendered, "\n") + 1
-	bodyH := contentLines
-	if bodyH > maxBodyH {
-		bodyH = maxBodyH
-	}
-	if bodyH < OverlayMinH {
-		bodyH = OverlayMinH
-	}
-
-	o.width = w
-	o.vp.SetWidth(innerW)
-	o.vp.SetHeight(bodyH)
-	o.vp.SetContent(rendered)
-
+	o.width = boxW
+	o.rendered = rendered
+	overlayApplyResize(&o.vp, &o.search, rendered, innerW, bodyH)
 	return o
 }
 
-// Update delegates key/mouse messages to the viewport for scrolling.
+// Searching returns true when the overlay's search input is focused.
+func (o MarkdownOverlay) Searching() bool { return o.search.searching }
+
+// Update delegates key/mouse messages to the viewport for scrolling, and
+// handles /‑search keys when the search bar is active.
 func (o MarkdownOverlay) Update(msg tea.Msg) (MarkdownOverlay, tea.Cmd) {
+	if km, ok := msg.(tea.KeyPressMsg); ok {
+		if act, cmd := o.search.handleKey(km, &o.vp, o.rendered); act != searchPassthrough {
+			return o, cmd
+		}
+	}
 	var cmd tea.Cmd
 	o.vp, cmd = o.vp.Update(msg)
 	return o, cmd
@@ -88,7 +75,7 @@ func (o MarkdownOverlay) Update(msg tea.Msg) (MarkdownOverlay, tea.Cmd) {
 // View renders the overlay box. The parent composites it over the background
 // using [Compose] or [CenterOverlay].
 func (o MarkdownOverlay) View() string {
-	return renderOverlayView(o.title, &o.vp, o.width)
+	return renderOverlayView(o.title, &o.vp, o.width, &o.search)
 }
 
 // RawContent returns the original markdown source.

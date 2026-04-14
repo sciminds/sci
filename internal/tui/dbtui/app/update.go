@@ -212,7 +212,9 @@ func (m *Model) dispatchOverlayKey(key tea.KeyPressMsg) (bool, tea.Cmd) {
 		return true, m.handleCellEditorKey(key)
 	}
 	if m.notePreview != nil {
-		if key.String() == keyEsc || key.String() == keyQ {
+		// When the overlay's /‑search is active, let it handle esc/q so the
+		// user can exit search without closing the overlay.
+		if !m.notePreview.Overlay.Searching() && (key.String() == keyEsc || key.String() == keyQ) {
 			m.notePreview = nil
 			return true, nil
 		}

@@ -12,10 +12,15 @@ import tea "charm.land/bubbletea/v2"
 // type) so the interface is self-contained. Both [Overlay] and
 // [MarkdownOverlay] implement these via wrapper methods that delegate to
 // their concrete equivalents.
+//
+// Searching reports whether the overlay's /‑search input is active. Parents
+// should check this before intercepting esc — when true, esc exits search
+// rather than closing the overlay.
 type ScrollableOverlay interface {
 	View() string
 	UpdateOverlay(msg tea.Msg) (ScrollableOverlay, tea.Cmd)
 	ResizeOverlay(termW, termH int) ScrollableOverlay
+	Searching() bool
 }
 
 // UpdateOverlay implements ScrollableOverlay for Overlay.

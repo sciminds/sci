@@ -83,3 +83,63 @@ func TestMarkdownOverlayRawContent(t *testing.T) {
 		t.Errorf("RawContent() = %q, want %q", o.RawContent(), md)
 	}
 }
+
+func TestMarkdownOverlaySearchEnterExit(t *testing.T) {
+	t.Parallel()
+	o := NewMarkdownOverlay("Test", "# Hello\n\nWorld and more world.", 80, 40)
+	if o.Searching() {
+		t.Fatal("should not start in search mode")
+	}
+
+	// Press / to enter search mode.
+	o, _ = o.Update(tea.KeyPressMsg{Code: '/'})
+	if !o.Searching() {
+		t.Fatal("should be searching after /")
+	}
+
+	// Press Esc to exit search.
+	o, _ = o.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if o.Searching() {
+		t.Fatal("should exit search after Esc")
+	}
+}
+
+func TestMarkdownOverlaySearchHighlight(t *testing.T) {
+	t.Parallel()
+	o := NewMarkdownOverlay("Test", "# Hello\n\nWorld and more world.", 80, 40)
+
+	// Enter search mode.
+	o, _ = o.Update(tea.KeyPressMsg{Code: '/'})
+
+	// Inject a query directly via the search field and apply it. The
+	// textinput requires a focused Blink cmd which is hard to drive in a
+	// unit test, so we set the value and call liveUpdate to trigger the
+	// highlight path.
+	o.search.input.SetValue("world")
+	o.search.liveUpdate(tea.KeyPressMsg{Code: 'd'}, &o.vp, o.rendered)
+
+	// Confirm search.
+	o, _ = o.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	if o.Searching() {
+		t.Error("should not be searching after Enter")
+	}
+
+	view := o.View()
+	// After confirming with matches, footer should show "X of N" position.
+	if !strings.Contains(view, "of") {
+		t.Error("footer should show match position after confirmed search")
+	}
+	// View should contain reverse-video highlight escapes.
+	if !strings.Contains(view, "\x1b[7m") {
+		t.Error("view should contain reverse-video highlights")
+	}
+}
+
+func TestMarkdownOverlaySearchViaInterface(t *testing.T) {
+	t.Parallel()
+	var o ScrollableOverlay = NewMarkdownOverlay("Test", "# Hello", 80, 40)
+	if o.Searching() {
+		t.Error("should not start in search mode")
+	}
+}
