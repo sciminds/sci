@@ -66,9 +66,14 @@ func HuhTheme() huh.ThemeFunc {
 }
 
 // HuhKeyMap returns a huh.KeyMap with esc and q added to the Quit binding
-// so users can cancel forms with ctrl+c, esc, or q.
+// so users can cancel forms with ctrl+c, esc, or q, and tab/shift+tab
+// added to the Confirm toggle so users can flip yes/no with tab.
 func HuhKeyMap() *huh.KeyMap {
 	km := huh.NewDefaultKeyMap()
 	km.Quit = key.NewBinding(key.WithKeys("ctrl+c", "esc", "q"))
+	km.Confirm.Toggle = key.NewBinding(
+		key.WithKeys("h", "l", "right", "left", "tab", "shift+tab"),
+		key.WithHelp("←/→/tab", "toggle"),
+	)
 	return km
 }
