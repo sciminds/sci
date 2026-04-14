@@ -43,6 +43,12 @@ func toolsCommand() *cli.Command {
 			},
 			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &toolsDryRun}, // lint:no-local
 		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			if file, err := resolveToolsFile(); err == nil {
+				syncBrewfile(file)
+			}
+			return cli.ShowSubcommandHelp(cmd)
+		},
 		Commands: []*cli.Command{
 			toolsInstallCommand(),
 			toolsUninstallCommand(),
