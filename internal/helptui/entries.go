@@ -134,12 +134,9 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 
 // hasRealSubs reports whether cmd has subcommands beyond the auto-injected "help".
 func hasRealSubs(cmd *cli.Command) bool {
-	for _, c := range cmd.Commands {
-		if !c.Hidden && c.Name != "help" {
-			return true
-		}
-	}
-	return false
+	return lo.ContainsBy(cmd.Commands, func(c *cli.Command) bool {
+		return !c.Hidden && c.Name != "help"
+	})
 }
 
 func extractFlags(cmd *cli.Command) []Flag {

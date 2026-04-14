@@ -88,12 +88,9 @@ func (m *Model) colRight(tab *Tab) {
 
 // hasSelectableCol returns true if the tab has at least one visible, non-readonly column.
 func hasSelectableCol(tab *Tab) bool {
-	for _, s := range tab.Specs {
-		if s.HideOrder == 0 && s.Kind != cellReadonly {
-			return true
-		}
-	}
-	return false
+	return lo.ContainsBy(tab.Specs, func(s columnSpec) bool {
+		return s.HideOrder == 0 && s.Kind != cellReadonly
+	})
 }
 
 func (m *Model) visibleColCount(tab *Tab) int {

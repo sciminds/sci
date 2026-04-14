@@ -11,6 +11,7 @@ package app
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -57,13 +58,12 @@ func (m *Model) buildView() string {
 		{m.helpVisible, m.buildHelpOverlay},
 	}
 
-	hasOverlay := false
-	for _, o := range overlays {
-		if o.active {
-			hasOverlay = true
-			break
-		}
-	}
+	hasOverlay := slices.ContainsFunc(overlays, func(o struct {
+		active bool
+		render func() string
+	}) bool {
+		return o.active
+	})
 
 	if hasOverlay {
 		if lines := strings.Split(base, "\n"); len(lines) > m.height {

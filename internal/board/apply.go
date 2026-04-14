@@ -320,19 +320,11 @@ func applyChecklistDelete(b Board, e Event, p ChecklistDeletePayload) Board {
 }
 
 func findCard(cards []Card, id string) (int, bool) {
-	for i, c := range cards {
-		if c.ID == id {
-			return i, true
-		}
-	}
-	return -1, false
+	_, idx, ok := lo.FindIndexOf(cards, func(c Card) bool { return c.ID == id })
+	return idx, ok
 }
 
 func findColumn(cols []Column, id string) (int, bool) {
-	for i, c := range cols {
-		if c.ID == id {
-			return i, true
-		}
-	}
-	return -1, false
+	_, idx, ok := lo.FindIndexOf(cols, func(c Column) bool { return c.ID == id })
+	return idx, ok
 }

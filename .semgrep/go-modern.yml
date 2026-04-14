@@ -365,3 +365,108 @@ rules:
       manual negated-filter loop. See CLAUDE.md "Modern Go style".
     severity: WARNING
     languages: [go]
+
+  # ── no-manual-containsby (3 hits) ───────────────────────────────────────────
+  # func f(src []T) bool { for _, v := range src { if cond { return true } }; return false }
+  # → lo.ContainsBy(src, func(v T) bool { ... })
+  #
+  # Before:
+  #   for _, c := range cmds {
+  #       if !c.Hidden && c.Name != "help" { return true }
+  #   }
+  #   return false
+  # After:
+  #   return lo.ContainsBy(cmds, func(c Cmd) bool { return !c.Hidden && c.Name != "help" })
+  #
+  # Note: the existing no-manual-contains rule catches `v == target` (simple
+  # equality). This rule catches compound predicates on struct fields, etc.
+  - id: no-manual-containsby
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              if $COND {
+                  return true
+              }
+          }
+          return false
+    message: >-
+      Use lo.ContainsBy($SRC, func($V T) bool { ... }) instead of manual
+      predicate-search loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # Variant: bool-var + break pattern
+  # hasX := false; for _, v := range src { if cond { hasX = true; break } }
+  - id: no-manual-containsby-break
+    patterns:
+      - pattern: |
+          $FLAG := false
+          for _, $V := range $SRC {
+              if $COND {
+                  $FLAG = true
+                  break
+              }
+          }
+    message: >-
+      Use lo.ContainsBy($SRC, func($V T) bool { ... }) instead of manual
+      bool-flag + break loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-indexof (2 hits) ──────────────────────────────────────────────
+  # for i, v := range src { if v.Field == target { return i, true } }; return -1, false
+  # → lo.FindIndexOf(src, func(v T) bool { ... })
+  #
+  # Before:
+  #   for i, c := range cards {
+  #       if c.ID == id { return i, true }
+  #   }
+  #   return -1, false
+  # After:
+  #   _, idx, ok := lo.FindIndexOf(cards, func(c Card) bool { return c.ID == id })
+  #   return idx, ok
+  - id: no-manual-findindexof
+    patterns:
+      - pattern: |
+          for $I, $V := range $SRC {
+              if $COND {
+                  return $I, true
+              }
+          }
+          return -1, false
+    message: >-
+      Use lo.FindIndexOf($SRC, func($V T) bool { ... }) instead of manual
+      index-search loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # ── no-manual-flatmap (0 hits — regression guard) ───────────────────────────
+  # for _, v := range src { out = append(out, transform(v)...) }
+  # → lo.FlatMap(src, func(v T, _ int) []U { return transform(v) })
+  #
+  # Note: transform(v) is a function call on v, NOT bare v (that's Flatten,
+  # already covered by no-manual-flatten).
+  - id: no-manual-flatmap
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              $DST = append($DST, $EXPR($V)...)
+          }
+    message: >-
+      Use lo.FlatMap($SRC, func($V T, _ int) []U { ... }) instead of manual
+      transform+flatten loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
+  # Variant: method call on v (v.Field or v.Method())
+  - id: no-manual-flatmap-field
+    patterns:
+      - pattern: |
+          for _, $V := range $SRC {
+              $DST = append($DST, $V.$FIELD...)
+          }
+    message: >-
+      Use lo.FlatMap($SRC, func($V T, _ int) []U { return $V.$FIELD }) instead
+      of manual field-spread loop. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]

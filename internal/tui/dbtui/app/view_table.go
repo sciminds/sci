@@ -405,12 +405,7 @@ func projectSearchHighlights(
 }
 
 func columnHasPin(pins []filterPin, col int) bool {
-	for _, pin := range pins {
-		if pin.Col == col {
-			return true
-		}
-	}
-	return false
+	return lo.ContainsBy(pins, func(pin filterPin) bool { return pin.Col == col })
 }
 
 func cellMatchesPin(pins []filterPin, col int, c cell) bool {
