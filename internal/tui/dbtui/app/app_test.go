@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/table"
@@ -1106,6 +1107,144 @@ type mockFTSStore struct {
 
 func (m *mockFTSStore) SearchFulltext(_ string, _ []string, _ bool) ([]int64, error) {
 	return m.hits, nil
+}
+
+// makeFTSModel builds a Model with an FTS-capable store and a single loaded tab.
+// The search bar is opened and query pre-filled so tests can exercise the async
+// FTS flow (handleFTSTick → ftsResultMsg).
+func makeFTSModel(hits []int64, query string) *Model {
+	tab := makeTab(
+		[]string{"name", "city"},
+		[][]string{{"alice", "paris"}, {"bob", "london"}, {"charlie", "tokyo"}},
+	)
+	m := minimalModel()
+	m.store = &mockFTSStore{hits: hits}
+	m.tabs = []Tab{*tab}
+	m.active = 0
+	m.width = 80
+	m.height = 24
+	// Open search and set query.
+	m.openSearch()
+	m.search.Query = query
+	tabstate.SnapshotPostPin(&m.tabs[0])
+	return m
+}
+
+// 75. handleFTSTick returns a tea.Cmd (non-blocking) and sets ftsLoading.
+func TestHandleFTSTickReturnsCmd(t *testing.T) {
+	m := makeFTSModel([]int64{2}, "xyz")
+	m.search.ftsSeq = 1
+
+	cmd := m.handleFTSTick(ftsTickMsg{Seq: 1})
+	if cmd == nil {
+		t.Fatal("handleFTSTick should return a non-nil tea.Cmd for async FTS query")
+	}
+	if !m.search.ftsLoading {
+		t.Error("ftsLoading should be true while FTS query is in flight")
+	}
+}
+
+// 76. handleFTSTick ignores stale ticks (seq mismatch).
+func TestHandleFTSTickStaleIgnored(t *testing.T) {
+	m := makeFTSModel([]int64{2}, "xyz")
+	m.search.ftsSeq = 5
+
+	cmd := m.handleFTSTick(ftsTickMsg{Seq: 3}) // stale
+	if cmd != nil {
+		t.Error("stale ftsTickMsg should return nil cmd")
+	}
+	if m.search.ftsLoading {
+		t.Error("ftsLoading should remain false for stale tick")
+	}
+}
+
+// 77. ftsResultMsg updates cached hits, clears ftsLoading, and re-filters.
+func TestFTSResultMsgUpdatesHits(t *testing.T) {
+	m := makeFTSModel([]int64{2}, "xyz")
+	m.search.ftsSeq = 1
+	m.search.ftsLoading = true
+
+	// Simulate the result message arriving.
+	msg := ftsResultMsg{Seq: 1, Hits: map[int64]bool{2: true}}
+	m.handleFTSResult(msg)
+
+	if m.search.ftsLoading {
+		t.Error("ftsLoading should be false after result arrives")
+	}
+	if m.search.ftsHits == nil || !m.search.ftsHits[2] {
+		t.Error("ftsHits should contain rowID 2")
+	}
+	// "xyz" doesn't fuzzy-match any column, but FTS hit rowID 2 (bob) should survive.
+	tab := &m.tabs[m.active]
+	if len(tab.CellRows) != 1 {
+		t.Fatalf("expected 1 row after FTS result, got %d", len(tab.CellRows))
+	}
+	if tab.CellRows[0][0].Value != "bob" {
+		t.Errorf("expected bob (FTS hit), got %q", tab.CellRows[0][0].Value)
+	}
+}
+
+// 78. Stale ftsResultMsg is discarded (seq mismatch).
+func TestFTSResultMsgStaleDiscarded(t *testing.T) {
+	m := makeFTSModel([]int64{2}, "xyz")
+	m.search.ftsSeq = 5
+	m.search.ftsLoading = true
+
+	msg := ftsResultMsg{Seq: 3, Hits: map[int64]bool{2: true}} // stale
+	m.handleFTSResult(msg)
+
+	// ftsLoading stays true because the stale result was ignored —
+	// only a fresh result (seq=5) should clear it.
+	if !m.search.ftsLoading {
+		t.Error("ftsLoading should remain true when stale result is discarded")
+	}
+	if m.search.ftsHits != nil {
+		t.Error("ftsHits should not be updated by stale result")
+	}
+}
+
+// 79. ftsResultMsg is wired in Update and returns spinner tick.
+func TestUpdateRoutesFTSResultMsg(t *testing.T) {
+	m := makeFTSModel([]int64{2}, "xyz")
+	m.search.ftsSeq = 1
+	m.search.ftsLoading = true
+
+	_, cmd := m.Update(ftsResultMsg{Seq: 1, Hits: map[int64]bool{2: true}})
+	// Should return a cmd (spinner tick continues).
+	_ = cmd // not nil-checking the spinner tick — just verifying no panic
+	if m.search.ftsLoading {
+		t.Error("ftsLoading should be false after Update processes ftsResultMsg")
+	}
+}
+
+// 80. Update routes ftsTickMsg and returns a non-nil cmd (the async query).
+func TestUpdateRoutesFTSTickMsg(t *testing.T) {
+	m := makeFTSModel([]int64{2}, "xyz")
+	m.search.ftsSeq = 1
+
+	_, cmd := m.Update(ftsTickMsg{Seq: 1})
+	if cmd == nil {
+		t.Fatal("Update(ftsTickMsg) should return a non-nil cmd for the async FTS query")
+	}
+}
+
+// 81. renderSearchBar shows spinner indicator when ftsLoading is true.
+func TestSearchBarShowsLoadingIndicator(t *testing.T) {
+	m := makeFTSModel([]int64{}, "xyz")
+	m.search.ftsLoading = true
+
+	bar := m.renderSearchBar()
+	// The bar should contain a loading indicator (not the numeric count).
+	if !strings.Contains(bar, "searching") {
+		t.Errorf("search bar should show 'searching' during FTS load, got: %s", bar)
+	}
+}
+
+// 82. View does not panic when ftsLoading is true.
+func TestViewWithFTSLoading(t *testing.T) {
+	m := makeFTSModel([]int64{}, "test")
+	m.search.ftsLoading = true
+	_ = m.View() // must not panic
 }
 
 // 71. Unscoped query unions fuzzy column matches with FTS hits.

@@ -31,6 +31,14 @@ const ftsDebounce = 200 * time.Millisecond
 // the user kept typing) are ignored.
 type ftsTickMsg struct{ Seq uint }
 
+// ftsResultMsg carries the result of an async fulltext search query back to
+// the main Update loop. Seq is checked against rowSearchState.ftsSeq to
+// discard stale results (the user kept typing while the query was in flight).
+type ftsResultMsg struct {
+	Seq  uint
+	Hits map[int64]bool
+}
+
 // rowSearchState holds the state for the inline row search bar.
 type rowSearchState struct {
 	Query     string
@@ -48,6 +56,9 @@ type rowSearchState struct {
 	// immediate fuzzy re-filter can union them without waiting for the
 	// debounced FTS query.
 	ftsHits map[int64]bool
+	// ftsLoading is true while an async FTS query is in flight.
+	// The search bar shows a spinner instead of the match count.
+	ftsLoading bool
 }
 
 // resolvedClause is a parsed clause with its column index resolved.
@@ -344,27 +355,51 @@ func (m *Model) rerunSearch() tea.Cmd {
 }
 
 // handleFTSTick processes a debounced fulltext search tick. If the sequence
-// matches (the user stopped typing), it runs the FTS query, caches the
-// results, and re-filters the tab with the full hit set.
-func (m *Model) handleFTSTick(msg ftsTickMsg) {
+// matches (the user stopped typing), it sets ftsLoading and returns a tea.Cmd
+// that runs the expensive FTS query off the main goroutine. The result arrives
+// as an ftsResultMsg, processed by handleFTSResult.
+func (m *Model) handleFTSTick(msg ftsTickMsg) tea.Cmd {
 	if m.search == nil || msg.Seq != m.search.ftsSeq {
-		return // stale tick — user kept typing
+		return nil // stale tick — user kept typing
+	}
+	tab := m.effectiveTab()
+	if tab == nil {
+		return nil
+	}
+
+	m.search.ftsLoading = true
+	query := m.search.Query
+	store := m.store
+	name := tab.Name
+	seq := msg.Seq
+	return func() tea.Msg {
+		groups := match.ParseClauses(query)
+		hits := buildFTSHitSet(groups, store, name)
+		return ftsResultMsg{Seq: seq, Hits: hits}
+	}
+}
+
+// handleFTSResult processes the result of an async fulltext search. If the
+// sequence matches, it caches the hits, clears ftsLoading, and re-filters
+// the tab with the full hit set.
+func (m *Model) handleFTSResult(msg ftsResultMsg) {
+	if m.search == nil || msg.Seq != m.search.ftsSeq {
+		return // stale result — user kept typing while query was in flight
 	}
 	tab := m.effectiveTab()
 	if tab == nil {
 		return
 	}
 
-	groups := match.ParseClauses(m.search.Query)
-	ftsHits := buildFTSHitSet(groups, m.store, tab.Name)
-	m.search.ftsHits = ftsHits
+	m.search.ftsLoading = false
+	m.search.ftsHits = msg.Hits
 
 	// Re-filter with the fresh FTS results.
 	tab.Rows = tabstate.CopyMeta(tab.PostPinMeta)
 	tab.CellRows = tab.PostPinCellRows
 	tab.Table.SetRows(tab.PostPinRows)
 
-	applySearchFilter(tab, m.search, ftsHits)
+	applySearchFilter(tab, m.search, msg.Hits)
 	tab.InvalidateVP()
 	tab.Table.SetCursor(clampCursor(tab.Table.Cursor(), len(tab.CellRows)))
 }
@@ -426,9 +461,11 @@ func (m *Model) renderSearchBar() string {
 		queryText = m.styles.Empty().Render(placeholder) + cursor
 	}
 
-	// Match count.
+	// Match count — or spinner when an FTS query is in flight.
 	var countLabel string
-	if tab := m.effectiveTab(); tab != nil && s.Query != "" {
+	if s.ftsLoading {
+		countLabel = " " + m.spinner.View() + " " + m.styles.HeaderHint().Render("searching…")
+	} else if tab := m.effectiveTab(); tab != nil && s.Query != "" {
 		total := len(tab.PostPinCellRows)
 		matched := len(tab.CellRows)
 		countLabel = m.styles.HeaderHint().Render(fmt.Sprintf(" %d/%d", matched, total))
