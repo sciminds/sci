@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"charm.land/bubbles/v2/table"
@@ -20,6 +21,16 @@ import (
 	"github.com/sciminds/cli/internal/uikit"
 )
 
+// ftsDebounce is the delay before firing the fulltext search query after
+// the user stops typing. Short enough to feel responsive, long enough to
+// avoid hammering the DB on every keystroke.
+const ftsDebounce = 200 * time.Millisecond
+
+// ftsTickMsg is sent by a debounced tea.Tick to trigger a fulltext search.
+// The Seq field is compared to rowSearchState.ftsSeq — stale ticks (where
+// the user kept typing) are ignored.
+type ftsTickMsg struct{ Seq uint }
+
 // rowSearchState holds the state for the inline row search bar.
 type rowSearchState struct {
 	Query     string
@@ -29,6 +40,14 @@ type rowSearchState struct {
 	// Highlights stores per-row, per-column match positions for rendering.
 	// Key: displayed row index → column index → rune positions.
 	Highlights map[int]map[int][]int
+
+	// ftsSeq is incremented on every keystroke that changes the query.
+	// A ftsTickMsg whose Seq matches triggers the (expensive) FTS query.
+	ftsSeq uint
+	// ftsHits caches the most recent fulltext search results so the
+	// immediate fuzzy re-filter can union them without waiting for the
+	// debounced FTS query.
+	ftsHits map[int64]bool
 }
 
 // resolvedClause is a parsed clause with its column index resolved.
@@ -49,10 +68,11 @@ type resolvedGroup []resolvedClause
 // terms within a group), and negation ("-" prefix excludes matches).
 // A row matches if ANY OR group matches. Within a group, ALL AND clauses must match.
 //
-// When store implements data.FulltextSearcher and the query contains unscoped,
-// non-negated terms, fulltext hits from the content index (e.g. PDF body text)
-// are unioned with fuzzy column matches — rows matching either source are kept.
-func applySearchFilter(tab *Tab, state *rowSearchState, store data.DataStore) {
+// ftsHits is an optional pre-computed set of rowIDs from the fulltext index.
+// When non-nil, rows matching either fuzzy columns or the FTS set are kept.
+// Pass nil to skip fulltext matching entirely (e.g. during the immediate
+// keystroke filter before the debounced FTS query fires).
+func applySearchFilter(tab *Tab, state *rowSearchState, ftsHits map[int64]bool) {
 	if state == nil || state.Query == "" {
 		return
 	}
@@ -80,10 +100,6 @@ func applySearchFilter(tab *Tab, state *rowSearchState, store data.DataStore) {
 	if len(resolved) == 0 {
 		return
 	}
-
-	// Build a fulltext hit set if the store supports it and the query has
-	// unscoped, non-negated terms that would benefit from content search.
-	ftsHits := buildFTSHitSet(groups, store, tab.Name)
 
 	highlights := make(map[int]map[int][]int)
 	var filteredRows []table.Row
@@ -298,19 +314,58 @@ func (m *Model) closeSearch() {
 }
 
 // rerunSearch re-applies the search filter on the current tab.
-func (m *Model) rerunSearch() {
+// It runs the fast in-memory fuzzy filter immediately (using cached FTS hits)
+// and returns a debounced tea.Cmd that will fire the expensive fulltext query
+// after the user stops typing.
+func (m *Model) rerunSearch() tea.Cmd {
 	tab := m.effectiveTab()
 	if tab == nil || m.search == nil {
-		return
+		return nil
 	}
 	// Restore PostPin data before re-filtering.
 	tab.Rows = tabstate.CopyMeta(tab.PostPinMeta)
 	tab.CellRows = tab.PostPinCellRows
 	tab.Table.SetRows(tab.PostPinRows)
 
-	applySearchFilter(tab, m.search, m.store)
+	// Immediate filter: fuzzy column matching + whatever FTS hits are cached.
+	applySearchFilter(tab, m.search, m.search.ftsHits)
 	tab.InvalidateVP()
+	tab.Table.SetCursor(clampCursor(tab.Table.Cursor(), len(tab.CellRows)))
 
+	// Schedule a debounced FTS query if the store supports fulltext search.
+	if _, ok := m.store.(data.FulltextSearcher); !ok {
+		return nil
+	}
+	m.search.ftsSeq++
+	seq := m.search.ftsSeq
+	return tea.Tick(ftsDebounce, func(_ time.Time) tea.Msg {
+		return ftsTickMsg{Seq: seq}
+	})
+}
+
+// handleFTSTick processes a debounced fulltext search tick. If the sequence
+// matches (the user stopped typing), it runs the FTS query, caches the
+// results, and re-filters the tab with the full hit set.
+func (m *Model) handleFTSTick(msg ftsTickMsg) {
+	if m.search == nil || msg.Seq != m.search.ftsSeq {
+		return // stale tick — user kept typing
+	}
+	tab := m.effectiveTab()
+	if tab == nil {
+		return
+	}
+
+	groups := match.ParseClauses(m.search.Query)
+	ftsHits := buildFTSHitSet(groups, m.store, tab.Name)
+	m.search.ftsHits = ftsHits
+
+	// Re-filter with the fresh FTS results.
+	tab.Rows = tabstate.CopyMeta(tab.PostPinMeta)
+	tab.CellRows = tab.PostPinCellRows
+	tab.Table.SetRows(tab.PostPinRows)
+
+	applySearchFilter(tab, m.search, ftsHits)
+	tab.InvalidateVP()
 	tab.Table.SetCursor(clampCursor(tab.Table.Cursor(), len(tab.CellRows)))
 }
 
@@ -341,13 +396,13 @@ func (m *Model) handleSearchKey(key tea.KeyPressMsg) tea.Cmd {
 		if len(m.search.Query) > 0 {
 			_, size := utf8.DecodeLastRuneInString(m.search.Query)
 			m.search.Query = m.search.Query[:len(m.search.Query)-size]
-			m.rerunSearch()
+			return m.rerunSearch()
 		}
 		return nil
 	default:
 		if key.Text != "" {
 			m.search.Query += key.Text
-			m.rerunSearch()
+			return m.rerunSearch()
 		}
 		return nil
 	}

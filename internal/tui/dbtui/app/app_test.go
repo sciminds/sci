@@ -1118,7 +1118,9 @@ func TestApplySearchFilterFTSUnion(t *testing.T) {
 	// "xyz" won't fuzzy-match any visible column, but FTS returns rowID 2 (bob).
 	store := &mockFTSStore{hits: []int64{2}}
 	state := &rowSearchState{Query: "xyz"}
-	applySearchFilter(tab, state, store)
+	groups := match.ParseClauses(state.Query)
+	ftsHits := buildFTSHitSet(groups, store, tab.Name)
+	applySearchFilter(tab, state, ftsHits)
 
 	if len(tab.CellRows) != 1 {
 		t.Fatalf("expected 1 row (FTS hit), got %d", len(tab.CellRows))
@@ -1141,7 +1143,9 @@ func TestApplySearchFilterFTSColumnScoped(t *testing.T) {
 	// FTS would return rowID 2 (bob), but column-scoped query should ignore it.
 	store := &mockFTSStore{hits: []int64{2}}
 	state := &rowSearchState{Query: "@name: xyz"}
-	applySearchFilter(tab, state, store)
+	groups := match.ParseClauses(state.Query)
+	ftsHits := buildFTSHitSet(groups, store, tab.Name)
+	applySearchFilter(tab, state, ftsHits)
 
 	// "xyz" doesn't fuzzy-match any name, and FTS is not used for scoped queries.
 	if len(tab.CellRows) != 0 {
@@ -1158,7 +1162,9 @@ func TestApplySearchFilterFTSNegated(t *testing.T) {
 	// FTS would return rowID 2, but negated terms should not use FTS.
 	store := &mockFTSStore{hits: []int64{2}}
 	state := &rowSearchState{Query: "-bob"}
-	applySearchFilter(tab, state, store)
+	groups := match.ParseClauses(state.Query)
+	ftsHits := buildFTSHitSet(groups, store, tab.Name)
+	applySearchFilter(tab, state, ftsHits)
 
 	// Negate filters out "bob" via fuzzy → 2 rows.
 	if len(tab.CellRows) != 2 {
@@ -1176,7 +1182,9 @@ func TestApplySearchFilterFTSAndFuzzy(t *testing.T) {
 	// "alice" fuzzy-matches row 1. FTS returns rowID 3 (charlie).
 	store := &mockFTSStore{hits: []int64{3}}
 	state := &rowSearchState{Query: "alice"}
-	applySearchFilter(tab, state, store)
+	groups := match.ParseClauses(state.Query)
+	ftsHits := buildFTSHitSet(groups, store, tab.Name)
+	applySearchFilter(tab, state, ftsHits)
 
 	if len(tab.CellRows) != 2 {
 		t.Fatalf("expected 2 rows (fuzzy+FTS), got %d", len(tab.CellRows))

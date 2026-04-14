@@ -45,6 +45,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
+	case ftsTickMsg:
+		m.handleFTSTick(msg)
+		return m, nil
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	case tea.MouseMsg:
