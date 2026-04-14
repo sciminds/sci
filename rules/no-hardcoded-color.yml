@@ -11,3 +11,4 @@ ignores:
   - "internal/uikit/color_styles.go"
   - "internal/tui/*/ui/palette.go"
   - "internal/tui/*/ui/styles.go"
+  - "internal/tui/dbtui/app/mode_styles.go"

@@ -53,6 +53,10 @@
 //   - [ErrFormQuiet] — returned when a form needs input but quiet mode is active.
 //   - [ErrFormAborted] — re-export of huh.ErrUserAborted for callers.
 //
+// # Text Editing (line_editor.go)
+//
+//   - [LineEditor] — single-line rune buffer with cursor for overlay text inputs.
+//
 // # Runtime (run_async.go, run_program.go, run_drain.go, run_quiet.go)
 //
 //   - [AsyncCmd] / [AsyncCmdCtx] — generic async tea.Cmd with [Result].

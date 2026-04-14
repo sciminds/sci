@@ -9,7 +9,6 @@ import (
 
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -66,7 +65,7 @@ func (m *Model) openCellEditor() {
 	styles := ta.Styles()
 	styles.Focused.CursorLine = styles.Focused.CursorLine.UnsetBackground()
 	styles.Focused.Base = styles.Focused.Base.
-		BorderForeground(ui.TUI.Palette().Blue)
+		BorderForeground(uikit.TUI.Palette().Blue)
 	ta.SetStyles(styles)
 	ta.Placeholder = "empty (NULL)"
 

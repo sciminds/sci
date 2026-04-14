@@ -12,7 +12,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -25,7 +24,7 @@ func (m *Model) tableListStartCreate() {
 		return
 	}
 	tl.Creating = true
-	ed := ui.NewLineEditor("")
+	ed := uikit.NewLineEditor("")
 	tl.CreateEd = &ed
 	tl.Status = ""
 }
@@ -40,7 +39,7 @@ func (m *Model) handleTableListCreateKey(key tea.KeyPressMsg) tea.Cmd {
 	switch key.String() {
 	case keyEsc:
 		tl.Creating = false
-		tl.CreateEd = &ui.LineEditor{}
+		tl.CreateEd = &uikit.LineEditor{}
 		return nil
 	case keyEnter:
 		m.tableListCommitCreate()
@@ -69,7 +68,7 @@ func (m *Model) tableListCommitCreate() {
 
 	name := tl.CreateEd.Text()
 	tl.Creating = false
-	tl.CreateEd = &ui.LineEditor{}
+	tl.CreateEd = &uikit.LineEditor{}
 
 	if name == "" {
 		tl.Status = "Table name cannot be empty"

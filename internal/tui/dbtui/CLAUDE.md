@@ -13,7 +13,7 @@ VisiData-inspired SQLite viewer/editor. Also installable standalone via `cmd/dbt
 ## Conventions
 
 - **Keys**: key string constants from `uikit.Key*`. Never use bare string literals in key dispatch.
-- **Styles**: use `ui.TUI` singleton from `internal/tui/dbtui/ui/` for dbtui-specific styles; use `uikit.*` for shared primitives (overlay, layout, icons). Never inline `lipgloss.NewStyle()`.
+- **Styles**: shared styles via `uikit.TUI`; mode-specific cursor/header styles via `modeTUI` singleton in `app/mode_styles.go` (Tailwind-named: `CursorBlue`, `CursorOrange`, `CursorPink`, `SelectPink`, `HeaderGreenBg`, `CursorRaised`). Never inline `lipgloss.NewStyle()`.
 - **Zones**: all clickable elements must be zone-marked. IDs: `tab-N`, `col-N`, `row-N`, `hint-ID`.
 - **SQL safety**: always validate identifiers with `IsSafeIdentifier` before interpolation.
 - **Cache invalidation**: use `tab.invalidateVP()` (not direct `cachedVP = nil`).

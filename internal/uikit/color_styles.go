@@ -51,7 +51,6 @@ type Styles struct {
 	cursor  lipgloss.Style
 	title   lipgloss.Style
 	footer  lipgloss.Style
-	panel   lipgloss.Style
 	page    lipgloss.Style
 	divider lipgloss.Style
 	keycap  lipgloss.Style
@@ -62,22 +61,9 @@ type Styles struct {
 	headerSection   lipgloss.Style
 	tabInactive     lipgloss.Style
 	tabLocked       lipgloss.Style
-	tableSelected   lipgloss.Style
 	modeEdit        lipgloss.Style
 	modeVisualBadge lipgloss.Style
-	normalCursor    lipgloss.Style
-	editCursor      lipgloss.Style
-	visualSelected  lipgloss.Style
-	visualCursor    lipgloss.Style
 	overlayBox      lipgloss.Style
-
-	// Install-method badges (doc TUI tool list)
-	badgeBrew  lipgloss.Style
-	badgeUV    lipgloss.Style
-	badgeGo    lipgloss.Style
-	badgeNPM   lipgloss.Style
-	badgeCargo lipgloss.Style
-	badgeOther lipgloss.Style
 
 	// Spinner / progress
 	spinnerDot lipgloss.Style
@@ -85,7 +71,6 @@ type Styles struct {
 	// Help rendering
 	helpDesc    lipgloss.Style
 	helpSection lipgloss.Style
-	helpHint    lipgloss.Style
 	helpUsage   lipgloss.Style
 
 	// palette is retained so callers that need raw colors can access them.
@@ -101,7 +86,6 @@ func (s *Styles) Palette() Palette { return s.palette }
 // NewStyles creates a Styles instance for the given light/dark mode.
 func NewStyles(isDark bool) *Styles {
 	p := NewPalette(isDark)
-	ld := lipgloss.LightDark(isDark)
 
 	return &Styles{
 		palette: p,
@@ -146,10 +130,6 @@ func NewStyles(isDark bool) *Styles {
 		footer: lipgloss.NewStyle().
 			Foreground(p.TextMid).
 			Padding(0, 1),
-		panel: lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(p.Pink).
-			Padding(0, 1),
 		page: lipgloss.NewStyle().
 			Padding(1, 2),
 		divider: lipgloss.NewStyle().
@@ -179,18 +159,6 @@ func NewStyles(isDark bool) *Styles {
 			Foreground(p.TextDim).
 			Padding(0, 1).
 			Strikethrough(true),
-		tableSelected: lipgloss.NewStyle().
-			Background(p.Surface).
-			Bold(true),
-		normalCursor: lipgloss.NewStyle().
-			Background(ld(lipgloss.Color("#E0EEF9"), lipgloss.Color("#1A2744"))).
-			Foreground(p.TextBright).
-			Bold(true),
-		editCursor: lipgloss.NewStyle().
-			Background(ld(lipgloss.Color("#FFF3E0"), lipgloss.Color("#2D1F0E"))).
-			Foreground(p.TextBright).
-			Bold(true).
-			Underline(true),
 		modeEdit: lipgloss.NewStyle().
 			Foreground(p.OnAccent).
 			Background(p.Orange).
@@ -201,42 +169,10 @@ func NewStyles(isDark bool) *Styles {
 			Background(p.Pink).
 			Padding(0, 1).
 			Bold(true),
-		visualSelected: lipgloss.NewStyle().
-			Background(ld(lipgloss.Color("#D8C8E8"), lipgloss.Color("#3D2B4D"))).
-			Foreground(p.TextBright),
-		visualCursor: lipgloss.NewStyle().
-			Background(ld(lipgloss.Color("#C4A8E0"), lipgloss.Color("#553970"))).
-			Foreground(p.TextBright).
-			Bold(true),
 		overlayBox: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(p.Blue).
 			Padding(1, 2),
-
-		// Install-method badges
-		badgeBrew: lipgloss.NewStyle().
-			Foreground(p.OnAccent).
-			Background(p.Orange).
-			Padding(0, 1),
-		badgeUV: lipgloss.NewStyle().
-			Foreground(p.OnAccent).
-			Background(p.Green).
-			Padding(0, 1),
-		badgeGo: lipgloss.NewStyle().
-			Foreground(p.OnAccent).
-			Background(p.Blue).
-			Padding(0, 1),
-		badgeNPM: lipgloss.NewStyle().
-			Foreground(p.OnAccent).
-			Background(p.Red).
-			Padding(0, 1),
-		badgeCargo: lipgloss.NewStyle().
-			Foreground(p.OnAccent).
-			Background(p.Pink).
-			Padding(0, 1),
-		badgeOther: lipgloss.NewStyle().
-			Foreground(p.TextDim).
-			Padding(0, 1),
 
 		// Spinner / progress
 		spinnerDot: lipgloss.NewStyle().Foreground(p.Blue),
@@ -248,10 +184,6 @@ func NewStyles(isDark bool) *Styles {
 		helpSection: lipgloss.NewStyle().
 			Foreground(p.Orange).
 			Bold(true).
-			PaddingLeft(2),
-		helpHint: lipgloss.NewStyle().
-			Faint(true).
-			Italic(true).
 			PaddingLeft(2),
 		helpUsage: lipgloss.NewStyle().
 			Foreground(p.TextBright).
@@ -293,14 +225,8 @@ func (s *Styles) Title() lipgloss.Style { return s.title }
 // Footer returns the footer style.
 func (s *Styles) Footer() lipgloss.Style { return s.footer }
 
-// Panel returns the panel style.
-func (s *Styles) Panel() lipgloss.Style { return s.panel }
-
 // Page returns the page style.
 func (s *Styles) Page() lipgloss.Style { return s.page }
-
-// Divider returns the divider style.
-func (s *Styles) Divider() lipgloss.Style { return s.divider }
 
 // Keycap returns the keycap style.
 func (s *Styles) Keycap() lipgloss.Style { return s.keycap }
@@ -351,17 +277,17 @@ func (s *Styles) TextOrangeItalic() lipgloss.Style { return s.textOrangeItalic }
 // TextGreenBold returns the bold green text style.
 func (s *Styles) TextGreenBold() lipgloss.Style { return s.textGreenBold }
 
-// TextPinkBold returns the bold pink text style.
-func (s *Styles) TextPinkBold() lipgloss.Style { return s.textPinkBold }
-
-// TextRedBold returns the bold red text style.
-func (s *Styles) TextRedBold() lipgloss.Style { return s.textRedBold }
-
 // TextDimBold returns the bold dim text style.
 func (s *Styles) TextDimBold() lipgloss.Style { return s.textDimBold }
 
 // TextDimItalic returns the italic dim text style.
 func (s *Styles) TextDimItalic() lipgloss.Style { return s.textDimItalic }
+
+// TextPinkBold returns the bold pink text style.
+func (s *Styles) TextPinkBold() lipgloss.Style { return s.textPinkBold }
+
+// TextRedBold returns the bold red text style.
+func (s *Styles) TextRedBold() lipgloss.Style { return s.textRedBold }
 
 // ── Accessors — semantic aliases (db TUI) ───────────────────────────────────
 // These return the same underlying style under a domain-specific name.
@@ -371,9 +297,6 @@ func (s *Styles) Readonly() lipgloss.Style { return s.textDim }
 
 // Empty returns the empty cell style.
 func (s *Styles) Empty() lipgloss.Style { return s.textDim }
-
-// CellDim returns the dim cell style.
-func (s *Styles) CellDim() lipgloss.Style { return s.textDim }
 
 // HeaderHint returns the header hint style.
 func (s *Styles) HeaderHint() lipgloss.Style { return s.textMid }
@@ -399,9 +322,6 @@ func (s *Styles) TableHeader() lipgloss.Style { return s.textDimBold }
 // Null returns the null value style.
 func (s *Styles) Null() lipgloss.Style { return s.textDimItalic }
 
-// ColActiveHeader returns the active column header style.
-func (s *Styles) ColActiveHeader() lipgloss.Style { return s.textGreenBold }
-
 // HiddenLeft returns the hidden-left indicator style.
 func (s *Styles) HiddenLeft() lipgloss.Style { return s.textOrangeItalic }
 
@@ -420,9 +340,6 @@ func (s *Styles) Base() lipgloss.Style { return s.base }
 // Header returns the header (bold) style.
 func (s *Styles) Header() lipgloss.Style { return s.bold }
 
-// PillBlue returns the blue pill badge style.
-func (s *Styles) PillBlue() lipgloss.Style { return s.pillBlue }
-
 // TabActive returns the active tab style.
 func (s *Styles) TabActive() lipgloss.Style { return s.pillBlue }
 
@@ -438,49 +355,14 @@ func (s *Styles) TabInactive() lipgloss.Style { return s.tabInactive }
 // TabLocked returns the locked tab style.
 func (s *Styles) TabLocked() lipgloss.Style { return s.tabLocked }
 
-// TableSelected returns the selected table row style.
-func (s *Styles) TableSelected() lipgloss.Style { return s.tableSelected }
-
 // ModeEdit returns the edit-mode badge style.
 func (s *Styles) ModeEdit() lipgloss.Style { return s.modeEdit }
 
 // ModeVisual returns the visual-mode badge style.
 func (s *Styles) ModeVisual() lipgloss.Style { return s.modeVisualBadge }
 
-// NormalCursor returns the normal-mode cursor style.
-func (s *Styles) NormalCursor() lipgloss.Style { return s.normalCursor }
-
-// EditCursor returns the edit-mode cursor style.
-func (s *Styles) EditCursor() lipgloss.Style { return s.editCursor }
-
-// VisualSelected returns the visual-mode selected row style.
-func (s *Styles) VisualSelected() lipgloss.Style { return s.visualSelected }
-
-// VisualCursor returns the visual-mode cursor style.
-func (s *Styles) VisualCursor() lipgloss.Style { return s.visualCursor }
-
 // OverlayBox returns the overlay box style.
 func (s *Styles) OverlayBox() lipgloss.Style { return s.overlayBox }
-
-// ── Accessors — install-method badges ───────────────────────────────────────
-
-// BadgeBrew returns the Homebrew badge style.
-func (s *Styles) BadgeBrew() lipgloss.Style { return s.badgeBrew }
-
-// BadgeUV returns the uv badge style.
-func (s *Styles) BadgeUV() lipgloss.Style { return s.badgeUV }
-
-// BadgeGo returns the Go badge style.
-func (s *Styles) BadgeGo() lipgloss.Style { return s.badgeGo }
-
-// BadgeNPM returns the npm badge style.
-func (s *Styles) BadgeNPM() lipgloss.Style { return s.badgeNPM }
-
-// BadgeCargo returns the Cargo badge style.
-func (s *Styles) BadgeCargo() lipgloss.Style { return s.badgeCargo }
-
-// BadgeOther returns the fallback badge style.
-func (s *Styles) BadgeOther() lipgloss.Style { return s.badgeOther }
 
 // ── Accessors — help rendering ───────────────────────────────────────────────
 
@@ -489,9 +371,6 @@ func (s *Styles) HelpDesc() lipgloss.Style { return s.helpDesc }
 
 // HelpSection returns the help section heading style.
 func (s *Styles) HelpSection() lipgloss.Style { return s.helpSection }
-
-// HelpHint returns the help hint style.
-func (s *Styles) HelpHint() lipgloss.Style { return s.helpHint }
 
 // HelpUsage returns the help usage style.
 func (s *Styles) HelpUsage() lipgloss.Style { return s.helpUsage }

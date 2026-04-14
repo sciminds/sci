@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ func makeVisualModel(rows [][]string) *Model {
 			Anchor:   -1,
 			Selected: map[int]bool{},
 		},
-		styles: ui.TUI,
+		styles: uikit.TUI,
 	}
 	return m
 }

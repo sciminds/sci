@@ -9,7 +9,6 @@ package app
 import (
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -40,7 +39,7 @@ type tableListState struct {
 	RenameInput textinput.Model
 
 	Creating bool
-	CreateEd *ui.LineEditor
+	CreateEd *uikit.LineEditor
 
 	Deriving    bool
 	DeriveName  textinput.Model // table/view name

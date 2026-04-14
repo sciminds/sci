@@ -9,7 +9,6 @@ import (
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -207,11 +206,11 @@ func minimalModel() *Model {
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = ui.TUI.TextBlue()
+	s.Style = uikit.TUI.TextBlue()
 
 	return &Model{
 		zones:   zone.New(),
-		styles:  ui.TUI,
+		styles:  uikit.TUI,
 		help:    help.New(),
 		spinner: s,
 		mode:    modeNormal,

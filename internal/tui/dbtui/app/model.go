@@ -12,7 +12,6 @@ import (
 	zone "github.com/lrstanley/bubblezone/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -71,7 +70,7 @@ type Model struct {
 	width   int
 	height  int
 	zones   *zone.Manager
-	styles  *ui.Styles
+	styles  *uikit.Styles
 	status  statusMsg
 	help    help.Model
 	spinner spinner.Model
@@ -110,7 +109,7 @@ func NewModel(store data.DataStore, dbPath string, readOnly bool) (*Model, error
 	h := uikit.NewHelp()
 	h.ShowAll = true // help overlay always shows full bindings
 
-	s := spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(ui.TUI.TextBlue()))
+	s := spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(uikit.TUI.TextBlue()))
 
 	var vl data.ViewLister
 	if hasViews {
@@ -127,7 +126,7 @@ func NewModel(store data.DataStore, dbPath string, readOnly bool) (*Model, error
 		viewLister:    vl,
 		virtualLister: vtl,
 		dbPath:        dbPath,
-		styles:        ui.TUI,
+		styles:        uikit.TUI,
 		help:          h,
 		spinner:       s,
 		tabs:          tabs,

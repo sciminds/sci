@@ -8,7 +8,7 @@ import (
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // makeTab creates a Tab with the given cell data for testing.
@@ -491,8 +491,8 @@ func TestSortThenFilter(t *testing.T) {
 
 // 28. No positions → entire text in base style.
 func TestHighlightFuzzyPositionsNoPositions(t *testing.T) {
-	base := ui.TUI.HeaderHint()
-	hl := ui.TUI.TextBlueBold()
+	base := uikit.TUI.HeaderHint()
+	hl := uikit.TUI.TextBlueBold()
 
 	result := highlightFuzzyPositions("hello", nil, base, hl)
 	want := base.Render("hello")
@@ -503,8 +503,8 @@ func TestHighlightFuzzyPositionsNoPositions(t *testing.T) {
 
 // 29. All positions → entire text in highlight style.
 func TestHighlightFuzzyPositionsAllHighlighted(t *testing.T) {
-	base := ui.TUI.HeaderHint()
-	hl := ui.TUI.TextBlueBold()
+	base := uikit.TUI.HeaderHint()
+	hl := uikit.TUI.TextBlueBold()
 
 	result := highlightFuzzyPositions("abc", []int{0, 1, 2}, base, hl)
 	want := hl.Render("abc")
@@ -515,8 +515,8 @@ func TestHighlightFuzzyPositionsAllHighlighted(t *testing.T) {
 
 // 30. Mixed positions → alternating base and highlight runs.
 func TestHighlightFuzzyPositionsMixed(t *testing.T) {
-	base := ui.TUI.HeaderHint()
-	hl := ui.TUI.TextBlueBold()
+	base := uikit.TUI.HeaderHint()
+	hl := uikit.TUI.TextBlueBold()
 
 	// "hello" with positions 0, 3 → "h" highlighted, "el" base, "l" highlighted, "o" base
 	result := highlightFuzzyPositions("hello", []int{0, 3}, base, hl)
@@ -528,8 +528,8 @@ func TestHighlightFuzzyPositionsMixed(t *testing.T) {
 
 // 31. Empty text → empty string.
 func TestHighlightFuzzyPositionsEmpty(t *testing.T) {
-	base := ui.TUI.HeaderHint()
-	hl := ui.TUI.TextBlueBold()
+	base := uikit.TUI.HeaderHint()
+	hl := uikit.TUI.TextBlueBold()
 
 	result := highlightFuzzyPositions("", nil, base, hl)
 	want := base.Render("")

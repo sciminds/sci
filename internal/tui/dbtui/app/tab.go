@@ -12,7 +12,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // buildTab creates a Tab from a database table by introspecting its schema and data.
@@ -139,9 +139,9 @@ func newTable(columns []table.Column) table.Model {
 		table.WithFocused(true),
 	)
 	s := table.DefaultStyles()
-	s.Header = ui.TUI.TableHeader()
-	s.Selected = ui.TUI.Base()
-	s.Cell = ui.TUI.Base()
+	s.Header = uikit.TUI.TableHeader()
+	s.Selected = uikit.TUI.Base()
+	s.Cell = uikit.TUI.Base()
 	t.SetStyles(s)
 	km := t.KeyMap
 	km.PageDown.SetKeys(keyPgDown)

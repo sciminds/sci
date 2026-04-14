@@ -12,7 +12,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -26,9 +25,9 @@ func gapSeparators(
 	if n <= 1 {
 		return nil, nil
 	}
-	collapsedSep := ui.TUI.TableSeparator().Render(" ") +
-		ui.TUI.TextOrange().Render("\u22ef") +
-		ui.TUI.TableSeparator().Render(" ")
+	collapsedSep := uikit.TUI.TableSeparator().Render(" ") +
+		uikit.TUI.TextOrange().Render("\u22ef") +
+		uikit.TUI.TableSeparator().Render(" ")
 
 	plainSeps = make([]string, n-1)
 	collapsedSeps = make([]string, n-1)
@@ -47,7 +46,7 @@ func renderHiddenBadges(
 	specs []columnSpec,
 	colCursor int,
 ) string {
-	sep := ui.TUI.HeaderHint().Render(" \u00b7 ")
+	sep := uikit.TUI.HeaderHint().Render(" \u00b7 ")
 
 	var leftParts, rightParts []string
 	for i, spec := range specs {
@@ -81,7 +80,7 @@ func renderHiddenBadges(
 		if len(rightParts) == 0 && i == len(leftParts)-1 {
 			name += rightMarker
 		}
-		allParts = append(allParts, ui.TUI.HiddenLeft().Render(name))
+		allParts = append(allParts, uikit.TUI.HiddenLeft().Render(name))
 	}
 	for i, name := range rightParts {
 		if len(leftParts) == 0 && i == 0 {
@@ -90,7 +89,7 @@ func renderHiddenBadges(
 		if i == len(rightParts)-1 {
 			name += rightMarker
 		}
-		allParts = append(allParts, ui.TUI.HiddenRight().Render(name))
+		allParts = append(allParts, uikit.TUI.HiddenRight().Render(name))
 	}
 	return strings.Join(allParts, sep)
 }

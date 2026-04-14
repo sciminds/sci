@@ -13,7 +13,6 @@ import (
 	zone "github.com/lrstanley/bubblezone/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -76,7 +75,7 @@ func renderHeaderRow(
 ) string {
 	cells := make([]string, 0, len(specs))
 	last := len(specs) - 1
-	arrow := ui.TUI.SortArrow()
+	arrow := uikit.TUI.SortArrow()
 	for i, spec := range specs {
 		width := safeWidth(widths, i)
 		title := spec.Title
@@ -90,9 +89,9 @@ func renderHeaderRow(
 		text := formatHeaderCell(title, indicator, width)
 		var rendered string
 		if i == colCursor {
-			rendered = ui.TUI.ColActiveHeader().Render(text)
+			rendered = modeTUI.HeaderGreenBg().Render(text)
 		} else {
-			rendered = ui.TUI.TableHeader().Render(text)
+			rendered = uikit.TUI.TableHeader().Render(text)
 		}
 		cells = append(cells, zones.Mark(fmt.Sprintf("%s%d", colZonePrefix, i), rendered))
 	}
@@ -440,25 +439,25 @@ func renderCell(
 	style := cellStyle(cellValue.Kind)
 	if cellValue.Null {
 		value = symEmptySet
-		style = ui.TUI.Null()
+		style = uikit.TUI.Null()
 	} else if value == "" {
 		value = symEmDash
-		style = ui.TUI.Empty()
+		style = uikit.TUI.Empty()
 	}
 
 	if pinMatch {
-		style = ui.TUI.Pinned()
+		style = uikit.TUI.Pinned()
 	}
 	if dimmed {
-		style = style.Foreground(ui.TUI.Palette().TextDim)
+		style = style.Foreground(uikit.TUI.Palette().TextDim)
 	}
 
 	if hl == highlightNormalCursor || hl == highlightEditCursor {
 		var cursorStyle lipgloss.Style
 		if hl == highlightEditCursor {
-			cursorStyle = ui.TUI.EditCursor().Inherit(style)
+			cursorStyle = modeTUI.CursorOrange().Inherit(style)
 		} else {
-			cursorStyle = ui.TUI.NormalCursor().Inherit(style)
+			cursorStyle = modeTUI.CursorBlue().Inherit(style)
 		}
 		truncated := ansi.Truncate(value, width, symEllipsis)
 		styled := cursorStyle.Render(truncated)
@@ -475,17 +474,17 @@ func renderCell(
 
 	switch hl {
 	case highlightRow:
-		style = style.Background(ui.TUI.Palette().Surface).Bold(true)
+		style = style.Background(uikit.TUI.Palette().Surface).Bold(true)
 	case highlightVisual:
-		style = ui.TUI.VisualSelected()
+		style = modeTUI.SelectPink()
 	case highlightVisualCursor:
-		style = ui.TUI.VisualCursor()
+		style = modeTUI.CursorPink()
 	}
 
 	// Search highlighting: render matched positions with accent style.
 	if len(searchPositions) > 0 && hl != highlightVisual && hl != highlightVisualCursor {
 		truncated := ansi.Truncate(value, width, symEllipsis)
-		highlighted := highlightFuzzyPositions(truncated, searchPositions, style, ui.TUI.TextBlueBold())
+		highlighted := highlightFuzzyPositions(truncated, searchPositions, style, uikit.TUI.TextBlueBold())
 		textW := lipgloss.Width(truncated)
 		if pad := width - textW; pad > 0 {
 			if spec.Align == alignRight {
@@ -522,9 +521,9 @@ func joinCells(cells []string, separators []string) string {
 func cellStyle(kind cellKind) lipgloss.Style {
 	switch kind {
 	case cellReadonly:
-		return ui.TUI.Readonly()
+		return uikit.TUI.Readonly()
 	default:
-		return ui.TUI.Base()
+		return uikit.TUI.Base()
 	}
 }
 

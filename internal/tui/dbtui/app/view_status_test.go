@@ -5,7 +5,7 @@ import (
 
 	zone "github.com/lrstanley/bubblezone/v2"
 
-	"github.com/sciminds/cli/internal/tui/dbtui/ui"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // makeStatusModel builds a minimal Model for status-bar tests.
@@ -14,7 +14,7 @@ func makeStatusModel(readOnly bool) *Model {
 	tab.ReadOnly = readOnly
 	return &Model{
 		zones:  zone.New(),
-		styles: ui.TUI,
+		styles: uikit.TUI,
 		tabs:   []Tab{*tab},
 		active: 0,
 		mode:   modeNormal,

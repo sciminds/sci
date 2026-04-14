@@ -10,4 +10,5 @@ message: |
 ignores:
   - "internal/uikit/*.go"
   - "internal/tui/*/ui/*.go"
+  - "internal/tui/dbtui/app/mode_styles.go"
   - "internal/cmdutil/huh_theme.go"
