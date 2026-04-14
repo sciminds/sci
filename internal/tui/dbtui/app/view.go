@@ -130,17 +130,12 @@ func (m *Model) buildBaseView() string {
 		content = m.buildLoadingView()
 	}
 
-	stack := uikit.VStack(m.width, m.height).
-		Fixed(func(w int) string { return "" }).
-		Fixed(func(_ int) string { return tabs }).
-		Fixed(func(_ int) string { return m.tabUnderline() })
-
-	if content != "" {
-		stack.Fixed(func(_ int) string { return content })
-	}
-
 	return clampLines(
-		stack.
+		uikit.VStack(m.width, m.height).
+			Fixed(func(w int) string { return "" }).
+			Fixed(func(_ int) string { return tabs }).
+			Fixed(func(_ int) string { return m.tabUnderline() }).
+			FixedIf(content != "", func(_ int) string { return content }).
 			Flex(1, func(_, _ int) string { return "" }).
 			Fixed(func(_ int) string { return m.statusView() }).
 			Render(),

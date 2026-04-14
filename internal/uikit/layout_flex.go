@@ -118,6 +118,25 @@ func (s *Stack) Flex(ratio float64, fn func(width, height int) string) *Stack {
 	return s
 }
 
+// FixedIf adds a Fixed child only when cond is true. When false, the child
+// is skipped entirely — no height/width consumed, no callback invoked.
+// This is the Go equivalent of Svelte's {#if} for layout composition.
+func (s *Stack) FixedIf(cond bool, fn func(int) string) *Stack {
+	if cond {
+		return s.Fixed(fn)
+	}
+	return s
+}
+
+// FlexIf adds a Flex child only when cond is true. When false, the child
+// is skipped — remaining Flex children share the full available space.
+func (s *Stack) FlexIf(cond bool, ratio float64, fn func(width, height int) string) *Stack {
+	if cond {
+		return s.Flex(ratio, fn)
+	}
+	return s
+}
+
 // Gap adds spacing between children.
 //
 // For VStack: n blank lines. For HStack: n space columns.

@@ -19,15 +19,27 @@
 // Shared key bindings (BindQuit, BindUp, BindDown, BindEnter, BindHelp)
 // are composed into per-TUI KeyMaps.
 //
-// # Layout (layout_flex.go, layout_dims.go, layout_compose.go)
+// # Layout (layout_flex.go, layout_box.go, layout_grid.go, layout_responsive.go, layout_dims.go, layout_compose.go)
 //
-// [VStack] and [HStack] are builder-style layout containers inspired by CSS
-// Flexbox. Children can be [Stack.Fixed] (measured, takes natural size),
-// [Stack.Flex] (proportional share of remaining space), or [Stack.Gap]
-// (spacing between children). [Chrome] is now implemented as a VStack
-// internally. Dimension constants, clamping helpers, and declarative
-// composition utilities (Spread, Center, Pad, Fit, FitHeight, WordWrap,
-// PageLayout, SummaryLine, FooterBar, StatusRow) complete the layout layer.
+// Flexbox-inspired layout system for terminal UIs:
+//
+//   - [VStack] / [HStack] — builder-style vertical/horizontal containers.
+//     Children can be [Stack.Fixed] (measured, takes natural size),
+//     [Stack.Flex] (proportional share of remaining space), or [Stack.Gap].
+//     Conditional children via [Stack.FixedIf] / [Stack.FlexIf].
+//   - [Box] — border-box rendering: set outer size + style, callback receives
+//     inner dimensions after frame overhead is subtracted automatically.
+//   - [GridLayout] — auto-flow N-column grid via [Grid]. Equal-width cells
+//     with [GridLayout.Gap] spacing. Populate with [GridLayout.Cell] or
+//     [GridLayout.Cells] (indexed callback for slices).
+//   - [ResponsiveLayout] — breakpoint-driven layout switching via [Responsive].
+//     Highest matching [ResponsiveLayout.When] wins; [ResponsiveLayout.Default]
+//     is the fallback.
+//   - [Chrome] — title/body/status chrome, now implemented as a VStack internally.
+//
+// Dimension constants, clamping helpers, and composition utilities (Spread,
+// Center, Pad, Fit, FitHeight, WordWrap, PageLayout, SummaryLine, FooterBar,
+// StatusRow) complete the layout layer.
 //
 // # UI Components (ui_chrome.go, ui_overlay.go, ui_overlaybox.go, ui_listpicker.go, ui_grid2d.go, ui_screen.go, ui_selectlist.go, ui_spinner.go)
 //

@@ -295,3 +295,84 @@ func TestHStack_ContentFitWidth(t *testing.T) {
 		t.Errorf("width = %d, want 20", w)
 	}
 }
+
+// ── FixedIf / FlexIf ─────────────────────────────────────────────────────
+
+func TestVStack_FixedIf_True(t *testing.T) {
+	t.Parallel()
+	var bodyH int
+	VStack(40, 10).
+		FixedIf(true, func(w int) string { return "HEADER" }).
+		Flex(1, func(w, h int) string { bodyH = h; return "" }).
+		Render()
+	// Header is included → body gets 10 - 1 = 9.
+	if bodyH != 9 {
+		t.Errorf("body height = %d, want 9", bodyH)
+	}
+}
+
+func TestVStack_FixedIf_False(t *testing.T) {
+	t.Parallel()
+	var bodyH int
+	VStack(40, 10).
+		FixedIf(false, func(w int) string { return "HEADER" }).
+		Flex(1, func(w, h int) string { bodyH = h; return "" }).
+		Render()
+	// Header is skipped → body gets all 10.
+	if bodyH != 10 {
+		t.Errorf("body height = %d, want 10 (FixedIf false should skip)", bodyH)
+	}
+}
+
+func TestVStack_FlexIf_True(t *testing.T) {
+	t.Parallel()
+	var h1, h2 int
+	VStack(40, 20).
+		Flex(1, func(w, h int) string { h1 = h; return "" }).
+		FlexIf(true, 1, func(w, h int) string { h2 = h; return "" }).
+		Render()
+	// Both included → each gets 10.
+	if h1 != 10 {
+		t.Errorf("flex1 height = %d, want 10", h1)
+	}
+	if h2 != 10 {
+		t.Errorf("flex2 height = %d, want 10", h2)
+	}
+}
+
+func TestVStack_FlexIf_False(t *testing.T) {
+	t.Parallel()
+	var h1 int
+	VStack(40, 20).
+		Flex(1, func(w, h int) string { h1 = h; return "" }).
+		FlexIf(false, 1, func(w, h int) string { return "" }).
+		Render()
+	// Second flex skipped → first gets all 20.
+	if h1 != 20 {
+		t.Errorf("flex1 height = %d, want 20 (FlexIf false should skip)", h1)
+	}
+}
+
+func TestHStack_FixedIf(t *testing.T) {
+	t.Parallel()
+	// HStack with conditional fixed sidebar.
+	var mainW int
+
+	// With sidebar (true):
+	HStack(80, 10).
+		FixedIf(true, func(h int) string { return PadRight("NAV", 20) }).
+		Flex(1, func(w, h int) string { mainW = w; return "" }).
+		Render()
+	if mainW != 60 {
+		t.Errorf("with sidebar: main width = %d, want 60", mainW)
+	}
+
+	// Without sidebar (false):
+	HStack(80, 10).
+		FixedIf(false, func(h int) string { return PadRight("NAV", 20) }).
+		Flex(1, func(w, h int) string { mainW = w; return "" }).
+		Render()
+	if mainW != 80 {
+		t.Errorf("without sidebar: main width = %d, want 80", mainW)
+	}
+}
