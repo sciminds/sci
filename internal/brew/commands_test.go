@@ -279,7 +279,7 @@ func TestInstall_HappyPath(t *testing.T) {
 		listFormulaeResult: []string{},
 	}
 
-	_, err := Install(m, bf)
+	result, err := Install(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -290,6 +290,9 @@ func TestInstall_HappyPath(t *testing.T) {
 	if m.installFormulaeCalls[0][0] != "htop" {
 		t.Errorf("InstallFormulae arg = %q, want %q", m.installFormulaeCalls[0][0], "htop")
 	}
+	if len(result.Installed) != 1 || result.Installed[0] != "htop" {
+		t.Errorf("Installed = %v, want [htop]", result.Installed)
+	}
 }
 
 func TestInstall_NothingMissing(t *testing.T) {
@@ -299,13 +302,16 @@ func TestInstall_NothingMissing(t *testing.T) {
 		listFormulaeResult: []string{"htop"},
 	}
 
-	_, err := Install(m, bf)
+	result, err := Install(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(m.installFormulaeCalls) != 0 {
 		t.Errorf("expected no InstallFormulae calls, got %d", len(m.installFormulaeCalls))
+	}
+	if len(result.Installed) != 0 {
+		t.Errorf("Installed = %v, want empty", result.Installed)
 	}
 }
 
@@ -320,7 +326,7 @@ func TestInstall_GroupsByType(t *testing.T) {
 		uvToolListResult:   []string{},
 	}
 
-	_, err := Install(m, bf)
+	result, err := Install(m, bf)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -349,6 +355,117 @@ func TestInstall_GroupsByType(t *testing.T) {
 	// UV tools batched.
 	if len(m.installUVToolsCalls) != 1 {
 		t.Fatalf("expected 1 InstallUVTools call, got %d", len(m.installUVToolsCalls))
+	}
+
+	// Installed should list all 5 names.
+	if len(result.Installed) != 5 {
+		t.Errorf("Installed = %v, want 5 items", result.Installed)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// InstallEntries (shared install chain)
+// ---------------------------------------------------------------------------
+
+func TestInstallEntries_Empty(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{}
+
+	installed, err := InstallEntries(m, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if installed != nil {
+		t.Errorf("expected nil, got %v", installed)
+	}
+}
+
+func TestInstallEntries_TapsFirst(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{}
+	entries := []BrewfileEntry{
+		{Type: "brew", Name: "oven-sh/bun/bun"},
+		{Type: "tap", Name: "oven-sh/bun"},
+	}
+
+	installed, err := InstallEntries(m, entries)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Tap must be installed via DirectInstall before formulae.
+	if len(m.directInstallCalls) != 1 || m.directInstallCalls[0].pkg != "oven-sh/bun" {
+		t.Errorf("DirectInstall = %+v, want tap oven-sh/bun", m.directInstallCalls)
+	}
+	if len(m.installFormulaeCalls) != 1 || m.installFormulaeCalls[0][0] != "oven-sh/bun/bun" {
+		t.Errorf("InstallFormulae = %v, want [oven-sh/bun/bun]", m.installFormulaeCalls)
+	}
+	if len(installed) != 2 {
+		t.Errorf("installed = %v, want 2 items", installed)
+	}
+}
+
+func TestInstallEntries_FormulaError(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{installFormulaeErr: errors.New("permission denied")}
+	entries := []BrewfileEntry{
+		{Type: "brew", Name: "git"},
+		{Type: "cask", Name: "firefox"},
+	}
+
+	_, err := InstallEntries(m, entries)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	// Casks should not have been attempted.
+	if len(m.installCasksCalls) != 0 {
+		t.Error("InstallCasks should not be called after formulae error")
+	}
+}
+
+func TestInstallEntries_CaskError(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{installCasksErr: errors.New("cask failed")}
+	entries := []BrewfileEntry{
+		{Type: "cask", Name: "firefox"},
+		{Type: "uv", Name: "marimo"},
+	}
+
+	_, err := InstallEntries(m, entries)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if len(m.installUVToolsCalls) != 0 {
+		t.Error("InstallUVTools should not be called after cask error")
+	}
+}
+
+func TestInstallEntries_UVError(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{installUVToolsErr: errors.New("uv failed")}
+	entries := []BrewfileEntry{{Type: "uv", Name: "marimo"}}
+
+	_, err := InstallEntries(m, entries)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestInstallEntries_TapError(t *testing.T) {
+	t.Parallel()
+	m := &mockRunner{directInstallErr: errors.New("tap failed")}
+	entries := []BrewfileEntry{
+		{Type: "tap", Name: "oven-sh/bun"},
+		{Type: "brew", Name: "git"},
+	}
+
+	_, err := InstallEntries(m, entries)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	// Formulae should not have been attempted.
+	if len(m.installFormulaeCalls) != 0 {
+		t.Error("InstallFormulae should not be called after tap error")
 	}
 }
 

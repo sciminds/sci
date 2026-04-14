@@ -200,36 +200,18 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	return result
 }
 
-// installMissing installs the named packages from the Brewfile content,
-// grouped by type: taps → formulae → casks → uv tools.
+// installMissing installs the named packages from the Brewfile content
+// via [brew.InstallEntries].
 func installMissing(r brew.Runner, content string, names []string) error {
 	entries := brew.ParseBrewfileEntries(content)
 	nameSet := lo.SliceToMap(names, func(n string) (string, bool) { return n, true })
 
-	groups := lo.GroupBy(
-		lo.Filter(entries, func(e brew.BrewfileEntry, _ int) bool { return nameSet[e.Name] }),
-		func(e brew.BrewfileEntry) string { return e.Type },
-	)
-	toNames := func(typ string) []string {
-		return lo.Map(groups[typ], func(e brew.BrewfileEntry, _ int) string { return e.Name })
-	}
+	toInstall := lo.Filter(entries, func(e brew.BrewfileEntry, _ int) bool {
+		return nameSet[e.Name]
+	})
 
-	// Taps first (individually).
-	for _, name := range toNames("tap") {
-		if err := r.DirectInstall(name, "tap"); err != nil {
-			return fmt.Errorf("tap %s: %w", name, err)
-		}
-	}
-	if err := r.InstallFormulae(toNames("brew")); err != nil {
-		return fmt.Errorf("install formulae: %w", err)
-	}
-	if err := r.InstallCasks(toNames("cask")); err != nil {
-		return fmt.Errorf("install casks: %w", err)
-	}
-	if err := r.InstallUVTools(toNames("uv")); err != nil {
-		return fmt.Errorf("install uv tools: %w", err)
-	}
-	return nil
+	_, err := brew.InstallEntries(r, toInstall)
+	return err
 }
 
 func setupEntryNames(entries []brew.BrewfileEntry) []string {

@@ -38,7 +38,7 @@ func Remove(r Runner, file, pkg, pkgType string) (RemoveResult, error) {
 
 // Install installs missing packages from the Brewfile. It collects a system
 // snapshot, diffs against the Brewfile entries, and batch-installs each type
-// in order: taps → formulae → casks → uv tools.
+// via [InstallEntries].
 func Install(r Runner, file string) (InstallResult, error) {
 	content, err := os.ReadFile(file)
 	if err != nil {
@@ -59,30 +59,43 @@ func Install(r Runner, file string) (InstallResult, error) {
 		return InstallResult{}, nil
 	}
 
-	// Group by type.
-	groups := lo.GroupBy(missing, func(e BrewfileEntry) string { return e.Type })
+	installed, err := InstallEntries(r, missing)
+	if err != nil {
+		return InstallResult{}, err
+	}
+	return InstallResult{Installed: installed}, nil
+}
+
+// InstallEntries installs the given Brewfile entries in dependency order:
+// taps → formulae → casks → uv tools. Returns the names of installed packages.
+func InstallEntries(r Runner, entries []BrewfileEntry) ([]string, error) {
+	if len(entries) == 0 {
+		return nil, nil
+	}
+
+	groups := lo.GroupBy(entries, func(e BrewfileEntry) string { return e.Type })
 	names := func(typ string) []string {
 		return lo.Map(groups[typ], func(e BrewfileEntry, _ int) string { return e.Name })
 	}
 
-	// Install taps individually (needed before tap-qualified formulae).
+	// Taps first (individually — needed before tap-qualified formulae).
 	for _, name := range names("tap") {
 		if err := r.DirectInstall(name, "tap"); err != nil {
-			return InstallResult{}, fmt.Errorf("tap %s: %w", name, err)
+			return nil, fmt.Errorf("tap %s: %w", name, err)
 		}
 	}
-
 	if err := r.InstallFormulae(names("brew")); err != nil {
-		return InstallResult{}, fmt.Errorf("install formulae: %w", err)
+		return nil, fmt.Errorf("install formulae: %w", err)
 	}
 	if err := r.InstallCasks(names("cask")); err != nil {
-		return InstallResult{}, fmt.Errorf("install casks: %w", err)
+		return nil, fmt.Errorf("install casks: %w", err)
 	}
 	if err := r.InstallUVTools(names("uv")); err != nil {
-		return InstallResult{}, fmt.Errorf("install uv tools: %w", err)
+		return nil, fmt.Errorf("install uv tools: %w", err)
 	}
 
-	return InstallResult{}, nil
+	installed := lo.Map(entries, func(e BrewfileEntry, _ int) string { return e.Name })
+	return installed, nil
 }
 
 // List lists packages from the Brewfile, optionally filtered by type.

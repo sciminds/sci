@@ -43,7 +43,7 @@ func (r RemoveResult) Human() string {
 
 // InstallResult is returned by Install.
 type InstallResult struct {
-	Output string `json:"output"`
+	Installed []string `json:"installed"`
 }
 
 // JSON implements cmdutil.Result.
@@ -51,10 +51,11 @@ func (r InstallResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r InstallResult) Human() string {
-	if r.Output == "" {
+	if len(r.Installed) == 0 {
 		return "Everything up to date.\n"
 	}
-	return r.Output
+	return fmt.Sprintf("Installed %d package(s): %s\n",
+		len(r.Installed), strings.Join(r.Installed, ", "))
 }
 
 // UpdateResult is returned by Update.

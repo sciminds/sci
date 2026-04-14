@@ -217,8 +217,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 			return nil
 		} else {
 			fmt.Fprintf(os.Stderr, "  Installing…\n")
-			instResult, spinErr := brew.Install(runner, brewfilePath)
-			_ = instResult.Output
+			_, spinErr := brew.Install(runner, brewfilePath)
 			if spinErr != nil {
 				fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 					uikit.SymFail, uikit.TUI.Fail().Render("Install failed: "+spinErr.Error()))
