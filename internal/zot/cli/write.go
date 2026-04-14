@@ -405,6 +405,7 @@ func collectionCommand() *cli.Command {
 					return nil
 				},
 			},
+			collBrowseCommand(),
 		},
 	}
 }
@@ -520,6 +521,7 @@ func tagsCommand() *cli.Command {
 					return nil
 				},
 			},
+			tagsBrowseCommand(),
 		},
 	}
 }

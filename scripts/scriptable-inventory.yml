@@ -235,6 +235,30 @@ commands:
         status: exempt
         reason: "Read-only browser, no actionable output to script"
 
+  # ── zot tags browse (exempt) ────────────────────────────────────────────────
+  zot-tags-browse:
+    file: internal/zot/cli/browse.go
+    prompts:
+      - id: tags-browse-tui
+        type: uikit.Run
+        nth: 1
+        line: 426
+        description: "Interactive tag browser"
+        status: exempt
+        reason: "Read-only browser, no actionable output to script"
+
+  # ── zot collection browse (exempt) ────────────────────────────────────────
+  zot-coll-browse:
+    file: internal/zot/cli/browse.go
+    prompts:
+      - id: coll-browse-tui
+        type: uikit.Run
+        nth: 2
+        line: 446
+        description: "Interactive collection browser"
+        status: exempt
+        reason: "Read-only browser, no actionable output to script"
+
   # ── learn (exempt) ─────────────────────────────────────────────────────────
   learn:
     file: internal/guide/guide.go
