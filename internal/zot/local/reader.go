@@ -48,6 +48,7 @@ type Reader interface {
 	// View (denormalized reads for UI)
 	ListViewRows() ([]ViewRow, error)
 	CountViewRows() (int, error)
+	DoclingNoteBodyByItemID() (map[int64]string, error)
 
 	// Hygiene Scans
 	ScanFieldPresence() ([]ItemFieldPresence, error)

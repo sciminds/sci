@@ -80,7 +80,7 @@ func TestTeatestViewRendersColumnHeadersAndRows(t *testing.T) {
 
 	// Column headers (dbtui renders Title in full, but wraps some panel
 	// labels — we just want presence).
-	headers := []string{"Author(s)", "Year", "Journal/Publication", "Title", "Date Added", "Extra"}
+	headers := []string{"Author(s)", "Year", "Journal/Publication", "Title", "Date Added", "Extra", "Notes"}
 	for _, h := range headers {
 		if !bytes.Contains(got, []byte(h)) {
 			t.Errorf("transcript missing column header %q", h)
@@ -151,4 +151,45 @@ func TestTeatestViewEnterOpensPreview(t *testing.T) {
 	viewWaitFor(t, tee, "esc close")
 
 	viewQuit(t, tm)
+}
+
+// TestTeatestViewNotesColumnMarkdownOverlay navigates to the Notes column
+// on a row with an "Extracted" indicator and presses Enter. The overlay
+// should render the docling note's markdown content via MarkdownOverlay
+// (glamour-rendered), not the raw "Extracted" text.
+func TestTeatestViewNotesColumnMarkdownOverlay(t *testing.T) {
+	m := newViewTeatestModel(t)
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(teatestTermW, teatestTermH))
+
+	var transcript bytes.Buffer
+	tee := io.TeeReader(tm.Output(), &transcript)
+	viewWaitFor(t, tee, "Transformers")
+
+	// Navigate right to the Notes column (index 6).
+	for range 6 {
+		tm.Send(tea.KeyPressMsg{Code: 'l', Text: "l"})
+	}
+
+	// Press Enter to open the overlay.
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	// The markdown overlay should render the docling note content — check for
+	// the "esc close" hint which signals the overlay is active, and the note
+	// content ("bold" from "Some **bold** content." in the fixture).
+	viewWaitFor(t, tee, "esc close")
+
+	// Read the rest and verify markdown content rendered.
+	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	rest, err := io.ReadAll(tm.FinalOutput(t, teatest.WithFinalTimeout(teatestFinal)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	transcript.Write(rest)
+	got := transcript.String()
+
+	// The overlay should contain rendered markdown from the docling note,
+	// not the raw "Extracted" indicator text.
+	if !bytes.Contains([]byte(got), []byte("bold")) {
+		t.Errorf("expected markdown note content in overlay, transcript does not contain 'bold'")
+	}
 }

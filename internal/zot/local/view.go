@@ -109,6 +109,46 @@ WHERE i.libraryID = ? AND di.itemID IS NULL ` + contentItemTypeFilter
 	return n, nil
 }
 
+// DoclingNoteBodyByItemID returns a map from parent itemID to note body (raw
+// HTML) for every non-trashed docling-tagged child note in the library. When
+// an item has multiple docling notes only the most recently added is returned.
+func (d *DB) DoclingNoteBodyByItemID() (map[int64]string, error) {
+	const q = `
+SELECT n.parentItemID, COALESCE(n.note, '')
+FROM items ni
+JOIN itemNotes n ON n.itemID = ni.itemID
+JOIN itemTags itg ON ni.itemID = itg.itemID
+JOIN tags t ON itg.tagID = t.tagID
+LEFT JOIN deletedItems ndi ON ni.itemID = ndi.itemID
+LEFT JOIN deletedItems pdi ON n.parentItemID = pdi.itemID
+WHERE ni.libraryID = ?
+  AND t.name = 'docling'
+  AND n.parentItemID IS NOT NULL
+  AND ndi.itemID IS NULL
+  AND pdi.itemID IS NULL
+ORDER BY ni.dateAdded DESC
+`
+	rows, err := d.db.Query(q, d.libraryID)
+	if err != nil {
+		return nil, fmt.Errorf("docling note bodies: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make(map[int64]string)
+	for rows.Next() {
+		var parentID int64
+		var body string
+		if err := rows.Scan(&parentID, &body); err != nil {
+			return nil, err
+		}
+		// First row per parent wins (ORDER BY dateAdded DESC → most recent).
+		if _, exists := out[parentID]; !exists {
+			out[parentID] = body
+		}
+	}
+	return out, rows.Err()
+}
+
 // authorsByItem returns a pre-joined "Last, First; Last, First" string per
 // item, restricted to creatorType='author' and ordered by itemCreators.orderIndex.
 // One batched query instead of N per-item lookups.

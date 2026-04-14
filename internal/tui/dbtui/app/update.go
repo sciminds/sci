@@ -20,7 +20,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.help.SetWidth(msg.Width - uikit.OverlayMargin) // account for overlay padding
 		m.resizeTables()
 		if m.notePreview != nil {
-			m.notePreview.Overlay = m.notePreview.Overlay.Resize(msg.Width, msg.Height)
+			m.notePreview.Overlay = m.notePreview.Overlay.ResizeOverlay(msg.Width, msg.Height)
 		}
 		if ce := m.cellEditor; ce != nil {
 			ce.Editor.SetWidth(uikit.OverlayWidth(msg.Width, cellEditorMinW, cellEditorMaxW) - cellEditorWidthInset)
@@ -212,7 +212,7 @@ func (m *Model) dispatchOverlayKey(key tea.KeyPressMsg) (bool, tea.Cmd) {
 			return true, nil
 		}
 		var cmd tea.Cmd
-		m.notePreview.Overlay, cmd = m.notePreview.Overlay.Update(key)
+		m.notePreview.Overlay, cmd = m.notePreview.Overlay.UpdateOverlay(key)
 		return true, cmd
 	}
 	if m.search != nil && !m.search.Committed {

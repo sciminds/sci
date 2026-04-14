@@ -1,4 +1,4 @@
-package mdview
+package uikit
 
 import (
 	"strings"
@@ -7,48 +7,75 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func TestRenderBasicMarkdown(t *testing.T) {
+func TestRenderMarkdownBasic(t *testing.T) {
 	t.Parallel()
 	md := "# Hello\n\nSome **bold** text."
-	out, err := Render(md, 80)
+	out, err := RenderMarkdown(md, 80)
 	if err != nil {
-		t.Fatalf("Render: %v", err)
+		t.Fatalf("RenderMarkdown: %v", err)
 	}
 	if !strings.Contains(out, "Hello") {
 		t.Error("rendered output should contain heading text")
 	}
 }
 
-func TestRenderCodeBlock(t *testing.T) {
+func TestRenderMarkdownCodeBlock(t *testing.T) {
 	t.Parallel()
 	md := "```python\nprint('hello')\n```"
-	out, err := Render(md, 80)
+	out, err := RenderMarkdown(md, 80)
 	if err != nil {
-		t.Fatalf("Render: %v", err)
+		t.Fatalf("RenderMarkdown: %v", err)
 	}
 	if !strings.Contains(out, "print") {
 		t.Error("rendered output should contain code block content")
 	}
 }
 
-func TestRenderNarrowWidth(t *testing.T) {
+func TestRenderMarkdownNarrowWidth(t *testing.T) {
 	t.Parallel()
 	md := "This is a long line that should be wrapped when the width is very narrow."
-	out, err := Render(md, 20)
+	out, err := RenderMarkdown(md, 20)
 	if err != nil {
-		t.Fatalf("Render: %v", err)
+		t.Fatalf("RenderMarkdown: %v", err)
 	}
 	if out == "" {
 		t.Error("rendered output should not be empty")
 	}
 }
 
-// ── HighlightMatches tests ──────────────────────────────────────────────────
+func TestRenderMarkdownCachesResults(t *testing.T) {
+	t.Parallel()
+	md := "# Cached\n\nContent here."
+	out1, err := RenderMarkdown(md, 80)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out2, err := RenderMarkdown(md, 80)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out1 != out2 {
+		t.Error("repeated calls with same input should return identical output")
+	}
+}
 
-const (
-	hlOn  = "\x1b[7m"  // reverse video on
-	hlOff = "\x1b[27m" // reverse video off
-)
+func TestPreRenderMarkdown(t *testing.T) {
+	t.Parallel()
+	docs := []string{"# One", "# Two", "# Three"}
+	PreRenderMarkdown(docs, 80)
+	// After pre-render, each should be cached and return without error.
+	for _, md := range docs {
+		out, err := RenderMarkdown(md, 80)
+		if err != nil {
+			t.Fatalf("RenderMarkdown after PreRenderMarkdown: %v", err)
+		}
+		if out == "" {
+			t.Errorf("pre-rendered doc %q should not be empty", md)
+		}
+	}
+}
+
+// ── HighlightMatches tests ──────────────────────────────────────────────────
 
 func TestHighlightMatchesPlainText(t *testing.T) {
 	t.Parallel()
@@ -114,4 +141,31 @@ func TestHighlightMatchesSpansAcrossANSI(t *testing.T) {
 	if !strings.HasPrefix(afterReset, hlOn) {
 		t.Error("highlight should be re-asserted after SGR reset within a match")
 	}
+}
+
+func TestAnsiSeqLen(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  int
+	}{
+		{"\x1b[1m", 4},
+		{"\x1b[0m", 4},
+		{"\x1b[38;5;196m", 11},
+		{"\x1b]0;title\x07", 10},
+		{"\x1b(B", 2},
+		{"hello", 0},
+	}
+	for _, tt := range tests {
+		got := ansiSeqLen(tt.input)
+		if got != tt.want {
+			t.Errorf("ansiSeqLen(%q) = %d, want %d", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestDetectTermStyle(t *testing.T) {
+	t.Parallel()
+	// Just verify it doesn't panic and is callable.
+	DetectTermStyle()
 }

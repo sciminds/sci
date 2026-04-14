@@ -42,6 +42,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		"Title",
 		"Date Added",
 		"Extra",
+		"Notes",
 	}
 	if !sliceEqual(cols, wantCols) {
 		t.Fatalf("columns = %v, want %v", cols, wantCols)
@@ -55,7 +56,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 			len(rows), len(nullFlags), len(rowIDs))
 	}
 
-	// Row 0 — item 10, most recent dateAdded, 2 authors, journalArticle.
+	// Row 0 — item 10, most recent dateAdded, 2 authors, journalArticle, has docling note.
 	wantRow0 := []string{
 		"Smith, Alice; Jones, Bob",
 		"2024",
@@ -63,6 +64,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		"Transformers in fMRI Analysis",
 		"03/15/24, 10:00am",
 		"Citation Key: xyz",
+		"Extracted",
 	}
 	if !sliceEqual(rows[0], wantRow0) {
 		t.Errorf("row 0 = %v,\nwant    %v", rows[0], wantRow0)
@@ -71,7 +73,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		t.Errorf("row 0 rowID = %d, want 10", rowIDs[0])
 	}
 
-	// Row 1 — item 20, institutional author, year-only date, no journal.
+	// Row 1 — item 20, institutional author, year-only date, no journal, no note.
 	wantRow1 := []string{
 		"NASA",
 		"2023",
@@ -79,12 +81,13 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		"Deep Space Report",
 		"02/01/24, 10:00am",
 		"Citation Key: abc",
+		"-",
 	}
 	if !sliceEqual(rows[1], wantRow1) {
 		t.Errorf("row 1 = %v,\nwant    %v", rows[1], wantRow1)
 	}
 
-	// Row 2 — item 30, book, no date/journal/extra.
+	// Row 2 — item 30, book, no date/journal/extra, no note.
 	wantRow2 := []string{
 		"Curie, Marie",
 		"",
@@ -92,6 +95,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		"A Book About Radium",
 		"01/01/24, 10:00am",
 		"",
+		"-",
 	}
 	if !sliceEqual(rows[2], wantRow2) {
 		t.Errorf("row 2 = %v,\nwant    %v", rows[2], wantRow2)
@@ -135,8 +139,8 @@ func TestStoreTableSummaries(t *testing.T) {
 	if len(sums) != 1 {
 		t.Fatalf("TableSummaries = %d entries, want 1", len(sums))
 	}
-	if sums[0].Name != TableName || sums[0].Rows != 3 || sums[0].Columns != 6 {
-		t.Errorf("summary = %+v, want {items 3 6}", sums[0])
+	if sums[0].Name != TableName || sums[0].Rows != 3 || sums[0].Columns != 7 {
+		t.Errorf("summary = %+v, want {items 3 7}", sums[0])
 	}
 }
 
@@ -223,6 +227,9 @@ func seedViewFixture(t *testing.T) string {
 		`CREATE TABLE creators (creatorID INTEGER PRIMARY KEY, firstName TEXT, lastName TEXT, fieldMode INTEGER)`,
 		`CREATE TABLE creatorTypes (creatorTypeID INTEGER PRIMARY KEY, creatorType TEXT)`,
 		`CREATE TABLE itemCreators (itemID INTEGER, creatorID INTEGER, creatorTypeID INTEGER, orderIndex INTEGER, PRIMARY KEY (itemID, orderIndex))`,
+		`CREATE TABLE itemNotes (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, note TEXT, title TEXT)`,
+		`CREATE TABLE tags (tagID INTEGER PRIMARY KEY, name TEXT UNIQUE, type INTEGER)`,
+		`CREATE TABLE itemTags (itemID INTEGER, tagID INTEGER, type INTEGER, PRIMARY KEY (itemID, tagID))`,
 	}
 	for _, s := range ddl {
 		if _, err := db.Exec(s); err != nil {
@@ -302,6 +309,20 @@ func seedViewFixture(t *testing.T) string {
 			(10,5,2,2),
 			(20,3,1,0),
 			(30,4,1,0)`,
+
+		// Docling note child of item 10.
+		`INSERT INTO items VALUES
+			(90, 4, 1, 'NOTE90', '2024-03-16T10:00:00Z', '', '')`,
+		`INSERT INTO itemNotes VALUES
+			(90, 10, '<div class="zotero-note znv1"><pre>---
+title: Extracted
+---
+
+# Heading
+
+Some **bold** content.</pre></div>', 'Extraction Note')`,
+		`INSERT INTO tags VALUES (1,'docling',0)`,
+		`INSERT INTO itemTags VALUES (90,1,0)`,
 	}
 	for _, s := range seed {
 		if _, err := db.Exec(s); err != nil {
@@ -309,6 +330,34 @@ func seedViewFixture(t *testing.T) string {
 		}
 	}
 	return dir
+}
+
+func TestStoreNoteContent(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	// Must call QueryTable first to populate the notes cache.
+	_, _, _, _, err := store.QueryTable(TableName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Item 10 has a docling note — NoteContent should return the unwrapped markdown.
+	md := store.NoteContent(10)
+	if md == "" {
+		t.Fatal("NoteContent(10) = empty, want extracted markdown")
+	}
+	if !contains(md, "# Heading") {
+		t.Errorf("NoteContent(10) should contain markdown heading, got %q", md)
+	}
+	if contains(md, "zotero-note") {
+		t.Error("NoteContent should strip the Zotero wrapper div")
+	}
+
+	// Item 20 has no docling note.
+	if md := store.NoteContent(20); md != "" {
+		t.Errorf("NoteContent(20) = %q, want empty", md)
+	}
 }
 
 func sliceEqual[T comparable](a, b []T) bool {

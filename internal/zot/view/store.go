@@ -33,7 +33,14 @@ var columnTitles = []string{
 	"Title",
 	"Date Added",
 	"Extra",
+	"Notes",
 }
+
+// noteIndicatorExtracted is the cell value shown when a docling note exists.
+const noteIndicatorExtracted = "Extracted"
+
+// noteIndicatorNone is the cell value shown when no docling note exists.
+const noteIndicatorNone = "-"
 
 // dateAddedLayouts covers both encodings seen in the wild on items.dateAdded:
 // ISO-8601 with a T separator and trailing Z (current Zotero releases) and
@@ -55,8 +62,9 @@ var ErrReadOnly = errors.New("zot view: read-only store")
 // Store takes ownership of the passed local.DB — calling Close on the
 // store closes the underlying connection.
 type Store struct {
-	db  local.Reader
-	loc *time.Location
+	db           local.Reader
+	loc          *time.Location
+	notesByRowID map[int64]string // populated by QueryTable; rowID → unwrapped markdown
 }
 
 // New wraps a local.DB as a read-only DataStore. loc controls the timezone
@@ -107,6 +115,17 @@ func (s *Store) QueryTable(table string) (
 		return nil, nil, nil, nil, err
 	}
 
+	noteBodies, err := s.db.DoclingNoteBodyByItemID()
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	// Cache unwrapped markdown for NoteContent lookups.
+	s.notesByRowID = make(map[int64]string, len(noteBodies))
+	for id, body := range noteBodies {
+		s.notesByRowID[id] = local.UnwrapZoteroDiv(body)
+	}
+
 	colNames = make([]string, len(columnTitles))
 	copy(colNames, columnTitles)
 
@@ -114,6 +133,10 @@ func (s *Store) QueryTable(table string) (
 	nullFlags = make([][]bool, len(raw))
 	rowIDs = make([]int64, len(raw))
 	for i, r := range raw {
+		noteCell := noteIndicatorNone
+		if _, ok := s.notesByRowID[r.ID]; ok {
+			noteCell = noteIndicatorExtracted
+		}
 		rows[i] = []string{
 			r.Authors,
 			r.Year,
@@ -121,6 +144,7 @@ func (s *Store) QueryTable(table string) (
 			r.Title,
 			s.formatDateAdded(r.DateAdded),
 			r.Extra,
+			noteCell,
 		}
 		nullFlags[i] = make([]bool, len(columnTitles))
 		rowIDs[i] = r.ID
@@ -140,6 +164,13 @@ func (s *Store) TableSummaries() ([]data.TableSummary, error) {
 		return nil, err
 	}
 	return []data.TableSummary{{Name: TableName, Rows: n, Columns: len(columnTitles)}}, nil
+}
+
+// NoteContent returns the unwrapped markdown body for a docling note
+// associated with the given rowID, or empty string if none exists.
+// Must be called after QueryTable, which populates the notes cache.
+func (s *Store) NoteContent(rowID int64) string {
+	return s.notesByRowID[rowID]
 }
 
 // IsView marks the items table as a view so dbtui pins the tab read-only.

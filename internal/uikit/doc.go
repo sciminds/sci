@@ -29,12 +29,20 @@
 //
 //   - [Chrome] — title / body / status vertical layout with automatic height math.
 //   - [Overlay] — scrollable modal panel with compositing helpers.
+//   - [MarkdownOverlay] — scrollable modal panel that renders markdown via glamour.
+//   - [ScrollableOverlay] — common interface for [Overlay] and [MarkdownOverlay].
 //   - [OverlayBox] — styled modal overlay with title, body, and hint footer.
 //   - [ListPicker] — pre-styled filterable list with one-line construction.
 //   - [SelectList] — multi-select toggle list for wizard flows.
 //   - [Grid2D] — reusable 2-D cursor with move, clamp, and wrap.
 //   - [Screen] / [Router] — dispatch table that replaces repeated switch statements.
 //   - [RunWithSpinner] / [RunWithProgress] — inline spinner and progress bar.
+//
+// # Markdown Rendering (render_md.go)
+//
+//   - [RenderMarkdown] / [PreRenderMarkdown] — glamour-based rendering with caching.
+//   - [DetectTermStyle] — probe terminal dark/light background before TUI starts.
+//   - [HighlightMatches] — ANSI-aware reverse-video search highlighting.
 //
 // # Forms (ui_form.go)
 //

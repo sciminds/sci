@@ -7,6 +7,7 @@ package app
 import (
 	"strings"
 
+	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/uikit"
 )
@@ -116,10 +117,21 @@ func (m *Model) handleNormalModeKey(k string, tab *Tab) bool {
 			if tab.ColCursor < len(tab.Specs) {
 				title = tab.Specs[tab.ColCursor].Title
 			}
+			// Check if the store provides rich markdown note content for this row.
+			cursor := tab.Table.Cursor()
+			var overlay uikit.ScrollableOverlay
+			if ncp, ok := m.store.(data.NoteContentProvider); ok && cursor >= 0 && cursor < len(tab.Rows) {
+				if md := ncp.NoteContent(tab.Rows[cursor].RowID); md != "" {
+					overlay = uikit.NewMarkdownOverlay(title, md, m.width, m.height)
+				}
+			}
+			if overlay == nil {
+				overlay = uikit.NewOverlay(title, c.Value, m.width, m.height)
+			}
 			m.notePreview = &notePreviewState{
 				Text:    c.Value,
 				Title:   title,
-				Overlay: uikit.NewOverlay(title, c.Value, m.width, m.height),
+				Overlay: overlay,
 			}
 		}
 

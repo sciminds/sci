@@ -86,36 +86,7 @@ func (o Overlay) Update(msg tea.Msg) (Overlay, tea.Cmd) {
 // View renders the overlay box. The parent composites it over the background
 // using [Compose] or [CenterOverlay].
 func (o Overlay) View() string {
-	if o.width == 0 {
-		return ""
-	}
-
-	var b strings.Builder
-	b.WriteString(TUI.HeaderSection().Render(" " + o.title + " "))
-	b.WriteString("\n\n")
-	b.WriteString(o.vp.View())
-	b.WriteString("\n\n")
-
-	footer := TUI.HeaderHint().Render("esc close")
-	if o.vp.TotalLineCount() > o.vp.VisibleLineCount() {
-		pct := o.vp.ScrollPercent() * 100
-		var pos string
-		switch {
-		case pct < 1:
-			pos = "top"
-		case pct > 99:
-			pos = "end"
-		default:
-			pos = fmt.Sprintf("%d%%", int(pct))
-		}
-		footer = TUI.HeaderHint().Render("↑↓ scroll") + "  " +
-			TUI.HeaderHint().Render(pos) + "  " + footer
-	}
-	b.WriteString(footer)
-
-	return TUI.OverlayBox().
-		Width(o.width).
-		Render(b.String())
+	return renderOverlayView(o.title, &o.vp, o.width)
 }
 
 // ── Compositing helpers ─────────────────────────────────────────────────
@@ -232,6 +203,41 @@ func OverlayWidth(termW, minW, maxW int) int {
 // Compose is a convenience for CenterOverlay(CancelFaint(fg), DimBackground(bg)).
 func Compose(fg, bg string) string {
 	return CenterOverlay(CancelFaint(fg), DimBackground(bg))
+}
+
+// renderOverlayView is the shared rendering logic for scrollable overlay panels.
+// Both [Overlay] and [MarkdownOverlay] delegate their View() to this function.
+func renderOverlayView(title string, vp *viewport.Model, width int) string {
+	if width == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString(TUI.HeaderSection().Render(" " + title + " "))
+	b.WriteString("\n\n")
+	b.WriteString(vp.View())
+	b.WriteString("\n\n")
+
+	footer := TUI.HeaderHint().Render("esc close")
+	if vp.TotalLineCount() > vp.VisibleLineCount() {
+		pct := vp.ScrollPercent() * 100
+		var pos string
+		switch {
+		case pct < 1:
+			pos = "top"
+		case pct > 99:
+			pos = "end"
+		default:
+			pos = fmt.Sprintf("%d%%", int(pct))
+		}
+		footer = TUI.HeaderHint().Render("↑↓ scroll") + "  " +
+			TUI.HeaderHint().Render(pos) + "  " + footer
+	}
+	b.WriteString(footer)
+
+	return TUI.OverlayBox().
+		Width(width).
+		Render(b.String())
 }
 
 // prependLines wraps every line of s with prefix/suffix.

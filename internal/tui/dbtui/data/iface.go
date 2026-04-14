@@ -153,6 +153,15 @@ type VirtualLister interface {
 	IsVirtual(name string) bool
 }
 
+// NoteContentProvider is an optional interface that DataStore implementations
+// may provide to supply rich markdown content for cell preview overlays.
+// When a cell is selected and the store implements this interface, the TUI
+// checks NoteContent(rowID) — if non-empty, the preview uses a markdown
+// overlay instead of plain text.
+type NoteContentProvider interface {
+	NoteContent(rowID int64) string
+}
+
 // ErrImportNotSupported is returned by backends that do not support import.
 var ErrImportNotSupported = fmt.Errorf("import is not supported for this database type")
 

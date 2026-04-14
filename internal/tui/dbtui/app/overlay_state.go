@@ -19,10 +19,13 @@ type columnPickerState struct {
 }
 
 // notePreviewState holds the text shown in the note preview overlay.
+// Overlay is a [uikit.ScrollableOverlay] — either a plain [uikit.Overlay]
+// or a [uikit.MarkdownOverlay] depending on whether the store provides
+// rich note content.
 type notePreviewState struct {
 	Text    string
 	Title   string
-	Overlay uikit.Overlay
+	Overlay uikit.ScrollableOverlay
 }
 
 // tableListState holds the state for the table list overlay.

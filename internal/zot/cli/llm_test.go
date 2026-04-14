@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sciminds/cli/internal/zot/local"
 )
 
 func TestUnwrapZoteroDiv(t *testing.T) {
@@ -30,8 +32,8 @@ func TestUnwrapZoteroDiv(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := unwrapZoteroDiv(tc.body); got != tc.want {
-				t.Errorf("unwrapZoteroDiv(%q) = %q, want %q", tc.body, got, tc.want)
+			if got := local.UnwrapZoteroDiv(tc.body); got != tc.want {
+				t.Errorf("UnwrapZoteroDiv(%q) = %q, want %q", tc.body, got, tc.want)
 			}
 		})
 	}
