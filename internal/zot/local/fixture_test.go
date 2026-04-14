@@ -129,6 +129,11 @@ func seedFixture(dir string) error {
 			note TEXT,
 			title TEXT
 		)`,
+
+		// Fulltext index tables (Zotero's manual word-level FTS).
+		`CREATE TABLE fulltextWords (wordID INTEGER PRIMARY KEY, word TEXT UNIQUE)`,
+		`CREATE TABLE fulltextItemWords (wordID INT, itemID INT, PRIMARY KEY (wordID, itemID))`,
+		`CREATE TABLE fulltextItems (itemID INTEGER PRIMARY KEY, indexedPages INT, totalPages INT, indexedChars INT, totalChars INT)`,
 	}
 	for _, stmt := range ddl {
 		if _, err := db.Exec(stmt); err != nil {
@@ -239,6 +244,20 @@ func seedFixture(dir string) error {
 		`INSERT INTO itemNotes VALUES
 			(70,NULL,'<p>Loose thoughts on attention.</p>','Attention Notes'),
 			(90,10,'<p>Extracted via docling.</p>','Extraction Note')`,
+
+		// Fulltext index: words linked to PDF attachment items.
+		// Attachment 40 (parent 10): "neuroimaging", "brain", "network", "analysis"
+		// Attachment 81 (parent 80): "brain", "cortical", "attention"
+		// "brain" appears on both — useful for testing multi-word AND.
+		`INSERT INTO fulltextWords VALUES
+			(1,'neuroimaging'),(2,'brain'),(3,'network'),(4,'analysis'),
+			(5,'cortical'),(6,'attention')`,
+		`INSERT INTO fulltextItemWords VALUES
+			(1,40),(2,40),(3,40),(4,40),
+			(2,81),(5,81),(6,81)`,
+		`INSERT INTO fulltextItems VALUES
+			(40,10,10,NULL,NULL),
+			(81,5,5,NULL,NULL)`,
 
 		// Tag item 90 with "docling" (exercises ListChildren tag path +
 		// DoclingNoteKeys).

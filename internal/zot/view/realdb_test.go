@@ -66,8 +66,8 @@ func TestStore_RealLibrary(t *testing.T) {
 	if len(rows) != n {
 		t.Errorf("QueryTable returned %d rows, TableRowCount said %d", len(rows), n)
 	}
-	if len(cols) != 6 {
-		t.Errorf("expected 6 columns, got %d", len(cols))
+	if len(cols) != 8 {
+		t.Errorf("expected 8 columns, got %d", len(cols))
 	}
 	if len(ids) != len(rows) {
 		t.Errorf("rowIDs len %d != rows len %d", len(ids), len(rows))

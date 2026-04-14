@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	_ "modernc.org/sqlite"
 )
@@ -30,6 +31,10 @@ type DB struct {
 	db        *sql.DB
 	libraryID int64
 	schemaVer int
+
+	// Fulltext table detection (lazy, cached).
+	ftsOnce sync.Once
+	hasFTS  bool
 }
 
 // Open opens zotero.sqlite inside dataDir in immutable mode and resolves the

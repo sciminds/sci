@@ -43,6 +43,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		"Date Added",
 		"Extra",
 		"Notes",
+		"PDF",
 	}
 	if !sliceEqual(cols, wantCols) {
 		t.Fatalf("columns = %v, want %v", cols, wantCols)
@@ -56,7 +57,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 			len(rows), len(nullFlags), len(rowIDs))
 	}
 
-	// Row 0 — item 10, most recent dateAdded, 2 authors, journalArticle, has docling note.
+	// Row 0 — item 10, most recent dateAdded, 2 authors, journalArticle, has docling note, has PDF.
 	wantRow0 := []string{
 		"Smith, Alice; Jones, Bob",
 		"2024",
@@ -65,6 +66,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		"03/15/24, 10:00am",
 		"Citation Key: xyz",
 		"Extracted",
+		"Yes",
 	}
 	if !sliceEqual(rows[0], wantRow0) {
 		t.Errorf("row 0 = %v,\nwant    %v", rows[0], wantRow0)
@@ -73,7 +75,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		t.Errorf("row 0 rowID = %d, want 10", rowIDs[0])
 	}
 
-	// Row 1 — item 20, institutional author, year-only date, no journal, no note.
+	// Row 1 — item 20, institutional author, year-only date, no journal, no note, no PDF.
 	wantRow1 := []string{
 		"NASA",
 		"2023",
@@ -82,12 +84,13 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		"02/01/24, 10:00am",
 		"Citation Key: abc",
 		"-",
+		"-",
 	}
 	if !sliceEqual(rows[1], wantRow1) {
 		t.Errorf("row 1 = %v,\nwant    %v", rows[1], wantRow1)
 	}
 
-	// Row 2 — item 30, book, no date/journal/extra, no note.
+	// Row 2 — item 30, book, no date/journal/extra, no note, no PDF.
 	wantRow2 := []string{
 		"Curie, Marie",
 		"",
@@ -95,6 +98,7 @@ func TestStoreQueryItemsTable(t *testing.T) {
 		"A Book About Radium",
 		"01/01/24, 10:00am",
 		"",
+		"-",
 		"-",
 	}
 	if !sliceEqual(rows[2], wantRow2) {
@@ -139,8 +143,8 @@ func TestStoreTableSummaries(t *testing.T) {
 	if len(sums) != 1 {
 		t.Fatalf("TableSummaries = %d entries, want 1", len(sums))
 	}
-	if sums[0].Name != TableName || sums[0].Rows != 3 || sums[0].Columns != 7 {
-		t.Errorf("summary = %+v, want {items 3 7}", sums[0])
+	if sums[0].Name != TableName || sums[0].Rows != 3 || sums[0].Columns != 8 {
+		t.Errorf("summary = %+v, want {items 3 8}", sums[0])
 	}
 }
 
@@ -230,6 +234,7 @@ func seedViewFixture(t *testing.T) string {
 		`CREATE TABLE itemNotes (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, note TEXT, title TEXT)`,
 		`CREATE TABLE tags (tagID INTEGER PRIMARY KEY, name TEXT UNIQUE, type INTEGER)`,
 		`CREATE TABLE itemTags (itemID INTEGER, tagID INTEGER, type INTEGER, PRIMARY KEY (itemID, tagID))`,
+		`CREATE TABLE itemAttachments (itemID INTEGER PRIMARY KEY, parentItemID INT, linkMode INT, contentType TEXT)`,
 	}
 	for _, s := range ddl {
 		if _, err := db.Exec(s); err != nil {
@@ -323,6 +328,19 @@ title: Extracted
 Some **bold** content.</pre></div>', 'Extraction Note')`,
 		`INSERT INTO tags VALUES (1,'docling',0)`,
 		`INSERT INTO itemTags VALUES (90,1,0)`,
+
+		// PDF attachment for item 10 only. Items 20 and 30 have no PDF.
+		`INSERT INTO itemAttachments VALUES (40, 10, 0, 'application/pdf')`,
+
+		// Fulltext index tables (Zotero's manual word-level FTS).
+		`CREATE TABLE fulltextWords (wordID INTEGER PRIMARY KEY, word TEXT UNIQUE)`,
+		`CREATE TABLE fulltextItemWords (wordID INT, itemID INT, PRIMARY KEY (wordID, itemID))`,
+		`CREATE TABLE fulltextItems (itemID INTEGER PRIMARY KEY, indexedPages INT, totalPages INT, indexedChars INT, totalChars INT)`,
+
+		// Words linked to attachment 40 (parent item 10).
+		`INSERT INTO fulltextWords VALUES (1,'transformer'),(2,'fmri'),(3,'analysis')`,
+		`INSERT INTO fulltextItemWords VALUES (1,40),(2,40),(3,40)`,
+		`INSERT INTO fulltextItems VALUES (40,10,10,NULL,NULL)`,
 	}
 	for _, s := range seed {
 		if _, err := db.Exec(s); err != nil {
@@ -357,6 +375,73 @@ func TestStoreNoteContent(t *testing.T) {
 	// Item 20 has no docling note.
 	if md := store.NoteContent(20); md != "" {
 		t.Errorf("NoteContent(20) = %q, want empty", md)
+	}
+}
+
+// Compile-time assertion: Store must implement FulltextSearcher.
+var _ data.FulltextSearcher = (*Store)(nil)
+
+func TestStoreSearchFulltext_Hit(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	ids, err := store.SearchFulltext(TableName, []string{"transformer"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 1 || ids[0] != 10 {
+		t.Errorf("got %v, want [10]", ids)
+	}
+}
+
+func TestStoreSearchFulltext_Miss(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	ids, err := store.SearchFulltext(TableName, []string{"nonexistent"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("got %v, want empty", ids)
+	}
+}
+
+func TestStoreSearchFulltext_Prefix(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	// "trans" should prefix-match "transformer".
+	ids, err := store.SearchFulltext(TableName, []string{"trans"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 1 || ids[0] != 10 {
+		t.Errorf("got %v, want [10]", ids)
+	}
+}
+
+func TestStoreSearchFulltext_Exact(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	// "trans" with exact=true should NOT match "transformer".
+	ids, err := store.SearchFulltext(TableName, []string{"trans"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("exact 'trans' got %v, want empty", ids)
+	}
+}
+
+func TestStoreSearchFulltext_WrongTable(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	_, err := store.SearchFulltext("nonexistent", []string{"x"}, false)
+	if err == nil {
+		t.Error("expected error for unknown table")
 	}
 }
 

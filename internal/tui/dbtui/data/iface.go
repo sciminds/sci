@@ -162,6 +162,17 @@ type NoteContentProvider interface {
 	NoteContent(rowID int64) string
 }
 
+// FulltextSearcher is an optional interface that DataStore implementations may
+// provide to support content-level fulltext search (e.g. PDF body text).
+// When implemented, unscoped search queries union fulltext hits with fuzzy
+// column matches, widening recall to include items whose content matches even
+// when their visible metadata does not.
+type FulltextSearcher interface {
+	// SearchFulltext returns rowIDs matching all given words in the fulltext
+	// index. Words are prefix-matched by default; exact when exact is true.
+	SearchFulltext(table string, words []string, exact bool) ([]int64, error)
+}
+
 // ErrImportNotSupported is returned by backends that do not support import.
 var ErrImportNotSupported = fmt.Errorf("import is not supported for this database type")
 

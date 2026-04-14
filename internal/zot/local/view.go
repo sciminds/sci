@@ -23,6 +23,7 @@ type ViewRow struct {
 	Title     string
 	DateAdded string // raw "YYYY-MM-DD HH:MM:SS" UTC from items.dateAdded
 	Extra     string
+	HasPDF    bool
 }
 
 // viewRowSelect pulls one denormalized row per content item. Creators are
@@ -87,8 +88,13 @@ func (d *DB) ListViewRows() ([]ViewRow, error) {
 	if err != nil {
 		return nil, err
 	}
+	pdfSet, err := d.pdfParentIDs(ids)
+	if err != nil {
+		return nil, err
+	}
 	for i := range out {
 		out[i].Authors = authors[out[i].ID]
+		out[i].HasPDF = pdfSet[out[i].ID]
 	}
 	return out, nil
 }
@@ -195,6 +201,38 @@ ORDER BY ic.itemID, ic.orderIndex
 		result[id] = strings.Join(names, "; ")
 	}
 	return result, nil
+}
+
+// pdfParentIDs returns the set of parent item IDs that have at least one
+// PDF attachment. One batched query instead of N per-item lookups.
+func (d *DB) pdfParentIDs(itemIDs []int64) (map[int64]bool, error) {
+	result := make(map[int64]bool, len(itemIDs))
+	if len(itemIDs) == 0 {
+		return result, nil
+	}
+	placeholders := strings.Repeat("?,", len(itemIDs))
+	placeholders = placeholders[:len(placeholders)-1]
+	q := `
+SELECT DISTINCT parentItemID
+FROM itemAttachments
+WHERE contentType = 'application/pdf'
+  AND parentItemID IN (` + placeholders + `)
+`
+	args := lo.Map(itemIDs, func(id int64, _ int) any { return id })
+	rows, err := d.db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("pdf parent IDs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		result[id] = true
+	}
+	return result, rows.Err()
 }
 
 // formatViewAuthor renders a Zotero creator row as "Last, First", falling

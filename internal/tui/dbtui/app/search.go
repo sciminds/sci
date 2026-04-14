@@ -14,6 +14,7 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/uikit"
@@ -47,7 +48,11 @@ type resolvedGroup []resolvedClause
 // The query supports OR groups (separated by " | "), AND clauses (multiple @col
 // terms within a group), and negation ("-" prefix excludes matches).
 // A row matches if ANY OR group matches. Within a group, ALL AND clauses must match.
-func applySearchFilter(tab *Tab, state *rowSearchState) {
+//
+// When store implements data.FulltextSearcher and the query contains unscoped,
+// non-negated terms, fulltext hits from the content index (e.g. PDF body text)
+// are unioned with fuzzy column matches — rows matching either source are kept.
+func applySearchFilter(tab *Tab, state *rowSearchState, store data.DataStore) {
 	if state == nil || state.Query == "" {
 		return
 	}
@@ -76,6 +81,10 @@ func applySearchFilter(tab *Tab, state *rowSearchState) {
 		return
 	}
 
+	// Build a fulltext hit set if the store supports it and the query has
+	// unscoped, non-negated terms that would benefit from content search.
+	ftsHits := buildFTSHitSet(groups, store, tab.Name)
+
 	highlights := make(map[int]map[int][]int)
 	var filteredRows []table.Row
 	var filteredMeta []rowMeta
@@ -84,7 +93,8 @@ func applySearchFilter(tab *Tab, state *rowSearchState) {
 
 	for i, cellRow := range tab.PostPinCellRows {
 		mergedHL, matched := matchORGroups(cellRow, resolved)
-		if !matched {
+		// A row matches if fuzzy column search hit OR fulltext content hit.
+		if !matched && !ftsHits[tab.PostPinMeta[i].RowID] {
 			continue
 		}
 		filteredRows = append(filteredRows, tab.PostPinRows[i])
@@ -100,6 +110,81 @@ func applySearchFilter(tab *Tab, state *rowSearchState) {
 	tab.CellRows = filteredCells
 	tab.Table.SetRows(filteredRows)
 	state.Highlights = highlights
+}
+
+// buildFTSHitSet queries the store's fulltext index for unscoped, non-negated
+// terms. Returns a set of matching rowIDs, or nil if FTS is not available or
+// the query has no eligible terms.
+//
+// Quoting: words wrapped in double quotes are matched exactly (no prefix
+// expansion). Unquoted words use prefix matching for incremental search.
+func buildFTSHitSet(groups [][]match.Clause, store data.DataStore, table string) map[int64]bool {
+	if store == nil {
+		return nil
+	}
+	fts, ok := store.(data.FulltextSearcher)
+	if !ok {
+		return nil
+	}
+
+	// Collect all unscoped, non-negated terms across all groups.
+	allWords := lo.FlatMap(groups, func(group []match.Clause, _ int) []string {
+		return lo.FlatMap(group, func(c match.Clause, _ int) []string {
+			if c.Column != "" || c.Negate || c.Terms == "" {
+				return nil
+			}
+			return strings.Fields(c.Terms)
+		})
+	})
+	if len(allWords) == 0 {
+		return nil
+	}
+
+	// Partition into exact (quoted) and prefix (unquoted) words.
+	isQuoted := func(w string) bool {
+		return len(w) >= 2 && w[0] == '"' && w[len(w)-1] == '"'
+	}
+	exactWords := lo.FilterMap(allWords, func(w string, _ int) (string, bool) {
+		if !isQuoted(w) {
+			return "", false
+		}
+		return w[1 : len(w)-1], true
+	})
+	prefixWords := lo.Filter(allWords, func(w string, _ int) bool {
+		return !isQuoted(w)
+	})
+
+	idsToBoolSet := func(ids []int64) map[int64]bool {
+		return lo.SliceToMap(ids, func(id int64) (int64, bool) { return id, true })
+	}
+
+	var result map[int64]bool
+
+	// Query prefix words (incremental search).
+	if len(prefixWords) > 0 {
+		if ids, err := fts.SearchFulltext(table, prefixWords, false); err == nil && len(ids) > 0 {
+			result = idsToBoolSet(ids)
+		}
+	}
+
+	// Query exact words and intersect with prefix results when both present.
+	if len(exactWords) > 0 {
+		if ids, err := fts.SearchFulltext(table, exactWords, true); err == nil && len(ids) > 0 {
+			if result == nil {
+				result = idsToBoolSet(ids)
+			} else {
+				exactSet := idsToBoolSet(ids)
+				result = lo.PickBy(result, func(id int64, _ bool) bool {
+					return exactSet[id]
+				})
+			}
+		}
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 // resolveGroups converts parsed OR groups into resolved groups with column indices.
@@ -223,7 +308,7 @@ func (m *Model) rerunSearch() {
 	tab.CellRows = tab.PostPinCellRows
 	tab.Table.SetRows(tab.PostPinRows)
 
-	applySearchFilter(tab, m.search)
+	applySearchFilter(tab, m.search, m.store)
 	tab.InvalidateVP()
 
 	tab.Table.SetCursor(clampCursor(tab.Table.Cursor(), len(tab.CellRows)))
@@ -279,7 +364,11 @@ func (m *Model) renderSearchBar() string {
 	cursor := m.styles.HeaderHint().Render("\u2502")
 	queryText := s.Query + cursor
 	if s.Query == "" {
-		queryText = m.styles.Empty().Render("search, @col: val, -exclude, | or") + cursor
+		placeholder := "search, @col: val, -exclude, | or"
+		if _, ok := m.store.(data.FulltextSearcher); ok {
+			placeholder = "search (+ PDF content), @col: val, -exclude, | or"
+		}
+		queryText = m.styles.Empty().Render(placeholder) + cursor
 	}
 
 	// Match count.

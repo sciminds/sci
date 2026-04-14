@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"charm.land/bubbles/v2/table"
+	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/tui/dbtui/ui"
@@ -791,7 +792,7 @@ func TestApplySearchFilterFuzzy(t *testing.T) {
 	)
 	// "alic" uniquely matches "alice" (not "charlie" or "bob").
 	state := &rowSearchState{Query: "alic"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 1 {
 		t.Fatalf("expected 1 row, got %d", len(tab.CellRows))
@@ -808,7 +809,7 @@ func TestApplySearchFilterColumnScoped(t *testing.T) {
 		[][]string{{"paris", "london"}, {"bob", "paris"}},
 	)
 	state := &rowSearchState{Query: "paris", Column: "city"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	// Only row with city=paris should match, not the row with name=paris.
 	if len(tab.CellRows) != 1 {
@@ -826,7 +827,7 @@ func TestApplySearchFilterEmptyQuery(t *testing.T) {
 		[][]string{{"alice"}, {"bob"}},
 	)
 	state := &rowSearchState{Query: ""}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 2 {
 		t.Errorf("expected 2 rows for empty query, got %d", len(tab.CellRows))
@@ -839,7 +840,7 @@ func TestApplySearchFilterNilState(t *testing.T) {
 		[]string{"name"},
 		[][]string{{"alice"}, {"bob"}},
 	)
-	applySearchFilter(tab, nil)
+	applySearchFilter(tab, nil, nil)
 	if len(tab.CellRows) != 2 {
 		t.Errorf("expected 2 rows for nil state, got %d", len(tab.CellRows))
 	}
@@ -852,7 +853,7 @@ func TestApplySearchFilterHighlights(t *testing.T) {
 		[][]string{{"alice", "london"}, {"bob", "lisbon"}},
 	)
 	state := &rowSearchState{Query: "li"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	// Both rows match: "alice" has "li" at pos 1-2, "lisbon" has "li" at pos 0-1.
 	if len(tab.CellRows) != 2 {
@@ -885,7 +886,7 @@ func TestApplySearchFilterWithPins(t *testing.T) {
 
 	// Now search within the pinned results.
 	state := &rowSearchState{Query: "char"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 1 {
 		t.Fatalf("expected 1 row (charlie in paris), got %d", len(tab.CellRows))
@@ -902,7 +903,7 @@ func TestApplySearchFilterInvalidColumn(t *testing.T) {
 		[][]string{{"alice", "paris"}},
 	)
 	state := &rowSearchState{Query: "alice", Column: "nonexistent"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 0 {
 		t.Errorf("expected 0 rows for invalid column, got %d", len(tab.CellRows))
@@ -971,7 +972,7 @@ func TestApplySearchFilterMultiClause(t *testing.T) {
 		[][]string{{"alice", "paris"}, {"bob", "london"}, {"alice", "london"}},
 	)
 	state := &rowSearchState{Query: "@name: alice, @city: paris"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 1 {
 		t.Fatalf("expected 1 row, got %d", len(tab.CellRows))
@@ -988,7 +989,7 @@ func TestApplySearchFilterMultiClauseInvalidCol(t *testing.T) {
 		[][]string{{"alice", "paris"}},
 	)
 	state := &rowSearchState{Query: "@name: alice, @bogus: x"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 0 {
 		t.Errorf("expected 0 rows, got %d", len(tab.CellRows))
@@ -1002,7 +1003,7 @@ func TestApplySearchFilterOR(t *testing.T) {
 		[][]string{{"alice", "paris"}, {"bob", "london"}, {"charlie", "tokyo"}},
 	)
 	state := &rowSearchState{Query: "@city: paris | @city: tokyo"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 2 {
 		t.Fatalf("expected 2 rows, got %d", len(tab.CellRows))
@@ -1023,7 +1024,7 @@ func TestApplySearchFilterORWithAND(t *testing.T) {
 	)
 	// Match: (alice AND paris) OR (bob)
 	state := &rowSearchState{Query: "@name: alice @city: paris | @name: bob"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 2 {
 		t.Fatalf("expected 2 rows, got %d", len(tab.CellRows))
@@ -1043,7 +1044,7 @@ func TestApplySearchFilterNegate(t *testing.T) {
 		[][]string{{"alice", "paris"}, {"bob", "london"}, {"charlie", "paris"}},
 	)
 	state := &rowSearchState{Query: "@city: -london"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 2 {
 		t.Fatalf("expected 2 rows (excluding london), got %d", len(tab.CellRows))
@@ -1063,7 +1064,7 @@ func TestApplySearchFilterNegateWithAND(t *testing.T) {
 	)
 	// All paris rows, but not charlie.
 	state := &rowSearchState{Query: "@city: paris @name: -charlie"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 1 {
 		t.Fatalf("expected 1 row, got %d", len(tab.CellRows))
@@ -1080,7 +1081,7 @@ func TestApplySearchFilterNegatePlain(t *testing.T) {
 		[][]string{{"alice"}, {"bob"}, {"charlie"}},
 	)
 	state := &rowSearchState{Query: "-bob"}
-	applySearchFilter(tab, state)
+	applySearchFilter(tab, state, nil)
 
 	if len(tab.CellRows) != 2 {
 		t.Fatalf("expected 2 rows, got %d", len(tab.CellRows))
@@ -1089,5 +1090,101 @@ func TestApplySearchFilterNegatePlain(t *testing.T) {
 		if row[0].Value == "bob" {
 			t.Error("bob should have been excluded")
 		}
+	}
+}
+
+// ────────────────────────────────────────────────────
+// Fulltext search integration tests
+// ────────────────────────────────────────────────────
+
+// mockFTSStore implements data.DataStore + data.FulltextSearcher for testing.
+// Only SearchFulltext is functional; all other methods panic if called.
+type mockFTSStore struct {
+	data.DataStore // embedded to satisfy interface; nil — unused methods panic
+	hits           []int64
+}
+
+func (m *mockFTSStore) SearchFulltext(_ string, _ []string, _ bool) ([]int64, error) {
+	return m.hits, nil
+}
+
+// 71. Unscoped query unions fuzzy column matches with FTS hits.
+func TestApplySearchFilterFTSUnion(t *testing.T) {
+	tab := makeTab(
+		[]string{"name", "city"},
+		// RowIDs: 1=alice, 2=bob, 3=charlie
+		[][]string{{"alice", "paris"}, {"bob", "london"}, {"charlie", "tokyo"}},
+	)
+	// "xyz" won't fuzzy-match any visible column, but FTS returns rowID 2 (bob).
+	store := &mockFTSStore{hits: []int64{2}}
+	state := &rowSearchState{Query: "xyz"}
+	applySearchFilter(tab, state, store)
+
+	if len(tab.CellRows) != 1 {
+		t.Fatalf("expected 1 row (FTS hit), got %d", len(tab.CellRows))
+	}
+	if tab.CellRows[0][0].Value != "bob" {
+		t.Errorf("expected bob (FTS hit), got %q", tab.CellRows[0][0].Value)
+	}
+	// FTS-only hits should have no highlights.
+	if hl, ok := state.Highlights[0]; ok && len(hl) > 0 {
+		t.Errorf("FTS-only hit should have no highlights, got %v", hl)
+	}
+}
+
+// 72. Column-scoped query does NOT trigger FTS.
+func TestApplySearchFilterFTSColumnScoped(t *testing.T) {
+	tab := makeTab(
+		[]string{"name", "city"},
+		[][]string{{"alice", "paris"}, {"bob", "london"}},
+	)
+	// FTS would return rowID 2 (bob), but column-scoped query should ignore it.
+	store := &mockFTSStore{hits: []int64{2}}
+	state := &rowSearchState{Query: "@name: xyz"}
+	applySearchFilter(tab, state, store)
+
+	// "xyz" doesn't fuzzy-match any name, and FTS is not used for scoped queries.
+	if len(tab.CellRows) != 0 {
+		t.Errorf("expected 0 rows for scoped query with no fuzzy match, got %d", len(tab.CellRows))
+	}
+}
+
+// 73. Negated query does NOT trigger FTS.
+func TestApplySearchFilterFTSNegated(t *testing.T) {
+	tab := makeTab(
+		[]string{"name"},
+		[][]string{{"alice"}, {"bob"}, {"charlie"}},
+	)
+	// FTS would return rowID 2, but negated terms should not use FTS.
+	store := &mockFTSStore{hits: []int64{2}}
+	state := &rowSearchState{Query: "-bob"}
+	applySearchFilter(tab, state, store)
+
+	// Negate filters out "bob" via fuzzy → 2 rows.
+	if len(tab.CellRows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(tab.CellRows))
+	}
+}
+
+// 74. FTS union: both fuzzy and FTS hits appear.
+func TestApplySearchFilterFTSAndFuzzy(t *testing.T) {
+	tab := makeTab(
+		[]string{"name", "city"},
+		// RowIDs: 1=alice, 2=bob, 3=charlie
+		[][]string{{"alice", "paris"}, {"bob", "london"}, {"charlie", "tokyo"}},
+	)
+	// "alice" fuzzy-matches row 1. FTS returns rowID 3 (charlie).
+	store := &mockFTSStore{hits: []int64{3}}
+	state := &rowSearchState{Query: "alice"}
+	applySearchFilter(tab, state, store)
+
+	if len(tab.CellRows) != 2 {
+		t.Fatalf("expected 2 rows (fuzzy+FTS), got %d", len(tab.CellRows))
+	}
+	if tab.CellRows[0][0].Value != "alice" {
+		t.Errorf("row 0: expected alice (fuzzy), got %q", tab.CellRows[0][0].Value)
+	}
+	if tab.CellRows[1][0].Value != "charlie" {
+		t.Errorf("row 1: expected charlie (FTS), got %q", tab.CellRows[1][0].Value)
 	}
 }

@@ -50,6 +50,9 @@ type Reader interface {
 	CountViewRows() (int, error)
 	DoclingNoteBodyByItemID() (map[int64]string, error)
 
+	// Fulltext search (Zotero's word-level PDF content index)
+	SearchFulltext(words []string, exact bool) ([]int64, error)
+
 	// Hygiene Scans
 	ScanFieldPresence() ([]ItemFieldPresence, error)
 	ScanDuplicateCandidates() ([]DuplicateCandidate, error)

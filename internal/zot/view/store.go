@@ -34,6 +34,7 @@ var columnTitles = []string{
 	"Date Added",
 	"Extra",
 	"Notes",
+	"PDF",
 }
 
 // noteIndicatorExtracted is the cell value shown when a docling note exists.
@@ -41,6 +42,12 @@ const noteIndicatorExtracted = "Extracted"
 
 // noteIndicatorNone is the cell value shown when no docling note exists.
 const noteIndicatorNone = "-"
+
+// pdfIndicatorYes is the cell value shown when a PDF attachment exists.
+const pdfIndicatorYes = "Yes"
+
+// pdfIndicatorNone is the cell value shown when no PDF attachment exists.
+const pdfIndicatorNone = "-"
 
 // dateAddedLayouts covers both encodings seen in the wild on items.dateAdded:
 // ISO-8601 with a T separator and trailing Z (current Zotero releases) and
@@ -137,6 +144,10 @@ func (s *Store) QueryTable(table string) (
 		if _, ok := s.notesByRowID[r.ID]; ok {
 			noteCell = noteIndicatorExtracted
 		}
+		pdfCell := pdfIndicatorNone
+		if r.HasPDF {
+			pdfCell = pdfIndicatorYes
+		}
 		rows[i] = []string{
 			r.Authors,
 			r.Year,
@@ -145,6 +156,7 @@ func (s *Store) QueryTable(table string) (
 			s.formatDateAdded(r.DateAdded),
 			r.Extra,
 			noteCell,
+			pdfCell,
 		}
 		nullFlags[i] = make([]bool, len(columnTitles))
 		rowIDs[i] = r.ID
@@ -214,6 +226,15 @@ func (s *Store) ImportFile(filePath, tableName string) error {
 
 // CreateEmptyTable implements data.DataStore (always returns ErrReadOnly).
 func (s *Store) CreateEmptyTable(tableName string) error { return ErrReadOnly }
+
+// SearchFulltext implements data.FulltextSearcher by delegating to the
+// underlying local.DB's fulltext word index.
+func (s *Store) SearchFulltext(table string, words []string, exact bool) ([]int64, error) {
+	if table != TableName {
+		return nil, fmt.Errorf("unknown table %q", table)
+	}
+	return s.db.SearchFulltext(words, exact)
+}
 
 // Close releases the underlying local.DB handle.
 func (s *Store) Close() error {
