@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -417,7 +418,39 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	cmdutil.Output(cmd, result)
+	// In JSON mode or no outdated packages, just output and return.
+	if cmdutil.IsJSON(cmd) || len(result.Outdated) == 0 {
+		cmdutil.Output(cmd, result)
+		return nil
+	}
+
+	// Show the outdated list and offer to upgrade.
+	fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(result.Outdated))
+	for _, pkg := range result.Outdated {
+		arrow := uikit.TUI.TextPink().Render(" → ")
+		version := uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+		fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
+	}
+	fmt.Fprintln(os.Stderr)
+
+	upgradeErr := cmdutil.ConfirmYes("Upgrade outdated packages?")
+	if errors.Is(upgradeErr, cmdutil.ErrCancelled) {
+		fmt.Fprintf(os.Stderr, "\n  To upgrade later:\n")
+		fmt.Fprintf(os.Stderr, "    %s sci tools update\n", uikit.SymArrow)
+		fmt.Fprintln(os.Stderr)
+		return nil
+	}
+	if upgradeErr != nil {
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "  Upgrading…\n")
+	upgradeResult, err := brew.UpgradeOnly(runner)
+	if err != nil {
+		return err
+	}
+
+	cmdutil.Output(cmd, upgradeResult)
 	return nil
 }
 
