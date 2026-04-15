@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	teatest "github.com/charmbracelet/x/exp/teatest/v2"
 )
 
 // TestTeatestSearchIncremental verifies typing a query filters rows.
@@ -251,6 +252,100 @@ func TestTeatestSearchNoMatches(t *testing.T) {
 	}
 	if len(tab.CellRows) != 0 {
 		t.Errorf("filtered rows = %d, want 0 for no-match query", len(tab.CellRows))
+	}
+}
+
+// TestTeatestSearchMultiTokenSameCell verifies multi-word substring AND
+// matches when both tokens live in the same cell. Uses the products fixture:
+// "Doohickey" is the only row whose title contains both "doo" and "key".
+func TestTeatestSearchMultiTokenSameCell(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "/")
+	tm.Type("doo key")
+
+	fm := finalModel(t, tm)
+
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	if len(tab.CellRows) != 1 {
+		t.Errorf("filtered rows = %d, want 1 for 'doo key'", len(tab.CellRows))
+	}
+}
+
+// TestTeatestSearchMultiTokenCrossColumn verifies a token can live in one
+// column and another token in a different column — Zotero-style
+// all-fields-AND semantics. Builds a fixture where "alice" is in the name
+// column and "210" is in the location column of the same row.
+func TestTeatestSearchMultiTokenCrossColumn(t *testing.T) {
+	t.Parallel()
+	stmts := []string{
+		`CREATE TABLE people (id INTEGER PRIMARY KEY, name TEXT, location TEXT)`,
+		`INSERT INTO people VALUES
+			(1, 'Alice', 'Building 210'),
+			(2, 'Bob',   'Building 300'),
+			(3, 'Carol', 'Building 210')`,
+	}
+	m, _ := newTeatestModelWithSchema(t, stmts)
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
+	waitForOutput(t, tm, "people")
+
+	sendKey(tm, "/")
+	tm.Type("alice 210") // "alice" in name, "210" in location → row 1 only
+
+	fm := finalModel(t, tm)
+
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	if len(tab.CellRows) != 1 {
+		t.Errorf("filtered rows = %d, want 1 for 'alice 210' (cross-column AND)", len(tab.CellRows))
+	}
+}
+
+// TestTeatestSearchSubstringNotFuzzy is a regression guard documenting the
+// intentional switch from sahilm fuzzy to substring semantics: non-contiguous
+// characters must NOT match. Under the old fuzzy logic, "wdgt" matched
+// "Widget"; under the new substring logic it must not.
+func TestTeatestSearchSubstringNotFuzzy(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "/")
+	tm.Type("wdgt")
+
+	fm := finalModel(t, tm)
+
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	if len(tab.CellRows) != 0 {
+		t.Errorf("filtered rows = %d, want 0 — fuzzy tolerance removed on purpose", len(tab.CellRows))
+	}
+}
+
+// TestTeatestSearchSubstringMiddleMatches verifies substring matches hit in
+// the middle of a cell value, not just prefixes — e.g. "idget" → "Widget".
+func TestTeatestSearchSubstringMiddleMatches(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "/")
+	tm.Type("idget")
+
+	fm := finalModel(t, tm)
+
+	tab := fm.effectiveTab()
+	if tab == nil {
+		t.Fatal("no active tab")
+	}
+	if len(tab.CellRows) != 1 {
+		t.Errorf("filtered rows = %d, want 1 for middle-substring 'idget'", len(tab.CellRows))
 	}
 }
 

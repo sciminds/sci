@@ -20,7 +20,6 @@ require (
 	github.com/muesli/termenv v0.16.0
 	github.com/oapi-codegen/runtime v1.4.0
 	github.com/pocketbase/dbx v1.12.0
-	github.com/sahilm/fuzzy v0.1.1
 	github.com/samber/lo v1.53.0
 	github.com/urfave/cli/v3 v3.7.0
 	github.com/yuin/goldmark v1.7.13
@@ -76,6 +75,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	golang.org/x/net v0.48.0 // indirect

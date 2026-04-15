@@ -4,9 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -95,4 +97,51 @@ func TestStore_RealLibrary(t *testing.T) {
 	}
 
 	t.Logf("real library: %d rows, first row title=%q", n, rows[0][3])
+}
+
+// TestStore_RealLibrary_MultiTokenSearch exercises the row-search match layer
+// against the real Zotero library. Regression for the Zotero-parity fix: the
+// query "Gossip drives" must find item 9093 ("Gossip drives vicarious learning
+// and facilitates social connection"). Under the old sahilm-fuzzy semantics
+// this worked by accident; under the new substring-AND-across-row semantics
+// it works by design.
+func TestStore_RealLibrary_MultiTokenSearch(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("SLOW") == "" {
+		t.Skip("set SLOW=1 to run real-library multi-token search test")
+	}
+	root := findRepoRoot(t)
+	if _, err := os.Stat(filepath.Join(root, "zotero.sqlite")); err != nil {
+		t.Skipf("no ./zotero.sqlite at repo root — skipping real-db test")
+	}
+	db, err := local.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := New(db, time.UTC)
+	defer func() { _ = store.Close() }()
+
+	_, rows, _, ids, err := store.QueryTable(TableName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const targetID int64 = 9093
+	tokens := strings.Fields("Gossip drives")
+	hitCount, targetMatched := 0, false
+	for i, row := range rows {
+		if _, ok := match.MatchRow(tokens, row, -1); ok {
+			hitCount++
+			if ids[i] == targetID {
+				targetMatched = true
+			}
+		}
+	}
+	if !targetMatched {
+		t.Errorf("item %d ('Gossip drives…') not matched by query %q", targetID, "Gossip drives")
+	}
+	if hitCount == 0 {
+		t.Errorf("query %q matched zero rows — expected at least 1", "Gossip drives")
+	}
+	t.Logf("'Gossip drives' matched %d rows (including target=%v)", hitCount, targetMatched)
 }

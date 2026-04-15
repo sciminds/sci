@@ -5,112 +5,6 @@ import (
 )
 
 // ────────────────────────────────────────────────────
-// Fuzzy matching tests (backed by sahilm/fuzzy)
-// ────────────────────────────────────────────────────
-
-func TestFuzzyNoMatch(t *testing.T) {
-	score, positions := Fuzzy("xyz", "hello")
-	if score != 0 {
-		t.Errorf("expected score 0, got %d", score)
-	}
-	if positions != nil {
-		t.Errorf("expected nil positions, got %v", positions)
-	}
-}
-
-func TestFuzzyPrefix(t *testing.T) {
-	score, positions := Fuzzy("he", "hello")
-	if score <= 0 {
-		t.Errorf("expected positive score for prefix match, got %d", score)
-	}
-	if len(positions) != 2 {
-		t.Errorf("expected 2 positions, got %v", positions)
-	}
-	if positions[0] != 0 || positions[1] != 1 {
-		t.Errorf("expected positions [0,1], got %v", positions)
-	}
-}
-
-func TestFuzzySubstring(t *testing.T) {
-	score, positions := Fuzzy("ell", "hello")
-	if score <= 0 {
-		t.Errorf("expected positive score for substring match, got %d", score)
-	}
-	if len(positions) != 3 {
-		t.Errorf("expected 3 positions, got %v", positions)
-	}
-}
-
-func TestFuzzyPrefixBeatsLate(t *testing.T) {
-	scorePrefix, _ := Fuzzy("he", "hello world")
-	scoreLate, _ := Fuzzy("wo", "hello world")
-	if scorePrefix <= 0 || scoreLate <= 0 {
-		t.Errorf("both should match: prefix=%d, late=%d", scorePrefix, scoreLate)
-	}
-	if scorePrefix < scoreLate {
-		t.Errorf("expected prefix score (%d) >= late score (%d)", scorePrefix, scoreLate)
-	}
-}
-
-func TestFuzzyEmptyQuery(t *testing.T) {
-	score, positions := Fuzzy("", "anything")
-	if score <= 0 {
-		t.Errorf("expected positive score for empty query, got %d", score)
-	}
-	if positions != nil {
-		t.Errorf("expected nil positions for empty query, got %v", positions)
-	}
-}
-
-func TestFuzzyQueryLongerThanTarget(t *testing.T) {
-	score, positions := Fuzzy("toolong", "hi")
-	if score != 0 {
-		t.Errorf("expected score 0, got %d", score)
-	}
-	if positions != nil {
-		t.Errorf("expected nil positions, got %v", positions)
-	}
-}
-
-func TestFuzzyCaseInsensitive(t *testing.T) {
-	score, _ := Fuzzy("HE", "hello")
-	if score <= 0 {
-		t.Errorf("expected case-insensitive match, got score %d", score)
-	}
-}
-
-func TestFuzzyNonContiguous(t *testing.T) {
-	score, positions := Fuzzy("hlo", "hello")
-	if score <= 0 {
-		t.Errorf("expected positive score for non-contiguous match, got %d", score)
-	}
-	if len(positions) != 3 {
-		t.Errorf("expected 3 positions, got %v", positions)
-	}
-}
-
-func TestFuzzyWordBoundary(t *testing.T) {
-	// "fb" should match "foo_bar" at word boundaries
-	score, positions := Fuzzy("fb", "foo_bar")
-	if score <= 0 {
-		t.Errorf("expected word-boundary match, got score %d", score)
-	}
-	if len(positions) != 2 {
-		t.Errorf("expected 2 positions, got %v", positions)
-	}
-}
-
-func TestFuzzyExactMatch(t *testing.T) {
-	score, positions := Fuzzy("hello", "hello")
-	if score <= 0 {
-		t.Errorf("expected positive score for exact match, got %d", score)
-	}
-	if len(positions) != 5 {
-		t.Errorf("expected 5 positions, got %v", positions)
-	}
-}
-
-// ────────────────────────────────────────────────────
 // Search query parsing tests
 // ────────────────────────────────────────────────────
 
@@ -333,5 +227,198 @@ func TestParseClausesBareHyphenNotNegate(t *testing.T) {
 	clauses := firstGroup(t, ParseClauses("@col: -"))
 	if clauses[0].Negate {
 		t.Errorf("bare hyphen should not be treated as negate: %+v", clauses[0])
+	}
+}
+
+// ────────────────────────────────────────────────────
+// MatchRow tests — token-AND-across-row substring matching
+// ────────────────────────────────────────────────────
+
+func TestMatchRowSingleTokenSingleCell(t *testing.T) {
+	hl, ok := MatchRow([]string{"gossip"}, []string{"Gossip drives vicarious learning"}, -1)
+	if !ok {
+		t.Fatal("expected match")
+	}
+	want := []int{0, 1, 2, 3, 4, 5}
+	got := hl[0]
+	if len(got) != len(want) {
+		t.Fatalf("positions len = %d, want %d: %v", len(got), len(want), got)
+	}
+	for i, p := range want {
+		if got[i] != p {
+			t.Errorf("pos[%d] = %d, want %d", i, got[i], p)
+		}
+	}
+}
+
+func TestMatchRowMultiTokenSameCell(t *testing.T) {
+	hl, ok := MatchRow(
+		[]string{"gossip", "drives"},
+		[]string{"Gossip drives vicarious learning"},
+		-1,
+	)
+	if !ok {
+		t.Fatal("expected match")
+	}
+	// "gossip" at runes 0..5, "drives" at runes 7..12
+	want := []int{0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12}
+	got := hl[0]
+	if len(got) != len(want) {
+		t.Fatalf("positions = %v, want %v", got, want)
+	}
+	for i, p := range want {
+		if got[i] != p {
+			t.Errorf("pos[%d] = %d, want %d (got %v)", i, got[i], p, got)
+		}
+	}
+}
+
+func TestMatchRowMultiTokenCrossCell(t *testing.T) {
+	// Token "gossip" in cell 0, "drives" in cell 3. Should still match.
+	hl, ok := MatchRow(
+		[]string{"gossip", "drives"},
+		[]string{"A study of gossip", "", "", "what drives sharing"},
+		-1,
+	)
+	if !ok {
+		t.Fatal("expected match across cells")
+	}
+	if len(hl[0]) == 0 {
+		t.Errorf("expected highlights in cell 0: %v", hl)
+	}
+	if len(hl[3]) == 0 {
+		t.Errorf("expected highlights in cell 3: %v", hl)
+	}
+}
+
+func TestMatchRowMissingToken(t *testing.T) {
+	_, ok := MatchRow(
+		[]string{"gossip", "nonexistent"},
+		[]string{"A study of gossip", "some other cell"},
+		-1,
+	)
+	if ok {
+		t.Error("expected no match when a token is missing")
+	}
+}
+
+func TestMatchRowCaseInsensitive(t *testing.T) {
+	_, ok := MatchRow([]string{"GOSSIP"}, []string{"gossip drives"}, -1)
+	if !ok {
+		t.Error("expected case-insensitive match")
+	}
+}
+
+func TestMatchRowScopedColumn(t *testing.T) {
+	cells := []string{"gossip is the target", "drives", "ignored"}
+	// Scoped to col 1: "gossip" not present → no match.
+	if _, ok := MatchRow([]string{"gossip"}, cells, 1); ok {
+		t.Error("scoped match should have failed — gossip is in col 0, not col 1")
+	}
+	// Scoped to col 0: "gossip" present → match.
+	hl, ok := MatchRow([]string{"gossip"}, cells, 0)
+	if !ok {
+		t.Fatal("expected scoped match in col 0")
+	}
+	if len(hl[0]) != 6 {
+		t.Errorf("expected 6 highlight positions in col 0, got %v", hl)
+	}
+	if len(hl[1]) != 0 {
+		t.Errorf("expected no highlights in col 1: %v", hl)
+	}
+}
+
+func TestMatchRowEmptyTokens(t *testing.T) {
+	if _, ok := MatchRow(nil, []string{"anything"}, -1); ok {
+		t.Error("empty tokens should not match (caller's job to decide semantics)")
+	}
+	if _, ok := MatchRow([]string{}, []string{"anything"}, -1); ok {
+		t.Error("empty tokens should not match")
+	}
+}
+
+func TestMatchRowUnicodeRuneOffsets(t *testing.T) {
+	// "café" is 4 runes but 5 bytes ("é" = 2 bytes). Highlight must use rune indices.
+	hl, ok := MatchRow([]string{"fé"}, []string{"café latté"}, -1)
+	if !ok {
+		t.Fatal("expected match")
+	}
+	// "fé" starts at rune index 2, length 2 runes → positions [2,3].
+	got := hl[0]
+	if len(got) != 2 || got[0] != 2 || got[1] != 3 {
+		t.Errorf("expected rune positions [2,3], got %v", got)
+	}
+}
+
+func TestMatchRowMultipleOccurrencesSameCell(t *testing.T) {
+	// "ab" appears twice in "ababab" — both spans should be in highlights.
+	hl, ok := MatchRow([]string{"ab"}, []string{"ababab"}, -1)
+	if !ok {
+		t.Fatal("expected match")
+	}
+	// Three "ab" hits at 0, 2, 4 → positions [0,1,2,3,4,5].
+	want := []int{0, 1, 2, 3, 4, 5}
+	got := hl[0]
+	if len(got) != len(want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	for i, p := range want {
+		if got[i] != p {
+			t.Errorf("pos[%d] = %d, want %d", i, got[i], p)
+		}
+	}
+}
+
+func TestMatchRowOverlappingTokensDeduped(t *testing.T) {
+	// Tokens "ab" and "abc" both hit "abcdef" — overlapping spans must be deduped and sorted.
+	hl, ok := MatchRow([]string{"ab", "abc"}, []string{"abcdef"}, -1)
+	if !ok {
+		t.Fatal("expected match")
+	}
+	want := []int{0, 1, 2} // union of [0,1] and [0,1,2]
+	got := hl[0]
+	if len(got) != len(want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	for i, p := range want {
+		if got[i] != p {
+			t.Errorf("pos[%d] = %d, want %d", i, got[i], p)
+		}
+	}
+}
+
+func TestMatchRowEmptyCellsNoPanic(t *testing.T) {
+	_, _ = MatchRow([]string{"x"}, []string{"", "", ""}, -1)
+	// Just asserting no panic and no spurious match.
+	_, ok := MatchRow([]string{"x"}, []string{"", "", ""}, -1)
+	if ok {
+		t.Error("empty cells should not match non-empty token")
+	}
+}
+
+func TestMatchRowSubstringInMiddle(t *testing.T) {
+	// Substring match, not prefix: "idget" should hit "Widget".
+	hl, ok := MatchRow([]string{"idget"}, []string{"Widget"}, -1)
+	if !ok {
+		t.Fatal("expected substring match")
+	}
+	// "idget" at runes 1..5.
+	want := []int{1, 2, 3, 4, 5}
+	got := hl[0]
+	if len(got) != len(want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	for i, p := range want {
+		if got[i] != p {
+			t.Errorf("pos[%d] = %d, want %d", i, got[i], p)
+		}
+	}
+}
+
+func TestMatchRowNonContiguousIsNOTMatched(t *testing.T) {
+	// Deliberate regression guard: fuzzy-style non-contiguous chars must NOT match
+	// under the new substring semantics. "gdrives" should miss "gossip drives".
+	if _, ok := MatchRow([]string{"gdrives"}, []string{"gossip drives"}, -1); ok {
+		t.Error("substring match must not be fuzzy — 'gdrives' should not match 'gossip drives'")
 	}
 }

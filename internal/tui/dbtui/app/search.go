@@ -276,24 +276,15 @@ func matchANDGroup(row []cell, group resolvedGroup) (map[int][]int, bool) {
 	return mergedHL, true
 }
 
-// matchRow checks if any cell in the row matches the search terms.
-// Returns per-column highlight positions and whether the row matched.
+// matchRow checks if the row satisfies the search terms under token-AND
+// semantics: the terms are split on whitespace and each token must appear
+// (case-insensitive substring) in some cell of the row. scopedCol restricts
+// matching to a single column when >= 0. Returns per-column rune-index
+// highlight positions and whether the row matched.
 func matchRow(row []cell, terms string, scopedCol int) (map[int][]int, bool) {
-	highlights := map[int][]int{}
-	matched := false
-
-	for i, c := range row {
-		if scopedCol >= 0 && i != scopedCol {
-			continue
-		}
-		value := firstLine(c.Value)
-		score, positions := match.Fuzzy(terms, value)
-		if score > 0 && len(positions) > 0 {
-			highlights[i] = positions
-			matched = true
-		}
-	}
-	return highlights, matched
+	tokens := strings.Fields(terms)
+	cells := lo.Map(row, func(c cell, _ int) string { return firstLine(c.Value) })
+	return match.MatchRow(tokens, cells, scopedCol)
 }
 
 // openSearch activates the inline search bar.

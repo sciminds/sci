@@ -3,8 +3,10 @@
 // This package contains pure functions with no UI or framework dependencies.
 // It is used by the TUI's search bar and table-switcher overlay.
 //
-// [Fuzzy] performs case-insensitive fuzzy matching using [sahilm/fuzzy],
-// returning a score and the matched rune positions for highlighting.
+// [MatchRow] performs case-insensitive substring matching with token-AND
+// across row cells — the query is split on whitespace and every token must
+// appear in some cell. This mirrors Zotero's "All Fields & Tags" semantics
+// and is the right default for grid/table search.
 //
 // Search query parsing is provided via [ParseClauses] and [ParseQuery],
 // which handle the "@column: terms" syntax for column-scoped search,
@@ -12,37 +14,95 @@
 package match
 
 import (
+	"slices"
 	"strings"
+	"unicode/utf8"
 
-	"github.com/sahilm/fuzzy"
 	"github.com/samber/lo"
 )
 
-// Fuzzy scores how well query matches target using case-insensitive fuzzy matching.
+// MatchRow reports whether the given tokens all appear, as case-insensitive
+// substrings, across the row's cells. Every token must hit at least one cell;
+// different tokens may land in different cells (Zotero-style "all fields"
+// AND semantics).
 //
-// Returns (0, nil) if the query doesn't match at all.
-// Returns (score, positions) on match, where score > 0 (higher is better)
-// and positions lists the rune indices in target that matched each query character.
+// If scopedCol >= 0, only that column's cell is considered — used for
+// "@col: terms" queries.
 //
-// An empty query matches everything with score 1 and nil positions.
-func Fuzzy(query, target string) (int, []int) {
-	if query == "" {
-		return 1, nil
+// Returns per-cell rune-index positions for rendering highlights, with
+// overlapping and adjacent spans merged and sorted. Returns (nil, false) when
+// tokens is empty or any token fails to match — callers decide what an empty
+// query means.
+//
+// Semantics are deliberately substring-only (not sahilm-style fuzzy): a grid
+// viewer's mental model is "find rows containing these words", and scattered
+// per-cell fuzzy hits across long text are confusing. Overlay UIs that want
+// ranked fuzzy lists still use [Fuzzy] directly.
+func MatchRow(tokens, cells []string, scopedCol int) (map[int][]int, bool) {
+	if len(tokens) == 0 {
+		return nil, false
 	}
+	lowerCells := lo.Map(cells, func(c string, _ int) string { return strings.ToLower(c) })
 
-	matches := fuzzy.Find(strings.ToLower(query), []string{strings.ToLower(target)})
-	if len(matches) == 0 {
-		return 0, nil
+	hl := map[int][]int{}
+	for _, tok := range tokens {
+		tok = strings.ToLower(tok)
+		if tok == "" {
+			continue
+		}
+		tokRunes := utf8.RuneCountInString(tok)
+		found := false
+		for i, lc := range lowerCells {
+			if scopedCol >= 0 && i != scopedCol {
+				continue
+			}
+			spans := substringRuneSpans(lc, tok, tokRunes)
+			if len(spans) > 0 {
+				found = true
+				hl[i] = append(hl[i], spans...)
+			}
+		}
+		if !found {
+			return nil, false
+		}
 	}
+	for i := range hl {
+		hl[i] = sortedUnique(hl[i])
+	}
+	return hl, true
+}
 
-	m := matches[0]
-	// sahilm/fuzzy scores can be negative for weak matches; shift so all
-	// matches return score > 0 while preserving relative ranking.
-	score := m.Score + 100
-	if score < 1 {
-		score = 1
+// substringRuneSpans returns every rune-index position in `cell` covered by
+// an occurrence of `tok`. Both inputs must be lowercased by the caller.
+// Works in byte space then translates to rune indices so unicode cells keep
+// correct highlight offsets.
+func substringRuneSpans(cell, tok string, tokRunes int) []int {
+	if tok == "" || cell == "" {
+		return nil
 	}
-	return score, m.MatchedIndexes
+	var out []int
+	start := 0
+	for {
+		idx := strings.Index(cell[start:], tok)
+		if idx < 0 {
+			return out
+		}
+		byteStart := start + idx
+		runeStart := utf8.RuneCountInString(cell[:byteStart])
+		for k := 0; k < tokRunes; k++ {
+			out = append(out, runeStart+k)
+		}
+		start = byteStart + len(tok)
+	}
+}
+
+// sortedUnique sorts and dedupes an int slice in place-ish.
+func sortedUnique(xs []int) []int {
+	if len(xs) < 2 {
+		return xs
+	}
+	slices.Sort(xs)
+	return slices.Compact(xs)
 }
 
 // Clause represents one column-scoped or global search term.
