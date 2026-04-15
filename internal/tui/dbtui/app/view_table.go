@@ -449,12 +449,13 @@ func renderCell(
 	if dimmed {
 		style = style.Foreground(uikit.TUI.Palette().TextDim)
 	}
-	// Match-origin tint: subtle green background painted under per-rune
-	// highlights. Suppressed under cursor/visual highlights since those
-	// styles own the cell background entirely.
+	// Origin-cell emphasis for PDF/Notes indicator cells: same bold-blue
+	// accent used for per-rune substring highlights in metadata cells, so
+	// the visual vocabulary is consistent. Suppressed under cursor/visual
+	// highlights since those styles own the cell appearance entirely.
 	if matchTint && hl != highlightNormalCursor && hl != highlightEditCursor &&
 		hl != highlightVisual && hl != highlightVisualCursor {
-		style = style.Background(uikit.TUI.Palette().MatchTintGreen)
+		style = uikit.TUI.TextBlueBold()
 	}
 
 	if hl == highlightNormalCursor || hl == highlightEditCursor {

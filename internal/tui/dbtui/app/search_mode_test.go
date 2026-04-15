@@ -6,6 +6,8 @@ package app
 import (
 	"strings"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestApplySearchFilter_OriginMetadata_OnlyMetadataBit(t *testing.T) {
@@ -125,7 +127,10 @@ func TestBuildOriginTint_NoPDFColumn_NoCrashNoStain(t *testing.T) {
 	}
 }
 
-func TestBuildOriginTint_MetadataTintsHighlightedCells(t *testing.T) {
+func TestBuildOriginTint_MetadataDoesNotTint(t *testing.T) {
+	// Metadata origin no longer tints cells — the per-rune substring
+	// highlight already signals the match. Origin-cell emphasis is reserved
+	// for PDF/Notes columns where there's no substring to highlight.
 	tab := makeTab(
 		[]string{"name", "city"},
 		[][]string{{"alice", "paris"}},
@@ -135,11 +140,8 @@ func TestBuildOriginTint_MetadataTintsHighlightedCells(t *testing.T) {
 		Highlights: map[int]map[int][]int{0: {0: {1, 2, 3}}},
 	}
 	got := buildOriginTint(tab, state, []int{0, 1})
-	if !got[0][0] {
-		t.Error("expected metadata tint on col 0, row 0")
-	}
-	if got[0][1] {
-		t.Error("col 1 should not be tinted — no highlights there")
+	if len(got) != 0 {
+		t.Errorf("metadata origin must not emit tint entries, got %v", got)
 	}
 }
 
@@ -164,6 +166,32 @@ func TestBuildOriginTint_PDFCellNotTintedWhenNoAttachment(t *testing.T) {
 	got := buildOriginTint(tab, state, []int{0, 1})
 	if len(got) != 0 {
 		t.Errorf("expected no tint on row without PDF, got %v", got)
+	}
+}
+
+func TestApplySearchFilter_EmptyQueryClearsHighlights(t *testing.T) {
+	// Regression: backspacing the query to empty used to leave stale
+	// Highlights / Origins maps on state, causing highlights to linger on
+	// the restored (unfiltered) rows.
+	tab := makeTab(
+		[]string{"name"},
+		[][]string{{"alice"}, {"bob"}},
+	)
+	state := &rowSearchState{
+		Query:      "",
+		Highlights: map[int]map[int][]int{0: {0: {1, 2}}},
+		Origins:    map[int]matchOrigin{0: originMetadata},
+		noteHits:   map[int64]bool{1: true},
+	}
+	applySearchFilter(tab, state, modeDefault, nil, nil)
+	if state.Highlights != nil {
+		t.Errorf("expected Highlights cleared on empty query, got %v", state.Highlights)
+	}
+	if state.Origins != nil {
+		t.Errorf("expected Origins cleared on empty query, got %v", state.Origins)
+	}
+	if state.noteHits != nil {
+		t.Errorf("expected noteHits cleared on empty query, got %v", state.noteHits)
 	}
 }
 
@@ -213,6 +241,49 @@ func TestRenderSearchBar_ShowsModeHint(t *testing.T) {
 	bar = m.renderSearchBar()
 	if !strings.Contains(bar, "Tab: default") {
 		t.Errorf("full mode bar should advertise Tab: default, got %q", bar)
+	}
+}
+
+func TestHandleSearchKey_EscClearsPopulatedQuery(t *testing.T) {
+	// Esc on a populated query should clear the input (and highlights) but
+	// keep the search bar open. A second Esc then closes it.
+	m := minimalModel()
+	m.tabs = []Tab{*makeTab([]string{"a"}, [][]string{{"x"}})}
+	m.active = 0
+	m.width = 80
+	m.height = 24
+	m.openSearch()
+	m.search.Query = "foo"
+	m.search.Highlights = map[int]map[int][]int{0: {0: {0}}}
+
+	_ = m.handleSearchKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.search == nil {
+		t.Fatal("first Esc on populated query must not close search")
+	}
+	if m.search.Query != "" {
+		t.Errorf("expected query cleared, got %q", m.search.Query)
+	}
+	if m.search.Highlights != nil {
+		t.Errorf("expected highlights cleared, got %v", m.search.Highlights)
+	}
+
+	_ = m.handleSearchKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.search != nil {
+		t.Error("second Esc on empty query must close search")
+	}
+}
+
+func TestHandleSearchKey_EscClosesEmptyQuery(t *testing.T) {
+	m := minimalModel()
+	m.tabs = []Tab{*makeTab([]string{"a"}, [][]string{{"x"}})}
+	m.active = 0
+	m.width = 80
+	m.height = 24
+	m.openSearch()
+
+	_ = m.handleSearchKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.search != nil {
+		t.Error("Esc on empty query must close search")
 	}
 }
 

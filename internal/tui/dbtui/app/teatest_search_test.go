@@ -67,12 +67,14 @@ func TestTeatestSearchEscRestores(t *testing.T) {
 
 	sendKey(tm, "/")
 	tm.Type("Widget")
+	// First Esc clears the populated query; second Esc closes the bar.
+	sendSpecial(tm, tea.KeyEscape)
 	sendSpecial(tm, tea.KeyEscape)
 
 	fm := finalModel(t, tm)
 
 	if fm.search != nil {
-		t.Error("search should be closed after Esc")
+		t.Error("search should be closed after Esc Esc")
 	}
 	tab := fm.effectiveTab()
 	if tab == nil {

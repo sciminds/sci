@@ -136,7 +136,13 @@ func applySearchFilter(
 	ftsHits map[int64]bool,
 	noteHits map[int64]bool,
 ) {
-	if state == nil || state.Query == "" {
+	if state == nil {
+		return
+	}
+	if state.Query == "" {
+		state.Highlights = nil
+		state.Origins = nil
+		state.noteHits = nil
 		return
 	}
 	if mode != modeFull {
@@ -214,13 +220,14 @@ func applySearchFilter(
 }
 
 // buildOriginTint produces a per-row map of viewport-column indices that
-// should receive the match-origin tint. Metadata tint follows the
-// substring highlight columns; PDF / Notes tint follows the origin bitset
-// when the corresponding indicator column exists in the table.
+// should receive origin-cell emphasis. Only PDF and Notes indicator
+// columns get emphasis here — metadata matches already show their origin
+// via the per-rune substring highlight in [renderCell], so a second
+// signal would just add noise.
 //
 // Only cells that actually signal "has content" for PDF/Note indicator
-// columns are tinted — a row without a PDF attachment never gets its PDF
-// cell tinted, even if the origin bit is somehow set.
+// columns are emphasized — a row without a PDF attachment never gets its
+// PDF cell tinted, even if the origin bit is somehow set.
 func buildOriginTint(tab *Tab, state *rowSearchState, visToFull []int) map[int]map[int]bool {
 	if state == nil || len(state.Origins) == 0 {
 		return nil
@@ -237,13 +244,6 @@ func buildOriginTint(tab *Tab, state *rowSearchState, visToFull []int) map[int]m
 	out := make(map[int]map[int]bool, len(state.Origins))
 	for rowIdx, origin := range state.Origins {
 		tints := map[int]bool{}
-		if origin&originMetadata != 0 {
-			for fullCol := range state.Highlights[rowIdx] {
-				if vp, ok := fullToVP[fullCol]; ok {
-					tints[vp] = true
-				}
-			}
-		}
 		if origin&originPDF != 0 && pdfInViewport && rowIdx < len(tab.CellRows) &&
 			rowHasPDF(tab.CellRows[rowIdx], pdfCol) {
 			tints[pdfVP] = true
@@ -644,6 +644,14 @@ func (m *Model) handleSearchKey(key tea.KeyPressMsg) tea.Cmd {
 
 	switch k {
 	case keyEsc:
+		// Esc on a populated query clears the input (and highlights) but
+		// keeps the bar open. A second Esc then closes. This makes
+		// Esc-Esc a quick "abandon search" motion while still letting
+		// users reset the query without re-opening the bar.
+		if m.search.Query != "" {
+			m.search.Query = ""
+			return m.rerunSearch()
+		}
 		m.closeSearch()
 		return nil
 	case keyEnter:
@@ -703,13 +711,12 @@ func (m *Model) renderSearchBar() string {
 	}
 	s := m.search
 
-	// Full mode: green prompt glyph and a ★ marker so the mode is obvious
-	// even if the Tab hint wraps off the right edge.
-	var prompt string
+	// Full mode gets a "(full-text)" label after the prompt so the mode is
+	// obvious even if the Tab hint wraps off the right edge. Keeps the
+	// prompt glyph itself quiet — the overwhelming green is gone.
+	prompt := m.styles.Keycap().Render("/")
 	if m.searchMode == modeFull {
-		prompt = m.styles.Keycap().Background(m.styles.Palette().Green).Render("/\u2605")
-	} else {
-		prompt = m.styles.Keycap().Render("/")
+		prompt += " " + m.styles.HeaderHint().Render("(full-text)")
 	}
 	cursor := m.styles.HeaderHint().Render("\u2502")
 	queryText := s.Query + cursor

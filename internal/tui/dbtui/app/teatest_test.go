@@ -279,12 +279,14 @@ func TestTeatestSearchOverlay(t *testing.T) {
 
 	sendKey(tm, "/")
 	tm.Type("Alice")
+	// First Esc clears the populated query; second Esc closes the bar.
+	sendSpecial(tm, tea.KeyEscape)
 	sendSpecial(tm, tea.KeyEscape)
 
 	fm := finalModel(t, tm)
 
 	if fm.search != nil {
-		t.Error("search overlay should be closed after Esc")
+		t.Error("search overlay should be closed after Esc Esc")
 	}
 }
 
