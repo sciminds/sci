@@ -175,13 +175,12 @@ func startTeatest(t *testing.T) (*teatest.TestModel, *data.Store) {
 
 // TestTeatestBasicRender verifies the TUI renders table data on startup.
 //
-// Mirrors the upstream teatest.TestApp pattern: capture the full output
-// stream from program start through clean teardown and golden-compare
-// it. We use io.TeeReader to snapshot bytes into our own buffer while
-// teatest.WaitFor drains the underlying bytes.Buffer — without the tee,
-// the drained bytes would be lost to FinalOutput, and the golden would
-// only contain the teardown tail (which is nondeterministic under race
-// because bubbletea's startup terminal probes can arrive late).
+// This used to golden-compare the full byte stream, but lipgloss/termenv
+// emit equivalent-but-different escape sequences depending on the terminal
+// environment (CI runners vs. local shells produce the same visible screen
+// via different byte sequences — e.g. literal spaces vs. \x1b[71X erase).
+// We now assert on rendered content: the transcript must contain the tab
+// names, column headers, sample row data, and the status line.
 func TestTeatestBasicRender(t *testing.T) {
 	m := newTeatestModel(t)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
@@ -199,7 +198,16 @@ func TestTeatestBasicRender(t *testing.T) {
 	}
 	transcript.Write(rest)
 
-	teatest.RequireEqualOutput(t, transcript.Bytes())
+	for _, want := range []string{
+		"products", "users", "teatest.db",
+		"id", "title", "price",
+		"Widget", "Gadget", "Doohickey",
+		"3 rows", "NAV",
+	} {
+		if !bytes.Contains(transcript.Bytes(), []byte(want)) {
+			t.Errorf("transcript missing %q", want)
+		}
+	}
 }
 
 // TestTeatestCursorNavigation verifies j/k navigation moves the cursor.
