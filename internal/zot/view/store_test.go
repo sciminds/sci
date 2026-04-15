@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	_ "modernc.org/sqlite"
 
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -380,6 +382,129 @@ func TestStoreNoteContent(t *testing.T) {
 
 // Compile-time assertion: Store must implement FulltextSearcher.
 var _ data.FulltextSearcher = (*Store)(nil)
+
+// Compile-time assertion: Store must implement SortKeyProvider so dbtui can
+// sort the Date Added column chronologically rather than by display string.
+var _ data.SortKeyProvider = (*Store)(nil)
+
+// dateAddedCol is the column index of the "Date Added" column in items.
+const dateAddedCol = 4
+
+func TestStoreCellSortKeys_DateAdded(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	// QueryTable must be called first to surface the rows whose keys we check.
+	_, rows, _, _, err := store.QueryTable(TableName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	keys, err := store.CellSortKeys(TableName)
+	if err != nil {
+		t.Fatalf("CellSortKeys: %v", err)
+	}
+	if len(keys) != len(rows) {
+		t.Fatalf("keys len = %d, want %d", len(keys), len(rows))
+	}
+
+	// Raw Zotero dateAdded values are already ISO-ish UTC strings —
+	// lexicographic sort over them matches chronological order.
+	// Fixture: item 10 → 2024-03-15T10:00:00Z (row 0, most recent)
+	//          item 20 → 2024-02-01T10:00:00Z (row 1)
+	//          item 30 → 2024-01-01 10:00:00  (row 2, older encoding)
+	want := []string{
+		"2024-03-15T10:00:00Z",
+		"2024-02-01T10:00:00Z",
+		"2024-01-01 10:00:00",
+	}
+	for i, w := range want {
+		if keys[i][dateAddedCol] != w {
+			t.Errorf("row %d Date Added key = %q, want %q", i, keys[i][dateAddedCol], w)
+		}
+	}
+}
+
+func TestStoreCellSortKeys_WrongTable(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+	if _, err := store.CellSortKeys("nonexistent"); err == nil {
+		t.Error("expected error for unknown table")
+	}
+}
+
+// TestStoreDateAddedSortChronological threads the Store's sort keys through
+// tabstate.ApplySorts and asserts chronological ordering — the invariant the
+// user-reported bug violated. Without SortKey, a lexicographic sort over
+// "03/15/24, 10:00am" etc. would put Feb 2024 after March 2024 in descending
+// order only by coincidence of month digit; the regression shows up as soon
+// as rows straddle a year or month boundary.
+func TestStoreDateAddedSortChronological(t *testing.T) {
+	store := newTestStore(t)
+	defer func() { _ = store.Close() }()
+
+	_, rows, nullFlags, rowIDs, err := store.QueryTable(TableName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys, err := store.CellSortKeys(TableName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Minimal Tab build mimicking app/tab.go's construction.
+	cols, _ := store.TableColumns(TableName)
+	specs := make([]tabstate.ColumnSpec, len(cols))
+	tcols := make([]table.Column, len(cols))
+	for i, c := range cols {
+		specs[i] = tabstate.ColumnSpec{Title: c.Name, DBName: c.Name, Kind: tabstate.CellText}
+		tcols[i] = table.Column{Title: c.Name, Width: 10}
+	}
+	tbl := table.New(table.WithColumns(tcols))
+
+	cellRows := make([][]tabstate.Cell, len(rows))
+	tableRows := make([]table.Row, len(rows))
+	meta := make([]tabstate.RowMeta, len(rows))
+	for i, row := range rows {
+		cells := make([]tabstate.Cell, len(row))
+		tRow := make(table.Row, len(row))
+		for j, v := range row {
+			isNull := j < len(nullFlags[i]) && nullFlags[i][j]
+			var k string
+			if i < len(keys) && j < len(keys[i]) {
+				k = keys[i][j]
+			}
+			cells[j] = tabstate.Cell{Value: v, Kind: tabstate.CellText, Null: isNull, SortKey: k}
+			tRow[j] = v
+		}
+		cellRows[i] = cells
+		tableRows[i] = tRow
+		meta[i] = tabstate.RowMeta{ID: uint(i), RowID: rowIDs[i]}
+	}
+	tbl.SetRows(tableRows)
+
+	tab := &tabstate.Tab{
+		Name:         TableName,
+		Table:        tbl,
+		Rows:         meta,
+		Specs:        specs,
+		CellRows:     cellRows,
+		Loaded:       true,
+		FullRows:     tableRows,
+		FullMeta:     meta,
+		FullCellRows: cellRows,
+		Sorts:        []tabstate.SortEntry{{Col: dateAddedCol, Dir: tabstate.SortDesc}},
+	}
+	tabstate.ApplySorts(tab)
+
+	// Descending by Date Added: most recent (item 10) first, oldest last.
+	wantRowIDs := []int64{10, 20, 30}
+	for i, want := range wantRowIDs {
+		if got := tab.Rows[i].RowID; got != want {
+			t.Errorf("row %d: rowID = %d, want %d (descending chronological)", i, got, want)
+		}
+	}
+}
 
 func TestStoreSearchFulltext_Hit(t *testing.T) {
 	store := newTestStore(t)

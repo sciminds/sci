@@ -128,6 +128,12 @@ type Cell struct {
 	Value string
 	Kind  CellKind
 	Null  bool // true when the database value is NULL
+
+	// SortKey, when non-empty, overrides Value for comparison in CompareCells.
+	// Used for columns whose display format is not lexicographically ordered
+	// (e.g. human dates like "04/11/25, 4:31pm"). Populated via
+	// [data.SortKeyProvider]; ignored by numeric CellKind paths.
+	SortKey string
 }
 
 // ColumnSpec describes a column's display properties and database metadata.

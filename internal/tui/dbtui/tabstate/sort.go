@@ -86,13 +86,13 @@ func ApplySorts(tab *Tab) {
 
 // CompareCells compares two cells in the same column, using numeric comparison
 // for integer/real columns and case-insensitive string comparison otherwise.
+// When either cell carries a non-empty SortKey, the key is used in place of
+// the display Value for text comparisons (numeric kinds still parse Value).
 func CompareCells(tab *Tab, col, a, b int) int {
-	va := CellValueAt(tab, a, col)
-	vb := CellValueAt(tab, b, col)
-
-	if va == vb {
-		return 0
-	}
+	ca := CellAt(tab, a, col)
+	cb := CellAt(tab, b, col)
+	va := strings.TrimSpace(ca.Value)
+	vb := strings.TrimSpace(cb.Value)
 
 	kind := CellText
 	if col >= 0 && col < len(tab.Specs) {
@@ -108,6 +108,16 @@ func CompareCells(tab *Tab, col, a, b int) int {
 		}
 		return cmp.Compare(na, nb)
 	default:
+		ka, kb := ca.SortKey, cb.SortKey
+		if ka != "" || kb != "" {
+			if ka == "" {
+				ka = va
+			}
+			if kb == "" {
+				kb = vb
+			}
+			return cmp.Compare(strings.ToLower(ka), strings.ToLower(kb))
+		}
 		return cmp.Compare(strings.ToLower(va), strings.ToLower(vb))
 	}
 }

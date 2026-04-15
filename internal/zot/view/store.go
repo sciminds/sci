@@ -72,6 +72,12 @@ type Store struct {
 	db           local.Reader
 	loc          *time.Location
 	notesByRowID map[int64]string // populated by QueryTable; rowID → unwrapped markdown
+
+	// sortKeys is populated by QueryTable. sortKeys[i][j] is a
+	// lexicographically-sortable key for the cell at (row i, col j), used by
+	// dbtui when the display format isn't order-preserving. Only the
+	// Date Added column is populated today; other columns get "".
+	sortKeys [][]string
 }
 
 // New wraps a local.DB as a read-only DataStore. loc controls the timezone
@@ -139,6 +145,7 @@ func (s *Store) QueryTable(table string) (
 	rows = make([][]string, len(raw))
 	nullFlags = make([][]bool, len(raw))
 	rowIDs = make([]int64, len(raw))
+	s.sortKeys = make([][]string, len(raw))
 	for i, r := range raw {
 		noteCell := noteIndicatorNone
 		if _, ok := s.notesByRowID[r.ID]; ok {
@@ -160,8 +167,25 @@ func (s *Store) QueryTable(table string) (
 		}
 		nullFlags[i] = make([]bool, len(columnTitles))
 		rowIDs[i] = r.ID
+
+		// Raw Zotero dateAdded is already an ISO-ish UTC string — both the
+		// "2006-01-02T15:04:05Z" and "2006-01-02 15:04:05" forms are
+		// lexicographically monotonic with time, so the raw value is a
+		// valid sort key as-is. Other columns fall back to Value sorting.
+		keys := make([]string, len(columnTitles))
+		keys[4] = r.DateAdded
+		s.sortKeys[i] = keys
 	}
 	return colNames, rows, nullFlags, rowIDs, nil
+}
+
+// CellSortKeys implements data.SortKeyProvider. Must be called after
+// QueryTable, which populates the key matrix.
+func (s *Store) CellSortKeys(table string) ([][]string, error) {
+	if table != TableName {
+		return nil, fmt.Errorf("unknown table %q", table)
+	}
+	return s.sortKeys, nil
 }
 
 // ReadOnlyQuery implements data.DataStore.

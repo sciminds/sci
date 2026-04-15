@@ -162,6 +162,16 @@ type NoteContentProvider interface {
 	NoteContent(rowID int64) string
 }
 
+// SortKeyProvider is an optional interface that DataStore implementations
+// may provide to supply per-cell sort keys for columns whose display format
+// is not lexicographically comparable (e.g. human-formatted dates like
+// "04/11/25, 4:31pm"). The returned matrix is parallel to the rows returned
+// by QueryTable — CellSortKeys[i][j] is the sort key for column j of row i.
+// Empty strings mean "sort by Value". Only consulted once during tab build.
+type SortKeyProvider interface {
+	CellSortKeys(table string) ([][]string, error)
+}
+
 // FulltextSearcher is an optional interface that DataStore implementations may
 // provide to support content-level fulltext search (e.g. PDF body text).
 // When implemented, unscoped search queries union fulltext hits with fuzzy

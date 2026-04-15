@@ -51,6 +51,16 @@ func buildTab(store data.DataStore, tableName string) (Tab, error) {
 		return Tab{}, fmt.Errorf("query %q: %w", tableName, err)
 	}
 
+	// Optional per-cell sort keys (for columns whose display format is not
+	// lexicographically ordered, e.g. human dates). Nil if unsupported or
+	// if the provider returns an error — sort falls back to Value.
+	var sortKeys [][]string
+	if p, ok := store.(data.SortKeyProvider); ok {
+		if keys, err := p.CellSortKeys(tableName); err == nil {
+			sortKeys = keys
+		}
+	}
+
 	cellRows := make([][]cell, len(rowData))
 	tableRows := make([]table.Row, len(rowData))
 	meta := make([]rowMeta, len(rowData))
@@ -63,7 +73,11 @@ func buildTab(store data.DataStore, tableName string) (Tab, error) {
 			if j < len(specs) {
 				kind = specs[j].Kind
 			}
-			cells[j] = cell{Value: val, Kind: kind, Null: isNull}
+			var key string
+			if i < len(sortKeys) && j < len(sortKeys[i]) {
+				key = sortKeys[i][j]
+			}
+			cells[j] = cell{Value: val, Kind: kind, Null: isNull, SortKey: key}
 			tRow[j] = val
 		}
 		cellRows[i] = cells

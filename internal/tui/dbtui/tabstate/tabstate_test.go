@@ -161,6 +161,41 @@ func TestApplySortsNullsLast(t *testing.T) {
 	}
 }
 
+// TestApplySortsUsesSortKeyOverride verifies that when Cell.SortKey is set,
+// sorting compares the key rather than the display Value. This matters for
+// columns whose human-readable format is not lexicographically comparable —
+// e.g. "04/11/25" (Apr 2025) vs "12/15/24" (Dec 2024), where string sort
+// would put December 2024 after April 2025.
+func TestApplySortsUsesSortKeyOverride(t *testing.T) {
+	tab := makeTab(
+		[]string{"when"},
+		[][]string{
+			{"04/11/25, 4:31pm"}, // Apr 2025 — chronologically latest
+			{"12/15/24, 9:00am"}, // Dec 2024
+			{"01/02/25, 1:00am"}, // Jan 2025
+		},
+	)
+	// Pre-computed ISO sort keys (raw Zotero timestamps are already UTC ISO).
+	keys := []string{
+		"2025-04-11 16:31:00",
+		"2024-12-15 09:00:00",
+		"2025-01-02 01:00:00",
+	}
+	for i, k := range keys {
+		tab.CellRows[i][0].SortKey = k
+		tab.FullCellRows[i][0].SortKey = k
+	}
+	tab.Sorts = []SortEntry{{Col: 0, Dir: SortDesc}}
+	ApplySorts(tab)
+
+	want := []string{"04/11/25, 4:31pm", "01/02/25, 1:00am", "12/15/24, 9:00am"}
+	for i, row := range tab.CellRows {
+		if row[0].Value != want[i] {
+			t.Errorf("row %d: got %q, want %q", i, row[0].Value, want[i])
+		}
+	}
+}
+
 func TestClearSorts(t *testing.T) {
 	tab := makeTab([]string{"a", "b"}, [][]string{{"1", "2"}})
 	tab.Sorts = []SortEntry{{Col: 0, Dir: SortAsc}, {Col: 1, Dir: SortDesc}}
