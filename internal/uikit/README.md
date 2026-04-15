@@ -110,7 +110,4 @@ internal/cmdutil/      ── CLI-framework glue (help renderer, huh theme)
 
 internal/tui/dbtui/ui/ ── dbtui-specific styles (own TUI singleton)
                           imports uikit for shared palette + layout
-
-internal/tui/board/ui/ ── board-specific styles
-                          imports uikit for shared palette
 ```

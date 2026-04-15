@@ -6,8 +6,6 @@ For the current set of packages, run `ls internal/`. Each package has a doc comm
 
 ## Packages with their own CLAUDE.md (read before editing)
 
-- `board/` — shared kanban sync engine on R2
-- `tui/board/` — kanban TUI consumer
 - `tui/dbtui/` — SQLite browser TUI (also `cmd/dbtui` standalone)
 - `zot/` — Zotero CLI + hygiene checks (also `cmd/zot` standalone)
 

@@ -69,7 +69,7 @@ Same reads-local / writes-cloud split. Two CLI modes: Zotero-mode (default, temp
 
 ## Conventions
 
-- **Raw `database/sql` in `local/`** — same exception family as `dbtui`/`markdb`/`board`. Local reads are perf-sensitive and don't need dbx ergonomics.
+- **Raw `database/sql` in `local/`** — same exception family as `dbtui`. Local reads are perf-sensitive and don't need dbx ergonomics.
 - **All inputs validated at the command layer.** `internal/zot.Setup()` expects pre-validated args; interactive prompting and `--json` non-interactive validation both live in `cli/setup.go`.
 - **Every write command short-circuits via `requireAPIClient()`** — checks `RequireConfig()` + `netutil.Online()` before building the API client. Destructive ops go through `cmdutil.ConfirmOrSkip` with `--yes` bypass.
 - **`--json` mode is non-interactive.** `setup` requires `--api` + `--library` when `--json` is set. Any new prompting command must do the same check.

@@ -15,7 +15,6 @@ just ok              # gate: fmt + vet + lint + test + build
 just test-pkg PKG    # single-package tests (fast TDD loop): just test-pkg ./internal/zot
 just test-slow       # proj/new integration (~4 min, SLOW=1, needs pixi/uv/quarto/marimo/typst/node)
 just test-canvas     # cass integration (needs CANVAS_TOKEN in .env + gh auth login)
-just test-board-live # R2 round-trip + privacy assertion (BOARD_LIVE=1)
 just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 ```
 
@@ -23,8 +22,6 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 
 | When you touch… | Read first |
 |---|---|
-| `internal/board/` (sync engine, R2 event log) | `internal/board/CLAUDE.md` |
-| `internal/tui/board/` (kanban TUI) | `internal/tui/board/CLAUDE.md` |
 | `internal/tui/dbtui/` (SQLite browser) | `internal/tui/dbtui/CLAUDE.md` + `app/TESTING.md` |
 | `internal/zot/` (Zotero CLI + hygiene) | `internal/zot/CLAUDE.md` |
 | `internal/uikit/` (shared TUI + styling foundation) | `internal/uikit/doc.go` |
@@ -41,7 +38,7 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 
 - **`cmdutil.Result`:** every command returns `JSON() any` + `Human() string`; emit via `cmdutil.Output(cmd, result)`.
 - **CLI framework:** urfave/cli v3. All flags use `Local: true`.
-- **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/`, `internal/zot/local/`, `internal/board/` LocalCache. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
+- **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/` and `internal/zot/local/`. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
 - **Bubbletea v2 + bubbles v2** everywhere. No v1 imports.
 - **No inline `lipgloss.NewStyle()`** outside `internal/uikit/` or `internal/tui/*/ui/`. Access via the `uikit.TUI` singleton.
 - **`huh` forms go through `uikit`:** use `uikit.RunForm` (multi-field), `uikit.Input`/`uikit.InputInto` (single input), or `uikit.Select` (single select). Never call `.Run()` on a huh form directly — `RunForm` handles theme, keymap, and stdin drain. Confirmations use `cmdutil.Confirm`/`cmdutil.ConfirmYes`. Enforced by lint-guard rule 14.

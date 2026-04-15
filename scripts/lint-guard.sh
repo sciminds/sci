@@ -77,14 +77,12 @@ if [[ -n "$sleep_hits" ]]; then
 fi
 
 # ── Rule 3: No pocketbase/dbx in standalone packages ────────────────────────
-# These packages compile into standalone binaries (dbtui, markdb, zot) or are
-# reusable without pocketbase (board LocalCache). Importing dbx would bloat
-# the binary and violate the documented exception.
+# These packages compile into standalone binaries (dbtui, zot). Importing
+# dbx would bloat the binary and violate the documented exception.
 
 standalone_pkgs=(
 	"internal/tui/dbtui"
 	"internal/zot/local"
-	"internal/board"
 )
 for pkg in "${standalone_pkgs[@]}"; do
 	dbx_hits=$(rg -n '"github\.com/pocketbase/dbx"' --type go "$pkg/" 2>/dev/null || true)
@@ -165,28 +163,16 @@ for f in $syscall_exec_files; do
 	fi
 done
 
-# ── Rule 6: No cloud.Client.Upload in board package ─────────────────────────
-# cloud.Client.Upload auto-prepends {username}/ to keys, which is wrong for
-# shared board R2 paths. Board code must use CloudAdapter methods exclusively.
-
-upload_hits=$(rg -n '\.Upload\(' --type go internal/board/ 2>/dev/null || true)
-if [[ -n "$upload_hits" ]]; then
-	echo "FAIL [no-upload-in-board] .Upload() in internal/board/ (use CloudAdapter, not cloud.Client.Upload):"
-	echo "$upload_hits"
-	fail "no-upload-in-board"
-fi
-
 # ── Rule 7: DrainStdin after every tea.Program.Run() ────────────────────────
 # Every bubbletea program that writes to a TTY should call ui.DrainStdin()
-# after p.Run() to flush stale DECRQM responses. Standalone packages (dbtui,
-# board) are excluded — they use alt-screen which resets the terminal, and
+# after p.Run() to flush stale DECRQM responses. Standalone packages (dbtui)
+# are excluded — they use alt-screen which resets the terminal, and
 # must not import internal/uikit directly for DrainStdin.
 # internal/uikit/ui_spinner.go is excluded because it calls DrainStdin internally.
 
 drain_exempt=(
 	"internal/uikit/"
 	"internal/tui/dbtui/"
-	"internal/tui/board/"
 )
 
 # Find Go files (non-test) that import bubbletea and call .Run()
@@ -363,7 +349,6 @@ interactive_rules="scripts/interactive-calls.yml"
 # Exempt paths — these never need inventory entries.
 scriptable_exempt=(
 	"internal/tui/dbtui/"
-	"internal/tui/board/"
 	"internal/mdview/"
 	"internal/cmdutil/confirm.go"
 	"internal/uikit/"

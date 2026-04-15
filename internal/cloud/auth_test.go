@@ -57,19 +57,6 @@ func TestLoadConfig_LegacyMigration(t *testing.T) {
 	if cfg.Public.PublicURL != "https://pub-xxx.r2.dev" {
 		t.Errorf("Public.PublicURL = %q, want %q", cfg.Public.PublicURL, "https://pub-xxx.r2.dev")
 	}
-
-	// Board bucket should also be backfilled so users upgrading from a
-	// pre-board-feature version don't need to re-auth.
-	if cfg.Board == nil {
-		t.Fatal("expected Board bucket config after migration, got nil")
-	}
-	if cfg.Board.AccessKey != "AKOLD" || cfg.Board.SecretKey != "SKOLD" {
-		t.Errorf("Board keys not copied from Public: %+v", cfg.Board)
-	}
-	if cfg.Board.BucketName != "sci-board" {
-		t.Errorf("Board.BucketName = %q, want %q", cfg.Board.BucketName, "sci-board")
-	}
-
 }
 
 func TestLoadConfig_NewFormat(t *testing.T) {
@@ -104,11 +91,6 @@ func TestLoadConfig_NewFormat(t *testing.T) {
 	}
 	if cfg.Public == nil || cfg.Public.AccessKey != "AKPUB" {
 		t.Errorf("Public bucket not loaded correctly: %+v", cfg.Public)
-	}
-	// New-format file without a board block should auto-backfill one so
-	// existing users don't have to re-authenticate on upgrade.
-	if cfg.Board == nil || cfg.Board.AccessKey != "AKPUB" || cfg.Board.BucketName != "sci-board" {
-		t.Errorf("Board bucket not backfilled: %+v", cfg.Board)
 	}
 }
 

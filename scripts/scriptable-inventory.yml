@@ -20,7 +20,6 @@
 # Exempt paths (no entries needed):
 #   internal/tui/dbtui/     — standalone TUI app
 #   internal/mdview/        — standalone TUI app
-#   internal/tui/board/     — standalone TUI app
 #   internal/uikit/ui_spinner.go — progress display, not user input
 #   internal/cmdutil/        — shared helpers (callers are tracked)
 #   internal/uikit/          — shared TUI infra (callers are tracked)

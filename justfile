@@ -5,7 +5,6 @@ build:
     go build -ldflags="{{ldflags}}" -o sci ./cmd/sci
     go build -ldflags="-s -w" -o dbtui ./cmd/dbtui
     go build -ldflags="-s -w" -o zot ./cmd/zot
-    go build -ldflags="-s -w" -o boarddemo ./cmd/boarddemo
 
 tidy:
     go mod tidy
@@ -48,19 +47,11 @@ test-slow *ARGS:
 test-canvas:
     SLOW=1 CANVAS_TEST_TOKEN=$CANVAS_TOKEN CANVAS_TEST_URL="https://canvas.ucsd.edu/courses/63653" GH_CLASSROOM_TEST_URL="https://classroom.github.com/classrooms/232475786-test-classroom" go test ./internal/cass/ -run Integration -v -timeout 2m -count=1
 
-# Live R2 board tests (round-trip + privacy assertion)
-test-board-live:
-    BOARD_LIVE=1 go test ./internal/board/ -v -count=1
-
 # Real-Zotero-DB smoke (opt-in; reads ./zotero.sqlite or $ZOT_REAL_DB)
 test-zot-real:
     SLOW=1 go test ./internal/zot/local/ ./internal/zot/hygiene/ -v -count=1
 
 test-all: test test-slow
-
-# Run boarddemo against the in-memory fake store
-boarddemo *ARGS:
-    go run ./cmd/boarddemo {{ARGS}}
 
 check: tidy fmt vet lint lint-style lint-guard test build
 
@@ -74,13 +65,13 @@ ok-legacy: tidy fmt vet lint lint-guard test build
 
 # Like `ok` but also runs proj/new integration tests (SLOW=1).
 # Requires pixi, uv, quarto, marimo, typst, node on PATH.
-# Does NOT run test-canvas / test-board-live / test-zot-real — those need
+# Does NOT run test-canvas / test-zot-real — those need
 # credentials or live infra and stay opt-in.
 ok-slow: tidy fmt vet lint lint-style lint-guard test test-slow build
     @echo "All checks (incl. slow) passed."
 
 clean:
-    rm -f sci dbtui zot boarddemo
+    rm -f sci dbtui zot
 
 # Render embedded asciicasts to GIFs under docs/casts/ using `agg`.
 # GIFs embed natively in GitHub-rendered markdown (no JS player needed).

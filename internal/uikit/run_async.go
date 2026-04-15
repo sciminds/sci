@@ -10,9 +10,9 @@ import (
 // Result is a generic outcome from an async command. Use in a type switch
 // to discriminate by payload type:
 //
-//	case kit.Result[[]Board]:
+//	case kit.Result[[]ObjectInfo]:
 //	    if msg.Err != nil { … }
-//	    m.boards = msg.Value
+//	    m.objects = msg.Value
 type Result[T any] struct {
 	Value T
 	Err   error

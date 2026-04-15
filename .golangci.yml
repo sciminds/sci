@@ -23,7 +23,3 @@ linters:
       # Test duplication is often intentional — each test is self-contained.
       - path: "_test\\.go$"
         linters: [dupl, dupword]
-
-      # Fixture data has intentional repeated words.
-      - path: "^cmd/boarddemo/"
-        linters: [dupword]

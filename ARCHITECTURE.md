@@ -41,13 +41,13 @@ Almost everything in `sci` that persists state uses SQLite, via `modernc.org/sql
 There are two ways we talk to SQLite, and the split matters:
 
 - **`pocketbase/dbx`** in `internal/db/data/`. A typed query builder, ergonomic for the database-manager commands (create, import, rename, etc.).
-- **Raw `database/sql`** in `internal/tui/dbtui/data/`, `internal/zot/local/`, and `internal/board/` (LocalCache).
+- **Raw `database/sql`** in `internal/tui/dbtui/data/` and `internal/zot/local/`.
 
 The raw-SQL packages exist for two reasons. Either they need dynamic SQL the query builder can't express cleanly (FTS5, virtual tables, user-supplied queries), or they ship as standalone binaries (`dbtui`, `zot`) and we don't want to drag the entire pocketbase dependency into a 20MB tool. Both reasons are fine. Pick the right one when you add a new package.
 
 ## Bubbletea, gently
 
-The interesting part of the codebase is the TUI work — `dbtui`, `internal/tui/board/`, the wizards inside `proj new`, the help browser. They're all built on **Bubble Tea v2**, which is a Go port of The Elm Architecture (TEA, hence the name).
+The interesting part of the codebase is the TUI work — `dbtui`, the wizards inside `proj new`, the help browser. They're all built on **Bubble Tea v2**, which is a Go port of The Elm Architecture (TEA, hence the name).
 
 If you're coming from Svelte, here's the mental translation:
 
@@ -77,7 +77,7 @@ ui/
   styles.go     # every lipgloss style and layout constant, in one file
 ```
 
-`internal/tui/board/` mirrors this exactly. New TUIs should too. The split isn't rigid — small apps can fold things together — but the principle is "one concern per file, mechanical to navigate".
+New TUIs should mirror this exactly. The split isn't rigid — small apps can fold things together — but the principle is "one concern per file, mechanical to navigate".
 
 ### When you need to actually build a TUI
 
@@ -103,21 +103,13 @@ The catch: once you `syscall.Exec`, your test can't observe what happened. So ev
 
 `dbtui` and `zot` exist as both standalone binaries (`cmd/dbtui/`, `cmd/zot/`) and as `sci` subcommands (`sci view`, `sci zot`). To avoid duplicating wiring, the full urfave/cli command tree lives in `internal/<pkg>/cli.Commands()`, and both entry points import it. Add a subcommand in one place, it shows up in both surfaces. If you're tempted to write the same flag declaration twice, stop and find the shared `cli.Commands()`.
 
-## The odd one out: `internal/board/`
-
-Most of `sci` is "function takes input, returns Result". `internal/board/` is the exception — it's a shared kanban sync engine that doesn't fit the request/response shape, so it's worth flagging.
-
-Multiple users (everyone in the lab) edit the same boards from their own machines. Instead of running a server, we use Cloudflare R2 as a dumb object store. Every edit becomes an immutable JSON event written under `boards/{id}/events/{eventID}.json`. To compute the current state of a board, you list all the event files, sort them by ID, and fold them through a pure `Apply` function. The ID format is `{nanoseconds}-{random hex}`, which means sorting by ID is the same as sorting by wall clock — and that's the property that makes concurrent edits from different clients converge without any conflict resolution code.
-
-It's a CRDT, basically, but a very small one. Read `internal/board/CLAUDE.md` if you need to touch this code; the design has subtle invariants and the gotchas there are real.
-
 ## Finding your way around
 
 - **A command's wiring** — start at `cmd/sci/<area>.go`, follow it into `internal/<area>/`.
 - **A TUI's behavior** — start at `internal/tui/<name>/app/update.go` and follow message types.
 - **Styles** — `internal/uikit/` for shared primitives and components, `internal/tui/<name>/ui/` for that specific TUI.
 - **Cross-cutting rules and the workflow gate** — repo-root `CLAUDE.md`.
-- **Non-obvious package decisions** — the `CLAUDE.md` inside that package. They exist for `board/`, `tui/board/`, `tui/dbtui/`, and `zot/`.
+- **Non-obvious package decisions** — the `CLAUDE.md` inside that package. They exist for `tui/dbtui/` and `zot/`.
 - **The current package set** — `ls internal/`. Each package has a doc comment on its `package` declaration. We don't maintain a hand-curated table because they rot.
 
 ## Testing layers
@@ -126,7 +118,7 @@ Three layers, each with a different cost/coverage tradeoff:
 
 - **Unit tests** — pure logic, no I/O. Milliseconds. The bulk of the suite.
 - **Teatest** — full bubbletea message loop with no real terminal. Runs unconditionally on every `just ok`. This is how every TUI is tested.
-- **Integration tests** — shell out to real tools (`pixi`, `uv`, `quarto`, `marimo`, the Canvas API, real R2). Gated behind environment variables — `SLOW=1` for `proj/new`, `CANVAS_TOKEN` for `cass`, `BOARD_LIVE=1` for `board`, `ZOT_REAL_DB` for `zot`. They live in the same files as the unit tests but skip when the env var is missing.
+- **Integration tests** — shell out to real tools (`pixi`, `uv`, `quarto`, `marimo`, the Canvas API, real R2). Gated behind environment variables — `SLOW=1` for `proj/new`, `CANVAS_TOKEN` for `cass`, `ZOT_REAL_DB` for `zot`. They live in the same files as the unit tests but skip when the env var is missing.
 
 The gate is `just ok` — fmt, vet, lint, test, build. Run it after every change. It also runs as a pre-commit hook. If `just ok` is green, you're free to push.
 

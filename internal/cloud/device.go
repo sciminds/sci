@@ -36,7 +36,6 @@ type TokenResponse struct {
 	GitHubLogin string        `json:"github_login,omitempty"`
 	AccountID   string        `json:"account_id,omitempty"`
 	Public      *BucketConfig `json:"public,omitempty"`
-	Board       *BucketConfig `json:"board,omitempty"`
 }
 
 // RequestDeviceCode initiates the device flow by calling the auth worker.

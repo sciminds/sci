@@ -1,8 +1,8 @@
 package uikit
 
-// Grid2D is a 2-D cursor for grid-like layouts (kanban columns × cards,
-// table columns × rows, etc.). Col is the horizontal axis, Row the
-// vertical axis within the current column.
+// Grid2D is a 2-D cursor for grid-like layouts (table columns × rows,
+// menus, etc.). Col is the horizontal axis, Row the vertical axis within
+// the current column.
 //
 // A Row of -1 means "column selected, no row highlighted" — useful for
 // grids where entering a column and selecting a cell are distinct steps.

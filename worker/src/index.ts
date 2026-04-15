@@ -10,7 +10,6 @@ interface Env {
 	R2_SECRET_KEY: string;
 	R2_PUBLIC_URL: string;
 	PUBLIC_BUCKET_NAME: string;
-	BOARD_BUCKET_NAME: string;
 }
 
 interface GitHubDeviceCodeResponse {
@@ -203,8 +202,6 @@ async function handleToken(request: Request, env: Env): Promise<Response> {
 		body: JSON.stringify({ access_token: tokenData.access_token }),
 	}).catch(() => {}); // Best-effort — don't block credential delivery.
 
-	// Return R2 credentials for both buckets. The same access key covers
-	// both — buckets are logically separated, permissions are not.
 	return json({
 		status: "ok",
 		username: user.login,
@@ -215,11 +212,6 @@ async function handleToken(request: Request, env: Env): Promise<Response> {
 			secret_key: env.R2_SECRET_KEY,
 			bucket_name: env.PUBLIC_BUCKET_NAME,
 			public_url: env.R2_PUBLIC_URL,
-		},
-		board: {
-			access_key: env.R2_ACCESS_KEY,
-			secret_key: env.R2_SECRET_KEY,
-			bucket_name: env.BOARD_BUCKET_NAME,
 		},
 	});
 }
