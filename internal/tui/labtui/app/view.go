@@ -104,9 +104,8 @@ func (m *Model) viewTransfer() string {
 	if m.queueIdx < len(m.queue) {
 		fmt.Fprintf(&b, "  %s\n\n", m.queue[m.queueIdx])
 	}
-	pct := float64(m.progress.Percent) / 100.0
 	b.WriteString("  ")
-	b.WriteString(m.progressBar.ViewAs(pct))
+	b.WriteString(m.progressBar.View())
 	b.WriteByte('\n')
 	fmt.Fprintf(&b, "  %s · %s · ETA %s\n",
 		humanize.Bytes(uint64(m.progress.Bytes)),

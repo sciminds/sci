@@ -1,6 +1,7 @@
 package app
 
 import (
+	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/lab"
 )
@@ -50,7 +51,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case progressMsg:
 		m.progress = msg.p
-		return m, waitProgressCmd(m.activeCh, m.activeDone)
+		setCmd := m.progressBar.SetPercent(float64(msg.p.Percent) / 100.0)
+		return m, tea.Batch(setCmd, waitProgressCmd(m.activeCh, m.activeDone))
+
+	case progress.FrameMsg:
+		pm, cmd := m.progressBar.Update(msg)
+		m.progressBar = pm
+		return m, cmd
 
 	case transferDoneMsg:
 		m.activeCh = nil
@@ -68,7 +75,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.progress = lab.Progress{}
-		return m, startTransferCmd(m.backend, m.queue[m.queueIdx], ".")
+		resetCmd := m.progressBar.SetPercent(0)
+		return m, tea.Batch(resetCmd, startTransferCmd(m.backend, m.queue[m.queueIdx], "."))
 
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
