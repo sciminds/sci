@@ -313,8 +313,12 @@ func (BrewRunner) Upgrade() (string, error) {
 	return runBrewLive("upgrade")
 }
 
-// UVOutdated implements Runner.
+// UVOutdated implements Runner. Returns empty if uv isn't installed
+// (same rationale as UVToolList).
 func (BrewRunner) UVOutdated() ([]OutdatedPackage, error) {
+	if _, err := exec.LookPath("uv"); err != nil {
+		return nil, nil
+	}
 	cmd := exec.Command("uv", "tool", "list", "--outdated")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -338,8 +342,15 @@ func (BrewRunner) UVUpgrade(names []string) (string, error) {
 	return out.String(), nil
 }
 
-// UVToolList implements Runner.
+// UVToolList implements Runner. If uv is not on PATH, returns an empty
+// slice (not an error) — uv is managed via a Brewfile entry and may not
+// yet be installed on a fresh machine. Every caller of SystemSnapshot
+// then sees "no uv tools installed," which is the correct interpretation
+// when uv itself is missing.
 func (BrewRunner) UVToolList() ([]string, error) {
+	if _, err := exec.LookPath("uv"); err != nil {
+		return nil, nil
+	}
 	cmd := exec.Command("uv", "tool", "list")
 	out, err := cmd.CombinedOutput()
 	if err != nil {

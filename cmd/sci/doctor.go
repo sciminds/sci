@@ -150,22 +150,15 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// ── Interactive path (human mode) ───────────────────────────────────
+	// The initial Sync used to run here, but on a fresh machine uv isn't
+	// installed yet — Sync's `uv tool list` would fail. Install required
+	// tools first (steps 3c → 4), then reconcile via Sync just before the
+	// outdated check.
 
-	// Step 3b: Reconcile Brewfile with system.
-	syncResult, syncErr := brew.Sync(runner, brewfilePath)
-	if syncErr != nil {
-		msg := "Could not sync Brewfile with system: " + syncErr.Error()
-		if created {
-			msg = "Could not capture installed packages: " + syncErr.Error()
-		}
-		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
-			uikit.SymWarn, uikit.TUI.Warn().Render(msg))
-	} else if created {
+	if created {
 		n := len(brew.ParseBrewfileNames(mustReadFile(brewfilePath)))
 		fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
 			uikit.SymOK, uikit.TUI.TextBlue().Render(brewfilePath), n)
-	} else if msg := syncResult.Human(); msg != "" {
-		fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
 	}
 
 	// Step 3c: Ensure required packages are declared.
@@ -238,6 +231,16 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 				fmt.Fprintf(os.Stderr, "    %s sci tools install\n", uikit.SymArrow)
 				fmt.Fprintln(os.Stderr)
 			}
+		}
+	}
+
+	// Reconcile the Brewfile with the final system state. Non-fatal.
+	if syncResult, syncErr := brew.Sync(runner, brewfilePath); syncErr != nil {
+		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
+			uikit.SymWarn, uikit.TUI.Warn().Render("Could not sync Brewfile: "+syncErr.Error()))
+	} else if !created {
+		if msg := syncResult.Human(); msg != "" {
+			fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
 		}
 	}
 

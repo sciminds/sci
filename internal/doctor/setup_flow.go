@@ -44,23 +44,15 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 		BrewfileCreated: created,
 	}
 
-	// ── Sync Brewfile with system state ─────────────────────────────────
-	syncResult, syncErr := brew.Sync(r, brewfilePath)
-	if syncErr != nil && !uikit.IsQuiet() {
-		msg := "Could not sync Brewfile with system: " + syncErr.Error()
-		if created {
-			msg = "Could not capture installed packages: " + syncErr.Error()
-		}
-		fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymWarn, uikit.TUI.Warn().Render(msg))
-	} else if syncErr == nil && !uikit.IsQuiet() {
-		if created {
-			data, _ := os.ReadFile(brewfilePath)
-			n := len(brew.ParseBrewfileNames(string(data)))
-			fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
-				uikit.SymOK, uikit.TUI.TextBlue().Render(brewfilePath), n)
-		} else if msg := syncResult.Human(); msg != "" {
-			fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
-		}
+	// On a fresh machine (brew was just installed), uv is not yet present.
+	// We install the required Brewfile entries first, then Sync afterwards —
+	// that way every Sync sees a consistent system, rather than failing on
+	// `uv tool list` before uv itself is installed.
+	if created && !uikit.IsQuiet() {
+		data, _ := os.ReadFile(brewfilePath)
+		n := len(brew.ParseBrewfileNames(string(data)))
+		fmt.Fprintf(os.Stderr, "\n  %s Created %s (%d packages)\n",
+			uikit.SymOK, uikit.TUI.TextBlue().Render(brewfilePath), n)
 	}
 
 	// ── Ensure required packages are declared ───────────────────────────
@@ -122,6 +114,21 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 					}
 				}
 			}
+		}
+	}
+
+	// ── Reconcile Brewfile with final system state ─────────────────────
+	// Now that required tools are installed, Sync can safely query all
+	// sources (including `uv tool list`). Failures here are non-fatal —
+	// they shouldn't block the outdated-check phase.
+	if syncResult, syncErr := brew.Sync(r, brewfilePath); syncErr != nil {
+		if !uikit.IsQuiet() {
+			fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymWarn,
+				uikit.TUI.Warn().Render("Could not sync Brewfile with system: "+syncErr.Error()))
+		}
+	} else if !created && !uikit.IsQuiet() {
+		if msg := syncResult.Human(); msg != "" {
+			fmt.Fprintf(os.Stderr, "  %s %s", uikit.SymOK, msg)
 		}
 	}
 
