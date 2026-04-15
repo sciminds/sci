@@ -185,6 +185,9 @@ jobs:
           # ---- uv tool round trip (ruff) ---------------------------------
           # Exercises InstallUVTools / UVToolList / uninstall path — the
           # uv-specific glue has no live coverage anywhere else.
+          # Doctor's optional install of uv runs under `|| true` so we
+          # ensure it explicitly here rather than depending on that.
+          brew install uv
           sci tools install ruff --uv --json
           sci tools list --uv --json | grep -q '"ruff"'
           grep -q '^uv "ruff"' "${BREWFILE}"
