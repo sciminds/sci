@@ -165,7 +165,8 @@ jobs:
           fi
 
           sci tools list --json
-          sci tools install --formula jq --json
+          # No package arg → install everything in the Brewfile (jq).
+          sci tools install --json
           sci tools outdated --json
           sci tools update --json
           sci tools uninstall --formula jq --json
