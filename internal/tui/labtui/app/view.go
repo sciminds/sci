@@ -125,7 +125,9 @@ func (m *Model) viewError() string {
 		fmt.Fprintf(&b, "  %s\n", m.queue[m.queueIdx])
 	}
 	if m.transferErr != nil {
-		fmt.Fprintf(&b, "  %s\n", m.transferErr.Error())
+		for _, line := range strings.Split(m.transferErr.Error(), "\n") {
+			fmt.Fprintf(&b, "  %s\n", line)
+		}
 	}
 	b.WriteByte('\n')
 	b.WriteString(uikit.TUI.Dim().Render("r retry · s skip · q abort"))

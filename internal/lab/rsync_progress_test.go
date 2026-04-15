@@ -67,7 +67,7 @@ func TestBuildResumableGetArgs(t *testing.T) {
 	got := BuildResumableGetArgs(cfg, "/labs/sciminds/data/x", "./")
 	want := []string{
 		"rsync", "-az",
-		"--partial", "--partial-dir=.rsync-partial",
+		"--partial",
 		"--append-verify",
 		"--info=progress2",
 		"scilab-alice:/labs/sciminds/data/x",

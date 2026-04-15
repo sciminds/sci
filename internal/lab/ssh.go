@@ -2,6 +2,8 @@ package lab
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"path"
 	"strings"
 )
@@ -63,4 +65,29 @@ func BuildPutArgs(cfg *Config, localPath, remotePath string, dryRun bool) []stri
 // BuildOpenArgs constructs the argv for an interactive SSH shell in the user's write directory.
 func BuildOpenArgs(cfg *Config) []string {
 	return []string{"ssh", "-t", cfg.SSHAlias(), "cd " + ReadRoot + " && exec $SHELL -l"}
+}
+
+// MasterAlive reports whether a ControlMaster socket for the alias is live.
+// `ssh -O check` exits 0 when a master process is reachable, non-zero otherwise.
+func MasterAlive(cfg *Config) bool {
+	return exec.Command("ssh", "-O", "check", cfg.SSHAlias()).Run() == nil
+}
+
+// WarmMaster opens (or reuses) the ControlMaster connection for cfg, prompting
+// the user on the real terminal for password / Duo if needed. Once this returns
+// nil, subsequent ssh/rsync calls to the same alias tunnel through the master
+// for ControlPersist's lifetime — no re-auth, no Duo. Safe to call before
+// entering a Bubbletea alt-screen; cheap no-op if a master already exists.
+func WarmMaster(cfg *Config) error {
+	if MasterAlive(cfg) {
+		return nil
+	}
+	cmd := exec.Command("ssh", cfg.SSHAlias(), "true")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("warm SSH master for %s: %w", cfg.SSHAlias(), err)
+	}
+	return nil
 }

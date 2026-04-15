@@ -212,6 +212,12 @@ func labBrowseCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			// Warm the ControlMaster on the real terminal so the TUI inherits
+			// an authenticated connection — avoids Duo prompts hanging behind
+			// the alt-screen on every internal ssh/rsync call.
+			if err := lab.WarmMaster(cfg); err != nil {
+				return err
+			}
 			if err := labtui.Run(cfg); err != nil {
 				if errors.Is(err, labtui.ErrInterrupted) {
 					return cli.Exit("", 130)

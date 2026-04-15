@@ -2,6 +2,7 @@ package app
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -49,18 +50,26 @@ func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, 
 	if err != nil {
 		return err
 	}
-	cmd.Stderr = cmd.Stdout
+	// Keep stderr separate so rsync's actual error message survives even when
+	// stdout is being scanned for --info=progress2 lines.
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("rsync start: %w", err)
 	}
 
 	// rsync's --info=progress2 emits CR-terminated updates on the same line.
 	// Use a custom scanner split that breaks on either '\n' or '\r' so we
-	// see every progress tick.
+	// see every progress tick. Non-progress lines (filenames, warnings) are
+	// kept in stdoutTail to surface alongside stderr if rsync exits non-zero.
+	var stdoutTail []string
 	scanner := bufio.NewScanner(stdout)
 	scanner.Split(scanLinesCR)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
 		if p, ok := lab.ParseProgressLine(line); ok {
 			select {
 			case <-ctx.Done():
@@ -68,9 +77,24 @@ func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, 
 				return ctx.Err()
 			case progress <- p:
 			}
+			continue
+		}
+		stdoutTail = append(stdoutTail, line)
+		if len(stdoutTail) > 8 {
+			stdoutTail = stdoutTail[len(stdoutTail)-8:]
 		}
 	}
-	return cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		detail := strings.TrimSpace(stderrBuf.String())
+		if detail == "" && len(stdoutTail) > 0 {
+			detail = strings.Join(stdoutTail, "\n")
+		}
+		if detail != "" {
+			return fmt.Errorf("rsync %s: %w\n%s", remotePath, err, detail)
+		}
+		return fmt.Errorf("rsync %s: %w", remotePath, err)
+	}
+	return nil
 }
 
 // scanLinesCR splits on either \n or \r so rsync's progress2 in-place

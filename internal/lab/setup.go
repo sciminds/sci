@@ -129,7 +129,15 @@ func configureSSH(alias, user, keyPath, home string) error {
 	data, _ := os.ReadFile(configPath)
 	re := regexp.MustCompile(`(?m)^Host\s+` + regexp.QuoteMeta(alias) + `\s*$`)
 	if re.Match(data) {
-		uikit.OK("SSH config alias " + alias + " already exists")
+		updated, changed := upgradeControlPersist(string(data), alias, "12h")
+		if changed {
+			if err := os.WriteFile(configPath, []byte(updated), 0o600); err != nil {
+				return fmt.Errorf("rewrite SSH config: %w", err)
+			}
+			uikit.OK("SSH config alias " + alias + " already exists (bumped ControlPersist → 12h)")
+		} else {
+			uikit.OK("SSH config alias " + alias + " already exists")
+		}
 		return nil
 	}
 
@@ -140,7 +148,7 @@ Host %s
     IdentityFile %s
     ControlMaster auto
     ControlPath %s/%%r@%%h-%%p
-    ControlPersist 4h
+    ControlPersist 12h
 `, alias, Host, user, keyPath, socketsDir)
 
 	f, err := os.OpenFile(configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
@@ -158,4 +166,35 @@ Host %s
 
 	uikit.OK("Added SSH config alias: " + alias)
 	return nil
+}
+
+// upgradeControlPersist rewrites the ControlPersist line inside the given
+// alias's Host block to want. The block runs from `Host <alias>` up to the
+// next `Host ` line (or EOF). Returns the new text and whether anything
+// changed. Lines outside the block are untouched.
+func upgradeControlPersist(cfg, alias, want string) (string, bool) {
+	lines := strings.Split(cfg, "\n")
+	hostRE := regexp.MustCompile(`(?m)^Host\s+` + regexp.QuoteMeta(alias) + `\s*$`)
+	nextHostRE := regexp.MustCompile(`(?m)^Host\s+\S`)
+	cpRE := regexp.MustCompile(`^(\s*)ControlPersist\s+(\S+)\s*$`)
+
+	inBlock := false
+	changed := false
+	for i, line := range lines {
+		if hostRE.MatchString(line) {
+			inBlock = true
+			continue
+		}
+		if inBlock && nextHostRE.MatchString(line) {
+			inBlock = false
+		}
+		if !inBlock {
+			continue
+		}
+		if m := cpRE.FindStringSubmatch(line); m != nil && m[2] != want {
+			lines[i] = m[1] + "ControlPersist " + want
+			changed = true
+		}
+	}
+	return strings.Join(lines, "\n"), changed
 }

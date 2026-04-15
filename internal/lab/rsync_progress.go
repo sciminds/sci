@@ -43,12 +43,14 @@ func ParseProgressLine(line string) (Progress, bool) {
 }
 
 // BuildResumableGetArgs constructs the argv for a resumable rsync download.
-// --partial keeps interrupted transfers as .rsync-partial/<file> so a re-run
-// resumes; --append-verify checksums any pre-existing destination bytes.
+// --partial keeps an interrupted transfer's bytes at the destination path;
+// --append-verify resumes by appending new bytes and checksumming the existing
+// prefix. Note: rsync 3.4+ rejects --append* combined with --partial-dir, so we
+// keep partials in place rather than in a sidecar directory.
 func BuildResumableGetArgs(cfg *Config, remotePath, localPath string) []string {
 	return []string{
 		"rsync", "-az",
-		"--partial", "--partial-dir=.rsync-partial",
+		"--partial",
 		"--append-verify",
 		"--info=progress2",
 		cfg.SSHAlias() + ":" + remotePath,
