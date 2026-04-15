@@ -21,6 +21,7 @@ import (
 var (
 	doctorGitName  string
 	doctorGitEmail string
+	doctorYes      bool
 )
 
 func doctorCommand() *cli.Command {
@@ -40,6 +41,12 @@ func doctorCommand() *cli.Command {
 				Name:        "git-email",
 				Usage:       "set git user.email (skips interactive prompt)",
 				Destination: &doctorGitEmail,
+				Local:       true,
+			},
+			&cli.BoolFlag{
+				Name:        "yes",
+				Usage:       "auto-confirm prerequisite installs (e.g. Homebrew) — required to drive a fresh-machine setup under --json",
+				Destination: &doctorYes,
 				Local:       true,
 			},
 		},
@@ -93,7 +100,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// Bail early if Homebrew isn't installed — remaining steps need it.
 	if !hasHomebrew(result) {
-		if isJSON {
+		if isJSON && !doctorYes {
+			// JSON without --yes: report state and exit. Installing
+			// Homebrew is a side effect we don't take silently.
 			cmdutil.Output(cmd, result)
 			if !result.AllPassed() {
 				os.Exit(1)
@@ -101,13 +110,28 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 			return nil
 		}
 
-		// Interactive: offer to install. If the user accepts and the install
-		// succeeds, re-run pre-flight so the rest of doctor can proceed.
-		if installed := offerHomebrewInstall(); !installed {
+		// Interactive (any mode): offer to install with confirmation.
+		// JSON + --yes: install non-interactively. Both paths re-run
+		// pre-flight on success so the rest of doctor can proceed.
+		var installed bool
+		if isJSON {
+			installed = installHomebrewQuiet()
+		} else {
+			installed = offerHomebrewInstall()
+		}
+		if !installed {
+			if isJSON {
+				cmdutil.Output(cmd, result)
+				os.Exit(1)
+			}
 			return nil
 		}
 		result.Sections = doctor.RunPreflightIdentity()
 		if !hasHomebrew(result) {
+			if isJSON {
+				cmdutil.Output(cmd, result)
+				os.Exit(1)
+			}
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymWarn,
 				uikit.TUI.Warn().Render(`brew not on PATH yet — run: eval "$(/opt/homebrew/bin/brew shellenv)"`))
 			fmt.Fprintf(os.Stderr, "  %s then re-run: sci doctor\n", uikit.SymArrow)
@@ -274,6 +298,21 @@ func offerHomebrewInstall() bool {
 		return false
 	}
 	fmt.Fprintf(os.Stderr, "\n  %s Homebrew installed\n", uikit.SymOK)
+	return true
+}
+
+// installHomebrewQuiet is the JSON/--yes counterpart to offerHomebrewInstall:
+// runs the official installer without prompting and returns whether brew
+// is now present.
+func installHomebrewQuiet() bool {
+	installErr := brew.InstallHomebrew()
+	if errors.Is(installErr, brew.ErrHomebrewInstalled) {
+		return true
+	}
+	if installErr != nil {
+		fmt.Fprintf(os.Stderr, "Homebrew install failed: %s\n", installErr.Error())
+		return false
+	}
 	return true
 }
 

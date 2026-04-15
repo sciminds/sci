@@ -109,21 +109,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: sci doctor (LIVE Homebrew install via SCI_ASSUME=yes)
+      - name: sci doctor (LIVE Homebrew install via --json)
         if: matrix.scenario == 'no-brew-accept'
         timeout-minutes: 15
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SCI_ASSUME: "yes"
         run: |
-          # Human-mode doctor; the SCI_ASSUME=yes env var drives the
-          # "Install Homebrew?" prompt through without a TTY.
-          # NOTE: no `|| true` — the whole point of this scenario is to
-          # confirm doctor actually sets up a fresh machine end-to-end
-          # (Homebrew install + Brewfile bundle of uv, gh, ffmpeg, etc.).
-          # If doctor fails here, downstream tools-lifecycle steps will
-          # see missing binaries and the failure mode is confusing.
-          sci doctor --git-name "CI Scenario" --git-email "ci@sciminds.com"
+          # --json drives doctor non-interactively (no TTY, no prompts);
+          # --yes opts into the side-effecting Homebrew install that the
+          # interactive path would otherwise prompt for. The whole point
+          # of this scenario is to confirm doctor sets up a fresh machine
+          # end-to-end — Homebrew install + Brewfile bundle of uv, gh,
+          # ffmpeg, etc. If doctor fails here, downstream tools-lifecycle
+          # steps will see missing binaries.
+          sci doctor --json --yes --git-name "CI Scenario" --git-email "ci@sciminds.com"
           # Installer lands brew at /opt/homebrew/bin/brew (Apple Silicon runners).
           if [ -x /opt/homebrew/bin/brew ]; then
             /opt/homebrew/bin/brew --version
@@ -162,7 +161,6 @@ jobs:
         timeout-minutes: 20
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SCI_ASSUME: "yes"
         run: |
           set -euxo pipefail
           # Overwrite whatever doctor dumped — we need a deterministic
