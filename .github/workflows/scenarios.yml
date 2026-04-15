@@ -38,12 +38,14 @@ jobs:
       - name: Install just
         run: brew install just
 
-      - name: Build sci (just ok)
+      - name: Build sci (just build)
         run: |
-          # Use the same gate the project uses locally so build flags
-          # (ldflags, version.Commit, etc.) can't drift between release.yml,
-          # scenarios.yml, and a developer's machine.
-          just ok
+          # Use the project's `build` recipe so ldflags / version.Commit
+          # can't drift between release.yml, scenarios.yml, and a
+          # developer's machine. (Not `just ok` — that runs the full
+          # fmt/lint/test gate, which needs goimports/golangci-lint/etc.
+          # not preinstalled here. The check workflow owns that gate.)
+          just build
           mkdir -p "${HOME}/.local/bin"
           cp sci "${HOME}/.local/bin/sci"
           echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
