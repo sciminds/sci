@@ -118,7 +118,12 @@ jobs:
         run: |
           # Human-mode doctor; the SCI_ASSUME=yes env var drives the
           # "Install Homebrew?" prompt through without a TTY.
-          sci doctor --git-name "CI Scenario" --git-email "ci@sciminds.com" || true
+          # NOTE: no `|| true` — the whole point of this scenario is to
+          # confirm doctor actually sets up a fresh machine end-to-end
+          # (Homebrew install + Brewfile bundle of uv, gh, ffmpeg, etc.).
+          # If doctor fails here, downstream tools-lifecycle steps will
+          # see missing binaries and the failure mode is confusing.
+          sci doctor --git-name "CI Scenario" --git-email "ci@sciminds.com"
           # Installer lands brew at /opt/homebrew/bin/brew (Apple Silicon runners).
           if [ -x /opt/homebrew/bin/brew ]; then
             /opt/homebrew/bin/brew --version
