@@ -1,0 +1,119 @@
+name: Environment Scenarios
+
+# Simulates the three environment states a sci user might be in:
+#   1. no-brew      — fresh machine, Homebrew not installed
+#   2. brew-no-file — Homebrew installed, no Brewfile on disk
+#   3. brew-file    — Homebrew installed, existing Brewfile with entries
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  scenario:
+    runs-on: macos-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [no-brew, brew-no-file, brew-file]
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      SCI_SCENARIO: ${{ matrix.scenario }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build sci
+        run: |
+          COMMIT="${GITHUB_SHA}"
+          LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
+          go build -ldflags="${LDFLAGS}" -o sci ./cmd/sci
+          mkdir -p "${HOME}/.local/bin"
+          cp sci "${HOME}/.local/bin/sci"
+          echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
+
+      # --- Scenario setup -------------------------------------------------
+
+      - name: Scenario — uninstall Homebrew
+        if: matrix.scenario == 'no-brew'
+        run: |
+          # GitHub's macOS runners ship Homebrew preinstalled. Run the official
+          # uninstall script non-interactively, then scrub any leftovers.
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)" -- --force
+          # Drop brew prefixes from PATH so subsequent steps can't see brew.
+          sed -i '' -E '/\/opt\/homebrew|\/usr\/local\/Homebrew/d' "$GITHUB_PATH" 2>/dev/null || true
+          # Confirm it's gone.
+          if command -v brew >/dev/null 2>&1; then
+            echo "brew is still on PATH: $(command -v brew)"
+            exit 1
+          fi
+          echo "Homebrew removed."
+
+      - name: Scenario — ensure no Brewfile
+        if: matrix.scenario == 'brew-no-file'
+        run: |
+          rm -r "${HOME}/.config/homebrew" 2>/dev/null || true
+          rm -r "${HOME}/.homebrew" 2>/dev/null || true
+          unset HOMEBREW_BUNDLE_FILE_GLOBAL
+          brew --version
+          echo "Homebrew present, no Brewfile."
+
+      - name: Scenario — seed a Brewfile
+        if: matrix.scenario == 'brew-file'
+        run: |
+          mkdir -p "${HOME}/.config/homebrew"
+          cat > "${HOME}/.config/homebrew/Brewfile" <<'EOF'
+          # Seeded by CI scenarios.yml
+          tap "homebrew/bundle"
+          brew "jq"
+          EOF
+          brew --version
+          echo "Seeded Brewfile:"
+          cat "${HOME}/.config/homebrew/Brewfile"
+
+      # --- Exercise sci ---------------------------------------------------
+
+      - name: sci --help
+        run: sci --help
+
+      - name: sci doctor (JSON)
+        run: sci doctor --json --git-name "CI Scenario" --git-email "ci@sciminds.com"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: sci tools list (JSON, tolerant)
+        # In no-brew / brew-no-file this may fail by design — capture output
+        # so we can see *how* it fails rather than masking it.
+        run: |
+          set +e
+          sci tools list --json
+          code=$?
+          echo "exit=$code"
+          # For the brew-file scenario we expect success.
+          if [ "$SCI_SCENARIO" = "brew-file" ] && [ "$code" -ne 0 ]; then
+            echo "::error::sci tools list must succeed when a Brewfile exists"
+            exit "$code"
+          fi
+
+      - name: sci tools install --dry-run (brew-file only)
+        if: matrix.scenario == 'brew-file'
+        run: sci tools install --dry-run
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "Scenario:    ${SCI_SCENARIO}"
+          echo "brew on PATH: $(command -v brew || echo '(none)')"
+          echo "Brewfile:    $(ls -la "${HOME}/.config/homebrew/Brewfile" 2>/dev/null || echo '(none)')"
