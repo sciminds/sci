@@ -8,6 +8,12 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish a release (otherwise the run is a test build only)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -94,13 +100,13 @@ jobs:
           ./dist/sci-darwin-arm64 --help || ./dist/sci-darwin-amd64 --help
 
       - name: Delete existing release
-        if: github.event_name == 'workflow_dispatch' || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE')
+        if: (github.event_name == 'workflow_dispatch' && inputs.publish) || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE')
         run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
-        if: github.event_name == 'workflow_dispatch' || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE')
+        if: (github.event_name == 'workflow_dispatch' && inputs.publish) || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
