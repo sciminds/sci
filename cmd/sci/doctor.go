@@ -166,6 +166,12 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		result.Upgraded = setup.Upgraded
 		result.UpdateError = setup.UpdateError
 
+		// Re-run preflight: tools the bundle just installed (gh, uv, etc.)
+		// weren't on PATH when the initial preflight ran, so checks like
+		// "GitHub CLI auth" would otherwise stay stale and false-fail
+		// AllPassed in JSON mode.
+		result.Sections = doctor.RunPreflightIdentity()
+
 		cmdutil.Output(cmd, result)
 		if !result.AllPassed() || result.InstallError != "" {
 			os.Exit(1)
