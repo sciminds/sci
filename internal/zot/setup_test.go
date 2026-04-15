@@ -16,7 +16,7 @@ func mkDataDir(t *testing.T) string {
 }
 
 func TestSetup_Happy(t *testing.T) {
-	t.Setenv("SCI_ZOT_CONFIG_PATH", filepath.Join(t.TempDir(), "zot.json"))
+	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 
 	res, err := Setup("key", "123", dir)
@@ -38,7 +38,7 @@ func TestSetup_Happy(t *testing.T) {
 
 func TestSetup_InvalidInputs(t *testing.T) {
 	dir := mkDataDir(t)
-	t.Setenv("SCI_ZOT_CONFIG_PATH", filepath.Join(t.TempDir(), "zot.json"))
+	withXDGConfigHome(t)
 
 	tests := []struct {
 		name           string
@@ -59,8 +59,7 @@ func TestSetup_InvalidInputs(t *testing.T) {
 }
 
 func TestConfigExists(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "zot.json")
-	t.Setenv("SCI_ZOT_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 	if ConfigExists() {
 		t.Fatal("expected ConfigExists=false before setup")
 	}
@@ -80,8 +79,7 @@ func TestConfigExists(t *testing.T) {
 }
 
 func TestLogout(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "zot.json")
-	t.Setenv("SCI_ZOT_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 	if _, err := Setup("k", "1", dir); err != nil {
 		t.Fatal(err)
@@ -93,7 +91,7 @@ func TestLogout(t *testing.T) {
 	if !res.OK {
 		t.Errorf("result: %+v", res)
 	}
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
+	if _, err := os.Stat(ConfigPath()); !os.IsNotExist(err) {
 		t.Errorf("expected config removed, stat err = %v", err)
 	}
 }

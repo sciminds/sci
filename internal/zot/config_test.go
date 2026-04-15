@@ -4,48 +4,31 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/adrg/xdg"
 )
 
-func TestConfigPath_Override(t *testing.T) {
-	// Explicit override wins over everything.
-	t.Setenv("SCI_ZOT_CONFIG_PATH", "/explicit/zot.json")
-	t.Setenv("XDG_CONFIG_HOME", "/xdg")
-	p, err := ConfigPath()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p != "/explicit/zot.json" {
-		t.Errorf("ConfigPath = %q, want /explicit/zot.json", p)
-	}
+// withXDGConfigHome points xdg.ConfigHome at a fresh temp dir for the test.
+func withXDGConfigHome(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+	return dir
 }
 
-func TestConfigPath_XDG(t *testing.T) {
-	t.Setenv("SCI_ZOT_CONFIG_PATH", "")
-	t.Setenv("XDG_CONFIG_HOME", "/xdg")
-	p, err := ConfigPath()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p != filepath.Join("/xdg", "sci", "zot.json") {
-		t.Errorf("ConfigPath = %q, want /xdg/sci/zot.json", p)
-	}
-}
-
-func TestConfigPath_HomeFallback(t *testing.T) {
-	t.Setenv("SCI_ZOT_CONFIG_PATH", "")
-	t.Setenv("XDG_CONFIG_HOME", "")
-	t.Setenv("HOME", "/fake/home")
-	p, err := ConfigPath()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p != filepath.Join("/fake/home", ".config", "sci", "zot.json") {
-		t.Errorf("ConfigPath = %q, want /fake/home/.config/sci/zot.json", p)
+func TestConfigPath(t *testing.T) {
+	dir := withXDGConfigHome(t)
+	got := ConfigPath()
+	want := filepath.Join(dir, "sci", "zot.json")
+	if got != want {
+		t.Errorf("ConfigPath = %q, want %q", got, want)
 	}
 }
 
 func TestLoadConfig_Missing(t *testing.T) {
-	t.Setenv("SCI_ZOT_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	withXDGConfigHome(t)
 	cfg, err := LoadConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -56,8 +39,7 @@ func TestLoadConfig_Missing(t *testing.T) {
 }
 
 func TestSaveAndLoadConfig(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "zot.json")
-	t.Setenv("SCI_ZOT_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 
 	cfg := &Config{APIKey: "abc123", LibraryID: "7654321", DataDir: "/tmp/z"}
 	if err := SaveConfig(cfg); err != nil {
@@ -77,13 +59,12 @@ func TestSaveAndLoadConfig(t *testing.T) {
 }
 
 func TestSaveConfig_Permissions(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "zot.json")
-	t.Setenv("SCI_ZOT_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 
 	if err := SaveConfig(&Config{APIKey: "k", LibraryID: "1"}); err != nil {
 		t.Fatal(err)
 	}
-	info, err := os.Stat(path)
+	info, err := os.Stat(ConfigPath())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,15 +74,14 @@ func TestSaveConfig_Permissions(t *testing.T) {
 }
 
 func TestRequireConfig_NotConfigured(t *testing.T) {
-	t.Setenv("SCI_ZOT_CONFIG_PATH", filepath.Join(t.TempDir(), "nope.json"))
+	withXDGConfigHome(t)
 	if _, err := RequireConfig(); err == nil {
 		t.Error("expected error for missing config")
 	}
 }
 
 func TestRequireConfig_IncompleteConfig(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "zot.json")
-	t.Setenv("SCI_ZOT_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 	if err := SaveConfig(&Config{APIKey: "k"}); err != nil {
 		t.Fatal(err)
 	}
@@ -111,15 +91,14 @@ func TestRequireConfig_IncompleteConfig(t *testing.T) {
 }
 
 func TestClearConfig(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "zot.json")
-	t.Setenv("SCI_ZOT_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 	if err := SaveConfig(&Config{APIKey: "k", LibraryID: "1"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := ClearConfig(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
+	if _, err := os.Stat(ConfigPath()); !os.IsNotExist(err) {
 		t.Errorf("expected file to be removed, stat err = %v", err)
 	}
 	// Clearing a missing file is a no-op.

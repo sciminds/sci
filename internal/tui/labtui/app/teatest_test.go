@@ -8,9 +8,19 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/adrg/xdg"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/sciminds/cli/internal/lab"
 )
+
+// hermeticTransferLog points xdg.StateHome at a fresh temp dir so the
+// transfer-log manifest stays per-test.
+func hermeticTransferLog(t *testing.T) {
+	t.Helper()
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+}
 
 const (
 	testTermW = 80
@@ -21,8 +31,7 @@ const (
 
 func startTeatest(t *testing.T, b Backend) (*teatest.TestModel, *Model) {
 	t.Helper()
-	// Each test gets its own transfer-log file so the manifest stays hermetic.
-	t.Setenv("SCI_LAB_TRANSFER_LOG", t.TempDir()+"/transfers.jsonl")
+	hermeticTransferLog(t)
 	m := NewModel(&lab.Config{User: "alice"}, b)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	t.Cleanup(func() { _ = tm.Quit() })
@@ -245,7 +254,7 @@ func TestTeatest_BannerHiddenWhenNoPending(t *testing.T) {
 
 func TestTeatest_BannerShownWithCount(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("SCI_LAB_TRANSFER_LOG", filepath.Join(dir, "transfers.jsonl"))
+	hermeticTransferLog(t)
 	// Two short local files → two pending entries.
 	for _, name := range []string{"a", "b"} {
 		p := filepath.Join(dir, name)
@@ -268,7 +277,7 @@ func TestTeatest_BannerShownWithCount(t *testing.T) {
 
 func TestTeatest_PressR_ResumesPending(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("SCI_LAB_TRANSFER_LOG", filepath.Join(dir, "transfers.jsonl"))
+	hermeticTransferLog(t)
 	short := filepath.Join(dir, "results.csv")
 	if err := os.WriteFile(short, []byte("x"), 0o600); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -291,7 +300,7 @@ func TestTeatest_PressR_ResumesPending(t *testing.T) {
 
 func TestTeatest_PressC_ClearsBanner(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("SCI_LAB_TRANSFER_LOG", filepath.Join(dir, "transfers.jsonl"))
+	hermeticTransferLog(t)
 	short := filepath.Join(dir, "x")
 	if err := os.WriteFile(short, []byte("x"), 0o600); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -348,8 +357,7 @@ func TestTeatest_PressShiftR_RefreshesListing(t *testing.T) {
 }
 
 func TestTeatest_TransferQuitWithQ_LeavesPending(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("SCI_LAB_TRANSFER_LOG", filepath.Join(dir, "transfers.jsonl"))
+	hermeticTransferLog(t)
 	b := sampleBackend()
 	// Many frames so the transfer doesn't auto-complete before we send `q`.
 	for i := 0; i < 50; i++ {
@@ -386,8 +394,7 @@ func TestTeatest_TransferQuitWithQ_LeavesPending(t *testing.T) {
 }
 
 func TestTeatest_TransferQuitWithCtrlC_DropsPending(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("SCI_LAB_TRANSFER_LOG", filepath.Join(dir, "transfers.jsonl"))
+	hermeticTransferLog(t)
 	b := sampleBackend()
 	for i := 0; i < 50; i++ {
 		b.progressFrames = append(b.progressFrames, lab.Progress{Bytes: int64(i), Percent: i, Rate: "1MB/s", ETA: "0:01:00"})

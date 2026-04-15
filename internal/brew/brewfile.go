@@ -72,6 +72,12 @@ func LocateBrewfile() string {
 
 // brewfileCandidates returns the candidate Brewfile paths in priority order,
 // matching `brew bundle --global` resolution.
+//
+// NOTE: deliberately does NOT use github.com/adrg/xdg. Homebrew hardcodes
+// ~/.config/homebrew/Brewfile on every OS — it does not follow per-OS XDG
+// conventions. On macOS, xdg.ConfigHome resolves to ~/Library/Application
+// Support, which Homebrew never checks. We must mirror brew's actual lookup,
+// not the platform XDG spec.
 func brewfileCandidates() []string {
 	var paths []string
 

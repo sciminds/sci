@@ -2,12 +2,21 @@ package lab
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
+
+	"github.com/adrg/xdg"
 )
 
+// withXDGConfigHome points xdg.ConfigHome at a fresh temp dir for the test.
+func withXDGConfigHome(t *testing.T) {
+	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+}
+
 func TestLoadConfig_Missing(t *testing.T) {
-	t.Setenv("SCI_LAB_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	withXDGConfigHome(t)
 	cfg, err := LoadConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -18,8 +27,7 @@ func TestLoadConfig_Missing(t *testing.T) {
 }
 
 func TestSaveAndLoadConfig(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "lab.json")
-	t.Setenv("SCI_LAB_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 
 	cfg := &Config{User: "e3jolly"}
 	if err := SaveConfig(cfg); err != nil {
@@ -39,14 +47,13 @@ func TestSaveAndLoadConfig(t *testing.T) {
 }
 
 func TestSaveConfig_Permissions(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "lab.json")
-	t.Setenv("SCI_LAB_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 
 	if err := SaveConfig(&Config{User: "alice"}); err != nil {
 		t.Fatal(err)
 	}
 
-	info, err := os.Stat(path)
+	info, err := os.Stat(ConfigPath())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +63,7 @@ func TestSaveConfig_Permissions(t *testing.T) {
 }
 
 func TestRequireConfig_NotConfigured(t *testing.T) {
-	t.Setenv("SCI_LAB_CONFIG_PATH", filepath.Join(t.TempDir(), "nope.json"))
+	withXDGConfigHome(t)
 	_, err := RequireConfig()
 	if err == nil {
 		t.Fatal("expected error for missing config")
@@ -64,8 +71,7 @@ func TestRequireConfig_NotConfigured(t *testing.T) {
 }
 
 func TestRequireConfig_EmptyUser(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "lab.json")
-	t.Setenv("SCI_LAB_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 
 	if err := SaveConfig(&Config{User: ""}); err != nil {
 		t.Fatal(err)
@@ -77,8 +83,7 @@ func TestRequireConfig_EmptyUser(t *testing.T) {
 }
 
 func TestRequireConfig_OK(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "lab.json")
-	t.Setenv("SCI_LAB_CONFIG_PATH", path)
+	withXDGConfigHome(t)
 
 	if err := SaveConfig(&Config{User: "e3jolly"}); err != nil {
 		t.Fatal(err)

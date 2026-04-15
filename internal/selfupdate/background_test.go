@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/adrg/xdg"
 	"github.com/sciminds/cli/internal/version"
 )
 
@@ -208,6 +209,90 @@ func TestWriteCache_ReadOnlyParent(t *testing.T) {
 
 	if _, err := os.Stat(path); err == nil {
 		t.Error("cache file should not have been written to read-only directory")
+	}
+}
+
+func TestMigrateLegacyCache(t *testing.T) {
+	// Point both XDG_CONFIG_HOME and XDG_CACHE_HOME at temp dirs so the
+	// migration logic operates entirely under test control.
+	configHome := t.TempDir()
+	cacheHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+
+	// Seed a legacy cache file at the old XDG_CONFIG_HOME location.
+	legacyDir := filepath.Join(configHome, "sci")
+	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	legacyPath := filepath.Join(legacyDir, "update-check.json")
+	payload := []byte(`{"available":true,"latest_sha":"deadbeef"}`)
+	if err := os.WriteFile(legacyPath, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Force cachePath() to take the migration branch (no test override).
+	old := cacheFile
+	cacheFile = ""
+	defer func() { cacheFile = old }()
+
+	got := cachePath()
+	want := filepath.Join(cacheHome, "sci", "update-check.json")
+	if got != want {
+		t.Errorf("cachePath() = %q, want %q", got, want)
+	}
+
+	// Legacy file should be gone, new file should hold the same bytes.
+	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
+		t.Errorf("legacy cache should have been removed, stat err = %v", err)
+	}
+	data, err := os.ReadFile(want)
+	if err != nil {
+		t.Fatalf("migrated cache missing: %v", err)
+	}
+	if string(data) != string(payload) {
+		t.Errorf("migrated bytes = %q, want %q", data, payload)
+	}
+}
+
+func TestMigrateLegacyCache_NoOpWhenNewExists(t *testing.T) {
+	configHome := t.TempDir()
+	cacheHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+
+	// Both legacy and new exist; new must win and legacy must be left alone.
+	legacyDir := filepath.Join(configHome, "sci")
+	newDir := filepath.Join(cacheHome, "sci")
+	for _, d := range []string{legacyDir, newDir} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	legacyPath := filepath.Join(legacyDir, "update-check.json")
+	newPath := filepath.Join(newDir, "update-check.json")
+	if err := os.WriteFile(legacyPath, []byte("legacy"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(newPath, []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	old := cacheFile
+	cacheFile = ""
+	defer func() { cacheFile = old }()
+
+	_ = cachePath()
+
+	if data, _ := os.ReadFile(newPath); string(data) != "new" {
+		t.Errorf("new cache overwritten: %q", data)
+	}
+	if data, _ := os.ReadFile(legacyPath); string(data) != "legacy" {
+		t.Errorf("legacy cache mutated: %q", data)
 	}
 }
 

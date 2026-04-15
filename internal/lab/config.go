@@ -1,7 +1,7 @@
 // Package lab provides access to university lab storage over SSH/SFTP.
 //
 // The server and paths are fixed for the lab; only the SSH username varies
-// per user. Configuration is stored at ~/.config/sci/lab.json.
+// per user. Configuration is stored at $XDG_CONFIG_HOME/sci/lab.json.
 package lab
 
 import (
@@ -11,6 +11,8 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+
+	"github.com/adrg/xdg"
 )
 
 // Lab server connection defaults.
@@ -49,13 +51,10 @@ func (c *Config) SSHAlias() string {
 	return "scilab-" + c.User
 }
 
-// ConfigPath returns the config file path, honoring SCI_LAB_CONFIG_PATH.
+// ConfigPath returns the config file path under the XDG config home
+// (typically $XDG_CONFIG_HOME/sci/lab.json or ~/.config/sci/lab.json).
 func ConfigPath() string {
-	if p := os.Getenv("SCI_LAB_CONFIG_PATH"); p != "" {
-		return p
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "sci", "lab.json")
+	return filepath.Join(xdg.ConfigHome, "sci", "lab.json")
 }
 
 // LoadConfig reads the lab config from disk.

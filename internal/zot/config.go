@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/adrg/xdg"
 )
 
 // Config holds Zotero credentials and library location.
@@ -22,34 +24,16 @@ type Config struct {
 	DataDir   string `json:"data_dir"`   // directory containing zotero.sqlite
 }
 
-// ConfigPath returns the config file path. Lookup order:
-//  1. SCI_ZOT_CONFIG_PATH (absolute override, used by tests)
-//  2. $XDG_CONFIG_HOME/sci/zot.json
-//  3. $HOME/.config/sci/zot.json
-//
-// Returns an error if neither XDG_CONFIG_HOME nor HOME can be resolved.
-func ConfigPath() (string, error) {
-	if p := os.Getenv("SCI_ZOT_CONFIG_PATH"); p != "" {
-		return p, nil
-	}
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "sci", "zot.json"), nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("resolve home directory: %w", err)
-	}
-	return filepath.Join(home, ".config", "sci", "zot.json"), nil
+// ConfigPath returns the config file path under the XDG config home
+// (typically $XDG_CONFIG_HOME/sci/zot.json or ~/.config/sci/zot.json).
+func ConfigPath() string {
+	return filepath.Join(xdg.ConfigHome, "sci", "zot.json")
 }
 
 // LoadConfig reads the zot config from disk.
 // Returns (nil, nil) if the file does not exist.
 func LoadConfig() (*Config, error) {
-	path, err := ConfigPath()
-	if err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(ConfigPath())
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -65,10 +49,7 @@ func LoadConfig() (*Config, error) {
 
 // SaveConfig writes the zot config to disk with restricted permissions (0600).
 func SaveConfig(cfg *Config) error {
-	path, err := ConfigPath()
-	if err != nil {
-		return err
-	}
+	path := ConfigPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -93,21 +74,13 @@ func RequireConfig() (*Config, error) {
 
 // ConfigExists reports whether a saved zot config file is present on disk.
 func ConfigExists() bool {
-	path, err := ConfigPath()
-	if err != nil {
-		return false
-	}
-	_, err = os.Stat(path)
+	_, err := os.Stat(ConfigPath())
 	return err == nil
 }
 
 // ClearConfig removes the config file if it exists.
 func ClearConfig() error {
-	path, err := ConfigPath()
-	if err != nil {
-		return err
-	}
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(ConfigPath()); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil

@@ -4,15 +4,21 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/adrg/xdg"
 )
 
-func setLogTo(t *testing.T, path string) {
+// setupLog points xdg.StateHome at a fresh temp dir so TransferLogPath
+// resolves under hermetic per-test state.
+func setupLog(t *testing.T) {
 	t.Helper()
-	t.Setenv("SCI_LAB_TRANSFER_LOG", path)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
 }
 
 func TestTransferLog_StartAppendsEntry(t *testing.T) {
-	setLogTo(t, filepath.Join(t.TempDir(), "log.jsonl"))
+	setupLog(t)
 	if err := LogTransferStarted(TransferEntry{Remote: "/labs/sciminds/a", Local: "./a", ExpectedBytes: 100}); err != nil {
 		t.Fatalf("LogTransferStarted: %v", err)
 	}
@@ -26,8 +32,8 @@ func TestTransferLog_StartAppendsEntry(t *testing.T) {
 }
 
 func TestTransferLog_DoneRemovesFromPending(t *testing.T) {
+	setupLog(t)
 	dir := t.TempDir()
-	setLogTo(t, filepath.Join(dir, "log.jsonl"))
 	// Local files exist + are smaller than ExpectedBytes so they'd otherwise be pending.
 	mustTouch(t, filepath.Join(dir, "a"))
 	mustTouch(t, filepath.Join(dir, "b"))
@@ -46,8 +52,8 @@ func TestTransferLog_DoneRemovesFromPending(t *testing.T) {
 }
 
 func TestTransferLog_PendingDropsMissingLocal(t *testing.T) {
+	setupLog(t)
 	dir := t.TempDir()
-	setLogTo(t, filepath.Join(dir, "log.jsonl"))
 	_ = LogTransferStarted(TransferEntry{Remote: "/r/x", Local: filepath.Join(dir, "nope"), ExpectedBytes: 100})
 	pending, _ := PendingTransfers()
 	if len(pending) != 0 {
@@ -56,8 +62,8 @@ func TestTransferLog_PendingDropsMissingLocal(t *testing.T) {
 }
 
 func TestTransferLog_PendingDropsCompletedSize(t *testing.T) {
+	setupLog(t)
 	dir := t.TempDir()
-	setLogTo(t, filepath.Join(dir, "log.jsonl"))
 	full := filepath.Join(dir, "full")
 	if err := os.WriteFile(full, make([]byte, 100), 0o600); err != nil {
 		t.Fatalf("write: %v", err)
@@ -70,8 +76,8 @@ func TestTransferLog_PendingDropsCompletedSize(t *testing.T) {
 }
 
 func TestTransferLog_PendingKeepsShortLocal(t *testing.T) {
+	setupLog(t)
 	dir := t.TempDir()
-	setLogTo(t, filepath.Join(dir, "log.jsonl"))
 	short := filepath.Join(dir, "short")
 	if err := os.WriteFile(short, make([]byte, 10), 0o600); err != nil {
 		t.Fatalf("write: %v", err)
@@ -84,10 +90,14 @@ func TestTransferLog_PendingKeepsShortLocal(t *testing.T) {
 }
 
 func TestTransferLog_PendingSkipsMalformedLines(t *testing.T) {
+	setupLog(t)
 	dir := t.TempDir()
-	logPath := filepath.Join(dir, "log.jsonl")
-	setLogTo(t, logPath)
 	mustTouch(t, filepath.Join(dir, "a"))
+	// Seed a malformed line directly at the resolved log path.
+	logPath := TransferLogPath()
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
 	if err := os.WriteFile(logPath, []byte("not json\n"), 0o600); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -102,19 +112,19 @@ func TestTransferLog_PendingSkipsMalformedLines(t *testing.T) {
 }
 
 func TestTransferLog_StartCreatesParentDirs(t *testing.T) {
-	deep := filepath.Join(t.TempDir(), "a", "b", "c", "log.jsonl")
-	setLogTo(t, deep)
+	setupLog(t)
 	if err := LogTransferStarted(TransferEntry{Remote: "/r/x", Local: "/tmp/x", ExpectedBytes: 1}); err != nil {
 		t.Fatalf("LogTransferStarted: %v", err)
 	}
-	if _, err := os.Stat(deep); err != nil {
+	// XDG_STATE_HOME was empty; appendEntry must have MkdirAll'd the "sci" subdir.
+	if _, err := os.Stat(TransferLogPath()); err != nil {
 		t.Errorf("expected log file created: %v", err)
 	}
 }
 
 func TestTransferLog_PendingDropsCompletedDir(t *testing.T) {
+	setupLog(t)
 	dir := t.TempDir()
-	setLogTo(t, filepath.Join(dir, "log.jsonl"))
 	// Simulate a fully-downloaded directory: 60 + 40 = 100 bytes total.
 	dst := filepath.Join(dir, "ds")
 	if err := os.MkdirAll(filepath.Join(dst, "sub"), 0o755); err != nil {
@@ -134,8 +144,8 @@ func TestTransferLog_PendingDropsCompletedDir(t *testing.T) {
 }
 
 func TestTransferLog_PendingKeepsPartialDir(t *testing.T) {
+	setupLog(t)
 	dir := t.TempDir()
-	setLogTo(t, filepath.Join(dir, "log.jsonl"))
 	dst := filepath.Join(dir, "ds")
 	if err := os.MkdirAll(dst, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
@@ -151,8 +161,8 @@ func TestTransferLog_PendingKeepsPartialDir(t *testing.T) {
 }
 
 func TestTransferLog_ClearRemovesPending(t *testing.T) {
+	setupLog(t)
 	dir := t.TempDir()
-	setLogTo(t, filepath.Join(dir, "log.jsonl"))
 	short := filepath.Join(dir, "short")
 	if err := os.WriteFile(short, []byte("x"), 0o600); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -171,14 +181,14 @@ func TestTransferLog_ClearRemovesPending(t *testing.T) {
 }
 
 func TestTransferLog_ClearMissingFileIsNoop(t *testing.T) {
-	setLogTo(t, filepath.Join(t.TempDir(), "nope.jsonl"))
+	setupLog(t)
 	if err := ClearTransferLog(); err != nil {
 		t.Errorf("ClearTransferLog on missing file should be a no-op, got: %v", err)
 	}
 }
 
 func TestTransferLog_PendingMissingFileIsEmpty(t *testing.T) {
-	setLogTo(t, filepath.Join(t.TempDir(), "nonexistent.jsonl"))
+	setupLog(t)
 	pending, err := PendingTransfers()
 	if err != nil {
 		t.Fatalf("PendingTransfers: %v", err)

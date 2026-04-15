@@ -5,11 +5,21 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/adrg/xdg"
 	"github.com/sciminds/cli/internal/cloud"
 )
 
+// withEmptyXDGConfigHome points xdg.ConfigHome at a fresh temp dir so
+// cloud.RequireConfig sees no credentials.
+func withEmptyXDGConfigHome(t *testing.T) {
+	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+}
+
 func TestShare_RequiresAuth(t *testing.T) {
-	t.Setenv("SCI_CONFIG_PATH", filepath.Join(t.TempDir(), "no-such-config.json"))
+	withEmptyXDGConfigHome(t)
 	tmp := t.TempDir()
 	f := filepath.Join(tmp, "test.csv")
 	if err := os.WriteFile(f, []byte("a,b\n1,2\n"), 0o644); err != nil {
@@ -22,7 +32,7 @@ func TestShare_RequiresAuth(t *testing.T) {
 }
 
 func TestGet_RequiresAuth(t *testing.T) {
-	t.Setenv("SCI_CONFIG_PATH", filepath.Join(t.TempDir(), "no-such-config.json"))
+	withEmptyXDGConfigHome(t)
 	_, err := Get("nonexistent-file.csv")
 	if err == nil {
 		t.Fatal("expected error (no config), got nil")
@@ -30,7 +40,7 @@ func TestGet_RequiresAuth(t *testing.T) {
 }
 
 func TestCheckExists_RequiresAuth(t *testing.T) {
-	t.Setenv("SCI_CONFIG_PATH", filepath.Join(t.TempDir(), "no-such-config.json"))
+	withEmptyXDGConfigHome(t)
 	_, err := CheckExists("test.csv")
 	if err == nil {
 		t.Fatal("expected error (no config), got nil")

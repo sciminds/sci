@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/adrg/xdg"
 )
 
 const defaultBucket = "sci-public"
 
-// DefaultConfigPath returns the path for the R2 credentials file.
-func DefaultConfigPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "sci", "credentials.json")
+// ConfigPath returns the credentials file path under the XDG config home
+// (typically $XDG_CONFIG_HOME/sci/credentials.json or ~/.config/sci/credentials.json).
+func ConfigPath() string {
+	return filepath.Join(xdg.ConfigHome, "sci", "credentials.json")
 }
 
 // LoadConfig reads the R2 credentials from disk.
@@ -95,12 +97,4 @@ func RequireConfig() (*Config, error) {
 		return nil, fmt.Errorf("incomplete credentials — run 'sci cloud setup' to reconfigure")
 	}
 	return cfg, nil
-}
-
-// ConfigPath returns the credentials path, honoring SCI_CONFIG_PATH env var.
-func ConfigPath() string {
-	if p := os.Getenv("SCI_CONFIG_PATH"); p != "" {
-		return p
-	}
-	return DefaultConfigPath()
 }

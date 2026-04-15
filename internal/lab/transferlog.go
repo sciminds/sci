@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/adrg/xdg"
 )
 
 // TransferEntry records one rsync invocation. We append a "started" entry
@@ -23,14 +25,12 @@ type TransferEntry struct {
 	DoneAt        *time.Time `json:"done,omitempty"`
 }
 
-// TransferLogPath returns the manifest path. Honors SCI_LAB_TRANSFER_LOG;
-// defaults to ~/.config/sci/lab-transfers.jsonl (next to lab.json).
+// TransferLogPath returns the manifest path under the XDG state home
+// (typically $XDG_STATE_HOME/sci/lab-transfers.jsonl). The transfer log is
+// per-machine, append-only, and regenerated on demand — XDG_STATE_HOME is
+// the right semantic bucket (run history), not config or cache.
 func TransferLogPath() string {
-	if p := os.Getenv("SCI_LAB_TRANSFER_LOG"); p != "" {
-		return p
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "sci", "lab-transfers.jsonl")
+	return filepath.Join(xdg.StateHome, "sci", "lab-transfers.jsonl")
 }
 
 // LogTransferStarted appends a "started" entry for e. StartedAt is set to

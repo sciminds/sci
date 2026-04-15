@@ -5,13 +5,34 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/adrg/xdg"
 )
 
-func TestLoadConfig_LegacyMigration(t *testing.T) {
+// withXDGConfigHome points xdg.ConfigHome at a fresh temp dir for the test,
+// returning the resulting credentials.json path.
+func withXDGConfigHome(t *testing.T) string {
+	t.Helper()
 	dir := t.TempDir()
-	path := filepath.Join(dir, "credentials.json")
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+	return filepath.Join(dir, "sci", "credentials.json")
+}
 
-	// Write old flat-format credentials.
+func writeConfig(t *testing.T, path, contents string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoadConfig_LegacyMigration(t *testing.T) {
+	path := withXDGConfigHome(t)
+
 	legacy := `{
   "account_id": "abc123",
   "access_key": "AKOLD",
@@ -20,10 +41,7 @@ func TestLoadConfig_LegacyMigration(t *testing.T) {
   "public_url": "https://pub-xxx.r2.dev",
   "bucket_name": "sci-public"
 }`
-	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("SCI_CONFIG_PATH", path)
+	writeConfig(t, path, legacy)
 
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -33,7 +51,6 @@ func TestLoadConfig_LegacyMigration(t *testing.T) {
 		t.Fatal("expected config, got nil")
 	}
 
-	// Top-level fields should parse directly.
 	if cfg.AccountID != "abc123" {
 		t.Errorf("AccountID = %q, want %q", cfg.AccountID, "abc123")
 	}
@@ -41,7 +58,6 @@ func TestLoadConfig_LegacyMigration(t *testing.T) {
 		t.Errorf("Username = %q, want %q", cfg.Username, "alice")
 	}
 
-	// Legacy fields should be migrated into Public bucket.
 	if cfg.Public == nil {
 		t.Fatal("expected Public bucket config after migration, got nil")
 	}
@@ -60,8 +76,7 @@ func TestLoadConfig_LegacyMigration(t *testing.T) {
 }
 
 func TestLoadConfig_NewFormat(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "credentials.json")
+	path := withXDGConfigHome(t)
 
 	newFmt := `{
   "username": "bob",
@@ -74,10 +89,7 @@ func TestLoadConfig_NewFormat(t *testing.T) {
     "public_url": "https://pub-xxx.r2.dev"
   }
 }`
-	if err := os.WriteFile(path, []byte(newFmt), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("SCI_CONFIG_PATH", path)
+	writeConfig(t, path, newFmt)
 
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -95,9 +107,7 @@ func TestLoadConfig_NewFormat(t *testing.T) {
 }
 
 func TestSaveConfig_ClearsLegacyFields(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "credentials.json")
-	t.Setenv("SCI_CONFIG_PATH", path)
+	path := withXDGConfigHome(t)
 
 	cfg := &Config{
 		Username:  "carol",
@@ -114,17 +124,14 @@ func TestSaveConfig_ClearsLegacyFields(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Read it back raw to verify legacy fields are absent.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw := string(data)
-	if got := raw; len(got) == 0 {
+	if len(data) == 0 {
 		t.Fatal("saved file is empty")
 	}
 
-	// Reload and verify.
 	loaded, err := LoadConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -138,7 +145,7 @@ func TestSaveConfig_ClearsLegacyFields(t *testing.T) {
 }
 
 func TestLoadConfig_Missing(t *testing.T) {
-	t.Setenv("SCI_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	withXDGConfigHome(t)
 	cfg, err := LoadConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -149,12 +156,8 @@ func TestLoadConfig_Missing(t *testing.T) {
 }
 
 func TestLoadConfig_CorruptJSON(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "credentials.json")
-	if err := os.WriteFile(path, []byte("{invalid json!!!"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("SCI_CONFIG_PATH", path)
+	path := withXDGConfigHome(t)
+	writeConfig(t, path, "{invalid json!!!")
 
 	cfg, err := LoadConfig()
 	if err == nil {
@@ -169,12 +172,8 @@ func TestLoadConfig_CorruptJSON(t *testing.T) {
 }
 
 func TestLoadConfig_EmptyFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "credentials.json")
-	if err := os.WriteFile(path, []byte{}, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("SCI_CONFIG_PATH", path)
+	path := withXDGConfigHome(t)
+	writeConfig(t, path, "")
 
 	cfg, err := LoadConfig()
 	if err == nil {
@@ -189,12 +188,8 @@ func TestLoadConfig_EmptyFile(t *testing.T) {
 }
 
 func TestRequireConfig_CorruptFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "credentials.json")
-	if err := os.WriteFile(path, []byte("not-json"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("SCI_CONFIG_PATH", path)
+	path := withXDGConfigHome(t)
+	writeConfig(t, path, "not-json")
 
 	cfg, err := RequireConfig()
 	if err == nil {
@@ -206,14 +201,8 @@ func TestRequireConfig_CorruptFile(t *testing.T) {
 }
 
 func TestRequireConfig_IncompleteCredentials(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "credentials.json")
-	// Valid JSON but missing required fields.
-	incomplete := `{"username": "alice"}`
-	if err := os.WriteFile(path, []byte(incomplete), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("SCI_CONFIG_PATH", path)
+	path := withXDGConfigHome(t)
+	writeConfig(t, path, `{"username": "alice"}`)
 
 	cfg, err := RequireConfig()
 	if err == nil {
@@ -228,18 +217,19 @@ func TestRequireConfig_IncompleteCredentials(t *testing.T) {
 }
 
 func TestSaveConfig_DirectoryCreationFails(t *testing.T) {
+	// Point XDG_CONFIG_HOME at a path whose parent is a regular file, so
+	// MkdirAll fails when SaveConfig tries to create $XDG_CONFIG_HOME/sci/.
 	dir := t.TempDir()
-	// Create a regular file where MkdirAll needs a directory.
 	blocker := filepath.Join(dir, "blocker")
 	if err := os.WriteFile(blocker, []byte("file"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(blocker, "subdir", "creds.json")
-	t.Setenv("SCI_CONFIG_PATH", path)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(blocker, "subdir"))
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
 
 	cfg := &Config{Username: "test", AccountID: "id"}
-	err := SaveConfig(cfg)
-	if err == nil {
+	if err := SaveConfig(cfg); err == nil {
 		t.Fatal("expected error when parent is a file, got nil")
 	}
 }

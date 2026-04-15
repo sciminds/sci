@@ -2,7 +2,7 @@
 // storage. It replaces the previous PocketBase backend with direct R2 access.
 //
 // Credentials (account ID, access key, secret, username) are stored locally
-// at [DefaultConfigPath] and managed by [LoadConfig] / [SaveConfig].
+// at [ConfigPath] and managed by [LoadConfig] / [SaveConfig].
 //
 // Objects are keyed as "<username>/<filename>" within the configured bucket.
 package cloud
