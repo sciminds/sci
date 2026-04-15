@@ -31,6 +31,12 @@ func (m *Model) View() tea.View {
 
 func (m *Model) viewBrowse() string {
 	var b strings.Builder
+	if n := len(m.pending); n > 0 {
+		b.WriteString(uikit.TUI.Warn().Render(
+			fmt.Sprintf("⏸  %d interrupted download(s) — press r to resume, c to clear", n),
+		))
+		b.WriteString("\n\n")
+	}
 	header := uikit.TUI.TextBlue().Render(m.Breadcrumb())
 	if n := m.SelectedCount(); n > 0 {
 		header += uikit.TUI.Dim().Render(fmt.Sprintf("   [%d selected]", n))
@@ -69,7 +75,11 @@ func (m *Model) viewBrowse() string {
 	}
 
 	b.WriteByte('\n')
-	b.WriteString(uikit.TUI.Dim().Render("space select · enter descend · backspace up · d download · q quit"))
+	hint := "space select · enter descend · backspace up · d download · R refresh · q quit"
+	if len(m.pending) > 0 {
+		hint = "r resume · c clear · " + hint
+	}
+	b.WriteString(uikit.TUI.Dim().Render(hint))
 	return b.String()
 }
 
@@ -113,7 +123,7 @@ func (m *Model) viewTransfer() string {
 		nonEmpty(m.progress.ETA, "—"),
 	)
 	b.WriteByte('\n')
-	b.WriteString(uikit.TUI.Dim().Render("ctrl-c cancel (resumable on next run)"))
+	b.WriteString(uikit.TUI.Dim().Render("q quit (resumable) · ctrl-c abort (drop partial)"))
 	return b.String()
 }
 

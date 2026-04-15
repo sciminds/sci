@@ -59,6 +59,10 @@ type Model struct {
 	// final
 	transferred int
 
+	// resumable transfers from prior sessions; loaded once at Init and
+	// after each completed queue. Drives the "press r to resume" banner.
+	pending []lab.TransferEntry
+
 	// dimensions / status
 	width, height int
 	screen        screen
@@ -80,10 +84,15 @@ func NewModel(cfg *lab.Config, backend Backend) *Model {
 	}
 }
 
-// Init implements tea.Model. Kicks off the initial directory load.
+// Init implements tea.Model. Kicks off the initial directory load and a
+// background scan for resumable transfers from prior sessions.
 func (m *Model) Init() tea.Cmd {
 	m.loading = true
-	return loadDirCmd(m.backend, m.cwd)
+	// Initialize pending to a non-nil empty slice once it loads so tests
+	// (and the banner check) can distinguish "not loaded yet" from "loaded,
+	// none pending".
+	m.pending = nil
+	return tea.Batch(loadDirCmd(m.backend, m.cwd), loadPendingCmd())
 }
 
 // ── Selection helpers ──────────────────────────────────────────────────────

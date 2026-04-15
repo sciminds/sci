@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/lab"
@@ -30,6 +31,8 @@ type progressMsg struct{ p lab.Progress }
 
 type transferDoneMsg struct{ err error }
 
+type pendingLoadedMsg struct{ entries []lab.TransferEntry }
+
 // ── Cmd factories ──────────────────────────────────────────────────────────
 
 func loadDirCmd(b Backend, p string) tea.Cmd {
@@ -49,9 +52,29 @@ func probeSizeCmd(b Backend, paths []string) tea.Cmd {
 // startTransferCmd kicks off rsync for one remotePath. The returned message
 // carries channels the model polls via waitProgressCmd. Cancel() the
 // context on screen exit to terminate rsync.
+//
+// Before launching rsync we probe the remote item's size and append a
+// "started" record to the transfer log. On success the model appends a
+// matching "done" record (see Update transferDoneMsg). Failed/cancelled
+// transfers leave the started record in place so the next browse session
+// can offer to resume.
 func startTransferCmd(b Backend, remotePath, localDir string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithCancel(context.Background())
+
+		// Per-item size probe (one ssh roundtrip; cheap because the master
+		// connection is already warm). Best-effort — if it fails we still
+		// log the entry, just without ExpectedBytes.
+		var expected int64
+		if n, err := b.Size(ctx, []string{remotePath}); err == nil {
+			expected = n
+		}
+		_ = lab.LogTransferStarted(lab.TransferEntry{
+			Remote:        remotePath,
+			Local:         localDestFor(localDir, remotePath),
+			ExpectedBytes: expected,
+		})
+
 		ch := make(chan lab.Progress, 8)
 		done := make(chan error, 1)
 		go func() {
@@ -60,6 +83,28 @@ func startTransferCmd(b Backend, remotePath, localDir string) tea.Cmd {
 			close(done)
 		}()
 		return transferStartedMsg{ch: ch, done: done, cancel: cancel}
+	}
+}
+
+// localDestFor mirrors what rsync writes when given `alias:remote dest/`:
+// the basename of remote, joined onto dest.
+func localDestFor(localDir, remotePath string) string {
+	return filepath.Join(localDir, filepath.Base(remotePath))
+}
+
+// loadPendingCmd reads the transfer manifest off the main goroutine.
+// On error we surface an empty slice — the banner is a nice-to-have, not
+// load-bearing, so silent failure is better than blocking the TUI.
+func loadPendingCmd() tea.Cmd {
+	return func() tea.Msg {
+		entries, err := lab.PendingTransfers()
+		if err != nil {
+			entries = []lab.TransferEntry{}
+		}
+		if entries == nil {
+			entries = []lab.TransferEntry{}
+		}
+		return pendingLoadedMsg{entries: entries}
 	}
 }
 
