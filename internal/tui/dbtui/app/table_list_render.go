@@ -26,7 +26,7 @@ const (
 	fileBrowserExtraChrome = 7
 
 	// Derive textarea sizing.
-	deriveSQLWidthInset = 6  // OverlayBoxPadding(4) + textarea border(2)
+	deriveSQLWidthInset = 8  // OverlayBoxPadding(6) + textarea border(2)
 	deriveSQLMinH       = 4  // minimum SQL textarea height
 	deriveSQLChrome     = 14 // lines consumed by header, labels, name field, blanks, hints
 )

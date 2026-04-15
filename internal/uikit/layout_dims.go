@@ -64,9 +64,10 @@ const (
 	// OverlayMargin is the horizontal margin from terminal edges for overlays.
 	OverlayMargin = 12
 
-	// OverlayBoxPadding is the total horizontal padding of OverlayBox
-	// (Padding(1,2) → 2 per side = 4 columns).
-	OverlayBoxPadding = 4
+	// OverlayBoxPadding is the total horizontal chrome of OverlayBox:
+	// Padding(1,2) → 4 columns + RoundedBorder → 2 columns = 6.
+	// Subtract from the Width(w) passed to OverlayBox to get inner text width.
+	OverlayBoxPadding = 6
 
 	// OverlayChromeLines is the vertical overhead of the overlay frame:
 	// border(2) + box-padding(2) + title(1) + blank(1) + blank(1) + footer(1).

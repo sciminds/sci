@@ -182,6 +182,12 @@ func (p *Player) View() string {
 	for len(lines) < p.height {
 		lines = append(lines, "")
 	}
+	// Strip carriage returns: they survive ansi.Truncate (width 0) but the
+	// terminal interprets them as cursor-rewind at render time, clobbering
+	// the overlay's left border and shifting the bottom down by a row.
+	lines = lo.Map(lines, func(line string, _ int) string {
+		return strings.ReplaceAll(line, "\r", "")
+	})
 	// Clip each line to the panel width to prevent overflow / unwanted wrapping.
 	if p.width > 0 {
 		lines = lo.Map(lines, func(line string, _ int) string {
