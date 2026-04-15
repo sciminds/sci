@@ -166,6 +166,9 @@ jobs:
           sci tools list --json
           # No package arg → install everything in the Brewfile (jq).
           sci tools install --json
+          # Named-formula path with the new --formula flag (re-installs jq
+          # as a no-op; the goal is to exercise the CLI surface).
+          sci tools install jq --formula --json
           sci tools outdated --json
           sci tools update --json
           sci tools uninstall --formula jq --json

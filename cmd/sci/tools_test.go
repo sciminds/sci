@@ -23,7 +23,7 @@ func TestToolsInstallFlags(t *testing.T) {
 		t.Fatal("tools install not found")
 	}
 
-	for _, name := range []string{"cask", "tap", "uv", "go", "cargo"} {
+	for _, name := range []string{"formula", "cask", "tap", "uv", "go", "cargo"} {
 		if !hasFlag(install, name) {
 			t.Errorf("tools install should have flag --%s", name)
 		}

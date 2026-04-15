@@ -67,6 +67,7 @@ func toolsInstallCommand() *cli.Command {
 		Description: "$ sci tools install\n$ sci tools install pandoc\n$ sci tools install --cask firefox",
 		ArgsUsage:   "[package]",
 		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "formula", Usage: "add as a brew formula", Destination: &toolsFormula, Local: true},
 			&cli.BoolFlag{Name: "cask", Usage: "add as a cask", Destination: &toolsCask, Local: true},
 			&cli.BoolFlag{Name: "tap", Usage: "add as a tap", Destination: &toolsTap, Local: true},
 			&cli.BoolFlag{Name: "uv", Usage: "add as a uv tool", Destination: &toolsUv, Local: true},
@@ -283,13 +284,15 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	// No arguments: sync Brewfile, then install all declared packages.
+	// No arguments: install all declared packages from the Brewfile.
+	// Intentionally no pre-Install Sync: Sync strips Brewfile entries that
+	// aren't installed yet, which is exactly the set Install is about to
+	// install. The Brewfile is user intent; we don't overwrite intent with
+	// current system state before acting on it.
 	if toolsDryRun {
 		uikit.Hint(fmt.Sprintf("would install all packages from %s", file))
 		return nil
 	}
-
-	syncBrewfile(file)
 
 	fmt.Fprintf(os.Stderr, "  Installing from Brewfile…\n")
 	result, instErr := brew.Install(runner, file)
