@@ -25,6 +25,12 @@ type Palette struct {
 	SurfaceRaised color.Color
 	OnAccent      color.Color
 	Border        color.Color
+
+	// MatchTintGreen is a subtle green used as a cell background to mark
+	// which cells contributed to a search-row's match (match-origin tint).
+	// Intentionally dimmer than Green so per-rune bold highlights still read
+	// clearly when layered on top.
+	MatchTintGreen color.Color
 }
 
 // NewPalette builds the Wong colorblind-safe palette for the given mode.
@@ -44,6 +50,8 @@ func NewPalette(isDark bool) Palette {
 		SurfaceRaised: ld(lipgloss.Color("#E2E8F0"), lipgloss.Color("#2D3748")),
 		OnAccent:      ld(lipgloss.Color("#FFFFFF"), lipgloss.Color("#0F172A")),
 		Border:        ld(lipgloss.Color("#D1D5DB"), lipgloss.Color("#374151")),
+
+		MatchTintGreen: ld(lipgloss.Color("#BBF7D0"), lipgloss.Color("#064E2F")),
 	}
 }
 

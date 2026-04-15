@@ -5,6 +5,7 @@
 package uikit
 
 import (
+	"slices"
 	"strings"
 	"sync"
 
@@ -106,30 +107,61 @@ const (
 // plain-text byte offsets back through ANSI sequences so highlights wrap the
 // correct visible characters without disturbing existing styling.
 func HighlightMatches(styled, query string) string {
-	if query == "" {
+	return HighlightMatchesTokens(styled, strings.Fields(query))
+}
+
+// HighlightMatchesTokens is like [HighlightMatches] but takes whitespace-split
+// tokens and highlights every occurrence of each token independently. Used by
+// overlays to share the row-search tokenizer ([match.MatchRow] semantics)
+// without re-implementing the AND-across-cells logic.
+func HighlightMatchesTokens(styled string, tokens []string) string {
+	if len(tokens) == 0 {
 		return styled
 	}
 
 	plain := ansi.Strip(styled)
 	lowerPlain := strings.ToLower(plain)
-	lowerQuery := strings.ToLower(query)
 
-	// Collect match byte-ranges in plain text.
+	// Collect match byte-ranges in plain text across all tokens.
 	type span struct{ start, end int }
 	var matches []span
-	pos := 0
-	for {
-		idx := strings.Index(lowerPlain[pos:], lowerQuery)
-		if idx < 0 {
-			break
+	for _, tok := range tokens {
+		lowerTok := strings.ToLower(tok)
+		if lowerTok == "" {
+			continue
 		}
-		s := pos + idx
-		matches = append(matches, span{s, s + len(lowerQuery)})
-		pos = s + len(lowerQuery)
+		pos := 0
+		for {
+			idx := strings.Index(lowerPlain[pos:], lowerTok)
+			if idx < 0 {
+				break
+			}
+			s := pos + idx
+			matches = append(matches, span{s, s + len(lowerTok)})
+			pos = s + len(lowerTok)
+		}
 	}
 	if len(matches) == 0 {
 		return styled
 	}
+	// Sort and merge overlapping spans so the ANSI walker sees monotonic ranges.
+	slices.SortFunc(matches, func(a, b span) int {
+		if a.start != b.start {
+			return a.start - b.start
+		}
+		return a.end - b.end
+	})
+	merged := matches[:0]
+	for _, m := range matches {
+		if len(merged) > 0 && m.start <= merged[len(merged)-1].end {
+			if m.end > merged[len(merged)-1].end {
+				merged[len(merged)-1].end = m.end
+			}
+			continue
+		}
+		merged = append(merged, m)
+	}
+	matches = merged
 
 	// Walk styled string, injecting highlight escapes at the right spots.
 	var out strings.Builder

@@ -72,6 +72,28 @@ func MatchRow(tokens, cells []string, scopedCol int) (map[int][]int, bool) {
 	return hl, true
 }
 
+// TokenSpansInText returns rune-index positions in text covered by
+// occurrences of any token. Case-insensitive; empty tokens skipped.
+// Used by overlays to reuse the same tokenizer as MatchRow so a row
+// matched by row-search highlights the same spans when opened in an
+// overlay preview.
+func TokenSpansInText(tokens []string, text string) []int {
+	if len(tokens) == 0 || text == "" {
+		return nil
+	}
+	lower := strings.ToLower(text)
+	var out []int
+	for _, tok := range tokens {
+		tok = strings.ToLower(tok)
+		if tok == "" {
+			continue
+		}
+		tokRunes := utf8.RuneCountInString(tok)
+		out = append(out, substringRuneSpans(lower, tok, tokRunes)...)
+	}
+	return sortedUnique(out)
+}
+
 // substringRuneSpans returns every rune-index position in `cell` covered by
 // an occurrence of `tok`. Both inputs must be lowercased by the caller.
 // Works in byte space then translates to rune indices so unicode cells keep

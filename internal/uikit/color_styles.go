@@ -65,6 +65,9 @@ type Styles struct {
 	modeVisualBadge lipgloss.Style
 	overlayBox      lipgloss.Style
 
+	// Match-origin tint (cell background marking which cells drove a row match)
+	matchTint lipgloss.Style
+
 	// Spinner / progress
 	spinnerDot lipgloss.Style
 
@@ -173,6 +176,9 @@ func NewStyles(isDark bool) *Styles {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(p.Blue).
 			Padding(1, 2),
+
+		// Match-origin tint
+		matchTint: lipgloss.NewStyle().Background(p.MatchTintGreen),
 
 		// Spinner / progress
 		spinnerDot: lipgloss.NewStyle().Foreground(p.Blue),
@@ -363,6 +369,11 @@ func (s *Styles) ModeVisual() lipgloss.Style { return s.modeVisualBadge }
 
 // OverlayBox returns the overlay box style.
 func (s *Styles) OverlayBox() lipgloss.Style { return s.overlayBox }
+
+// MatchTint returns a subtle green background used to tint cells that
+// contributed to a search-row's match (match-origin tint). Intended to
+// layer under per-rune highlight styles.
+func (s *Styles) MatchTint() lipgloss.Style { return s.matchTint }
 
 // ── Accessors — help rendering ───────────────────────────────────────────────
 

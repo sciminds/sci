@@ -26,7 +26,8 @@ type MarkdownOverlay struct {
 // NewMarkdownOverlay creates an auto-sized markdown overlay. The content is
 // rendered via glamour at the appropriate width; the viewport height shrinks
 // to fit short content so there is no empty space.
-func NewMarkdownOverlay(title, markdown string, termW, termH int) MarkdownOverlay {
+func NewMarkdownOverlay(title, markdown string, termW, termH int, opts ...OverlayOption) MarkdownOverlay {
+	cfg := applyOverlayOptions(opts)
 	innerW := OverlayWidth(termW, OverlayMinW, OverlayMaxW) - OverlayBoxPadding
 	if innerW < 1 {
 		innerW = 1
@@ -37,7 +38,9 @@ func NewMarkdownOverlay(title, markdown string, termW, termH int) MarkdownOverla
 	vp := viewport.New(viewport.WithWidth(innerW), viewport.WithHeight(bodyH))
 	vp.SetContent(rendered)
 
-	return MarkdownOverlay{title: title, markdown: markdown, rendered: rendered, vp: vp, width: boxW, search: newOverlaySearch()}
+	o := MarkdownOverlay{title: title, markdown: markdown, rendered: rendered, vp: vp, width: boxW, search: newOverlaySearch()}
+	seedInitialQuery(&o.search, &o.vp, rendered, cfg.initialQuery)
+	return o
 }
 
 // Resize recalculates the overlay dimensions for the given terminal size,

@@ -20,9 +20,9 @@ Written in Go because:
 
 | Command | What it does |
 |---------|--------------|
-| `sci help` | Interactive help TUI with demos for any command |
-| `sci learn` | Interactive guides with terminal demos |
 | `sci doctor` | Check that your Mac is set up correctly |
+| `sci help` | Interactive TUI with demos for any command |
+| `sci learn` | Interactive TUI to learn common terminal cmds |
 | `sci update` | Update sci to the latest version |
 
 ![sci doctor](docs/casts/sci-doctor.gif)
@@ -35,7 +35,10 @@ Written in Go because:
 
 The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/dbtui@latest`.
 
-### Manage Python projects
+### `sci proj` - Manage Python projects
+
+<details>
+<summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
 |---------|--------------|
@@ -46,13 +49,30 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci proj preview` | Start a live preview server for documents |
 | `sci proj render` | Build documents into HTML or PDF |
 | `sci proj run` | Run a project task |
+
+
+</details>
+
+![sci proj](docs/casts/sci-proj.gif)
+
+### `sci py` - ephemeral python repls/notebooks & file conversion
+
+<details>
+<summary><b>sub-commands</b> — click to expand</summary>
+
+| Command | What it does |
+|---------|--------------|
 | `sci py repl` | Open a Python scratchpad |
 | `sci py marimo` | Open a marimo notebook |
 | `sci py convert` | Convert between marimo (.py), MyST (.md), and Quarto (.qmd) |
 
-![sci proj](docs/casts/sci-proj.gif)
+</details>
 
-### Manage databases
+
+### `sci db` - Manage databases
+
+<details>
+<summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
 |---------|--------------|
@@ -63,9 +83,14 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci db delete` | Delete a table from a database |
 | `sci db reset` | Delete and recreate an empty database |
 
+</details>
+
 ![sci db](docs/casts/sci-db.gif)
 
-### Cloud storage
+### `sci cloud` - public cloud storage
+
+<details>
+<summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
 |---------|--------------|
@@ -75,9 +100,15 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci cloud list` | List all shared files |
 | `sci cloud remove <name>` | Remove a shared file |
 
+</details>
+
 ![sci cloud](docs/casts/sci-cloud.gif)
 
-### Lab storage (sftp)
+### `sci lab` - lab storage (sftp)
+
+<details>
+<summary><b>sub-commands</b> — click to expand</summary>
+
 
 | Command | What it does |
 |---------|--------------|
@@ -87,9 +118,15 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci lab put` | Upload a file or directory to your lab space |
 | `sci lab browse` | Open an SSH shell in lab storage |
 
+
+</details>
+
 ![sci lab](docs/casts/sci-lab.gif)
 
-### Manage tools (Homebrew & uv)
+### `sci tools` - manage tools (Homebrew & uv)
+
+<details>
+<summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
 |---------|--------------|
@@ -99,9 +136,14 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci tools update` | Update the Homebrew registry and upgrade outdated packages |
 | `sci tools reccs` | Pick optional tools to install |
 
+</details>
+
 ![sci tools](docs/casts/sci-tools.gif)
 
-### Video/audio editing
+### `sci vid` - Video/audio editing
+
+<details>
+<summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
 |---------|--------------|
@@ -116,9 +158,15 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci vid extract-audio` | Extract audio track to file |
 | `sci vid strip-subs` | Remove subtitles from a video |
 
+</details>
+
 ![sci vid](docs/casts/sci-vid.gif)
 
-### Canvas LMS & GitHub Classroom
+### `sci cass` - Canvas LMS & GitHub Classroom
+
+<details>
+<summary><b>sub-commands</b> — click to expand</summary>
+
 
 | Command | What it does |
 |---------|--------------|
@@ -136,11 +184,18 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci cass canvas announce` | List, post, or delete announcements |
 | `sci cass canvas files` | List course files |
 
+
 Syncs course data to a local SQLite database (`cass.db`) with a git-like workflow: pull shows changelogs, diff shows pending grade changes, push sends grades to Canvas with conflict detection. GitHub Classroom is optional — works with Canvas-only courses.
+
+</details>
 
 ![sci cass](docs/casts/sci-cass.gif)
 
-### Zotero library management (Experimental)
+### `sci zot` - Zotero library management (Experimental)
+
+<details>
+<summary><b>sub-commands</b> — click to expand</summary>
+
 
 | Command | What it does |
 |---------|--------------|
@@ -169,9 +224,6 @@ Reads the local `zotero.sqlite` (immutable, no contention with the running Zoter
 **Library export details.** `zot export` honors user-pinned cite-keys (Zotero 7's native `citationKey` field, or legacy Better BibTeX `Citation Key:` lines in `extra`) and synthesizes semantic keys for everything else as `lastname{year}{firstword}-ZOTKEY`. The trailing 8-char Zotero key suffix guarantees uniqueness without collision arithmetic and keeps entries round-trippable back to the source item. Pinned entries also carry a `zotero://select/library/items/<KEY>` URI in the `note` field (appended to any existing user prose, never overwriting). A `.zotero-citekeymap.json` sidecar is written next to the output file; on the next run, any synthesized prefix that drifted (e.g. after a metadata typo fix) gets a biblatex `ids = {oldkey}` alias so manuscripts citing the old form still resolve.
 
 Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/zot@latest`.
-
-<details>
-<summary><b>Demos</b> — click to expand</summary>
 
 #### Setup & library overview
 

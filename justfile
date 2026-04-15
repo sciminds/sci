@@ -73,6 +73,10 @@ ok-slow: tidy fmt vet lint lint-style lint-guard test test-slow build
 clean:
     rm -f sci dbtui zot
 
+# Regenerate internal/uikit/REFERENCE.md from godoc comments.
+docs-uikit:
+    go run ./internal/uikit/cmd/gen-reference ./internal/uikit ./internal/uikit/REFERENCE.md
+
 # Render embedded asciicasts to GIFs under docs/casts/ using `agg`.
 # GIFs embed natively in GitHub-rendered markdown (no JS player needed).
 # Pass a filename stem (or glob) to limit the set:

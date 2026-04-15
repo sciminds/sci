@@ -5,6 +5,8 @@ package uikit
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -129,33 +131,49 @@ func (s *overlaySearch) handleKey(msg tea.KeyPressMsg, vp *viewport.Model, rende
 	return searchPassthrough, nil
 }
 
-// overlayApplySearch finds all case-insensitive matches of query in rendered,
-// updates the viewport content with highlights, and returns the match state.
+// overlayApplySearch finds all case-insensitive matches of query tokens in
+// rendered, updates the viewport content with highlights, and returns the
+// match state. The query is whitespace-split so that `/foo bar` highlights
+// `foo` and `bar` independently — same tokenizer as [match.MatchRow], so
+// rows flagged by row-search highlight their matched words when opened in
+// an overlay preview.
 func overlayApplySearch(query, rendered string, vp *viewport.Model) (matchLines []int, matchCount, matchIdx int) {
-	if query == "" {
+	tokens := strings.Fields(query)
+	if len(tokens) == 0 {
 		vp.SetContent(rendered)
 		return nil, 0, 0
 	}
 
 	plain := ansi.Strip(rendered)
 	lowerPlain := strings.ToLower(plain)
-	lowerQuery := strings.ToLower(query)
 
-	start := 0
-	for {
-		idx := strings.Index(lowerPlain[start:], lowerQuery)
-		if idx < 0 {
-			break
+	// Dedupe match line numbers across tokens (so n/N cycles each region once).
+	lineSet := map[int]bool{}
+	for _, tok := range tokens {
+		lowerTok := strings.ToLower(tok)
+		if lowerTok == "" {
+			continue
 		}
-		begin := start + idx
-		line := strings.Count(lowerPlain[:begin], "\n")
-		matchLines = append(matchLines, line)
-		start = begin + len(query)
+		start := 0
+		for {
+			idx := strings.Index(lowerPlain[start:], lowerTok)
+			if idx < 0 {
+				break
+			}
+			begin := start + idx
+			line := strings.Count(lowerPlain[:begin], "\n")
+			lineSet[line] = true
+			start = begin + len(lowerTok)
+		}
+	}
+
+	if len(lineSet) > 0 {
+		matchLines = slices.Sorted(maps.Keys(lineSet))
 	}
 
 	matchCount = len(matchLines)
 	if matchCount > 0 {
-		vp.SetContent(HighlightMatches(rendered, query))
+		vp.SetContent(HighlightMatchesTokens(rendered, tokens))
 		vp.SetYOffset(matchLines[0])
 	} else {
 		vp.SetContent(rendered)
@@ -205,9 +223,43 @@ type Overlay struct {
 	search   overlaySearch
 }
 
+// OverlayOption configures an [Overlay] or [MarkdownOverlay] at construction.
+type OverlayOption func(*overlayConfig)
+
+type overlayConfig struct {
+	initialQuery string
+}
+
+// WithInitialQuery seeds the overlay's /-search with the given query so the
+// first rendered frame already shows token highlights — used when the caller
+// has an active row-search and wants the preview's highlights to align.
+func WithInitialQuery(q string) OverlayOption {
+	return func(c *overlayConfig) { c.initialQuery = q }
+}
+
+func applyOverlayOptions(opts []OverlayOption) overlayConfig {
+	var c overlayConfig
+	for _, opt := range opts {
+		opt(&c)
+	}
+	return c
+}
+
+// seedInitialQuery commits the initial query into the overlay's search state
+// and applies highlights, so the first View() already shows them without
+// waiting for a / keystroke.
+func seedInitialQuery(s *overlaySearch, vp *viewport.Model, rendered, q string) {
+	if q == "" {
+		return
+	}
+	s.query = q
+	s.matchLines, s.matchCount, s.matchIdx = overlayApplySearch(q, rendered, vp)
+}
+
 // NewOverlay creates an auto-sized overlay. The viewport height shrinks to
 // fit short content so there is no empty space.
-func NewOverlay(title, content string, termW, termH int) Overlay {
+func NewOverlay(title, content string, termW, termH int, opts ...OverlayOption) Overlay {
+	cfg := applyOverlayOptions(opts)
 	innerW := OverlayWidth(termW, OverlayMinW, OverlayMaxW) - OverlayBoxPadding
 	if innerW < 1 {
 		innerW = 1
@@ -218,7 +270,9 @@ func NewOverlay(title, content string, termW, termH int) Overlay {
 	vp := viewport.New(viewport.WithWidth(innerW), viewport.WithHeight(bodyH))
 	vp.SetContent(wrapped)
 
-	return Overlay{title: title, content: content, rendered: wrapped, vp: vp, width: boxW, search: newOverlaySearch()}
+	o := Overlay{title: title, content: content, rendered: wrapped, vp: vp, width: boxW, search: newOverlaySearch()}
+	seedInitialQuery(&o.search, &o.vp, wrapped, cfg.initialQuery)
+	return o
 }
 
 // Resize recalculates the overlay dimensions for the given terminal size,
