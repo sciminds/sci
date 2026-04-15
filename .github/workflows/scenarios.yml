@@ -35,11 +35,15 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Build sci
+      - name: Install just
+        run: brew install just
+
+      - name: Build sci (just ok)
         run: |
-          COMMIT="${GITHUB_SHA}"
-          LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
-          go build -ldflags="${LDFLAGS}" -o sci ./cmd/sci
+          # Use the same gate the project uses locally so build flags
+          # (ldflags, version.Commit, etc.) can't drift between release.yml,
+          # scenarios.yml, and a developer's machine.
+          just ok
           mkdir -p "${HOME}/.local/bin"
           cp sci "${HOME}/.local/bin/sci"
           echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
@@ -148,9 +152,10 @@ jobs:
       # machine. Uses --json so no prompts are required.
       - name: sci tools lifecycle (no-brew-accept only)
         if: matrix.scenario == 'no-brew-accept'
-        timeout-minutes: 10
+        timeout-minutes: 20
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SCI_ASSUME: "yes"
         run: |
           set -euxo pipefail
           # Overwrite whatever doctor dumped — we need a deterministic
@@ -158,21 +163,63 @@ jobs:
           # act on. Doctor's dump captures the fresh brew state (empty),
           # which wouldn't exercise the install→uninstall round trip.
           mkdir -p "${HOME}/.config/homebrew"
-          cat > "${HOME}/.config/homebrew/Brewfile" <<'EOF'
+          BREWFILE="${HOME}/.config/homebrew/Brewfile"
+          cat > "${BREWFILE}" <<'EOF'
           tap "homebrew/bundle"
           brew "jq"
           EOF
 
+          # ---- Formula round trip (jq) -----------------------------------
           sci tools list --json
           # No package arg → install everything in the Brewfile (jq).
           sci tools install --json
           # Named-formula path with the new --formula flag (re-installs jq
           # as a no-op; the goal is to exercise the CLI surface).
           sci tools install jq --formula --json
-          sci tools outdated --json
           sci tools update --json
           sci tools uninstall --formula jq --json
           sci tools list --json
+
+          # ---- uv tool round trip (ruff) ---------------------------------
+          # Exercises InstallUVTools / UVToolList / uninstall path — the
+          # uv-specific glue has no live coverage anywhere else.
+          sci tools install ruff --uv --json
+          sci tools list --uv --json | grep -q '"ruff"'
+          grep -q '^uv "ruff"' "${BREWFILE}"
+          sci tools uninstall --uv ruff --json
+          ! grep -q '^uv "ruff"' "${BREWFILE}"
+
+          # ---- Cask round trip (font-fira-code) --------------------------
+          # Small font cask = fast, no GUI app to clean up. Exercises
+          # brew install --cask / brew list --cask / brew uninstall --cask.
+          sci tools install font-fira-code --cask --json
+          sci tools list --cask --json | grep -q '"font-fira-code"'
+          sci tools uninstall --cask font-fira-code --json
+
+          # ---- Brewfile reconciliation (brew.Sync) -----------------------
+          # Install a formula behind sci's back, then assert `tools list`
+          # reconciles it back into the Brewfile.
+          brew install tree
+          sci tools list --json | grep -q '"tree"'
+          grep -q '^brew "tree"' "${BREWFILE}"
+          sci tools uninstall --formula tree --json
+
+          # ---- Optional-tool catalog (reccs) -----------------------------
+          # Exercises doctor.ListOptionalTools + doctor.InstallOptionalTool,
+          # which use DirectInstall + a separate sync path.
+          sci tools reccs --json | grep -q '"name"'
+          sci tools reccs --install rg --json
+          sci tools list --json | grep -q '"rg"'
+          sci tools uninstall --formula rg --json
+
+          # ---- Outdated → upgrade branch ---------------------------------
+          # macOS runners ship many preinstalled brew formulae, so
+          # `brew outdated` usually returns something. Human mode +
+          # SCI_ASSUME=yes auto-confirms the upgrade prompt and exercises
+          # brew.UpgradeOnly. If nothing is outdated it short-circuits
+          # cleanly — still more coverage than the JSON-only path.
+          sci tools outdated --json
+          sci tools outdated
 
       - name: Summary
         if: always()
