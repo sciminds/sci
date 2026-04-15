@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [no-brew, brew-no-file, brew-file]
+        scenario: [no-brew, no-brew-accept, brew-no-file, brew-file]
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -47,7 +47,7 @@ jobs:
       # --- Scenario setup -------------------------------------------------
 
       - name: Scenario — uninstall Homebrew
-        if: matrix.scenario == 'no-brew'
+        if: matrix.scenario == 'no-brew' || matrix.scenario == 'no-brew-accept'
         run: |
           # GitHub's macOS runners ship Homebrew preinstalled. Run the official
           # uninstall script non-interactively, then scrub any leftovers.
@@ -88,10 +88,42 @@ jobs:
       - name: sci --help
         run: sci --help
 
-      - name: sci doctor (JSON)
-        run: sci doctor --json --git-name "CI Scenario" --git-email "ci@sciminds.com"
+      - name: sci doctor (JSON, tolerant)
+        if: matrix.scenario != 'no-brew-accept'
+        run: |
+          set +e
+          sci doctor --json --git-name "CI Scenario" --git-email "ci@sciminds.com"
+          code=$?
+          echo "exit=$code"
+          # Only brew-file / brew-no-file must succeed; no-brew failing is expected.
+          if [ "$SCI_SCENARIO" != "no-brew" ] && [ "$code" -ne 0 ]; then
+            echo "::error::sci doctor --json must succeed when brew is present"
+            exit "$code"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: sci doctor (LIVE Homebrew install via SCI_ASSUME=yes)
+        if: matrix.scenario == 'no-brew-accept'
+        timeout-minutes: 15
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SCI_ASSUME: "yes"
+        run: |
+          # Human-mode doctor; the SCI_ASSUME=yes env var drives the
+          # "Install Homebrew?" prompt through without a TTY.
+          sci doctor --git-name "CI Scenario" --git-email "ci@sciminds.com" || true
+          # Installer lands brew at /opt/homebrew/bin/brew (Apple Silicon runners).
+          if [ -x /opt/homebrew/bin/brew ]; then
+            /opt/homebrew/bin/brew --version
+            echo "/opt/homebrew/bin" >> "$GITHUB_PATH"
+          elif [ -x /usr/local/bin/brew ]; then
+            /usr/local/bin/brew --version
+            echo "/usr/local/bin" >> "$GITHUB_PATH"
+          else
+            echo "::error::brew binary not found after install"
+            exit 1
+          fi
 
       - name: sci tools list (JSON, tolerant)
         # In no-brew / brew-no-file this may fail by design — capture output
@@ -110,6 +142,34 @@ jobs:
       - name: sci tools install --dry-run (brew-file only)
         if: matrix.scenario == 'brew-file'
         run: sci tools install --dry-run
+
+      # After the live Homebrew install, exercise the full tools lifecycle
+      # to confirm the rest of the CLI works end-to-end on a freshly set up
+      # machine. Uses --json so no prompts are required.
+      - name: sci tools lifecycle (no-brew-accept only)
+        if: matrix.scenario == 'no-brew-accept'
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          # No Brewfile yet — doctor created one during the live install flow
+          # above only if it got past the pre-flight step. Seed one if missing
+          # so the install step has something to act on.
+          mkdir -p "${HOME}/.config/homebrew"
+          if [ ! -f "${HOME}/.config/homebrew/Brewfile" ]; then
+            cat > "${HOME}/.config/homebrew/Brewfile" <<'EOF'
+          tap "homebrew/bundle"
+          brew "jq"
+          EOF
+          fi
+
+          sci tools list --json
+          sci tools install --formula jq --json
+          sci tools outdated --json
+          sci tools update --json
+          sci tools uninstall --formula jq --json
+          sci tools list --json
 
       - name: Summary
         if: always()

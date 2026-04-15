@@ -15,6 +15,7 @@ package cmdutil
 // the quiet-mode (--json) auto-confirm path and the skip=true bypass.
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/sciminds/cli/internal/uikit"
@@ -49,6 +50,39 @@ func TestConfirmOrSkip_SkipTrue(t *testing.T) {
 	}
 	if done {
 		t.Error("ConfirmOrSkip with skip=true should return done=false")
+	}
+}
+
+func TestConfirmRequired_QuietAutoConfirms(t *testing.T) {
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
+
+	if err := ConfirmRequired("Install Homebrew?"); err != nil {
+		t.Errorf("ConfirmRequired in quiet mode should auto-confirm, got: %v", err)
+	}
+}
+
+func TestAssume_YesNo(t *testing.T) {
+	t.Setenv("SCI_ASSUME", "yes")
+	for name, fn := range map[string]func(string) error{
+		"Confirm":         Confirm,
+		"ConfirmYes":      ConfirmYes,
+		"ConfirmRequired": ConfirmRequired,
+	} {
+		if err := fn("Proceed?"); err != nil {
+			t.Errorf("%s with SCI_ASSUME=yes should succeed, got: %v", name, err)
+		}
+	}
+
+	t.Setenv("SCI_ASSUME", "no")
+	for name, fn := range map[string]func(string) error{
+		"Confirm":         Confirm,
+		"ConfirmYes":      ConfirmYes,
+		"ConfirmRequired": ConfirmRequired,
+	} {
+		if err := fn("Proceed?"); !errors.Is(err, ErrCancelled) {
+			t.Errorf("%s with SCI_ASSUME=no should return ErrCancelled, got: %v", name, err)
+		}
 	}
 }
 

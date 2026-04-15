@@ -98,8 +98,21 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 			if !result.AllPassed() {
 				os.Exit(1)
 			}
+			return nil
 		}
-		return nil
+
+		// Interactive: offer to install. If the user accepts and the install
+		// succeeds, re-run pre-flight so the rest of doctor can proceed.
+		if installed := offerHomebrewInstall(); !installed {
+			return nil
+		}
+		result.Sections = doctor.RunPreflightIdentity()
+		if !hasHomebrew(result) {
+			fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymWarn,
+				uikit.TUI.Warn().Render(`brew not on PATH yet — run: eval "$(/opt/homebrew/bin/brew shellenv)"`))
+			fmt.Fprintf(os.Stderr, "  %s then re-run: sci doctor\n", uikit.SymArrow)
+			return nil
+		}
 	}
 
 	// ── Step 3a: Locate or create Brewfile ───────────────────────────────
@@ -230,6 +243,35 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// ── Step 5: Check for outdated packages ─────────────────────────────
 	return runDoctorUpdateCheck(runner)
+}
+
+// offerHomebrewInstall prompts the user to install Homebrew and runs the
+// official installer on accept. Returns true if brew appears to be installed
+// after this call (either the install succeeded, or it was already present).
+func offerHomebrewInstall() bool {
+	fmt.Fprintf(os.Stderr, "\n  %s Homebrew is required for sci to manage your tools.\n", uikit.SymArrow)
+	err := cmdutil.ConfirmRequired("Install Homebrew now?")
+	if errors.Is(err, cmdutil.ErrCancelled) {
+		fmt.Fprintf(os.Stderr, "\n  To install manually: visit https://brew.sh, then re-run sci doctor.\n\n")
+		return false
+	}
+	if err != nil {
+		return false
+	}
+
+	fmt.Fprintf(os.Stderr, "\n  Installing Homebrew (this may take a few minutes)…\n\n")
+	installErr := brew.InstallHomebrew()
+	if errors.Is(installErr, brew.ErrHomebrewInstalled) {
+		return true
+	}
+	if installErr != nil {
+		fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymFail,
+			uikit.TUI.Fail().Render("Homebrew install failed: "+installErr.Error()))
+		fmt.Fprintf(os.Stderr, "  %s Visit https://brew.sh to install manually.\n\n", uikit.SymArrow)
+		return false
+	}
+	fmt.Fprintf(os.Stderr, "\n  %s Homebrew installed\n", uikit.SymOK)
+	return true
 }
 
 // hasHomebrew checks if the pre-flight section includes a passing Homebrew check.
