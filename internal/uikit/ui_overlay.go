@@ -133,12 +133,12 @@ func (s *overlaySearch) handleKey(msg tea.KeyPressMsg, vp *viewport.Model, rende
 
 // overlayApplySearch finds all case-insensitive matches of query tokens in
 // rendered, updates the viewport content with highlights, and returns the
-// match state. The query is whitespace-split so that `/foo bar` highlights
-// `foo` and `bar` independently — same tokenizer as [match.MatchRow], so
-// rows flagged by row-search highlight their matched words when opened in
-// an overlay preview.
+// match state. The query is phrase-aware ([TokenizeQuery]) so `/foo bar`
+// highlights foo and bar independently while `/"foo bar"` highlights only
+// contiguous phrases — same tokenizer semantics as the row-level phrase
+// search in dbtui.
 func overlayApplySearch(query, rendered string, vp *viewport.Model) (matchLines []int, matchCount, matchIdx int) {
-	tokens := strings.Fields(query)
+	tokens := TokenizeQuery(query)
 	if len(tokens) == 0 {
 		vp.SetContent(rendered)
 		return nil, 0, 0

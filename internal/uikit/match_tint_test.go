@@ -61,6 +61,18 @@ func TestOverlay_WithInitialQuerySeedsHighlights(t *testing.T) {
 	}
 }
 
+func TestOverlay_QuotedPhraseHighlightsContiguous(t *testing.T) {
+	t.Parallel()
+	// Content has one contiguous "gossip drives" run and one scattered
+	// "gossip about drives". The phrase query should highlight only the
+	// contiguous run — same semantics as row-level phrase search.
+	content := "gossip drives deposition\ngossip about drives\n"
+	o := NewOverlay("t", content, 80, 40, WithInitialQuery(`"gossip drives"`))
+	if o.search.matchCount != 1 {
+		t.Errorf("expected 1 contiguous phrase match, got %d", o.search.matchCount)
+	}
+}
+
 func TestMarkdownOverlay_WithInitialQuerySeedsHighlights(t *testing.T) {
 	t.Parallel()
 	o := NewMarkdownOverlay("t", "hello world hello", 80, 40, WithInitialQuery("hello"))

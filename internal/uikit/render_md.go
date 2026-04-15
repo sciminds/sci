@@ -107,7 +107,7 @@ const (
 // plain-text byte offsets back through ANSI sequences so highlights wrap the
 // correct visible characters without disturbing existing styling.
 func HighlightMatches(styled, query string) string {
-	return HighlightMatchesTokens(styled, strings.Fields(query))
+	return HighlightMatchesTokens(styled, TokenizeQuery(query))
 }
 
 // HighlightMatchesTokens is like [HighlightMatches] but takes whitespace-split

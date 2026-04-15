@@ -301,7 +301,11 @@ func rowHasNote(row []cell, notesCol int) bool {
 // the query has no eligible terms.
 //
 // Token semantics:
-//   - "word" (double-quoted) → exact word match, always.
+//   - `"word"` (double-quoted single word) → exact word match, always.
+//   - `"foo bar"` (quoted phrase) → expanded to exact-match on each
+//     component word. Zotero's fulltextItemWords has no positional data, so
+//     we can't verify adjacency at the PDF layer — this is the honest
+//     fallback. Metadata and note-body surfaces still enforce contiguity.
 //   - single unquoted token → prefix match ("neuro" → "neuroimaging"), so
 //     incremental typing feels responsive.
 //   - two or more unquoted tokens → exact word match. Once the user has
@@ -318,40 +322,41 @@ func buildFTSHitSet(groups [][]match.Clause, store data.DataStore, table string)
 		return nil
 	}
 
-	// Collect all unscoped, non-negated terms across all groups.
-	allWords := lo.FlatMap(groups, func(group []match.Clause, _ int) []string {
-		return lo.FlatMap(group, func(c match.Clause, _ int) []string {
+	// Collect all unscoped, non-negated tokens across all groups.
+	tokens := lo.FlatMap(groups, func(group []match.Clause, _ int) []match.Token {
+		return lo.FlatMap(group, func(c match.Clause, _ int) []match.Token {
 			if c.Column != "" || c.Negate || c.Terms == "" {
 				return nil
 			}
-			return strings.Fields(c.Terms)
+			return match.Tokenize(c.Terms)
 		})
 	})
-	if len(allWords) == 0 {
+	if len(tokens) == 0 {
 		return nil
 	}
 
-	isQuoted := func(w string) bool {
-		return len(w) >= 2 && w[0] == '"' && w[len(w)-1] == '"'
-	}
-	unquote := func(w string) string { return w[1 : len(w)-1] }
-
-	quotedWords := lo.FilterMap(allWords, func(w string, _ int) (string, bool) {
-		if !isQuoted(w) {
-			return "", false
+	// Expand phrase tokens into their component words. All components are
+	// treated as exact (the phrase's quote markers signal "I mean these
+	// specific words"), even though we can't verify adjacency.
+	var exactWords, unquotedWords []string
+	for _, t := range tokens {
+		parts := strings.Fields(t.Text)
+		switch {
+		case t.Quoted:
+			exactWords = append(exactWords, parts...)
+		default:
+			unquotedWords = append(unquotedWords, parts...)
 		}
-		return unquote(w), true
-	})
-	rawUnquoted := lo.Filter(allWords, func(w string, _ int) bool { return !isQuoted(w) })
+	}
 
 	// Multi-token queries force unquoted words to exact match; a lone
 	// unquoted word stays as a prefix for incremental typing.
-	var prefixWords, exactWords []string
-	exactWords = append(exactWords, quotedWords...)
-	if len(allWords) > 1 {
-		exactWords = append(exactWords, rawUnquoted...)
+	totalWords := len(exactWords) + len(unquotedWords)
+	var prefixWords []string
+	if totalWords > 1 {
+		exactWords = append(exactWords, unquotedWords...)
 	} else {
-		prefixWords = rawUnquoted
+		prefixWords = unquotedWords
 	}
 
 	idsToBoolSet := func(ids []int64) map[int64]bool {
@@ -446,12 +451,17 @@ func matchANDGroup(row []cell, group resolvedGroup) (map[int][]int, bool) {
 }
 
 // matchRow checks if the row satisfies the search terms under token-AND
-// semantics: the terms are split on whitespace and each token must appear
-// (case-insensitive substring) in some cell of the row. scopedCol restricts
-// matching to a single column when >= 0. Returns per-column rune-index
-// highlight positions and whether the row matched.
+// semantics: the terms are tokenized via [match.Tokenize] (phrase-aware —
+// `"..."` stays a single token with internal whitespace preserved) and each
+// token must appear (case-insensitive substring) in some cell of the row.
+// scopedCol restricts matching to a single column when >= 0. Returns
+// per-column rune-index highlight positions and whether the row matched.
+//
+// Because tokens are substrings, quoted phrases match contiguous runs
+// naturally — `"gossip drives"` matches "gossip drives deposition" but not
+// "gossip about drives".
 func matchRow(row []cell, terms string, scopedCol int) (map[int][]int, bool) {
-	tokens := strings.Fields(terms)
+	tokens := match.TokenTexts(match.Tokenize(terms))
 	cells := lo.Map(row, func(c cell, _ int) string { return firstLine(c.Value) })
 	return match.MatchRow(tokens, cells, scopedCol)
 }
@@ -545,20 +555,18 @@ func (m *Model) buildNoteHits(tab *Tab) map[int64]bool {
 		return nil
 	}
 	groups := match.ParseClauses(m.search.Query)
-	// Collect all unscoped, non-negated tokens across all groups —
-	// note body search mirrors FTS scoping semantics.
+	// Collect all unscoped, non-negated tokens across all groups — note
+	// body search mirrors FTS scoping semantics. Tokenize is phrase-aware:
+	// a quoted phrase becomes one token whose substring-scan below enforces
+	// contiguity, so `"gossip drives"` matches a contiguous run but not
+	// scattered words.
 	tokens := lo.FlatMap(groups, func(group []match.Clause, _ int) []string {
 		return lo.FlatMap(group, func(c match.Clause, _ int) []string {
 			if c.Column != "" || c.Negate || c.Terms == "" {
 				return nil
 			}
-			// Strip quotes if quoted — note search is substring, not FTS-exact.
-			fields := strings.Fields(c.Terms)
-			return lo.Map(fields, func(f string, _ int) string {
-				if len(f) >= 2 && f[0] == '"' && f[len(f)-1] == '"' {
-					return strings.ToLower(f[1 : len(f)-1])
-				}
-				return strings.ToLower(f)
+			return lo.Map(match.Tokenize(c.Terms), func(t match.Token, _ int) string {
+				return strings.ToLower(t.Text)
 			})
 		})
 	})
