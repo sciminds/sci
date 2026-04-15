@@ -143,8 +143,15 @@ func applySearchFilter(tab *Tab, state *rowSearchState, ftsHits map[int64]bool) 
 // terms. Returns a set of matching rowIDs, or nil if FTS is not available or
 // the query has no eligible terms.
 //
-// Quoting: words wrapped in double quotes are matched exactly (no prefix
-// expansion). Unquoted words use prefix matching for incremental search.
+// Token semantics:
+//   - "word" (double-quoted) → exact word match, always.
+//   - single unquoted token → prefix match ("neuro" → "neuroimaging"), so
+//     incremental typing feels responsive.
+//   - two or more unquoted tokens → exact word match. Once the user has
+//     typed multiple words the intent is no longer incremental, and prefix
+//     expansion on every token produces far too many false positives
+//     (e.g. "drives" prefix also matches "drove/driver/driven" in unrelated
+//     PDFs that happen to contain the other token).
 func buildFTSHitSet(groups [][]match.Clause, store data.DataStore, table string) map[int64]bool {
 	if store == nil {
 		return nil
@@ -167,34 +174,39 @@ func buildFTSHitSet(groups [][]match.Clause, store data.DataStore, table string)
 		return nil
 	}
 
-	// Partition into exact (quoted) and prefix (unquoted) words.
 	isQuoted := func(w string) bool {
 		return len(w) >= 2 && w[0] == '"' && w[len(w)-1] == '"'
 	}
-	exactWords := lo.FilterMap(allWords, func(w string, _ int) (string, bool) {
+	unquote := func(w string) string { return w[1 : len(w)-1] }
+
+	quotedWords := lo.FilterMap(allWords, func(w string, _ int) (string, bool) {
 		if !isQuoted(w) {
 			return "", false
 		}
-		return w[1 : len(w)-1], true
+		return unquote(w), true
 	})
-	prefixWords := lo.Filter(allWords, func(w string, _ int) bool {
-		return !isQuoted(w)
-	})
+	rawUnquoted := lo.Filter(allWords, func(w string, _ int) bool { return !isQuoted(w) })
+
+	// Multi-token queries force unquoted words to exact match; a lone
+	// unquoted word stays as a prefix for incremental typing.
+	var prefixWords, exactWords []string
+	exactWords = append(exactWords, quotedWords...)
+	if len(allWords) > 1 {
+		exactWords = append(exactWords, rawUnquoted...)
+	} else {
+		prefixWords = rawUnquoted
+	}
 
 	idsToBoolSet := func(ids []int64) map[int64]bool {
 		return lo.SliceToMap(ids, func(id int64) (int64, bool) { return id, true })
 	}
-
 	var result map[int64]bool
 
-	// Query prefix words (incremental search).
 	if len(prefixWords) > 0 {
 		if ids, err := fts.SearchFulltext(table, prefixWords, false); err == nil && len(ids) > 0 {
 			result = idsToBoolSet(ids)
 		}
 	}
-
-	// Query exact words and intersect with prefix results when both present.
 	if len(exactWords) > 0 {
 		if ids, err := fts.SearchFulltext(table, exactWords, true); err == nil && len(ids) > 0 {
 			if result == nil {

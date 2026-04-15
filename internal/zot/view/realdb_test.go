@@ -145,3 +145,40 @@ func TestStore_RealLibrary_MultiTokenSearch(t *testing.T) {
 	}
 	t.Logf("'Gossip drives' matched %d rows (including target=%v)", hitCount, targetMatched)
 }
+
+// TestStore_RealLibrary_FTSMultiTokenExact asserts that FTS on a multi-token
+// query uses exact-word match, cutting the false-positive blast radius of
+// prefix expansion (e.g. "drives" → "drove/driver/driven" across hundreds of
+// unrelated PDFs). Regression for the FTS over-match that injected many
+// unrelated rows after the debounced query finished.
+func TestStore_RealLibrary_FTSMultiTokenExact(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("SLOW") == "" {
+		t.Skip("set SLOW=1 to run real-library FTS test")
+	}
+	root := findRepoRoot(t)
+	if _, err := os.Stat(filepath.Join(root, "zotero.sqlite")); err != nil {
+		t.Skipf("no ./zotero.sqlite at repo root — skipping real-db test")
+	}
+	db, err := local.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := New(db, time.UTC)
+	defer func() { _ = store.Close() }()
+
+	words := []string{"gossip", "drives"}
+	prefixHits, err := store.SearchFulltext(TableName, words, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exactHits, err := store.SearchFulltext(TableName, words, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("FTS 'gossip drives': prefix=%d, exact=%d", len(prefixHits), len(exactHits))
+	if len(exactHits) >= len(prefixHits) {
+		t.Errorf("exact match should be strictly tighter than prefix: exact=%d, prefix=%d",
+			len(exactHits), len(prefixHits))
+	}
+}

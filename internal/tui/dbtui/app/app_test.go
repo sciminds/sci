@@ -1,10 +1,12 @@
 package app
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/table"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/data"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
@@ -1100,12 +1102,20 @@ func TestApplySearchFilterNegatePlain(t *testing.T) {
 
 // mockFTSStore implements data.DataStore + data.FulltextSearcher for testing.
 // Only SearchFulltext is functional; all other methods panic if called.
+// Every call is recorded in calls for assertion on exact/prefix semantics.
 type mockFTSStore struct {
 	data.DataStore // embedded to satisfy interface; nil — unused methods panic
 	hits           []int64
+	calls          []mockFTSCall
 }
 
-func (m *mockFTSStore) SearchFulltext(_ string, _ []string, _ bool) ([]int64, error) {
+type mockFTSCall struct {
+	words []string
+	exact bool
+}
+
+func (m *mockFTSStore) SearchFulltext(_ string, words []string, exact bool) ([]int64, error) {
+	m.calls = append(m.calls, mockFTSCall{words: slices.Clone(words), exact: exact})
 	return m.hits, nil
 }
 
@@ -1245,6 +1255,66 @@ func TestViewWithFTSLoading(t *testing.T) {
 	m := makeFTSModel([]int64{}, "test")
 	m.search.ftsLoading = true
 	_ = m.View() // must not panic
+}
+
+// BuildFTSHitSet: single unquoted token uses prefix match — supports
+// incremental typing ("neuro" → "neuroimaging").
+func TestBuildFTSHitSet_SingleTokenUsesPrefix(t *testing.T) {
+	store := &mockFTSStore{hits: []int64{2}}
+	groups := match.ParseClauses("neuro")
+	_ = buildFTSHitSet(groups, store, "items")
+
+	if len(store.calls) == 0 {
+		t.Fatal("expected SearchFulltext call")
+	}
+	prefixCall, ok := lo.Find(store.calls, func(c mockFTSCall) bool { return !c.exact })
+	if !ok {
+		t.Errorf("expected a prefix (exact=false) call for single token, got %+v", store.calls)
+	}
+	if len(prefixCall.words) != 1 || prefixCall.words[0] != "neuro" {
+		t.Errorf("expected prefix call with [neuro], got %v", prefixCall.words)
+	}
+}
+
+// BuildFTSHitSet: multi-token queries upgrade unquoted tokens to exact-word
+// match. Prefix expansion on every token across a large library produces
+// far too many false positives (e.g. "drives" prefix hits
+// "drove/driver/driven"). Once the user has typed multiple words the
+// intent is no longer incremental — strict word match is what they want.
+func TestBuildFTSHitSet_MultiTokenUsesExact(t *testing.T) {
+	store := &mockFTSStore{hits: []int64{2}}
+	groups := match.ParseClauses("gossip drives")
+	_ = buildFTSHitSet(groups, store, "items")
+
+	// No prefix call should be made; every call must be exact=true.
+	for _, c := range store.calls {
+		if !c.exact {
+			t.Errorf("expected all calls exact=true for multi-token query, got %+v", c)
+		}
+	}
+	// Both words must have been searched exactly.
+	exactWords := lo.FlatMap(store.calls, func(c mockFTSCall, _ int) []string {
+		if !c.exact {
+			return nil
+		}
+		return c.words
+	})
+	if !lo.Contains(exactWords, "gossip") || !lo.Contains(exactWords, "drives") {
+		t.Errorf("expected both 'gossip' and 'drives' searched exactly, got %v", exactWords)
+	}
+}
+
+// BuildFTSHitSet: explicitly quoted tokens stay exact regardless of count.
+func TestBuildFTSHitSet_QuotedStaysExact(t *testing.T) {
+	store := &mockFTSStore{hits: []int64{2}}
+	groups := match.ParseClauses(`"brain"`)
+	_ = buildFTSHitSet(groups, store, "items")
+
+	for _, c := range store.calls {
+		if !c.exact {
+			t.Errorf("quoted token must be exact, got %+v", c)
+		}
+	}
 }
 
 // 71. Unscoped query unions fuzzy column matches with FTS hits.
