@@ -5,11 +5,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/sciminds/cli/internal/lab"
 )
+
+// rsyncShutdownGrace is how long to wait between SIGINT and SIGKILL when
+// cancelling an in-flight transfer. SIGINT lets rsync flush its --partial
+// file cleanly so the next session can resume; SIGKILL is the safety net.
+const rsyncShutdownGrace = 2 * time.Second
 
 // SSHBackend implements Backend by shelling out to ssh + rsync via the
 // argv builders in the lab package. The user's SSH alias must be configured
@@ -43,9 +50,16 @@ func (s *SSHBackend) Size(ctx context.Context, remotePaths []string) (int64, err
 
 // Transfer runs rsync, parses --info=progress2 output line-by-line, and
 // pushes each Progress snapshot onto the channel. Returns when rsync exits.
+//
+// Cancellation: instead of letting exec.CommandContext SIGKILL on ctx.Done
+// (the default), we send SIGINT first and only escalate to SIGKILL after a
+// grace window. SIGINT is what makes rsync flush its --partial file cleanly,
+// which is what the resume-from-manifest flow depends on.
 func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, progress chan<- lab.Progress) error {
 	argv := lab.BuildResumableGetArgs(s.Cfg, remotePath, localDir)
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	// Plain Command (not CommandContext) so cancellation goes through our
+	// graceful-shutdown path below, not the exec package's hard kill.
+	cmd := exec.Command(argv[0], argv[1:]...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -57,6 +71,23 @@ func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("rsync start: %w", err)
 	}
+
+	// Watchdog: when the caller cancels, ask rsync to stop politely; if it
+	// still hasn't exited after the grace window, kill it.
+	watchdogDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = cmd.Process.Signal(os.Interrupt)
+			select {
+			case <-time.After(rsyncShutdownGrace):
+				_ = cmd.Process.Kill()
+			case <-watchdogDone:
+			}
+		case <-watchdogDone:
+		}
+	}()
+	defer close(watchdogDone)
 
 	// rsync's --info=progress2 emits CR-terminated updates on the same line.
 	// Use a custom scanner split that breaks on either '\n' or '\r' so we
@@ -71,12 +102,7 @@ func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, 
 			continue
 		}
 		if p, ok := lab.ParseProgressLine(line); ok {
-			select {
-			case <-ctx.Done():
-				_ = cmd.Process.Kill()
-				return ctx.Err()
-			case progress <- p:
-			}
+			progress <- p
 			continue
 		}
 		stdoutTail = append(stdoutTail, line)
@@ -84,7 +110,13 @@ func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, 
 			stdoutTail = stdoutTail[len(stdoutTail)-8:]
 		}
 	}
-	if err := cmd.Wait(); err != nil {
+	waitErr := cmd.Wait()
+	// Surface the cancellation reason rather than rsync's exit-by-signal
+	// status, so callers see context.Canceled / DeadlineExceeded.
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if err := waitErr; err != nil {
 		detail := strings.TrimSpace(stderrBuf.String())
 		if detail == "" && len(stdoutTail) > 0 {
 			detail = strings.Join(stdoutTail, "\n")

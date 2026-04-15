@@ -66,11 +66,29 @@ func TestBuildResumableGetArgs(t *testing.T) {
 	cfg := &Config{User: "alice"}
 	got := BuildResumableGetArgs(cfg, "/labs/sciminds/data/x", "./")
 	want := []string{
-		"rsync", "-az",
+		"rsync", "-az", "-s",
 		"--partial",
 		"--append-verify",
 		"--info=progress2",
 		"scilab-alice:/labs/sciminds/data/x",
+		"./",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("BuildResumableGetArgs\n  got:  %#v\n  want: %#v", got, want)
+	}
+}
+
+func TestBuildResumableGetArgs_PathWithSpace(t *testing.T) {
+	cfg := &Config{User: "alice"}
+	// rsync -s sends paths through the protocol, so spaces in the remote
+	// path don't need explicit quoting at the argv layer.
+	got := BuildResumableGetArgs(cfg, "/labs/x/my data/run-01.nii.gz", "./")
+	want := []string{
+		"rsync", "-az", "-s",
+		"--partial",
+		"--append-verify",
+		"--info=progress2",
+		"scilab-alice:/labs/x/my data/run-01.nii.gz",
 		"./",
 	}
 	if !reflect.DeepEqual(got, want) {

@@ -112,6 +112,44 @@ func TestTransferLog_StartCreatesParentDirs(t *testing.T) {
 	}
 }
 
+func TestTransferLog_PendingDropsCompletedDir(t *testing.T) {
+	dir := t.TempDir()
+	setLogTo(t, filepath.Join(dir, "log.jsonl"))
+	// Simulate a fully-downloaded directory: 60 + 40 = 100 bytes total.
+	dst := filepath.Join(dir, "ds")
+	if err := os.MkdirAll(filepath.Join(dst, "sub"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dst, "a"), make([]byte, 60), 0o600); err != nil {
+		t.Fatalf("write a: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dst, "sub", "b"), make([]byte, 40), 0o600); err != nil {
+		t.Fatalf("write b: %v", err)
+	}
+	_ = LogTransferStarted(TransferEntry{Remote: "/r/ds", Local: dst, ExpectedBytes: 100})
+	pending, _ := PendingTransfers()
+	if len(pending) != 0 {
+		t.Errorf("Pending = %+v, want empty (dir contents sum to ExpectedBytes)", pending)
+	}
+}
+
+func TestTransferLog_PendingKeepsPartialDir(t *testing.T) {
+	dir := t.TempDir()
+	setLogTo(t, filepath.Join(dir, "log.jsonl"))
+	dst := filepath.Join(dir, "ds")
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dst, "a"), make([]byte, 30), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	_ = LogTransferStarted(TransferEntry{Remote: "/r/ds", Local: dst, ExpectedBytes: 100})
+	pending, _ := PendingTransfers()
+	if len(pending) != 1 {
+		t.Errorf("Pending = %+v, want 1 (dir contents short of ExpectedBytes)", pending)
+	}
+}
+
 func TestTransferLog_ClearRemovesPending(t *testing.T) {
 	dir := t.TempDir()
 	setLogTo(t, filepath.Join(dir, "log.jsonl"))

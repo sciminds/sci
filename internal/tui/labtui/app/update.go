@@ -193,7 +193,9 @@ func (m *Model) keyBrowse(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "d":
 		if len(m.selected) == 0 {
 			if m.cursor < len(m.entries) {
-				m.selectPath(m.pathFor(m.entries[m.cursor]))
+				p := m.pathFor(m.entries[m.cursor])
+				m.selectPath(p)
+				m.implicitSel = p
 			}
 		}
 		if len(m.selected) == 0 {
@@ -214,6 +216,9 @@ func (m *Model) keyConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.sizeProbing {
 			return m, nil
 		}
+		// User confirmed — implicit pick is now committed; forget it so a
+		// later cancel-from-confirm doesn't try to remove an already-acted path.
+		m.implicitSel = ""
 		m.queue = m.SelectedPaths()
 		m.queueIdx = 0
 		m.transferred = 0
@@ -222,14 +227,25 @@ func (m *Model) keyConfirm(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.progress = lab.Progress{}
 		return m, startTransferCmd(m.backend, m.queue[0], ".")
 	case "n":
-		m.screen = screenBrowse
+		m.cancelConfirm()
 		return m, nil
 	}
 	if msg.Code == tea.KeyEsc {
-		m.screen = screenBrowse
+		m.cancelConfirm()
 		return m, nil
 	}
 	return m, nil
+}
+
+// cancelConfirm returns to browse and discards an implicit cursor selection.
+// Explicit (space-toggled) picks survive so the user doesn't re-select after
+// peeking at the size estimate and choosing not to download yet.
+func (m *Model) cancelConfirm() {
+	if m.implicitSel != "" {
+		delete(m.selected, m.implicitSel)
+		m.implicitSel = ""
+	}
+	m.screen = screenBrowse
 }
 
 func (m *Model) keyTransfer(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

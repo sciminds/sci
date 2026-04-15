@@ -134,6 +134,32 @@ func TestModel_CannotAscendFromRoot(t *testing.T) {
 	}
 }
 
+func TestModel_CancelConfirmDropsImplicitSelection(t *testing.T) {
+	m, _ := newTestModel(t)
+	p := "/labs/sciminds/data/results.csv"
+	m.selectPath(p)
+	m.implicitSel = p
+	m.screen = screenConfirm
+	m.cancelConfirm()
+	if m.isSelected(p) {
+		t.Errorf("implicit selection %q should have been cleared on cancel", p)
+	}
+	if m.screen != screenBrowse {
+		t.Errorf("screen = %v, want screenBrowse", m.screen)
+	}
+}
+
+func TestModel_CancelConfirmKeepsExplicitSelection(t *testing.T) {
+	m, _ := newTestModel(t)
+	p := "/labs/sciminds/data/results.csv"
+	m.selectPath(p) // explicit toggle, implicitSel stays empty
+	m.screen = screenConfirm
+	m.cancelConfirm()
+	if !m.isSelected(p) {
+		t.Errorf("explicit selection %q must survive cancel", p)
+	}
+}
+
 func TestModel_PathForEntry(t *testing.T) {
 	m, _ := newTestModel(t)
 	got := m.pathFor(lab.Entry{Name: "data", IsDir: true})

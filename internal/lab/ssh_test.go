@@ -73,7 +73,7 @@ func TestSafeWritePath(t *testing.T) {
 func TestBuildLsArgs(t *testing.T) {
 	cfg := &Config{User: "e3jolly"}
 	got := BuildLsArgs(cfg, "/labs/sciminds/data")
-	want := []string{"ssh", cfg.SSHAlias(), "ls", "-1lh", "/labs/sciminds/data"}
+	want := []string{"ssh", cfg.SSHAlias(), "ls", "-1lh", "'/labs/sciminds/data'"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -87,7 +87,7 @@ func TestBuildLsArgs(t *testing.T) {
 func TestBuildGetArgs(t *testing.T) {
 	cfg := &Config{User: "e3jolly"}
 	got := BuildGetArgs(cfg, "/labs/sciminds/data/results.csv", ".")
-	want := []string{"rsync", "-avz", "--progress", cfg.SSHAlias() + ":/labs/sciminds/data/results.csv", "."}
+	want := []string{"rsync", "-avz", "-s", "--progress", cfg.SSHAlias() + ":/labs/sciminds/data/results.csv", "."}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -101,7 +101,7 @@ func TestBuildGetArgs(t *testing.T) {
 func TestBuildGetArgs_Dir(t *testing.T) {
 	cfg := &Config{User: "e3jolly"}
 	got := BuildGetArgs(cfg, "/labs/sciminds/data/experiment/", "./local/")
-	want := []string{"rsync", "-avz", "--progress", cfg.SSHAlias() + ":/labs/sciminds/data/experiment/", "./local/"}
+	want := []string{"rsync", "-avz", "-s", "--progress", cfg.SSHAlias() + ":/labs/sciminds/data/experiment/", "./local/"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -115,7 +115,7 @@ func TestBuildGetArgs_Dir(t *testing.T) {
 func TestBuildPutArgs(t *testing.T) {
 	cfg := &Config{User: "e3jolly"}
 	got := BuildPutArgs(cfg, "results.csv", "/labs/sciminds/sci/e3jolly/results.csv", false)
-	want := []string{"rsync", "-avz", "--progress", "results.csv", cfg.SSHAlias() + ":/labs/sciminds/sci/e3jolly/results.csv"}
+	want := []string{"rsync", "-avz", "-s", "--progress", "results.csv", cfg.SSHAlias() + ":/labs/sciminds/sci/e3jolly/results.csv"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -129,7 +129,7 @@ func TestBuildPutArgs(t *testing.T) {
 func TestBuildPutArgs_DryRun(t *testing.T) {
 	cfg := &Config{User: "e3jolly"}
 	got := BuildPutArgs(cfg, "results.csv", "/labs/sciminds/sci/e3jolly/results.csv", true)
-	want := []string{"rsync", "-avz", "--progress", "--dry-run", "results.csv", cfg.SSHAlias() + ":/labs/sciminds/sci/e3jolly/results.csv"}
+	want := []string{"rsync", "-avz", "-s", "--progress", "--dry-run", "results.csv", cfg.SSHAlias() + ":/labs/sciminds/sci/e3jolly/results.csv"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}

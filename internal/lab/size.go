@@ -11,7 +11,10 @@ import (
 // final "total" line we parse via ParseDuTotal.
 func BuildSizeArgs(cfg *Config, remotePaths []string) []string {
 	args := []string{"ssh", cfg.SSHAlias(), "du", "-sbc"}
-	return append(args, remotePaths...)
+	for _, p := range remotePaths {
+		args = append(args, ShellQuote(p))
+	}
+	return args
 }
 
 // ParseDuTotal extracts the aggregate byte count from `du -c` output,

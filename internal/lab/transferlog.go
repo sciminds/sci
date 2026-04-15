@@ -103,6 +103,11 @@ func PendingTransfers() ([]TransferEntry, error) {
 // looksUnfinished returns true if e's local destination still needs more
 // bytes — i.e. the file is missing or smaller than ExpectedBytes (or
 // ExpectedBytes is unknown, in which case we trust the manifest).
+//
+// For directory transfers (rsync of a remote dir) the destination on disk is
+// itself a directory; comparing its inode size against ExpectedBytes is
+// meaningless. We sum sizes of all regular files inside instead so a
+// completed dir transfer is correctly recognised as finished.
 func looksUnfinished(e TransferEntry) bool {
 	if e.Local == "" {
 		return true
@@ -112,10 +117,34 @@ func looksUnfinished(e TransferEntry) bool {
 		// Local missing → user wiped it; nothing to resume.
 		return false
 	}
-	if e.ExpectedBytes > 0 && st.Size() >= e.ExpectedBytes {
+	have := st.Size()
+	if st.IsDir() {
+		have = localDirSize(e.Local)
+	}
+	if e.ExpectedBytes > 0 && have >= e.ExpectedBytes {
 		return false
 	}
 	return true
+}
+
+// localDirSize sums sizes of all regular files under root. Used to compare a
+// directory transfer's on-disk progress against its ExpectedBytes total. Walk
+// errors are swallowed: a partial size is better than declaring the transfer
+// finished when it isn't, and resume is always safe (rsync recomputes deltas).
+func localDirSize(root string) int64 {
+	var total int64
+	_ = filepath.WalkDir(root, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		total += info.Size()
+		return nil
+	})
+	return total
 }
 
 // ClearTransferLog removes the manifest entirely, so PendingTransfers will

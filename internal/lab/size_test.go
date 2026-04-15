@@ -8,7 +8,16 @@ import (
 func TestBuildSizeArgs(t *testing.T) {
 	cfg := &Config{User: "alice"}
 	got := BuildSizeArgs(cfg, []string{"/labs/sciminds/data/a", "/labs/sciminds/data/b"})
-	want := []string{"ssh", "scilab-alice", "du", "-sbc", "/labs/sciminds/data/a", "/labs/sciminds/data/b"}
+	want := []string{"ssh", "scilab-alice", "du", "-sbc", "'/labs/sciminds/data/a'", "'/labs/sciminds/data/b'"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("BuildSizeArgs\n  got:  %#v\n  want: %#v", got, want)
+	}
+}
+
+func TestBuildSizeArgs_PathWithSpace(t *testing.T) {
+	cfg := &Config{User: "alice"}
+	got := BuildSizeArgs(cfg, []string{"/labs/x/my data"})
+	want := []string{"ssh", "scilab-alice", "du", "-sbc", "'/labs/x/my data'"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("BuildSizeArgs\n  got:  %#v\n  want: %#v", got, want)
 	}

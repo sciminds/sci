@@ -43,23 +43,34 @@ func SafeWritePath(cfg *Config, rel string) (string, error) {
 
 // BuildLsArgs constructs the argv for listing a remote directory.
 func BuildLsArgs(cfg *Config, remotePath string) []string {
-	return []string{"ssh", cfg.SSHAlias(), "ls", "-1lh", remotePath}
+	return []string{"ssh", cfg.SSHAlias(), "ls", "-1lh", ShellQuote(remotePath)}
 }
 
 // BuildGetArgs constructs the argv for downloading via rsync.
+// `-s` (secluded-args) sends paths through the rsync protocol instead of the
+// remote shell, so spaces or shell metacharacters in remotePath are safe.
 func BuildGetArgs(cfg *Config, remotePath, localPath string) []string {
-	return []string{"rsync", "-avz", "--progress", cfg.SSHAlias() + ":" + remotePath, localPath}
+	return []string{"rsync", "-avz", "-s", "--progress", cfg.SSHAlias() + ":" + remotePath, localPath}
 }
 
 // BuildPutArgs constructs the argv for uploading via rsync.
 // If dryRun is true, --dry-run is appended so rsync only shows what would transfer.
+// `-s` protects remotePath from remote-shell reinterpretation.
 func BuildPutArgs(cfg *Config, localPath, remotePath string, dryRun bool) []string {
-	args := []string{"rsync", "-avz", "--progress"}
+	args := []string{"rsync", "-avz", "-s", "--progress"}
 	if dryRun {
 		args = append(args, "--dry-run")
 	}
 	args = append(args, localPath, cfg.SSHAlias()+":"+remotePath)
 	return args
+}
+
+// ShellQuote wraps s in single quotes, escaping any embedded single quotes,
+// so it survives reinterpretation by the remote login shell when passed as a
+// trailing argument to ssh. Use whenever a path or value derived from
+// directory listings (or any other untrusted source) flows into an ssh argv.
+func ShellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // BuildOpenArgs constructs the argv for an interactive SSH shell in the user's write directory.

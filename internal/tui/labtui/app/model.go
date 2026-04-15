@@ -40,6 +40,10 @@ type Model struct {
 
 	// selection (absolute paths, persisted across nav)
 	selected map[string]bool
+	// implicitSel records a path that was auto-selected by `d` when nothing
+	// was explicitly selected; it gets cleared if the user backs out of the
+	// confirm screen, so the implicit pick doesn't leak into later actions.
+	implicitSel string
 
 	// confirm
 	sizeProbing bool

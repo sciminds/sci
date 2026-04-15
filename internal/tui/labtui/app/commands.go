@@ -110,18 +110,18 @@ func loadPendingCmd() tea.Cmd {
 
 // waitProgressCmd reads the next progress event or transfer completion.
 // Returns one msg; the model re-issues this Cmd to keep listening.
+//
+// Only treats the *closure* of ch as completion. The producer goroutine
+// always closes ch after Transfer returns (and after pushing final progress
+// frames), so this drains every emitted frame before surfacing
+// transferDoneMsg. Selecting on done directly would race against buffered
+// progress frames and let the UI miss the final 100% tick.
 func waitProgressCmd(ch <-chan lab.Progress, done <-chan error) tea.Cmd {
 	return func() tea.Msg {
-		select {
-		case p, ok := <-ch:
-			if !ok {
-				// channel closed; wait for done error
-				err := <-done
-				return transferDoneMsg{err: err}
-			}
+		p, ok := <-ch
+		if ok {
 			return progressMsg{p: p}
-		case err := <-done:
-			return transferDoneMsg{err: err}
 		}
+		return transferDoneMsg{err: <-done}
 	}
 }

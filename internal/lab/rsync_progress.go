@@ -49,7 +49,7 @@ func ParseProgressLine(line string) (Progress, bool) {
 // keep partials in place rather than in a sidecar directory.
 func BuildResumableGetArgs(cfg *Config, remotePath, localPath string) []string {
 	return []string{
-		"rsync", "-az",
+		"rsync", "-az", "-s",
 		"--partial",
 		"--append-verify",
 		"--info=progress2",
