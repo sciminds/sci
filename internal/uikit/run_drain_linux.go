@@ -1,3 +1,5 @@
+//go:build linux
+
 package uikit
 
 import (
@@ -11,9 +13,8 @@ import (
 // over after a bubbletea program exits. Without this, the responses leak
 // into the shell prompt.
 //
-// Call this after every tea.Program.Run() that writes to a TTY.
+// Linux exposes the same kernel operation as the BSD TIOCFLUSH ioctl via
+// TCFLSH, taking an int argument instead of a pointer.
 func DrainStdin() {
-	fd := int(os.Stdin.Fd())
-	what := unix.TCIFLUSH // flush queued input only
-	_ = unix.IoctlSetPointerInt(fd, unix.TIOCFLUSH, what)
+	_ = unix.IoctlSetInt(int(os.Stdin.Fd()), unix.TCFLSH, int(unix.TCIFLUSH))
 }
