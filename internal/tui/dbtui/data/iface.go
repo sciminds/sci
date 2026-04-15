@@ -153,6 +153,17 @@ type VirtualLister interface {
 	IsVirtual(name string) bool
 }
 
+// NoteBodyProvider is an optional interface that DataStore implementations
+// may provide to supply pre-lowercased note bodies for full-mode row search.
+// When present, unscoped queries in modeFull scan these bodies for
+// token-AND substring matches, tagging hits with originNote so the Notes
+// indicator cell gets origin tinting. Returning "" means "no note for this
+// row" — callers skip it. Bodies are expected to be pre-lowered so the hot
+// path is O(tokens × body-length) without per-keystroke re-lowercasing.
+type NoteBodyProvider interface {
+	NoteBody(table string, rowID int64) string
+}
+
 // NoteContentProvider is an optional interface that DataStore implementations
 // may provide to supply rich markdown content for cell preview overlays.
 // When a cell is selected and the store implements this interface, the TUI

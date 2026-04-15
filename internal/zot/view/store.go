@@ -14,6 +14,7 @@ package view
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/samber/lo"
@@ -69,9 +70,10 @@ var ErrReadOnly = errors.New("zot view: read-only store")
 // Store takes ownership of the passed local.DB — calling Close on the
 // store closes the underlying connection.
 type Store struct {
-	db           local.Reader
-	loc          *time.Location
-	notesByRowID map[int64]string // populated by QueryTable; rowID → unwrapped markdown
+	db                local.Reader
+	loc               *time.Location
+	notesByRowID      map[int64]string // populated by QueryTable; rowID → unwrapped markdown
+	lowerNotesByRowID map[int64]string // lower-cased note bodies for full-mode row search; built once per QueryTable
 
 	// sortKeys is populated by QueryTable. sortKeys[i][j] is a
 	// lexicographically-sortable key for the cell at (row i, col j), used by
@@ -133,10 +135,15 @@ func (s *Store) QueryTable(table string) (
 		return nil, nil, nil, nil, err
 	}
 
-	// Cache unwrapped markdown for NoteContent lookups.
+	// Cache unwrapped markdown for NoteContent lookups. The lower-case copy
+	// is retained for full-mode row search so we don't re-lowercase on every
+	// keystroke; the unwrapped original stays intact for overlay previews.
 	s.notesByRowID = make(map[int64]string, len(noteBodies))
+	s.lowerNotesByRowID = make(map[int64]string, len(noteBodies))
 	for id, body := range noteBodies {
-		s.notesByRowID[id] = local.UnwrapZoteroDiv(body)
+		unwrapped := local.UnwrapZoteroDiv(body)
+		s.notesByRowID[id] = unwrapped
+		s.lowerNotesByRowID[id] = strings.ToLower(unwrapped)
 	}
 
 	colNames = make([]string, len(columnTitles))
@@ -207,6 +214,16 @@ func (s *Store) TableSummaries() ([]data.TableSummary, error) {
 // Must be called after QueryTable, which populates the notes cache.
 func (s *Store) NoteContent(rowID int64) string {
 	return s.notesByRowID[rowID]
+}
+
+// NoteBody implements data.NoteBodyProvider. Returns the pre-lowered note
+// body for full-mode row search, or "" when no note exists. Guards the
+// table name so unrelated dbtui tabs don't accidentally see notes.
+func (s *Store) NoteBody(table string, rowID int64) string {
+	if table != TableName {
+		return ""
+	}
+	return s.lowerNotesByRowID[rowID]
 }
 
 // IsView marks the items table as a view so dbtui pins the tab read-only.

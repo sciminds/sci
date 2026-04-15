@@ -107,7 +107,12 @@ func main() {
 
 	for _, c := range cats {
 		rows := grouped[c.name]
-		slices.SortFunc(rows, func(a, b entry) int { return strings.Compare(a.name, b.name) })
+		slices.SortFunc(rows, func(a, b entry) int {
+			if a.kind != b.kind {
+				return kindOrder(a.kind) - kindOrder(b.kind)
+			}
+			return strings.Compare(a.name, b.name)
+		})
 		fmt.Fprintf(&out, "## %s\n\n", c.name)
 		out.WriteString("| Symbol | Kind | Description |\n")
 		out.WriteString("|---|---|---|\n")
@@ -204,6 +209,27 @@ func extractEntries(file *ast.File, cat category, fileName string) []entry {
 		}
 	}
 	return out
+}
+
+// kindOrder sorts rows within a category: types first (most important
+// for API discovery), then funcs, then constructors' supporting values.
+func kindOrder(kind string) int {
+	switch kind {
+	case "type":
+		return 0
+	case "interface":
+		return 1
+	case "func type":
+		return 2
+	case "func":
+		return 3
+	case "var":
+		return 4
+	case "const":
+		return 5
+	default:
+		return 99
+	}
 }
 
 func typeKind(s *ast.TypeSpec) string {

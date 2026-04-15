@@ -119,14 +119,20 @@ func (m *Model) handleNormalModeKey(k string, tab *Tab) bool {
 			}
 			// Check if the store provides rich markdown note content for this row.
 			cursor := tab.Table.Cursor()
+			// When a row search is active, seed the overlay with the query so
+			// the preview lands on the actual matched words instead of the top.
+			var overlayOpts []uikit.OverlayOption
+			if m.search != nil && m.search.Query != "" {
+				overlayOpts = append(overlayOpts, uikit.WithInitialQuery(m.search.Query))
+			}
 			var overlay uikit.ScrollableOverlay
 			if ncp, ok := m.store.(data.NoteContentProvider); ok && cursor >= 0 && cursor < len(tab.Rows) {
 				if md := ncp.NoteContent(tab.Rows[cursor].RowID); md != "" {
-					overlay = uikit.NewMarkdownOverlay(title, md, m.width, m.height)
+					overlay = uikit.NewMarkdownOverlay(title, md, m.width, m.height, overlayOpts...)
 				}
 			}
 			if overlay == nil {
-				overlay = uikit.NewOverlay(title, c.Value, m.width, m.height)
+				overlay = uikit.NewOverlay(title, c.Value, m.width, m.height, overlayOpts...)
 			}
 			m.notePreview = &notePreviewState{
 				Text:    c.Value,

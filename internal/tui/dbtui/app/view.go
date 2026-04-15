@@ -291,8 +291,12 @@ func (m *Model) tableView(tab *Tab) string {
 
 	// Build search highlight map projected to viewport columns.
 	var searchHL map[int]map[int][]int
+	var originTint map[int]map[int]bool
 	if m.search != nil && m.search.Highlights != nil {
 		searchHL = projectSearchHighlights(m.search.Highlights, vp.VisToFull)
+	}
+	if m.search != nil && m.search.Origins != nil {
+		originTint = buildOriginTint(tab, m.search, vp.VisToFull)
 	}
 
 	// Show per-cell cursor in both normal and edit modes.
@@ -307,7 +311,7 @@ func (m *Model) tableView(tab *Tab) string {
 		vp.PlainSeps, vp.CollapsedSeps,
 		tab.Table.Cursor(), renderColCursor, m.mode == modeEdit,
 		effectiveHeight, pinCtx, m.zones, zoneRow,
-		visualSel, searchHL,
+		visualSel, searchHL, originTint,
 	)
 
 	var bodyParts []string

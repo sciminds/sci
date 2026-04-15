@@ -278,6 +278,7 @@ func renderRows(
 	rowZonePrefix string,
 	visualSel map[int]bool,
 	searchHL map[int]map[int][]int,
+	originTint map[int]map[int]bool,
 ) []string {
 	total := len(rows)
 	if total == 0 {
@@ -299,7 +300,7 @@ func renderRows(
 		}
 		row := renderRow(
 			specs, rows[i], widths, seps, selected, dimmed,
-			colCursor, editing, pinCtx, i, visualSel, searchHL[i],
+			colCursor, editing, pinCtx, i, visualSel, searchHL[i], originTint[i],
 		)
 		rendered = append(rendered, zones.Mark(fmt.Sprintf("%s%d", rowZonePrefix, i), row))
 	}
@@ -330,6 +331,7 @@ func renderRow(
 	rowIdx int,
 	visualSel map[int]bool,
 	cellSearchHL map[int][]int,
+	cellTint map[int]bool,
 ) string {
 	isVisual := len(visualSel) > 0
 	isVisualSelected := visualSel[rowIdx]
@@ -369,7 +371,7 @@ func renderRow(
 				pinMatch = !pinMatch
 			}
 		}
-		rendered := renderCell(cellValue, spec, width, hl, dimmed, pinMatch, cellSearchHL[i])
+		rendered := renderCell(cellValue, spec, width, hl, dimmed, pinMatch, cellSearchHL[i], cellTint[i])
 		cells = append(cells, rendered)
 	}
 	return joinCells(cells, separators)
@@ -426,6 +428,7 @@ func renderCell(
 	dimmed bool,
 	pinMatch bool,
 	searchPositions []int,
+	matchTint bool,
 ) string {
 	if width < 1 {
 		width = 1
@@ -445,6 +448,13 @@ func renderCell(
 	}
 	if dimmed {
 		style = style.Foreground(uikit.TUI.Palette().TextDim)
+	}
+	// Match-origin tint: subtle green background painted under per-rune
+	// highlights. Suppressed under cursor/visual highlights since those
+	// styles own the cell background entirely.
+	if matchTint && hl != highlightNormalCursor && hl != highlightEditCursor &&
+		hl != highlightVisual && hl != highlightVisualCursor {
+		style = style.Background(uikit.TUI.Palette().MatchTintGreen)
 	}
 
 	if hl == highlightNormalCursor || hl == highlightEditCursor {

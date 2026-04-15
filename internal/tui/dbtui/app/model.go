@@ -62,6 +62,7 @@ type Model struct {
 	notePreview  *notePreviewState
 	cellEditor   *cellEditorState
 	search       *rowSearchState
+	searchMode   searchMode // mode persists across search open/close within a session
 	tableList    *tableListState
 	columnPicker *columnPickerState
 	columnRename *columnRenameState
