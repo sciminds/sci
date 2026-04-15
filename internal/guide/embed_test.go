@@ -1,6 +1,9 @@
 package guide
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestLoadCast(t *testing.T) {
 	t.Parallel()
@@ -30,7 +33,8 @@ func TestLoadCastNotFound(t *testing.T) {
 
 func TestAllEntriesHaveCasts(t *testing.T) {
 	t.Parallel()
-	for _, e := range append(BasicEntries, GitEntries...) {
+	entries := slices.Concat(BasicEntries, GitEntries, ZotEntries)
+	for _, e := range entries {
 		t.Run(e.Name, func(t *testing.T) {
 			if e.Name == "" || e.Cmd == "" || e.Desc == "" || e.CastFile == "" {
 				t.Error("entry has empty fields")

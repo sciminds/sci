@@ -70,29 +70,17 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 			if sub.Hidden || sub.Name == "help" {
 				continue
 			}
-			// Flatten nested subcommands (e.g. cass canvas → canvas modules, canvas assignments, ...).
-			// Use hasRealSubs to ignore the auto-injected "help" command from urfave/cli.
+			// For parents with their own subcommands (e.g. `zot item`, `cass canvas`),
+			// keep a single entry and list the child names in Usage so the picker
+			// surfaces the full command surface without exploding into one row per leaf.
+			usage := sub.Usage
 			if hasRealSubs(sub) {
-				for _, child := range sub.Commands {
-					if child.Hidden || child.Name == "help" {
-						continue
-					}
-					castName := cmd.Name + "-" + sub.Name + "-" + child.Name + ".cast"
-					cast := ""
-					if hasCast(castName) {
-						cast = castName
-					}
-					g.Subs = append(g.Subs, SubCommand{
-						Name:      sub.Name + " " + child.Name,
-						Usage:     child.Usage,
-						FullName:  child.FullName(),
-						ArgsUsage: child.ArgsUsage,
-						Flags:     extractFlags(child),
-						Examples:  child.Description,
-						CastFile:  cast,
-					})
+				children := lo.FilterMap(sub.Commands, func(c *cli.Command, _ int) (string, bool) {
+					return c.Name, !c.Hidden && c.Name != "help"
+				})
+				if len(children) > 0 {
+					usage = sub.Usage + " \u2014 " + strings.Join(children, ", ")
 				}
-				continue
 			}
 			castName := cmd.Name + "-" + sub.Name + ".cast"
 			cast := ""
@@ -101,7 +89,7 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 			}
 			g.Subs = append(g.Subs, SubCommand{
 				Name:      sub.Name,
-				Usage:     sub.Usage,
+				Usage:     usage,
 				FullName:  sub.FullName(),
 				ArgsUsage: sub.ArgsUsage,
 				Flags:     extractFlags(sub),

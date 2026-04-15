@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -161,25 +162,28 @@ func TestBuildGroupsAfterInit(t *testing.T) {
 		t.Errorf("parent: got %d subs, want 2", len(parent.Subs))
 	}
 
-	// Nested: 1 direct child + 2 flattened grandchildren = 3 subs.
+	// Nested: 1 direct leaf + 1 parent (not flattened) = 2 subs. Parent's Usage
+	// enumerates its children so the picker surfaces the full surface.
 	nested := find("nested")
-	if len(nested.Subs) != 3 {
-		t.Errorf("nested: got %d subs, want 3", len(nested.Subs))
+	if len(nested.Subs) != 2 {
+		t.Errorf("nested: got %d subs, want 2", len(nested.Subs))
 	}
-	// Verify flattened names use "deep gc1" format.
-	found := false
-	for _, s := range nested.Subs {
-		if s.Name == "deep gc1" {
-			found = true
+	var deep *SubCommand
+	for i, s := range nested.Subs {
+		if s.Name == "deep" {
+			deep = &nested.Subs[i]
 			break
 		}
 	}
-	if !found {
+	if deep == nil {
 		names := make([]string, len(nested.Subs))
 		for i, s := range nested.Subs {
 			names[i] = s.Name
 		}
-		t.Errorf("nested: expected flattened sub \"deep gc1\", got %v", names)
+		t.Fatalf("nested: expected sub \"deep\", got %v", names)
+	}
+	if !strings.Contains(deep.Usage, "gc1") || !strings.Contains(deep.Usage, "gc2") {
+		t.Errorf("nested.deep: Usage should list children gc1, gc2; got %q", deep.Usage)
 	}
 }
 
