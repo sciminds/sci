@@ -1,7 +1,11 @@
 name: Release
 
+# Triggers only after Environment Scenarios succeeds on main (so a broken
+# scenario matrix blocks the release build) or via manual dispatch.
 on:
-  push:
+  workflow_run:
+    workflows: ["Environment Scenarios"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -11,14 +15,27 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+    # For workflow_run triggers, require that upstream succeeded and skip
+    # [skip ci] / [ci skip] commits. workflow_dispatch bypasses these.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       !contains(github.event.workflow_run.head_commit.message, '[skip ci]') &&
+       !contains(github.event.workflow_run.head_commit.message, '[ci skip]'))
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      # SHA that was actually tested by the upstream scenarios run (for
+      # workflow_run triggers). For workflow_dispatch this falls back to
+      # github.sha. Referenced by the checkout and release-body steps.
+      TESTED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      RELEASE_COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TESTED_SHA }}
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -54,7 +71,7 @@ jobs:
 
       - name: Build
         run: |
-          COMMIT="${GITHUB_SHA}"
+          COMMIT="${TESTED_SHA}"
           LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
           LDFLAGS_PLAIN="-s -w"
 
@@ -77,13 +94,13 @@ jobs:
           ./dist/sci-darwin-arm64 --help || ./dist/sci-darwin-amd64 --help
 
       - name: Delete existing release
-        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'BUILD RELEASE')
+        if: github.event_name == 'workflow_dispatch' || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE')
         run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
-        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'BUILD RELEASE')
+        if: github.event_name == 'workflow_dispatch' || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
@@ -94,8 +111,7 @@ jobs:
           body: |
             Latest build from `main` branch.
 
-            **Commit:** ${{ github.sha }}
-            **Date:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ env.TESTED_SHA }}
 
             **Install:** `curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh`
 
