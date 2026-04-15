@@ -269,3 +269,15 @@ commands:
         description: "Interactive learning guide"
         status: exempt
         reason: "Read-only browser, no actionable output to script"
+
+  # ── lab browse (exempt) ────────────────────────────────────────────────────
+  lab-browse:
+    file: internal/tui/labtui/labtui.go
+    prompts:
+      - id: lab-browse-tui
+        type: uikit.Run
+        nth: 1
+        line: 24
+        description: "Interactive lab folder browser + downloader"
+        status: exempt
+        reason: "Read-only browser; downloads are confirmed inside the TUI before any rsync runs"

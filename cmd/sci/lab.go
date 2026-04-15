@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/lab"
 	"github.com/sciminds/cli/internal/netutil"
+	"github.com/sciminds/cli/internal/tui/labtui"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
@@ -42,6 +44,7 @@ func labCommand() *cli.Command {
 			labGetCommand(),
 			labPutCommand(),
 			labBrowseCommand(),
+			labConnectCommand(),
 		},
 	}
 }
@@ -202,8 +205,29 @@ func labPutCommand() *cli.Command {
 func labBrowseCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "browse",
-		Usage:       "Open an SSH shell in lab storage",
+		Usage:       "Interactively browse lab storage and download folders",
 		Description: "$ sci lab browse",
+		Action: func(_ context.Context, _ *cli.Command) error {
+			cfg, err := lab.RequireConfig()
+			if err != nil {
+				return err
+			}
+			if err := labtui.Run(cfg); err != nil {
+				if errors.Is(err, labtui.ErrInterrupted) {
+					return cli.Exit("", 130)
+				}
+				return err
+			}
+			return nil
+		},
+	}
+}
+
+func labConnectCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "connect",
+		Usage:       "Open an SSH shell in lab storage",
+		Description: "$ sci lab connect",
 		Action: func(_ context.Context, _ *cli.Command) error {
 			cfg, err := lab.RequireConfig()
 			if err != nil {
