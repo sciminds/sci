@@ -8,15 +8,12 @@ VisiData-inspired SQLite viewer/editor. Also installable standalone via `cmd/dbt
 
 - Single backend: `data.Store` — raw `database/sql` + `modernc.org/sqlite`. **Must not import `pocketbase/dbx` or anything that pulls it in** — `cmd/dbtui` is a standalone binary and dragging in pocketbase would bloat it. This is the entire reason for the raw-`database/sql` exception.
 - SQLite uses implicit `rowid` for all edits.
-- Bubble Tea v2 MVU with a single `Model`. `data.DataStore` interface is the integration contract.
 
 ## Conventions
 
-- **Keys**: key string constants from `uikit.Key*`. Never use bare string literals in key dispatch.
-- **Styles**: shared styles via `uikit.TUI`; mode-specific cursor/header styles via `modeTUI` singleton in `app/mode_styles.go` (Tailwind-named: `CursorBlue`, `CursorOrange`, `CursorPink`, `SelectPink`, `HeaderGreenBg`, `CursorRaised`). Never inline `lipgloss.NewStyle()`.
+- **Styles**: mode-specific cursor/header styles via `modeTUI` singleton in `app/mode_styles.go` (`CursorBlue`, `CursorOrange`, `CursorPink`, `SelectPink`, `HeaderGreenBg`, `CursorRaised`). Shared styles via `uikit.TUI`.
 - **Zones**: all clickable elements must be zone-marked. IDs: `tab-N`, `col-N`, `row-N`, `hint-ID`.
-- **SQL safety**: always validate identifiers with `IsSafeIdentifier` before interpolation.
-- **Cache invalidation**: use `tab.invalidateVP()` (not direct `cachedVP = nil`).
+- **SQL safety**: always validate identifiers with `IsSafeIdentifier` before interpolation. Cache invalidation goes through `tab.invalidateVP()`, not direct `cachedVP = nil`.
 
 ## Testing
 

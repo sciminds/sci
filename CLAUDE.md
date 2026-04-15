@@ -6,7 +6,7 @@
 - **`just ok` is the gate.** Run after every change. Never invoke `go build` / `go test` / `gofmt` directly — always go through `justfile` recipes (`just test`, `just run …`, `just lint`, etc.). If you need a recipe that doesn't exist, add it.
 - **TDD by default** for new features and bug fixes: write the failing test first, then make it pass. Skip TDD only for trivial edits (typos, doc tweaks, one-line refactors).
 - **Bubbletea work → invoke the `bubbletea` skill** before designing layouts, fixing rendering bugs, or adding mouse/keyboard handling. Its `references/golden-rules.md` prevents the most common border/overflow bugs. Required for any new TUI screen.
-- **All work on `main`.** Linear project: `sciminds-cli` (team EJO).
+- **All work on `main`.**
 
 ## Test recipes
 
@@ -26,13 +26,13 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 | `internal/zot/` (Zotero CLI + hygiene) | `internal/zot/CLAUDE.md` |
 | `internal/uikit/` (shared TUI + styling foundation) | `internal/uikit/doc.go` |
 
-`ARCHITECTURE.md` and `internal/README.md` are sketches and may be stale — trust the code.
+`ARCHITECTURE.md` is a narrative tour written for Python/JS devs new to Go — read it to orient, not as spec.
 
 ## Modern Go style
 
-- **`samber/lo` for transforms, stdlib when it suffices.** Never hand-roll `for`+`append` when `lo` or `slices`/`maps`/`cmp` provides it. **Invoke the `lo` skill** before writing any slice/map/set transform — it has the full function catalog, decision framework, and `*Err` variant tables.
-- **No legacy `sort` package.** Banned by lint-guard rule 9. Use `slices.Sort` / `slices.SortFunc` / `slices.SortStableFunc` / `slices.BinarySearch`.
-- **Semgrep enforces this.** `.semgrep/go-modern.yml` flags manual loops replaceable by `lo` or stdlib. Run via `just lint-style`. Don't create new semgrep debt.
+- **Prefer `lo` patterns over vanilla loops whenever equivalently correct.** Audience is Python/JS devs — `lo.Map` / `lo.Filter` / `lo.GroupBy` / `lo.KeyBy` read closer to their intuitions than `for`+`append`. **Invoke the `lo` skill** before writing any slice/map/set transform — it has the full catalog, decision framework, and `*Err` variant tables.
+- **Stdlib when it suffices** (`slices`, `maps`, `cmp`). **No legacy `sort` package** — use `slices.Sort` / `slices.SortFunc` / `slices.SortStableFunc` / `slices.BinarySearch`. Banned by lint-guard rule 9.
+- **Semgrep enforces loop-to-`lo` rewrites** via `.semgrep/go-modern.yml` (run through `just lint-style`). Don't create new debt.
 
 ## Cross-cutting design rules
 
@@ -41,10 +41,9 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 - **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/` and `internal/zot/local/`. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
 - **Bubbletea v2 + bubbles v2** everywhere. No v1 imports.
 - **No inline `lipgloss.NewStyle()`** outside `internal/uikit/` or `internal/tui/*/ui/`. Access via the `uikit.TUI` singleton.
-- **`huh` forms go through `uikit`:** use `uikit.RunForm` (multi-field), `uikit.Input`/`uikit.InputInto` (single input), or `uikit.Select` (single select). Never call `.Run()` on a huh form directly — `RunForm` handles theme, keymap, and stdin drain. Confirmations use `cmdutil.Confirm`/`cmdutil.ConfirmYes`. Enforced by lint-guard rule 14.
-- **`uikit` first for TUI components.** Read `internal/uikit/doc.go` for the full catalog: colors (Palette, Styles, symbols, OK/Hint/Header/NextStep), input (keys, keymaps), layout (dims, Spread/Fit/Pad/PageLayout/SummaryLine), components (Chrome, Overlay, OverlayBox, ListPicker, SelectList, Grid2D, Screen/Router, RunWithSpinner/RunWithProgress), forms (RunForm, Input/InputInto, Select, HuhTheme/HuhKeyMap), and runtime (Run/RunModel, DrainStdin, AsyncCmd, IsQuiet). Prefer uikit over hand-wiring bubbles directly. Extend uikit when a pattern appears in ≥ 2 TUIs.
+- **`huh` forms go through `uikit`:** use `uikit.RunForm` / `uikit.Input` / `uikit.InputInto` / `uikit.Select`. Never call `.Run()` on a huh form directly — `RunForm` handles theme, keymap, and stdin drain. Confirmations use `cmdutil.Confirm`/`cmdutil.ConfirmYes`. Enforced by lint-guard rule 14.
+- **`uikit` first for TUI components.** See `internal/uikit/doc.go` for the catalog. Extend uikit when a pattern appears in ≥ 2 TUIs.
 - **Process-replacing exec** (REPL, marimo, quarto) via `syscall.Exec`, not `exec.Command`. Export `Build*Args` helpers for tests.
-- **Reuse shared infra** (`cmdutil`, `uikit`, `netutil`) — don't re-implement spinners, confirms, lists, or styling per-package.
 - **New TUI apps** go under `internal/tui/<name>/` and follow the dbtui split (`app/`, `ui/`, root-pkg `Run` entry).
 - **Two-surface CLIs** (e.g. `zot`): full command tree lives in `internal/<pkg>/cli.Commands()`; both `cmd/<pkg>/main.go` and `cmd/sci/<pkg>.go` import it. Never duplicate wiring.
 
@@ -60,7 +59,5 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 - `proj/new` integration tests skip unless `SLOW=1`.
 - marimo export exits non-zero for `mo.md()` cells — assert on the produced file, not the exit code.
 - `install.sh` must be POSIX sh (runs on bare Macs).
-- CI uses a rolling `latest` release tag (delete + recreate on push to main).
 - GitHub Classroom URL IDs are *org* IDs, not classroom IDs — `ResolveClassroomID` maps URL → API ID and caches in `cass.yaml` as `api_id`.
-- No `brew bundle` in hot paths. All install/check/list operations use direct `brew` commands and `brew.CollectSnapshot` for reliable name matching. `brew.Sync` reconciles bidirectionally with the actual brew/uv state.
-- Brewfile is a *lockfile*, not a manifest. Resolve its path via `brew.LocateBrewfile()` — never hardcode the XDG default.
+- `internal/brew/`: no `brew bundle` in hot paths (use direct `brew` + `brew.CollectSnapshot`); Brewfile is a *lockfile* — resolve via `brew.LocateBrewfile()`, don't hardcode the XDG default.

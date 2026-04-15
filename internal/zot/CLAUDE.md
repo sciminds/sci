@@ -40,9 +40,7 @@ Zotero uses optimistic concurrency: writes carry `If-Unmodified-Since-Version` (
 
 ## Hygiene checks
 
-Read-only library-quality checks. All four checks (`invalid`, `missing`, `orphans`, `duplicates`) live as sub-commands of `zot doctor`; bare `zot doctor` runs every check and prints an aggregate dashboard, while `zot doctor <check>` drills into a single one with per-finding detail. The parent command has both `Action` (the aggregate run) and `Commands` (the four leaves) — urfave/cli v3 dispatches to a leaf when its name is the first positional arg, otherwise runs Action; `--help` is intercepted before either, so `zot doctor --help` prints the sub-command menu. SQL lives in `local/hygiene.go` and `local/orphans.go`; pure logic (validators, clusterers) in `hygiene/`. The split makes clustering and validation unit-testable without a DB.
-
-**Report shape.** Every check returns `*hygiene.Report{Check, Scanned, Findings, Clusters, Stats}`. `Stats` is a per-check struct (`MissingStats`, `DuplicatesStats`, `InvalidStats`, `OrphansStats`) read by renderers via type assertion.
+Four checks (`invalid`, `missing`, `orphans`, `duplicates`) live as sub-commands of `zot doctor`; bare `zot doctor` runs the aggregate. SQL in `local/hygiene.go` + `local/orphans.go`; pure logic (validators, clusterers) in `hygiene/` so they're unit-testable without a DB. Every check returns `*hygiene.Report{Check, Scanned, Findings, Clusters, Stats}`; `Stats` is per-check and read by renderers via type assertion.
 
 **Severity taxonomy** (consistent across checks):
 
@@ -50,22 +48,15 @@ Read-only library-quality checks. All four checks (`invalid`, `missing`, `orphan
 - `SevWarn` — citation-affecting (missing creators/date, malformed DOI/URL/date, standalone attachment)
 - `SevInfo` — coverage gaps and user-workflow choices
 
-**Doctor ordering:** invalid → missing → orphans → duplicates (cheap/structural first, slow last). Prints one-line summary per check + aggregate footer. Does NOT dump findings — users drill in via per-check commands.
+**Doctor ordering:** invalid → missing → orphans → duplicates (cheap/structural first). `--deep` enables fuzzy duplicates + `uncollected-item` orphan kind. `--check-files` stays a per-command opt-in (stat's every attachment).
 
-**`--deep` flips slow paths** (fuzzy duplicates + `uncollected-item` orphan kind). Deliberately does NOT enable `--check-files` — stat'ing every attachment is another order of magnitude and stays a per-command opt-in.
-
-**Opt-in sub-checks** (in `hygiene.AllOrphanKinds` but not `defaultOrphanKinds`):
-
-- `orphans --kind uncollected-item` — users without collections get thousands of findings
-- `orphans --kind missing-file --check-files` — stat's every imported attachment
-
-**Duplicate detection:** DOI pass (exact, score 1.0) subsumes title passes when members overlap. Title pass is two-stage: normalized-equality bucketing (always runs, ~free) and length-windowed fuzzy over singletons (gated behind `DuplicatesOptions.Fuzzy`). Fast mode ~300ms on 8.8k items; fuzzy adds ~12s. Both `zot doctor duplicates` and `zot doctor` default to fast.
+**Opt-in sub-checks** (in `AllOrphanKinds`, not `defaultOrphanKinds`): `orphans --kind uncollected-item`, `orphans --kind missing-file --check-files`.
 
 ## PDF extraction (`internal/zot/extract/`)
 
-Same reads-local / writes-cloud split. Two CLI modes: Zotero-mode (default, temp dir, posts child note) and full-mode (`--out DIR`, persists md + json + PNGs + CSV tables). Note management (list/read/add/update/delete) lives in `zot notes` — see `cli/notes.go`. Bulk extraction via `zot extract-lib` (single docling process, resume via local cache at `os.UserCacheDir()/sci/zot/extract/`). See `cli/extract.go` and `extract/extract.go` for pipeline details.
+Same reads-local / writes-cloud split. See `cli/extract.go`, `cli/notes.go`, `extract/extract.go`. Bulk extraction caches resumable state at `os.UserCacheDir()/sci/zot/extract/`.
 
-**Smoke tests:** `DOCLING=1` (Zotero-mode), `DOCLING_FULL=1` (full-mode), `ZOT_REAL_DB=<dir>` (real library resolver). Override PDF via `DOCLING_PDF`, parent key via `ZOT_REAL_CKD_KEY`.
+**Smoke-test env vars:** `DOCLING=1` (Zotero-mode), `DOCLING_FULL=1` (full-mode), `ZOT_REAL_DB=<dir>`, `DOCLING_PDF`, `ZOT_REAL_CKD_KEY`.
 
 ## Conventions
 
@@ -82,9 +73,6 @@ Same reads-local / writes-cloud split. Two CLI modes: Zotero-mode (default, temp
 - **`tagFilter` vs `tag`**: `DeleteTagsParams.Tag` is a pipe-separated string (`"a || b || c"`), NOT a slice. API caps 50 tags per request — see `DeleteTagsFromLibrary`'s batching.
 - **BibTeX export** (`export.go`, `exportlib.go`, `citekey/`): cite-key policy split into `citekey` sub-package to break the `zot → hygiene` import cycle. **Breaking change warning:** `citekey/citekey.go` constants (`wordCount`, `wordMaxLen`, stopword list) define the synthesized key format `{author}{year}-{words}-{ZOTKEY}` — changing any rewrites every key. Drift detection: `.zotero-citekeymap.json` sidecar emits `ids = {oldkey}` aliases.
 - **Cite-key fix** (`fix/`): lives in its own subpackage (import cycle: needs both `api` and `citekey`). `zot doctor citekeys --fix` is dry-run by default; `--apply` required to write. Destructive against BBT-managed libraries — confirmation required.
-- **Mirror types**: `zot.ChildItemView` copies `local.ChildItem` to avoid `local → zot` cycle. If more types need this, pull `Config` into its own subpackage.
-- **`ZOT_REAL_DB` env var** / **`./zotero.sqlite`**: `local/realdb_test.go` uses `ZOT_REAL_DB`. Hygiene real-library tests open `./zotero.sqlite` at the repo root (gitignored, safe to mess with) and gate behind `SLOW=1`. Never hardcode the user's live library path.
-- **Single-name creators**: institutional authors like "NASA" are stored with `fieldMode=1` and the name in `lastName`. Our `Creator.Name` field carries these; `Creator.First`/`Last` stay empty. BibTeX emits them as `{NASA}` to suppress name parsing.
-- **`DuplicateCandidate` lives in `local`, not `hygiene`** — type-aliased in `hygiene/duplicates.go` to avoid the circular import (`hygiene` imports `local`; `local` can't import `hygiene`). Same pattern applies if future checks share scan types.
-- **Fuzzy duplicate perf**: naive O(n²) Levenshtein over 5k singletons is multi-minute. `ClusterByTitle` sorts by normalized-title length, breaks the inner loop once `lb > la/threshold`, and uses `levenshteinCapped` (DP aborts when row-min exceeds the edit budget). Together: ~12s on 8.8k items, still gated behind `Fuzzy`.
-- **Shared fixture**: `local/fixture_test.go` builds the synthetic `zotero.sqlite` once per `go test` invocation via `sync.Once` + `TestMain` cleanup. Safe because every test opens with `mode=ro&immutable=1`. Adding new tables/rows may require updating `TestStats` and `TestListCollections` counts.
+- **`ZOT_REAL_DB` env var** / **`./zotero.sqlite`**: `local/realdb_test.go` uses `ZOT_REAL_DB`. Hygiene real-library tests open `./zotero.sqlite` at the repo root (gitignored) and gate behind `SLOW=1`. Never hardcode the user's live library path.
+- **Single-name creators**: institutional authors like "NASA" are stored with `fieldMode=1` and the name in `lastName`. `Creator.Name` carries these; `Creator.First`/`Last` stay empty. BibTeX emits them as `{NASA}` to suppress name parsing.
+- **Shared fixture**: `local/fixture_test.go` builds the synthetic `zotero.sqlite` once per `go test` invocation (`sync.Once` + `TestMain`). Adding tables/rows may require updating `TestStats` and `TestListCollections` counts.
