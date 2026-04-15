@@ -1,7 +1,7 @@
 package cli
 
 // browse.go — interactive TUI for browsing tags and collections.
-// Three-level ListPicker navigation (helptui pattern):
+// Three-level ListPicker navigation (help pattern):
 //   Level 0: tag or collection picker
 //   Level 1: items for the selected tag/collection
 //   Level 2: ActionMenu overlay (Copy BibTeX, Open PDF, Open in Zotero)

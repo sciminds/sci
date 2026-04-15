@@ -25,15 +25,22 @@ Written in Go because:
 | `sci learn` | Interactive TUI to learn common terminal cmds |
 | `sci update` | Update sci to the latest version |
 
-![sci doctor](docs/casts/sci-doctor.gif)
+![sci doctor](docs/casts/doctor.gif)
 
-### Browse data files
+### `sci view` - Browse data files
+
+<details>
+<summary><b>usage</b> — click to expand</summary>
 
 | Command | What it does |
 |---------|--------------|
 | `sci view <file>` | Interactively browse any tabular data file (CSV, JSON, SQLite) |
 
 The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/dbtui@latest`.
+
+</details>
+
+![sci view](docs/casts/view.gif)
 
 ### `sci proj` - Manage Python projects
 
@@ -53,7 +60,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 
 </details>
 
-![sci proj](docs/casts/sci-proj.gif)
+![sci proj](docs/casts/proj-new.gif)
 
 ### `sci py` - ephemeral python repls/notebooks & file conversion
 
@@ -68,6 +75,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 
 </details>
 
+![sci py](docs/casts/py-repl.gif)
 
 ### `sci db` - Manage databases
 
@@ -85,7 +93,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 
 </details>
 
-![sci db](docs/casts/sci-db.gif)
+![sci db](docs/casts/db-add.gif)
 
 ### `sci cloud` - public cloud storage
 
@@ -102,7 +110,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 
 </details>
 
-![sci cloud](docs/casts/sci-cloud.gif)
+![sci cloud](docs/casts/cloud-put.gif)
 
 ### `sci lab` - lab storage (sftp)
 
@@ -121,7 +129,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 
 </details>
 
-![sci lab](docs/casts/sci-lab.gif)
+![sci lab](docs/casts/lab-browse.gif)
 
 ### `sci tools` - manage tools (Homebrew & uv)
 
@@ -138,7 +146,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 
 </details>
 
-![sci tools](docs/casts/sci-tools.gif)
+![sci tools](docs/casts/tools-install.gif)
 
 ### `sci vid` - Video/audio editing
 
@@ -160,7 +168,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 
 </details>
 
-![sci vid](docs/casts/sci-vid.gif)
+![sci vid](docs/casts/vid-cut.gif)
 
 ### `sci cass` - Canvas LMS & GitHub Classroom
 
@@ -189,7 +197,7 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 
 </details>
 
-![sci cass](docs/casts/sci-cass.gif)
+![sci cass](docs/casts/cass-pull.gif)
 
 ### `sci zot` - Zotero library management (Experimental)
 
@@ -267,7 +275,7 @@ Binaries are named `{tool}-{os}-{arch}` (e.g. `sci-darwin-arm64`, `dbtui-linux-a
 
 Prerequisites: [Go 1.26+](https://go.dev/dl/) and [just](https://github.com/casey/just) (`brew install just`).
 
-You'll also need [`asciicinema`](https://docs.asciinema.org/manual/cli/quick-start/#__tabbed_1_3) to create new terminal "casts" to place in `internal/guide/casts/`
+You'll also need [`asciicinema`](https://docs.asciinema.org/manual/cli/quick-start/#__tabbed_1_3) to create new terminal "casts". Place sci command demos in `internal/help/casts/` and general terminal/git/python tutorials in `internal/learn/casts/`.
 
 *This is also set up as a git pre-commit hook:*
 

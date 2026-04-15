@@ -2,8 +2,8 @@
 # doc-coverage.sh — report gaps in user-facing CLI documentation.
 #
 # Cross-references four surfaces for each top-level sci command group:
-#   1. helptui long description  (internal/helptui/descs.go)
-#   2. Asciinema cast file       (internal/guide/casts/sci-<cmd>.cast)
+#   1. help long description     (internal/help/descs.go)
+#   2. Asciinema cast file       (internal/help/casts/<cmd>-*.cast)
 #   3. Rendered GIF              (docs/casts/sci-<cmd>.gif)
 #   4. README.md embed           (![...](docs/casts/sci-<cmd>.gif))
 #
@@ -12,9 +12,9 @@ set -euo pipefail
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
-CASTS_DIR="$ROOT/internal/guide/casts"
+CASTS_DIR="$ROOT/internal/help/casts"
 GIFS_DIR="$ROOT/docs/casts"
-DESCS_FILE="$ROOT/internal/helptui/descs.go"
+DESCS_FILE="$ROOT/internal/help/descs.go"
 README="$ROOT/README.md"
 
 # ── Discover top-level command groups from cmd/sci/root.go ───────────────────
@@ -34,18 +34,24 @@ check_desc() {
 }
 
 check_cast() {
+    # Covered if a leaf cast ($cmd.cast, e.g. doctor.cast) or any
+    # per-subcommand cast ($cmd-<sub>.cast, e.g. proj-new.cast) exists.
     local cmd="$1"
-    [[ -f "$CASTS_DIR/sci-$cmd.cast" ]]
+    [[ -f "$CASTS_DIR/$cmd.cast" ]] && return 0
+    compgen -G "$CASTS_DIR/$cmd-*.cast" > /dev/null
 }
 
 check_gif() {
     local cmd="$1"
-    [[ -f "$GIFS_DIR/sci-$cmd.gif" ]]
+    [[ -f "$GIFS_DIR/$cmd.gif" ]] && return 0
+    compgen -G "$GIFS_DIR/$cmd-*.gif" > /dev/null
 }
 
 check_readme() {
+    # README is covered if it embeds any gif whose name starts with $cmd
+    # (either $cmd.gif or $cmd-<sub>.gif).
     local cmd="$1"
-    rg -q "docs/casts/sci-$cmd\.gif" "$README" 2>/dev/null
+    rg -q "docs/casts/$cmd(-[^)]*)?\.gif" "$README" 2>/dev/null
 }
 
 # ── Report ───────────────────────────────────────────────────────────────────

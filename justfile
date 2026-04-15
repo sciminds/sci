@@ -78,9 +78,10 @@ docs-uikit:
     go run ./internal/uikit/cmd/gen-reference ./internal/uikit ./internal/uikit/REFERENCE.md
 
 # Render embedded asciicasts to GIFs under docs/casts/ using `agg`.
-# GIFs embed natively in GitHub-rendered markdown (no JS player needed).
+# Searches both internal/help/casts/ (sci command demos) and
+# internal/learn/casts/ (general terminal/git/python tutorials).
 # Pass a filename stem (or glob) to limit the set:
-#     just casts-gif              # all casts
+#     just casts-gif              # all casts in both dirs
 #     just casts-gif zot-doctor   # just one
 #     just casts-gif 'zot-*'      # all zot casts (quote to protect from shell)
 casts-gif FILTER='*':
@@ -89,7 +90,16 @@ casts-gif FILTER='*':
     command -v agg >/dev/null || { echo "agg not found on PATH — install from https://github.com/asciinema/agg"; exit 1; }
     mkdir -p docs/casts
     shopt -s nullglob
-    casts=(internal/guide/casts/{{FILTER}}.cast)
+    casts=()
+    for glob in internal/help/casts/{{FILTER}}.cast internal/learn/casts/{{FILTER}}.cast; do
+        [[ -f "$glob" ]] && casts+=("$glob")
+    done
+    if [[ ${#casts[@]} -eq 0 ]]; then
+        # Fall back to shell glob expansion for wildcard filters.
+        for c in internal/help/casts/{{FILTER}}.cast internal/learn/casts/{{FILTER}}.cast; do
+            casts+=("$c")
+        done
+    fi
     if [[ ${#casts[@]} -eq 0 ]]; then
         echo "no casts matched '{{FILTER}}'"
         exit 1

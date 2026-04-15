@@ -216,7 +216,7 @@ commands:
 
   # ── help (exempt) ──────────────────────────────────────────────────────────
   help:
-    file: internal/helptui/helptui.go
+    file: internal/help/help.go
     prompts:
       - id: help-browser
         type: uikit.Run
@@ -260,9 +260,9 @@ commands:
 
   # ── learn (exempt) ─────────────────────────────────────────────────────────
   learn:
-    file: internal/guide/guide.go
+    file: internal/learn/learn.go
     prompts:
-      - id: guide-browser
+      - id: learn-browser
         type: uikit.Run
         nth: 1
         line: 459
