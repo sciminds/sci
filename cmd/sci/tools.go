@@ -453,7 +453,9 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 func runToolsReccs(_ context.Context, cmd *cli.Command, installName string) error {
 	runner := brew.BrewRunner{}
 
-	if cmdutil.IsJSON(cmd) {
+	// JSON without --install lists the catalog; with --install it must
+	// still perform the install (otherwise the flag is silently ignored).
+	if cmdutil.IsJSON(cmd) && installName == "" {
 		result, err := doctor.ListOptionalTools(runner)
 		if err != nil {
 			return err
