@@ -149,6 +149,9 @@ Host %s
     ControlMaster auto
     ControlPath %s/%%r@%%h-%%p
     ControlPersist 12h
+    ConnectTimeout 10
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
 `, alias, Host, user, keyPath, socketsDir)
 
 	f, err := os.OpenFile(configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)

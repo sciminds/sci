@@ -240,6 +240,12 @@ func labConnectCommand() *cli.Command {
 				return err
 			}
 
+			// Warm the ControlMaster so the exec'd SSH inherits an
+			// authenticated connection — avoids hanging on a stale master.
+			if err := lab.WarmMaster(cfg); err != nil {
+				return err
+			}
+
 			argv := lab.BuildOpenArgs(cfg)
 			bin, err := exec.LookPath(argv[0])
 			if err != nil {

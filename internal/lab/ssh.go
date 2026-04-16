@@ -1,11 +1,13 @@
 package lab
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
+	"time"
 )
 
 // SafeReadPath resolves a relative path under ReadRoot.
@@ -78,27 +80,57 @@ func BuildOpenArgs(cfg *Config) []string {
 	return []string{"ssh", "-t", cfg.SSHAlias(), "cd " + ReadRoot + " && exec $SHELL -l"}
 }
 
+// masterCheckTimeout bounds how long we wait for a quick "true" through the
+// ControlMaster before declaring the connection stale.
+const masterCheckTimeout = 10 * time.Second
+
 // MasterAlive reports whether a ControlMaster socket for the alias is live.
 // `ssh -O check` exits 0 when a master process is reachable, non-zero otherwise.
 func MasterAlive(cfg *Config) bool {
 	return exec.Command("ssh", "-O", "check", cfg.SSHAlias()).Run() == nil
 }
 
+// MasterHealthy returns true when a live ControlMaster can actually reach the
+// remote host. A master process can survive a network drop — the socket stays
+// but the TCP connection is dead. Running a trivial command with BatchMode+timeout
+// detects this without prompting for auth.
+func MasterHealthy(cfg *Config) bool {
+	if !MasterAlive(cfg) {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), masterCheckTimeout)
+	defer cancel()
+	return exec.CommandContext(ctx, "ssh", "-o", "BatchMode=yes", cfg.SSHAlias(), "true").Run() == nil
+}
+
+// KillMaster tears down the ControlMaster for cfg. Errors are ignored because
+// the socket may already be gone.
+func KillMaster(cfg *Config) {
+	_ = exec.Command("ssh", "-O", "exit", cfg.SSHAlias()).Run()
+}
+
 // WarmMaster opens (or reuses) the ControlMaster connection for cfg, prompting
 // the user on the real terminal for password / Duo if needed. Once this returns
 // nil, subsequent ssh/rsync calls to the same alias tunnel through the master
 // for ControlPersist's lifetime — no re-auth, no Duo. Safe to call before
-// entering a Bubbletea alt-screen; cheap no-op if a master already exists.
+// entering a Bubbletea alt-screen; cheap no-op if a healthy master exists.
+//
+// If the master process is alive but the underlying TCP connection is dead
+// (e.g. after a network drop), it kills the stale master and re-authenticates.
 func WarmMaster(cfg *Config) error {
-	if MasterAlive(cfg) {
+	if MasterHealthy(cfg) {
 		return nil
 	}
+	// Kill any stale master so a fresh connection can take over.
+	KillMaster(cfg)
+
+	fmt.Fprintf(os.Stderr, "Connecting to %s (you may be prompted for your password and Duo 2FA)…\n", Host)
 	cmd := exec.Command("ssh", cfg.SSHAlias(), "true")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("warm SSH master for %s: %w", cfg.SSHAlias(), err)
+		return fmt.Errorf("SSH authentication failed for %s: %w", cfg.SSHAlias(), err)
 	}
 	return nil
 }
