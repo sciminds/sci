@@ -217,8 +217,10 @@ jobs:
           # which use DirectInstall + a separate sync path.
           sci tools reccs --json | grep -q '"name"'
           sci tools reccs --install rg --json
-          sci tools list --json | grep -q '"rg"'
-          sci tools uninstall --formula rg --json
+          # Brew normalizes the rg alias to canonical ripgrep on dump,
+          # so list/uninstall use the canonical name.
+          sci tools list --json | grep -q '"ripgrep"'
+          sci tools uninstall --formula ripgrep --json
 
           # ---- Outdated → upgrade branch ---------------------------------
           # macOS runners ship many preinstalled brew formulae, so
