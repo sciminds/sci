@@ -191,6 +191,53 @@ func TestScan_EmptyTitleSearchResultsRecordedAsError(t *testing.T) {
 	}
 }
 
+func TestScan_GathersFallbackURLsFromLocationsPreferringFriendlyHosts(t *testing.T) {
+	t.Parallel()
+	// Work has multiple locations: a Wiley hostile URL (best_oa_location),
+	// an arxiv OA copy (locations[]), and the publisher landing (primary).
+	// The arxiv copy must win as the primary PDFURL even though it's NOT
+	// best_oa_location — friendly hosts get promoted.
+	items := []local.Item{{Key: "ABC", DOI: "10.1/x"}}
+	oa := &fakeLookup{works: map[string]*openalex.Work{
+		"10.1/x": {
+			ID: "https://openalex.org/W1",
+			BestOALocation: &openalex.Location{
+				PDFURL: strPtr("https://onlinelibrary.wiley.com/doi/pdf/10.1/x"),
+			},
+			PrimaryLocation: &openalex.Location{
+				LandingPageURL: strPtr("https://onlinelibrary.wiley.com/doi/10.1/x"),
+			},
+			Locations: []openalex.Location{
+				{PDFURL: strPtr("https://onlinelibrary.wiley.com/doi/pdf/10.1/x")},       // dup of best_oa
+				{PDFURL: strPtr("https://arxiv.org/pdf/2105.12345")},                     // friendly!
+				{PDFURL: strPtr("https://pmc.ncbi.nlm.nih.gov/articles/PMC12345/pdf/x")}, // friendly!
+			},
+		},
+	}}
+
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := res.Findings[0]
+	if f.PDFURL != "https://arxiv.org/pdf/2105.12345" {
+		t.Errorf("want arxiv promoted to primary, got %q", f.PDFURL)
+	}
+	// arxiv first, then pmc (also friendly), then wiley. Deduped.
+	want := []string{
+		"https://pmc.ncbi.nlm.nih.gov/articles/PMC12345/pdf/x",
+		"https://onlinelibrary.wiley.com/doi/pdf/10.1/x",
+	}
+	if len(f.FallbackURLs) != len(want) {
+		t.Fatalf("fallback URLs: got %v, want %v", f.FallbackURLs, want)
+	}
+	for i, w := range want {
+		if f.FallbackURLs[i] != w {
+			t.Errorf("fallback[%d]: got %q, want %q", i, f.FallbackURLs[i], w)
+		}
+	}
+}
+
 func TestScan_FallsBackToPrimaryLocationPDFURL(t *testing.T) {
 	t.Parallel()
 	// best_oa_location has no PDF, but primary_location does — surface it.

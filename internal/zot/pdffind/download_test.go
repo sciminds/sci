@@ -106,6 +106,64 @@ func TestDownload_RejectsNonPDFContentType(t *testing.T) {
 	}
 }
 
+func TestDownload_FallsBackToAlternateURLsOnFailure(t *testing.T) {
+	t.Parallel()
+	var primaryHits, fallbackHits int
+	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		primaryHits++
+		http.Error(w, "blocked", http.StatusForbidden)
+	}))
+	t.Cleanup(primary.Close)
+	fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fallbackHits++
+		w.Header().Set("Content-Type", "application/pdf")
+		_, _ = w.Write([]byte("%PDF"))
+	}))
+	t.Cleanup(fallback.Close)
+
+	findings := []Finding{{
+		ItemKey:      "ABC",
+		PDFURL:       primary.URL + "/paywalled.pdf",
+		FallbackURLs: []string{fallback.URL + "/oa.pdf"},
+	}}
+	out, err := Download(context.Background(), primary.Client(), findings, t.TempDir(), DownloadOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out[0].DownloadError != "" {
+		t.Errorf("expected success via fallback, got error %q", out[0].DownloadError)
+	}
+	if out[0].DownloadedPath == "" {
+		t.Error("expected downloaded_path set")
+	}
+	if primaryHits != 1 || fallbackHits != 1 {
+		t.Errorf("hit counts: primary=%d fallback=%d, want 1/1", primaryHits, fallbackHits)
+	}
+}
+
+func TestDownload_RecordsPrimaryErrorWhenAllURLsFail(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "nope", http.StatusForbidden)
+	}))
+	t.Cleanup(srv.Close)
+	findings := []Finding{{
+		ItemKey:      "ABC",
+		PDFURL:       srv.URL + "/a.pdf",
+		FallbackURLs: []string{srv.URL + "/b.pdf", srv.URL + "/c.pdf"},
+	}}
+	out, err := Download(context.Background(), srv.Client(), findings, t.TempDir(), DownloadOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out[0].DownloadError, "http 403") {
+		t.Errorf("primary error must be surfaced, got %q", out[0].DownloadError)
+	}
+	if !strings.Contains(out[0].DownloadError, "2 fallback(s) also failed") {
+		t.Errorf("fallback-count hint missing, got %q", out[0].DownloadError)
+	}
+}
+
 func TestDownload_ParallelOverlapsRequests(t *testing.T) {
 	t.Parallel()
 	// Server blocks until N concurrent requests are in flight at once.

@@ -41,6 +41,13 @@ type Finding struct {
 	OAStatus       string `json:"oa_status,omitempty"`
 	HasFulltext    bool   `json:"has_fulltext"`
 
+	// FallbackURLs are additional PDF URLs to try if PDFURL fails. OpenAlex
+	// often returns a paywall URL as best_oa_location while also listing
+	// an arxiv/PMC preprint in locations[]; Download walks PDFURL then
+	// each FallbackURL until one succeeds. Ranked so known-friendly hosts
+	// (preprint servers, PMC, institutional repos) come first.
+	FallbackURLs []string `json:"fallback_urls,omitempty"`
+
 	// Set by Download after --download; non-empty means the file is on disk.
 	DownloadedPath string `json:"downloaded_path,omitempty"`
 	DownloadError  string `json:"download_error,omitempty"`
@@ -73,7 +80,33 @@ type Result struct {
 var titleSearchSelect = []string{
 	"id", "doi", "title", "display_name",
 	"is_oa", "has_fulltext", "open_access",
-	"primary_location", "best_oa_location",
+	"primary_location", "best_oa_location", "locations",
+}
+
+// friendlyHostSubstrings match PDF hosts that reliably serve files to bot
+// UAs — preprint servers, PMC, OSF, and other open repositories. PDF URLs
+// matching any of these get promoted ahead of commercial-publisher URLs
+// in the try-order so a paper with both an OA preprint and a Wiley paywall
+// tries the preprint first.
+var friendlyHostSubstrings = []string{
+	"arxiv.org",
+	"biorxiv.org",
+	"medrxiv.org",
+	"chemrxiv.org",
+	"psyarxiv.com",
+	"osf.io",
+	"pmc.ncbi.nlm.nih.gov",
+	"europepmc.org",
+	"ncbi.nlm.nih.gov",
+	"repository.", // repository.upenn.edu, repository.cam.ac.uk, etc.
+	"dspace.",     // dspace.mit.edu, etc.
+}
+
+func isFriendlyHost(url string) bool {
+	lu := strings.ToLower(url)
+	return lo.ContainsBy(friendlyHostSubstrings, func(sub string) bool {
+		return strings.Contains(lu, sub)
+	})
 }
 
 // ScanOptions configures Scan. Zero value is valid — no cache, no progress.
@@ -200,9 +233,15 @@ func lookupOne(ctx context.Context, it local.Item, oa Lookup) Finding {
 }
 
 // populateFromWork copies the fields we care about out of an OpenAlex Work
-// onto a Finding. PDF URL falls back from best_oa_location to
-// primary_location — OA journals publish the PDF at primary, and OpenAlex
-// only populates best_oa_location when a separate OA copy exists.
+// onto a Finding.
+//
+// PDF URL selection: we gather every pdf_url OpenAlex knows about (from
+// locations[], best_oa_location, primary_location), deduplicate, and rank
+// friendly-host URLs ahead of unknown ones. The first ranked URL becomes
+// PDFURL; the rest are FallbackURLs for the downloader to try on failure.
+// This matters because OpenAlex's best_oa_location is often a paywalled
+// publisher URL when there's ALSO an arxiv/PMC preprint listed in
+// locations[] — without the reordering, we'd hit the paywall and give up.
 func populateFromWork(f *Finding, w *openalex.Work) {
 	f.OpenAlexID = openalexShortID(w.ID)
 	if w.DOI != nil {
@@ -213,17 +252,43 @@ func populateFromWork(f *Finding, w *openalex.Work) {
 	if w.OpenAccess != nil {
 		f.OAStatus = w.OpenAccess.OAStatus
 	}
-	if w.BestOALocation != nil && w.BestOALocation.PDFURL != nil {
-		f.PDFURL = *w.BestOALocation.PDFURL
+	if w.PrimaryLocation != nil && w.PrimaryLocation.LandingPageURL != nil {
+		f.LandingPageURL = *w.PrimaryLocation.LandingPageURL
 	}
-	if w.PrimaryLocation != nil {
-		if w.PrimaryLocation.LandingPageURL != nil {
-			f.LandingPageURL = *w.PrimaryLocation.LandingPageURL
-		}
-		if f.PDFURL == "" && w.PrimaryLocation.PDFURL != nil {
-			f.PDFURL = *w.PrimaryLocation.PDFURL
+
+	urls := gatherPDFURLs(w)
+	if len(urls) == 0 {
+		return
+	}
+	f.PDFURL = urls[0]
+	if len(urls) > 1 {
+		f.FallbackURLs = urls[1:]
+	}
+}
+
+// gatherPDFURLs returns every PDF URL OpenAlex lists for this Work,
+// deduplicated and ranked with friendly hosts first. Order-preserving
+// within each rank so OpenAlex's own preference breaks ties.
+func gatherPDFURLs(w *openalex.Work) []string {
+	var all []string
+	add := func(loc *openalex.Location) {
+		if loc != nil && loc.PDFURL != nil && *loc.PDFURL != "" {
+			all = append(all, *loc.PDFURL)
 		}
 	}
+	// Order here seeds the intra-rank order: best_oa first, then primary,
+	// then the full locations[] array.
+	add(w.BestOALocation)
+	add(w.PrimaryLocation)
+	for i := range w.Locations {
+		add(&w.Locations[i])
+	}
+	all = lo.Uniq(all)
+
+	// Stable partition: friendly hosts first, unknown hosts after.
+	friendly := lo.Filter(all, func(u string, _ int) bool { return isFriendlyHost(u) })
+	unknown := lo.Filter(all, func(u string, _ int) bool { return !isFriendlyHost(u) })
+	return append(friendly, unknown...)
 }
 
 // openalexShortID pulls "W12345" out of "https://openalex.org/W12345".

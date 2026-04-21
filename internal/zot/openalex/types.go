@@ -32,6 +32,7 @@ type Work struct {
 	HasFulltext                  bool                `json:"has_fulltext"`
 	PrimaryLocation              *Location           `json:"primary_location"`
 	BestOALocation               *Location           `json:"best_oa_location"`
+	Locations                    []Location          `json:"locations"`
 	OpenAccess                   *OpenAccess         `json:"open_access"`
 	Authorships                  []Authorship        `json:"authorships"`
 	Topics                       []Topic             `json:"topics"`

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -136,8 +137,33 @@ func Download(
 	return findings, nil
 }
 
+// downloadOne tries the primary PDFURL first, then each FallbackURL until
+// one succeeds. Returns the filesystem path on the first success. On total
+// failure returns the primary URL's error with a "+N fallbacks also failed"
+// suffix so the user knows how many alternate URLs were tried.
 func downloadOne(ctx context.Context, httpClient *http.Client, f Finding, dir string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", f.PDFURL, nil)
+	urls := slices.Concat([]string{f.PDFURL}, f.FallbackURLs)
+	var firstErr error
+	for i, u := range urls {
+		path, err := fetchURL(ctx, httpClient, u, f.ItemKey, dir)
+		if err == nil {
+			return path, nil
+		}
+		if i == 0 {
+			firstErr = err
+		}
+	}
+	if len(urls) > 1 {
+		return "", fmt.Errorf("%w (+%d fallback(s) also failed)", firstErr, len(urls)-1)
+	}
+	return "", firstErr
+}
+
+// fetchURL does one HTTP GET + content-type validation + file write.
+// Kept separate from downloadOne so the fallback loop can call it on
+// multiple URLs without duplicating the request setup.
+func fetchURL(ctx context.Context, httpClient *http.Client, url, itemKey, dir string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", err
 	}
@@ -164,7 +190,7 @@ func downloadOne(ctx context.Context, httpClient *http.Client, f Finding, dir st
 		return "", fmt.Errorf("unexpected content-type %q (got HTML / paywall?)", ct)
 	}
 
-	name := filepath.Join(dir, sanitizeFilename(f.ItemKey)+".pdf")
+	name := filepath.Join(dir, sanitizeFilename(itemKey)+".pdf")
 	out, err := os.Create(name)
 	if err != nil {
 		return "", err
