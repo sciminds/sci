@@ -2,12 +2,15 @@ package pdffind
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestDownload_SavesPDFToDir(t *testing.T) {
@@ -100,6 +103,50 @@ func TestDownload_RejectsNonPDFContentType(t *testing.T) {
 	}
 	if out[0].DownloadError == "" {
 		t.Error("want download_error on non-PDF content-type")
+	}
+}
+
+func TestDownload_ParallelOverlapsRequests(t *testing.T) {
+	t.Parallel()
+	// Server blocks until N concurrent requests are in flight at once.
+	// Serial execution would deadlock; parallelism releases everyone.
+	const N = 4
+	var mu sync.Mutex
+	var inflight int
+	released := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		inflight++
+		reached := inflight == N
+		mu.Unlock()
+		if reached {
+			close(released)
+		}
+		select {
+		case <-released:
+		case <-time.After(2 * time.Second):
+			t.Error("timed out waiting for parallel fan-in — downloads not actually parallel")
+		}
+		w.Header().Set("Content-Type", "application/pdf")
+		_, _ = w.Write([]byte("%PDF"))
+	}))
+	t.Cleanup(srv.Close)
+
+	findings := make([]Finding, N)
+	for i := range findings {
+		findings[i] = Finding{
+			ItemKey: fmt.Sprintf("K%d", i),
+			PDFURL:  srv.URL + fmt.Sprintf("/%d.pdf", i),
+		}
+	}
+	out, err := Download(context.Background(), srv.Client(), findings, t.TempDir(), DownloadOptions{Parallel: N})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range out {
+		if f.DownloadedPath == "" {
+			t.Errorf("expected every file downloaded, got %+v", f)
+		}
 	}
 }
 

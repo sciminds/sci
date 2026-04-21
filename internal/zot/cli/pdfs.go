@@ -23,7 +23,13 @@ var (
 	pdfsLimit      int
 	pdfsNoCache    bool
 	pdfsRefresh    bool
+	pdfsParallel   int
 )
+
+// defaultPDFParallel is the concurrency cap for --download. PDFs come from
+// mixed hosts (arxiv, biorxiv, publisher CDNs), so 5 in flight gives most
+// of the wall-time win without looking like abuse to any single origin.
+const defaultPDFParallel = 5
 
 // defaultPDFCollection is the collection name we assume when --collection is
 // not passed. Matches the convention in CLAUDE.md and the user's library.
@@ -36,7 +42,8 @@ func pdfsCommand() *cli.Command {
 		Description: `$ zot --library personal doctor pdfs                          # scans default 'missing-pdf' collection
 $ zot --library personal doctor pdfs --collection ABCD1234    # by key
 $ zot --library personal doctor pdfs --collection missing-pdf # by name
-$ zot --library personal doctor pdfs --download ~/pdfs        # also retrieve each PDF
+$ zot --library personal doctor pdfs --download ~/pdfs        # also retrieve each PDF (5-way parallel)
+$ zot --library personal doctor pdfs --download ~/pdfs -P 10  # bump download concurrency
 $ zot --library personal doctor pdfs --refresh                # bypass cache, re-query all
 $ zot --library personal doctor pdfs --json > missing.json
 
@@ -88,6 +95,14 @@ attachments is a separate command (coming later).`,
 				Name:        "no-cache",
 				Usage:       "disable on-disk cache for this run (no reads, no writes)",
 				Destination: &pdfsNoCache,
+				Local:       true,
+			},
+			&cli.IntFlag{
+				Name:        "parallel",
+				Aliases:     []string{"P"},
+				Value:       defaultPDFParallel,
+				Usage:       "concurrent downloads (with --download); 1 = serial",
+				Destination: &pdfsParallel,
 				Local:       true,
 			},
 		},
@@ -144,7 +159,7 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 		// Give PDFs a reasonable ceiling — they're usually a few MB but some
 		// are 100+. 5 minutes accommodates the largest without wedging the CLI.
 		httpClient := &http.Client{Timeout: 5 * time.Minute}
-		fresh, derr := downloadWithProgress(ctx, httpClient, res.Findings, pdfsDownload)
+		fresh, derr := downloadWithProgress(ctx, httpClient, res.Findings, pdfsDownload, pdfsParallel)
 		if derr != nil {
 			return derr
 		}
@@ -213,6 +228,7 @@ func downloadWithProgress(
 	httpClient *http.Client,
 	findings []pdffind.Finding,
 	dir string,
+	parallel int,
 ) ([]pdffind.Finding, error) {
 	total := lo.CountBy(findings, func(f pdffind.Finding) bool { return f.PDFURL != "" })
 	if total == 0 {
@@ -222,7 +238,11 @@ func downloadWithProgress(
 	err := uikit.RunWithProgress("Downloading PDFs", func(t *uikit.ProgressTracker) error {
 		t.SetTotal(total)
 		opts := pdffind.DownloadOptions{
+			Parallel: parallel,
 			OnStart: func(_, _ int, f pdffind.Finding) {
+				// Last-called-wins on the status line — with parallelism, this
+				// shows whichever fetch most recently started. Good enough for
+				// "is it alive" feedback.
 				t.Status(fmt.Sprintf("%s  %s", f.ItemKey, truncateMiddle(f.PDFURL, 70)))
 			},
 			OnDone: func(_, _ int, f pdffind.Finding) {

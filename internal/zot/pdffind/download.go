@@ -10,20 +10,32 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"golang.org/x/sync/errgroup"
 )
 
-// DownloadOptions configures Download. Zero value is valid — no callbacks.
+// DownloadOptions configures Download. Zero value is valid — no callbacks,
+// serial execution.
 type DownloadOptions struct {
 	// OnStart fires just before each HTTP fetch begins. Use it to surface
 	// "currently fetching X" so a slow server doesn't look like a hang.
 	// i is 0-based into the fetchable subset; total counts only findings
 	// with a non-empty PDFURL (skipped items don't advance i or total).
+	//
+	// SAFETY: when Parallel > 1, callbacks may fire concurrently from any
+	// goroutine. Callers are responsible for synchronization if they
+	// mutate shared state — the bundled uikit.ProgressTracker is safe.
 	OnStart func(i, total int, f Finding)
 
 	// OnDone fires after each fetch completes (success or error).
 	// The Finding passed in carries the final DownloadedPath or
 	// DownloadError — use it to advance a progress counter.
 	OnDone func(i, total int, f Finding)
+
+	// Parallel caps the number of concurrent fetches. 0 or 1 = serial,
+	// preserving deterministic order; higher values use errgroup with
+	// SetLimit(N). PDFs come from independent hosts in practice, so 5-8
+	// is a polite default that gives most of the speedup.
+	Parallel int
 }
 
 // Download fetches every finding's PDFURL to dir, mutating each Finding's
@@ -46,27 +58,63 @@ func Download(
 		return nil, fmt.Errorf("pdffind: create download dir: %w", err)
 	}
 	total := lo.CountBy(findings, func(f Finding) bool { return f.PDFURL != "" })
-	idx := 0
+
+	// Build a parallel task list: (findingIndex, fetchIndex) for every
+	// finding with a PDFURL. fetchIndex is the 0..total-1 position used by
+	// the callbacks; findingIndex writes back into the original slice.
+	type job struct{ findingIdx, fetchIdx int }
+	var jobs []job
+	fetchIdx := 0
 	for i := range findings {
-		if err := ctx.Err(); err != nil {
-			return findings, err
-		}
 		if findings[i].PDFURL == "" {
 			continue
 		}
+		jobs = append(jobs, job{findingIdx: i, fetchIdx: fetchIdx})
+		fetchIdx++
+	}
+
+	runJob := func(j job) {
 		if opts.OnStart != nil {
-			opts.OnStart(idx, total, findings[i])
+			opts.OnStart(j.fetchIdx, total, findings[j.findingIdx])
 		}
-		path, derr := downloadOne(ctx, httpClient, findings[i], dir)
+		path, derr := downloadOne(ctx, httpClient, findings[j.findingIdx], dir)
 		if derr != nil {
-			findings[i].DownloadError = derr.Error()
+			findings[j.findingIdx].DownloadError = derr.Error()
 		} else {
-			findings[i].DownloadedPath = path
+			findings[j.findingIdx].DownloadedPath = path
 		}
 		if opts.OnDone != nil {
-			opts.OnDone(idx, total, findings[i])
+			opts.OnDone(j.fetchIdx, total, findings[j.findingIdx])
 		}
-		idx++
+	}
+
+	if opts.Parallel <= 1 {
+		for _, j := range jobs {
+			if err := ctx.Err(); err != nil {
+				return findings, err
+			}
+			runJob(j)
+		}
+		return findings, nil
+	}
+
+	// Parallel path. Use WithContext so ctx cancellation propagates cleanly
+	// to every in-flight http request. Per-item errors are recorded on the
+	// Finding, not returned — so SetLimit's "first-error-cancels-rest"
+	// semantics never trigger on a per-PDF 404.
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(opts.Parallel)
+	for _, j := range jobs {
+		g.Go(func() error {
+			if err := gctx.Err(); err != nil {
+				return err
+			}
+			runJob(j)
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return findings, err
 	}
 	return findings, nil
 }
