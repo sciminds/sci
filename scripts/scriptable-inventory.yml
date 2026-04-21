@@ -214,6 +214,22 @@ commands:
         bypass: "--data-dir"
         status: covered
 
+      - id: openalex-email
+        type: huh.NewInput
+        nth: 4
+        line: 135
+        description: "OpenAlex polite-pool email (optional)"
+        bypass: "--openalex-email"
+        status: covered
+
+      - id: openalex-api-key
+        type: huh.NewInput
+        nth: 5
+        line: 139
+        description: "OpenAlex premium API key (optional)"
+        bypass: "--openalex-api"
+        status: covered
+
   # ── help (exempt) ──────────────────────────────────────────────────────────
   help:
     file: internal/help/help.go

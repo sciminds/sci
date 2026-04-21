@@ -15,11 +15,13 @@ import (
 
 // setup command flag destinations (package-scoped like other sci commands).
 var (
-	setupAPIKey    string
-	setupLibraryID string
-	setupDataDir   string
-	setupLogout    bool
-	setupForce     bool
+	setupAPIKey         string
+	setupLibraryID      string
+	setupDataDir        string
+	setupOpenAlexEmail  string
+	setupOpenAlexAPIKey string
+	setupLogout         bool
+	setupForce          bool
 )
 
 func setupCommand() *cli.Command {
@@ -29,11 +31,14 @@ func setupCommand() *cli.Command {
 		Description: "$ zot setup\n" +
 			"$ zot setup --api <key> --library <id>\n" +
 			"$ zot setup --api <key> --library <id> --data-dir ~/Zotero\n" +
+			"$ zot setup --openalex-email you@example.com --openalex-api <key>\n" +
 			"$ zot setup --logout",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "api", Usage: "Zotero Web API key (required in --json mode)", Destination: &setupAPIKey, Local: true},
 			&cli.StringFlag{Name: "library", Usage: "Zotero numeric user ID (required in --json mode)", Destination: &setupLibraryID, Local: true},
 			&cli.StringFlag{Name: "data-dir", Usage: "path to directory containing zotero.sqlite (auto-detected if omitted)", Destination: &setupDataDir, Local: true},
+			&cli.StringFlag{Name: "openalex-email", Usage: "email for the OpenAlex polite pool (optional, ~10 req/s)", Destination: &setupOpenAlexEmail, Local: true},
+			&cli.StringFlag{Name: "openalex-api", Usage: "OpenAlex premium API key (optional, ~100 req/s)", Destination: &setupOpenAlexAPIKey, Local: true},
 			&cli.BoolFlag{Name: "logout", Usage: "clear saved credentials", Destination: &setupLogout, Local: true},
 			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config without prompting", Destination: &setupForce, Local: true},
 		},
@@ -54,6 +59,19 @@ func runSetup(_ context.Context, cmd *cli.Command) error {
 	apiKey := setupAPIKey
 	libraryID := setupLibraryID
 	dataDir := setupDataDir
+	openAlexEmail := setupOpenAlexEmail
+	openAlexAPIKey := setupOpenAlexAPIKey
+
+	// Prefill OpenAlex fields from any existing config so --openalex-* flags
+	// behave as partial updates rather than wiping the other slot.
+	if existing, _ := zot.LoadConfig(); existing != nil {
+		if openAlexEmail == "" {
+			openAlexEmail = existing.OpenAlexEmail
+		}
+		if openAlexAPIKey == "" {
+			openAlexAPIKey = existing.OpenAlexAPIKey
+		}
+	}
 
 	jsonMode := cmdutil.IsJSON(cmd)
 	// `setup --json` with no creds → print the saved config and exit.
@@ -114,13 +132,27 @@ func runSetup(_ context.Context, cmd *cli.Command) error {
 					Description("Zotero's data dir (contains zotero.sqlite)").
 					Value(&dataDir).
 					Validate(func(s string) error { return zot.ValidateDataDir(s) }),
+				huh.NewInput().
+					Title("OpenAlex email (optional)").
+					Description("Unlocks the polite pool (~10 req/s). Leave blank to skip.").
+					Value(&openAlexEmail),
+				huh.NewInput().
+					Title("OpenAlex API key (optional)").
+					Description("Premium tier (~100 req/s). Leave blank to skip.").
+					Value(&openAlexAPIKey),
 			))); err != nil {
 				return err
 			}
 		}
 	}
 
-	result, err := zot.Setup(apiKey, libraryID, dataDir)
+	result, err := zot.Setup(zot.SetupInput{
+		APIKey:         apiKey,
+		LibraryID:      libraryID,
+		DataDir:        dataDir,
+		OpenAlexEmail:  openAlexEmail,
+		OpenAlexAPIKey: openAlexAPIKey,
+	})
 	if err != nil {
 		return err
 	}

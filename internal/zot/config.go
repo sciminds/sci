@@ -18,10 +18,16 @@ import (
 )
 
 // Config holds Zotero credentials and library location.
+//
+// OpenAlex fields are optional: populate OpenAlexEmail to opt into the
+// polite pool (~10 req/s), OpenAlexAPIKey for the premium tier (~100
+// req/s). Both empty = anonymous tier (~1 req/s).
 type Config struct {
-	APIKey    string `json:"api_key"`    // Zotero Web API key
-	LibraryID string `json:"library_id"` // numeric user ID (library owner)
-	DataDir   string `json:"data_dir"`   // directory containing zotero.sqlite
+	APIKey         string `json:"api_key"`                    // Zotero Web API key
+	LibraryID      string `json:"library_id"`                 // numeric user ID (library owner)
+	DataDir        string `json:"data_dir"`                   // directory containing zotero.sqlite
+	OpenAlexEmail  string `json:"openalex_email,omitempty"`   // mailto for polite pool
+	OpenAlexAPIKey string `json:"openalex_api_key,omitempty"` // premium tier key
 }
 
 // ConfigPath returns the config file path under the XDG config home
