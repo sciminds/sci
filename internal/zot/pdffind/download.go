@@ -13,6 +13,23 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// downloadUserAgent identifies this tool to PDF hosts.
+//
+// Sticking with a descriptive "sci-zot" UA is intentional even though it costs
+// us a bunch of 403s from commercial publishers (Wiley / OUP / PNAS / Elsevier
+// / Cell / Sage / MIT Press) whose bot filters fire on the UA string alone:
+//   - Institutional repositories (e.g. upenn scholarly commons) do the opposite
+//     and *serve bot UAs directly while showing browser UAs a download
+//     interstitial HTML page*, so a "fake browser" UA trades one set of
+//     failures for another.
+//   - The commercial-publisher blocks are not only UA-based — Cloudflare/Akamai
+//     also check TLS fingerprint, header order, and cookies. A naive Chrome UA
+//     gets past maybe a handful, not the majority. We'd need full browser
+//     automation to consistently crack those walls.
+//
+// Net: an honest UA is the highest-expected-value default.
+const downloadUserAgent = "sci-zot (+https://github.com/sciminds/cli)"
+
 // DownloadOptions configures Download. Zero value is valid — no callbacks,
 // serial execution.
 type DownloadOptions struct {
@@ -124,8 +141,12 @@ func downloadOne(ctx context.Context, httpClient *http.Client, f Finding, dir st
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Accept", "application/pdf")
-	req.Header.Set("User-Agent", "sci-zot (+https://github.com/sciminds/cli)")
+	// Accept: most publishers are fine with */* and/or application/pdf; Nature
+	// (and a handful of similarly-configured servers) return 406 Not Acceptable
+	// when we restrict to application/pdf alone. Widen the Accept header and
+	// rely on the Content-Type check below to reject HTML paywalls.
+	req.Header.Set("Accept", "application/pdf,*/*;q=0.8")
+	req.Header.Set("User-Agent", downloadUserAgent)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
