@@ -60,6 +60,12 @@ type Lookup interface {
 type Result struct {
 	Scanned  int       `json:"scanned"`
 	Findings []Finding `json:"findings"`
+
+	// CacheHits / CacheMisses describe how many items resolved from the cache
+	// vs. a fresh OpenAlex call. Authoritative, regardless of whether the
+	// progress bar managed to render intermediate updates.
+	CacheHits   int `json:"cache_hits"`
+	CacheMisses int `json:"cache_misses"`
 }
 
 // titleSearchSelect trims the /works response to fields we actually consume,
@@ -99,17 +105,28 @@ type ScanOptions struct {
 // skip the network entirely; pass opts.Refresh=true to bypass cache reads.
 func Scan(ctx context.Context, items []local.Item, oa Lookup, opts ScanOptions) (*Result, error) {
 	findings := make([]Finding, 0, len(items))
+	var hits, misses int
 	for i, it := range items {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		f, hit := resolveOne(ctx, it, oa, opts)
 		findings = append(findings, f)
+		if hit {
+			hits++
+		} else {
+			misses++
+		}
 		if opts.OnItem != nil {
 			opts.OnItem(i, len(items), f, hit)
 		}
 	}
-	return &Result{Scanned: len(items), Findings: findings}, nil
+	return &Result{
+		Scanned:     len(items),
+		Findings:    findings,
+		CacheHits:   hits,
+		CacheMisses: misses,
+	}, nil
 }
 
 // resolveOne combines cache lookup with live OpenAlex fallback. Cache keys

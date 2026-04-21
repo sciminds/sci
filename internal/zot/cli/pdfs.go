@@ -132,10 +132,12 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	out := pdffind.CLIResult{
-		Collection: resolvedName,
-		Scanned:    res.Scanned,
-		Findings:   res.Findings,
-		Limit:      pdfsLimit,
+		Collection:  resolvedName,
+		Scanned:     res.Scanned,
+		CacheHits:   res.CacheHits,
+		CacheMisses: res.CacheMisses,
+		Findings:    res.Findings,
+		Limit:       pdfsLimit,
 	}
 
 	if pdfsDownload != "" && len(res.Findings) > 0 {
@@ -187,12 +189,13 @@ func scanWithProgress(
 			Cache:   cache,
 			Refresh: refresh,
 			OnItem: func(_, _ int, f pdffind.Finding, hit bool) {
-				counter := "miss"
+				// One dimension for the progress bar: cache hit vs. miss.
+				// Lookup success/failure is orthogonal and shows in the
+				// final result table — don't try to cram it in here (cached
+				// failures would otherwise mis-count as misses).
+				counter := "fetched"
 				if hit {
-					counter = "hit"
-				}
-				if f.LookupError != "" {
-					counter = "fail"
+					counter = "cached"
 				}
 				t.Advance(counter, f.ItemKey)
 			},

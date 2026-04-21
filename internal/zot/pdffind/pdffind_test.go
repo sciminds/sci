@@ -228,6 +228,35 @@ func TestScan_RespectsContextCancellation(t *testing.T) {
 	}
 }
 
+func TestScan_ReportsCacheHitMissCounts(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		{Key: "A", DOI: "10.1/x"},
+		{Key: "B", DOI: "10.1/y"},
+		{Key: "C", DOI: "10.1/z"},
+	}
+	oa := &fakeLookup{works: map[string]*openalex.Work{
+		"10.1/x": {ID: "https://openalex.org/W1"},
+		"10.1/y": {ID: "https://openalex.org/W2"},
+		"10.1/z": {ID: "https://openalex.org/W3"},
+	}}
+	cache := &Cache{Dir: t.TempDir()}
+	cache.Put("doi:10.1/x", Finding{ItemKey: "A"})
+	cache.Put("doi:10.1/y", Finding{ItemKey: "B"})
+	// 10.1/z is not pre-cached → must be a miss.
+
+	res, err := Scan(context.Background(), items, oa, ScanOptions{Cache: cache})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.CacheHits != 2 {
+		t.Errorf("cache hits: got %d, want 2", res.CacheHits)
+	}
+	if res.CacheMisses != 1 {
+		t.Errorf("cache misses: got %d, want 1", res.CacheMisses)
+	}
+}
+
 func TestScan_UsesCacheOnHit(t *testing.T) {
 	t.Parallel()
 	items := []local.Item{{Key: "ABC", DOI: "10.1/x"}}

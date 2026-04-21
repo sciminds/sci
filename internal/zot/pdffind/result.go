@@ -13,10 +13,12 @@ import (
 // so the command-layer wiring stays thin and the renderer can reach into
 // Finding fields directly.
 type CLIResult struct {
-	Collection string    `json:"collection,omitempty"` // collection name/key the scan targeted
-	Scanned    int       `json:"scanned"`
-	Findings   []Finding `json:"findings"`
-	Downloaded bool      `json:"downloaded"` // true when --download ran
+	Collection  string    `json:"collection,omitempty"` // collection name/key the scan targeted
+	Scanned     int       `json:"scanned"`
+	CacheHits   int       `json:"cache_hits"`
+	CacheMisses int       `json:"cache_misses"`
+	Findings    []Finding `json:"findings"`
+	Downloaded  bool      `json:"downloaded"` // true when --download ran
 
 	// Limit is the render cap; 0 means show everything. Not emitted in JSON
 	// because it's purely a human-render knob.
@@ -26,11 +28,13 @@ type CLIResult struct {
 // JSON implements cmdutil.Result.
 func (r CLIResult) JSON() any {
 	return struct {
-		Collection string    `json:"collection,omitempty"`
-		Scanned    int       `json:"scanned"`
-		Findings   []Finding `json:"findings"`
-		Downloaded bool      `json:"downloaded"`
-	}{r.Collection, r.Scanned, r.Findings, r.Downloaded}
+		Collection  string    `json:"collection,omitempty"`
+		Scanned     int       `json:"scanned"`
+		CacheHits   int       `json:"cache_hits"`
+		CacheMisses int       `json:"cache_misses"`
+		Findings    []Finding `json:"findings"`
+		Downloaded  bool      `json:"downloaded"`
+	}{r.Collection, r.Scanned, r.CacheHits, r.CacheMisses, r.Findings, r.Downloaded}
 }
 
 // Human implements cmdutil.Result.
@@ -42,8 +46,9 @@ func (r CLIResult) Human() string {
 		header += " — collection " + r.Collection
 	}
 	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render(header))
-	fmt.Fprintf(&b, "  %s %d item(s) scanned\n\n",
-		uikit.TUI.Dim().Render("·"), r.Scanned)
+	fmt.Fprintf(&b, "  %s %d item(s) scanned  %s %d cached, %d fetched\n\n",
+		uikit.TUI.Dim().Render("·"), r.Scanned,
+		uikit.TUI.Dim().Render("·"), r.CacheHits, r.CacheMisses)
 
 	if r.Scanned == 0 {
 		fmt.Fprintf(&b, "  %s no items in collection\n", uikit.SymArrow)
