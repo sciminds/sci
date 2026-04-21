@@ -1,8 +1,13 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"slices"
+	"strings"
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
@@ -11,8 +16,13 @@ import (
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/enrich"
+	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
 )
+
+// collAddStdin is the stdin source for `zot collection add` when the user
+// passes `-` or `--from-file -`. Overridable by tests.
+var collAddStdin io.Reader = os.Stdin
 
 // Write-command flag destinations (package-scoped, matching sci-go conventions).
 var (
@@ -39,7 +49,8 @@ var (
 
 	deleteYes bool
 
-	collNewParent string
+	collNewParent   string
+	collAddFromFile string
 
 	tagRemoveYes bool
 	tagDeleteYes bool
@@ -434,28 +445,21 @@ func collectionCommand() *cli.Command {
 				},
 			},
 			{
-				Name:        "add",
-				Usage:       "Add an item to a collection",
-				Description: "$ zot collection add ABC12345 COLLXXX1",
-				ArgsUsage:   "<itemKey> <collectionKey>",
-				Action: func(ctx context.Context, cmd *cli.Command) error {
-					args := cmd.Args().Slice()
-					if len(args) != 2 {
-						return cmdutil.UsageErrorf(cmd, "expected <itemKey> <collectionKey>")
-					}
-					c, err := requireAPIClient(ctx)
-					if err != nil {
-						return err
-					}
-					if err := c.AddItemToCollection(ctx, args[0], args[1]); err != nil {
-						return err
-					}
-					cmdutil.Output(cmd, zot.WriteResult{
-						Action: "added", Kind: "item", Target: args[0],
-						Message: fmt.Sprintf("added item %s to collection %s", args[0], args[1]),
-					})
-					return nil
+				Name:  "add",
+				Usage: "Add one or many items to a collection",
+				Description: "$ zot collection add ABC12345 COLLXXX1\n" +
+					"$ zot collection add --from-file keys.txt COLLXXX1\n" +
+					"$ cat keys.txt | zot collection add - COLLXXX1",
+				ArgsUsage: "<itemKey> <collectionKey>  (or --from-file FILE <collectionKey>; '-' reads stdin)",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "from-file",
+						Usage:       "read item keys from file (one per line, '#' comments); '-' reads stdin",
+						Destination: &collAddFromFile,
+						Local:       true,
+					},
 				},
+				Action: runCollectionAdd,
 			},
 			{
 				Name:        "remove",
@@ -600,4 +604,184 @@ func tagsCommand() *cli.Command {
 			tagsBrowseCommand(),
 		},
 	}
+}
+
+// runCollectionAdd handles both the single-item fast path and the bulk
+// (--from-file / stdin) path. When many keys are supplied, we read the
+// current collections + Version + ItemType from the local DB so
+// UpdateItemsBatch can skip per-item GETs — a 2145-item run becomes ~43
+// HTTP POSTs (batches of 50) instead of 4290 round-trips.
+func runCollectionAdd(ctx context.Context, cmd *cli.Command) error {
+	args := cmd.Args().Slice()
+	keys, collKey, err := resolveCollectionAddKeys(args, collAddFromFile, collAddStdin)
+	if err != nil {
+		return cmdutil.UsageErrorf(cmd, "%v", err)
+	}
+
+	c, err := requireAPIClient(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Single-item fast path: preserve the original <itemKey> <collectionKey>
+	// shape so callers and scripts that use it keep working.
+	if len(keys) == 1 && collAddFromFile == "" && args[0] != "-" {
+		if err := c.AddItemToCollection(ctx, keys[0], collKey); err != nil {
+			return err
+		}
+		cmdutil.Output(cmd, zot.WriteResult{
+			Action: "added", Kind: "item", Target: keys[0],
+			Message: fmt.Sprintf("added item %s to collection %s", keys[0], collKey),
+		})
+		return nil
+	}
+
+	// Bulk path: load local snapshots for every requested key in one SQL
+	// round-trip, merge collKey into each Item's Collections, batch-POST.
+	_, db, err := openLocalDB(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+
+	items, err := db.GetItemsByKeys(keys)
+	if err != nil {
+		return err
+	}
+
+	patches, alreadyMember := buildCollectionAddPatches(items, collKey)
+
+	// Keys the local DB didn't return → not found in scope (trashed, wrong
+	// library, typo). Surface but don't abort: the batch still applies to
+	// the keys we did find.
+	found := lo.Keyify(lo.Map(items, func(it local.Item, _ int) string { return it.Key }))
+	result := zot.BulkWriteResult{
+		Action:  "added",
+		Kind:    "item",
+		Total:   len(keys),
+		Success: slices.Clone(alreadyMember),
+		Failed:  map[string]string{},
+	}
+	for _, k := range keys {
+		if _, ok := found[k]; !ok {
+			result.Failed[k] = "not found in local library"
+		}
+	}
+
+	if len(patches) > 0 {
+		apiResults, err := c.UpdateItemsBatch(ctx, patches)
+		if err != nil {
+			return err
+		}
+		for _, p := range patches {
+			if e := apiResults[p.Key]; e != nil {
+				result.Failed[p.Key] = e.Error()
+			} else {
+				result.Success = append(result.Success, p.Key)
+			}
+		}
+	}
+
+	cmdutil.Output(cmd, result)
+	return nil
+}
+
+// resolveCollectionAddKeys decodes the argv shape into (itemKeys, collKey).
+// Rules:
+//   - 2 positionals, first != "-": single-item fast path, collKey = arg[1].
+//   - 1 positional + --from-file: keys come from file (or stdin if path is "-").
+//   - 2 positionals, first == "-": keys come from stdin, collKey = arg[1].
+//   - mixing --from-file with a leading key positional is a usage error.
+//   - empty input (after normalization) is a usage error.
+func resolveCollectionAddKeys(args []string, fromFile string, stdin io.Reader) (keys []string, collKey string, err error) {
+	switch {
+	case fromFile != "" && len(args) == 1:
+		collKey = args[0]
+		src, closer, serr := openKeySource(fromFile, stdin)
+		if serr != nil {
+			return nil, "", serr
+		}
+		defer closer()
+		keys, err = parseKeysFromReader(src)
+	case fromFile != "" && len(args) != 1:
+		return nil, "", fmt.Errorf("pass a single <collectionKey> positional when using --from-file (got %d)", len(args))
+	case len(args) == 2 && args[0] == "-":
+		collKey = args[1]
+		keys, err = parseKeysFromReader(stdin)
+	case len(args) == 2:
+		return []string{args[0]}, args[1], nil
+	default:
+		return nil, "", fmt.Errorf("expected <itemKey> <collectionKey>, or --from-file FILE <collectionKey>")
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	if len(keys) == 0 {
+		return nil, "", fmt.Errorf("no item keys provided")
+	}
+	return keys, collKey, nil
+}
+
+// openKeySource returns a reader for the requested file, or stdin if path
+// is "-". The caller must invoke closer() when done.
+func openKeySource(path string, stdin io.Reader) (io.Reader, func(), error) {
+	if path == "-" {
+		return stdin, func() {}, nil
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open %q: %w", path, err)
+	}
+	return f, func() { _ = f.Close() }, nil
+}
+
+// parseKeysFromReader reads item keys one per line, trimming whitespace,
+// skipping blank lines and '#'-prefixed comments, and de-duplicating while
+// preserving first-seen order. Suitable for piped doctor output and
+// hand-edited lists alike.
+func parseKeysFromReader(r io.Reader) ([]string, error) {
+	var (
+		out  []string
+		seen = map[string]struct{}{}
+		sc   = bufio.NewScanner(r)
+	)
+	// Zotero keys are 8 chars, but some pipelines might feed longer lines
+	// (whole JSON records) — bump the buffer to avoid scanner truncation.
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if _, dup := seen[line]; dup {
+			continue
+		}
+		seen[line] = struct{}{}
+		out = append(out, line)
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// buildCollectionAddPatches splits local items into (needs-update, already-member).
+// Items already in collKey produce no patch (zero API cost); the rest get a
+// patch carrying Version + ItemType so UpdateItemsBatch's fast path avoids
+// per-item GETs.
+func buildCollectionAddPatches(items []local.Item, collKey string) (patches []api.ItemPatch, alreadyMember []string) {
+	for _, it := range items {
+		if slices.Contains(it.Collections, collKey) {
+			alreadyMember = append(alreadyMember, it.Key)
+			continue
+		}
+		merged := append(slices.Clone(it.Collections), collKey)
+		patches = append(patches, api.ItemPatch{
+			Key:      it.Key,
+			Version:  it.Version,
+			ItemType: it.Type,
+			Data:     client.ItemData{Collections: &merged},
+		})
+	}
+	return patches, alreadyMember
 }

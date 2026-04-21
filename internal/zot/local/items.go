@@ -293,6 +293,88 @@ func inClause(ids []int64) (string, []any) {
 	return strings.Join(ph, ","), args
 }
 
+// GetItemsByKeys returns a narrow snapshot (Key + Version + Type + Collections)
+// for every requested key that exists in the current library. Missing,
+// trashed, and out-of-scope keys are silently omitted — callers that need
+// to report "not found" should diff the input against the returned keys.
+//
+// Runs two queries regardless of |keys|: one for the core columns, one
+// to hydrate Collections. This is the bulk primitive behind batch write
+// paths (e.g. `zot collection add --from-file`) that populate ItemPatch
+// so UpdateItemsBatch can skip per-item GETs.
+func (d *DB) GetItemsByKeys(keys []string) ([]Item, error) {
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	placeholders, keyArgs := inClauseStrings(keys)
+	args := []any{d.libraryID}
+	args = append(args, keyArgs...)
+
+	q := `
+SELECT i.itemID, i.key, i.version, it.typeName
+FROM items i
+JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+LEFT JOIN deletedItems di ON i.itemID = di.itemID
+WHERE i.libraryID = ? AND di.itemID IS NULL AND i.key IN (` + placeholders + `)
+`
+	rows, err := d.db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get items by keys: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Item
+	idIndex := map[int64]int{}
+	for rows.Next() {
+		var it Item
+		if err := rows.Scan(&it.ID, &it.Key, &it.Version, &it.Type); err != nil {
+			return nil, err
+		}
+		idIndex[it.ID] = len(out)
+		out = append(out, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return out, nil
+	}
+
+	// Hydrate Collections in one query across every returned item.
+	ids := lo.Map(out, func(it Item, _ int) int64 { return it.ID })
+	collPh, collArgs := inClause(ids)
+	crows, err := d.db.Query(`
+		SELECT ci.itemID, c.key
+		FROM collectionItems ci
+		JOIN collections c ON ci.collectionID = c.collectionID
+		WHERE ci.itemID IN (`+collPh+`)
+	`, collArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("hydrate collections: %w", err)
+	}
+	defer func() { _ = crows.Close() }()
+	for crows.Next() {
+		var itemID int64
+		var ck string
+		if err := crows.Scan(&itemID, &ck); err != nil {
+			return nil, err
+		}
+		if idx, ok := idIndex[itemID]; ok {
+			out[idx].Collections = append(out[idx].Collections, ck)
+		}
+	}
+	return out, crows.Err()
+}
+
+// inClauseStrings mirrors inClause for []string args — used when the IN clause
+// binds Zotero keys rather than internal itemIDs.
+func inClauseStrings(keys []string) (string, []any) {
+	ph := lo.Map(keys, func(_ string, _ int) string { return "?" })
+	args := lo.Map(keys, func(k string, _ int) any { return k })
+	return strings.Join(ph, ","), args
+}
+
 // Search returns items matching the query. The query is parsed by
 // [match.ParseClauses], which supports:
 //

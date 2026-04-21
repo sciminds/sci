@@ -25,6 +25,7 @@ type Reader interface {
 	ListAll(f ListFilter) ([]Item, error)
 	Search(query string, limit int) ([]Item, error)
 	Read(key string) (*Item, error)
+	GetItemsByKeys(keys []string) ([]Item, error)
 	Stats() (*Stats, error)
 
 	// Collections & Tags
