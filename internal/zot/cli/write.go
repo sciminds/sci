@@ -10,6 +10,7 @@ import (
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/cli/internal/zot/enrich"
 	"github.com/urfave/cli/v3"
 )
 
@@ -26,6 +27,7 @@ var (
 	addCollection  string
 	addTag         []string
 	addExtra       string
+	addOpenAlex    string
 
 	updTitle       string
 	updDOI         string
@@ -65,12 +67,15 @@ func strPtr(s string) *string {
 
 func addCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "add",
-		Usage:       "Create a new item in your Zotero library",
-		Description: "$ zot item add --type journalArticle --title \"My Paper\" --author \"Smith, Alice\" --doi 10.1000/abc",
+		Name:  "add",
+		Usage: "Create a new item in your Zotero library",
+		Description: "$ zot item add --type journalArticle --title \"My Paper\" --author \"Smith, Alice\" --doi 10.1000/abc\n" +
+			"$ zot item add --openalex 10.1038/nature12373\n" +
+			"$ zot item add --openalex W2963403868 --collection ABC12345 --tag ml",
 		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "openalex", Usage: "lookup metadata on OpenAlex by DOI / W…-ID / arXiv / PMID", Destination: &addOpenAlex, Local: true},
 			&cli.StringFlag{Name: "type", Value: "journalArticle", Usage: "item type (e.g. journalArticle, book, webpage)", Destination: &addType, Local: true},
-			&cli.StringFlag{Name: "title", Usage: "item title (required)", Destination: &addTitle, Local: true},
+			&cli.StringFlag{Name: "title", Usage: "item title (required unless --openalex)", Destination: &addTitle, Local: true},
 			&cli.StringFlag{Name: "doi", Usage: "DOI (no URL prefix)", Destination: &addDOI, Local: true},
 			&cli.StringFlag{Name: "url", Usage: "URL", Destination: &addURL, Local: true},
 			&cli.StringFlag{Name: "date", Usage: "publication date (freeform)", Destination: &addDate, Local: true},
@@ -81,56 +86,96 @@ func addCommand() *cli.Command {
 			&cli.StringSliceFlag{Name: "tag", Usage: "attach a tag (repeatable)", Destination: &addTag, Local: true},
 			&cli.StringFlag{Name: "extra", Usage: "free-text extra field (key: value lines)", Destination: &addExtra, Local: true},
 		},
-		Action: func(ctx context.Context, cmd *cli.Command) error {
-			if addTitle == "" {
-				return cmdutil.UsageErrorf(cmd, "--title is required")
-			}
-			c, err := requireAPIClient()
-			if err != nil {
-				return err
-			}
-			data := client.ItemData{
-				ItemType: client.ItemDataItemType(addType),
-				Title:    &addTitle,
-			}
-			data.DOI = strPtr(addDOI)
-			data.Url = strPtr(addURL)
-			data.Date = strPtr(addDate)
-			data.AbstractNote = strPtr(addAbstract)
-			data.PublicationTitle = strPtr(addPublication)
-			data.Extra = strPtr(addExtra)
+		Action: runAdd,
+	}
+}
 
-			if len(addAuthor) > 0 {
-				creators := make([]client.Creator, 0, len(addAuthor))
-				for _, a := range addAuthor {
-					cr := parseCreator(a)
-					creators = append(creators, cr)
-				}
-				data.Creators = &creators
-			}
-			if addCollection != "" {
-				colls := []string{addCollection}
-				data.Collections = &colls
-			}
-			if len(addTag) > 0 {
-				tags := make([]client.Tag, 0, len(addTag))
-				for _, t := range addTag {
-					tags = append(tags, client.Tag{Tag: t})
-				}
-				data.Tags = &tags
-			}
+func runAdd(ctx context.Context, cmd *cli.Command) error {
+	data, err := buildAddItemData(ctx)
+	if err != nil {
+		return cmdutil.UsageErrorf(cmd, "%v", err)
+	}
+	c, err := requireAPIClient()
+	if err != nil {
+		return err
+	}
+	key, err := c.CreateItem(ctx, data)
+	if err != nil {
+		return err
+	}
+	cmdutil.Output(cmd, zot.WriteResult{Action: "created", Kind: "item", Target: key})
+	return nil
+}
 
-			key, err := c.CreateItem(ctx, data)
-			if err != nil {
-				return err
-			}
-			cmdutil.Output(cmd, zot.WriteResult{
-				Action: "created",
-				Kind:   "item",
-				Target: key,
-			})
-			return nil
-		},
+// buildAddItemData composes the ItemData payload for `zot item add`. The
+// --openalex path fetches + maps metadata, then manual flags overlay the
+// result (so "--openalex W… --tag ml --collection XYZ" works as expected).
+func buildAddItemData(ctx context.Context) (client.ItemData, error) {
+	var data client.ItemData
+	if addOpenAlex != "" {
+		oa, err := openalexClient()
+		if err != nil {
+			return data, err
+		}
+		work, err := oa.ResolveWork(ctx, addOpenAlex)
+		if err != nil {
+			return data, fmt.Errorf("openalex lookup: %w", err)
+		}
+		data = enrich.ToItemFields(work)
+	} else {
+		if addTitle == "" {
+			return data, fmt.Errorf("--title is required")
+		}
+		data = client.ItemData{
+			ItemType: client.ItemDataItemType(addType),
+			Title:    &addTitle,
+		}
+	}
+
+	applyAddFlagOverrides(&data)
+	return data, nil
+}
+
+// applyAddFlagOverrides lets explicit flags override any field already set by
+// the --openalex mapping. Empty flags leave the mapped value untouched.
+func applyAddFlagOverrides(data *client.ItemData) {
+	if addType != "" && addType != "journalArticle" {
+		// Only override itemType when the user explicitly changed it from the
+		// default — otherwise --openalex's inference wins.
+		data.ItemType = client.ItemDataItemType(addType)
+	}
+	if addTitle != "" {
+		data.Title = &addTitle
+	}
+	if addDOI != "" {
+		data.DOI = &addDOI
+	}
+	if addURL != "" {
+		data.Url = &addURL
+	}
+	if addDate != "" {
+		data.Date = &addDate
+	}
+	if addAbstract != "" {
+		data.AbstractNote = &addAbstract
+	}
+	if addPublication != "" {
+		data.PublicationTitle = &addPublication
+	}
+	if addExtra != "" {
+		data.Extra = &addExtra
+	}
+	if len(addAuthor) > 0 {
+		creators := lo.Map(addAuthor, func(a string, _ int) client.Creator { return parseCreator(a) })
+		data.Creators = &creators
+	}
+	if addCollection != "" {
+		colls := []string{addCollection}
+		data.Collections = &colls
+	}
+	if len(addTag) > 0 {
+		tags := lo.Map(addTag, func(t string, _ int) client.Tag { return client.Tag{Tag: t} })
+		data.Tags = &tags
 	}
 }
 
