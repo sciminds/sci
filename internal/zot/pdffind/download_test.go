@@ -22,7 +22,7 @@ func TestDownload_SavesPDFToDir(t *testing.T) {
 	findings := []Finding{
 		{ItemKey: "ABC123", PDFURL: srv.URL + "/a.pdf"},
 	}
-	out, err := Download(context.Background(), srv.Client(), findings, dir)
+	out, err := Download(context.Background(), srv.Client(), findings, dir, DownloadOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestDownload_SkipsFindingsWithoutPDFURL(t *testing.T) {
 	t.Parallel()
 	findings := []Finding{{ItemKey: "ABC"}}
 	dir := t.TempDir()
-	out, err := Download(context.Background(), http.DefaultClient, findings, dir)
+	out, err := Download(context.Background(), http.DefaultClient, findings, dir, DownloadOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestDownload_RecordsHTTPErrors(t *testing.T) {
 
 	dir := t.TempDir()
 	findings := []Finding{{ItemKey: "ABC", PDFURL: srv.URL + "/a.pdf"}}
-	out, err := Download(context.Background(), srv.Client(), findings, dir)
+	out, err := Download(context.Background(), srv.Client(), findings, dir, DownloadOptions{})
 	if err != nil {
 		t.Fatal(err) // per-item errors must not abort the whole batch
 	}
@@ -94,11 +94,48 @@ func TestDownload_RejectsNonPDFContentType(t *testing.T) {
 
 	dir := t.TempDir()
 	findings := []Finding{{ItemKey: "ABC", PDFURL: srv.URL + "/a.pdf"}}
-	out, err := Download(context.Background(), srv.Client(), findings, dir)
+	out, err := Download(context.Background(), srv.Client(), findings, dir, DownloadOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if out[0].DownloadError == "" {
 		t.Error("want download_error on non-PDF content-type")
+	}
+}
+
+func TestDownload_FiresCallbacksPerItemAndSkipsEmptyURLs(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/pdf")
+		_, _ = w.Write([]byte("%PDF"))
+	}))
+	t.Cleanup(srv.Close)
+
+	findings := []Finding{
+		{ItemKey: "A", PDFURL: srv.URL + "/a.pdf"},
+		{ItemKey: "B"}, // no URL — callbacks must skip
+		{ItemKey: "C", PDFURL: srv.URL + "/c.pdf"},
+	}
+	var starts, dones []string
+	opts := DownloadOptions{
+		OnStart: func(_, total int, f Finding) {
+			starts = append(starts, f.ItemKey)
+			if total != 2 {
+				t.Errorf("total should count only fetchable findings, got %d", total)
+			}
+		},
+		OnDone: func(_, _ int, f Finding) {
+			dones = append(dones, f.ItemKey)
+		},
+	}
+	_, err := Download(context.Background(), srv.Client(), findings, t.TempDir(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(starts, ","), "A,C"; got != want {
+		t.Errorf("starts: got %q, want %q", got, want)
+	}
+	if got, want := strings.Join(dones, ","), "A,C"; got != want {
+		t.Errorf("dones: got %q, want %q", got, want)
 	}
 }

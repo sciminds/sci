@@ -205,9 +205,9 @@ func scanWithProgress(
 	return out, err
 }
 
-// downloadWithProgress wraps pdffind.Download with a progress bar so
-// the user can see which item is currently being fetched. Only the items
-// with a PDFURL trigger an HTTP call — total counts only those.
+// downloadWithProgress wraps pdffind.Download with a progress bar. Uses
+// DownloadOptions callbacks so the current item/URL is shown live — a slow
+// server doesn't look like a hang.
 func downloadWithProgress(
 	ctx context.Context,
 	httpClient *http.Client,
@@ -221,28 +221,35 @@ func downloadWithProgress(
 	var out []pdffind.Finding
 	err := uikit.RunWithProgress("Downloading PDFs", func(t *uikit.ProgressTracker) error {
 		t.SetTotal(total)
-		// pdffind.Download doesn't expose a per-item callback; approximate
-		// progress by running it as a single tick once per fetchable finding
-		// after the fact. Good enough here since the bottleneck is the
-		// network, not the bar updates.
-		fresh, derr := pdffind.Download(ctx, httpClient, findings, dir)
+		opts := pdffind.DownloadOptions{
+			OnStart: func(_, _ int, f pdffind.Finding) {
+				t.Status(fmt.Sprintf("%s  %s", f.ItemKey, truncateMiddle(f.PDFURL, 70)))
+			},
+			OnDone: func(_, _ int, f pdffind.Finding) {
+				counter := "saved"
+				if f.DownloadError != "" {
+					counter = "failed"
+				}
+				t.Advance(counter, f.ItemKey)
+			},
+		}
+		fresh, derr := pdffind.Download(ctx, httpClient, findings, dir, opts)
 		out = fresh
-		if derr != nil {
-			return derr
-		}
-		for _, f := range fresh {
-			if f.PDFURL == "" {
-				continue
-			}
-			counter := "saved"
-			if f.DownloadError != "" {
-				counter = "failed"
-			}
-			t.Advance(counter, f.ItemKey)
-		}
-		return nil
+		return derr
 	})
 	return out, err
+}
+
+// truncateMiddle shortens a URL for the progress status line while keeping
+// both the host prefix and filename suffix visible — "https://cdn.example.
+// org/…/paper.pdf" reads better than a left-truncated tail.
+func truncateMiddle(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	head := max/2 - 1
+	tail := max - head - 1
+	return s[:head] + "…" + s[len(s)-tail:]
 }
 
 // zoteroKeyRE matches an 8-character Zotero-style key. Used to decide whether

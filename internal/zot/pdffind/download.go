@@ -8,7 +8,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/samber/lo"
 )
+
+// DownloadOptions configures Download. Zero value is valid — no callbacks.
+type DownloadOptions struct {
+	// OnStart fires just before each HTTP fetch begins. Use it to surface
+	// "currently fetching X" so a slow server doesn't look like a hang.
+	// i is 0-based into the fetchable subset; total counts only findings
+	// with a non-empty PDFURL (skipped items don't advance i or total).
+	OnStart func(i, total int, f Finding)
+
+	// OnDone fires after each fetch completes (success or error).
+	// The Finding passed in carries the final DownloadedPath or
+	// DownloadError — use it to advance a progress counter.
+	OnDone func(i, total int, f Finding)
+}
 
 // Download fetches every finding's PDFURL to dir, mutating each Finding's
 // DownloadedPath or DownloadError in place. Returns the mutated slice.
@@ -19,10 +35,18 @@ import (
 //
 // Findings with an empty PDFURL are passed through untouched — "no URL to
 // try" is handled upstream in Scan via LookupError.
-func Download(ctx context.Context, httpClient *http.Client, findings []Finding, dir string) ([]Finding, error) {
+func Download(
+	ctx context.Context,
+	httpClient *http.Client,
+	findings []Finding,
+	dir string,
+	opts DownloadOptions,
+) ([]Finding, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("pdffind: create download dir: %w", err)
 	}
+	total := lo.CountBy(findings, func(f Finding) bool { return f.PDFURL != "" })
+	idx := 0
 	for i := range findings {
 		if err := ctx.Err(); err != nil {
 			return findings, err
@@ -30,12 +54,19 @@ func Download(ctx context.Context, httpClient *http.Client, findings []Finding, 
 		if findings[i].PDFURL == "" {
 			continue
 		}
+		if opts.OnStart != nil {
+			opts.OnStart(idx, total, findings[i])
+		}
 		path, derr := downloadOne(ctx, httpClient, findings[i], dir)
 		if derr != nil {
 			findings[i].DownloadError = derr.Error()
-			continue
+		} else {
+			findings[i].DownloadedPath = path
 		}
-		findings[i].DownloadedPath = path
+		if opts.OnDone != nil {
+			opts.OnDone(idx, total, findings[i])
+		}
+		idx++
 	}
 	return findings, nil
 }
