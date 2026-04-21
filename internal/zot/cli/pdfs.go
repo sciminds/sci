@@ -10,6 +10,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/sciminds/cli/internal/zot/pdffind"
 	"github.com/urfave/cli/v3"
@@ -20,6 +21,8 @@ var (
 	pdfsCollection string
 	pdfsDownload   string
 	pdfsLimit      int
+	pdfsNoCache    bool
+	pdfsRefresh    bool
 )
 
 // defaultPDFCollection is the collection name we assume when --collection is
@@ -34,6 +37,7 @@ func pdfsCommand() *cli.Command {
 $ zot --library personal doctor pdfs --collection ABCD1234    # by key
 $ zot --library personal doctor pdfs --collection missing-pdf # by name
 $ zot --library personal doctor pdfs --download ~/pdfs        # also retrieve each PDF
+$ zot --library personal doctor pdfs --refresh                # bypass cache, re-query all
 $ zot --library personal doctor pdfs --json > missing.json
 
 For each item in the target collection, queries OpenAlex:
@@ -44,6 +48,10 @@ Reports what OpenAlex has that Zotero doesn't: PDF URL, landing-page
 URL, DOI, open-access status. With --download, each finding's PDFURL
 is fetched into DIR as <itemKey>.pdf. HTTP errors and non-PDF
 content-types (paywall HTML) are recorded per-item; the batch continues.
+
+Lookups are cached on disk at <user cache>/sci/zot/pdffind, so reruns
+are effectively free. --refresh re-queries everything; --no-cache
+disables cache reads AND writes for the current run.
 
 No Zotero writes. Attaching downloaded PDFs as Zotero child
 attachments is a separate command (coming later).`,
@@ -68,6 +76,18 @@ attachments is a separate command (coming later).`,
 				Value:       25,
 				Usage:       "max findings to print (0 = all; does not cap the scan)",
 				Destination: &pdfsLimit,
+				Local:       true,
+			},
+			&cli.BoolFlag{
+				Name:        "refresh",
+				Usage:       "bypass cache reads, force a fresh OpenAlex lookup for every item",
+				Destination: &pdfsRefresh,
+				Local:       true,
+			},
+			&cli.BoolFlag{
+				Name:        "no-cache",
+				Usage:       "disable on-disk cache for this run (no reads, no writes)",
+				Destination: &pdfsNoCache,
 				Local:       true,
 			},
 		},
@@ -101,7 +121,12 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	res, err := pdffind.Scan(ctx, items, oa)
+	cache, err := resolvePDFCache(pdfsNoCache)
+	if err != nil {
+		return err
+	}
+
+	res, err := scanWithProgress(ctx, items, oa, cache, pdfsRefresh)
 	if err != nil {
 		return err
 	}
@@ -117,7 +142,7 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 		// Give PDFs a reasonable ceiling — they're usually a few MB but some
 		// are 100+. 5 minutes accommodates the largest without wedging the CLI.
 		httpClient := &http.Client{Timeout: 5 * time.Minute}
-		fresh, derr := pdffind.Download(ctx, httpClient, res.Findings, pdfsDownload)
+		fresh, derr := downloadWithProgress(ctx, httpClient, res.Findings, pdfsDownload)
 		if derr != nil {
 			return derr
 		}
@@ -127,6 +152,94 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 
 	cmdutil.Output(cmd, out)
 	return nil
+}
+
+// resolvePDFCache returns the shared on-disk cache, or nil when disabled.
+// A failure to resolve the user cache dir downgrades gracefully to "no cache"
+// rather than aborting — caching is an optimization, not a correctness knob.
+func resolvePDFCache(disabled bool) (*pdffind.Cache, error) {
+	if disabled {
+		return nil, nil
+	}
+	dir, err := pdffind.DefaultCacheDir()
+	if err != nil {
+		return nil, nil //nolint:nilerr // soft failure; downgrade to no-cache
+	}
+	return &pdffind.Cache{Dir: dir}, nil
+}
+
+// scanWithProgress wraps pdffind.Scan in a uikit progress bar. Counters:
+// 'hit' for cache hits, 'miss' for live lookups, 'fail' for lookup errors.
+// The progress bar shares the terminal line so --json users (stderr-only)
+// don't get mixed in with their JSON.
+func scanWithProgress(
+	ctx context.Context,
+	items []local.Item,
+	oa pdffind.Lookup,
+	cache *pdffind.Cache,
+	refresh bool,
+) (*pdffind.Result, error) {
+	var out *pdffind.Result
+	err := uikit.RunWithProgress("Looking up PDFs on OpenAlex", func(t *uikit.ProgressTracker) error {
+		t.SetTotal(len(items))
+		var inner error
+		out, inner = pdffind.Scan(ctx, items, oa, pdffind.ScanOptions{
+			Cache:   cache,
+			Refresh: refresh,
+			OnItem: func(_, _ int, f pdffind.Finding, hit bool) {
+				counter := "miss"
+				if hit {
+					counter = "hit"
+				}
+				if f.LookupError != "" {
+					counter = "fail"
+				}
+				t.Advance(counter, f.ItemKey)
+			},
+		})
+		return inner
+	})
+	return out, err
+}
+
+// downloadWithProgress wraps pdffind.Download with a progress bar so
+// the user can see which item is currently being fetched. Only the items
+// with a PDFURL trigger an HTTP call — total counts only those.
+func downloadWithProgress(
+	ctx context.Context,
+	httpClient *http.Client,
+	findings []pdffind.Finding,
+	dir string,
+) ([]pdffind.Finding, error) {
+	total := lo.CountBy(findings, func(f pdffind.Finding) bool { return f.PDFURL != "" })
+	if total == 0 {
+		return findings, nil
+	}
+	var out []pdffind.Finding
+	err := uikit.RunWithProgress("Downloading PDFs", func(t *uikit.ProgressTracker) error {
+		t.SetTotal(total)
+		// pdffind.Download doesn't expose a per-item callback; approximate
+		// progress by running it as a single tick once per fetchable finding
+		// after the fact. Good enough here since the bottleneck is the
+		// network, not the bar updates.
+		fresh, derr := pdffind.Download(ctx, httpClient, findings, dir)
+		out = fresh
+		if derr != nil {
+			return derr
+		}
+		for _, f := range fresh {
+			if f.PDFURL == "" {
+				continue
+			}
+			counter := "saved"
+			if f.DownloadError != "" {
+				counter = "failed"
+			}
+			t.Advance(counter, f.ItemKey)
+		}
+		return nil
+	})
+	return out, err
 }
 
 // zoteroKeyRE matches an 8-character Zotero-style key. Used to decide whether

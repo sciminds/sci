@@ -69,7 +69,7 @@ func TestScan_ResolvesByDOIWhenPresent(t *testing.T) {
 		},
 	}}
 
-	res, err := Scan(context.Background(), items, oa)
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestScan_FallsBackToTitleSearchWhenNoDOI(t *testing.T) {
 		},
 	}}
 
-	res, err := Scan(context.Background(), items, oa)
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestScan_SkipsItemsWithNoDOIOrTitle(t *testing.T) {
 	t.Parallel()
 	items := []local.Item{{Key: "ABC"}}
 	oa := &fakeLookup{}
-	res, err := Scan(context.Background(), items, oa)
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestScan_RecordsDOIErrorsAndContinues(t *testing.T) {
 			"10.1/ok": {ID: "https://openalex.org/W1", Title: strPtr("Good")},
 		},
 	}
-	res, err := Scan(context.Background(), items, oa)
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestScan_EmptyTitleSearchResultsRecordedAsError(t *testing.T) {
 	t.Parallel()
 	items := []local.Item{{Key: "ABC", Title: "Unfindable"}}
 	oa := &fakeLookup{searches: map[string][]openalex.Work{}}
-	res, err := Scan(context.Background(), items, oa)
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestScan_FallsBackToPrimaryLocationPDFURL(t *testing.T) {
 			},
 		},
 	}}
-	res, err := Scan(context.Background(), items, oa)
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,8 +222,106 @@ func TestScan_RespectsContextCancellation(t *testing.T) {
 		"10.1/x": {ID: "https://openalex.org/W1"},
 		"10.1/y": {ID: "https://openalex.org/W2"},
 	}}
-	_, err := Scan(ctx, items, oa)
+	_, err := Scan(ctx, items, oa, ScanOptions{})
 	if err == nil {
 		t.Error("want ctx error")
+	}
+}
+
+func TestScan_UsesCacheOnHit(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{{Key: "ABC", DOI: "10.1/x"}}
+	oa := &fakeLookup{works: map[string]*openalex.Work{
+		"10.1/x": {ID: "https://openalex.org/W42", Title: strPtr("From network")},
+	}}
+	cache := &Cache{Dir: t.TempDir()}
+
+	// First scan populates the cache.
+	if _, err := Scan(context.Background(), items, oa, ScanOptions{Cache: cache}); err != nil {
+		t.Fatal(err)
+	}
+	if oa.resolves != 1 {
+		t.Fatalf("first scan should hit network once, got %d", oa.resolves)
+	}
+
+	// Second scan must hit the cache — no new network calls.
+	res, err := Scan(context.Background(), items, oa, ScanOptions{Cache: cache})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if oa.resolves != 1 {
+		t.Errorf("second scan should NOT hit network, got %d resolves", oa.resolves)
+	}
+	if res.Findings[0].OpenAlexID != "W42" {
+		t.Errorf("cached value not returned: %+v", res.Findings[0])
+	}
+}
+
+func TestScan_RefreshBypassesCacheReadButStillWrites(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{{Key: "ABC", DOI: "10.1/x"}}
+	oa := &fakeLookup{works: map[string]*openalex.Work{
+		"10.1/x": {ID: "https://openalex.org/W42"},
+	}}
+	cache := &Cache{Dir: t.TempDir()}
+	// Pre-populate with stale data.
+	cache.Put("doi:10.1/x", Finding{ItemKey: "ABC", OpenAlexID: "STALE"})
+
+	res, err := Scan(context.Background(), items, oa, ScanOptions{Cache: cache, Refresh: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Findings[0].OpenAlexID != "W42" {
+		t.Errorf("refresh must return fresh data, got %+v", res.Findings[0])
+	}
+	if oa.resolves != 1 {
+		t.Errorf("refresh must hit network, got %d resolves", oa.resolves)
+	}
+	// Fresh value must overwrite the cache.
+	got, ok := cache.Get("doi:10.1/x")
+	if !ok || got.OpenAlexID != "W42" {
+		t.Errorf("refresh must update cache, got %+v ok=%v", got, ok)
+	}
+}
+
+func TestScan_CallsOnItemCallback(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		{Key: "A", DOI: "10.1/x"},
+		{Key: "B", DOI: "10.1/y"},
+	}
+	oa := &fakeLookup{works: map[string]*openalex.Work{
+		"10.1/x": {ID: "https://openalex.org/W1"},
+		"10.1/y": {ID: "https://openalex.org/W2"},
+	}}
+	cache := &Cache{Dir: t.TempDir()}
+	cache.Put("doi:10.1/x", Finding{ItemKey: "A", OpenAlexID: "W1_cached"})
+
+	type call struct {
+		i, total int
+		hit      bool
+		key      string
+	}
+	var calls []call
+	opts := ScanOptions{
+		Cache: cache,
+		OnItem: func(i, total int, f Finding, hit bool) {
+			calls = append(calls, call{i, total, hit, f.ItemKey})
+		},
+	}
+	if _, err := Scan(context.Background(), items, oa, opts); err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("want 2 callback invocations, got %d", len(calls))
+	}
+	if !calls[0].hit {
+		t.Errorf("item 0 should be cache hit: %+v", calls[0])
+	}
+	if calls[1].hit {
+		t.Errorf("item 1 should be cache miss: %+v", calls[1])
+	}
+	if calls[0].total != 2 || calls[1].i != 1 {
+		t.Errorf("index/total wrong: %+v", calls)
 	}
 }

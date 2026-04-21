@@ -70,6 +70,23 @@ var titleSearchSelect = []string{
 	"primary_location", "best_oa_location",
 }
 
+// ScanOptions configures Scan. Zero value is valid — no cache, no progress.
+type ScanOptions struct {
+	// Cache, if non-nil, is consulted before hitting OpenAlex. Both hits and
+	// misses (including lookup errors) are written through so retries are
+	// free and failures aren't re-tried until --refresh.
+	Cache *Cache
+
+	// Refresh, when true, skips the cache read but still writes results back.
+	// Used by --refresh to force-refetch known-stale findings.
+	Refresh bool
+
+	// OnItem is called after each item resolves (cache hit or live lookup),
+	// with cacheHit=true for cache hits. Use it to drive a progress bar.
+	// Safe to be nil.
+	OnItem func(i, total int, f Finding, cacheHit bool)
+}
+
 // Scan queries OpenAlex once per item. Items with a local DOI use
 // ResolveWork (deterministic); others fall back to a title search and we
 // take the top hit. The caller should inspect Finding.LookupMethod to
@@ -77,15 +94,58 @@ var titleSearchSelect = []string{
 //
 // Failures are recorded per-item — the whole scan never aborts on a single
 // 404 or network blip. Context cancellation DOES abort, returning ctx.Err().
-func Scan(ctx context.Context, items []local.Item, oa Lookup) (*Result, error) {
+//
+// When opts.Cache is set, every item's lookup result is persisted so reruns
+// skip the network entirely; pass opts.Refresh=true to bypass cache reads.
+func Scan(ctx context.Context, items []local.Item, oa Lookup, opts ScanOptions) (*Result, error) {
 	findings := make([]Finding, 0, len(items))
-	for _, it := range items {
+	for i, it := range items {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		findings = append(findings, lookupOne(ctx, it, oa))
+		f, hit := resolveOne(ctx, it, oa, opts)
+		findings = append(findings, f)
+		if opts.OnItem != nil {
+			opts.OnItem(i, len(items), f, hit)
+		}
 	}
 	return &Result{Scanned: len(items), Findings: findings}, nil
+}
+
+// resolveOne combines cache lookup with live OpenAlex fallback. Cache keys
+// mirror the identifier we'd send to OpenAlex — DOI when present, else the
+// title — so cache entries stay useful even if the caller later adds a DOI
+// to a previously title-matched item (different key, clean miss).
+func resolveOne(ctx context.Context, it local.Item, oa Lookup, opts ScanOptions) (Finding, bool) {
+	key := cacheKeyFor(it)
+	if !opts.Refresh && key != "" {
+		if cached, ok := opts.Cache.Get(key); ok {
+			// Re-overlay the local ItemKey/Title on the cached payload — the
+			// OpenAlex-side fields are what we paid for, but local identifiers
+			// might have drifted (renames, re-imports).
+			cached.ItemKey = it.Key
+			cached.Title = it.Title
+			cached.LocalDOI = it.DOI
+			return cached, true
+		}
+	}
+	f := lookupOne(ctx, it, oa)
+	if key != "" {
+		opts.Cache.Put(key, f)
+	}
+	return f, false
+}
+
+// cacheKeyFor returns the query we'd send to OpenAlex for this item.
+// Empty string means "no usable identifier" — such items are never cached.
+func cacheKeyFor(it local.Item) string {
+	if it.DOI != "" {
+		return "doi:" + it.DOI
+	}
+	if strings.TrimSpace(it.Title) != "" {
+		return "title:" + it.Title
+	}
+	return ""
 }
 
 func lookupOne(ctx context.Context, it local.Item, oa Lookup) Finding {
