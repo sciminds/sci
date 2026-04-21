@@ -45,6 +45,7 @@ func Commands() []*cli.Command {
 		infoCommand(),
 		viewCommand(),
 		searchCommand(),
+		findCommand(),
 		libraryExportCommand(),
 		itemCommand(),
 		collectionCommand(),
