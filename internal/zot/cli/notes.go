@@ -62,8 +62,8 @@ func notesListCommand() *cli.Command {
 		Description: "$ zot notes list                   # all items with docling notes\n" +
 			"$ zot notes list AAAA1111           # docling notes for one item",
 		ArgsUsage: "[parent-item-key]",
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			_, db, err := openLocalDB()
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -116,12 +116,12 @@ func notesReadCommand() *cli.Command {
 		Usage:       "Show the full body of a note",
 		Description: "$ zot notes read NOTECH10",
 		ArgsUsage:   "<note-key>",
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected a note key")
 			}
 			noteKey := cmd.Args().First()
-			_, db, err := openLocalDB()
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -163,7 +163,7 @@ func notesAddAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	parentKey := cmd.Args().First()
 
-	cfg, db, err := openLocalDB()
+	cfg, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func notesAddAction(ctx context.Context, cmd *cli.Command) error {
 		cache.Delete(att.Key, hash)
 	}
 
-	apiClient, err := requireAPIClient()
+	apiClient, err := requireAPIClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -297,7 +297,7 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	parentKey := cmd.Args().First()
 
-	cfg, db, err := openLocalDB()
+	cfg, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}
@@ -342,7 +342,7 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 		cache.Delete(att.Key, hash)
 	}
 
-	apiClient, err := requireAPIClient()
+	apiClient, err := requireAPIClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -435,7 +435,7 @@ func notesDeleteAction(ctx context.Context, cmd *cli.Command) error {
 }
 
 func notesDeleteSingleAction(ctx context.Context, cmd *cli.Command, parentKey string) error {
-	_, db, err := openLocalDB()
+	_, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}
@@ -456,7 +456,7 @@ func notesDeleteSingleAction(ctx context.Context, cmd *cli.Command, parentKey st
 		return err
 	}
 
-	apiClient, err := requireAPIClient()
+	apiClient, err := requireAPIClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -480,7 +480,7 @@ func notesDeleteSingleAction(ctx context.Context, cmd *cli.Command, parentKey st
 }
 
 func notesDeleteAllAction(ctx context.Context, cmd *cli.Command) error {
-	_, db, err := openLocalDB()
+	_, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}
@@ -501,7 +501,7 @@ func notesDeleteAllAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	apiClient, err := requireAPIClient()
+	apiClient, err := requireAPIClient(ctx)
 	if err != nil {
 		return err
 	}

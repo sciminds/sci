@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/client"
 )
 
 // DeleteTagsFromLibrary removes the given tags from ALL items in the library.
@@ -20,12 +19,11 @@ func (c *Client) DeleteTagsFromLibrary(ctx context.Context, tags []string) error
 	const batchSize = 50
 	for _, chunk := range lo.Chunk(tags, batchSize) {
 		joined := strings.Join(chunk, " || ")
-		params := &client.DeleteTagsParams{Tag: joined}
-		resp, err := c.Gen.DeleteTagsWithResponse(ctx, c.UserID, params)
+		status, statusLine, respBody, err := c.deleteTags(ctx, joined)
 		if err != nil {
 			return err
 		}
-		switch resp.StatusCode() {
+		switch status {
 		case http.StatusNoContent:
 			continue
 		case http.StatusPreconditionFailed:
@@ -34,7 +32,7 @@ func (c *Client) DeleteTagsFromLibrary(ctx context.Context, tags []string) error
 			// not pin, so this is effectively "retry whole batch once".
 			return fmt.Errorf("DELETE /tags: library has been modified since query — retry")
 		default:
-			return fmt.Errorf("DELETE /tags: %s: %s", resp.Status(), string(resp.Body))
+			return fmt.Errorf("DELETE /tags: %s: %s", statusLine, string(respBody))
 		}
 	}
 	return nil

@@ -26,14 +26,14 @@ func (c *Client) CreateCollection(ctx context.Context, name, parentKey string) (
 	}
 
 	body := []client.CollectionData{data}
-	resp, err := c.Gen.CreateOrUpdateCollectionsWithResponse(ctx, c.UserID, &client.CreateOrUpdateCollectionsParams{}, body)
+	status, statusLine, respBody, err := c.createOrUpdateCollections(ctx, body)
 	if err != nil {
 		return "", err
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return "", fmt.Errorf("POST /collections: %s: %s", resp.Status(), string(resp.Body))
+	if status != http.StatusOK {
+		return "", fmt.Errorf("POST /collections: %s: %s", statusLine, string(respBody))
 	}
-	mor, err := decodeMultiObject(resp.Body)
+	mor, err := decodeMultiObject(respBody)
 	if err != nil {
 		return "", err
 	}
@@ -54,20 +54,20 @@ func (c *Client) CreateCollection(ctx context.Context, name, parentKey string) (
 // getCollectionRaw fetches a collection by key. Used internally for
 // 412 version-retry in DeleteCollection.
 func (c *Client) getCollectionRaw(ctx context.Context, key string) (*client.Collection, error) {
-	resp, err := c.Gen.GetCollectionWithResponse(ctx, c.UserID, client.CollectionKeyPath(key))
+	status, statusLine, json200, err := c.getCollection(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode() == http.StatusNotFound {
+	if status == http.StatusNotFound {
 		return nil, fmt.Errorf("collection %s not found", key)
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("GET /collections/%s: %s", key, resp.Status())
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("GET /collections/%s: %s", key, statusLine)
 	}
-	if resp.JSON200 == nil {
+	if json200 == nil {
 		return nil, fmt.Errorf("GET /collections/%s: empty body", key)
 	}
-	return resp.JSON200, nil
+	return json200, nil
 }
 
 // DeleteCollection deletes a collection. Sub-collections become top-level;
@@ -84,20 +84,17 @@ func (c *Client) DeleteCollection(ctx context.Context, key string) error {
 			return coll.Version, nil
 		},
 		func(ver int) error {
-			params := &client.DeleteCollectionParams{
-				IfUnmodifiedSinceVersion: (*client.IfUnmodifiedSinceVersion)(&ver),
-			}
-			resp, err := c.Gen.DeleteCollectionWithResponse(ctx, c.UserID, client.CollectionKeyPath(key), params)
+			status, statusLine, err := c.deleteCollection(ctx, key, ver)
 			if err != nil {
 				return err
 			}
-			switch resp.StatusCode() {
+			switch status {
 			case http.StatusNoContent:
 				return nil
 			case http.StatusPreconditionFailed:
 				return &VersionConflictError{Path: "/collections/" + key}
 			default:
-				return fmt.Errorf("DELETE /collections/%s: %s", key, resp.Status())
+				return fmt.Errorf("DELETE /collections/%s: %s", key, statusLine)
 			}
 		},
 	)

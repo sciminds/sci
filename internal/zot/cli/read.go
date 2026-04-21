@@ -29,14 +29,20 @@ var (
 	exportOut    string
 )
 
-// openLocalDB loads config, opens the local zotero.sqlite, and warns if the
-// schema version is outside the tested range.
-func openLocalDB() (*zot.Config, local.Reader, error) {
+// openLocalDB loads config, opens the local zotero.sqlite scoped to the
+// library ctx carries (see ValidateLibraryBefore), and warns if the schema
+// version is outside the tested range. Falls back to the personal library
+// if ctx has no library set (e.g. legacy call sites not yet threaded).
+func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
 	cfg, err := zot.RequireConfig()
 	if err != nil {
 		return nil, nil, err
 	}
-	db, err := local.Open(cfg.DataDir)
+	sel, err := localSelectorFor(ctx, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	db, err := local.Open(cfg.DataDir, sel)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -45,6 +51,33 @@ func openLocalDB() (*zot.Config, local.Reader, error) {
 			uikit.SymArrow, db.SchemaVersion(), local.MinTestedSchemaVersion, local.MaxTestedSchemaVersion)
 	}
 	return cfg, db, nil
+}
+
+// localSelectorFor picks a local.LibrarySelector based on the scope stashed
+// in ctx by ValidateLibraryBefore. Shared scope resolves the group's SQLite
+// libraryID via the groups table (see local.ForGroupByAPIID). Errors if ctx
+// has no ref — every zot command except `setup` goes through the Before
+// hook, so a missing ref indicates a wiring bug.
+func localSelectorFor(ctx context.Context, cfg *zot.Config) (local.LibrarySelector, error) {
+	ref, ok := LibraryFromContext(ctx)
+	if !ok {
+		return local.LibrarySelector{}, fmt.Errorf("library scope not found in context — did you pass --library?")
+	}
+	switch ref.Scope {
+	case zot.LibPersonal:
+		return local.ForPersonal(), nil
+	case zot.LibShared:
+		if cfg.SharedGroupID == "" {
+			return local.LibrarySelector{}, fmt.Errorf("--library shared: SharedGroupID is empty (run 'zot setup' to auto-detect)")
+		}
+		var apiID int64
+		if _, err := fmt.Sscanf(cfg.SharedGroupID, "%d", &apiID); err != nil {
+			return local.LibrarySelector{}, fmt.Errorf("parse SharedGroupID %q: %w", cfg.SharedGroupID, err)
+		}
+		return local.ForGroupByAPIID(apiID), nil
+	default:
+		return local.LibrarySelector{}, fmt.Errorf("unknown library scope %q", ref.Scope)
+	}
 }
 
 func searchCommand() *cli.Command {
@@ -65,7 +98,7 @@ func searchCommand() *cli.Command {
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
 			&cli.BoolFlag{Name: "notes", Usage: "only show items that have docling extraction notes", Destination: &searchNotes, Local: true},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected a query")
 			}
@@ -76,7 +109,7 @@ func searchCommand() *cli.Command {
 			// like `zot search @author: jolly @title: gossip` work without
 			// requiring the user to wrap the whole thing in shell quotes.
 			query := strings.Join(cmd.Args().Slice(), " ")
-			_, db, err := openLocalDB()
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -143,12 +176,12 @@ func readCommand() *cli.Command {
 		Usage:       "Show full details of a single item",
 		Description: "$ zot item read ABC12345",
 		ArgsUsage:   "<key>",
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected an item key")
 			}
 			key := cmd.Args().First()
-			_, db, err := openLocalDB()
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -177,8 +210,8 @@ func listCommand() *cli.Command {
 			&cli.IntFlag{Name: "offset", Value: 0, Usage: "pagination offset", Destination: &listOffset, Local: true},
 			&cli.StringFlag{Name: "order", Value: "added", Usage: "sort order: added, modified, title", Destination: &listOrder, Local: true},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			_, db, err := openLocalDB()
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -218,28 +251,87 @@ func listCommand() *cli.Command {
 
 func infoCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "info",
-		Usage:       "Show library summary statistics",
-		Description: "$ zot info",
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			cfg, db, err := openLocalDB()
+		Name:  "info",
+		Usage: "Show library summary statistics",
+		Description: "$ zot info                     # summarize both libraries\n" +
+			"$ zot info --library personal  # narrow to personal\n" +
+			"$ zot info --library shared    # narrow to shared",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			cfg, err := zot.RequireConfig()
 			if err != nil {
 				return err
 			}
-			defer func() { _ = db.Close() }()
-
-			s, err := db.Stats()
-			if err != nil {
-				return err
+			// Flag supplied → narrow to one library.
+			if _, ok := LibraryFromContext(ctx); ok {
+				entry, err := statsForScope(ctx, cfg)
+				if err != nil {
+					return err
+				}
+				cmdutil.Output(cmd, entry)
+				return nil
 			}
-			cmdutil.Output(cmd, zot.StatsResult{
-				Stats:   *s,
-				DataDir: cfg.DataDir,
-				Schema:  db.SchemaVersion(),
-			})
-			return nil
+			// No flag → summarize every library the account has access to.
+			return runInfoAllLibraries(ctx, cmd, cfg)
 		},
 	}
+}
+
+// statsForScope opens the local DB scoped to ctx's library ref and returns
+// a single StatsResult labeled with the scope.
+func statsForScope(ctx context.Context, cfg *zot.Config) (zot.StatsResult, error) {
+	sel, err := localSelectorFor(ctx, cfg)
+	if err != nil {
+		return zot.StatsResult{}, err
+	}
+	db, err := local.Open(cfg.DataDir, sel)
+	if err != nil {
+		return zot.StatsResult{}, err
+	}
+	defer func() { _ = db.Close() }()
+	s, err := db.Stats()
+	if err != nil {
+		return zot.StatsResult{}, err
+	}
+	ref, _ := LibraryFromContext(ctx)
+	label := "personal"
+	if ref.Scope == zot.LibShared {
+		label = "shared"
+		if cfg.SharedGroupName != "" {
+			label = "shared (" + cfg.SharedGroupName + ")"
+		}
+	}
+	return zot.StatsResult{
+		Library: label,
+		Stats:   *s,
+		DataDir: cfg.DataDir,
+		Schema:  db.SchemaVersion(),
+	}, nil
+}
+
+// runInfoAllLibraries gathers stats for every library the account has
+// access to. Shared-library failures are collected as non-fatal errors so
+// personal still renders when the group isn't synced yet.
+func runInfoAllLibraries(ctx context.Context, cmd *cli.Command, cfg *zot.Config) error {
+	out := zot.MultiStatsResult{}
+
+	personalCtx := context.WithValue(ctx, libraryCtxKey{}, zot.LibraryRef{Scope: zot.LibPersonal})
+	if entry, err := statsForScope(personalCtx, cfg); err != nil {
+		out.Errors = append(out.Errors, "personal: "+err.Error())
+	} else {
+		out.PerLibrary = append(out.PerLibrary, entry)
+	}
+
+	if cfg.SharedGroupID != "" {
+		sharedCtx := context.WithValue(ctx, libraryCtxKey{}, zot.LibraryRef{Scope: zot.LibShared})
+		if entry, err := statsForScope(sharedCtx, cfg); err != nil {
+			out.Errors = append(out.Errors, "shared: "+err.Error())
+		} else {
+			out.PerLibrary = append(out.PerLibrary, entry)
+		}
+	}
+
+	cmdutil.Output(cmd, out)
+	return nil
 }
 
 func exportCommand() *cli.Command {
@@ -252,12 +344,12 @@ func exportCommand() *cli.Command {
 			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csl-json", Usage: "output format: csl-json, bibtex", Destination: &exportFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file instead of stdout", Destination: &exportOut, Local: true},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected an item key")
 			}
 			key := cmd.Args().First()
-			_, db, err := openLocalDB()
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -293,12 +385,12 @@ func childrenCommand() *cli.Command {
 			"Lists every child from the local Zotero database. Use together with\n" +
 			"`zot item delete` to prune specific notes or attachments.",
 		ArgsUsage: "<parent-item-key>",
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return cmdutil.UsageErrorf(cmd, "expected exactly one item key")
 			}
 			parentKey := cmd.Args().First()
-			_, db, err := openLocalDB()
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -342,12 +434,12 @@ func openCommand() *cli.Command {
 		Usage:       "Open an item's attachment in the default viewer",
 		Description: "$ zot item open ABC12345",
 		ArgsUsage:   "<key>",
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected an item key")
 			}
 			key := cmd.Args().First()
-			cfg, db, err := openLocalDB()
+			cfg, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}

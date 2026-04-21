@@ -19,11 +19,11 @@ func TestSetup_Happy(t *testing.T) {
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 
-	res, err := Setup(SetupInput{APIKey: "key", LibraryID: "123", DataDir: dir})
+	res, err := Setup(SetupInput{APIKey: "key", UserID: "123", DataDir: dir})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.OK || res.LibraryID != "123" || res.DataDir != dir {
+	if !res.OK || res.UserID != "123" || res.DataDir != dir {
 		t.Errorf("unexpected result: %+v", res)
 	}
 
@@ -31,7 +31,7 @@ func TestSetup_Happy(t *testing.T) {
 	if err != nil || cfg == nil {
 		t.Fatalf("LoadConfig: cfg=%v err=%v", cfg, err)
 	}
-	if cfg.APIKey != "key" || cfg.LibraryID != "123" || cfg.DataDir != dir {
+	if cfg.APIKey != "key" || cfg.UserID != "123" || cfg.DataDir != dir {
 		t.Errorf("persisted config mismatch: %+v", cfg)
 	}
 }
@@ -42,7 +42,7 @@ func TestSetup_PersistsOpenAlex(t *testing.T) {
 
 	_, err := Setup(SetupInput{
 		APIKey:         "key",
-		LibraryID:      "123",
+		UserID:         "123",
 		DataDir:        dir,
 		OpenAlexEmail:  "me@example.com",
 		OpenAlexAPIKey: "oa-secret",
@@ -68,7 +68,7 @@ func TestSetup_OpenAlexOmittedIsOK(t *testing.T) {
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 
-	_, err := Setup(SetupInput{APIKey: "key", LibraryID: "123", DataDir: dir})
+	_, err := Setup(SetupInput{APIKey: "key", UserID: "123", DataDir: dir})
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestSetup_InvalidInputs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			in := SetupInput{APIKey: tt.key, LibraryID: tt.lib, DataDir: tt.data}
+			in := SetupInput{APIKey: tt.key, UserID: tt.lib, DataDir: tt.data}
 			if _, err := Setup(in); err == nil {
 				t.Error("expected error")
 			}
@@ -107,7 +107,7 @@ func TestConfigExists(t *testing.T) {
 		t.Fatal("expected ConfigExists=false before setup")
 	}
 	dir := mkDataDir(t)
-	if _, err := Setup(SetupInput{APIKey: "k", LibraryID: "1", DataDir: dir}); err != nil {
+	if _, err := Setup(SetupInput{APIKey: "k", UserID: "1", DataDir: dir}); err != nil {
 		t.Fatal(err)
 	}
 	if !ConfigExists() {
@@ -124,7 +124,7 @@ func TestConfigExists(t *testing.T) {
 func TestLogout(t *testing.T) {
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
-	if _, err := Setup(SetupInput{APIKey: "k", LibraryID: "1", DataDir: dir}); err != nil {
+	if _, err := Setup(SetupInput{APIKey: "k", UserID: "1", DataDir: dir}); err != nil {
 		t.Fatal(err)
 	}
 	res, err := Logout()

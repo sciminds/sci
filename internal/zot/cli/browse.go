@@ -413,8 +413,8 @@ func tagsBrowseCommand() *cli.Command {
 		Name:        "browse",
 		Usage:       "Interactively browse tags and their items",
 		Description: "$ zot tags browse",
-		Action: func(_ context.Context, _ *cli.Command) error {
-			cfg, db, err := openLocalDB()
+		Action: func(ctx context.Context, _ *cli.Command) error {
+			cfg, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -433,8 +433,8 @@ func collBrowseCommand() *cli.Command {
 		Name:        "browse",
 		Usage:       "Interactively browse collections and their items",
 		Description: "$ zot collection browse",
-		Action: func(_ context.Context, _ *cli.Command) error {
-			cfg, db, err := openLocalDB()
+		Action: func(ctx context.Context, _ *cli.Command) error {
+			cfg, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}

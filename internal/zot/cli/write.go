@@ -46,8 +46,9 @@ var (
 )
 
 // requireAPIClient builds an API client from the loaded config, short-circuiting
-// if the machine is offline or not configured.
-func requireAPIClient() (*api.Client, error) {
+// if the machine is offline or not configured. The library scope stashed on ctx
+// by ValidateLibraryBefore routes the client to personal or shared endpoints.
+func requireAPIClient(ctx context.Context) (*api.Client, error) {
 	cfg, err := zot.RequireConfig()
 	if err != nil {
 		return nil, err
@@ -55,7 +56,37 @@ func requireAPIClient() (*api.Client, error) {
 	if !netutil.Online() {
 		return nil, fmt.Errorf("no internet connection — zot writes require network access")
 	}
-	return api.New(cfg)
+	ref, err := resolveLibraryRef(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return api.New(cfg, api.WithLibrary(ref))
+}
+
+// resolveLibraryRef upgrades the scope ctx carries (from ValidateLibraryBefore)
+// into a full zot.LibraryRef by reading config. Shared-scope resolution uses
+// ResolveWithProbe so a first-time --library shared command lazily auto-detects
+// the group via the Web API and caches the result. Errors if the ctx was not
+// seeded — every zot command except `setup` must go through
+// ValidateLibraryBefore, so a missing ref indicates a wiring bug.
+func resolveLibraryRef(ctx context.Context, cfg *zot.Config) (zot.LibraryRef, error) {
+	partial, ok := LibraryFromContext(ctx)
+	if !ok {
+		return zot.LibraryRef{}, fmt.Errorf("library scope not found in context — did you pass --library?")
+	}
+	probe := func(_, _ string) ([]zot.GroupRef, error) {
+		// Build a throwaway client bound to the personal library just to
+		// call ListGroups. Only invoked when shared-scope config is blank.
+		tmp, err := api.New(cfg, api.WithLibrary(zot.LibraryRef{
+			Scope:   zot.LibPersonal,
+			APIPath: "users/" + cfg.UserID,
+		}))
+		if err != nil {
+			return nil, err
+		}
+		return tmp.ListGroups(ctx)
+	}
+	return cfg.ResolveWithProbe(partial.Scope, probe)
 }
 
 func strPtr(s string) *string {
@@ -95,7 +126,7 @@ func runAdd(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return cmdutil.UsageErrorf(cmd, "%v", err)
 	}
-	c, err := requireAPIClient()
+	c, err := requireAPIClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -246,7 +277,7 @@ func updateCommand() *cli.Command {
 				return cmdutil.UsageErrorf(cmd, "at least one field flag is required")
 			}
 
-			c, err := requireAPIClient()
+			c, err := requireAPIClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -307,7 +338,7 @@ func deleteCommand() *cli.Command {
 			if done, err := cmdutil.ConfirmOrSkip(deleteYes, fmt.Sprintf("Move item %s to trash?", key)); done || err != nil {
 				return err
 			}
-			c, err := requireAPIClient()
+			c, err := requireAPIClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -335,8 +366,8 @@ func collectionCommand() *cli.Command {
 				Name:        "list",
 				Usage:       "List every collection in the library with item counts",
 				Description: "$ zot collection list",
-				Action: func(_ context.Context, cmd *cli.Command) error {
-					_, db, err := openLocalDB()
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					_, db, err := openLocalDB(ctx)
 					if err != nil {
 						return err
 					}
@@ -362,7 +393,7 @@ func collectionCommand() *cli.Command {
 						return cmdutil.UsageErrorf(cmd, "expected a collection name")
 					}
 					name := cmd.Args().First()
-					c, err := requireAPIClient()
+					c, err := requireAPIClient(ctx)
 					if err != nil {
 						return err
 					}
@@ -391,7 +422,7 @@ func collectionCommand() *cli.Command {
 					if done, err := cmdutil.ConfirmOrSkip(deleteYes, fmt.Sprintf("Delete collection %s?", key)); done || err != nil {
 						return err
 					}
-					c, err := requireAPIClient()
+					c, err := requireAPIClient(ctx)
 					if err != nil {
 						return err
 					}
@@ -412,7 +443,7 @@ func collectionCommand() *cli.Command {
 					if len(args) != 2 {
 						return cmdutil.UsageErrorf(cmd, "expected <itemKey> <collectionKey>")
 					}
-					c, err := requireAPIClient()
+					c, err := requireAPIClient(ctx)
 					if err != nil {
 						return err
 					}
@@ -436,7 +467,7 @@ func collectionCommand() *cli.Command {
 					if len(args) != 2 {
 						return cmdutil.UsageErrorf(cmd, "expected <itemKey> <collectionKey>")
 					}
-					c, err := requireAPIClient()
+					c, err := requireAPIClient(ctx)
 					if err != nil {
 						return err
 					}
@@ -466,8 +497,8 @@ func tagsCommand() *cli.Command {
 				Name:        "list",
 				Usage:       "List every tag in the library with usage counts",
 				Description: "$ zot tags list",
-				Action: func(_ context.Context, cmd *cli.Command) error {
-					_, db, err := openLocalDB()
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					_, db, err := openLocalDB(ctx)
 					if err != nil {
 						return err
 					}
@@ -490,7 +521,7 @@ func tagsCommand() *cli.Command {
 					if len(args) != 2 {
 						return cmdutil.UsageErrorf(cmd, "expected <itemKey> <tag>")
 					}
-					c, err := requireAPIClient()
+					c, err := requireAPIClient(ctx)
 					if err != nil {
 						return err
 					}
@@ -521,7 +552,7 @@ func tagsCommand() *cli.Command {
 						fmt.Sprintf("Remove tag %q from item %s?", args[1], args[0])); done || err != nil {
 						return err
 					}
-					c, err := requireAPIClient()
+					c, err := requireAPIClient(ctx)
 					if err != nil {
 						return err
 					}
@@ -552,7 +583,7 @@ func tagsCommand() *cli.Command {
 						fmt.Sprintf("Delete tag %q from ALL items in the library?", tag)); done || err != nil {
 						return err
 					}
-					c, err := requireAPIClient()
+					c, err := requireAPIClient(ctx)
 					if err != nil {
 						return err
 					}

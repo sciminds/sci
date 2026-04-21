@@ -48,8 +48,8 @@ func libraryExportCommand() *cli.Command {
 			&cli.StringFlag{Name: "tag", Usage: "filter by tag name", Destination: &libExportTag, Local: true},
 			&cli.StringFlag{Name: "type", Aliases: []string{"t"}, Usage: "filter by item type (e.g. journalArticle)", Destination: &libExportType, Local: true},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			_, db, err := openLocalDB()
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}

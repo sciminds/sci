@@ -15,8 +15,8 @@ func llmCatalogCommand() *cli.Command {
 		Name:        "catalog",
 		Usage:       "Compact index of every paper with a docling note",
 		Description: "$ zot llm catalog",
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			_, db, err := openLocalDB()
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}

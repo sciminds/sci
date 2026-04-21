@@ -14,7 +14,10 @@ func (c Config) JSON() any { return c }
 func (c Config) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s zot config\n", uikit.SymOK)
-	fmt.Fprintf(&b, "    library:  %s\n", c.LibraryID)
+	fmt.Fprintf(&b, "    user id:  %s\n", c.UserID)
+	if c.SharedGroupID != "" {
+		fmt.Fprintf(&b, "    shared:   %s (groupID %s)\n", c.SharedGroupName, c.SharedGroupID)
+	}
 	fmt.Fprintf(&b, "    data dir: %s\n", c.DataDir)
 	fmt.Fprintf(&b, "    api key:  %s\n", c.APIKey)
 	return b.String()
@@ -22,10 +25,10 @@ func (c Config) Human() string {
 
 // SetupResult is returned by `zot setup` / `sci zot setup`.
 type SetupResult struct {
-	OK        bool   `json:"ok"`
-	LibraryID string `json:"library_id,omitempty"`
-	DataDir   string `json:"data_dir,omitempty"`
-	Message   string `json:"message"`
+	OK      bool   `json:"ok"`
+	UserID  string `json:"user_id,omitempty"`
+	DataDir string `json:"data_dir,omitempty"`
+	Message string `json:"message"`
 }
 
 // JSON implements cmdutil.Result.
@@ -40,8 +43,8 @@ func (r SetupResult) Human() string {
 	}
 	fmt.Fprintf(&b, "  %s %s\n", sym, r.Message)
 	if r.OK {
-		if r.LibraryID != "" {
-			fmt.Fprintf(&b, "    library: %s\n", r.LibraryID)
+		if r.UserID != "" {
+			fmt.Fprintf(&b, "    user id: %s\n", r.UserID)
 		}
 		if r.DataDir != "" {
 			fmt.Fprintf(&b, "    data dir: %s\n", r.DataDir)

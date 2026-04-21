@@ -205,27 +205,30 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 <summary><b>sub-commands</b> — click to expand</summary>
 
 
+**Library scope.** Every zot command (except `setup` and `info`) requires `--library personal` or `--library shared`. Personal is your own Zotero user library; shared is a Zotero group library auto-detected at setup time. `zot info` without the flag summarizes both libraries side-by-side. Examples below include `--library personal` for the common case.
+
 | Command | What it does |
 |---------|--------------|
-| `sci zot setup` | Save your Zotero API key + library ID |
-| `sci zot info` | Library size and field-coverage summary |
-| `sci zot search <query>` | Search the local Zotero library |
-| `sci zot search <q> --export -o hits.bib` | Route search results through the export pipeline |
-| `sci zot export -o refs.bib` | Full-library BibTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
-| `sci zot item read <key>` | Show full metadata for an item |
-| `sci zot item list` | List items with optional filters |
-| `sci zot item children <key>` | List child attachments + notes of an item |
-| `sci zot item export <key>` | Export a single item to CSL-JSON or BibTeX |
-| `sci zot item open <key>` | Open the item's PDF attachment |
-| `sci zot item extract <key>` | Convert the item's PDF into a Zotero child note (via `docling`) |
-| `sci zot item extract <key> --out DIR` | Full extraction: md + json + referenced PNGs + CSV tables to DIR |
-| `sci zot item extract <key> --delete` | Undo: trash any note carrying this PDF's sci-extract sentinel |
-| `sci zot item add` / `update` / `delete` | Create / patch / trash items via the Zotero Web API |
-| `sci zot collection` / `tags` | Manage collections and tags |
-| `sci zot doctor` | Run all hygiene checks (invalid → missing → orphans → duplicates) |
-| `sci zot doctor {invalid,missing,orphans,duplicates}` | Drill into individual hygiene reports |
+| `sci zot setup` | Save your Zotero API key + user ID + shared group (auto-detected) |
+| `sci zot info` | Summarize both libraries (personal + shared) |
+| `sci zot --library personal info` | Narrow summary to the personal library |
+| `sci zot --library personal search <query>` | Search the local Zotero library |
+| `sci zot --library personal search <q> --export -o hits.bib` | Route search results through the export pipeline |
+| `sci zot --library personal export -o refs.bib` | Full-library BibTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
+| `sci zot --library personal item read <key>` | Show full metadata for an item |
+| `sci zot --library personal item list` | List items with optional filters |
+| `sci zot --library personal item children <key>` | List child attachments + notes of an item |
+| `sci zot --library personal item export <key>` | Export a single item to CSL-JSON or BibTeX |
+| `sci zot --library personal item open <key>` | Open the item's PDF attachment |
+| `sci zot --library personal item extract <key>` | Convert the item's PDF into a Zotero child note (via `docling`) |
+| `sci zot --library personal item extract <key> --out DIR` | Full extraction: md + json + referenced PNGs + CSV tables to DIR |
+| `sci zot --library personal item extract <key> --delete` | Undo: trash any note carrying this PDF's sci-extract sentinel |
+| `sci zot --library shared item add` / `update` / `delete` | Create / patch / trash items via the Zotero Web API |
+| `sci zot --library shared collection` / `tags` | Manage collections and tags in the shared group library |
+| `sci zot --library personal doctor` | Run all hygiene checks (invalid → missing → orphans → duplicates) |
+| `sci zot --library personal doctor {invalid,missing,orphans,duplicates}` | Drill into individual hygiene reports |
 
-Reads the local `zotero.sqlite` (immutable, no contention with the running Zotero desktop app); writes go through the Zotero Web API. `zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds.
+Reads the local `zotero.sqlite` (immutable, no contention with the running Zotero desktop app); writes go through the Zotero Web API. `zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` picks the group automatically when the account belongs to exactly one, or accepts `--shared-group-id` when multiple groups exist.
 
 **PDF → child note extraction.** `zot item extract <KEY>` pipes the item's PDF attachment through [`docling`](https://github.com/DS4SD/docling), renders the markdown as HTML, and posts it as a child note on the parent — tagged `docling` and stamped with a sentinel comment so re-runs dedupe by sha256. Default mode produces a clean, Zotero-friendly note from a temp dir. `--out DIR` switches to full extraction (md + json + referenced PNGs + CSV tables per `docling`'s always-on TableFormer) persisted for Obsidian-style vault exports; `--no-note` skips the Zotero post entirely. Identical re-runs Skip; PDF updates PATCH-in-place so the note key stays stable. `--delete` is the surgical undo — matches notes by their embedded sentinel (not tag) and trashes them via `zot item delete`'s standard path. Requires `docling` on PATH (`sci doctor` installs it via `uv`).
 

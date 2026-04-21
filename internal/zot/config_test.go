@@ -41,7 +41,7 @@ func TestLoadConfig_Missing(t *testing.T) {
 func TestSaveAndLoadConfig(t *testing.T) {
 	withXDGConfigHome(t)
 
-	cfg := &Config{APIKey: "abc123", LibraryID: "7654321", DataDir: "/tmp/z"}
+	cfg := &Config{APIKey: "abc123", UserID: "7654321", DataDir: "/tmp/z"}
 	if err := SaveConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 func TestSaveConfig_Permissions(t *testing.T) {
 	withXDGConfigHome(t)
 
-	if err := SaveConfig(&Config{APIKey: "k", LibraryID: "1"}); err != nil {
+	if err := SaveConfig(&Config{APIKey: "k", UserID: "1"}); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(ConfigPath())
@@ -86,13 +86,13 @@ func TestRequireConfig_IncompleteConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := RequireConfig(); err == nil {
-		t.Error("expected error for missing library_id")
+		t.Error("expected error for missing user_id")
 	}
 }
 
 func TestClearConfig(t *testing.T) {
 	withXDGConfigHome(t)
-	if err := SaveConfig(&Config{APIKey: "k", LibraryID: "1"}); err != nil {
+	if err := SaveConfig(&Config{APIKey: "k", UserID: "1"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := ClearConfig(); err != nil {
@@ -107,7 +107,7 @@ func TestClearConfig(t *testing.T) {
 	}
 }
 
-func TestValidateLibraryID(t *testing.T) {
+func TestValidateUserID(t *testing.T) {
 	tests := []struct {
 		id      string
 		wantErr bool
@@ -118,9 +118,9 @@ func TestValidateLibraryID(t *testing.T) {
 		{"12a3", true},
 	}
 	for _, tt := range tests {
-		err := ValidateLibraryID(tt.id)
+		err := ValidateUserID(tt.id)
 		if (err != nil) != tt.wantErr {
-			t.Errorf("ValidateLibraryID(%q) err = %v, wantErr %v", tt.id, err, tt.wantErr)
+			t.Errorf("ValidateUserID(%q) err = %v, wantErr %v", tt.id, err, tt.wantErr)
 		}
 	}
 }

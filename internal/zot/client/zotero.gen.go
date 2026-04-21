@@ -37,6 +37,81 @@ func (e CollectionDataParentCollection1) Valid() bool {
 	}
 }
 
+// Defines values for GroupDataFileEditing.
+const (
+	GroupDataFileEditingAdmins  GroupDataFileEditing = "admins"
+	GroupDataFileEditingMembers GroupDataFileEditing = "members"
+)
+
+// Valid indicates whether the value is a known member of the GroupDataFileEditing enum.
+func (e GroupDataFileEditing) Valid() bool {
+	switch e {
+	case GroupDataFileEditingAdmins:
+		return true
+	case GroupDataFileEditingMembers:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GroupDataLibraryEditing.
+const (
+	GroupDataLibraryEditingAdmins  GroupDataLibraryEditing = "admins"
+	GroupDataLibraryEditingMembers GroupDataLibraryEditing = "members"
+)
+
+// Valid indicates whether the value is a known member of the GroupDataLibraryEditing enum.
+func (e GroupDataLibraryEditing) Valid() bool {
+	switch e {
+	case GroupDataLibraryEditingAdmins:
+		return true
+	case GroupDataLibraryEditingMembers:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GroupDataLibraryReading.
+const (
+	All     GroupDataLibraryReading = "all"
+	Members GroupDataLibraryReading = "members"
+)
+
+// Valid indicates whether the value is a known member of the GroupDataLibraryReading enum.
+func (e GroupDataLibraryReading) Valid() bool {
+	switch e {
+	case All:
+		return true
+	case Members:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GroupDataType.
+const (
+	Private      GroupDataType = "Private"
+	PublicClosed GroupDataType = "PublicClosed"
+	PublicOpen   GroupDataType = "PublicOpen"
+)
+
+// Valid indicates whether the value is a known member of the GroupDataType enum.
+func (e GroupDataType) Valid() bool {
+	switch e {
+	case Private:
+		return true
+	case PublicClosed:
+		return true
+	case PublicOpen:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemDataItemType.
 const (
 	Annotation      ItemDataItemType = "annotation"
@@ -111,16 +186,16 @@ func (e ItemDataLinkMode) Valid() bool {
 
 // Defines values for LibraryRefType.
 const (
-	Group LibraryRefType = "group"
-	User  LibraryRefType = "user"
+	LibraryRefTypeGroup LibraryRefType = "group"
+	LibraryRefTypeUser  LibraryRefType = "user"
 )
 
 // Valid indicates whether the value is a known member of the LibraryRefType enum.
 func (e LibraryRefType) Valid() bool {
 	switch e {
-	case Group:
+	case LibraryRefTypeGroup:
 		return true
-	case User:
+	case LibraryRefTypeUser:
 		return true
 	default:
 		return false
@@ -277,18 +352,276 @@ func (e Qmode) Valid() bool {
 	}
 }
 
+// Defines values for ListItemsGroupParamsQmode.
+const (
+	ListItemsGroupParamsQmodeEverything       ListItemsGroupParamsQmode = "everything"
+	ListItemsGroupParamsQmodeTitleCreatorYear ListItemsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListItemsGroupParamsQmode enum.
+func (e ListItemsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListItemsGroupParamsQmodeEverything:
+		return true
+	case ListItemsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListItemsGroupParamsDirection.
+const (
+	ListItemsGroupParamsDirectionAsc  ListItemsGroupParamsDirection = "asc"
+	ListItemsGroupParamsDirectionDesc ListItemsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListItemsGroupParamsDirection enum.
+func (e ListItemsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListItemsGroupParamsDirectionAsc:
+		return true
+	case ListItemsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListItemsGroupParamsFormat.
+const (
+	ListItemsGroupParamsFormatBiblatex         ListItemsGroupParamsFormat = "biblatex"
+	ListItemsGroupParamsFormatBibtex           ListItemsGroupParamsFormat = "bibtex"
+	ListItemsGroupParamsFormatBookmarks        ListItemsGroupParamsFormat = "bookmarks"
+	ListItemsGroupParamsFormatCoins            ListItemsGroupParamsFormat = "coins"
+	ListItemsGroupParamsFormatCsljson          ListItemsGroupParamsFormat = "csljson"
+	ListItemsGroupParamsFormatCsv              ListItemsGroupParamsFormat = "csv"
+	ListItemsGroupParamsFormatJson             ListItemsGroupParamsFormat = "json"
+	ListItemsGroupParamsFormatKeys             ListItemsGroupParamsFormat = "keys"
+	ListItemsGroupParamsFormatMods             ListItemsGroupParamsFormat = "mods"
+	ListItemsGroupParamsFormatRdfBibliontology ListItemsGroupParamsFormat = "rdf_bibliontology"
+	ListItemsGroupParamsFormatRdfDc            ListItemsGroupParamsFormat = "rdf_dc"
+	ListItemsGroupParamsFormatRdfZotero        ListItemsGroupParamsFormat = "rdf_zotero"
+	ListItemsGroupParamsFormatRefer            ListItemsGroupParamsFormat = "refer"
+	ListItemsGroupParamsFormatRis              ListItemsGroupParamsFormat = "ris"
+	ListItemsGroupParamsFormatTei              ListItemsGroupParamsFormat = "tei"
+	ListItemsGroupParamsFormatVersions         ListItemsGroupParamsFormat = "versions"
+	ListItemsGroupParamsFormatWikipedia        ListItemsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListItemsGroupParamsFormat enum.
+func (e ListItemsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListItemsGroupParamsFormatBiblatex:
+		return true
+	case ListItemsGroupParamsFormatBibtex:
+		return true
+	case ListItemsGroupParamsFormatBookmarks:
+		return true
+	case ListItemsGroupParamsFormatCoins:
+		return true
+	case ListItemsGroupParamsFormatCsljson:
+		return true
+	case ListItemsGroupParamsFormatCsv:
+		return true
+	case ListItemsGroupParamsFormatJson:
+		return true
+	case ListItemsGroupParamsFormatKeys:
+		return true
+	case ListItemsGroupParamsFormatMods:
+		return true
+	case ListItemsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListItemsGroupParamsFormatRdfDc:
+		return true
+	case ListItemsGroupParamsFormatRdfZotero:
+		return true
+	case ListItemsGroupParamsFormatRefer:
+		return true
+	case ListItemsGroupParamsFormatRis:
+		return true
+	case ListItemsGroupParamsFormatTei:
+		return true
+	case ListItemsGroupParamsFormatVersions:
+		return true
+	case ListItemsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsGroupParamsDirection.
+const (
+	ListTopItemsGroupParamsDirectionAsc  ListTopItemsGroupParamsDirection = "asc"
+	ListTopItemsGroupParamsDirectionDesc ListTopItemsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsGroupParamsDirection enum.
+func (e ListTopItemsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListTopItemsGroupParamsDirectionAsc:
+		return true
+	case ListTopItemsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsGroupParamsFormat.
+const (
+	ListTopItemsGroupParamsFormatBiblatex         ListTopItemsGroupParamsFormat = "biblatex"
+	ListTopItemsGroupParamsFormatBibtex           ListTopItemsGroupParamsFormat = "bibtex"
+	ListTopItemsGroupParamsFormatBookmarks        ListTopItemsGroupParamsFormat = "bookmarks"
+	ListTopItemsGroupParamsFormatCoins            ListTopItemsGroupParamsFormat = "coins"
+	ListTopItemsGroupParamsFormatCsljson          ListTopItemsGroupParamsFormat = "csljson"
+	ListTopItemsGroupParamsFormatCsv              ListTopItemsGroupParamsFormat = "csv"
+	ListTopItemsGroupParamsFormatJson             ListTopItemsGroupParamsFormat = "json"
+	ListTopItemsGroupParamsFormatKeys             ListTopItemsGroupParamsFormat = "keys"
+	ListTopItemsGroupParamsFormatMods             ListTopItemsGroupParamsFormat = "mods"
+	ListTopItemsGroupParamsFormatRdfBibliontology ListTopItemsGroupParamsFormat = "rdf_bibliontology"
+	ListTopItemsGroupParamsFormatRdfDc            ListTopItemsGroupParamsFormat = "rdf_dc"
+	ListTopItemsGroupParamsFormatRdfZotero        ListTopItemsGroupParamsFormat = "rdf_zotero"
+	ListTopItemsGroupParamsFormatRefer            ListTopItemsGroupParamsFormat = "refer"
+	ListTopItemsGroupParamsFormatRis              ListTopItemsGroupParamsFormat = "ris"
+	ListTopItemsGroupParamsFormatTei              ListTopItemsGroupParamsFormat = "tei"
+	ListTopItemsGroupParamsFormatVersions         ListTopItemsGroupParamsFormat = "versions"
+	ListTopItemsGroupParamsFormatWikipedia        ListTopItemsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsGroupParamsFormat enum.
+func (e ListTopItemsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListTopItemsGroupParamsFormatBiblatex:
+		return true
+	case ListTopItemsGroupParamsFormatBibtex:
+		return true
+	case ListTopItemsGroupParamsFormatBookmarks:
+		return true
+	case ListTopItemsGroupParamsFormatCoins:
+		return true
+	case ListTopItemsGroupParamsFormatCsljson:
+		return true
+	case ListTopItemsGroupParamsFormatCsv:
+		return true
+	case ListTopItemsGroupParamsFormatJson:
+		return true
+	case ListTopItemsGroupParamsFormatKeys:
+		return true
+	case ListTopItemsGroupParamsFormatMods:
+		return true
+	case ListTopItemsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListTopItemsGroupParamsFormatRdfDc:
+		return true
+	case ListTopItemsGroupParamsFormatRdfZotero:
+		return true
+	case ListTopItemsGroupParamsFormatRefer:
+		return true
+	case ListTopItemsGroupParamsFormatRis:
+		return true
+	case ListTopItemsGroupParamsFormatTei:
+		return true
+	case ListTopItemsGroupParamsFormatVersions:
+		return true
+	case ListTopItemsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemGroupParamsFormat.
+const (
+	GetItemGroupParamsFormatBiblatex         GetItemGroupParamsFormat = "biblatex"
+	GetItemGroupParamsFormatBibtex           GetItemGroupParamsFormat = "bibtex"
+	GetItemGroupParamsFormatBookmarks        GetItemGroupParamsFormat = "bookmarks"
+	GetItemGroupParamsFormatCoins            GetItemGroupParamsFormat = "coins"
+	GetItemGroupParamsFormatCsljson          GetItemGroupParamsFormat = "csljson"
+	GetItemGroupParamsFormatCsv              GetItemGroupParamsFormat = "csv"
+	GetItemGroupParamsFormatJson             GetItemGroupParamsFormat = "json"
+	GetItemGroupParamsFormatKeys             GetItemGroupParamsFormat = "keys"
+	GetItemGroupParamsFormatMods             GetItemGroupParamsFormat = "mods"
+	GetItemGroupParamsFormatRdfBibliontology GetItemGroupParamsFormat = "rdf_bibliontology"
+	GetItemGroupParamsFormatRdfDc            GetItemGroupParamsFormat = "rdf_dc"
+	GetItemGroupParamsFormatRdfZotero        GetItemGroupParamsFormat = "rdf_zotero"
+	GetItemGroupParamsFormatRefer            GetItemGroupParamsFormat = "refer"
+	GetItemGroupParamsFormatRis              GetItemGroupParamsFormat = "ris"
+	GetItemGroupParamsFormatTei              GetItemGroupParamsFormat = "tei"
+	GetItemGroupParamsFormatVersions         GetItemGroupParamsFormat = "versions"
+	GetItemGroupParamsFormatWikipedia        GetItemGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetItemGroupParamsFormat enum.
+func (e GetItemGroupParamsFormat) Valid() bool {
+	switch e {
+	case GetItemGroupParamsFormatBiblatex:
+		return true
+	case GetItemGroupParamsFormatBibtex:
+		return true
+	case GetItemGroupParamsFormatBookmarks:
+		return true
+	case GetItemGroupParamsFormatCoins:
+		return true
+	case GetItemGroupParamsFormatCsljson:
+		return true
+	case GetItemGroupParamsFormatCsv:
+		return true
+	case GetItemGroupParamsFormatJson:
+		return true
+	case GetItemGroupParamsFormatKeys:
+		return true
+	case GetItemGroupParamsFormatMods:
+		return true
+	case GetItemGroupParamsFormatRdfBibliontology:
+		return true
+	case GetItemGroupParamsFormatRdfDc:
+		return true
+	case GetItemGroupParamsFormatRdfZotero:
+		return true
+	case GetItemGroupParamsFormatRefer:
+		return true
+	case GetItemGroupParamsFormatRis:
+		return true
+	case GetItemGroupParamsFormatTei:
+		return true
+	case GetItemGroupParamsFormatVersions:
+		return true
+	case GetItemGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UploadFileGroupParamsIfNoneMatch.
+const (
+	UploadFileGroupParamsIfNoneMatchAsterisk UploadFileGroupParamsIfNoneMatch = "*"
+)
+
+// Valid indicates whether the value is a known member of the UploadFileGroupParamsIfNoneMatch enum.
+func (e UploadFileGroupParamsIfNoneMatch) Valid() bool {
+	switch e {
+	case UploadFileGroupParamsIfNoneMatchAsterisk:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListItemsParamsQmode.
 const (
-	ListItemsParamsQmodeEverything       ListItemsParamsQmode = "everything"
-	ListItemsParamsQmodeTitleCreatorYear ListItemsParamsQmode = "titleCreatorYear"
+	Everything       ListItemsParamsQmode = "everything"
+	TitleCreatorYear ListItemsParamsQmode = "titleCreatorYear"
 )
 
 // Valid indicates whether the value is a known member of the ListItemsParamsQmode enum.
 func (e ListItemsParamsQmode) Valid() bool {
 	switch e {
-	case ListItemsParamsQmodeEverything:
+	case Everything:
 		return true
-	case ListItemsParamsQmodeTitleCreatorYear:
+	case TitleCreatorYear:
 		return true
 	default:
 		return false
@@ -459,61 +792,61 @@ func (e ListTopItemsParamsFormat) Valid() bool {
 
 // Defines values for GetItemParamsFormat.
 const (
-	GetItemParamsFormatBiblatex         GetItemParamsFormat = "biblatex"
-	GetItemParamsFormatBibtex           GetItemParamsFormat = "bibtex"
-	GetItemParamsFormatBookmarks        GetItemParamsFormat = "bookmarks"
-	GetItemParamsFormatCoins            GetItemParamsFormat = "coins"
-	GetItemParamsFormatCsljson          GetItemParamsFormat = "csljson"
-	GetItemParamsFormatCsv              GetItemParamsFormat = "csv"
-	GetItemParamsFormatJson             GetItemParamsFormat = "json"
-	GetItemParamsFormatKeys             GetItemParamsFormat = "keys"
-	GetItemParamsFormatMods             GetItemParamsFormat = "mods"
-	GetItemParamsFormatRdfBibliontology GetItemParamsFormat = "rdf_bibliontology"
-	GetItemParamsFormatRdfDc            GetItemParamsFormat = "rdf_dc"
-	GetItemParamsFormatRdfZotero        GetItemParamsFormat = "rdf_zotero"
-	GetItemParamsFormatRefer            GetItemParamsFormat = "refer"
-	GetItemParamsFormatRis              GetItemParamsFormat = "ris"
-	GetItemParamsFormatTei              GetItemParamsFormat = "tei"
-	GetItemParamsFormatVersions         GetItemParamsFormat = "versions"
-	GetItemParamsFormatWikipedia        GetItemParamsFormat = "wikipedia"
+	Biblatex         GetItemParamsFormat = "biblatex"
+	Bibtex           GetItemParamsFormat = "bibtex"
+	Bookmarks        GetItemParamsFormat = "bookmarks"
+	Coins            GetItemParamsFormat = "coins"
+	Csljson          GetItemParamsFormat = "csljson"
+	Csv              GetItemParamsFormat = "csv"
+	Json             GetItemParamsFormat = "json"
+	Keys             GetItemParamsFormat = "keys"
+	Mods             GetItemParamsFormat = "mods"
+	RdfBibliontology GetItemParamsFormat = "rdf_bibliontology"
+	RdfDc            GetItemParamsFormat = "rdf_dc"
+	RdfZotero        GetItemParamsFormat = "rdf_zotero"
+	Refer            GetItemParamsFormat = "refer"
+	Ris              GetItemParamsFormat = "ris"
+	Tei              GetItemParamsFormat = "tei"
+	Versions         GetItemParamsFormat = "versions"
+	Wikipedia        GetItemParamsFormat = "wikipedia"
 )
 
 // Valid indicates whether the value is a known member of the GetItemParamsFormat enum.
 func (e GetItemParamsFormat) Valid() bool {
 	switch e {
-	case GetItemParamsFormatBiblatex:
+	case Biblatex:
 		return true
-	case GetItemParamsFormatBibtex:
+	case Bibtex:
 		return true
-	case GetItemParamsFormatBookmarks:
+	case Bookmarks:
 		return true
-	case GetItemParamsFormatCoins:
+	case Coins:
 		return true
-	case GetItemParamsFormatCsljson:
+	case Csljson:
 		return true
-	case GetItemParamsFormatCsv:
+	case Csv:
 		return true
-	case GetItemParamsFormatJson:
+	case Json:
 		return true
-	case GetItemParamsFormatKeys:
+	case Keys:
 		return true
-	case GetItemParamsFormatMods:
+	case Mods:
 		return true
-	case GetItemParamsFormatRdfBibliontology:
+	case RdfBibliontology:
 		return true
-	case GetItemParamsFormatRdfDc:
+	case RdfDc:
 		return true
-	case GetItemParamsFormatRdfZotero:
+	case RdfZotero:
 		return true
-	case GetItemParamsFormatRefer:
+	case Refer:
 		return true
-	case GetItemParamsFormatRis:
+	case Ris:
 		return true
-	case GetItemParamsFormatTei:
+	case Tei:
 		return true
-	case GetItemParamsFormatVersions:
+	case Versions:
 		return true
-	case GetItemParamsFormatWikipedia:
+	case Wikipedia:
 		return true
 	default:
 		return false
@@ -522,13 +855,13 @@ func (e GetItemParamsFormat) Valid() bool {
 
 // Defines values for UploadFileParamsIfNoneMatch.
 const (
-	Asterisk UploadFileParamsIfNoneMatch = "*"
+	UploadFileParamsIfNoneMatchAsterisk UploadFileParamsIfNoneMatch = "*"
 )
 
 // Valid indicates whether the value is a known member of the UploadFileParamsIfNoneMatch enum.
 func (e UploadFileParamsIfNoneMatch) Valid() bool {
 	switch e {
-	case Asterisk:
+	case UploadFileParamsIfNoneMatchAsterisk:
 		return true
 	default:
 		return false
@@ -631,6 +964,73 @@ type Fulltext struct {
 	TotalPages           *int                   `json:"totalPages,omitempty"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
+
+// Group A Zotero group library as returned by `GET /users/{userID}/groups`.
+// Mirrors the Item wrapper shape — `id` + `version` at the top level,
+// bibliographic-style payload under `data`.
+type Group struct {
+	// Data The mutable group-library payload.
+	Data GroupData `json:"data"`
+
+	// Id Numeric Zotero group ID (use for `/groups/{groupID}/…` paths).
+	Id int `json:"id"`
+
+	// Links HATEOAS links (self, alternate).
+	Links *map[string]interface{} `json:"links,omitempty"`
+
+	// Meta Computed group metadata.
+	Meta *Group_Meta `json:"meta,omitempty"`
+
+	// Version Group object version (monotonic).
+	Version              int                    `json:"version"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// Group_Meta Computed group metadata.
+type Group_Meta struct {
+	Created              *string                `json:"created,omitempty"`
+	LastModified         *string                `json:"lastModified,omitempty"`
+	NumItems             *int                   `json:"numItems,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// GroupData The mutable group-library payload.
+type GroupData struct {
+	Description *string               `json:"description,omitempty"`
+	FileEditing *GroupDataFileEditing `json:"fileEditing,omitempty"`
+
+	// HasImage 0 or 1 — whether the group has a custom image.
+	HasImage *int `json:"hasImage,omitempty"`
+
+	// Id Numeric group ID (duplicated from the wrapper).
+	Id             int                      `json:"id"`
+	LibraryEditing *GroupDataLibraryEditing `json:"libraryEditing,omitempty"`
+	LibraryReading *GroupDataLibraryReading `json:"libraryReading,omitempty"`
+
+	// Name Human-readable group name.
+	Name string `json:"name"`
+
+	// Owner Numeric userID of the group owner.
+	Owner int `json:"owner"`
+
+	// Type Group visibility.
+	Type                 GroupDataType          `json:"type"`
+	Url                  *string                `json:"url,omitempty"`
+	Version              *int                   `json:"version,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// GroupDataFileEditing defines model for GroupData.FileEditing.
+type GroupDataFileEditing string
+
+// GroupDataLibraryEditing defines model for GroupData.LibraryEditing.
+type GroupDataLibraryEditing string
+
+// GroupDataLibraryReading defines model for GroupData.LibraryReading.
+type GroupDataLibraryReading string
+
+// GroupDataType Group visibility.
+type GroupDataType string
 
 // Item A wrapped item as returned by GET endpoints. The bibliographic payload
 // lives in `data`; the outer object carries library, links, and meta info.
@@ -983,6 +1383,9 @@ type Direction string
 // Format defines model for format.
 type Format string
 
+// GroupID defines model for groupID.
+type GroupID = int
+
 // IfUnmodifiedSinceVersion defines model for ifUnmodifiedSinceVersion.
 type IfUnmodifiedSinceVersion = int
 
@@ -1024,6 +1427,304 @@ type UserID = int
 
 // WriteToken defines model for writeToken.
 type WriteToken = string
+
+// DeleteCollectionsGroupParams defines parameters for DeleteCollectionsGroup.
+type DeleteCollectionsGroupParams struct {
+	// CollectionKey Comma-separated list of up to 50 collection keys.
+	CollectionKey string `form:"collectionKey" json:"collectionKey"`
+
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
+// ListCollectionsGroupParams defines parameters for ListCollectionsGroup.
+type ListCollectionsGroupParams struct {
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// CreateOrUpdateCollectionsGroupJSONBody defines parameters for CreateOrUpdateCollectionsGroup.
+type CreateOrUpdateCollectionsGroupJSONBody = []CollectionData
+
+// CreateOrUpdateCollectionsGroupParams defines parameters for CreateOrUpdateCollectionsGroup.
+type CreateOrUpdateCollectionsGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+
+	// ZoteroWriteToken Random 32-character token used for idempotency on multi-object writes
+	// that don't carry per-object versions (pure creates). Zotero caches the
+	// token for 12 hours — repeated submissions with the same token return
+	// the original result without duplicating the write.
+	ZoteroWriteToken *WriteToken `json:"Zotero-Write-Token,omitempty"`
+}
+
+// ListTopCollectionsGroupParams defines parameters for ListTopCollectionsGroup.
+type ListTopCollectionsGroupParams struct {
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// DeleteCollectionGroupParams defines parameters for DeleteCollectionGroup.
+type DeleteCollectionGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
+// UpdateCollectionGroupParams defines parameters for UpdateCollectionGroup.
+type UpdateCollectionGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
+// ListSubCollectionsGroupParams defines parameters for ListSubCollectionsGroup.
+type ListSubCollectionsGroupParams struct {
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListCollectionItemsGroupParams defines parameters for ListCollectionItemsGroup.
+type ListCollectionItemsGroupParams struct {
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// DeleteItemsGroupParams defines parameters for DeleteItemsGroup.
+type DeleteItemsGroupParams struct {
+	// ItemKey Comma-separated list of up to 50 item keys to delete.
+	ItemKey string `form:"itemKey" json:"itemKey"`
+
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
+// ListItemsGroupParams defines parameters for ListItemsGroup.
+type ListItemsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode:
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	Qmode *ListItemsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
+	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
+
+	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
+	// `creator`, `date`, `itemType`.
+	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListItemsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped item objects.
+	// `keys`/`versions` return lightweight lists. Export formats convert the
+	// items in-place and return a different content type.
+	Format *ListItemsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item.
+	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+}
+
+// ListItemsGroupParamsQmode defines parameters for ListItemsGroup.
+type ListItemsGroupParamsQmode string
+
+// ListItemsGroupParamsDirection defines parameters for ListItemsGroup.
+type ListItemsGroupParamsDirection string
+
+// ListItemsGroupParamsFormat defines parameters for ListItemsGroup.
+type ListItemsGroupParamsFormat string
+
+// CreateOrUpdateItemsGroupJSONBody defines parameters for CreateOrUpdateItemsGroup.
+type CreateOrUpdateItemsGroupJSONBody = []ItemData
+
+// CreateOrUpdateItemsGroupParams defines parameters for CreateOrUpdateItemsGroup.
+type CreateOrUpdateItemsGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+
+	// ZoteroWriteToken Random 32-character token used for idempotency on multi-object writes
+	// that don't carry per-object versions (pure creates). Zotero caches the
+	// token for 12 hours — repeated submissions with the same token return
+	// the original result without duplicating the write.
+	ZoteroWriteToken *WriteToken `json:"Zotero-Write-Token,omitempty"`
+}
+
+// ListTopItemsGroupParams defines parameters for ListTopItemsGroup.
+type ListTopItemsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
+	// `creator`, `date`, `itemType`.
+	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTopItemsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped item objects.
+	// `keys`/`versions` return lightweight lists. Export formats convert the
+	// items in-place and return a different content type.
+	Format *ListTopItemsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item.
+	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+}
+
+// ListTopItemsGroupParamsDirection defines parameters for ListTopItemsGroup.
+type ListTopItemsGroupParamsDirection string
+
+// ListTopItemsGroupParamsFormat defines parameters for ListTopItemsGroup.
+type ListTopItemsGroupParamsFormat string
+
+// ListTrashedItemsGroupParams defines parameters for ListTrashedItemsGroup.
+type ListTrashedItemsGroupParams struct {
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// DeleteItemGroupParams defines parameters for DeleteItemGroup.
+type DeleteItemGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
+// GetItemGroupParams defines parameters for GetItemGroup.
+type GetItemGroupParams struct {
+	// Format Response format. `json` (default) returns wrapped item objects.
+	// `keys`/`versions` return lightweight lists. Export formats convert the
+	// items in-place and return a different content type.
+	Format *GetItemGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item.
+	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+}
+
+// GetItemGroupParamsFormat defines parameters for GetItemGroup.
+type GetItemGroupParamsFormat string
+
+// UpdateItemGroupParams defines parameters for UpdateItemGroup.
+type UpdateItemGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
+// GetItemChildrenGroupParams defines parameters for GetItemChildrenGroup.
+type GetItemChildrenGroupParams struct {
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// UploadFileGroupFormdataBody defines parameters for UploadFileGroup.
+type UploadFileGroupFormdataBody struct {
+	union json.RawMessage
+}
+
+// UploadFileGroupParams defines parameters for UploadFileGroup.
+type UploadFileGroupParams struct {
+	// IfNoneMatch Set to `*` for new uploads or registering an upload.
+	IfNoneMatch *UploadFileGroupParamsIfNoneMatch `json:"If-None-Match,omitempty"`
+
+	// IfMatch MD5 of the file being replaced.
+	IfMatch *string `json:"If-Match,omitempty"`
+}
+
+// UploadFileGroupParamsIfNoneMatch defines parameters for UploadFileGroup.
+type UploadFileGroupParamsIfNoneMatch string
+
+// DeleteTagsGroupParams defines parameters for DeleteTagsGroup.
+type DeleteTagsGroupParams struct {
+	// Tag Pipe-separated list of up to 50 tags to delete from the library.
+	// Example: `tag=obsolete%20%7C%7C%20draft`.
+	Tag string `form:"tag" json:"tag"`
+
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
+// ListTagsGroupParams defines parameters for ListTagsGroup.
+type ListTagsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
 
 // DeleteCollectionsParams defines parameters for DeleteCollections.
 type DeleteCollectionsParams struct {
@@ -1322,6 +2023,24 @@ type ListTagsParams struct {
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 }
+
+// CreateOrUpdateCollectionsGroupJSONRequestBody defines body for CreateOrUpdateCollectionsGroup for application/json ContentType.
+type CreateOrUpdateCollectionsGroupJSONRequestBody = CreateOrUpdateCollectionsGroupJSONBody
+
+// UpdateCollectionGroupJSONRequestBody defines body for UpdateCollectionGroup for application/json ContentType.
+type UpdateCollectionGroupJSONRequestBody = CollectionData
+
+// CreateOrUpdateItemsGroupJSONRequestBody defines body for CreateOrUpdateItemsGroup for application/json ContentType.
+type CreateOrUpdateItemsGroupJSONRequestBody = CreateOrUpdateItemsGroupJSONBody
+
+// UpdateItemGroupJSONRequestBody defines body for UpdateItemGroup for application/json ContentType.
+type UpdateItemGroupJSONRequestBody = ItemData
+
+// UploadFileGroupFormdataRequestBody defines body for UploadFileGroup for application/x-www-form-urlencoded ContentType.
+type UploadFileGroupFormdataRequestBody UploadFileGroupFormdataBody
+
+// SetFulltextGroupJSONRequestBody defines body for SetFulltextGroup for application/json ContentType.
+type SetFulltextGroupJSONRequestBody = Fulltext
 
 // CreateOrUpdateCollectionsJSONRequestBody defines body for CreateOrUpdateCollections for application/json ContentType.
 type CreateOrUpdateCollectionsJSONRequestBody = CreateOrUpdateCollectionsJSONBody
@@ -1799,6 +2518,436 @@ func (a Fulltext) MarshalJSON() ([]byte, error) {
 		object["totalPages"], err = json.Marshal(a.TotalPages)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling 'totalPages': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for Group. Returns the specified
+// element and whether it was found
+func (a Group) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for Group
+func (a *Group) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for Group to handle AdditionalProperties
+func (a *Group) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["data"]; found {
+		err = json.Unmarshal(raw, &a.Data)
+		if err != nil {
+			return fmt.Errorf("error reading 'data': %w", err)
+		}
+		delete(object, "data")
+	}
+
+	if raw, found := object["id"]; found {
+		err = json.Unmarshal(raw, &a.Id)
+		if err != nil {
+			return fmt.Errorf("error reading 'id': %w", err)
+		}
+		delete(object, "id")
+	}
+
+	if raw, found := object["links"]; found {
+		err = json.Unmarshal(raw, &a.Links)
+		if err != nil {
+			return fmt.Errorf("error reading 'links': %w", err)
+		}
+		delete(object, "links")
+	}
+
+	if raw, found := object["meta"]; found {
+		err = json.Unmarshal(raw, &a.Meta)
+		if err != nil {
+			return fmt.Errorf("error reading 'meta': %w", err)
+		}
+		delete(object, "meta")
+	}
+
+	if raw, found := object["version"]; found {
+		err = json.Unmarshal(raw, &a.Version)
+		if err != nil {
+			return fmt.Errorf("error reading 'version': %w", err)
+		}
+		delete(object, "version")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for Group to handle AdditionalProperties
+func (a Group) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	object["data"], err = json.Marshal(a.Data)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'data': %w", err)
+	}
+
+	object["id"], err = json.Marshal(a.Id)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'id': %w", err)
+	}
+
+	if a.Links != nil {
+		object["links"], err = json.Marshal(a.Links)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'links': %w", err)
+		}
+	}
+
+	if a.Meta != nil {
+		object["meta"], err = json.Marshal(a.Meta)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'meta': %w", err)
+		}
+	}
+
+	object["version"], err = json.Marshal(a.Version)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'version': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for Group_Meta. Returns the specified
+// element and whether it was found
+func (a Group_Meta) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for Group_Meta
+func (a *Group_Meta) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for Group_Meta to handle AdditionalProperties
+func (a *Group_Meta) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["created"]; found {
+		err = json.Unmarshal(raw, &a.Created)
+		if err != nil {
+			return fmt.Errorf("error reading 'created': %w", err)
+		}
+		delete(object, "created")
+	}
+
+	if raw, found := object["lastModified"]; found {
+		err = json.Unmarshal(raw, &a.LastModified)
+		if err != nil {
+			return fmt.Errorf("error reading 'lastModified': %w", err)
+		}
+		delete(object, "lastModified")
+	}
+
+	if raw, found := object["numItems"]; found {
+		err = json.Unmarshal(raw, &a.NumItems)
+		if err != nil {
+			return fmt.Errorf("error reading 'numItems': %w", err)
+		}
+		delete(object, "numItems")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for Group_Meta to handle AdditionalProperties
+func (a Group_Meta) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Created != nil {
+		object["created"], err = json.Marshal(a.Created)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'created': %w", err)
+		}
+	}
+
+	if a.LastModified != nil {
+		object["lastModified"], err = json.Marshal(a.LastModified)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'lastModified': %w", err)
+		}
+	}
+
+	if a.NumItems != nil {
+		object["numItems"], err = json.Marshal(a.NumItems)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'numItems': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for GroupData. Returns the specified
+// element and whether it was found
+func (a GroupData) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for GroupData
+func (a *GroupData) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for GroupData to handle AdditionalProperties
+func (a *GroupData) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["description"]; found {
+		err = json.Unmarshal(raw, &a.Description)
+		if err != nil {
+			return fmt.Errorf("error reading 'description': %w", err)
+		}
+		delete(object, "description")
+	}
+
+	if raw, found := object["fileEditing"]; found {
+		err = json.Unmarshal(raw, &a.FileEditing)
+		if err != nil {
+			return fmt.Errorf("error reading 'fileEditing': %w", err)
+		}
+		delete(object, "fileEditing")
+	}
+
+	if raw, found := object["hasImage"]; found {
+		err = json.Unmarshal(raw, &a.HasImage)
+		if err != nil {
+			return fmt.Errorf("error reading 'hasImage': %w", err)
+		}
+		delete(object, "hasImage")
+	}
+
+	if raw, found := object["id"]; found {
+		err = json.Unmarshal(raw, &a.Id)
+		if err != nil {
+			return fmt.Errorf("error reading 'id': %w", err)
+		}
+		delete(object, "id")
+	}
+
+	if raw, found := object["libraryEditing"]; found {
+		err = json.Unmarshal(raw, &a.LibraryEditing)
+		if err != nil {
+			return fmt.Errorf("error reading 'libraryEditing': %w", err)
+		}
+		delete(object, "libraryEditing")
+	}
+
+	if raw, found := object["libraryReading"]; found {
+		err = json.Unmarshal(raw, &a.LibraryReading)
+		if err != nil {
+			return fmt.Errorf("error reading 'libraryReading': %w", err)
+		}
+		delete(object, "libraryReading")
+	}
+
+	if raw, found := object["name"]; found {
+		err = json.Unmarshal(raw, &a.Name)
+		if err != nil {
+			return fmt.Errorf("error reading 'name': %w", err)
+		}
+		delete(object, "name")
+	}
+
+	if raw, found := object["owner"]; found {
+		err = json.Unmarshal(raw, &a.Owner)
+		if err != nil {
+			return fmt.Errorf("error reading 'owner': %w", err)
+		}
+		delete(object, "owner")
+	}
+
+	if raw, found := object["type"]; found {
+		err = json.Unmarshal(raw, &a.Type)
+		if err != nil {
+			return fmt.Errorf("error reading 'type': %w", err)
+		}
+		delete(object, "type")
+	}
+
+	if raw, found := object["url"]; found {
+		err = json.Unmarshal(raw, &a.Url)
+		if err != nil {
+			return fmt.Errorf("error reading 'url': %w", err)
+		}
+		delete(object, "url")
+	}
+
+	if raw, found := object["version"]; found {
+		err = json.Unmarshal(raw, &a.Version)
+		if err != nil {
+			return fmt.Errorf("error reading 'version': %w", err)
+		}
+		delete(object, "version")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for GroupData to handle AdditionalProperties
+func (a GroupData) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Description != nil {
+		object["description"], err = json.Marshal(a.Description)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'description': %w", err)
+		}
+	}
+
+	if a.FileEditing != nil {
+		object["fileEditing"], err = json.Marshal(a.FileEditing)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'fileEditing': %w", err)
+		}
+	}
+
+	if a.HasImage != nil {
+		object["hasImage"], err = json.Marshal(a.HasImage)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'hasImage': %w", err)
+		}
+	}
+
+	object["id"], err = json.Marshal(a.Id)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'id': %w", err)
+	}
+
+	if a.LibraryEditing != nil {
+		object["libraryEditing"], err = json.Marshal(a.LibraryEditing)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'libraryEditing': %w", err)
+		}
+	}
+
+	if a.LibraryReading != nil {
+		object["libraryReading"], err = json.Marshal(a.LibraryReading)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'libraryReading': %w", err)
+		}
+	}
+
+	object["name"], err = json.Marshal(a.Name)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'name': %w", err)
+	}
+
+	object["owner"], err = json.Marshal(a.Owner)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'owner': %w", err)
+	}
+
+	object["type"], err = json.Marshal(a.Type)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'type': %w", err)
+	}
+
+	if a.Url != nil {
+		object["url"], err = json.Marshal(a.Url)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'url': %w", err)
+		}
+	}
+
+	if a.Version != nil {
+		object["version"], err = json.Marshal(a.Version)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'version': %w", err)
 		}
 	}
 
@@ -3412,6 +4561,90 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// DeleteCollectionsGroup request
+	DeleteCollectionsGroup(ctx context.Context, groupID GroupID, params *DeleteCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCollectionsGroup request
+	ListCollectionsGroup(ctx context.Context, groupID GroupID, params *ListCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateOrUpdateCollectionsGroupWithBody request with any body
+	CreateOrUpdateCollectionsGroupWithBody(ctx context.Context, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateOrUpdateCollectionsGroup(ctx context.Context, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, body CreateOrUpdateCollectionsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTopCollectionsGroup request
+	ListTopCollectionsGroup(ctx context.Context, groupID GroupID, params *ListTopCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteCollectionGroup request
+	DeleteCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *DeleteCollectionGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCollectionGroup request
+	GetCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateCollectionGroupWithBody request with any body
+	UpdateCollectionGroupWithBody(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, body UpdateCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSubCollectionsGroup request
+	ListSubCollectionsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCollectionItemsGroup request
+	ListCollectionItemsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteItemsGroup request
+	DeleteItemsGroup(ctx context.Context, groupID GroupID, params *DeleteItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListItemsGroup request
+	ListItemsGroup(ctx context.Context, groupID GroupID, params *ListItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateOrUpdateItemsGroupWithBody request with any body
+	CreateOrUpdateItemsGroupWithBody(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateOrUpdateItemsGroup(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, body CreateOrUpdateItemsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTopItemsGroup request
+	ListTopItemsGroup(ctx context.Context, groupID GroupID, params *ListTopItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTrashedItemsGroup request
+	ListTrashedItemsGroup(ctx context.Context, groupID GroupID, params *ListTrashedItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteItemGroup request
+	DeleteItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *DeleteItemGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemGroup request
+	GetItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateItemGroupWithBody request with any body
+	UpdateItemGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, body UpdateItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemChildrenGroup request
+	GetItemChildrenGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DownloadFileGroup request
+	DownloadFileGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UploadFileGroupWithBody request with any body
+	UploadFileGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UploadFileGroupWithFormdataBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, body UploadFileGroupFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetFulltextGroup request
+	GetFulltextGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetFulltextGroupWithBody request with any body
+	SetFulltextGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	SetFulltextGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteTagsGroup request
+	DeleteTagsGroup(ctx context.Context, groupID GroupID, params *DeleteTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTagsGroup request
+	ListTagsGroup(ctx context.Context, groupID GroupID, params *ListTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetCurrentKey request
 	GetCurrentKey(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3448,6 +4681,9 @@ type ClientInterface interface {
 
 	// ListCollectionItems request
 	ListCollectionItems(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListGroups request
+	ListGroups(ctx context.Context, userID UserID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteItems request
 	DeleteItems(ctx context.Context, userID UserID, params *DeleteItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3501,6 +4737,366 @@ type ClientInterface interface {
 
 	// ListTags request
 	ListTags(ctx context.Context, userID UserID, params *ListTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) DeleteCollectionsGroup(ctx context.Context, groupID GroupID, params *DeleteCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteCollectionsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListCollectionsGroup(ctx context.Context, groupID GroupID, params *ListCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCollectionsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateCollectionsGroupWithBody(ctx context.Context, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateCollectionsGroupRequestWithBody(c.Server, groupID, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateCollectionsGroup(ctx context.Context, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, body CreateOrUpdateCollectionsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateCollectionsGroupRequest(c.Server, groupID, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListTopCollectionsGroup(ctx context.Context, groupID GroupID, params *ListTopCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTopCollectionsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *DeleteCollectionGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteCollectionGroupRequest(c.Server, groupID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCollectionGroupRequest(c.Server, groupID, collectionKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateCollectionGroupWithBody(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateCollectionGroupRequestWithBody(c.Server, groupID, collectionKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, body UpdateCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateCollectionGroupRequest(c.Server, groupID, collectionKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListSubCollectionsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSubCollectionsGroupRequest(c.Server, groupID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListCollectionItemsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCollectionItemsGroupRequest(c.Server, groupID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteItemsGroup(ctx context.Context, groupID GroupID, params *DeleteItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteItemsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListItemsGroup(ctx context.Context, groupID GroupID, params *ListItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListItemsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateItemsGroupWithBody(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateItemsGroupRequestWithBody(c.Server, groupID, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateItemsGroup(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, body CreateOrUpdateItemsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateItemsGroupRequest(c.Server, groupID, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListTopItemsGroup(ctx context.Context, groupID GroupID, params *ListTopItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTopItemsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListTrashedItemsGroup(ctx context.Context, groupID GroupID, params *ListTrashedItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTrashedItemsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *DeleteItemGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteItemGroupRequest(c.Server, groupID, itemKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemGroupRequest(c.Server, groupID, itemKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateItemGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateItemGroupRequestWithBody(c.Server, groupID, itemKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, body UpdateItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateItemGroupRequest(c.Server, groupID, itemKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetItemChildrenGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemChildrenGroupRequest(c.Server, groupID, itemKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DownloadFileGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDownloadFileGroupRequest(c.Server, groupID, itemKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UploadFileGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUploadFileGroupRequestWithBody(c.Server, groupID, itemKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UploadFileGroupWithFormdataBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, body UploadFileGroupFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUploadFileGroupRequestWithFormdataBody(c.Server, groupID, itemKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetFulltextGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetFulltextGroupRequest(c.Server, groupID, itemKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetFulltextGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetFulltextGroupRequestWithBody(c.Server, groupID, itemKey, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SetFulltextGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetFulltextGroupRequest(c.Server, groupID, itemKey, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteTagsGroup(ctx context.Context, groupID GroupID, params *DeleteTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteTagsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListTagsGroup(ctx context.Context, groupID GroupID, params *ListTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTagsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) GetCurrentKey(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3649,6 +5245,18 @@ func (c *Client) ListSubCollections(ctx context.Context, userID UserID, collecti
 
 func (c *Client) ListCollectionItems(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCollectionItemsRequest(c.Server, userID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListGroups(ctx context.Context, userID UserID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListGroupsRequest(c.Server, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -3885,6 +5493,1896 @@ func (c *Client) ListTags(ctx context.Context, userID UserID, params *ListTagsPa
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewDeleteCollectionsGroupRequest generates requests for DeleteCollectionsGroup
+func NewDeleteCollectionsGroupRequest(server string, groupID GroupID, params *DeleteCollectionsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collectionKey", params.CollectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCollectionsGroupRequest generates requests for ListCollectionsGroup
+func NewListCollectionsGroupRequest(server string, groupID GroupID, params *ListCollectionsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateOrUpdateCollectionsGroupRequest calls the generic CreateOrUpdateCollectionsGroup builder with application/json body
+func NewCreateOrUpdateCollectionsGroupRequest(server string, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, body CreateOrUpdateCollectionsGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateOrUpdateCollectionsGroupRequestWithBody(server, groupID, params, "application/json", bodyReader)
+}
+
+// NewCreateOrUpdateCollectionsGroupRequestWithBody generates requests for CreateOrUpdateCollectionsGroup with any type of body
+func NewCreateOrUpdateCollectionsGroupRequestWithBody(server string, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+		if params.ZoteroWriteToken != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "Zotero-Write-Token", *params.ZoteroWriteToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Zotero-Write-Token", headerParam1)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListTopCollectionsGroupRequest generates requests for ListTopCollectionsGroup
+func NewListTopCollectionsGroupRequest(server string, groupID GroupID, params *ListTopCollectionsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/top", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteCollectionGroupRequest generates requests for DeleteCollectionGroup
+func NewDeleteCollectionGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *DeleteCollectionGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetCollectionGroupRequest generates requests for GetCollectionGroup
+func NewGetCollectionGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateCollectionGroupRequest calls the generic UpdateCollectionGroup builder with application/json body
+func NewUpdateCollectionGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, body UpdateCollectionGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateCollectionGroupRequestWithBody(server, groupID, collectionKey, params, "application/json", bodyReader)
+}
+
+// NewUpdateCollectionGroupRequestWithBody generates requests for UpdateCollectionGroup with any type of body
+func NewUpdateCollectionGroupRequestWithBody(server string, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListSubCollectionsGroupRequest generates requests for ListSubCollectionsGroup
+func NewListSubCollectionsGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s/collections", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListCollectionItemsGroupRequest generates requests for ListCollectionItemsGroup
+func NewListCollectionItemsGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s/items", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteItemsGroupRequest generates requests for DeleteItemsGroup
+func NewDeleteItemsGroupRequest(server string, groupID GroupID, params *DeleteItemsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListItemsGroupRequest generates requests for ListItemsGroup
+func NewListItemsGroupRequest(server string, groupID GroupID, params *ListItemsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", *params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateOrUpdateItemsGroupRequest calls the generic CreateOrUpdateItemsGroup builder with application/json body
+func NewCreateOrUpdateItemsGroupRequest(server string, groupID GroupID, params *CreateOrUpdateItemsGroupParams, body CreateOrUpdateItemsGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateOrUpdateItemsGroupRequestWithBody(server, groupID, params, "application/json", bodyReader)
+}
+
+// NewCreateOrUpdateItemsGroupRequestWithBody generates requests for CreateOrUpdateItemsGroup with any type of body
+func NewCreateOrUpdateItemsGroupRequestWithBody(server string, groupID GroupID, params *CreateOrUpdateItemsGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+		if params.ZoteroWriteToken != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "Zotero-Write-Token", *params.ZoteroWriteToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Zotero-Write-Token", headerParam1)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListTopItemsGroupRequest generates requests for ListTopItemsGroup
+func NewListTopItemsGroupRequest(server string, groupID GroupID, params *ListTopItemsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/top", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListTrashedItemsGroupRequest generates requests for ListTrashedItemsGroup
+func NewListTrashedItemsGroupRequest(server string, groupID GroupID, params *ListTrashedItemsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/trash", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteItemGroupRequest generates requests for DeleteItemGroup
+func NewDeleteItemGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath, params *DeleteItemGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetItemGroupRequest generates requests for GetItemGroup
+func NewGetItemGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath, params *GetItemGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateItemGroupRequest calls the generic UpdateItemGroup builder with application/json body
+func NewUpdateItemGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, body UpdateItemGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateItemGroupRequestWithBody(server, groupID, itemKey, params, "application/json", bodyReader)
+}
+
+// NewUpdateItemGroupRequestWithBody generates requests for UpdateItemGroup with any type of body
+func NewUpdateItemGroupRequestWithBody(server string, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetItemChildrenGroupRequest generates requests for GetItemChildrenGroup
+func NewGetItemChildrenGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s/children", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDownloadFileGroupRequest generates requests for DownloadFileGroup
+func NewDownloadFileGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s/file", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUploadFileGroupRequestWithFormdataBody calls the generic UploadFileGroup builder with application/x-www-form-urlencoded body
+func NewUploadFileGroupRequestWithFormdataBody(server string, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, body UploadFileGroupFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewUploadFileGroupRequestWithBody(server, groupID, itemKey, params, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewUploadFileGroupRequestWithBody generates requests for UploadFileGroup with any type of body
+func NewUploadFileGroupRequestWithBody(server string, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s/file", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfNoneMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-None-Match", *params.IfNoneMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-None-Match", headerParam0)
+		}
+
+		if params.IfMatch != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam1)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetFulltextGroupRequest generates requests for GetFulltextGroup
+func NewGetFulltextGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s/fulltext", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetFulltextGroupRequest calls the generic SetFulltextGroup builder with application/json body
+func NewSetFulltextGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetFulltextGroupRequestWithBody(server, groupID, itemKey, "application/json", bodyReader)
+}
+
+// NewSetFulltextGroupRequestWithBody generates requests for SetFulltextGroup with any type of body
+func NewSetFulltextGroupRequestWithBody(server string, groupID GroupID, itemKey ItemKeyPath, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s/fulltext", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteTagsGroupRequest generates requests for DeleteTagsGroup
+func NewDeleteTagsGroupRequest(server string, groupID GroupID, params *DeleteTagsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/tags", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListTagsGroupRequest generates requests for ListTagsGroup
+func NewListTagsGroupRequest(server string, groupID GroupID, params *ListTagsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/tags", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewGetCurrentKeyRequest generates requests for GetCurrentKey
@@ -4539,6 +8037,40 @@ func NewListCollectionItemsRequest(server string, userID UserID, collectionKey C
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListGroupsRequest generates requests for ListGroups
+func NewListGroupsRequest(server string, userID UserID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/groups", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -5874,6 +9406,90 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// DeleteCollectionsGroupWithResponse request
+	DeleteCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteCollectionsGroupParams, reqEditors ...RequestEditorFn) (*DeleteCollectionsGroupResponse, error)
+
+	// ListCollectionsGroupWithResponse request
+	ListCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListCollectionsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionsGroupResponse, error)
+
+	// CreateOrUpdateCollectionsGroupWithBodyWithResponse request with any body
+	CreateOrUpdateCollectionsGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateCollectionsGroupResponse, error)
+
+	CreateOrUpdateCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, body CreateOrUpdateCollectionsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateCollectionsGroupResponse, error)
+
+	// ListTopCollectionsGroupWithResponse request
+	ListTopCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTopCollectionsGroupParams, reqEditors ...RequestEditorFn) (*ListTopCollectionsGroupResponse, error)
+
+	// DeleteCollectionGroupWithResponse request
+	DeleteCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *DeleteCollectionGroupParams, reqEditors ...RequestEditorFn) (*DeleteCollectionGroupResponse, error)
+
+	// GetCollectionGroupWithResponse request
+	GetCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*GetCollectionGroupResponse, error)
+
+	// UpdateCollectionGroupWithBodyWithResponse request with any body
+	UpdateCollectionGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCollectionGroupResponse, error)
+
+	UpdateCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, body UpdateCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCollectionGroupResponse, error)
+
+	// ListSubCollectionsGroupWithResponse request
+	ListSubCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams, reqEditors ...RequestEditorFn) (*ListSubCollectionsGroupResponse, error)
+
+	// ListCollectionItemsGroupWithResponse request
+	ListCollectionItemsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionItemsGroupResponse, error)
+
+	// DeleteItemsGroupWithResponse request
+	DeleteItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteItemsGroupParams, reqEditors ...RequestEditorFn) (*DeleteItemsGroupResponse, error)
+
+	// ListItemsGroupWithResponse request
+	ListItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListItemsGroupParams, reqEditors ...RequestEditorFn) (*ListItemsGroupResponse, error)
+
+	// CreateOrUpdateItemsGroupWithBodyWithResponse request with any body
+	CreateOrUpdateItemsGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateItemsGroupResponse, error)
+
+	CreateOrUpdateItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, body CreateOrUpdateItemsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateItemsGroupResponse, error)
+
+	// ListTopItemsGroupWithResponse request
+	ListTopItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTopItemsGroupParams, reqEditors ...RequestEditorFn) (*ListTopItemsGroupResponse, error)
+
+	// ListTrashedItemsGroupWithResponse request
+	ListTrashedItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTrashedItemsGroupParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsGroupResponse, error)
+
+	// DeleteItemGroupWithResponse request
+	DeleteItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *DeleteItemGroupParams, reqEditors ...RequestEditorFn) (*DeleteItemGroupResponse, error)
+
+	// GetItemGroupWithResponse request
+	GetItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemGroupParams, reqEditors ...RequestEditorFn) (*GetItemGroupResponse, error)
+
+	// UpdateItemGroupWithBodyWithResponse request with any body
+	UpdateItemGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateItemGroupResponse, error)
+
+	UpdateItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, body UpdateItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateItemGroupResponse, error)
+
+	// GetItemChildrenGroupWithResponse request
+	GetItemChildrenGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams, reqEditors ...RequestEditorFn) (*GetItemChildrenGroupResponse, error)
+
+	// DownloadFileGroupWithResponse request
+	DownloadFileGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*DownloadFileGroupResponse, error)
+
+	// UploadFileGroupWithBodyWithResponse request with any body
+	UploadFileGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadFileGroupResponse, error)
+
+	UploadFileGroupWithFormdataBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, body UploadFileGroupFormdataRequestBody, reqEditors ...RequestEditorFn) (*UploadFileGroupResponse, error)
+
+	// GetFulltextGroupWithResponse request
+	GetFulltextGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*GetFulltextGroupResponse, error)
+
+	// SetFulltextGroupWithBodyWithResponse request with any body
+	SetFulltextGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetFulltextGroupResponse, error)
+
+	SetFulltextGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*SetFulltextGroupResponse, error)
+
+	// DeleteTagsGroupWithResponse request
+	DeleteTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteTagsGroupParams, reqEditors ...RequestEditorFn) (*DeleteTagsGroupResponse, error)
+
+	// ListTagsGroupWithResponse request
+	ListTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTagsGroupParams, reqEditors ...RequestEditorFn) (*ListTagsGroupResponse, error)
+
 	// GetCurrentKeyWithResponse request
 	GetCurrentKeyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCurrentKeyResponse, error)
 
@@ -5910,6 +9526,9 @@ type ClientWithResponsesInterface interface {
 
 	// ListCollectionItemsWithResponse request
 	ListCollectionItemsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsParams, reqEditors ...RequestEditorFn) (*ListCollectionItemsResponse, error)
+
+	// ListGroupsWithResponse request
+	ListGroupsWithResponse(ctx context.Context, userID UserID, reqEditors ...RequestEditorFn) (*ListGroupsResponse, error)
 
 	// DeleteItemsWithResponse request
 	DeleteItemsWithResponse(ctx context.Context, userID UserID, params *DeleteItemsParams, reqEditors ...RequestEditorFn) (*DeleteItemsResponse, error)
@@ -5963,6 +9582,527 @@ type ClientWithResponsesInterface interface {
 
 	// ListTagsWithResponse request
 	ListTagsWithResponse(ctx context.Context, userID UserID, params *ListTagsParams, reqEditors ...RequestEditorFn) (*ListTagsResponse, error)
+}
+
+type DeleteCollectionsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteCollectionsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteCollectionsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListCollectionsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Collection
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCollectionsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCollectionsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateOrUpdateCollectionsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MultiObjectResult
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateOrUpdateCollectionsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateOrUpdateCollectionsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListTopCollectionsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Collection
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTopCollectionsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTopCollectionsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteCollectionGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteCollectionGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteCollectionGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetCollectionGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Collection
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCollectionGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCollectionGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateCollectionGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateCollectionGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateCollectionGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListSubCollectionsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Collection
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSubCollectionsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSubCollectionsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListCollectionItemsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Item
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCollectionItemsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCollectionItemsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteItemsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteItemsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteItemsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListItemsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Item
+}
+
+// Status returns HTTPResponse.Status
+func (r ListItemsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListItemsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateOrUpdateItemsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MultiObjectResult
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateOrUpdateItemsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateOrUpdateItemsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListTopItemsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Item
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTopItemsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTopItemsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListTrashedItemsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Item
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTrashedItemsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTrashedItemsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteItemGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteItemGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteItemGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Item
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateItemGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateItemGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateItemGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemChildrenGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Item
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemChildrenGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemChildrenGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DownloadFileGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DownloadFileGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DownloadFileGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UploadFileGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		union json.RawMessage
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r UploadFileGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UploadFileGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetFulltextGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Fulltext
+}
+
+// Status returns HTTPResponse.Status
+func (r GetFulltextGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetFulltextGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SetFulltextGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r SetFulltextGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetFulltextGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteTagsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteTagsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteTagsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListTagsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTagsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTagsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type GetCurrentKeyResponse struct {
@@ -6198,6 +10338,28 @@ func (r ListCollectionItemsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListCollectionItemsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListGroupsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Group
+}
+
+// Status returns HTTPResponse.Status
+func (r ListGroupsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListGroupsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6530,6 +10692,270 @@ func (r ListTagsResponse) StatusCode() int {
 	return 0
 }
 
+// DeleteCollectionsGroupWithResponse request returning *DeleteCollectionsGroupResponse
+func (c *ClientWithResponses) DeleteCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteCollectionsGroupParams, reqEditors ...RequestEditorFn) (*DeleteCollectionsGroupResponse, error) {
+	rsp, err := c.DeleteCollectionsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteCollectionsGroupResponse(rsp)
+}
+
+// ListCollectionsGroupWithResponse request returning *ListCollectionsGroupResponse
+func (c *ClientWithResponses) ListCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListCollectionsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionsGroupResponse, error) {
+	rsp, err := c.ListCollectionsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCollectionsGroupResponse(rsp)
+}
+
+// CreateOrUpdateCollectionsGroupWithBodyWithResponse request with arbitrary body returning *CreateOrUpdateCollectionsGroupResponse
+func (c *ClientWithResponses) CreateOrUpdateCollectionsGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateCollectionsGroupResponse, error) {
+	rsp, err := c.CreateOrUpdateCollectionsGroupWithBody(ctx, groupID, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateCollectionsGroupResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateOrUpdateCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateCollectionsGroupParams, body CreateOrUpdateCollectionsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateCollectionsGroupResponse, error) {
+	rsp, err := c.CreateOrUpdateCollectionsGroup(ctx, groupID, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateCollectionsGroupResponse(rsp)
+}
+
+// ListTopCollectionsGroupWithResponse request returning *ListTopCollectionsGroupResponse
+func (c *ClientWithResponses) ListTopCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTopCollectionsGroupParams, reqEditors ...RequestEditorFn) (*ListTopCollectionsGroupResponse, error) {
+	rsp, err := c.ListTopCollectionsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTopCollectionsGroupResponse(rsp)
+}
+
+// DeleteCollectionGroupWithResponse request returning *DeleteCollectionGroupResponse
+func (c *ClientWithResponses) DeleteCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *DeleteCollectionGroupParams, reqEditors ...RequestEditorFn) (*DeleteCollectionGroupResponse, error) {
+	rsp, err := c.DeleteCollectionGroup(ctx, groupID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteCollectionGroupResponse(rsp)
+}
+
+// GetCollectionGroupWithResponse request returning *GetCollectionGroupResponse
+func (c *ClientWithResponses) GetCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*GetCollectionGroupResponse, error) {
+	rsp, err := c.GetCollectionGroup(ctx, groupID, collectionKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCollectionGroupResponse(rsp)
+}
+
+// UpdateCollectionGroupWithBodyWithResponse request with arbitrary body returning *UpdateCollectionGroupResponse
+func (c *ClientWithResponses) UpdateCollectionGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCollectionGroupResponse, error) {
+	rsp, err := c.UpdateCollectionGroupWithBody(ctx, groupID, collectionKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCollectionGroupResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, body UpdateCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCollectionGroupResponse, error) {
+	rsp, err := c.UpdateCollectionGroup(ctx, groupID, collectionKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCollectionGroupResponse(rsp)
+}
+
+// ListSubCollectionsGroupWithResponse request returning *ListSubCollectionsGroupResponse
+func (c *ClientWithResponses) ListSubCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams, reqEditors ...RequestEditorFn) (*ListSubCollectionsGroupResponse, error) {
+	rsp, err := c.ListSubCollectionsGroup(ctx, groupID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSubCollectionsGroupResponse(rsp)
+}
+
+// ListCollectionItemsGroupWithResponse request returning *ListCollectionItemsGroupResponse
+func (c *ClientWithResponses) ListCollectionItemsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionItemsGroupResponse, error) {
+	rsp, err := c.ListCollectionItemsGroup(ctx, groupID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCollectionItemsGroupResponse(rsp)
+}
+
+// DeleteItemsGroupWithResponse request returning *DeleteItemsGroupResponse
+func (c *ClientWithResponses) DeleteItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteItemsGroupParams, reqEditors ...RequestEditorFn) (*DeleteItemsGroupResponse, error) {
+	rsp, err := c.DeleteItemsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteItemsGroupResponse(rsp)
+}
+
+// ListItemsGroupWithResponse request returning *ListItemsGroupResponse
+func (c *ClientWithResponses) ListItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListItemsGroupParams, reqEditors ...RequestEditorFn) (*ListItemsGroupResponse, error) {
+	rsp, err := c.ListItemsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListItemsGroupResponse(rsp)
+}
+
+// CreateOrUpdateItemsGroupWithBodyWithResponse request with arbitrary body returning *CreateOrUpdateItemsGroupResponse
+func (c *ClientWithResponses) CreateOrUpdateItemsGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateItemsGroupResponse, error) {
+	rsp, err := c.CreateOrUpdateItemsGroupWithBody(ctx, groupID, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateItemsGroupResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateOrUpdateItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, body CreateOrUpdateItemsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateItemsGroupResponse, error) {
+	rsp, err := c.CreateOrUpdateItemsGroup(ctx, groupID, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateItemsGroupResponse(rsp)
+}
+
+// ListTopItemsGroupWithResponse request returning *ListTopItemsGroupResponse
+func (c *ClientWithResponses) ListTopItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTopItemsGroupParams, reqEditors ...RequestEditorFn) (*ListTopItemsGroupResponse, error) {
+	rsp, err := c.ListTopItemsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTopItemsGroupResponse(rsp)
+}
+
+// ListTrashedItemsGroupWithResponse request returning *ListTrashedItemsGroupResponse
+func (c *ClientWithResponses) ListTrashedItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTrashedItemsGroupParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsGroupResponse, error) {
+	rsp, err := c.ListTrashedItemsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTrashedItemsGroupResponse(rsp)
+}
+
+// DeleteItemGroupWithResponse request returning *DeleteItemGroupResponse
+func (c *ClientWithResponses) DeleteItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *DeleteItemGroupParams, reqEditors ...RequestEditorFn) (*DeleteItemGroupResponse, error) {
+	rsp, err := c.DeleteItemGroup(ctx, groupID, itemKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteItemGroupResponse(rsp)
+}
+
+// GetItemGroupWithResponse request returning *GetItemGroupResponse
+func (c *ClientWithResponses) GetItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemGroupParams, reqEditors ...RequestEditorFn) (*GetItemGroupResponse, error) {
+	rsp, err := c.GetItemGroup(ctx, groupID, itemKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemGroupResponse(rsp)
+}
+
+// UpdateItemGroupWithBodyWithResponse request with arbitrary body returning *UpdateItemGroupResponse
+func (c *ClientWithResponses) UpdateItemGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateItemGroupResponse, error) {
+	rsp, err := c.UpdateItemGroupWithBody(ctx, groupID, itemKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateItemGroupResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, body UpdateItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateItemGroupResponse, error) {
+	rsp, err := c.UpdateItemGroup(ctx, groupID, itemKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateItemGroupResponse(rsp)
+}
+
+// GetItemChildrenGroupWithResponse request returning *GetItemChildrenGroupResponse
+func (c *ClientWithResponses) GetItemChildrenGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams, reqEditors ...RequestEditorFn) (*GetItemChildrenGroupResponse, error) {
+	rsp, err := c.GetItemChildrenGroup(ctx, groupID, itemKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemChildrenGroupResponse(rsp)
+}
+
+// DownloadFileGroupWithResponse request returning *DownloadFileGroupResponse
+func (c *ClientWithResponses) DownloadFileGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*DownloadFileGroupResponse, error) {
+	rsp, err := c.DownloadFileGroup(ctx, groupID, itemKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDownloadFileGroupResponse(rsp)
+}
+
+// UploadFileGroupWithBodyWithResponse request with arbitrary body returning *UploadFileGroupResponse
+func (c *ClientWithResponses) UploadFileGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadFileGroupResponse, error) {
+	rsp, err := c.UploadFileGroupWithBody(ctx, groupID, itemKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUploadFileGroupResponse(rsp)
+}
+
+func (c *ClientWithResponses) UploadFileGroupWithFormdataBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, body UploadFileGroupFormdataRequestBody, reqEditors ...RequestEditorFn) (*UploadFileGroupResponse, error) {
+	rsp, err := c.UploadFileGroupWithFormdataBody(ctx, groupID, itemKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUploadFileGroupResponse(rsp)
+}
+
+// GetFulltextGroupWithResponse request returning *GetFulltextGroupResponse
+func (c *ClientWithResponses) GetFulltextGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*GetFulltextGroupResponse, error) {
+	rsp, err := c.GetFulltextGroup(ctx, groupID, itemKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetFulltextGroupResponse(rsp)
+}
+
+// SetFulltextGroupWithBodyWithResponse request with arbitrary body returning *SetFulltextGroupResponse
+func (c *ClientWithResponses) SetFulltextGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetFulltextGroupResponse, error) {
+	rsp, err := c.SetFulltextGroupWithBody(ctx, groupID, itemKey, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetFulltextGroupResponse(rsp)
+}
+
+func (c *ClientWithResponses) SetFulltextGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*SetFulltextGroupResponse, error) {
+	rsp, err := c.SetFulltextGroup(ctx, groupID, itemKey, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetFulltextGroupResponse(rsp)
+}
+
+// DeleteTagsGroupWithResponse request returning *DeleteTagsGroupResponse
+func (c *ClientWithResponses) DeleteTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteTagsGroupParams, reqEditors ...RequestEditorFn) (*DeleteTagsGroupResponse, error) {
+	rsp, err := c.DeleteTagsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteTagsGroupResponse(rsp)
+}
+
+// ListTagsGroupWithResponse request returning *ListTagsGroupResponse
+func (c *ClientWithResponses) ListTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTagsGroupParams, reqEditors ...RequestEditorFn) (*ListTagsGroupResponse, error) {
+	rsp, err := c.ListTagsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTagsGroupResponse(rsp)
+}
+
 // GetCurrentKeyWithResponse request returning *GetCurrentKeyResponse
 func (c *ClientWithResponses) GetCurrentKeyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCurrentKeyResponse, error) {
 	rsp, err := c.GetCurrentKey(ctx, reqEditors...)
@@ -6643,6 +11069,15 @@ func (c *ClientWithResponses) ListCollectionItemsWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseListCollectionItemsResponse(rsp)
+}
+
+// ListGroupsWithResponse request returning *ListGroupsResponse
+func (c *ClientWithResponses) ListGroupsWithResponse(ctx context.Context, userID UserID, reqEditors ...RequestEditorFn) (*ListGroupsResponse, error) {
+	rsp, err := c.ListGroups(ctx, userID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListGroupsResponse(rsp)
 }
 
 // DeleteItemsWithResponse request returning *DeleteItemsResponse
@@ -6810,6 +11245,542 @@ func (c *ClientWithResponses) ListTagsWithResponse(ctx context.Context, userID U
 		return nil, err
 	}
 	return ParseListTagsResponse(rsp)
+}
+
+// ParseDeleteCollectionsGroupResponse parses an HTTP response from a DeleteCollectionsGroupWithResponse call
+func ParseDeleteCollectionsGroupResponse(rsp *http.Response) (*DeleteCollectionsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteCollectionsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseListCollectionsGroupResponse parses an HTTP response from a ListCollectionsGroupWithResponse call
+func ParseListCollectionsGroupResponse(rsp *http.Response) (*ListCollectionsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCollectionsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Collection
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateOrUpdateCollectionsGroupResponse parses an HTTP response from a CreateOrUpdateCollectionsGroupWithResponse call
+func ParseCreateOrUpdateCollectionsGroupResponse(rsp *http.Response) (*CreateOrUpdateCollectionsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateOrUpdateCollectionsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MultiObjectResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListTopCollectionsGroupResponse parses an HTTP response from a ListTopCollectionsGroupWithResponse call
+func ParseListTopCollectionsGroupResponse(rsp *http.Response) (*ListTopCollectionsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTopCollectionsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Collection
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteCollectionGroupResponse parses an HTTP response from a DeleteCollectionGroupWithResponse call
+func ParseDeleteCollectionGroupResponse(rsp *http.Response) (*DeleteCollectionGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteCollectionGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetCollectionGroupResponse parses an HTTP response from a GetCollectionGroupWithResponse call
+func ParseGetCollectionGroupResponse(rsp *http.Response) (*GetCollectionGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCollectionGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Collection
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateCollectionGroupResponse parses an HTTP response from a UpdateCollectionGroupWithResponse call
+func ParseUpdateCollectionGroupResponse(rsp *http.Response) (*UpdateCollectionGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateCollectionGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseListSubCollectionsGroupResponse parses an HTTP response from a ListSubCollectionsGroupWithResponse call
+func ParseListSubCollectionsGroupResponse(rsp *http.Response) (*ListSubCollectionsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSubCollectionsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Collection
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCollectionItemsGroupResponse parses an HTTP response from a ListCollectionItemsGroupWithResponse call
+func ParseListCollectionItemsGroupResponse(rsp *http.Response) (*ListCollectionItemsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCollectionItemsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteItemsGroupResponse parses an HTTP response from a DeleteItemsGroupWithResponse call
+func ParseDeleteItemsGroupResponse(rsp *http.Response) (*DeleteItemsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteItemsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseListItemsGroupResponse parses an HTTP response from a ListItemsGroupWithResponse call
+func ParseListItemsGroupResponse(rsp *http.Response) (*ListItemsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListItemsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateOrUpdateItemsGroupResponse parses an HTTP response from a CreateOrUpdateItemsGroupWithResponse call
+func ParseCreateOrUpdateItemsGroupResponse(rsp *http.Response) (*CreateOrUpdateItemsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateOrUpdateItemsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MultiObjectResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListTopItemsGroupResponse parses an HTTP response from a ListTopItemsGroupWithResponse call
+func ParseListTopItemsGroupResponse(rsp *http.Response) (*ListTopItemsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTopItemsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListTrashedItemsGroupResponse parses an HTTP response from a ListTrashedItemsGroupWithResponse call
+func ParseListTrashedItemsGroupResponse(rsp *http.Response) (*ListTrashedItemsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTrashedItemsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteItemGroupResponse parses an HTTP response from a DeleteItemGroupWithResponse call
+func ParseDeleteItemGroupResponse(rsp *http.Response) (*DeleteItemGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteItemGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetItemGroupResponse parses an HTTP response from a GetItemGroupWithResponse call
+func ParseGetItemGroupResponse(rsp *http.Response) (*GetItemGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateItemGroupResponse parses an HTTP response from a UpdateItemGroupWithResponse call
+func ParseUpdateItemGroupResponse(rsp *http.Response) (*UpdateItemGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateItemGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetItemChildrenGroupResponse parses an HTTP response from a GetItemChildrenGroupWithResponse call
+func ParseGetItemChildrenGroupResponse(rsp *http.Response) (*GetItemChildrenGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemChildrenGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDownloadFileGroupResponse parses an HTTP response from a DownloadFileGroupWithResponse call
+func ParseDownloadFileGroupResponse(rsp *http.Response) (*DownloadFileGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DownloadFileGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseUploadFileGroupResponse parses an HTTP response from a UploadFileGroupWithResponse call
+func ParseUploadFileGroupResponse(rsp *http.Response) (*UploadFileGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UploadFileGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			union json.RawMessage
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetFulltextGroupResponse parses an HTTP response from a GetFulltextGroupWithResponse call
+func ParseGetFulltextGroupResponse(rsp *http.Response) (*GetFulltextGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetFulltextGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Fulltext
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetFulltextGroupResponse parses an HTTP response from a SetFulltextGroupWithResponse call
+func ParseSetFulltextGroupResponse(rsp *http.Response) (*SetFulltextGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetFulltextGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseDeleteTagsGroupResponse parses an HTTP response from a DeleteTagsGroupWithResponse call
+func ParseDeleteTagsGroupResponse(rsp *http.Response) (*DeleteTagsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteTagsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseListTagsGroupResponse parses an HTTP response from a ListTagsGroupWithResponse call
+func ParseListTagsGroupResponse(rsp *http.Response) (*ListTagsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTagsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGetCurrentKeyResponse parses an HTTP response from a GetCurrentKeyWithResponse call
@@ -7058,6 +12029,32 @@ func ParseListCollectionItemsResponse(rsp *http.Response) (*ListCollectionItemsR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListGroupsResponse parses an HTTP response from a ListGroupsWithResponse call
+func ParseListGroupsResponse(rsp *http.Response) (*ListGroupsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListGroupsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Group
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

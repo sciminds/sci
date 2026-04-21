@@ -1,6 +1,6 @@
 {"version": 2, "width": 80, "height": 24}
 [0.3, "o", "$ "]
-[0.6, "o", "zot extract ABC12345"]
+[0.6, "o", "zot --library personal extract ABC12345"]
 [1.0, "o", "\r\n"]
 [1.4, "o", "  \u001b[90m\u25cf\u001b[m resolving PDF for ABC12345\u2026\r\n"]
 [1.8, "o", "  \u001b[32m\u2713\u001b[m found wei-2022-emergent.pdf  \u001b[90m(14 pages, 3.2 MB)\u001b[m\r\n"]
@@ -12,7 +12,7 @@
 [6.9, "o", "  \u001b[90m\u25cf\u001b[m posting child note to Zotero\u2026\r\n"]
 [7.4, "o", "  \u001b[32m\u2713\u001b[m created note NOTE0001 on ABC12345\r\n"]
 [8.3, "o", "$ "]
-[8.6, "o", "zot extract ABC12345 --out ./extracted"]
+[8.6, "o", "zot --library personal extract ABC12345 --out ./extracted"]
 [9.1, "o", "\r\n"]
 [9.5, "o", "  \u001b[32m\u2713\u001b[m wrote ./extracted/ABC12345/\r\n"]
 [9.6, "o", "    \u001b[90m\u00b7\u001b[m wei-2022-emergent.md       \u001b[90m18 kB\u001b[m\r\n"]

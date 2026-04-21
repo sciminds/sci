@@ -59,7 +59,7 @@ for that.`,
 				Local:       true,
 			},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// StringSliceFlag + per-check validation. We parse ourselves
 			// so unknown names fail before touching the DB.
 			raw := cmd.StringSlice("check")
@@ -77,7 +77,7 @@ for that.`,
 					checks = append(checks, name)
 				}
 			}
-			cfg, db, err := openLocalDB()
+			cfg, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}

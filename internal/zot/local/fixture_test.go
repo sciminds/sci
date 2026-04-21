@@ -68,6 +68,7 @@ func seedFixture(dir string) error {
 	ddl := []string{
 		`CREATE TABLE version (schema TEXT PRIMARY KEY, version INTEGER)`,
 		`CREATE TABLE libraries (libraryID INTEGER PRIMARY KEY, type TEXT, version INTEGER)`,
+		`CREATE TABLE groups (libraryID INTEGER PRIMARY KEY, groupID INTEGER UNIQUE, name TEXT)`,
 		`CREATE TABLE itemTypes (itemTypeID INTEGER PRIMARY KEY, typeName TEXT UNIQUE)`,
 		`CREATE TABLE fields (fieldID INTEGER PRIMARY KEY, fieldName TEXT UNIQUE)`,
 		`CREATE TABLE itemDataValues (valueID INTEGER PRIMARY KEY, value TEXT UNIQUE)`,
@@ -144,7 +145,11 @@ func seedFixture(dir string) error {
 	// Seed data.
 	seed := []string{
 		`INSERT INTO version VALUES ('userdata', 125)`,
-		`INSERT INTO libraries VALUES (1, 'user', 1000)`,
+		`INSERT INTO libraries VALUES (1, 'user', 1000), (2, 'group', 500)`,
+		// Group membership — local libraryID=2 corresponds to the Zotero
+		// Web API groupID 6506098 (sciminds in the real install). Used by
+		// ForGroupByAPIID when the CLI --library shared flag is passed.
+		`INSERT INTO groups VALUES (2, 6506098, 'sciminds')`,
 
 		`INSERT INTO itemTypes VALUES (1,'journalArticle'),(2,'book'),(3,'attachment'),(4,'note'),(5,'conferencePaper')`,
 
@@ -173,7 +178,11 @@ func seedFixture(dir string) error {
 			(70, 4, 1, 'ORPHNNOTE', 1, '2024-05-02 10:00:00', '2024-05-02 10:00:00', '2024-05-02 10:00:00'),
 			(80, 1, 1, 'GGGG7777', 5,  '2024-06-01 10:00:00', '2024-06-01 10:00:00', '2024-06-01 10:00:00'),
 			(81, 3, 1, 'HHHH8888', 4,  '2024-06-01 10:05:00', '2024-06-01 10:05:00', '2024-06-01 10:05:00'),
-			(90, 4, 1, 'NOTECH10', 6,  '2024-01-02 10:00:00', '2024-01-02 10:00:00', '2024-01-02 10:00:00')`,
+			(90, 4, 1, 'NOTECH10', 6,  '2024-01-02 10:00:00', '2024-01-02 10:00:00', '2024-01-02 10:00:00'),
+			-- Group-library items (libraryID=2) seed the dual-scope tests.
+			-- Keys use a distinct prefix so leak assertions are easy to read.
+			(200, 1, 2, 'GRPITEM01', 1, '2024-07-01 10:00:00', '2024-07-01 10:00:00', '2024-07-01 10:00:00'),
+			(210, 1, 2, 'GRPITEM02', 1, '2024-07-02 10:00:00', '2024-07-02 10:00:00', '2024-07-02 10:00:00')`,
 
 		// Item 50 is trashed.
 		`INSERT INTO deletedItems VALUES (50)`,
@@ -196,7 +205,9 @@ func seedFixture(dir string) error {
 			(12,'smith2024-deeplearneur-AAAA1111'),
 			(13,'jonesTransformersFMRIAnalysis2024'),
 			(14,'tldr: loose note\nCitation Key: legacyBookKey1900\n'),
-			(15,'Attention Mechanisms in Cortical Networks')`,
+			(15,'Attention Mechanisms in Cortical Networks'),
+			(100,'Shared Paper One'),
+			(101,'Shared Paper Two')`,
 
 		// Item 10 (journalArticle): title, date, DOI, pub, url, abstract,
 		// plus a native citationKey matching our v2 spec (canonical).
@@ -209,7 +220,10 @@ func seedFixture(dir string) error {
 			(10,1,1),(10,2,4),(10,3,6),(10,4,8),(10,5,11),(10,6,10),(10,7,12),
 			(20,1,3),(20,2,4),(20,4,8),(20,7,13),
 			(30,1,2),(30,2,5),(30,8,14),
-			(80,1,15),(80,2,5)`,
+			(80,1,15),(80,2,5),
+			-- Group-library item titles.
+			(200,1,100),
+			(210,1,101)`,
 
 		`INSERT INTO itemCreators VALUES
 			(10,1,1,0),

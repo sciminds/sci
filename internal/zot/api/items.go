@@ -58,14 +58,14 @@ func (e *VersionConflictError) Error() string {
 // Returns the server-assigned key.
 func (c *Client) CreateItem(ctx context.Context, data client.ItemData) (string, error) {
 	body := []client.ItemData{data}
-	resp, err := c.Gen.CreateOrUpdateItemsWithResponse(ctx, c.UserID, &client.CreateOrUpdateItemsParams{}, body)
+	status, statusLine, respBody, err := c.createOrUpdateItems(ctx, body)
 	if err != nil {
 		return "", err
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return "", fmt.Errorf("POST /items: %s: %s", resp.Status(), string(resp.Body))
+	if status != http.StatusOK {
+		return "", fmt.Errorf("POST /items: %s: %s", statusLine, string(respBody))
 	}
-	mor, err := decodeMultiObject(resp.Body)
+	mor, err := decodeMultiObject(respBody)
 	if err != nil {
 		return "", err
 	}
@@ -87,20 +87,32 @@ func (c *Client) CreateItem(ctx context.Context, data client.ItemData) (string, 
 // getItemRaw fetches an item by key and returns its parsed form + version.
 // Used internally for 412 version-retry and to fill in ItemType on patches.
 func (c *Client) getItemRaw(ctx context.Context, key string) (*client.Item, error) {
-	resp, err := c.Gen.GetItemWithResponse(ctx, c.UserID, client.ItemKeyPath(key), nil)
-	if err != nil {
-		return nil, err
+	var status int
+	var statusLine string
+	var json200 *client.Item
+	if c.isShared() {
+		r, err := c.Gen.GetItemGroupWithResponse(ctx, c.GroupID(), client.ItemKeyPath(key), nil)
+		if err != nil {
+			return nil, err
+		}
+		status, statusLine, json200 = r.StatusCode(), r.Status(), r.JSON200
+	} else {
+		r, err := c.Gen.GetItemWithResponse(ctx, c.UserID, client.ItemKeyPath(key), nil)
+		if err != nil {
+			return nil, err
+		}
+		status, statusLine, json200 = r.StatusCode(), r.Status(), r.JSON200
 	}
-	if resp.StatusCode() == http.StatusNotFound {
+	if status == http.StatusNotFound {
 		return nil, fmt.Errorf("item %s not found", key)
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("GET /items/%s: %s", key, resp.Status())
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("GET /items/%s: %s", key, statusLine)
 	}
-	if resp.JSON200 == nil {
+	if json200 == nil {
 		return nil, fmt.Errorf("GET /items/%s: empty body", key)
 	}
-	return resp.JSON200, nil
+	return json200, nil
 }
 
 // UpdateItem patches a single item by key. The patch should contain only
@@ -132,17 +144,17 @@ func (c *Client) UpdateItem(ctx context.Context, key string, patch client.ItemDa
 		k := key
 		patch.Key = &k
 		patch.Version = &ver
-		resp, err := c.Gen.UpdateItemWithResponse(ctx, c.UserID, client.ItemKeyPath(key), &client.UpdateItemParams{}, patch)
+		status, statusLine, body, err := c.updateItem(ctx, key, patch)
 		if err != nil {
 			return err
 		}
-		switch resp.StatusCode() {
+		switch status {
 		case http.StatusNoContent, http.StatusOK:
 			return nil
 		case http.StatusPreconditionFailed:
 			return &VersionConflictError{Path: "/items/" + key}
 		default:
-			return fmt.Errorf("PATCH /items/%s: %s: %s", key, resp.Status(), string(resp.Body))
+			return fmt.Errorf("PATCH /items/%s: %s: %s", key, statusLine, string(body))
 		}
 	}
 
@@ -163,20 +175,17 @@ func (c *Client) TrashItem(ctx context.Context, key string) error {
 			return it.Version, nil
 		},
 		func(ver int) error {
-			params := &client.DeleteItemParams{
-				IfUnmodifiedSinceVersion: (*client.IfUnmodifiedSinceVersion)(&ver),
-			}
-			resp, err := c.Gen.DeleteItemWithResponse(ctx, c.UserID, client.ItemKeyPath(key), params)
+			status, statusLine, err := c.deleteItem(ctx, key, ver)
 			if err != nil {
 				return err
 			}
-			switch resp.StatusCode() {
+			switch status {
 			case http.StatusNoContent:
 				return nil
 			case http.StatusPreconditionFailed:
 				return &VersionConflictError{Path: "/items/" + key}
 			default:
-				return fmt.Errorf("DELETE /items/%s: %s", key, resp.Status())
+				return fmt.Errorf("DELETE /items/%s: %s", key, statusLine)
 			}
 		},
 	)
@@ -366,14 +375,14 @@ func (c *Client) UpdateItemsBatch(ctx context.Context, patches []ItemPatch) (map
 			bodies := lo.Map(slice, func(b built, _ int) client.ItemData {
 				return b.body
 			})
-			resp, err := c.Gen.CreateOrUpdateItemsWithResponse(ctx, c.UserID, &client.CreateOrUpdateItemsParams{}, bodies)
+			status, statusLine, respBody, err := c.createOrUpdateItems(ctx, bodies)
 			if err != nil {
 				return nil, err
 			}
-			if resp.StatusCode() != http.StatusOK {
-				return nil, fmt.Errorf("POST /items: %s: %s", resp.Status(), string(resp.Body))
+			if status != http.StatusOK {
+				return nil, fmt.Errorf("POST /items: %s: %s", statusLine, string(respBody))
 			}
-			mor, err := decodeMultiObject(resp.Body)
+			mor, err := decodeMultiObject(respBody)
 			if err != nil {
 				return nil, err
 			}

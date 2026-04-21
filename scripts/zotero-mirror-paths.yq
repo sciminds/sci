@@ -1,0 +1,21 @@
+(.paths | with_entries(
+  select(
+    (.key | test("^/users/\{userID\}"))
+    and (.key != "/users/{userID}/groups")
+  )
+  | .key |= sub("^/users/\{userID\}"; "/groups/{groupID}")
+  | .value |= (
+      (.. | select(tag == "!!map" and has("operationId")).operationId) |= . + "Group"
+    )
+  | .value |= (
+      (.. | select(tag == "!!map" and has("$ref"))."$ref") |= sub("parameters/userID"; "parameters/groupID")
+    )
+)) as $group_paths |
+.paths = .paths * $group_paths |
+.components.parameters.groupID = {
+  "name": "groupID",
+  "in": "path",
+  "required": true,
+  "description": "Numeric Zotero group ID.",
+  "schema": {"type": "integer"}
+}

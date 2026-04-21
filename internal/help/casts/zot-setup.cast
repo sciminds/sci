@@ -1,6 +1,6 @@
 {"version": 2, "width": 80, "height": 24}
 [0.3, "o", "$ "]
-[0.6, "o", "zot setup --api zXXXXXXXXXXXXXXXXXXXXXXXX --library 1234567"]
+[0.6, "o", "zot setup --api zXXXXXXXXXXXXXXXXXXXXXXXX --user-id 1234567"]
 [1.0, "o", "\r\n"]
 [1.4, "o", "  \u001b[32m✓\u001b[m setup complete\r\n"]
 [1.5, "o", "    \u001b[90mlibrary:\u001b[m  1234567\r\n"]

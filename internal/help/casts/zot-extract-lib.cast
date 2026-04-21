@@ -1,6 +1,6 @@
 {"version": 2, "width": 80, "height": 24}
 [0.3, "o", "$ "]
-[0.6, "o", "zot extract-lib --collection \"LLM Survey\""]
+[0.6, "o", "zot --library personal extract-lib --collection \"LLM Survey\""]
 [1.2, "o", "\r\n"]
 [1.5, "o", "  \u001b[90m\u25cf\u001b[m scanning collection \u201cLLM Survey\u201d\u2026\r\n"]
 [2.0, "o", "  \u001b[32m\u2713\u001b[m 24 items with PDFs  \u001b[90m(3 already extracted, 21 to process)\u001b[m\r\n"]

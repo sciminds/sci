@@ -34,21 +34,21 @@ type ChildItem struct {
 // does NOT filter by itemType; callers that only want notes should
 // prefer ListNoteChildren for the narrower typed return.
 func (c *Client) ListChildren(ctx context.Context, parentKey string) ([]ChildItem, error) {
-	resp, err := c.Gen.GetItemChildrenWithResponse(ctx, c.UserID, client.ItemKeyPath(parentKey), nil)
+	status, statusLine, respBody, json200, err := c.getItemChildren(ctx, parentKey)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode() == http.StatusNotFound {
+	if status == http.StatusNotFound {
 		return nil, fmt.Errorf("parent item %s not found", parentKey)
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("GET /items/%s/children: %s: %s", parentKey, resp.Status(), string(resp.Body))
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("GET /items/%s/children: %s: %s", parentKey, statusLine, string(respBody))
 	}
-	if resp.JSON200 == nil {
+	if json200 == nil {
 		return nil, nil
 	}
-	out := make([]ChildItem, 0, len(*resp.JSON200))
-	for _, it := range *resp.JSON200 {
+	out := make([]ChildItem, 0, len(*json200))
+	for _, it := range *json200 {
 		ci := ChildItem{
 			Key:      it.Key,
 			ItemType: string(it.Data.ItemType),
@@ -95,21 +95,21 @@ type NoteChild struct {
 // Returns an error (not an empty list) when the parent itself doesn't
 // exist, so callers can tell "no notes yet" apart from "wrong key".
 func (c *Client) ListNoteChildren(ctx context.Context, parentKey string) ([]NoteChild, error) {
-	resp, err := c.Gen.GetItemChildrenWithResponse(ctx, c.UserID, client.ItemKeyPath(parentKey), nil)
+	status, statusLine, respBody, json200, err := c.getItemChildren(ctx, parentKey)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode() == http.StatusNotFound {
+	if status == http.StatusNotFound {
 		return nil, fmt.Errorf("parent item %s not found", parentKey)
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("GET /items/%s/children: %s: %s", parentKey, resp.Status(), string(resp.Body))
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("GET /items/%s/children: %s: %s", parentKey, statusLine, string(respBody))
 	}
-	if resp.JSON200 == nil {
+	if json200 == nil {
 		return nil, nil
 	}
 	var out []NoteChild
-	for _, it := range *resp.JSON200 {
+	for _, it := range *json200 {
 		if it.Data.ItemType != client.Note {
 			continue
 		}

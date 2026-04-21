@@ -17,12 +17,12 @@ func llmReadCommand() *cli.Command {
 		Usage:       "Full markdown content of notes with attribution headers",
 		Description: "$ zot llm read ABC12345 DEF67890",
 		ArgsUsage:   "<parent-key...>",
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected at least one parent item key")
 			}
 
-			_, db, err := openLocalDB()
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}

@@ -56,7 +56,7 @@ func llmQueryAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	_, db, err := openLocalDB()
+	_, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}

@@ -214,7 +214,7 @@ func TestWriteResult(t *testing.T) {
 
 func TestSetupResult(t *testing.T) {
 	t.Parallel()
-	r := SetupResult{OK: true, LibraryID: "42", DataDir: "/z", Message: "configured"}
+	r := SetupResult{OK: true, UserID: "42", DataDir: "/z", Message: "configured"}
 	out := r.Human()
 	for _, want := range []string{"configured", "42", "/z"} {
 		if !strings.Contains(out, want) {
@@ -222,7 +222,7 @@ func TestSetupResult(t *testing.T) {
 		}
 	}
 	// Failure case hides library/data dir details.
-	r = SetupResult{OK: false, LibraryID: "42", DataDir: "/z", Message: "failed"}
+	r = SetupResult{OK: false, UserID: "42", DataDir: "/z", Message: "failed"}
 	out = r.Human()
 	if !strings.Contains(out, "failed") {
 		t.Errorf("missing 'failed' in: %q", out)

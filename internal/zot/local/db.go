@@ -2,8 +2,15 @@
 //
 // The database is opened with mode=ro&immutable=1 so we neither touch the
 // WAL nor contend with the running Zotero desktop app's locks. Every query
-// is scoped to a single libraryID — by default the user's personal library
-// (libraries.type='user'), the only library sci zot currently targets.
+// is scoped to a single libraryID, chosen at Open time via a LibrarySelector:
+//
+//   - ForPersonal()             — the user's personal library (libraries.type='user')
+//   - ForGroup(sqliteLibraryID) — a specific group by its SQLite libraryID
+//   - ForGroupByAPIID(apiGroupID) — a group by its Zotero Web API groupID
+//     (joins the groups table to resolve)
+//
+// Open accepts the selector as a variadic last arg; zero selectors defaults to
+// ForPersonal() so legacy callers that predate the selector keep compiling.
 //
 // This package uses raw database/sql (not pocketbase/dbx) — a documented
 // exception alongside internal/tui/dbtui/data and internal/markdb.
@@ -37,10 +44,25 @@ type DB struct {
 	hasFTS  bool
 }
 
-// Open opens zotero.sqlite inside dataDir in immutable mode and resolves the
-// user library's libraryID. Returns an error if the file does not exist or
-// the db has no user library.
-func Open(dataDir string) (*DB, error) {
+// Open opens zotero.sqlite inside dataDir in immutable mode and resolves
+// the target libraryID via sel. If no selector is provided, Open defaults
+// to ForPersonal() so existing callers (and tests) that don't care about
+// groups keep working unchanged. Returns an error if the file does not
+// exist or the selector cannot resolve a libraryID.
+func Open(dataDir string, sel ...LibrarySelector) (*DB, error) {
+	var selector LibrarySelector
+	switch len(sel) {
+	case 0:
+		selector = ForPersonal()
+	case 1:
+		selector = sel[0]
+	default:
+		return nil, fmt.Errorf("Open accepts at most one LibrarySelector, got %d", len(sel))
+	}
+	if selector.resolve == nil {
+		return nil, fmt.Errorf("invalid LibrarySelector (zero value); use ForPersonal or ForGroup")
+	}
+
 	path := filepath.Join(dataDir, "zotero.sqlite")
 	// mode=ro forbids writes; immutable=1 tells SQLite the file will not
 	// change during the connection's lifetime, which skips WAL processing
@@ -54,14 +76,14 @@ func Open(dataDir string) (*DB, error) {
 	}
 
 	d := &DB{db: sqldb}
-	if err := d.init(); err != nil {
+	if err := d.init(selector); err != nil {
 		_ = sqldb.Close()
 		return nil, err
 	}
 	return d, nil
 }
 
-func (d *DB) init() error {
+func (d *DB) init(sel LibrarySelector) error {
 	// 1. Schema version sanity check.
 	var ver int
 	err := d.db.QueryRow("SELECT version FROM version WHERE schema='userdata'").Scan(&ver)
@@ -70,11 +92,10 @@ func (d *DB) init() error {
 	}
 	d.schemaVer = ver
 
-	// 2. Resolve the user library ID (libraries.type='user').
-	var libID int64
-	err = d.db.QueryRow("SELECT libraryID FROM libraries WHERE type='user' LIMIT 1").Scan(&libID)
+	// 2. Resolve the target library via the selector.
+	libID, err := sel.resolve(d.db)
 	if err != nil {
-		return fmt.Errorf("resolve user library ID: %w", err)
+		return err
 	}
 	d.libraryID = libID
 	return nil
@@ -83,7 +104,7 @@ func (d *DB) init() error {
 // Close releases the database handle.
 func (d *DB) Close() error { return d.db.Close() }
 
-// LibraryID returns the pinned user library ID.
+// LibraryID returns the pinned library ID selected at Open time.
 func (d *DB) LibraryID() int64 { return d.libraryID }
 
 // SchemaVersion returns the userdata schema version from the version table.

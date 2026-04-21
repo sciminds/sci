@@ -25,12 +25,12 @@ func main() {
 		Name:    "zot",
 		Usage:   "Zotero library management (reads local SQLite, writes via Web API)",
 		Version: version.Commit,
-		Flags: []cli.Flag{
+		Flags: append([]cli.Flag{
 			cmdutil.JSONFlag(&jsonOutput),
-		},
+		}, zotcli.PersistentFlags()...),
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			uikit.SetQuiet(cmdutil.IsJSON(cmd))
-			return ctx, nil
+			return zotcli.ValidateLibraryBefore(ctx, cmd)
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return cli.ShowAppHelp(cmd)

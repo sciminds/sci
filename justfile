@@ -136,6 +136,7 @@ zot-gen:
         | sd 'type: \[integer, "null"\]' 'type: integer\n          nullable: true' \
         | sd '^    tag:$' '    tagFilter:' \
         | sd '#/components/parameters/tag"' '#/components/parameters/tagFilter"' \
+        | yq eval-all "$(cat scripts/zotero-mirror-paths.yq)" - \
         > $tmp; \
     (cd internal/zot/client && oapi-codegen -config config.yaml $tmp); \
     rm -f $tmp

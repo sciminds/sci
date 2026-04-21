@@ -112,7 +112,7 @@ func runMissing(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 	}
-	_, db, err := openLocalDB()
+	_, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func runMissing(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 	}
-	w, err := requireAPIClient()
+	w, err := requireAPIClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ DOI matches subsume title matches when both fire on the same items.`,
 				Local:       true,
 			},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			strategy, err := parseStrategy(dupStrategy)
 			if err != nil {
 				return cmdutil.UsageErrorf(cmd, "%s", err.Error())
@@ -229,7 +229,7 @@ DOI matches subsume title matches when both fire on the same items.`,
 			if dupThreshold < 0 || dupThreshold > 1 {
 				return cmdutil.UsageErrorf(cmd, "--threshold must be in [0, 1]")
 			}
-			_, db, err := openLocalDB()
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -276,12 +276,12 @@ All invalid findings are graded SevWarn (citation-affecting).`,
 				Local:       true,
 			},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			fields, err := parseInvalidFieldList(invalidFields)
 			if err != nil {
 				return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 			}
-			_, db, err := openLocalDB()
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -335,12 +335,12 @@ Opt-in kinds (pass via --kind):
 				Local:       true,
 			},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			kinds, err := parseOrphanKindList(orphansKinds)
 			if err != nil {
 				return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 			}
-			cfg, db, err := openLocalDB()
+			cfg, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -439,7 +439,7 @@ to a specific Zotero key, useful for smoke-testing a single write.`,
 				return runCitekeysFix(ctx, cmd)
 			}
 			// Read-only path: unchanged from the earlier slice.
-			_, db, err := openLocalDB()
+			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -465,7 +465,7 @@ func runCitekeysFix(ctx context.Context, cmd *cli.Command) error {
 		return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 	}
 
-	_, db, err := openLocalDB()
+	_, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}
@@ -508,7 +508,7 @@ func runCitekeysFix(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	apiClient, err := requireAPIClient()
+	apiClient, err := requireAPIClient(ctx)
 	if err != nil {
 		return err
 	}

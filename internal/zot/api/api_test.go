@@ -20,7 +20,7 @@ func (f *fakeClock) now() time.Time        { return time.Unix(0, 0) }
 func (f *fakeClock) sleep(d time.Duration) { f.slept += d }
 
 func testCfg() *zot.Config {
-	return &zot.Config{APIKey: "test-key", LibraryID: "42"}
+	return &zot.Config{APIKey: "test-key", UserID: "42"}
 }
 
 func newTestClient(t *testing.T, handler http.Handler, opts ...Option) (*Client, *fakeClock) {
@@ -32,6 +32,10 @@ func newTestClient(t *testing.T, handler http.Handler, opts ...Option) (*Client,
 	all := append([]Option{
 		WithBaseURL(srv.URL),
 		WithClock(fc.now, fc.sleep),
+		// Every api.New requires a library; tests default to personal for
+		// the cfg's UserID so the generated URL is /users/42/... Callers
+		// that care about the scope pass their own WithLibrary in opts.
+		WithLibrary(zot.LibraryRef{Scope: zot.LibPersonal, APIPath: "users/42"}),
 	}, opts...)
 	c, err := New(testCfg(), all...)
 	if err != nil {

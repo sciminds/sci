@@ -198,12 +198,12 @@ commands:
         bypass: "--api"
         status: covered
 
-      - id: library-id
+      - id: user-id
         type: huh.NewInput
         nth: 2
         line: 107
-        description: "Zotero library ID"
-        bypass: "--library"
+        description: "Zotero user ID"
+        bypass: "--user-id"
         status: covered
 
       - id: data-dir

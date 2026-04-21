@@ -13,21 +13,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/adrg/xdg"
 )
 
-// Config holds Zotero credentials and library location.
+// Config holds Zotero credentials and library targets.
 //
-// OpenAlex fields are optional: populate OpenAlexEmail to opt into the
-// polite pool (~10 req/s), OpenAlexAPIKey for the premium tier (~100
-// req/s). Both empty = anonymous tier (~1 req/s).
+// A single API key backs both the user's personal library and any group
+// libraries they belong to. UserID identifies the personal library.
+// SharedGroupID + SharedGroupName identify one accessible group library
+// chosen (via setup or lazy probe) as the "shared" target surfaced by
+// --library shared. Multi-group support is a future extension.
 type Config struct {
-	APIKey         string `json:"api_key"`                    // Zotero Web API key
-	LibraryID      string `json:"library_id"`                 // numeric user ID (library owner)
-	DataDir        string `json:"data_dir"`                   // directory containing zotero.sqlite
-	OpenAlexEmail  string `json:"openalex_email,omitempty"`   // mailto for polite pool
-	OpenAlexAPIKey string `json:"openalex_api_key,omitempty"` // premium tier key
+	APIKey          string `json:"api_key"`
+	UserID          string `json:"user_id"`                     // numeric Zotero user ID
+	SharedGroupID   string `json:"shared_group_id,omitempty"`   // numeric Zotero group ID for --library shared
+	SharedGroupName string `json:"shared_group_name,omitempty"` // human-readable group name (display only)
+	DataDir         string `json:"data_dir"`
+	OpenAlexEmail   string `json:"openalex_email,omitempty"`
+	OpenAlexAPIKey  string `json:"openalex_api_key,omitempty"`
 }
 
 // ConfigPath returns the config file path under the XDG config home
@@ -72,7 +77,7 @@ func RequireConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg == nil || cfg.APIKey == "" || cfg.LibraryID == "" {
+	if cfg == nil || cfg.APIKey == "" || cfg.UserID == "" {
 		return nil, fmt.Errorf("zot not configured — run 'zot setup' or 'sci zot setup' first")
 	}
 	return cfg, nil
@@ -125,14 +130,14 @@ func ValidateDataDir(dir string) error {
 	return nil
 }
 
-// ValidateLibraryID checks that the library ID is a non-empty numeric string.
-func ValidateLibraryID(id string) error {
+// ValidateUserID checks that the user ID is a non-empty numeric string.
+func ValidateUserID(id string) error {
 	if id == "" {
-		return fmt.Errorf("library ID is required")
+		return fmt.Errorf("user ID is required")
 	}
 	for _, r := range id {
 		if r < '0' || r > '9' {
-			return fmt.Errorf("library ID must be numeric, got %q", id)
+			return fmt.Errorf("user ID must be numeric, got %q", id)
 		}
 	}
 	return nil
@@ -146,4 +151,122 @@ func ValidateAPIKey(key string) error {
 		return fmt.Errorf("API key is required")
 	}
 	return nil
+}
+
+// LibraryScope names the logical library a command targets.
+type LibraryScope string
+
+const (
+	// LibPersonal is the Zotero account holder's personal library.
+	LibPersonal LibraryScope = "personal"
+	// LibShared is the Zotero group library configured as the shared target.
+	LibShared LibraryScope = "shared"
+)
+
+// ValidLibraryScopes is the canonical list used by flag validation and
+// error messages. Keep in sync with the LibraryScope constants above.
+var ValidLibraryScopes = []LibraryScope{LibPersonal, LibShared}
+
+// ValidateLibraryScope reports whether s matches one of the known scope
+// values. Values are case-sensitive to keep flag parsing predictable.
+func ValidateLibraryScope(s string) error {
+	for _, v := range ValidLibraryScopes {
+		if s == string(v) {
+			return nil
+		}
+	}
+	names := make([]string, 0, len(ValidLibraryScopes))
+	for _, v := range ValidLibraryScopes {
+		names = append(names, string(v))
+	}
+	return fmt.Errorf("invalid library scope %q (expected one of: %s)", s, strings.Join(names, ", "))
+}
+
+// LibraryRef identifies a concrete Zotero library for one command.
+// Scope + APIPath together are sufficient to build any Web API URL;
+// LocalID selects the matching row in zotero.sqlite.
+type LibraryRef struct {
+	Scope   LibraryScope
+	APIPath string // "users/17450224" or "groups/6506098"
+	LocalID int64  // Zotero SQLite libraryID
+	Name    string // display-only ("Personal" or group name)
+}
+
+// GroupRef is a lightweight description of a Zotero group library. Used
+// by the setup auto-detect + lazy-probe flows.
+type GroupRef struct {
+	ID   string // numeric groupID as a string (stays consistent with Config.SharedGroupID)
+	Name string
+}
+
+// GroupProbeFunc fetches the list of groups an API key has access to.
+// The setup flow and ResolveWithProbe inject a real implementation
+// (api.Client.ListGroups); tests use fakes.
+type GroupProbeFunc func(apiKey, userID string) ([]GroupRef, error)
+
+// Resolve returns a LibraryRef for the given scope using only the
+// fields already in Config. Shared-scope resolution without a cached
+// SharedGroupID is an error here — use ResolveWithProbe for lazy
+// auto-detection.
+func (c *Config) Resolve(scope LibraryScope) (LibraryRef, error) {
+	switch scope {
+	case LibPersonal:
+		if c.UserID == "" {
+			return LibraryRef{}, fmt.Errorf("personal library not configured — run 'zot setup' first")
+		}
+		return LibraryRef{
+			Scope:   LibPersonal,
+			APIPath: "users/" + c.UserID,
+			Name:    "Personal",
+		}, nil
+	case LibShared:
+		if c.SharedGroupID == "" {
+			return LibraryRef{}, fmt.Errorf("shared library not configured — run 'zot setup' to auto-detect")
+		}
+		name := c.SharedGroupName
+		if name == "" {
+			name = "shared"
+		}
+		return LibraryRef{
+			Scope:   LibShared,
+			APIPath: "groups/" + c.SharedGroupID,
+			Name:    name,
+		}, nil
+	default:
+		return LibraryRef{}, fmt.Errorf("unknown library scope %q", scope)
+	}
+}
+
+// ResolveWithProbe is like Resolve but, when the requested scope is
+// LibShared and SharedGroupID is empty, it calls probe once to
+// auto-detect the account's groups. On exactly one group, it writes
+// the result back to disk (so subsequent commands stay fast) and
+// returns the ref. Zero-group and multi-group accounts error with
+// guidance.
+func (c *Config) ResolveWithProbe(scope LibraryScope, probe GroupProbeFunc) (LibraryRef, error) {
+	if scope != LibShared || c.SharedGroupID != "" || probe == nil {
+		return c.Resolve(scope)
+	}
+
+	groups, err := probe(c.APIKey, c.UserID)
+	if err != nil {
+		return LibraryRef{}, fmt.Errorf("probe Zotero groups: %w", err)
+	}
+	switch len(groups) {
+	case 0:
+		return LibraryRef{}, fmt.Errorf("zotero account %s has no accessible group libraries — --library shared cannot resolve", c.UserID)
+	case 1:
+		c.SharedGroupID = groups[0].ID
+		c.SharedGroupName = groups[0].Name
+		// Best-effort persist; the resolve succeeds even if writing
+		// fails (next command will re-probe).
+		_ = SaveConfig(c)
+		return c.Resolve(scope)
+	default:
+		names := make([]string, 0, len(groups))
+		for _, g := range groups {
+			names = append(names, g.Name)
+		}
+		return LibraryRef{}, fmt.Errorf("zotero account has multiple groups (%s) — re-run 'zot setup' and pick one with --shared-group-id", strings.Join(names, ", "))
+	}
 }

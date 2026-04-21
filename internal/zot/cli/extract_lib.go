@@ -72,7 +72,7 @@ func (noopNoteWriter) CreateChildNote(context.Context, string, string, []string)
 }
 
 func extractLibAction(ctx context.Context, cmd *cli.Command) error {
-	cfg, db, err := openLocalDB()
+	cfg, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	// Default is cache-only (noops); --apply wires the real Zotero API.
 	var writer extract.NoteWriter
 	if extractLibApply {
-		apiClient, err := requireAPIClient()
+		apiClient, err := requireAPIClient(ctx)
 		if err != nil {
 			return err
 		}

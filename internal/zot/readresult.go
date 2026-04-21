@@ -291,8 +291,12 @@ func (r TagListResult) Human() string {
 	return b.String()
 }
 
-// StatsResult is returned for `zot info`.
+// StatsResult is returned for `zot info --library X` and as the building
+// block of MultiStatsResult (one entry per library).
 type StatsResult struct {
+	// Library identifies which library these stats describe — optional;
+	// empty when the caller is library-agnostic (legacy single-library mode).
+	Library string      `json:"library,omitempty"`
 	Stats   local.Stats `json:"stats"`
 	DataDir string      `json:"data_dir"`
 	Schema  int         `json:"schema_version"`
@@ -304,7 +308,11 @@ func (r StatsResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r StatsResult) Human() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render("Library stats"))
+	header := "Library stats"
+	if r.Library != "" {
+		header = "Library stats — " + r.Library
+	}
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render(header))
 	fmt.Fprintf(&b, "  %s %s\n", uikit.TUI.Dim().Render("data:"), r.DataDir)
 	fmt.Fprintf(&b, "  %s schema v%d\n\n", uikit.TUI.Dim().Render("  ·  "), r.Schema)
 	fmt.Fprintf(&b, "  %s %d\n", uikit.TUI.Dim().Render("items:         "), r.Stats.TotalItems)
@@ -411,4 +419,28 @@ func (r OpenResult) Human() string {
 		sym = uikit.SymFail
 	}
 	return fmt.Sprintf("  %s %s\n    %s\n", sym, r.Message, uikit.TUI.Dim().Render(r.Path))
+}
+
+// MultiStatsResult is returned for `zot info` without --library — summarizes
+// every library the Zotero account has access to (personal + configured
+// shared group). PerLibrary entries are rendered in order; errors are stashed
+// so partial output still ships (e.g. shared group not synced yet).
+type MultiStatsResult struct {
+	PerLibrary []StatsResult `json:"per_library"`
+	Errors     []string      `json:"errors,omitempty"`
+}
+
+// JSON implements cmdutil.Result.
+func (r MultiStatsResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
+func (r MultiStatsResult) Human() string {
+	var b strings.Builder
+	for _, s := range r.PerLibrary {
+		b.WriteString(s.Human())
+	}
+	for _, e := range r.Errors {
+		fmt.Fprintf(&b, "  %s %s\n", uikit.SymFail, e)
+	}
+	return b.String()
 }

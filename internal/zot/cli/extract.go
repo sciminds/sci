@@ -75,7 +75,7 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		return cmdutil.UsageErrorf(cmd, "--reextract has no effect with --no-note (no cache is used in --out mode)")
 	}
 
-	cfg, db, err := openLocalDB()
+	cfg, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	apiClient, err := requireAPIClient()
+	apiClient, err := requireAPIClient(ctx)
 	if err != nil {
 		return err
 	}
