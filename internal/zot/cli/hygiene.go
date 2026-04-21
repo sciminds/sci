@@ -9,6 +9,7 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/cli/internal/zot/enrich"
 	"github.com/sciminds/cli/internal/zot/fix"
 	"github.com/sciminds/cli/internal/zot/hygiene"
 	"github.com/sciminds/cli/internal/zot/local"
@@ -19,6 +20,9 @@ import (
 var (
 	missingFields string
 	missingLimit  int
+	missingEnrich bool
+	missingApply  bool
+	missingYes    bool
 
 	dupStrategy  string
 	dupFuzzy     bool
@@ -48,9 +52,17 @@ func missingCommand() *cli.Command {
 $ zot doctor missing --field title,creators
 $ zot doctor missing --field doi,abstract
 $ zot doctor missing --limit 0 --json > coverage.json
+$ zot doctor missing --enrich                    # dry-run: what OpenAlex would fill
+$ zot doctor missing --enrich --apply --yes      # actually patch the library
 
 Fields: title, creators, date, doi, abstract, url, pdf, tags. Defaults to all.
-Severity: title=error, creators/date=warn, others=info.`,
+Severity: title=error, creators/date=warn, others=info.
+
+--enrich looks up OpenAlex for every item that (a) has a missing field AND
+(b) has a DOI locally, and proposes filling the gap from the OpenAlex Work.
+Only the specific missing fields are patched — existing values are never
+overwritten. --apply submits the patches (confirmation required; skip with
+--yes).`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "field",
@@ -67,26 +79,96 @@ Severity: title=error, creators/date=warn, others=info.`,
 				Destination: &missingLimit,
 				Local:       true,
 			},
+			&cli.BoolFlag{Name: "enrich", Usage: "look up missing fields on OpenAlex (dry-run)", Destination: &missingEnrich, Local: true},
+			&cli.BoolFlag{Name: "apply", Usage: "write the enrichment patches (requires --enrich)", Destination: &missingApply, Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation for --apply", Destination: &missingYes, Local: true},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			fields, err := parseMissingFieldList(missingFields)
-			if err != nil {
-				return cmdutil.UsageErrorf(cmd, "%s", err.Error())
-			}
-			_, db, err := openLocalDB()
-			if err != nil {
-				return err
-			}
-			defer func() { _ = db.Close() }()
-
-			rep, err := hygiene.Missing(db, fields)
-			if err != nil {
-				return err
-			}
-			cmdutil.Output(cmd, zot.MissingResult{Report: rep, Limit: missingLimit})
-			return nil
-		},
+		Action: runMissing,
 	}
+}
+
+// capFindings truncates findings to at most max distinct ItemKeys,
+// preserving order of first appearance. 0 means "no cap".
+func capFindings(findings []hygiene.Finding, max int) []hygiene.Finding {
+	if max <= 0 {
+		return findings
+	}
+	seen := map[string]bool{}
+	out := make([]hygiene.Finding, 0, len(findings))
+	for _, f := range findings {
+		if !seen[f.ItemKey] {
+			if len(seen) == max {
+				break
+			}
+			seen[f.ItemKey] = true
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+func runMissing(ctx context.Context, cmd *cli.Command) error {
+	fields, err := parseMissingFieldList(missingFields)
+	if err != nil {
+		return cmdutil.UsageErrorf(cmd, "%s", err.Error())
+	}
+	_, db, err := openLocalDB()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+
+	rep, err := hygiene.Missing(db, fields)
+	if err != nil {
+		return err
+	}
+
+	if !missingEnrich {
+		if missingApply {
+			return cmdutil.UsageErrorf(cmd, "--apply requires --enrich")
+		}
+		cmdutil.Output(cmd, zot.MissingResult{Report: rep, Limit: missingLimit})
+		return nil
+	}
+
+	oa, err := openalexClient()
+	if err != nil {
+		return err
+	}
+	// --enrich makes one HTTP call per unique item, so --limit bounds the
+	// network round-trips here, not just print output. 0 keeps the full set.
+	findings := capFindings(rep.Findings, missingLimit)
+	targets, skipped, err := enrich.PlanFromMissing(ctx, db, oa, findings)
+	if err != nil {
+		return err
+	}
+
+	out := enrich.FromMissingResult{
+		Targets: targets,
+		Skipped: skipped,
+		Applied: missingApply,
+	}
+	if !missingApply || len(targets) == 0 {
+		cmdutil.Output(cmd, out)
+		return nil
+	}
+
+	if !missingYes {
+		if err := cmdutil.ConfirmYes(fmt.Sprintf("Patch %d item(s) via OpenAlex enrichment?", len(targets))); err != nil {
+			return err
+		}
+	}
+	w, err := requireAPIClient()
+	if err != nil {
+		return err
+	}
+	applied, err := enrich.Apply(ctx, w, targets)
+	if err != nil {
+		return err
+	}
+	out.Apply = applied
+	cmdutil.Output(cmd, out)
+	return nil
 }
 
 func duplicatesCommand() *cli.Command {
