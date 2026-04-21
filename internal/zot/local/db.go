@@ -9,8 +9,8 @@
 //   - ForGroupByAPIID(apiGroupID) — a group by its Zotero Web API groupID
 //     (joins the groups table to resolve)
 //
-// Open accepts the selector as a variadic last arg; zero selectors defaults to
-// ForPersonal() so legacy callers that predate the selector keep compiling.
+// Open requires an explicit selector — there is no implicit default. Callers
+// that want the personal library pass ForPersonal().
 //
 // This package uses raw database/sql (not pocketbase/dbx) — a documented
 // exception alongside internal/tui/dbtui/data and internal/markdb.
@@ -45,21 +45,10 @@ type DB struct {
 }
 
 // Open opens zotero.sqlite inside dataDir in immutable mode and resolves
-// the target libraryID via sel. If no selector is provided, Open defaults
-// to ForPersonal() so existing callers (and tests) that don't care about
-// groups keep working unchanged. Returns an error if the file does not
+// the target libraryID via sel. Returns an error if the file does not
 // exist or the selector cannot resolve a libraryID.
-func Open(dataDir string, sel ...LibrarySelector) (*DB, error) {
-	var selector LibrarySelector
-	switch len(sel) {
-	case 0:
-		selector = ForPersonal()
-	case 1:
-		selector = sel[0]
-	default:
-		return nil, fmt.Errorf("Open accepts at most one LibrarySelector, got %d", len(sel))
-	}
-	if selector.resolve == nil {
+func Open(dataDir string, sel LibrarySelector) (*DB, error) {
+	if sel.resolve == nil {
 		return nil, fmt.Errorf("invalid LibrarySelector (zero value); use ForPersonal or ForGroup")
 	}
 
@@ -76,7 +65,7 @@ func Open(dataDir string, sel ...LibrarySelector) (*DB, error) {
 	}
 
 	d := &DB{db: sqldb}
-	if err := d.init(selector); err != nil {
+	if err := d.init(sel); err != nil {
 		_ = sqldb.Close()
 		return nil, err
 	}

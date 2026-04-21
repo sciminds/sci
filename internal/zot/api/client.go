@@ -69,7 +69,8 @@ func WithClock(now func() time.Time, sleep func(time.Duration)) Option {
 }
 
 // WithLibrary pins the client to a specific library (personal or shared).
-// When unset, New defaults to LibPersonal built from cfg.UserID.
+// Required — New errors if the Client's Lib.Scope is unset after options
+// apply.
 func WithLibrary(ref zot.LibraryRef) Option {
 	return func(c *Client) { c.Lib = ref }
 }

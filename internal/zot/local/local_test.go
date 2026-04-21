@@ -8,7 +8,7 @@ func openFixture(t *testing.T) *DB {
 	t.Helper()
 	dir := buildFixture(t)
 	sanityCheckFixture(t, dir)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -122,11 +122,8 @@ func TestResolveLibrary_SharedWithoutGroupID_TriggersProbe(t *testing.T) {
 	}
 
 	probed := 0
-	probe := func(apiKey, userID string) ([]GroupRef, error) {
+	probe := func() ([]GroupRef, error) {
 		probed++
-		if apiKey != "k" || userID != "17450224" {
-			t.Errorf("probe got apiKey=%q userID=%q", apiKey, userID)
-		}
 		return []GroupRef{{ID: "6506098", Name: "sciminds"}}, nil
 	}
 
@@ -157,7 +154,7 @@ func TestResolveLibrary_SharedWithoutGroupID_TriggersProbe(t *testing.T) {
 func TestResolveLibrary_SharedAccountHasNoGroups(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{APIKey: "k", UserID: "17450224"}
-	probe := func(_, _ string) ([]GroupRef, error) { return nil, nil }
+	probe := func() ([]GroupRef, error) { return nil, nil }
 
 	_, err := cfg.ResolveWithProbe(LibShared, probe)
 	if err == nil {
@@ -174,7 +171,7 @@ func TestResolveLibrary_SharedAccountHasMultipleGroups(t *testing.T) {
 	// Resolve returns an error naming the options.
 	t.Parallel()
 	cfg := &Config{APIKey: "k", UserID: "17450224"}
-	probe := func(_, _ string) ([]GroupRef, error) {
+	probe := func() ([]GroupRef, error) {
 		return []GroupRef{
 			{ID: "1", Name: "alpha"},
 			{ID: "2", Name: "beta"},

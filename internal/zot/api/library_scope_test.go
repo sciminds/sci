@@ -30,12 +30,28 @@ func sharedRef() zot.LibraryRef {
 }
 
 // captureHandler records every request path it receives so tests can
-// assert the URL prefix produced by the scope dispatch.
+// assert the URL prefix produced by the scope dispatch. The response
+// shape depends on the HTTP method so the same handler can service
+// creates (POST), fetches (GET), updates (PATCH), and deletes (DELETE).
 type captureHandler struct {
 	mu    sync.Mutex
 	paths []string
-	body  string // JSON for a successful single-item/collection create
+	body  string // override: if set, served for every request
 }
+
+// Minimal Item / Collection envelopes sufficient to satisfy the
+// generated client's JSON200 decoding. Fields marked required on the
+// struct must be present; everything else is optional.
+const (
+	stubItemBody = `{"key":"ABC12345","version":1,` +
+		`"library":{"id":0,"type":"user","name":"t"},` +
+		`"data":{"key":"ABC12345","version":1,"itemType":"journalArticle"}}`
+	stubCollectionBody = `{"key":"ABC12345","version":1,` +
+		`"library":{"id":0,"type":"user","name":"t"},` +
+		`"data":{"key":"ABC12345","version":1,"name":"x"}}`
+	stubChildrenBody = `[]`
+	stubMultiOKBody  = `{"successful":{"0":{"key":"NEWKEY01"}},"unchanged":{},"failed":{}}`
+)
 
 func (h *captureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
@@ -46,7 +62,21 @@ func (h *captureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(h.body))
 		return
 	}
-	_, _ = w.Write([]byte(`{"successful":{"0":{"key":"NEWKEY01"}},"unchanged":{},"failed":{}}`))
+	switch r.Method {
+	case http.MethodGet:
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/children"):
+			_, _ = w.Write([]byte(stubChildrenBody))
+		case strings.Contains(r.URL.Path, "/collections/"):
+			_, _ = w.Write([]byte(stubCollectionBody))
+		default:
+			_, _ = w.Write([]byte(stubItemBody))
+		}
+	case http.MethodDelete, http.MethodPatch:
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		_, _ = w.Write([]byte(stubMultiOKBody))
+	}
 }
 
 func (h *captureHandler) snapshot() []string {
@@ -126,9 +156,12 @@ func TestClient_RequiresLibrary(t *testing.T) {
 
 // TestAllWriteOps_RespectScope is the belt-and-suspenders table-driven
 // guard that every op we care about is dispatched per scope. Add entries
-// here as new write ops land.
+// here as new write ops land. Multi-request ops (GET+PATCH, GET+DELETE)
+// are covered by the "every captured path must carry the scope prefix"
+// check — both the precursor read and the mutation must route together.
 func TestAllWriteOps_RespectScope(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 	ops := []struct {
 		name string
 		call func(c *Client) error
@@ -139,7 +172,7 @@ func TestAllWriteOps_RespectScope(t *testing.T) {
 			name: "CreateItem",
 			call: func(c *Client) error {
 				title := "Scope test"
-				_, err := c.CreateItem(context.Background(), client.ItemData{
+				_, err := c.CreateItem(ctx, client.ItemData{
 					ItemType: "journalArticle",
 					Title:    &title,
 				})
@@ -148,9 +181,37 @@ func TestAllWriteOps_RespectScope(t *testing.T) {
 			wantFragment: "/items",
 		},
 		{
+			name: "UpdateItem",
+			call: func(c *Client) error {
+				title := "Patched"
+				return c.UpdateItem(ctx, "ABC12345", client.ItemData{Title: &title})
+			},
+			wantFragment: "/items/ABC12345",
+		},
+		{
+			name:         "TrashItem",
+			call:         func(c *Client) error { return c.TrashItem(ctx, "ABC12345") },
+			wantFragment: "/items/ABC12345",
+		},
+		{
+			name:         "ListChildren",
+			call:         func(c *Client) error { _, err := c.ListChildren(ctx, "ABC12345"); return err },
+			wantFragment: "/items/ABC12345/children",
+		},
+		{
 			name:         "CreateCollection",
-			call:         func(c *Client) error { _, err := c.CreateCollection(context.Background(), "T", ""); return err },
+			call:         func(c *Client) error { _, err := c.CreateCollection(ctx, "T", ""); return err },
 			wantFragment: "/collections",
+		},
+		{
+			name:         "DeleteCollection",
+			call:         func(c *Client) error { return c.DeleteCollection(ctx, "ABC12345") },
+			wantFragment: "/collections/ABC12345",
+		},
+		{
+			name:         "DeleteTagsFromLibrary",
+			call:         func(c *Client) error { return c.DeleteTagsFromLibrary(ctx, []string{"a", "b"}) },
+			wantFragment: "/tags",
 		},
 	}
 
@@ -169,11 +230,19 @@ func TestAllWriteOps_RespectScope(t *testing.T) {
 					if len(paths) == 0 {
 						t.Fatalf("%s: no paths captured", op.name)
 					}
-					wantPrefix := "/" + ref.APIPath + op.wantFragment
+					scopePrefix := "/" + ref.APIPath + "/"
+					wantOpPrefix := "/" + ref.APIPath + op.wantFragment
+					var sawOpPath bool
 					for _, p := range paths {
-						if !strings.HasPrefix(p, wantPrefix) {
-							t.Errorf("%s: path %q, want prefix %q", op.name, p, wantPrefix)
+						if !strings.HasPrefix(p, scopePrefix) {
+							t.Errorf("%s: path %q leaks outside scope %q", op.name, p, scopePrefix)
 						}
+						if strings.HasPrefix(p, wantOpPrefix) {
+							sawOpPath = true
+						}
+					}
+					if !sawOpPath {
+						t.Errorf("%s: no captured path matches %q; paths=%v", op.name, wantOpPrefix, paths)
 					}
 				})
 			}

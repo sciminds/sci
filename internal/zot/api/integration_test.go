@@ -7,6 +7,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -41,15 +42,9 @@ func newFakeZotero(userID, groupID string) *fakeZotero {
 func (f *fakeZotero) writtenKey() string {
 	// Zotero item keys are 8 uppercase alphanumerics; the exact shape
 	// doesn't matter for routing tests.
-	key := "KEY00000"
-	suffix := []byte{'0', '0', '0', '0', '0', '0', '0', '0'}
-	n := f.nextKey
+	key := fmt.Sprintf("KEY%05d", f.nextKey)
 	f.nextKey++
-	for i := len(suffix) - 1; i >= 0 && n > 0; i-- {
-		suffix[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return key[:0] + string(suffix)
+	return key
 }
 
 func (f *fakeZotero) ServeHTTP(w http.ResponseWriter, r *http.Request) {

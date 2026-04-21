@@ -45,7 +45,7 @@ func TestStore_RealLibrary(t *testing.T) {
 		t.Skipf("no ./zotero.sqlite at repo root — skipping real-db test")
 	}
 
-	db, err := local.Open(root)
+	db, err := local.Open(root, local.ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestStore_RealLibrary_MultiTokenSearch(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "zotero.sqlite")); err != nil {
 		t.Skipf("no ./zotero.sqlite at repo root — skipping real-db test")
 	}
-	db, err := local.Open(root)
+	db, err := local.Open(root, local.ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestStore_RealLibrary_FTSMultiTokenExact(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "zotero.sqlite")); err != nil {
 		t.Skipf("no ./zotero.sqlite at repo root — skipping real-db test")
 	}
-	db, err := local.Open(root)
+	db, err := local.Open(root, local.ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}

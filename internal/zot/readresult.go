@@ -294,9 +294,9 @@ func (r TagListResult) Human() string {
 // StatsResult is returned for `zot info --library X` and as the building
 // block of MultiStatsResult (one entry per library).
 type StatsResult struct {
-	// Library identifies which library these stats describe — optional;
-	// empty when the caller is library-agnostic (legacy single-library mode).
-	Library string      `json:"library,omitempty"`
+	// Library is the scope label ("personal" or `shared (<name>)`) these
+	// stats describe.
+	Library string      `json:"library"`
 	Stats   local.Stats `json:"stats"`
 	DataDir string      `json:"data_dir"`
 	Schema  int         `json:"schema_version"`

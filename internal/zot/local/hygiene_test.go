@@ -8,7 +8,7 @@ import (
 func TestScanFieldPresence(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestScanFieldPresence(t *testing.T) {
 func TestScanFieldValues(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestScanFieldValues(t *testing.T) {
 func TestScanFieldValues_EmptyFieldsReturnsNothing(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestScanFieldValues_EmptyFieldsReturnsNothing(t *testing.T) {
 func TestScanDuplicateCandidates(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestScanDuplicateCandidates(t *testing.T) {
 func TestScanCiteKeys(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}

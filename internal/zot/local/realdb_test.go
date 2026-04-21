@@ -14,7 +14,7 @@ func TestRealLibrary_Smoke(t *testing.T) {
 	if dir == "" {
 		t.Skip("set ZOT_REAL_DB=<dir containing zotero.sqlite> to run")
 	}
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestRealLibrary_ResolveCKD(t *testing.T) {
 	if dir == "" {
 		t.Skip("set ZOT_REAL_DB=<dir containing zotero.sqlite> to run")
 	}
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}

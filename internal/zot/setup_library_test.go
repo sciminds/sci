@@ -11,10 +11,7 @@ func TestSetup_AutoDetectsSingleGroup(t *testing.T) {
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 
-	probe := func(_, userID string) ([]GroupRef, error) {
-		if userID != "17450224" {
-			t.Errorf("probe got userID=%q", userID)
-		}
+	probe := func() ([]GroupRef, error) {
 		return []GroupRef{{ID: "6506098", Name: "sciminds"}}, nil
 	}
 
@@ -50,7 +47,7 @@ func TestSetup_ZeroGroupsIsOK(t *testing.T) {
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 
-	probe := func(_, _ string) ([]GroupRef, error) { return nil, nil }
+	probe := func() ([]GroupRef, error) { return nil, nil }
 
 	_, err := Setup(SetupInput{APIKey: "k", UserID: "17450224", DataDir: dir, GroupProbe: probe})
 	if err != nil {
@@ -69,7 +66,7 @@ func TestSetup_MultipleGroupsRequiresExplicitChoice(t *testing.T) {
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 
-	probe := func(_, _ string) ([]GroupRef, error) {
+	probe := func() ([]GroupRef, error) {
 		return []GroupRef{
 			{ID: "1", Name: "alpha"},
 			{ID: "2", Name: "beta"},

@@ -199,10 +199,12 @@ type GroupRef struct {
 	Name string
 }
 
-// GroupProbeFunc fetches the list of groups an API key has access to.
-// The setup flow and ResolveWithProbe inject a real implementation
-// (api.Client.ListGroups); tests use fakes.
-type GroupProbeFunc func(apiKey, userID string) ([]GroupRef, error)
+// GroupProbeFunc fetches the list of groups accessible to the current
+// Zotero account. The setup flow and ResolveWithProbe inject a real
+// implementation (api.Client.ListGroups); tests use fakes. Credentials
+// are captured via closure by the caller — the probe takes no args so
+// call sites don't have to re-thread them.
+type GroupProbeFunc func() ([]GroupRef, error)
 
 // Resolve returns a LibraryRef for the given scope using only the
 // fields already in Config. Shared-scope resolution without a cached
@@ -248,7 +250,7 @@ func (c *Config) ResolveWithProbe(scope LibraryScope, probe GroupProbeFunc) (Lib
 		return c.Resolve(scope)
 	}
 
-	groups, err := probe(c.APIKey, c.UserID)
+	groups, err := probe()
 	if err != nil {
 		return LibraryRef{}, fmt.Errorf("probe Zotero groups: %w", err)
 	}

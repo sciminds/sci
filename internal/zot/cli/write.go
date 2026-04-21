@@ -85,7 +85,7 @@ func resolveLibraryRef(ctx context.Context, cfg *zot.Config) (zot.LibraryRef, er
 	if !ok {
 		return zot.LibraryRef{}, fmt.Errorf("library scope not found in context — did you pass --library?")
 	}
-	probe := func(_, _ string) ([]zot.GroupRef, error) {
+	probe := func() ([]zot.GroupRef, error) {
 		// Build a throwaway client bound to the personal library just to
 		// call ListGroups. Only invoked when shared-scope config is blank.
 		tmp, err := api.New(cfg, api.WithLibrary(zot.LibraryRef{

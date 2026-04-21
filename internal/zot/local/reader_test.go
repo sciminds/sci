@@ -11,7 +11,7 @@ import (
 // compile-time half.
 func TestReadOnlyConnection(t *testing.T) {
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestReadOnlyConnection(t *testing.T) {
 // accidentally removed.
 func TestReaderInterfaceSatisfied(t *testing.T) {
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

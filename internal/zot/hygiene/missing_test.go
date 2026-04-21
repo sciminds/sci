@@ -39,7 +39,7 @@ func openRealDB(t *testing.T) local.Reader {
 	if _, err := os.Stat(path); err != nil {
 		t.Skipf("no ./zotero.sqlite at repo root — skipping real-db test")
 	}
-	db, err := local.Open(root)
+	db, err := local.Open(root, local.ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}

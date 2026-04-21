@@ -5,7 +5,7 @@ import "testing"
 func TestScanEmptyCollections(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestScanEmptyCollections(t *testing.T) {
 func TestScanStandaloneAttachments(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestScanStandaloneAttachments(t *testing.T) {
 func TestScanStandaloneNotes(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestScanStandaloneNotes(t *testing.T) {
 func TestScanUncollectedItems(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestScanUncollectedItems(t *testing.T) {
 func TestScanUnusedTags(t *testing.T) {
 	t.Parallel()
 	dir := buildFixture(t)
-	db, err := Open(dir)
+	db, err := Open(dir, ForPersonal())
 	if err != nil {
 		t.Fatal(err)
 	}

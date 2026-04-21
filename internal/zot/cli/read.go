@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/samber/lo"
@@ -31,8 +32,8 @@ var (
 
 // openLocalDB loads config, opens the local zotero.sqlite scoped to the
 // library ctx carries (see ValidateLibraryBefore), and warns if the schema
-// version is outside the tested range. Falls back to the personal library
-// if ctx has no library set (e.g. legacy call sites not yet threaded).
+// version is outside the tested range. Errors if the ctx has no library
+// set — callers must go through ValidateLibraryBefore.
 func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
 	cfg, err := zot.RequireConfig()
 	if err != nil {
@@ -70,8 +71,8 @@ func localSelectorFor(ctx context.Context, cfg *zot.Config) (local.LibrarySelect
 		if cfg.SharedGroupID == "" {
 			return local.LibrarySelector{}, fmt.Errorf("--library shared: SharedGroupID is empty (run 'zot setup' to auto-detect)")
 		}
-		var apiID int64
-		if _, err := fmt.Sscanf(cfg.SharedGroupID, "%d", &apiID); err != nil {
+		apiID, err := strconv.ParseInt(cfg.SharedGroupID, 10, 64)
+		if err != nil {
 			return local.LibrarySelector{}, fmt.Errorf("parse SharedGroupID %q: %w", cfg.SharedGroupID, err)
 		}
 		return local.ForGroupByAPIID(apiID), nil

@@ -157,7 +157,7 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 	// Auto-detect the shared group when the account has network access and
 	// the user didn't pre-specify one. Non-fatal on failure (offline, API
 	// hiccup) — setup still succeeds with personal-only config.
-	probe := setupGroupProbe(ctx, apiKey)
+	probe := setupGroupProbe(ctx, apiKey, userID)
 
 	result, err := zot.Setup(zot.SetupInput{
 		APIKey:          apiKey,
@@ -180,12 +180,12 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 // enumerate the groups an account belongs to. Returns nil (no-op probe) when
 // offline or when the API key is missing — Setup treats a nil probe as
 // "shared auto-detect skipped" rather than an error.
-func setupGroupProbe(ctx context.Context, apiKey string) zot.GroupProbeFunc {
+func setupGroupProbe(ctx context.Context, apiKey, userID string) zot.GroupProbeFunc {
 	if apiKey == "" || !netutil.Online() {
 		return nil
 	}
-	return func(key, userID string) ([]zot.GroupRef, error) {
-		cfg := &zot.Config{APIKey: key, UserID: userID}
+	return func() ([]zot.GroupRef, error) {
+		cfg := &zot.Config{APIKey: apiKey, UserID: userID}
 		c, err := api.New(cfg, api.WithLibrary(zot.LibraryRef{
 			Scope:   zot.LibPersonal,
 			APIPath: "users/" + userID,

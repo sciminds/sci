@@ -49,7 +49,7 @@ func Setup(in SetupInput) (*SetupResult, error) {
 	sharedID := in.SharedGroupID
 	sharedName := in.SharedGroupName
 	if sharedID == "" && in.GroupProbe != nil {
-		groups, err := in.GroupProbe(in.APIKey, in.UserID)
+		groups, err := in.GroupProbe()
 		if err != nil {
 			return nil, fmt.Errorf("probe Zotero groups: %w", err)
 		}

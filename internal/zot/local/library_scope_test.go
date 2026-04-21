@@ -90,14 +90,3 @@ func TestItems_ScopedToPinnedLibrary(t *testing.T) {
 		}
 	}
 }
-
-// TestOpen_BackcompatSignatureRemoved guards against a stale Open(dir)
-// call being reintroduced after the selector lands. This test should
-// fail to compile if someone accidentally restores the one-arg version.
-//
-// It is commented out deliberately — enable after Phase 2 if you want a
-// belt-and-suspenders check (and a compile-time regression alarm).
-//
-//	func TestOpen_BackcompatSignatureRemoved(t *testing.T) {
-//		_, _ = Open(".") // should not compile
-//	}

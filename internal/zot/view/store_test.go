@@ -190,7 +190,7 @@ func TestStoreWriteMethodsBlocked(t *testing.T) {
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 	dir := seedViewFixture(t)
-	db, err := local.Open(dir)
+	db, err := local.Open(dir, local.ForPersonal())
 	if err != nil {
 		t.Fatalf("local.Open: %v", err)
 	}

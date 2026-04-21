@@ -27,7 +27,7 @@ const (
 func newViewTeatestModel(t *testing.T) *dbtui.Model {
 	t.Helper()
 	dir := seedViewFixture(t)
-	ldb, err := local.Open(dir)
+	ldb, err := local.Open(dir, local.ForPersonal())
 	if err != nil {
 		t.Fatalf("local.Open: %v", err)
 	}
