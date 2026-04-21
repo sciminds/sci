@@ -18,7 +18,7 @@ Any subcommand added to `internal/zot/cli` shows up in both surfaces automatical
 ## Reads local, writes cloud (load-bearing split)
 
 - **Reads** → `internal/zot/local` opens `zotero.sqlite` with `file:…?mode=ro&immutable=1&_pragma=query_only(1)`. Immutable mode skips WAL processing entirely so we never contend with the running Zotero desktop app's locks. All consumers accept the **`local.Reader`** interface (not `*local.DB`), making the read-only contract visible in type signatures. A runtime test (`TestReadOnlyConnection`) verifies INSERT/UPDATE/DELETE/DROP/CREATE are rejected at the SQLite level.
-- **Writes** → `internal/zot/api` calls the Zotero Web API. The **`api.Writer`** interface captures the 13 write methods; read helpers (`getItemRaw`, `getCollectionRaw`) are unexported internal implementation details for 412 version-retry. Consumer-side narrow interfaces (`extract.NoteWriter`, `fix.CitekeyWriter`) slice `Writer` further for testability. We do **NOT** wait for local sync-back — Zotero desktop listens on its own sync stream and updates `zotero.sqlite` automatically. API success = done from our side.
+- **Writes** → `internal/zot/api` calls the Zotero Web API. The **`api.Writer`** interface captures every write method (items, notes, collections, tags, attachments — see `writer.go`); read helpers (`getItemRaw`, `getCollectionRaw`) are unexported internal implementation details for 412 version-retry. Consumer-side narrow interfaces (`extract.NoteWriter`, `fix.CitekeyWriter`, `pdffind.Attacher`) slice `Writer` further for testability. We do **NOT** wait for local sync-back — Zotero desktop listens on its own sync stream and updates `zotero.sqlite` automatically. API success = done from our side.
 
 **Corollary:** immediately after a write the local DB will briefly diverge from the server. That's fine. Don't add polling or consistency checks.
 
@@ -69,6 +69,31 @@ Four checks (`invalid`, `missing`, `orphans`, `duplicates`) live as sub-commands
 Same reads-local / writes-cloud split. See `cli/extract.go`, `cli/notes.go`, `extract/extract.go`. Bulk extraction caches resumable state at `os.UserCacheDir()/sci/zot/extract/`.
 
 **Smoke-test env vars:** `DOCLING=1` (Zotero-mode), `DOCLING_FULL=1` (full-mode), `ZOT_REAL_DB=<dir>`, `DOCLING_PDF`, `ZOT_REAL_CKD_KEY`.
+
+## PDF discovery & attach (`internal/zot/pdffind/`)
+
+OpenAlex-led lookup for Zotero items missing their PDFs. Lives under `zot doctor pdfs` — scoped to a collection (default `missing-pdf`) rather than library-wide, because this is user-curated triage, not hygiene. Read-only by default; `--download` and `--attach` are opt-in writes.
+
+- **Scan** (`pdffind.Scan`): one HTTP call per item — `ResolveWork` by DOI when present (deterministic), else `SearchWorks` by title (top hit; flagged `LookupMethod="title"` so the renderer can surface the lower confidence). Emits one `Finding` per input item with PDF URL, landing-page URL, OpenAlex DOI, OA status, and `FallbackURLs` (friendly-host-ranked alternates for when `best_oa_location` is a paywall but `locations[]` has an arxiv/PMC copy).
+- **Download** (`pdffind.Download`): parallel HTTP GETs with content-type guardrails that reject HTML paywalls masquerading as PDFs. UA is the honest `sci-zot (+…)` — commercial publishers block it, friendly hosts prefer it. See `download.go` header comment for the tradeoff.
+- **Attach** (`pdffind.Attach`): drives `api.CreateChildAttachment` + `api.UploadAttachmentFile` per downloaded finding. Serial (Zotero rate-limits aggressively; two API calls + external S3 per item). Per-item failures record `AttachError` and the batch continues. On upload failure after create succeeds, `AttachmentKey` stays populated so the "created but not uploaded" state is surfaceable.
+
+Cache: scan results at `os.UserCacheDir()/sci/zot/pdffind/`. Survives across runs; `--refresh` re-queries, `--no-cache` disables the current run entirely.
+
+## Zotero file upload — 4-phase dance (`internal/zot/api/files.go`)
+
+Creating an `imported_file` attachment with actual bytes is a 4-call sequence. Canonical spec is the top-level description in `~/Documents/webapps/apis/zotero/openapi.yaml`.
+
+1. `CreateChildAttachment` — `POST /items` creating an `imported_file` child (reuses `CreateItem`).
+2. `requestUploadAuth` — `POST /items/{key}/file` form (`md5`, `filename`, `filesize`, `mtime` [epoch millis]) with `If-None-Match: *`. Response is either `UploadAuth` (pre-signed S3 params) OR `{"exists": 1}` (server-side dedup hit). The `oneOf` has no discriminator, so we peek at `exists` before decoding. The exists case returns the `errUploadExists` sentinel and skips phases 3–4.
+3. `uploadToS3` — multipart POST to `auth.URL` with `auth.Params` as form fields and a `file` field whose body is **`prefix + fileBytes + suffix`** with `Content-Type: auth.ContentType`. Plain `net/http.DefaultClient` — must NOT go through `retryDoer` (which injects Zotero auth headers and would collide with the pre-signed policy).
+4. `registerUpload` — `POST /items/{key}/file` form (`upload=<uploadKey>`) with `If-None-Match: *`. Expects **204 No Content**.
+
+**Union bypass:** the generated `UploadFileFormdataRequestBody` is a `union json.RawMessage` (oapi-codegen's rendering of the spec's `oneOf UploadAuthRequest | UploadRegisterRequest`), unusable without unsafe reflection. Both phases 2 and 4 call `UploadFileWithBody` directly with hand-encoded `application/x-www-form-urlencoded` bytes. Don't try to unwind the union — it'd be more code than the bypass.
+
+**Orchestrator** (`UploadAttachmentFile`) wires 2→4 and short-circuits on `errUploadExists`. On phase-3 failure, phase 4 is deliberately NOT called — the attachment item already exists on Zotero without bytes, and the caller's renderer reports "created, not uploaded" so the user can retry or clean up.
+
+**Buffering:** the whole file is read into `[]byte` before hashing. PDFs in practice are a few MB; revisit if a caller ever needs to stream multi-GB payloads.
 
 ## Conventions
 

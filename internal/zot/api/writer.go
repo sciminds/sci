@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 
 	"github.com/sciminds/cli/internal/zot/client"
 )
@@ -33,6 +34,12 @@ type Writer interface {
 	// Notes
 	CreateChildNote(ctx context.Context, parentKey, htmlBody string, tags []string) (string, error)
 	UpdateChildNote(ctx context.Context, noteKey, htmlBody string) error
+
+	// Attachments — 4-phase upload dance (see files.go). CreateChildAttachment
+	// is phase 1 (item creation); UploadAttachmentFile drives phases 2→4
+	// (authorization → S3 → register) with a dedup short-circuit.
+	CreateChildAttachment(ctx context.Context, parentKey string, meta AttachmentMeta) (string, error)
+	UploadAttachmentFile(ctx context.Context, itemKey string, r io.Reader, filename, contentType string) error
 
 	// Collections
 	CreateCollection(ctx context.Context, name, parentKey string) (string, error)

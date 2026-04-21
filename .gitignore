@@ -27,6 +27,8 @@ tutorials/my_figure*
 pyzotero*/
 zotero*/
 test-pdfs/*
+/pdfs/
 scripts/*.py
 scripts/*.ipynb
 todo.md
+rodney/

@@ -52,6 +52,12 @@ type Finding struct {
 	DownloadedPath string `json:"downloaded_path,omitempty"`
 	DownloadError  string `json:"download_error,omitempty"`
 
+	// Set by Attach after --attach. AttachmentKey is the Zotero key of the
+	// newly-created child attachment; AttachError is set on any failure
+	// during the 4-phase upload dance.
+	AttachmentKey string `json:"attachment_key,omitempty"`
+	AttachError   string `json:"attach_error,omitempty"`
+
 	// Set when lookup itself failed (404, timeout, no title match, etc.).
 	LookupError string `json:"lookup_error,omitempty"`
 }

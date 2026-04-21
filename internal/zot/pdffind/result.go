@@ -19,6 +19,7 @@ type CLIResult struct {
 	CacheMisses int       `json:"cache_misses"`
 	Findings    []Finding `json:"findings"`
 	Downloaded  bool      `json:"downloaded"` // true when --download ran
+	Attached    bool      `json:"attached"`   // true when --attach ran
 
 	// Limit is the render cap; 0 means show everything. Not emitted in JSON
 	// because it's purely a human-render knob.
@@ -34,7 +35,8 @@ func (r CLIResult) JSON() any {
 		CacheMisses int       `json:"cache_misses"`
 		Findings    []Finding `json:"findings"`
 		Downloaded  bool      `json:"downloaded"`
-	}{r.Collection, r.Scanned, r.CacheHits, r.CacheMisses, r.Findings, r.Downloaded}
+		Attached    bool      `json:"attached"`
+	}{r.Collection, r.Scanned, r.CacheHits, r.CacheMisses, r.Findings, r.Downloaded, r.Attached}
 }
 
 // Human implements cmdutil.Result.
@@ -79,7 +81,7 @@ func (r CLIResult) Human() string {
 	}
 
 	for _, f := range show {
-		writeFindingBlock(&b, f, r.Downloaded)
+		writeFindingBlock(&b, f, r.Downloaded, r.Attached)
 	}
 	if truncated > 0 {
 		fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
@@ -88,10 +90,14 @@ func (r CLIResult) Human() string {
 
 	// Footer: action hint.
 	switch {
+	case r.Attached:
+		att := lo.CountBy(r.Findings, func(f Finding) bool { return f.AttachmentKey != "" && f.AttachError == "" })
+		fail := lo.CountBy(r.Findings, func(f Finding) bool { return f.AttachError != "" })
+		fmt.Fprintf(&b, "\n  %s %d attached to Zotero, %d failed\n", uikit.SymArrow, att, fail)
 	case r.Downloaded:
 		dl := lo.CountBy(r.Findings, func(f Finding) bool { return f.DownloadedPath != "" })
 		fail := lo.CountBy(r.Findings, func(f Finding) bool { return f.DownloadError != "" })
-		fmt.Fprintf(&b, "\n  %s %d downloaded, %d failed\n", uikit.SymArrow, dl, fail)
+		fmt.Fprintf(&b, "\n  %s %d downloaded, %d failed  (pass --attach to upload as child attachments)\n", uikit.SymArrow, dl, fail)
 	case withPDF > 0:
 		fmt.Fprintf(&b, "\n  %s rerun with --download <dir> to retrieve %d PDF(s)\n",
 			uikit.SymArrow, withPDF)
@@ -101,7 +107,7 @@ func (r CLIResult) Human() string {
 	return b.String()
 }
 
-func writeFindingBlock(b *strings.Builder, f Finding, showDownload bool) {
+func writeFindingBlock(b *strings.Builder, f Finding, showDownload, showAttach bool) {
 	title := f.Title
 	if title == "" {
 		title = uikit.TUI.Dim().Render("(untitled)")
@@ -161,6 +167,29 @@ func writeFindingBlock(b *strings.Builder, f Finding, showDownload bool) {
 			fmt.Fprintf(b, "    %s fetch failed: %s\n",
 				uikit.SymWarn,
 				uikit.TUI.Warn().Render(f.DownloadError),
+			)
+		}
+	}
+	if showAttach {
+		switch {
+		case f.AttachmentKey != "" && f.AttachError == "":
+			fmt.Fprintf(b, "    %s attached: %s\n",
+				uikit.TUI.TextGreen().Render("↑"),
+				uikit.TUI.Dim().Render(f.AttachmentKey),
+			)
+		case f.AttachmentKey != "" && f.AttachError != "":
+			// Created on Zotero but file upload failed — the attachment
+			// item exists without bytes. Call it out so the user can
+			// retry rather than wonder why it appears empty.
+			fmt.Fprintf(b, "    %s attach partial: item %s created, %s\n",
+				uikit.SymWarn,
+				f.AttachmentKey,
+				uikit.TUI.Warn().Render(f.AttachError),
+			)
+		case f.AttachError != "":
+			fmt.Fprintf(b, "    %s attach failed: %s\n",
+				uikit.SymWarn,
+				uikit.TUI.Warn().Render(f.AttachError),
 			)
 		}
 	}

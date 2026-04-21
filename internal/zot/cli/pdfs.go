@@ -24,6 +24,8 @@ var (
 	pdfsNoCache    bool
 	pdfsRefresh    bool
 	pdfsParallel   int
+	pdfsAttach     bool
+	pdfsYes        bool
 )
 
 // defaultPDFParallel is the concurrency cap for --download. PDFs come from
@@ -44,6 +46,8 @@ $ zot --library personal doctor pdfs --collection ABCD1234    # by key
 $ zot --library personal doctor pdfs --collection missing-pdf # by name
 $ zot --library personal doctor pdfs --download ~/pdfs        # also retrieve each PDF (5-way parallel)
 $ zot --library personal doctor pdfs --download ~/pdfs -P 10  # bump download concurrency
+$ zot --library personal doctor pdfs --download ~/pdfs --attach       # upload downloaded PDFs as Zotero child attachments
+$ zot --library personal doctor pdfs --download ~/pdfs --attach --yes # skip confirmation
 $ zot --library personal doctor pdfs --refresh                # bypass cache, re-query all
 $ zot --library personal doctor pdfs --json > missing.json
 
@@ -60,8 +64,10 @@ Lookups are cached on disk at <user cache>/sci/zot/pdffind, so reruns
 are effectively free. --refresh re-queries everything; --no-cache
 disables cache reads AND writes for the current run.
 
-No Zotero writes. Attaching downloaded PDFs as Zotero child
-attachments is a separate command (coming later).`,
+--attach is destructive: for every successfully downloaded PDF, it
+creates an 'imported_file' child attachment on the parent item and
+uploads the file bytes via Zotero's 4-phase upload dance. Requires
+--download. Confirmation is required unless --yes is passed.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "collection",
@@ -105,12 +111,29 @@ attachments is a separate command (coming later).`,
 				Destination: &pdfsParallel,
 				Local:       true,
 			},
+			&cli.BoolFlag{
+				Name:        "attach",
+				Usage:       "upload downloaded PDFs as Zotero child attachments (requires --download)",
+				Destination: &pdfsAttach,
+				Local:       true,
+			},
+			&cli.BoolFlag{
+				Name:        "yes",
+				Aliases:     []string{"y"},
+				Usage:       "with --attach, skip confirmation before writing",
+				Destination: &pdfsYes,
+				Local:       true,
+			},
 		},
 		Action: runPDFs,
 	}
 }
 
 func runPDFs(ctx context.Context, cmd *cli.Command) error {
+	if pdfsAttach && pdfsDownload == "" {
+		return cmdutil.UsageErrorf(cmd, "--attach requires --download")
+	}
+
 	_, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
@@ -167,8 +190,69 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 		out.Downloaded = true
 	}
 
+	if pdfsAttach {
+		attachable := lo.CountBy(out.Findings, func(f pdffind.Finding) bool { return f.DownloadedPath != "" })
+		if attachable == 0 {
+			// Render what we have; there's simply nothing to upload.
+			cmdutil.Output(cmd, out)
+			return nil
+		}
+		prompt := fmt.Sprintf("Upload %d PDF(s) as Zotero child attachments?", attachable)
+		if done, err := cmdutil.ConfirmOrSkip(pdfsYes, prompt); done || err != nil {
+			return err
+		}
+		w, err := requireAPIClient(ctx)
+		if err != nil {
+			return err
+		}
+		fresh, aerr := attachWithProgress(ctx, w, out.Findings)
+		if aerr != nil {
+			return aerr
+		}
+		out.Findings = fresh
+		out.Attached = true
+	}
+
 	cmdutil.Output(cmd, out)
 	return nil
+}
+
+// attachWithProgress wraps pdffind.Attach with a progress bar, mirroring the
+// shape of downloadWithProgress. Counters: 'attached' for success,
+// 'partial' when the item was created but the upload failed, and 'failed'
+// for complete misses.
+func attachWithProgress(
+	ctx context.Context,
+	w pdffind.Attacher,
+	findings []pdffind.Finding,
+) ([]pdffind.Finding, error) {
+	total := lo.CountBy(findings, func(f pdffind.Finding) bool { return f.DownloadedPath != "" })
+	if total == 0 {
+		return findings, nil
+	}
+	var out []pdffind.Finding
+	err := uikit.RunWithProgress("Attaching to Zotero", func(t *uikit.ProgressTracker) error {
+		t.SetTotal(total)
+		opts := pdffind.AttachOptions{
+			OnStart: func(_, _ int, f pdffind.Finding) {
+				t.Status(fmt.Sprintf("%s  %s", f.ItemKey, truncateMiddle(f.Title, 70)))
+			},
+			OnDone: func(_, _ int, f pdffind.Finding) {
+				counter := "attached"
+				switch {
+				case f.AttachError != "" && f.AttachmentKey != "":
+					counter = "partial"
+				case f.AttachError != "":
+					counter = "failed"
+				}
+				t.Advance(counter, f.ItemKey)
+			},
+		}
+		fresh, aerr := pdffind.Attach(ctx, w, findings, opts)
+		out = fresh
+		return aerr
+	})
+	return out, err
 }
 
 // resolvePDFCache returns the shared on-disk cache, or nil when disabled.
