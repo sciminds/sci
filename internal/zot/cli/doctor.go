@@ -45,6 +45,7 @@ for that.`,
 			orphansCommand(),
 			duplicatesCommand(),
 			citekeysCommand(),
+			pdfsCommand(),
 		},
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{
