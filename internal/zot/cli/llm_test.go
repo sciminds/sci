@@ -186,3 +186,77 @@ func TestResolveMQ(t *testing.T) {
 		t.Error("resolveMQ returned empty path with nil error")
 	}
 }
+
+// TestMQPatternsInHelpWork is a contract test: every mq pattern advertised
+// in `llm query --help` is executed against a fixture markdown file and
+// must (a) exit cleanly and (b) match a substring that proves the selector
+// actually engaged. Prevents help-text drift from reintroducing invalid
+// selectors like `.p` / `.paragraph` (not in mq 0.5.x) or `or` / `,` as
+// alternation operators. Gated on MQ=1 like the sibling mq tests.
+func TestMQPatternsInHelpWork(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("MQ") == "" {
+		t.Skip("MQ=1 not set — skipping mq integration test")
+	}
+	mqBin, err := exec.LookPath("mq")
+	if err != nil {
+		t.Fatalf("mq not found: %v", err)
+	}
+
+	dir := t.TempDir()
+	mdFile := filepath.Join(dir, "note.md")
+	fixture := "# Paper title\n\n" +
+		"## Introduction\n\nFirst paragraph with some prose.\n\n" +
+		"## Methods\n\nWe fit a model with parameters.\n\n" +
+		"## Results\n\nAccuracy was 87%. See `code` inline.\n\n" +
+		"## Discussion\n\nClosing thoughts here.\n\n" +
+		"## Conclusion\n\nWrapping up.\n\n" +
+		"```go\nfmt.Println(\"hi\")\n```\n\n" +
+		"[ref](https://example.org)\n"
+	if err := os.WriteFile(mdFile, []byte(fixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Each case: the exact selector we advertise + a substring that proves
+	// mq engaged (not an empty or error output).
+	cases := []struct {
+		pattern string
+		want    string
+	}{
+		{".h1", "Paper title"},
+		{".h2", "Methods"},
+		{".heading", "Introduction"},
+		{".text", "First paragraph"},
+		{".code", "fmt.Println"},
+		{".code_inline", "code"},
+		{".link", "example.org"},
+		{`.h2 | select(contains("Discussion"))`, "Discussion"},
+		{`.heading | select(contains("Method") || contains("Result"))`, "Methods"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.pattern, func(t *testing.T) {
+			t.Parallel()
+			out, err := runMQ(context.Background(), mqBin, []string{tc.pattern}, mdFile)
+			if err != nil {
+				t.Fatalf("advertised pattern %q failed: %v", tc.pattern, err)
+			}
+			if !strings.Contains(out, tc.want) {
+				t.Fatalf("advertised pattern %q produced no hit for %q:\n%s", tc.pattern, tc.want, out)
+			}
+		})
+	}
+
+	// Negative assertions: selectors we explicitly call out as NOT
+	// supported must still not exist. If mq ever adds them, we should
+	// update the help to stop disclaiming them.
+	notSupported := []string{".p", ".paragraph", ".em", ".li", ".list_item"}
+	for _, sel := range notSupported {
+		t.Run("unsupported_"+sel, func(t *testing.T) {
+			t.Parallel()
+			_, err := runMQ(context.Background(), mqBin, []string{sel}, mdFile)
+			if err == nil {
+				t.Fatalf("%q is now a valid mq selector — update llm_query.go help text to advertise it", sel)
+			}
+		})
+	}
+}

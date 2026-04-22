@@ -39,7 +39,10 @@ type LLMCatalogResult struct {
 // JSON implements cmdutil.Result.
 func (r LLMCatalogResult) JSON() any { return r }
 
-// Human implements cmdutil.Result.
+// Human implements cmdutil.Result. Per-entry the renderer branches on
+// whether `--full` enrichment ran: rich entries (any of Citekey / Year /
+// Authors / Abstract populated) get the ItemBrief-style block so TTY users
+// see what the flag bought them; plain entries stay one-line compact.
 func (r LLMCatalogResult) Human() string {
 	if r.Count == 0 {
 		return fmt.Sprintf("  %s no docling notes in library\n", uikit.SymArrow)
@@ -47,6 +50,13 @@ func (r LLMCatalogResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n  %s\n\n", uikit.TUI.Dim().Render("docling note catalog"))
 	for _, e := range r.Entries {
+		if e.isRich() {
+			writeBriefLine(&b, e.toBrief())
+			if e.IsHTML {
+				fmt.Fprintf(&b, "    %s\n", uikit.TUI.Dim().Render("[html]"))
+			}
+			continue
+		}
 		fmt.Fprintf(&b, "  %s  %s",
 			uikit.TUI.TextBlue().Render(e.Key),
 			e.Title,
@@ -61,6 +71,31 @@ func (r LLMCatalogResult) Human() string {
 	}
 	fmt.Fprintf(&b, "\n  %s %d paper(s)\n", uikit.SymArrow, r.Count)
 	return b.String()
+}
+
+// isRich reports whether this entry carries `--full` enrichment. Populated
+// by llm_catalog.go only when the parent Item read succeeded; entries from
+// pre-`--full` runs or lookup-miss fallbacks leave all four fields zero.
+func (e LLMCatalogEntry) isRich() bool {
+	return e.Citekey != "" || e.Year != 0 || len(e.Authors) > 0 || e.Abstract != ""
+}
+
+// toBrief projects a catalog entry into the ItemBrief shape that
+// writeBriefLine knows how to render. Publication is not carried in the
+// catalog entry (it's not part of the compact shape by design), so it
+// stays empty — callers who want it run `item read`.
+func (e LLMCatalogEntry) toBrief() ItemBrief {
+	return ItemBrief{
+		Key:          e.Key,
+		Citekey:      e.Citekey,
+		Title:        e.Title,
+		Year:         e.Year,
+		DOI:          e.DOI,
+		Authors:      e.Authors,
+		AuthorsTotal: e.AuthorsTotal,
+		Abstract:     e.Abstract,
+		Tags:         e.Tags,
+	}
 }
 
 // ---------------------------------------------------------------------------
