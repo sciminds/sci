@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/graph"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/sciminds/cli/internal/zot/openalex"
@@ -14,6 +15,8 @@ import (
 var (
 	graphCitesLimit   int
 	graphCitesYearMin int
+	graphRefsRemote   bool
+	graphCitesRemote  bool
 )
 
 func graphCommand() *cli.Command {
@@ -36,14 +39,17 @@ func graphRefsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "refs",
 		Usage:       "Show works this item cites, split into in-library vs outside",
-		Description: "$ zot graph refs ABC12345",
+		Description: "$ zot graph refs ABC12345\n$ zot graph refs ABC12345 --remote   # bypass local sqlite, hit the Zotero Web API",
 		ArgsUsage:   "<key>",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "remote", Usage: "fetch the source item from the Zotero Web API (use when the item was just created and isn't synced yet)", Destination: &graphRefsRemote, Local: true},
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected an item key")
 			}
 			key := cmd.Args().First()
-			db, item, oa, err := graphInputs(ctx, key)
+			db, item, oa, err := graphInputs(ctx, key, graphRefsRemote)
 			if err != nil {
 				return err
 			}
@@ -62,18 +68,19 @@ func graphCitesCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "cites",
 		Usage:       "Show works that cite this item, split into in-library vs outside",
-		Description: "$ zot graph cites ABC12345\n$ zot graph cites ABC12345 --limit 50 --year-from 2022",
+		Description: "$ zot graph cites ABC12345\n$ zot graph cites ABC12345 --limit 50 --year-from 2022\n$ zot graph cites ABC12345 --remote",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 25, Usage: "max citing works to surface (1-200)", Destination: &graphCitesLimit, Local: true},
 			&cli.IntFlag{Name: "year-from", Usage: "only include citing works published on or after this year", Destination: &graphCitesYearMin, Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "fetch the source item from the Zotero Web API (use when the item was just created and isn't synced yet)", Destination: &graphCitesRemote, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected an item key")
 			}
 			key := cmd.Args().First()
-			db, item, oa, err := graphInputs(ctx, key)
+			db, item, oa, err := graphInputs(ctx, key, graphCitesRemote)
 			if err != nil {
 				return err
 			}
@@ -92,17 +99,18 @@ func graphCitesCommand() *cli.Command {
 }
 
 // graphInputs centralizes the (db, item, openalex client) trio that both
-// graph commands need. Returns the local.Reader so the caller can defer
-// Close. Errors out cleanly when the item isn't in the local library —
-// graph traversal needs the item's OpenAlex id or DOI to anchor.
-func graphInputs(ctx context.Context, key string) (local.Reader, *local.Item, *openalex.Client, error) {
+// graph commands need. The local.Reader is always opened (graph.Refs and
+// .Cites use it for the in-library DOI intersection); when remote is true
+// the source item itself is fetched via the Zotero Web API instead of
+// db.Read so just-created items work even before Zotero desktop syncs.
+//
+// Note: in-library detection still relies on the local DB. When the
+// just-added paper has refs that ARE already in the library remotely but
+// not yet synced locally, those will incorrectly land in outside_library.
+// Re-running after a sync (typically seconds) settles it.
+func graphInputs(ctx context.Context, key string, remote bool) (local.Reader, *local.Item, *openalex.Client, error) {
 	_, opened, err := openLocalDB(ctx)
 	if err != nil {
-		return nil, nil, nil, err
-	}
-	it, err := opened.Read(key)
-	if err != nil {
-		_ = opened.Close()
 		return nil, nil, nil, err
 	}
 	c, err := openalexClient()
@@ -110,5 +118,27 @@ func graphInputs(ctx context.Context, key string) (local.Reader, *local.Item, *o
 		_ = opened.Close()
 		return nil, nil, nil, err
 	}
-	return opened, it, c, nil
+	var item *local.Item
+	if remote {
+		zc, rerr := requireAPIClient(ctx)
+		if rerr != nil {
+			_ = opened.Close()
+			return nil, nil, nil, rerr
+		}
+		raw, rerr := zc.GetItem(ctx, key)
+		if rerr != nil {
+			_ = opened.Close()
+			return nil, nil, nil, rerr
+		}
+		it := api.ItemFromClient(raw)
+		item = &it
+	} else {
+		it, rerr := opened.Read(key)
+		if rerr != nil {
+			_ = opened.Close()
+			return nil, nil, nil, rerr
+		}
+		item = it
+	}
+	return opened, item, c, nil
 }

@@ -17,7 +17,12 @@ const citedByPageSize = 25
 // CitedBy returns works that cite the given OpenAlex Work id, sorted by
 // citation count desc (most influential first). Pass opts.Filter to add
 // extra filters (e.g. "from_publication_date=2020-01-01" via the
-// SearchOpts.Filter map). The cited_by filter is added automatically.
+// SearchOpts.Filter map).
+//
+// OpenAlex filter naming gotcha: the filter that means "papers citing X"
+// is `cites:X`, not `cited_by:X`. (`cited_by:X` is X's reference list,
+// which we get directly from Work.ReferencedWorks — no separate call
+// needed.) See https://docs.openalex.org/how-to-use-the-api/get-lists-of-entities/filter-entity-lists
 //
 // Pagination: when opts.PerPage == 0 the page is sized to citedByPageSize.
 // Walk subsequent pages via opts.Cursor or use IterateWorks for a full
@@ -26,7 +31,7 @@ func (c *Client) CitedBy(ctx context.Context, id string, opts SearchOpts) (*Resu
 	if opts.Filter == nil {
 		opts.Filter = map[string]string{}
 	}
-	opts.Filter["cited_by"] = id
+	opts.Filter["cites"] = id
 	if opts.PerPage == 0 {
 		opts.PerPage = citedByPageSize
 	}

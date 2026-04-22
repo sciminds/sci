@@ -40,7 +40,7 @@ func TestCitedBy_BuildsFilterAndDefaults(t *testing.T) {
 	}
 	got := (*seen)[0]
 	for _, fragment := range []string{
-		"filter=cited_by%3AW3105657479",
+		"filter=cites%3AW3105657479",
 		"per_page=25",
 		"sort=cited_by_count%3Adesc",
 	} {
@@ -62,7 +62,7 @@ func TestCitedBy_PreservesUserFilters(t *testing.T) {
 	}
 	got := (*seen)[0]
 	// Both filters survive; sort override wins over default.
-	if !strings.Contains(got, "cited_by") || !strings.Contains(got, "from_publication_date") {
+	if !strings.Contains(got, "cites") || !strings.Contains(got, "from_publication_date") {
 		t.Errorf("filters not preserved: %s", got)
 	}
 	if !strings.Contains(got, "sort=publication_date%3Adesc") {
