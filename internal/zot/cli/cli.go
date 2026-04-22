@@ -163,6 +163,7 @@ func itemCommand() *cli.Command {
 			childrenCommand(),
 			openCommand(),
 			exportCommand(),
+			itemNoteCommand(),
 		},
 	}
 }

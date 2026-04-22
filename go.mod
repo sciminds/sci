@@ -18,12 +18,13 @@ require (
 	github.com/creack/pty/v2 v2.0.1
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lrstanley/bubblezone/v2 v2.0.0
+	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/muesli/termenv v0.16.0
 	github.com/oapi-codegen/runtime v1.4.0
 	github.com/pocketbase/dbx v1.12.0
 	github.com/samber/lo v1.53.0
 	github.com/urfave/cli/v3 v3.7.0
-	github.com/yuin/goldmark v1.7.13
+	github.com/yuin/goldmark v1.8.2
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.42.0
 	golang.org/x/text v0.32.0
@@ -69,7 +70,6 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.21 // indirect
-	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
