@@ -32,3 +32,5 @@ scripts/*.py
 scripts/*.ipynb
 todo.md
 rodney/
+# MyST typst templates under active iteration — commit once stable
+/templates/
