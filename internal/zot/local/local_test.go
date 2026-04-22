@@ -1,6 +1,7 @@
 package local
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -466,6 +467,37 @@ func TestRead_SingleNameCreator(t *testing.T) {
 	}
 }
 
+func TestRead_PopulatesExtra(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// Item CCCC3333 (book) has the only Extra value in the fixture:
+	// "tldr: loose note\nCitation Key: legacyBookKey1900\n". Read should
+	// surface it as a typed field, not just leave it buried in Fields.
+	it, err := db.Read("CCCC3333")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.Extra == "" {
+		t.Fatalf("Extra empty, want raw extra value; Fields[extra] = %q", it.Fields["extra"])
+	}
+	if !strings.Contains(it.Extra, "Citation Key: legacyBookKey1900") {
+		t.Errorf("Extra = %q, want Citation Key line", it.Extra)
+	}
+}
+
+func TestRead_NoExtraStaysEmpty(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// AAAA1111 has no extra row in itemData → Extra should be "".
+	it, err := db.Read("AAAA1111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.Extra != "" {
+		t.Errorf("Extra = %q, want empty", it.Extra)
+	}
+}
+
 func TestRead_NotFound(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
@@ -537,6 +569,32 @@ func TestListCollections(t *testing.T) {
 	empty := byKey["EMPTYCOL"]
 	if empty.Name != "Empty Box" || empty.ItemCount != 0 {
 		t.Errorf("Empty Box: %+v", empty)
+	}
+}
+
+func TestCollectionByKey(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	c, err := db.CollectionByKey("COLLAAA1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c == nil || c.Name != "Brain Papers" || c.ItemCount != 2 {
+		t.Errorf("hit lookup = %+v", c)
+	}
+	c, err = db.CollectionByKey("COLLBBB2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c == nil || c.ParentKey != "COLLAAA1" {
+		t.Errorf("nested lookup = %+v", c)
+	}
+	c, err = db.CollectionByKey("NOSUCHCO")
+	if err != nil {
+		t.Fatalf("miss should be nil/nil, got err=%v", err)
+	}
+	if c != nil {
+		t.Errorf("miss returned %+v, want nil", c)
 	}
 }
 

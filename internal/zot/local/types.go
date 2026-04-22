@@ -3,6 +3,15 @@ package local
 // Item is a denormalized snapshot of a Zotero item for list/search/read views.
 // Fields that may be absent are string-typed rather than pointers — empty
 // string is the natural "unset" in Zotero's EAV storage.
+//
+// Extra carries Zotero's free-text "Extra" field (citation managers stash
+// `Key: Value` lines there — OpenAlex IDs, BBT citation keys, ORCID, …).
+// Surfaced as a typed field so agents don't need to grep Fields["extra"].
+//
+// Citekey is the resolved BibTeX cite-key (Zotero 7 native field, BBT
+// `Citation Key:` line in Extra, or our synthesized fallback). Set by
+// callers via citekey.Enrich after Read / ItemFromClient — the local
+// package can't import citekey (cycle). Empty when not enriched.
 type Item struct {
 	ID           int64             `json:"id"`
 	Key          string            `json:"key"`
@@ -14,6 +23,8 @@ type Item struct {
 	URL          string            `json:"url,omitempty"`
 	Abstract     string            `json:"abstract,omitempty"`
 	Publication  string            `json:"publication,omitempty"`
+	Extra        string            `json:"extra,omitempty"`
+	Citekey      string            `json:"citekey,omitempty"`
 	Creators     []Creator         `json:"creators,omitempty"`
 	Tags         []string          `json:"tags,omitempty"`
 	Collections  []string          `json:"collections,omitempty"`

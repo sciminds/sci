@@ -41,6 +41,25 @@ func ItemFromClient(it *client.Item) local.Item {
 	if d.PublicationTitle != nil {
 		out.Publication = *d.PublicationTitle
 	}
+	if d.Extra != nil {
+		out.Extra = *d.Extra
+	}
+	// Seed Fields with the entries citekey.Resolve consults so the same
+	// enrichment helper works on items from either side of the
+	// reads-local / writes-cloud split. Skip empty strings so the JSON
+	// shape stays minimal — pointers from the OpenAPI client are
+	// frequently non-nil pointing at "" for absent fields.
+	seedField := func(name string, p *string) {
+		if p == nil || *p == "" {
+			return
+		}
+		if out.Fields == nil {
+			out.Fields = map[string]string{}
+		}
+		out.Fields[name] = *p
+	}
+	seedField("extra", d.Extra)
+	seedField("citationKey", d.CitationKey)
 	if d.Creators != nil {
 		out.Creators = lo.Map(*d.Creators, creatorFromClient)
 	}

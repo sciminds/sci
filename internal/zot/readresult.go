@@ -309,13 +309,19 @@ func (r TagListResult) Human() string {
 
 // StatsResult is returned for `zot info --library X` and as the building
 // block of MultiStatsResult (one entry per library).
+//
+// Scope is the bare scope token ("personal" or "shared"); Library is the
+// human label ("shared (sciminds)"). LibraryAPIID carries the numeric
+// Zotero Web API id — UserID for personal, GroupID for shared — so agents
+// can build `zotero://select/groups/{id}/...` deeplinks without having to
+// grep the on-disk config.
 type StatsResult struct {
-	// Library is the scope label ("personal" or `shared (<name>)`) these
-	// stats describe.
-	Library string      `json:"library"`
-	Stats   local.Stats `json:"stats"`
-	DataDir string      `json:"data_dir"`
-	Schema  int         `json:"schema_version"`
+	Library      string      `json:"library"`
+	Scope        string      `json:"scope,omitempty"`
+	LibraryAPIID string      `json:"library_api_id,omitempty"`
+	Stats        local.Stats `json:"stats"`
+	DataDir      string      `json:"data_dir"`
+	Schema       int         `json:"schema_version"`
 }
 
 // JSON implements cmdutil.Result.

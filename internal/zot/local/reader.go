@@ -30,6 +30,7 @@ type Reader interface {
 
 	// Collections & Tags
 	ListCollections() ([]Collection, error)
+	CollectionByKey(key string) (*Collection, error)
 	ListTags() ([]Tag, error)
 
 	// Children

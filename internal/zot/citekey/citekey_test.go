@@ -6,6 +6,44 @@ import (
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
+func TestEnrich_PopulatesCitekey(t *testing.T) {
+	t.Parallel()
+	it := &local.Item{
+		Key:   "ABCD1234",
+		Title: "Deep Learning for Neuroimaging",
+		Date:  "2020-03-15",
+		Creators: []local.Creator{
+			{Type: "author", First: "Jane", Last: "Smith"},
+		},
+	}
+	Enrich(it)
+	if it.Citekey != "smith2020-deeplearneur-ABCD1234" {
+		t.Errorf("Citekey = %q, want synthesized v2 form", it.Citekey)
+	}
+}
+
+func TestEnrich_HonorsExtraCitationKey(t *testing.T) {
+	t.Parallel()
+	it := &local.Item{
+		Key:    "ABCD1234",
+		Title:  "Anything",
+		Date:   "2020",
+		Fields: map[string]string{"extra": "Citation Key: legacyPin1900\n"},
+		Creators: []local.Creator{
+			{Type: "author", First: "Jane", Last: "Smith"},
+		},
+	}
+	Enrich(it)
+	if it.Citekey != "legacyPin1900" {
+		t.Errorf("Citekey = %q, want legacyPin1900 from Extra", it.Citekey)
+	}
+}
+
+func TestEnrich_NilSafe(t *testing.T) {
+	t.Parallel()
+	Enrich(nil) // must not panic
+}
+
 func TestSynthesize_Basic(t *testing.T) {
 	t.Parallel()
 	it := &local.Item{

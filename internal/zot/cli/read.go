@@ -12,6 +12,7 @@ import (
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
@@ -240,6 +241,7 @@ func readCommand() *cli.Command {
 					return err
 				}
 				it := api.ItemFromClient(raw)
+				citekey.Enrich(&it)
 				cmdutil.Output(cmd, zot.ItemResult{Item: it})
 				return nil
 			}
@@ -251,8 +253,9 @@ func readCommand() *cli.Command {
 
 			it, err := db.Read(key)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w (pass --remote to bypass local sqlite if the item was just created)", err)
 			}
+			citekey.Enrich(it)
 			cmdutil.Output(cmd, zot.ItemResult{Item: *it})
 			return nil
 		},
@@ -292,7 +295,9 @@ func listCommand() *cli.Command {
 					return err
 				}
 				items := lo.Map(raw, func(it client.Item, _ int) local.Item {
-					return api.ItemFromClient(&it)
+					out := api.ItemFromClient(&it)
+					citekey.Enrich(&out)
+					return out
 				})
 				cmdutil.Output(cmd, zot.ListResult{
 					Count: len(items),
@@ -329,11 +334,22 @@ func listCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.ListResult{
+			result := zot.ListResult{
 				Count:   len(items),
 				Items:   items,
 				Library: db.LibraryID(),
-			})
+			}
+			// Empty-result heuristic: if the user asked for a specific
+			// collection that the local DB doesn't know about, the most
+			// likely cause is "Zotero desktop hasn't synced yet" — surface
+			// the --remote escape hatch so agents don't conclude "no items"
+			// silently. A known-but-empty collection stays quiet (legit).
+			if len(items) == 0 && listCollection != "" {
+				if c, lerr := db.CollectionByKey(listCollection); lerr == nil && c == nil {
+					result.Hint = "collection " + listCollection + " not found locally; pass --remote to fetch from the Zotero Web API (items just created may not be synced yet)"
+				}
+			}
+			cmdutil.Output(cmd, result)
 			return nil
 		},
 	}
@@ -384,17 +400,23 @@ func statsForScope(ctx context.Context, cfg *zot.Config) (zot.StatsResult, error
 	}
 	ref, _ := LibraryFromContext(ctx)
 	label := "personal"
+	scope := "personal"
+	apiID := cfg.UserID
 	if ref.Scope == zot.LibShared {
 		label = "shared"
+		scope = "shared"
+		apiID = cfg.SharedGroupID
 		if cfg.SharedGroupName != "" {
 			label = "shared (" + cfg.SharedGroupName + ")"
 		}
 	}
 	return zot.StatsResult{
-		Library: label,
-		Stats:   *s,
-		DataDir: cfg.DataDir,
-		Schema:  db.SchemaVersion(),
+		Library:      label,
+		Scope:        scope,
+		LibraryAPIID: apiID,
+		Stats:        *s,
+		DataDir:      cfg.DataDir,
+		Schema:       db.SchemaVersion(),
 	}, nil
 }
 

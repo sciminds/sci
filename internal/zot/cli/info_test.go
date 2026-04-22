@@ -81,6 +81,7 @@ func seedMinimalDB(t *testing.T, dir, sharedGroupID string) {
 		`CREATE TABLE tags (tagID INTEGER PRIMARY KEY, name TEXT UNIQUE, type INTEGER)`,
 		`CREATE TABLE itemTags (itemID INTEGER, tagID INTEGER, type INTEGER, PRIMARY KEY (itemID, tagID))`,
 		`CREATE TABLE collections (collectionID INTEGER PRIMARY KEY, collectionName TEXT, libraryID INTEGER, parentCollectionID INTEGER, key TEXT)`,
+		`CREATE TABLE collectionItems (collectionID INTEGER, itemID INTEGER, PRIMARY KEY (collectionID, itemID))`,
 		`CREATE TABLE itemAttachments (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, linkMode INTEGER, contentType TEXT, path TEXT)`,
 		`CREATE TABLE itemNotes (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, note TEXT, title TEXT)`,
 		`INSERT INTO version VALUES ('userdata', 125)`,
@@ -196,6 +197,37 @@ func TestInfo_WithLibraryFlag_NarrowsToScope(t *testing.T) {
 	}
 	if result.Library != "personal" {
 		t.Errorf("Library = %q, want personal", result.Library)
+	}
+	// Web API ID surfacing — agents need this to build
+	// zotero://select/library/items/... deeplinks.
+	if result.Scope != "personal" {
+		t.Errorf("Scope = %q, want personal", result.Scope)
+	}
+	if result.LibraryAPIID != "42" {
+		t.Errorf("LibraryAPIID = %q, want 42 (the user_id)", result.LibraryAPIID)
+	}
+}
+
+func TestInfo_SharedScope_EmitsGroupID(t *testing.T) {
+	withTestConfig(t, "42", "6506098")
+
+	out, err := runInfo(t, "--json", "info", "--library", "shared")
+	if err != nil {
+		t.Fatalf("info --library shared: %v\n%s", err, string(out))
+	}
+	jsonStart := bytes.IndexByte(out, '{')
+	if jsonStart < 0 {
+		t.Fatalf("no JSON in output: %q", string(out))
+	}
+	var result zot.StatsResult
+	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
+		t.Fatalf("parse StatsResult: %v", err)
+	}
+	if result.Scope != "shared" {
+		t.Errorf("Scope = %q, want shared", result.Scope)
+	}
+	if result.LibraryAPIID != "6506098" {
+		t.Errorf("LibraryAPIID = %q, want 6506098 (the shared_group_id)", result.LibraryAPIID)
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/enrich"
 	"github.com/sciminds/cli/internal/zot/local"
@@ -147,6 +148,7 @@ func runAdd(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	hydrated := api.ItemFromClient(it)
+	citekey.Enrich(&hydrated)
 	cmdutil.Output(cmd, zot.WriteResult{
 		Action: "created",
 		Kind:   "item",

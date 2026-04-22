@@ -578,6 +578,7 @@ LIMIT 1
 	it.Fields = fields
 	it.URL = fields["url"]
 	it.Abstract = fields["abstractNote"]
+	it.Extra = fields["extra"]
 
 	creators, err := d.itemCreators(it.ID)
 	if err != nil {

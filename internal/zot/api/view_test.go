@@ -64,6 +64,65 @@ func TestItemFromClient_MapsCoreFields(t *testing.T) {
 	}
 }
 
+func TestItemFromClient_PopulatesExtraAndCitationKey(t *testing.T) {
+	t.Parallel()
+	extra := "OpenAlex: W123\nCitation Key: hand-pinned\n"
+	ck := "explicit-zot7-key"
+	it := &client.Item{
+		Key:     "EXT00001",
+		Version: 1,
+		Data: client.ItemData{
+			ItemType:    "preprint",
+			Extra:       &extra,
+			CitationKey: &ck,
+		},
+	}
+	got := ItemFromClient(it)
+	if got.Extra != extra {
+		t.Errorf("Extra = %q", got.Extra)
+	}
+	// Fields seeded so downstream citekey.Resolve sees the same data
+	// the local-DB Read path provides.
+	if got.Fields["extra"] != extra {
+		t.Errorf("Fields[extra] = %q", got.Fields["extra"])
+	}
+	if got.Fields["citationKey"] != ck {
+		t.Errorf("Fields[citationKey] = %q", got.Fields["citationKey"])
+	}
+}
+
+func TestItemFromClient_NoExtraNoFields(t *testing.T) {
+	t.Parallel()
+	title := "X"
+	it := &client.Item{Key: "Z", Data: client.ItemData{ItemType: "preprint", Title: &title}}
+	got := ItemFromClient(it)
+	if got.Extra != "" {
+		t.Errorf("Extra = %q, want empty", got.Extra)
+	}
+	if got.Fields != nil {
+		t.Errorf("Fields = %v, want nil when no extra/citationKey", got.Fields)
+	}
+}
+
+func TestItemFromClient_EmptyStringFieldsIgnored(t *testing.T) {
+	t.Parallel()
+	// The OpenAPI client routinely returns non-nil pointers to "" for
+	// absent string fields. Don't pollute the JSON output with them.
+	empty := ""
+	it := &client.Item{Key: "Z", Data: client.ItemData{
+		ItemType:    "preprint",
+		Extra:       &empty,
+		CitationKey: &empty,
+	}}
+	got := ItemFromClient(it)
+	if got.Fields != nil {
+		t.Errorf("Fields = %v, want nil when both are empty pointers", got.Fields)
+	}
+	if got.Extra != "" {
+		t.Errorf("Extra = %q, want empty", got.Extra)
+	}
+}
+
 func TestItemFromClient_HandlesNilSafely(t *testing.T) {
 	t.Parallel()
 	got := ItemFromClient(nil)

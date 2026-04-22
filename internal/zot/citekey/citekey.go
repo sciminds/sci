@@ -78,6 +78,18 @@ func Synthesize(it *local.Item) string {
 	return strings.Join(parts, "-")
 }
 
+// Enrich populates it.Citekey via Resolve. No-op when it is nil. Safe to
+// call repeatedly. Used by CLI read paths so the synthesized cite-key
+// shows up in --json output without callers needing to know the citekey
+// resolution rules.
+func Enrich(it *local.Item) {
+	if it == nil {
+		return
+	}
+	k, _ := Resolve(it)
+	it.Citekey = k
+}
+
 // Resolve returns the cite-key for an item, honoring user-pinned keys
 // before falling back to synthesis. Resolution order:
 //
