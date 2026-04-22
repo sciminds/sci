@@ -54,7 +54,11 @@ func graphRefsCommand() *cli.Command {
 				return err
 			}
 			defer func() { _ = db.Close() }()
-			res, err := graph.Refs(ctx, db, oa, item)
+			idx, err := libraryIndex(ctx, db, graphRefsRemote)
+			if err != nil {
+				return err
+			}
+			res, err := graph.Refs(ctx, idx, oa, item)
 			if err != nil {
 				return err
 			}
@@ -85,7 +89,11 @@ func graphCitesCommand() *cli.Command {
 				return err
 			}
 			defer func() { _ = db.Close() }()
-			res, err := graph.Cites(ctx, db, oa, item, graph.CitesOpts{
+			idx, err := libraryIndex(ctx, db, graphCitesRemote)
+			if err != nil {
+				return err
+			}
+			res, err := graph.Cites(ctx, idx, oa, item, graph.CitesOpts{
 				Limit:   graphCitesLimit,
 				YearMin: graphCitesYearMin,
 			})
@@ -98,16 +106,29 @@ func graphCitesCommand() *cli.Command {
 	}
 }
 
+// libraryIndex builds the graph.LibraryIndex used for in-library DOI
+// intersection. With remote=false we wrap the already-open local
+// reader (cheap, may be stale). With remote=true we pre-fetch every
+// item in the configured library via the Zotero Web API so refs/cites
+// against just-added items resolve to in_library hits without waiting
+// for Zotero desktop to sync.
+func libraryIndex(ctx context.Context, db local.Reader, remote bool) (graph.LibraryIndex, error) {
+	if !remote {
+		return graph.LocalIndex(db), nil
+	}
+	zc, err := requireAPIClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return graph.RemoteIndex(ctx, zc), nil
+}
+
 // graphInputs centralizes the (db, item, openalex client) trio that both
-// graph commands need. The local.Reader is always opened (graph.Refs and
-// .Cites use it for the in-library DOI intersection); when remote is true
-// the source item itself is fetched via the Zotero Web API instead of
-// db.Read so just-created items work even before Zotero desktop syncs.
-//
-// Note: in-library detection still relies on the local DB. When the
-// just-added paper has refs that ARE already in the library remotely but
-// not yet synced locally, those will incorrectly land in outside_library.
-// Re-running after a sync (typically seconds) settles it.
+// graph commands need. The local.Reader is always opened (used for
+// LocalIndex even when --remote drives source resolution against the
+// API); when remote is true the source item itself is fetched via the
+// Zotero Web API instead of db.Read so just-created items work even
+// before Zotero desktop syncs.
 func graphInputs(ctx context.Context, key string, remote bool) (local.Reader, *local.Item, *openalex.Client, error) {
 	_, opened, err := openLocalDB(ctx)
 	if err != nil {

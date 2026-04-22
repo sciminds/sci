@@ -94,7 +94,7 @@ func TestRefs_SplitsLibraryAndOutside(t *testing.T) {
 		Title: "Mastering Atari, Go, chess and shogi",
 		Extra: "OpenAlex: W3105657479",
 	}
-	res, err := Refs(context.Background(), db, oa, item)
+	res, err := Refs(context.Background(), LocalIndex(db), oa, item)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestRefs_MissingDOIGoesToOutside(t *testing.T) {
 	db := &stubReader{dois: map[string]string{}}
 
 	item := &local.Item{Key: "X", Extra: "OpenAlex: W9000001"}
-	res, err := Refs(context.Background(), db, oa, item)
+	res, err := Refs(context.Background(), LocalIndex(db), oa, item)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestRefs_NoAnchorErrors(t *testing.T) {
 	db := &stubReader{}
 
 	item := &local.Item{Key: "X"} // no Extra, no DOI
-	_, err := Refs(context.Background(), db, oa, item)
+	_, err := Refs(context.Background(), LocalIndex(db), oa, item)
 	if err != ErrNoOpenAlexAnchor {
 		t.Errorf("err = %v, want ErrNoOpenAlexAnchor", err)
 	}
@@ -164,7 +164,7 @@ func TestRefs_DOIFallbackResolves(t *testing.T) {
 	oa := newOpenAlex(t, parent, &openalex.Results[openalex.Work]{})
 	db := &stubReader{}
 	item := &local.Item{Key: "X", DOI: "10.1000/anything"}
-	res, err := Refs(context.Background(), db, oa, item)
+	res, err := Refs(context.Background(), LocalIndex(db), oa, item)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestCites_FiltersAndSplits(t *testing.T) {
 	db := &stubReader{dois: map[string]string{"10.1000/citera": "INLIB001"}}
 
 	item := &local.Item{Key: "X", Extra: "OpenAlex: W9000010", Title: "Main"}
-	res, err := Cites(context.Background(), db, oa, item, CitesOpts{Limit: 10, YearMin: 2020})
+	res, err := Cites(context.Background(), LocalIndex(db), oa, item, CitesOpts{Limit: 10, YearMin: 2020})
 	if err != nil {
 		t.Fatal(err)
 	}

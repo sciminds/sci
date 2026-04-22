@@ -33,6 +33,29 @@ import (
 	"github.com/sciminds/cli/internal/zot/openalex"
 )
 
+// LibraryIndex resolves a list of DOIs to Zotero item keys for items in
+// the user's library. The narrow interface lets callers swap between a
+// local-DB-backed implementation (cheap, may be stale) and a Web-API
+// pre-fetched implementation (slower first call, always current).
+//
+// Returns lowercase-DOI → key. DOIs not in the library are absent from
+// the result map (no nil entries).
+type LibraryIndex interface {
+	LookupKeysByDOI(dois []string) (map[string]string, error)
+}
+
+// readerIndex adapts a local.Reader to the LibraryIndex interface.
+type readerIndex struct{ r local.Reader }
+
+// LocalIndex wraps a local.Reader — the cheap, default path. May be
+// stale right after a write; use RemoteIndex for agent flows that act
+// on items they just created.
+func LocalIndex(r local.Reader) LibraryIndex { return readerIndex{r} }
+
+func (i readerIndex) LookupKeysByDOI(dois []string) (map[string]string, error) {
+	return i.r.ItemKeysByDOI(dois)
+}
+
 // Source identifies the parent paper a graph result describes.
 type Source struct {
 	Key      string `json:"key"`
@@ -88,7 +111,7 @@ type CitesOpts struct {
 var ErrNoOpenAlexAnchor = errors.New("graph: item has no OpenAlex id or DOI to anchor traversal")
 
 // Refs returns the works that the given Zotero item cites.
-func Refs(ctx context.Context, db local.Reader, oa *openalex.Client, item *local.Item) (*Result, error) {
+func Refs(ctx context.Context, idx LibraryIndex, oa *openalex.Client, item *local.Item) (*Result, error) {
 	work, err := resolveWork(ctx, oa, item)
 	if err != nil {
 		return nil, err
@@ -103,7 +126,7 @@ func Refs(ctx context.Context, db local.Reader, oa *openalex.Client, item *local
 	if err != nil {
 		return nil, fmt.Errorf("hydrate referenced works: %w", err)
 	}
-	in, out, missing := splitByLibrary(db, hydrated)
+	in, out, missing := splitByLibrary(idx, hydrated)
 	return &Result{
 		Item:           src,
 		Direction:      "refs",
@@ -119,7 +142,7 @@ func Refs(ctx context.Context, db local.Reader, oa *openalex.Client, item *local
 }
 
 // Cites returns the works that cite the given Zotero item.
-func Cites(ctx context.Context, db local.Reader, oa *openalex.Client, item *local.Item, opts CitesOpts) (*Result, error) {
+func Cites(ctx context.Context, idx LibraryIndex, oa *openalex.Client, item *local.Item, opts CitesOpts) (*Result, error) {
 	work, err := resolveWork(ctx, oa, item)
 	if err != nil {
 		return nil, err
@@ -142,7 +165,7 @@ func Cites(ctx context.Context, db local.Reader, oa *openalex.Client, item *loca
 	if err != nil {
 		return nil, fmt.Errorf("cited_by lookup: %w", err)
 	}
-	in, out, missing := splitByLibrary(db, res.Results)
+	in, out, missing := splitByLibrary(idx, res.Results)
 	return &Result{
 		Item:           src,
 		Direction:      "cites",
@@ -190,7 +213,7 @@ func sourceFrom(it *local.Item, w *openalex.Work) Source {
 // user's library" vs "outside" using a single batched DOI lookup. Returns
 // the count of works whose DOI is missing — these end up in the outside
 // bucket since we can't prove they're in the library.
-func splitByLibrary(db local.Reader, works []openalex.Work) (in, out []Neighbor, missingMeta int) {
+func splitByLibrary(idx LibraryIndex, works []openalex.Work) (in, out []Neighbor, missingMeta int) {
 	if len(works) == 0 {
 		return nil, nil, 0
 	}
@@ -203,10 +226,10 @@ func splitByLibrary(db local.Reader, works []openalex.Work) (in, out []Neighbor,
 
 	hits := map[string]string{}
 	if len(dois) > 0 {
-		// Best-effort: a DB error here would leave every neighbor in the
-		// outside bucket. We accept that — it's strictly safer than
-		// falsely claiming items aren't in the library when they are.
-		if got, err := db.ItemKeysByDOI(dois); err == nil {
+		// Best-effort: an index error would leave every neighbor in the
+		// outside bucket. We accept that — strictly safer than falsely
+		// claiming items aren't in the library when they are.
+		if got, err := idx.LookupKeysByDOI(dois); err == nil {
 			hits = got
 		}
 	}
