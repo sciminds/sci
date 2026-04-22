@@ -28,7 +28,12 @@ var md = goldmark.New(
 // policy is the shared sanitizer. UGCPolicy covers everything lab notes
 // want (headings, lists, code, links, tables, blockquotes) while stripping
 // scripts, iframes, event handlers, and unknown attributes.
-var policy = bluemonday.UGCPolicy()
+//
+// `zotero` is allowed alongside the UGC defaults (http/https/mailto) so
+// `zotero://select/…` cross-links in summary notes survive rendering —
+// Zotero's desktop app resolves these to an item/collection select action.
+var policy = bluemonday.UGCPolicy().
+	AllowURLSchemes("http", "https", "mailto", "zotero")
 
 // MarkdownToHTML parses src as CommonMark, renders to HTML, and sanitizes
 // the result with the package policy. Empty input returns "", nil.

@@ -10,11 +10,17 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+var llmCatalogFull bool
+
 func llmCatalogCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "catalog",
-		Usage:       "Compact index of every paper with a docling note",
-		Description: "$ zot llm catalog",
+		Name:  "catalog",
+		Usage: "Compact index of every paper with a docling note",
+		Description: "$ zot llm catalog\n" +
+			"$ zot llm catalog --full   # inline abstract + citekey + authors + year per entry",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "inline abstract + citekey + authors + year per entry (trades size for fewer follow-up item reads)", Destination: &llmCatalogFull, Local: true},
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			_, db, err := openLocalDB(ctx)
 			if err != nil {
@@ -53,9 +59,19 @@ func llmCatalogCommand() *cli.Command {
 					Tags:    n.Tags,
 					IsHTML:  isHTMLNote(n.Body),
 				}
-				if p, ok := parents[n.ParentKey]; ok {
-					entry.DOI = p.DOI
-					entry.Date = p.Date
+				p, ok := parents[n.ParentKey]
+				if !ok {
+					return entry
+				}
+				entry.DOI = p.DOI
+				entry.Date = p.Date
+				if llmCatalogFull {
+					brief := zot.ToBrief(p)
+					entry.Citekey = brief.Citekey
+					entry.Year = brief.Year
+					entry.Authors = brief.Authors
+					entry.AuthorsTotal = brief.AuthorsTotal
+					entry.Abstract = brief.Abstract
 				}
 				return entry
 			})

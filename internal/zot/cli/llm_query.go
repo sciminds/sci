@@ -28,9 +28,24 @@ func llmQueryCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "query",
 		Usage: "Filter notes by metadata, then query content via mq",
-		Description: "$ zot llm query -s transformers -- .h2\n" +
+		Description: "Two-stage: (1) pick notes via -s/-t/-c/-k; (2) pass the mq\n" +
+			"pipeline after `--`. Omitting the mq part dumps raw note\n" +
+			"bodies for the filtered set (equivalent to `llm read`).\n" +
+			"\n" +
+			"-s uses the same @field: clause grammar as `zot search`:\n" +
+			"  -s '@tag: ToM @year: 2024'\n" +
+			"\n" +
+			"mq is a jq-for-markdown processor. Common patterns:\n" +
+			"  .h2                                  # all H2 headings\n" +
+			"  .p                                   # all paragraphs\n" +
+			"  .h2 | select(contains(\"Discussion\"))  # heading text filter\n" +
+			"  .code                                # fenced code blocks\n" +
+			"mq docs + install: https://github.com/harehare/mq\n" +
+			"\n" +
+			"$ zot llm query -s transformers -- .h2\n" +
 			"$ zot llm query -t ml -n 10\n" +
-			"$ zot llm query -k ABC123 -k DEF456 -- .p",
+			"$ zot llm query -k ABC123 -k DEF456 -- .p\n" +
+			"$ zot llm query -s '@tag: ToM' -- '.h2 | select(contains(\"Method\"))'",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "search", Aliases: []string{"s"}, Usage: "Cross-field text search", Destination: &llmQuerySearch, Local: true},
 			&cli.StringFlag{Name: "tag", Aliases: []string{"t"}, Usage: "Filter by tag", Destination: &llmQueryTag, Local: true},

@@ -131,3 +131,48 @@ func TestSanitizeHTML_empty(t *testing.T) {
 		t.Errorf("empty input: got %q, want \"\"", got)
 	}
 }
+
+// Lit-review summary notes cross-link to Zotero items via zotero://select/…
+// URIs. bluemonday's UGCPolicy defaults to http/https/mailto only, which
+// silently strips these anchors. The allow-list extension here is what makes
+// "summary note with clickable refs" actually work.
+func TestMarkdownToHTML_preservesZoteroLinks(t *testing.T) {
+	t.Parallel()
+	src := `See [Ho 2022](zotero://select/groups/6506098/items/B3FC5Y8C) for context.`
+	got, err := MarkdownToHTML([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, `href="zotero://select/groups/6506098/items/B3FC5Y8C"`) {
+		t.Errorf("zotero:// anchor stripped: %q", got)
+	}
+}
+
+func TestSanitizeHTML_preservesZoteroLinks(t *testing.T) {
+	t.Parallel()
+	src := `<a href="zotero://select/library/items/ABC12345">link</a>`
+	got := SanitizeHTML(src)
+	if !strings.Contains(got, `href="zotero://select/library/items/ABC12345"`) {
+		t.Errorf("zotero:// anchor stripped: %q", got)
+	}
+}
+
+// Other custom schemes (javascript:, data:, file:) must still be stripped.
+// Extending the allow-list for zotero shouldn't weaken the default policy.
+func TestMarkdownToHTML_stripsForbiddenSchemes(t *testing.T) {
+	t.Parallel()
+	cases := []string{
+		`[x](javascript:alert(1))`,
+		`[x](data:text/html,<script>)`,
+		`[x](file:///etc/passwd)`,
+	}
+	for _, src := range cases {
+		got, err := MarkdownToHTML([]byte(src))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(got, "<a href") {
+			t.Errorf("forbidden scheme survived for %q: %q", src, got)
+		}
+	}
+}

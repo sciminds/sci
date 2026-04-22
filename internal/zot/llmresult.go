@@ -11,15 +11,23 @@ import (
 // catalog
 // ---------------------------------------------------------------------------
 
-// LLMCatalogEntry is one paper in the catalog index.
+// LLMCatalogEntry is one paper in the catalog index. Citekey/Year/Authors/
+// Abstract are populated only when `--full` is set — the default shape
+// stays compact (title + DOI + date + tags) so the catalog command can
+// still cheaply surface 100s of papers without blowing the LLM context.
 type LLMCatalogEntry struct {
-	Key     string   `json:"key"`
-	Title   string   `json:"title"`
-	DOI     string   `json:"doi,omitempty"`
-	Date    string   `json:"date,omitempty"`
-	Tags    []string `json:"tags,omitempty"`
-	NoteKey string   `json:"note_key"`
-	IsHTML  bool     `json:"is_html"`
+	Key          string   `json:"key"`
+	Citekey      string   `json:"citekey,omitempty"`
+	Title        string   `json:"title"`
+	Year         int      `json:"year,omitempty"`
+	DOI          string   `json:"doi,omitempty"`
+	Date         string   `json:"date,omitempty"`
+	Authors      []string `json:"authors,omitempty"`
+	AuthorsTotal int      `json:"authors_total,omitempty"`
+	Abstract     string   `json:"abstract,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	NoteKey      string   `json:"note_key"`
+	IsHTML       bool     `json:"is_html"`
 }
 
 // LLMCatalogResult is returned by `zot llm catalog`.

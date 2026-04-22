@@ -32,6 +32,7 @@ var (
 
 	searchLimit  int
 	searchRemote bool
+	searchFull   bool
 
 	exportFormat string
 	exportOut    string
@@ -91,9 +92,16 @@ func localSelectorFor(ctx context.Context, cfg *zot.Config) (local.LibrarySelect
 func searchCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "search",
-		Usage: "Search your library by title, DOI, or publication",
-		Description: "$ zot search \"large language models\"\n" +
+		Usage: "Search your library by title, DOI, publication, or @field: clauses",
+		Description: "Free text searches title/DOI/publication/creators. Prefix a\n" +
+			"clause with @field: to scope it — fields: author, title, doi,\n" +
+			"pub, tag, type, year. Clauses AND by default; `|` separates OR\n" +
+			"groups; a leading `-` in the value negates the clause.\n\n" +
+			"$ zot search \"large language models\"\n" +
 			"$ zot search --limit 100 neuroimaging\n" +
+			"$ zot search '@tag: Generative_Agents'      # items carrying this tag\n" +
+			"$ zot search '@author: saxe @year: 2022'    # ANDed clauses\n" +
+			"$ zot search '@type: book | @type: thesis'  # OR across clauses\n" +
 			"$ zot search attention --export --out hits.bib\n" +
 			"$ zot search llm --remote   # Zotero Web API fulltext search (title + creators + year + abstract + notes + PDFs)",
 		ArgsUsage: "<query>",
@@ -107,6 +115,7 @@ func searchCommand() *cli.Command {
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
 			&cli.BoolFlag{Name: "notes", Usage: "only show items that have docling extraction notes (local only)", Destination: &searchNotes, Local: true},
 			&cli.BoolFlag{Name: "remote", Usage: "hit the Zotero Web API with qmode=everything (matches abstract + fulltext + notes)", Destination: &searchRemote, Local: true},
+			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "hydrate each hit with abstract + citekey + authors (one extra local read per hit)", Destination: &searchFull, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -120,6 +129,9 @@ func searchCommand() *cli.Command {
 			}
 			if searchRemote && searchNotes {
 				return cmdutil.UsageErrorf(cmd, "--notes is local-only; drop it or drop --remote")
+			}
+			if searchFull && searchExport {
+				return cmdutil.UsageErrorf(cmd, "--full and --export are mutually exclusive (use one or the other)")
 			}
 			// Join all positional args so unquoted multi-clause queries
 			// like `zot search @author: jolly @title: gossip` work without
@@ -142,6 +154,20 @@ func searchCommand() *cli.Command {
 				items := lo.Map(raw, func(it client.Item, _ int) local.Item {
 					return api.ItemFromClient(&it)
 				})
+				// Remote items already carry abstract + citekey fields
+				// from the API, so --full just reshapes — no extra fetch.
+				if searchFull {
+					briefs := lo.Map(items, func(it local.Item, _ int) zot.ItemBrief {
+						return zot.ToBrief(&it)
+					})
+					cmdutil.Output(cmd, zot.ListBriefResult{
+						Query: query,
+						Count: len(briefs),
+						Items: briefs,
+						Scope: "title, creators, year, abstract, fulltext, notes (remote)",
+					})
+					return nil
+				}
 				cmdutil.Output(cmd, zot.ListResult{
 					Query: query,
 					Count: len(items),
@@ -182,6 +208,27 @@ func searchCommand() *cli.Command {
 					return err
 				}
 				cmdutil.Output(cmd, res)
+				return nil
+			}
+			if searchFull {
+				hydrated, err := hydrateSearchHits(db, items)
+				if err != nil {
+					return err
+				}
+				briefs := lo.Map(hydrated, func(it local.Item, _ int) zot.ItemBrief {
+					return zot.ToBrief(&it)
+				})
+				bres := zot.ListBriefResult{
+					Query:   query,
+					Count:   len(briefs),
+					Items:   briefs,
+					Library: db.LibraryID(),
+				}
+				if len(briefs) == 0 {
+					bres.Scope = "title, DOI, publication, creators (local)"
+					bres.Hint = "try --remote to also match abstract, fulltext, and notes"
+				}
+				cmdutil.Output(cmd, bres)
 				return nil
 			}
 			res := zot.ListResult{

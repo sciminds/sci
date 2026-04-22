@@ -81,7 +81,13 @@ func itemNoteAddCommand() *cli.Command {
 			"Pass a parent item key positionally to attach the note as a child.\n" +
 			"Omit the positional and pass --collection to create a standalone note.\n" +
 			"Both are accepted simultaneously. One body source is required:\n" +
-			"--body (inline), --body-file (path), or either set to `-` for stdin.",
+			"--body (inline), --body-file (path), or either set to `-` for stdin.\n" +
+			"\n" +
+			"Cross-reference other library items in markdown via:\n" +
+			"  [Ho 2022](zotero://select/groups/<groupID>/items/<KEY>)  — group library\n" +
+			"  [Ho 2022](zotero://select/library/items/<KEY>)           — personal\n" +
+			"These survive sanitization and open the referenced item in Zotero\n" +
+			"desktop. Find <groupID> via `zot info` (library_api_id).",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "body", Usage: "inline note body (or `-` to read from stdin)", Destination: &noteBody, Local: true},
 			&cli.StringFlag{Name: "body-file", Usage: "path to a note body file (or `-` for stdin)", Destination: &noteBodyFile, Local: true},

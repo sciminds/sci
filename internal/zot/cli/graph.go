@@ -17,13 +17,18 @@ var (
 	graphCitesYearMin int
 	graphRefsRemote   bool
 	graphCitesRemote  bool
+	graphRefsVerbose  bool
+	graphCitesVerbose bool
 )
 
 func graphCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "graph",
 		Usage: "Traverse citation relationships between library items and OpenAlex",
-		Description: "$ zot graph refs ABC12345                      # what does this paper cite?\n" +
+		Description: "Direction cheat-sheet (the source paper is `ABC12345`):\n" +
+			"  refs  → outgoing edges — works THIS paper cites (its bibliography)\n" +
+			"  cites → incoming edges — works that cite THIS paper (impact)\n\n" +
+			"$ zot graph refs ABC12345                      # what does this paper cite?\n" +
 			"$ zot graph cites ABC12345                     # what cites this paper?\n" +
 			"$ zot graph cites ABC12345 --limit 50 --year-from 2022\n\n" +
 			"Each result splits into in_library (Zotero keys) vs outside_library\n" +
@@ -43,6 +48,7 @@ func graphRefsCommand() *cli.Command {
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "remote", Usage: "fetch the source item from the Zotero Web API (use when the item was just created and isn't synced yet)", Destination: &graphRefsRemote, Local: true},
+			&cli.BoolFlag{Name: "verbose", Usage: "--json: emit full author lists (default caps each neighbor at 3 authors)", Destination: &graphRefsVerbose, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -62,7 +68,7 @@ func graphRefsCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, graph.CmdResult{Result: res})
+			cmdutil.Output(cmd, graph.CmdResult{Result: res, Verbose: graphRefsVerbose})
 			return nil
 		},
 	}
@@ -78,6 +84,7 @@ func graphCitesCommand() *cli.Command {
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 25, Usage: "max citing works to surface (1-200)", Destination: &graphCitesLimit, Local: true},
 			&cli.IntFlag{Name: "year-from", Usage: "only include citing works published on or after this year", Destination: &graphCitesYearMin, Local: true},
 			&cli.BoolFlag{Name: "remote", Usage: "fetch the source item from the Zotero Web API (use when the item was just created and isn't synced yet)", Destination: &graphCitesRemote, Local: true},
+			&cli.BoolFlag{Name: "verbose", Usage: "--json: emit full author lists (default caps each neighbor at 3 authors)", Destination: &graphCitesVerbose, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -100,7 +107,7 @@ func graphCitesCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, graph.CmdResult{Result: res})
+			cmdutil.Output(cmd, graph.CmdResult{Result: res, Verbose: graphCitesVerbose})
 			return nil
 		},
 	}

@@ -28,6 +28,7 @@ func ItemFromClient(it *client.Item) local.Item {
 	}
 	if d.Date != nil {
 		out.Date = *d.Date
+		out.Year = local.ParseYear(out.Date)
 	}
 	if d.DOI != nil {
 		out.DOI = *d.DOI

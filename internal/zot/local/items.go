@@ -53,6 +53,7 @@ func scanListRow(rows *sql.Rows) (Item, error) {
 	}
 	it.Title = title.String
 	it.Date = date.String
+	it.Year = ParseYear(it.Date)
 	it.DOI = doi.String
 	it.Publication = pub.String
 	return it, nil
@@ -618,6 +619,7 @@ LIMIT 1
 	}
 	it.Title = title.String
 	it.Date = date.String
+	it.Year = ParseYear(it.Date)
 	it.DOI = doi.String
 	it.Publication = pub.String
 

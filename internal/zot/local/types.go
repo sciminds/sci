@@ -1,5 +1,7 @@
 package local
 
+import "strconv"
+
 // Item is a denormalized snapshot of a Zotero item for list/search/read views.
 // Fields that may be absent are string-typed rather than pointers — empty
 // string is the natural "unset" in Zotero's EAV storage.
@@ -19,6 +21,7 @@ type Item struct {
 	Version      int               `json:"version"`
 	Title        string            `json:"title,omitempty"`
 	Date         string            `json:"date,omitempty"`
+	Year         int               `json:"year,omitempty"`
 	DOI          string            `json:"doi,omitempty"`
 	URL          string            `json:"url,omitempty"`
 	Abstract     string            `json:"abstract,omitempty"`
@@ -98,6 +101,22 @@ const (
 	OrderDateModifiedDesc
 	OrderTitleAsc
 )
+
+// ParseYear extracts a publication year from a Zotero date string. Zotero
+// stores dates as "YYYY-MM-DD originalText" with "00" padding for
+// unspecified components (year-only is "1871-00-00 1871"). The first
+// four bytes are always the year when present. Returns 0 for empty
+// strings or strings that don't start with 4 digits.
+func ParseYear(date string) int {
+	if len(date) < 4 {
+		return 0
+	}
+	y, err := strconv.Atoi(date[:4])
+	if err != nil || y <= 0 {
+		return 0
+	}
+	return y
+}
 
 // contentItemTypeFilter returns the SQL fragment excluding attachment/note
 // rows from a query joined on itemTypes as alias "it". These are children

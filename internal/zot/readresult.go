@@ -30,25 +30,32 @@ func (r ListResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r ListResult) Human() string {
 	if r.Count == 0 {
-		var b strings.Builder
-		if r.Query != "" {
-			fmt.Fprintf(&b, "  %s no results for %q\n", uikit.TUI.Dim().Render("·"), r.Query)
-		} else {
-			fmt.Fprintf(&b, "  %s no items\n", uikit.TUI.Dim().Render("·"))
-		}
-		if r.Scope != "" {
-			fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("searched:"), r.Scope)
-		}
-		if r.Hint != "" {
-			fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("hint:"), r.Hint)
-		}
-		return b.String()
+		return renderEmptyListHuman(r.Query, r.Scope, r.Hint)
 	}
 	var b strings.Builder
 	for _, it := range r.Items {
 		writeItemLine(&b, it)
 	}
 	fmt.Fprintf(&b, "\n  %s %d item(s)\n", uikit.SymArrow, r.Count)
+	return b.String()
+}
+
+// renderEmptyListHuman formats the "no hits" branch shared by ListResult
+// and ListBriefResult — a query echo with optional `searched:` scope and
+// `hint:` follow-up, both styled for the terminal.
+func renderEmptyListHuman(query, scope, hint string) string {
+	var b strings.Builder
+	if query != "" {
+		fmt.Fprintf(&b, "  %s no results for %q\n", uikit.TUI.Dim().Render("·"), query)
+	} else {
+		fmt.Fprintf(&b, "  %s no items\n", uikit.TUI.Dim().Render("·"))
+	}
+	if scope != "" {
+		fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("searched:"), scope)
+	}
+	if hint != "" {
+		fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("hint:"), hint)
+	}
 	return b.String()
 }
 
