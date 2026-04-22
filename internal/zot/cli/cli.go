@@ -113,6 +113,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	export                      full-library BibTeX / CSL-JSON export
 //	item    <subcommand>        per-item ops (read/add/update/delete/list/open/export)
 //	collection <subcommand>     collections (list/create/delete/add/remove)
+//	saved-search <subcommand>   saved searches (list/show/create/update/delete)
 //	tags    <subcommand>        tags (list/add/remove/delete)
 //	notes   <subcommand>        docling extraction notes (list/read/add/update/delete)
 //	llm     <subcommand>        [experimental] LLM-agent tools for querying docling notes
@@ -135,6 +136,7 @@ func Commands() []*cli.Command {
 		libraryExportCommand(),
 		itemCommand(),
 		collectionCommand(),
+		savedSearchCommand(),
 		tagsCommand(),
 		notesCommand(),
 		llmCommand(),

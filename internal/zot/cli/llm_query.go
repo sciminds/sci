@@ -35,7 +35,7 @@ func llmQueryCommand() *cli.Command {
 			&cli.StringFlag{Name: "search", Aliases: []string{"s"}, Usage: "Cross-field text search", Destination: &llmQuerySearch, Local: true},
 			&cli.StringFlag{Name: "tag", Aliases: []string{"t"}, Usage: "Filter by tag", Destination: &llmQueryTag, Local: true},
 			&cli.StringFlag{Name: "collection", Aliases: []string{"c"}, Usage: "Filter by collection key", Destination: &llmQueryCollection, Local: true},
-			&cli.StringSliceFlag{Name: "key", Aliases: []string{"k"}, Usage: "Specific parent key(s) (repeatable)", Destination: &llmQueryKey, Local: true},
+			&cli.StringSliceFlag{Name: "key", Aliases: []string{"k"}, Usage: "Specific parent key(s) (repeatable)", Destination: &llmQueryKey}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Usage: "Max notes to process (0 = all)", Destination: &llmQueryLimit, Local: true},
 		},
 		Action: llmQueryAction,

@@ -254,6 +254,83 @@ func (c *Client) deleteCollection(ctx context.Context, key string, ver int) (int
 	return r.StatusCode(), r.Status(), nil
 }
 
+// createOrUpdateSearches dispatches POST /searches.
+//
+//nolint:dupl // per-op dispatch is intrinsically symmetric across user/group generated types
+func (c *Client) createOrUpdateSearches(ctx context.Context, body []client.SearchData) (int, string, []byte, error) {
+	if c.isShared() {
+		r, err := c.Gen.CreateOrUpdateSearchesGroupWithResponse(ctx, c.GroupID(), &client.CreateOrUpdateSearchesGroupParams{}, body)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.Body, nil
+	}
+	r, err := c.Gen.CreateOrUpdateSearchesWithResponse(ctx, c.UserID, &client.CreateOrUpdateSearchesParams{}, body)
+	if err != nil {
+		return 0, "", nil, err
+	}
+	return r.StatusCode(), r.Status(), r.Body, nil
+}
+
+// listSearches dispatches GET /searches with pagination params.
+//
+//nolint:dupl // per-op dispatch is intrinsically symmetric across user/group generated types
+func (c *Client) listSearches(ctx context.Context, start, limit int) (int, string, *[]client.Search, error) {
+	s := client.Start(start)
+	l := client.Limit(limit)
+	if c.isShared() {
+		params := &client.ListSearchesGroupParams{Start: &s, Limit: &l}
+		r, err := c.Gen.ListSearchesGroupWithResponse(ctx, c.GroupID(), params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+	}
+	params := &client.ListSearchesParams{Start: &s, Limit: &l}
+	r, err := c.Gen.ListSearchesWithResponse(ctx, c.UserID, params)
+	if err != nil {
+		return 0, "", nil, err
+	}
+	return r.StatusCode(), r.Status(), r.JSON200, nil
+}
+
+// getSearch dispatches GET /searches/{key}.
+func (c *Client) getSearch(ctx context.Context, key string) (int, string, *client.Search, error) {
+	if c.isShared() {
+		r, err := c.Gen.GetSearchGroupWithResponse(ctx, c.GroupID(), client.SearchKeyPath(key))
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+	}
+	r, err := c.Gen.GetSearchWithResponse(ctx, c.UserID, client.SearchKeyPath(key))
+	if err != nil {
+		return 0, "", nil, err
+	}
+	return r.StatusCode(), r.Status(), r.JSON200, nil
+}
+
+// deleteSearch dispatches DELETE /searches/{key}.
+//
+//nolint:dupl // per-op dispatch is intrinsically symmetric across user/group generated types
+func (c *Client) deleteSearch(ctx context.Context, key string, ver int) (int, string, error) {
+	ifVer := (*client.IfUnmodifiedSinceVersion)(&ver)
+	if c.isShared() {
+		params := &client.DeleteSearchGroupParams{IfUnmodifiedSinceVersion: ifVer}
+		r, err := c.Gen.DeleteSearchGroupWithResponse(ctx, c.GroupID(), client.SearchKeyPath(key), params)
+		if err != nil {
+			return 0, "", err
+		}
+		return r.StatusCode(), r.Status(), nil
+	}
+	params := &client.DeleteSearchParams{IfUnmodifiedSinceVersion: ifVer}
+	r, err := c.Gen.DeleteSearchWithResponse(ctx, c.UserID, client.SearchKeyPath(key), params)
+	if err != nil {
+		return 0, "", err
+	}
+	return r.StatusCode(), r.Status(), nil
+}
+
 // deleteTags dispatches DELETE /tags?tag=....
 func (c *Client) deleteTags(ctx context.Context, pipeJoined string) (int, string, []byte, error) {
 	if c.isShared() {

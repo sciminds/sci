@@ -1496,6 +1496,80 @@ type MultiObjectResult struct {
 // to drive validation / field mapping.
 type Schema map[string]interface{}
 
+// Search A wrapped saved search as returned by GET endpoints. The mutable
+// payload lives in `data`; the outer object carries library + links.
+type Search struct {
+	// Data The mutable saved-search payload. Used in `POST /searches`
+	// (create or batch-update).
+	//
+	// For **creates**: supply `name` and `conditions`; omit `key` and `version`.
+	// For **updates**: include `key` + `version` and the fields to change.
+	//
+	// The `deleted` flag, when true, is set by the desktop client when a
+	// saved search is moved to trash; tooling typically ignores trashed
+	// searches when listing.
+	Data                 SearchData              `json:"data"`
+	Key                  string                  `json:"key"`
+	Library              LibraryRef              `json:"library"`
+	Links                *map[string]interface{} `json:"links,omitempty"`
+	Meta                 *map[string]interface{} `json:"meta,omitempty"`
+	Version              int                     `json:"version"`
+	AdditionalProperties map[string]interface{}  `json:"-"`
+}
+
+// SearchCondition One condition in a saved search. Triple of `(condition, operator,
+// value)`. Common shapes:
+//
+// - `{condition: "title", operator: "contains", value: "foo"}`
+// - `{condition: "tag", operator: "is", value: "lit-review"}`
+// - `{condition: "itemType", operator: "is", value: "journalArticle"}`
+// - `{condition: "dateAdded", operator: "isInTheLast", value: "60 days"}`
+// - `{condition: "fileTypeID", operator: "isNot", value: "3"}`
+//
+// Pseudo-conditions modify the search rather than filter it:
+// - `{condition: "joinMode", operator: "any", value: ""}` — OR instead of AND
+// - `{condition: "noChildren", operator: "true", value: ""}` — top-level only
+// - `{condition: "includeParentsAndChildren", operator: "false", value: ""}`
+type SearchCondition struct {
+	// Condition Field or pseudo-condition name.
+	Condition string `json:"condition"`
+
+	// Operator Comparison operator (vocabulary varies per condition).
+	Operator string `json:"operator"`
+
+	// Value Operand. Always a string at the wire level — even for numeric IDs and date intervals.
+	Value string `json:"value"`
+}
+
+// SearchData The mutable saved-search payload. Used in `POST /searches`
+// (create or batch-update).
+//
+// For **creates**: supply `name` and `conditions`; omit `key` and `version`.
+// For **updates**: include `key` + `version` and the fields to change.
+//
+// The `deleted` flag, when true, is set by the desktop client when a
+// saved search is moved to trash; tooling typically ignores trashed
+// searches when listing.
+type SearchData struct {
+	// Conditions Ordered list of search conditions. AND-joined by default; include
+	// a leading `{condition: "joinMode", operator: "any", value: ""}`
+	// to switch to OR.
+	Conditions []SearchCondition `json:"conditions"`
+
+	// Deleted Set when the search has been moved to the trash.
+	Deleted *bool `json:"deleted,omitempty"`
+
+	// Key Present on updates; omit on creates.
+	Key *string `json:"key,omitempty"`
+
+	// Name Saved-search display name.
+	Name string `json:"name"`
+
+	// Version Present on updates; omit on creates.
+	Version              *int                   `json:"version,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
 // Tag defines model for Tag.
 type Tag struct {
 	Tag string `json:"tag"`
@@ -1607,6 +1681,9 @@ type Qmode string
 
 // Query defines model for query.
 type Query = string
+
+// SearchKeyPath defines model for searchKeyPath.
+type SearchKeyPath = string
 
 // Since defines model for since.
 type Since = int
@@ -1947,6 +2024,51 @@ type UploadFileGroupParams struct {
 
 // UploadFileGroupParamsIfNoneMatch defines parameters for UploadFileGroup.
 type UploadFileGroupParamsIfNoneMatch string
+
+// DeleteSearchesGroupParams defines parameters for DeleteSearchesGroup.
+type DeleteSearchesGroupParams struct {
+	// SearchKey Comma-separated list of up to 50 saved-search keys.
+	SearchKey string `form:"searchKey" json:"searchKey"`
+
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
+// ListSearchesGroupParams defines parameters for ListSearchesGroup.
+type ListSearchesGroupParams struct {
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// CreateOrUpdateSearchesGroupJSONBody defines parameters for CreateOrUpdateSearchesGroup.
+type CreateOrUpdateSearchesGroupJSONBody = []SearchData
+
+// CreateOrUpdateSearchesGroupParams defines parameters for CreateOrUpdateSearchesGroup.
+type CreateOrUpdateSearchesGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+
+	// ZoteroWriteToken Random 32-character token used for idempotency on multi-object writes
+	// that don't carry per-object versions (pure creates). Zotero caches the
+	// token for 12 hours — repeated submissions with the same token return
+	// the original result without duplicating the write.
+	ZoteroWriteToken *WriteToken `json:"Zotero-Write-Token,omitempty"`
+}
+
+// DeleteSearchGroupParams defines parameters for DeleteSearchGroup.
+type DeleteSearchGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
 
 // DeleteTagsGroupParams defines parameters for DeleteTagsGroup.
 type DeleteTagsGroupParams struct {
@@ -2294,6 +2416,51 @@ type UploadFileParams struct {
 // UploadFileParamsIfNoneMatch defines parameters for UploadFile.
 type UploadFileParamsIfNoneMatch string
 
+// DeleteSearchesParams defines parameters for DeleteSearches.
+type DeleteSearchesParams struct {
+	// SearchKey Comma-separated list of up to 50 saved-search keys.
+	SearchKey string `form:"searchKey" json:"searchKey"`
+
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
+// ListSearchesParams defines parameters for ListSearches.
+type ListSearchesParams struct {
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// CreateOrUpdateSearchesJSONBody defines parameters for CreateOrUpdateSearches.
+type CreateOrUpdateSearchesJSONBody = []SearchData
+
+// CreateOrUpdateSearchesParams defines parameters for CreateOrUpdateSearches.
+type CreateOrUpdateSearchesParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+
+	// ZoteroWriteToken Random 32-character token used for idempotency on multi-object writes
+	// that don't carry per-object versions (pure creates). Zotero caches the
+	// token for 12 hours — repeated submissions with the same token return
+	// the original result without duplicating the write.
+	ZoteroWriteToken *WriteToken `json:"Zotero-Write-Token,omitempty"`
+}
+
+// DeleteSearchParams defines parameters for DeleteSearch.
+type DeleteSearchParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
 // DeleteTagsParams defines parameters for DeleteTags.
 type DeleteTagsParams struct {
 	// Tag Pipe-separated list of up to 50 tags to delete from the library.
@@ -2336,6 +2503,9 @@ type UploadFileGroupFormdataRequestBody UploadFileGroupFormdataBody
 // SetFulltextGroupJSONRequestBody defines body for SetFulltextGroup for application/json ContentType.
 type SetFulltextGroupJSONRequestBody = Fulltext
 
+// CreateOrUpdateSearchesGroupJSONRequestBody defines body for CreateOrUpdateSearchesGroup for application/json ContentType.
+type CreateOrUpdateSearchesGroupJSONRequestBody = CreateOrUpdateSearchesGroupJSONBody
+
 // CreateOrUpdateCollectionsJSONRequestBody defines body for CreateOrUpdateCollections for application/json ContentType.
 type CreateOrUpdateCollectionsJSONRequestBody = CreateOrUpdateCollectionsJSONBody
 
@@ -2353,6 +2523,9 @@ type UploadFileFormdataRequestBody UploadFileFormdataBody
 
 // SetFulltextJSONRequestBody defines body for SetFulltext for application/json ContentType.
 type SetFulltextJSONRequestBody = Fulltext
+
+// CreateOrUpdateSearchesJSONRequestBody defines body for CreateOrUpdateSearches for application/json ContentType.
+type CreateOrUpdateSearchesJSONRequestBody = CreateOrUpdateSearchesJSONBody
 
 // Getter for additional properties for Collection. Returns the specified
 // element and whether it was found
@@ -4560,6 +4733,267 @@ func (a MultiObjectResult) MarshalJSON() ([]byte, error) {
 	return json.Marshal(object)
 }
 
+// Getter for additional properties for Search. Returns the specified
+// element and whether it was found
+func (a Search) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for Search
+func (a *Search) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for Search to handle AdditionalProperties
+func (a *Search) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["data"]; found {
+		err = json.Unmarshal(raw, &a.Data)
+		if err != nil {
+			return fmt.Errorf("error reading 'data': %w", err)
+		}
+		delete(object, "data")
+	}
+
+	if raw, found := object["key"]; found {
+		err = json.Unmarshal(raw, &a.Key)
+		if err != nil {
+			return fmt.Errorf("error reading 'key': %w", err)
+		}
+		delete(object, "key")
+	}
+
+	if raw, found := object["library"]; found {
+		err = json.Unmarshal(raw, &a.Library)
+		if err != nil {
+			return fmt.Errorf("error reading 'library': %w", err)
+		}
+		delete(object, "library")
+	}
+
+	if raw, found := object["links"]; found {
+		err = json.Unmarshal(raw, &a.Links)
+		if err != nil {
+			return fmt.Errorf("error reading 'links': %w", err)
+		}
+		delete(object, "links")
+	}
+
+	if raw, found := object["meta"]; found {
+		err = json.Unmarshal(raw, &a.Meta)
+		if err != nil {
+			return fmt.Errorf("error reading 'meta': %w", err)
+		}
+		delete(object, "meta")
+	}
+
+	if raw, found := object["version"]; found {
+		err = json.Unmarshal(raw, &a.Version)
+		if err != nil {
+			return fmt.Errorf("error reading 'version': %w", err)
+		}
+		delete(object, "version")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for Search to handle AdditionalProperties
+func (a Search) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	object["data"], err = json.Marshal(a.Data)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'data': %w", err)
+	}
+
+	object["key"], err = json.Marshal(a.Key)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'key': %w", err)
+	}
+
+	object["library"], err = json.Marshal(a.Library)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'library': %w", err)
+	}
+
+	if a.Links != nil {
+		object["links"], err = json.Marshal(a.Links)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'links': %w", err)
+		}
+	}
+
+	if a.Meta != nil {
+		object["meta"], err = json.Marshal(a.Meta)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'meta': %w", err)
+		}
+	}
+
+	object["version"], err = json.Marshal(a.Version)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'version': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
+// Getter for additional properties for SearchData. Returns the specified
+// element and whether it was found
+func (a SearchData) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for SearchData
+func (a *SearchData) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for SearchData to handle AdditionalProperties
+func (a *SearchData) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["conditions"]; found {
+		err = json.Unmarshal(raw, &a.Conditions)
+		if err != nil {
+			return fmt.Errorf("error reading 'conditions': %w", err)
+		}
+		delete(object, "conditions")
+	}
+
+	if raw, found := object["deleted"]; found {
+		err = json.Unmarshal(raw, &a.Deleted)
+		if err != nil {
+			return fmt.Errorf("error reading 'deleted': %w", err)
+		}
+		delete(object, "deleted")
+	}
+
+	if raw, found := object["key"]; found {
+		err = json.Unmarshal(raw, &a.Key)
+		if err != nil {
+			return fmt.Errorf("error reading 'key': %w", err)
+		}
+		delete(object, "key")
+	}
+
+	if raw, found := object["name"]; found {
+		err = json.Unmarshal(raw, &a.Name)
+		if err != nil {
+			return fmt.Errorf("error reading 'name': %w", err)
+		}
+		delete(object, "name")
+	}
+
+	if raw, found := object["version"]; found {
+		err = json.Unmarshal(raw, &a.Version)
+		if err != nil {
+			return fmt.Errorf("error reading 'version': %w", err)
+		}
+		delete(object, "version")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for SearchData to handle AdditionalProperties
+func (a SearchData) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Conditions != nil {
+		object["conditions"], err = json.Marshal(a.Conditions)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'conditions': %w", err)
+		}
+	}
+
+	if a.Deleted != nil {
+		object["deleted"], err = json.Marshal(a.Deleted)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'deleted': %w", err)
+		}
+	}
+
+	if a.Key != nil {
+		object["key"], err = json.Marshal(a.Key)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'key': %w", err)
+		}
+	}
+
+	object["name"], err = json.Marshal(a.Name)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'name': %w", err)
+	}
+
+	if a.Version != nil {
+		object["version"], err = json.Marshal(a.Version)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'version': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
 // Getter for additional properties for TagWithMeta. Returns the specified
 // element and whether it was found
 func (a TagWithMeta) Get(fieldName string) (value interface{}, found bool) {
@@ -4933,6 +5367,23 @@ type ClientInterface interface {
 
 	SetFulltextGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteSearchesGroup request
+	DeleteSearchesGroup(ctx context.Context, groupID GroupID, params *DeleteSearchesGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSearchesGroup request
+	ListSearchesGroup(ctx context.Context, groupID GroupID, params *ListSearchesGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateOrUpdateSearchesGroupWithBody request with any body
+	CreateOrUpdateSearchesGroupWithBody(ctx context.Context, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateOrUpdateSearchesGroup(ctx context.Context, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, body CreateOrUpdateSearchesGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteSearchGroup request
+	DeleteSearchGroup(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *DeleteSearchGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSearchGroup request
+	GetSearchGroup(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteTagsGroup request
 	DeleteTagsGroup(ctx context.Context, groupID GroupID, params *DeleteTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -5025,6 +5476,23 @@ type ClientInterface interface {
 	SetFulltextWithBody(ctx context.Context, userID UserID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SetFulltext(ctx context.Context, userID UserID, itemKey ItemKeyPath, body SetFulltextJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteSearches request
+	DeleteSearches(ctx context.Context, userID UserID, params *DeleteSearchesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSearches request
+	ListSearches(ctx context.Context, userID UserID, params *ListSearchesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateOrUpdateSearchesWithBody request with any body
+	CreateOrUpdateSearchesWithBody(ctx context.Context, userID UserID, params *CreateOrUpdateSearchesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateOrUpdateSearches(ctx context.Context, userID UserID, params *CreateOrUpdateSearchesParams, body CreateOrUpdateSearchesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteSearch request
+	DeleteSearch(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *DeleteSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSearch request
+	GetSearch(ctx context.Context, userID UserID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteTags request
 	DeleteTags(ctx context.Context, userID UserID, params *DeleteTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5359,6 +5827,78 @@ func (c *Client) SetFulltextGroupWithBody(ctx context.Context, groupID GroupID, 
 
 func (c *Client) SetFulltextGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetFulltextGroupRequest(c.Server, groupID, itemKey, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteSearchesGroup(ctx context.Context, groupID GroupID, params *DeleteSearchesGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSearchesGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListSearchesGroup(ctx context.Context, groupID GroupID, params *ListSearchesGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSearchesGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateSearchesGroupWithBody(ctx context.Context, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateSearchesGroupRequestWithBody(c.Server, groupID, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateSearchesGroup(ctx context.Context, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, body CreateOrUpdateSearchesGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateSearchesGroupRequest(c.Server, groupID, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteSearchGroup(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *DeleteSearchGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSearchGroupRequest(c.Server, groupID, searchKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSearchGroup(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSearchGroupRequest(c.Server, groupID, searchKey)
 	if err != nil {
 		return nil, err
 	}
@@ -5755,6 +6295,78 @@ func (c *Client) SetFulltextWithBody(ctx context.Context, userID UserID, itemKey
 
 func (c *Client) SetFulltext(ctx context.Context, userID UserID, itemKey ItemKeyPath, body SetFulltextJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetFulltextRequest(c.Server, userID, itemKey, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteSearches(ctx context.Context, userID UserID, params *DeleteSearchesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSearchesRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListSearches(ctx context.Context, userID UserID, params *ListSearchesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSearchesRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateSearchesWithBody(ctx context.Context, userID UserID, params *CreateOrUpdateSearchesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateSearchesRequestWithBody(c.Server, userID, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateOrUpdateSearches(ctx context.Context, userID UserID, params *CreateOrUpdateSearchesParams, body CreateOrUpdateSearchesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateOrUpdateSearchesRequest(c.Server, userID, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteSearch(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *DeleteSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSearchRequest(c.Server, userID, searchKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSearch(ctx context.Context, userID UserID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSearchRequest(c.Server, userID, searchKey)
 	if err != nil {
 		return nil, err
 	}
@@ -7680,6 +8292,315 @@ func NewSetFulltextGroupRequestWithBody(server string, groupID GroupID, itemKey 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteSearchesGroupRequest generates requests for DeleteSearchesGroup
+func NewDeleteSearchesGroupRequest(server string, groupID GroupID, params *DeleteSearchesGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/searches", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "searchKey", params.SearchKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListSearchesGroupRequest generates requests for ListSearchesGroup
+func NewListSearchesGroupRequest(server string, groupID GroupID, params *ListSearchesGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/searches", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateOrUpdateSearchesGroupRequest calls the generic CreateOrUpdateSearchesGroup builder with application/json body
+func NewCreateOrUpdateSearchesGroupRequest(server string, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, body CreateOrUpdateSearchesGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateOrUpdateSearchesGroupRequestWithBody(server, groupID, params, "application/json", bodyReader)
+}
+
+// NewCreateOrUpdateSearchesGroupRequestWithBody generates requests for CreateOrUpdateSearchesGroup with any type of body
+func NewCreateOrUpdateSearchesGroupRequestWithBody(server string, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/searches", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+		if params.ZoteroWriteToken != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "Zotero-Write-Token", *params.ZoteroWriteToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Zotero-Write-Token", headerParam1)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteSearchGroupRequest generates requests for DeleteSearchGroup
+func NewDeleteSearchGroupRequest(server string, groupID GroupID, searchKey SearchKeyPath, params *DeleteSearchGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "searchKey", searchKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/searches/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetSearchGroupRequest generates requests for GetSearchGroup
+func NewGetSearchGroupRequest(server string, groupID GroupID, searchKey SearchKeyPath) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "searchKey", searchKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/searches/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -9822,6 +10743,315 @@ func NewSetFulltextRequestWithBody(server string, userID UserID, itemKey ItemKey
 	return req, nil
 }
 
+// NewDeleteSearchesRequest generates requests for DeleteSearches
+func NewDeleteSearchesRequest(server string, userID UserID, params *DeleteSearchesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/searches", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "searchKey", params.SearchKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListSearchesRequest generates requests for ListSearches
+func NewListSearchesRequest(server string, userID UserID, params *ListSearchesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/searches", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateOrUpdateSearchesRequest calls the generic CreateOrUpdateSearches builder with application/json body
+func NewCreateOrUpdateSearchesRequest(server string, userID UserID, params *CreateOrUpdateSearchesParams, body CreateOrUpdateSearchesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateOrUpdateSearchesRequestWithBody(server, userID, params, "application/json", bodyReader)
+}
+
+// NewCreateOrUpdateSearchesRequestWithBody generates requests for CreateOrUpdateSearches with any type of body
+func NewCreateOrUpdateSearchesRequestWithBody(server string, userID UserID, params *CreateOrUpdateSearchesParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/searches", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+		if params.ZoteroWriteToken != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "Zotero-Write-Token", *params.ZoteroWriteToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Zotero-Write-Token", headerParam1)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteSearchRequest generates requests for DeleteSearch
+func NewDeleteSearchRequest(server string, userID UserID, searchKey SearchKeyPath, params *DeleteSearchParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "searchKey", searchKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/searches/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetSearchRequest generates requests for GetSearch
+func NewGetSearchRequest(server string, userID UserID, searchKey SearchKeyPath) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "searchKey", searchKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/searches/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDeleteTagsRequest generates requests for DeleteTags
 func NewDeleteTagsRequest(server string, userID UserID, params *DeleteTagsParams) (*http.Request, error) {
 	var err error
@@ -10098,6 +11328,23 @@ type ClientWithResponsesInterface interface {
 
 	SetFulltextGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*SetFulltextGroupResponse, error)
 
+	// DeleteSearchesGroupWithResponse request
+	DeleteSearchesGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteSearchesGroupParams, reqEditors ...RequestEditorFn) (*DeleteSearchesGroupResponse, error)
+
+	// ListSearchesGroupWithResponse request
+	ListSearchesGroupWithResponse(ctx context.Context, groupID GroupID, params *ListSearchesGroupParams, reqEditors ...RequestEditorFn) (*ListSearchesGroupResponse, error)
+
+	// CreateOrUpdateSearchesGroupWithBodyWithResponse request with any body
+	CreateOrUpdateSearchesGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateSearchesGroupResponse, error)
+
+	CreateOrUpdateSearchesGroupWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, body CreateOrUpdateSearchesGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateSearchesGroupResponse, error)
+
+	// DeleteSearchGroupWithResponse request
+	DeleteSearchGroupWithResponse(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *DeleteSearchGroupParams, reqEditors ...RequestEditorFn) (*DeleteSearchGroupResponse, error)
+
+	// GetSearchGroupWithResponse request
+	GetSearchGroupWithResponse(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*GetSearchGroupResponse, error)
+
 	// DeleteTagsGroupWithResponse request
 	DeleteTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteTagsGroupParams, reqEditors ...RequestEditorFn) (*DeleteTagsGroupResponse, error)
 
@@ -10190,6 +11437,23 @@ type ClientWithResponsesInterface interface {
 	SetFulltextWithBodyWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetFulltextResponse, error)
 
 	SetFulltextWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, body SetFulltextJSONRequestBody, reqEditors ...RequestEditorFn) (*SetFulltextResponse, error)
+
+	// DeleteSearchesWithResponse request
+	DeleteSearchesWithResponse(ctx context.Context, userID UserID, params *DeleteSearchesParams, reqEditors ...RequestEditorFn) (*DeleteSearchesResponse, error)
+
+	// ListSearchesWithResponse request
+	ListSearchesWithResponse(ctx context.Context, userID UserID, params *ListSearchesParams, reqEditors ...RequestEditorFn) (*ListSearchesResponse, error)
+
+	// CreateOrUpdateSearchesWithBodyWithResponse request with any body
+	CreateOrUpdateSearchesWithBodyWithResponse(ctx context.Context, userID UserID, params *CreateOrUpdateSearchesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateSearchesResponse, error)
+
+	CreateOrUpdateSearchesWithResponse(ctx context.Context, userID UserID, params *CreateOrUpdateSearchesParams, body CreateOrUpdateSearchesJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateSearchesResponse, error)
+
+	// DeleteSearchWithResponse request
+	DeleteSearchWithResponse(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *DeleteSearchParams, reqEditors ...RequestEditorFn) (*DeleteSearchResponse, error)
+
+	// GetSearchWithResponse request
+	GetSearchWithResponse(ctx context.Context, userID UserID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*GetSearchResponse, error)
 
 	// DeleteTagsWithResponse request
 	DeleteTagsWithResponse(ctx context.Context, userID UserID, params *DeleteTagsParams, reqEditors ...RequestEditorFn) (*DeleteTagsResponse, error)
@@ -10670,6 +11934,114 @@ func (r SetFulltextGroupResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r SetFulltextGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteSearchesGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSearchesGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSearchesGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListSearchesGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Search
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSearchesGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSearchesGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateOrUpdateSearchesGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MultiObjectResult
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateOrUpdateSearchesGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateOrUpdateSearchesGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteSearchGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSearchGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSearchGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSearchGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Search
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSearchGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSearchGroupResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -11263,6 +12635,114 @@ func (r SetFulltextResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteSearchesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSearchesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSearchesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListSearchesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Search
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSearchesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSearchesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateOrUpdateSearchesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *MultiObjectResult
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateOrUpdateSearchesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateOrUpdateSearchesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteSearchResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteSearchResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteSearchResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSearchResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Search
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSearchResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSearchResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type DeleteTagsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11550,6 +13030,59 @@ func (c *ClientWithResponses) SetFulltextGroupWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseSetFulltextGroupResponse(rsp)
+}
+
+// DeleteSearchesGroupWithResponse request returning *DeleteSearchesGroupResponse
+func (c *ClientWithResponses) DeleteSearchesGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteSearchesGroupParams, reqEditors ...RequestEditorFn) (*DeleteSearchesGroupResponse, error) {
+	rsp, err := c.DeleteSearchesGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSearchesGroupResponse(rsp)
+}
+
+// ListSearchesGroupWithResponse request returning *ListSearchesGroupResponse
+func (c *ClientWithResponses) ListSearchesGroupWithResponse(ctx context.Context, groupID GroupID, params *ListSearchesGroupParams, reqEditors ...RequestEditorFn) (*ListSearchesGroupResponse, error) {
+	rsp, err := c.ListSearchesGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSearchesGroupResponse(rsp)
+}
+
+// CreateOrUpdateSearchesGroupWithBodyWithResponse request with arbitrary body returning *CreateOrUpdateSearchesGroupResponse
+func (c *ClientWithResponses) CreateOrUpdateSearchesGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateSearchesGroupResponse, error) {
+	rsp, err := c.CreateOrUpdateSearchesGroupWithBody(ctx, groupID, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateSearchesGroupResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateOrUpdateSearchesGroupWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateSearchesGroupParams, body CreateOrUpdateSearchesGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateSearchesGroupResponse, error) {
+	rsp, err := c.CreateOrUpdateSearchesGroup(ctx, groupID, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateSearchesGroupResponse(rsp)
+}
+
+// DeleteSearchGroupWithResponse request returning *DeleteSearchGroupResponse
+func (c *ClientWithResponses) DeleteSearchGroupWithResponse(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *DeleteSearchGroupParams, reqEditors ...RequestEditorFn) (*DeleteSearchGroupResponse, error) {
+	rsp, err := c.DeleteSearchGroup(ctx, groupID, searchKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSearchGroupResponse(rsp)
+}
+
+// GetSearchGroupWithResponse request returning *GetSearchGroupResponse
+func (c *ClientWithResponses) GetSearchGroupWithResponse(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*GetSearchGroupResponse, error) {
+	rsp, err := c.GetSearchGroup(ctx, groupID, searchKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSearchGroupResponse(rsp)
 }
 
 // DeleteTagsGroupWithResponse request returning *DeleteTagsGroupResponse
@@ -11841,6 +13374,59 @@ func (c *ClientWithResponses) SetFulltextWithResponse(ctx context.Context, userI
 		return nil, err
 	}
 	return ParseSetFulltextResponse(rsp)
+}
+
+// DeleteSearchesWithResponse request returning *DeleteSearchesResponse
+func (c *ClientWithResponses) DeleteSearchesWithResponse(ctx context.Context, userID UserID, params *DeleteSearchesParams, reqEditors ...RequestEditorFn) (*DeleteSearchesResponse, error) {
+	rsp, err := c.DeleteSearches(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSearchesResponse(rsp)
+}
+
+// ListSearchesWithResponse request returning *ListSearchesResponse
+func (c *ClientWithResponses) ListSearchesWithResponse(ctx context.Context, userID UserID, params *ListSearchesParams, reqEditors ...RequestEditorFn) (*ListSearchesResponse, error) {
+	rsp, err := c.ListSearches(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSearchesResponse(rsp)
+}
+
+// CreateOrUpdateSearchesWithBodyWithResponse request with arbitrary body returning *CreateOrUpdateSearchesResponse
+func (c *ClientWithResponses) CreateOrUpdateSearchesWithBodyWithResponse(ctx context.Context, userID UserID, params *CreateOrUpdateSearchesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateOrUpdateSearchesResponse, error) {
+	rsp, err := c.CreateOrUpdateSearchesWithBody(ctx, userID, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateSearchesResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateOrUpdateSearchesWithResponse(ctx context.Context, userID UserID, params *CreateOrUpdateSearchesParams, body CreateOrUpdateSearchesJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateSearchesResponse, error) {
+	rsp, err := c.CreateOrUpdateSearches(ctx, userID, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateOrUpdateSearchesResponse(rsp)
+}
+
+// DeleteSearchWithResponse request returning *DeleteSearchResponse
+func (c *ClientWithResponses) DeleteSearchWithResponse(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *DeleteSearchParams, reqEditors ...RequestEditorFn) (*DeleteSearchResponse, error) {
+	rsp, err := c.DeleteSearch(ctx, userID, searchKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteSearchResponse(rsp)
+}
+
+// GetSearchWithResponse request returning *GetSearchResponse
+func (c *ClientWithResponses) GetSearchWithResponse(ctx context.Context, userID UserID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*GetSearchResponse, error) {
+	rsp, err := c.GetSearch(ctx, userID, searchKey, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSearchResponse(rsp)
 }
 
 // DeleteTagsWithResponse request returning *DeleteTagsResponse
@@ -12350,6 +13936,116 @@ func ParseSetFulltextGroupResponse(rsp *http.Response) (*SetFulltextGroupRespons
 	response := &SetFulltextGroupResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSearchesGroupResponse parses an HTTP response from a DeleteSearchesGroupWithResponse call
+func ParseDeleteSearchesGroupResponse(rsp *http.Response) (*DeleteSearchesGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSearchesGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseListSearchesGroupResponse parses an HTTP response from a ListSearchesGroupWithResponse call
+func ParseListSearchesGroupResponse(rsp *http.Response) (*ListSearchesGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSearchesGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Search
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateOrUpdateSearchesGroupResponse parses an HTTP response from a CreateOrUpdateSearchesGroupWithResponse call
+func ParseCreateOrUpdateSearchesGroupResponse(rsp *http.Response) (*CreateOrUpdateSearchesGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateOrUpdateSearchesGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MultiObjectResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSearchGroupResponse parses an HTTP response from a DeleteSearchGroupWithResponse call
+func ParseDeleteSearchGroupResponse(rsp *http.Response) (*DeleteSearchGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSearchGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetSearchGroupResponse parses an HTTP response from a GetSearchGroupWithResponse call
+func ParseGetSearchGroupResponse(rsp *http.Response) (*GetSearchGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSearchGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Search
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
@@ -12964,6 +14660,116 @@ func ParseSetFulltextResponse(rsp *http.Response) (*SetFulltextResponse, error) 
 	response := &SetFulltextResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSearchesResponse parses an HTTP response from a DeleteSearchesWithResponse call
+func ParseDeleteSearchesResponse(rsp *http.Response) (*DeleteSearchesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSearchesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseListSearchesResponse parses an HTTP response from a ListSearchesWithResponse call
+func ParseListSearchesResponse(rsp *http.Response) (*ListSearchesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSearchesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Search
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateOrUpdateSearchesResponse parses an HTTP response from a CreateOrUpdateSearchesWithResponse call
+func ParseCreateOrUpdateSearchesResponse(rsp *http.Response) (*CreateOrUpdateSearchesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateOrUpdateSearchesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MultiObjectResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteSearchResponse parses an HTTP response from a DeleteSearchWithResponse call
+func ParseDeleteSearchResponse(rsp *http.Response) (*DeleteSearchResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteSearchResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetSearchResponse parses an HTTP response from a GetSearchWithResponse call
+func ParseGetSearchResponse(rsp *http.Response) (*GetSearchResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSearchResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Search
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil

@@ -42,7 +42,7 @@ func findFlags() []cli.Flag {
 		&cli.IntFlag{Name: "limit", Aliases: []string{"n", "per-page"}, Value: 25, Usage: "max results per page (1-200)", Destination: &findPerPage, Local: true},
 		&cli.StringFlag{Name: "cursor", Usage: "continuation cursor from a previous page", Destination: &findCursor, Local: true},
 		&cli.StringFlag{Name: "sort", Usage: "sort expression, e.g. cited_by_count:desc", Destination: &findSort, Local: true},
-		&cli.StringSliceFlag{Name: "filter", Usage: "OpenAlex filter as key=value (repeatable)", Destination: &findFilters, Local: true},
+		&cli.StringSliceFlag{Name: "filter", Usage: "OpenAlex filter as key=value (repeatable)", Destination: &findFilters}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 		&cli.BoolFlag{Name: "verbose", Usage: "--json: emit the full raw OpenAlex records (default is a compact per-work shape)", Destination: &findVerbose, Local: true},
 	}
 }

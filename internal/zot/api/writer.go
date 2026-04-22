@@ -45,6 +45,11 @@ type Writer interface {
 	CreateCollection(ctx context.Context, name, parentKey string) (*client.Collection, error)
 	DeleteCollection(ctx context.Context, key string) error
 
+	// Saved searches
+	CreateSavedSearch(ctx context.Context, name string, conditions []client.SearchCondition) (*client.Search, error)
+	UpdateSavedSearch(ctx context.Context, key, name string, conditions []client.SearchCondition) error
+	DeleteSavedSearch(ctx context.Context, key string) error
+
 	// Tags
 	DeleteTagsFromLibrary(ctx context.Context, tags []string) error
 }

@@ -86,7 +86,7 @@ func itemNoteAddCommand() *cli.Command {
 			&cli.StringFlag{Name: "body", Usage: "inline note body (or `-` to read from stdin)", Destination: &noteBody, Local: true},
 			&cli.StringFlag{Name: "body-file", Usage: "path to a note body file (or `-` for stdin)", Destination: &noteBodyFile, Local: true},
 			&cli.StringFlag{Name: "collection", Usage: "place note in this collection (key)", Destination: &noteCollection, Local: true},
-			&cli.StringSliceFlag{Name: "tag", Usage: "attach a tag (repeatable)", Destination: &noteTag, Local: true},
+			&cli.StringSliceFlag{Name: "tag", Usage: "attach a tag (repeatable)", Destination: &noteTag}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.BoolFlag{Name: "html", Usage: "treat --body/--body-file as raw HTML (still sanitized); default is markdown", Destination: &noteHTML, Local: true},
 		},
 		Action: runItemNoteAdd,

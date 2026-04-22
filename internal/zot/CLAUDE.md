@@ -107,6 +107,55 @@ Creating an `imported_file` attachment with actual bytes is a 4-call sequence. C
 - **`--library` is required on every command except `setup` and `info`** — the persistent flag is wired into both entry points via `cli.PersistentFlags()` + `cli.ValidateLibraryBefore`. Setup configures both libraries at once; info summarizes both when the flag is absent.
 - **`--json` mode is non-interactive.** `setup` requires `--api` + `--user-id` when `--json` is set. Any new prompting command must do the same check.
 
+## Saved searches (`/searches`)
+
+Zotero's saved searches are a parallel surface to collections: named virtual
+queries with `{condition, operator, value}` triples. Exposed via
+`zot saved-search {list,show,create,update,delete}`. Same API shape as
+collections — `POST /searches` returns a `MultiObjectResult` and hydrates
+`successful[0]` (so `create` returns the full object without a follow-up
+GET). Pagination + 412-retry work the same way as collections.
+
+- **Update is full replacement.** There's no single-search PATCH endpoint.
+  `UpdateSavedSearch` sends the whole `{name, conditions}` payload via
+  `POST /searches` with `key+version`. The CLI's `update` command reads the
+  existing record first so `--name` alone or `--condition` alone work.
+- **Pseudo-conditions.** `joinMode` (AND→OR), `noChildren`, and
+  `includeParentsAndChildren` are conditions that modify the search rather
+  than filter it. The CLI's `--any` flag prepends `joinMode:any:` for
+  convenience; the rest must be hand-specified.
+- **`--condition` intentionally omits `Local: true`.** See "slice-flag Local
+  quirk" below — this is a waiver, not an oversight.
+
+## Slice-flag Local quirk (urfave/cli v3)
+
+**Bug:** `cli.StringSliceFlag` (and every other slice flag type) with
+`Local: true` keeps only the LAST `--flag X` occurrence on the command line.
+`--tag a --tag b --tag c` yields `[c]`, not `[a,b,c]`.
+
+**Why:** urfave/cli v3's `FlagBase.Set` re-runs `PreParse` on every `Set`
+call when the flag is `Local`, and `SliceBase.Create` zeroes the underlying
+slice in `PreParse`. The accumulated values are wiped before the new value
+is appended. Reading via `cmd.StringSlice(name)` is equally broken — the
+underlying storage is the same.
+
+**Fix:** drop `Local: true` for slice flags. A `// lint:no-local` waiver
+right before the flag literal satisfies the lint-guard rule. The flag still
+won't leak in practice because every slice-flag site is on a leaf command.
+`Destination` continues to work correctly when `Local` is off.
+
+**Regression test:** `internal/zot/cli/sliceflag_quirk_test.go` reproduces
+the bug AND exercises every production slice flag (`item add --tag/--author`,
+`item note add --tag`, `find works --filter`, `llm query --key`,
+`doctor citekeys --kind/--item`, `saved-search {create,update} --condition`)
+to prevent regressions. If the reproduction test ever starts passing with
+`Local: true`, urfave/cli has fixed the upstream bug and the waivers can be
+removed.
+
+**Orthogonal gotcha:** urfave/cli's default slice separator is `,`, so
+`--author "Smith, A"` still splits into `["Smith", " A"]`. Not fixed by the
+Local workaround — callers must pre-escape or pass `Name` without commas.
+
 ## Gotchas
 
 - **Zotero date storage**: `itemDataValues.value` for the `date` field is `"YYYY-MM-DD originalText"` — first token sortable, second is user input. `cleanDate()` strips after the first whitespace for display. Keep raw values in JSON output so downstream tools see authentic data.

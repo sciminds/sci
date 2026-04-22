@@ -410,18 +410,18 @@ to a specific Zotero key, useful for smoke-testing a single write.`,
 				Destination: &citekeysApply,
 				Local:       true,
 			},
+			// lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.StringSliceFlag{
 				Name:        "kind",
 				Aliases:     []string{"k"},
 				Usage:       "with --fix, limit to buckets (invalid,collision,non-canonical,unstored)",
 				Destination: &citekeysKind,
-				Local:       true,
 			},
+			// lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.StringSliceFlag{
 				Name:        "item",
 				Usage:       "with --fix, only touch these Zotero item keys (repeatable)",
 				Destination: &citekeysItem,
-				Local:       true,
 			},
 			&cli.BoolFlag{
 				Name:        "yes",
