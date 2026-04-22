@@ -3,6 +3,7 @@ package zot
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/adrg/xdg"
@@ -87,6 +88,60 @@ func TestRequireConfig_IncompleteConfig(t *testing.T) {
 	}
 	if _, err := RequireConfig(); err == nil {
 		t.Error("expected error for missing user_id")
+	}
+}
+
+func TestLoadConfig_MigratesLegacyLibraryID(t *testing.T) {
+	withXDGConfigHome(t)
+	path := ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	legacy := []byte(`{
+  "api_key": "abc123",
+  "library_id": "17450224",
+  "data_dir": "/tmp/z"
+}`)
+	if err := os.WriteFile(path, legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig migration failed: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("LoadConfig returned nil for present legacy file")
+	}
+	if cfg.UserID != "17450224" {
+		t.Errorf("UserID not migrated: got %q", cfg.UserID)
+	}
+	if cfg.APIKey != "abc123" {
+		t.Errorf("APIKey lost: %q", cfg.APIKey)
+	}
+
+	// RequireConfig must now accept it (legacy config → live).
+	live, err := RequireConfig()
+	if err != nil {
+		t.Fatalf("RequireConfig after migration: %v", err)
+	}
+	if live.UserID != "17450224" {
+		t.Errorf("RequireConfig UserID = %q", live.UserID)
+	}
+
+	// The file on disk should have been rewritten in the new shape:
+	// - include "user_id"
+	// - NOT include "library_id"
+	onDisk, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(onDisk)
+	if !strings.Contains(s, `"user_id"`) {
+		t.Errorf("disk config not rewritten with user_id: %s", s)
+	}
+	if strings.Contains(s, `"library_id"`) {
+		t.Errorf("disk config still carries legacy library_id: %s", s)
 	}
 }
 

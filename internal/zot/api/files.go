@@ -66,7 +66,11 @@ func (c *Client) CreateChildAttachment(ctx context.Context, parentKey string, me
 	if title != "" {
 		data.Title = &title
 	}
-	return c.CreateItem(ctx, data)
+	it, err := c.CreateItem(ctx, data)
+	if err != nil {
+		return "", err
+	}
+	return it.Key, nil
 }
 
 // UploadAuthorization is the phase-2 authorization object: everything needed

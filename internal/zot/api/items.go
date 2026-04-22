@@ -55,33 +55,52 @@ func (e *VersionConflictError) Error() string {
 }
 
 // CreateItem creates a single item. data.Key and data.Version MUST be nil.
-// Returns the server-assigned key.
-func (c *Client) CreateItem(ctx context.Context, data client.ItemData) (string, error) {
+// Returns the full created item as the server materialized it — the
+// response body's successful[0] slot carries the complete Item JSON,
+// so no follow-up GET is needed for hydration.
+func (c *Client) CreateItem(ctx context.Context, data client.ItemData) (*client.Item, error) {
 	body := []client.ItemData{data}
 	status, statusLine, respBody, err := c.createOrUpdateItems(ctx, body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if status != http.StatusOK {
-		return "", fmt.Errorf("POST /items: %s: %s", statusLine, string(respBody))
+		return nil, fmt.Errorf("POST /items: %s: %s", statusLine, string(respBody))
 	}
 	mor, err := decodeMultiObject(respBody)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(mor.Failed) > 0 {
-		return "", multiObjectFailure(mor)
+		return nil, multiObjectFailure(mor)
 	}
-	// Successful is keyed by submission index ("0") → object with "key".
 	obj, ok := mor.Successful["0"]
 	if !ok {
-		return "", fmt.Errorf("POST /items: no successful result")
+		return nil, fmt.Errorf("POST /items: no successful result")
 	}
-	k, _ := obj["key"].(string)
-	if k == "" {
-		return "", fmt.Errorf("POST /items: successful object has no key")
+	raw, err := json.Marshal(obj)
+	if err != nil {
+		return nil, fmt.Errorf("re-encode successful item: %w", err)
 	}
-	return k, nil
+	var it client.Item
+	if err := json.Unmarshal(raw, &it); err != nil {
+		return nil, fmt.Errorf("parse successful item: %w", err)
+	}
+	if it.Key == "" {
+		return nil, fmt.Errorf("POST /items: successful object has no key")
+	}
+	return &it, nil
+}
+
+// GetItem fetches a single item by key from the Web API. Callers that
+// need ground-truth state (e.g. `zot item read --remote`, or write paths
+// that want to verify their own creation before Zotero desktop syncs the
+// local SQLite) use this; normal reads should go through local.Reader.
+//
+// Thin exported wrapper over getItemRaw — kept distinct so the internal
+// 412-retry callsites remain explicit at their usage sites.
+func (c *Client) GetItem(ctx context.Context, key string) (*client.Item, error) {
+	return c.getItemRaw(ctx, key)
 }
 
 // getItemRaw fetches an item by key and returns its parsed form + version.

@@ -16,6 +16,7 @@ var (
 	findCursor  string
 	findSort    string
 	findFilters []string
+	findVerbose bool
 )
 
 func findCommand() *cli.Command {
@@ -38,6 +39,7 @@ func findFlags() []cli.Flag {
 		&cli.StringFlag{Name: "cursor", Usage: "continuation cursor from a previous page", Destination: &findCursor, Local: true},
 		&cli.StringFlag{Name: "sort", Usage: "sort expression, e.g. cited_by_count:desc", Destination: &findSort, Local: true},
 		&cli.StringSliceFlag{Name: "filter", Usage: "OpenAlex filter as key=value (repeatable)", Destination: &findFilters, Local: true},
+		&cli.BoolFlag{Name: "verbose", Usage: "--json: emit the full raw OpenAlex records (default is a compact per-work shape)", Destination: &findVerbose, Local: true},
 	}
 }
 
@@ -88,10 +90,11 @@ func runFindWorks(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	out := zot.FindWorksResult{
-		Query: query,
-		Total: res.Meta.Count,
-		Count: len(res.Results),
-		Works: res.Results,
+		Query:   query,
+		Total:   res.Meta.Count,
+		Count:   len(res.Results),
+		Works:   res.Results,
+		Verbose: findVerbose,
 	}
 	if res.Meta.NextCursor != nil {
 		out.NextCursor = *res.Meta.NextCursor
@@ -118,6 +121,7 @@ func runFindAuthors(ctx context.Context, cmd *cli.Command) error {
 		Total:   res.Meta.Count,
 		Count:   len(res.Results),
 		Authors: res.Results,
+		Verbose: findVerbose,
 	}
 	if res.Meta.NextCursor != nil {
 		out.NextCursor = *res.Meta.NextCursor

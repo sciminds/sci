@@ -77,6 +77,71 @@ func TestFindWorksResult_JSON_shape(t *testing.T) {
 	}
 }
 
+func TestFindWorksResult_JSON_compactByDefault(t *testing.T) {
+	t.Parallel()
+	r := FindWorksResult{
+		Query: "x",
+		Count: 1,
+		Works: []openalex.Work{{
+			ID:              "https://openalex.org/W2963403868",
+			DOI:             sp("https://doi.org/10.1000/abc"),
+			Title:           sp("A Paper"),
+			PublicationYear: ip(2017),
+			Type:            sp("article"),
+			CitedByCount:    42,
+			IsOA:            true,
+			Authorships: []openalex.Authorship{
+				{Author: openalex.AuthorRef{DisplayName: "Ashish Vaswani"},
+					Institutions:          []openalex.Institution{{ID: "https://openalex.org/I20089843", DisplayName: "Princeton University"}},
+					RawAffiliationStrings: []string{"long string that should NOT appear"}},
+			},
+			PrimaryLocation: &openalex.Location{Source: &openalex.SourceRef{DisplayName: "NeurIPS"}},
+			OpenAccess:      &openalex.OpenAccess{OAStatus: "gold"},
+		}},
+	}
+	b, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	// Compact fields should appear — flat names, no nesting.
+	for _, want := range []string{`"openalex_id":"W2963403868"`, `"doi":"10.1000/abc"`, `"title":"A Paper"`, `"year":2017`, `"venue":"NeurIPS"`, `"oa_status":"gold"`, `"cited_by_count":42`, `"authors":["Ashish Vaswani"]`} {
+		if !strings.Contains(s, want) {
+			t.Errorf("compact JSON missing %s\nfull: %s", want, s)
+		}
+	}
+	// Raw OpenAlex nested noise must be stripped.
+	for _, unwanted := range []string{"raw_affiliation_strings", "institutions", "abstract_inverted_index", "orcid", "ror"} {
+		if strings.Contains(s, unwanted) {
+			t.Errorf("compact JSON leaked %q: %s", unwanted, s)
+		}
+	}
+}
+
+func TestFindWorksResult_JSON_verbosePassesThroughRaw(t *testing.T) {
+	t.Parallel()
+	r := FindWorksResult{
+		Query:   "x",
+		Count:   1,
+		Verbose: true,
+		Works: []openalex.Work{{
+			ID:           "https://openalex.org/W1",
+			CitedByCount: 1,
+			Authorships: []openalex.Authorship{
+				{RawAffiliationStrings: []string{"raw affiliation"}},
+			},
+		}},
+	}
+	b, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !strings.Contains(s, "raw_affiliation_strings") {
+		t.Errorf("verbose JSON should pass raw fields through: %s", s)
+	}
+}
+
 func TestFindAuthorsResult_Human(t *testing.T) {
 	t.Parallel()
 	r := FindAuthorsResult{

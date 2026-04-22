@@ -51,6 +51,7 @@ var (
 
 	collNewParent   string
 	collAddFromFile string
+	collListRemote  bool
 
 	tagRemoveYes bool
 	tagDeleteYes bool
@@ -141,11 +142,17 @@ func runAdd(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	key, err := c.CreateItem(ctx, data)
+	it, err := c.CreateItem(ctx, data)
 	if err != nil {
 		return err
 	}
-	cmdutil.Output(cmd, zot.WriteResult{Action: "created", Kind: "item", Target: key})
+	hydrated := api.ItemFromClient(it)
+	cmdutil.Output(cmd, zot.WriteResult{
+		Action: "created",
+		Kind:   "item",
+		Target: it.Key,
+		Data:   hydrated,
+	})
 	return nil
 }
 
@@ -376,8 +383,26 @@ func collectionCommand() *cli.Command {
 			{
 				Name:        "list",
 				Usage:       "List every collection in the library with item counts",
-				Description: "$ zot collection list",
+				Description: "$ zot collection list\n$ zot collection list --remote   # bypass local SQLite, hit the Zotero Web API",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API (shows collections not yet synced locally)", Destination: &collListRemote, Local: true},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
+					if collListRemote {
+						c, err := requireAPIClient(ctx)
+						if err != nil {
+							return err
+						}
+						raw, err := c.ListCollections(ctx)
+						if err != nil {
+							return err
+						}
+						colls := lo.Map(raw, func(c client.Collection, _ int) local.Collection {
+							return api.CollectionFromClient(&c)
+						})
+						cmdutil.Output(cmd, zot.CollectionListResult{Count: len(colls), Collections: colls})
+						return nil
+					}
 					_, db, err := openLocalDB(ctx)
 					if err != nil {
 						return err
@@ -408,12 +433,17 @@ func collectionCommand() *cli.Command {
 					if err != nil {
 						return err
 					}
-					key, err := c.CreateCollection(ctx, name, collNewParent)
+					coll, err := c.CreateCollection(ctx, name, collNewParent)
 					if err != nil {
 						return err
 					}
-					cmdutil.Output(cmd, zot.WriteResult{Action: "created", Kind: "collection", Target: key,
-						Message: fmt.Sprintf("created collection %q (%s)", name, key)})
+					cmdutil.Output(cmd, zot.WriteResult{
+						Action:  "created",
+						Kind:    "collection",
+						Target:  coll.Key,
+						Message: fmt.Sprintf("created collection %q (%s)", name, coll.Key),
+						Data:    api.CollectionFromClient(coll),
+					})
 					return nil
 				},
 			},

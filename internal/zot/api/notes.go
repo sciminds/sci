@@ -145,7 +145,11 @@ func (c *Client) CreateChildNote(ctx context.Context, parentKey, htmlBody string
 		})
 		data.Tags = &ts
 	}
-	return c.CreateItem(ctx, data)
+	it, err := c.CreateItem(ctx, data)
+	if err != nil {
+		return "", err
+	}
+	return it.Key, nil
 }
 
 // UpdateChildNote replaces an existing note's HTML body in place.

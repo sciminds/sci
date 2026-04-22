@@ -10,45 +10,55 @@ import (
 )
 
 // CreateCollection creates a new collection under an optional parent.
-// parentKey may be "" for a top-level collection. Returns the assigned key.
-func (c *Client) CreateCollection(ctx context.Context, name, parentKey string) (string, error) {
+// parentKey may be "" for a top-level collection. Returns the full
+// created collection as the server materialized it — the response's
+// successful[0] slot carries the complete Collection JSON, so callers
+// don't need a follow-up GET to hydrate.
+func (c *Client) CreateCollection(ctx context.Context, name, parentKey string) (*client.Collection, error) {
 	data := client.CollectionData{Name: name}
 	if parentKey != "" {
 		// ParentCollection is a oneof(string, false) union. Wrap the string.
 		raw, err := json.Marshal(parentKey)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		data.ParentCollection = &client.CollectionData_ParentCollection{}
 		if err := data.ParentCollection.UnmarshalJSON(raw); err != nil {
-			return "", fmt.Errorf("marshal parent collection: %w", err)
+			return nil, fmt.Errorf("marshal parent collection: %w", err)
 		}
 	}
 
 	body := []client.CollectionData{data}
 	status, statusLine, respBody, err := c.createOrUpdateCollections(ctx, body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if status != http.StatusOK {
-		return "", fmt.Errorf("POST /collections: %s: %s", statusLine, string(respBody))
+		return nil, fmt.Errorf("POST /collections: %s: %s", statusLine, string(respBody))
 	}
 	mor, err := decodeMultiObject(respBody)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(mor.Failed) > 0 {
-		return "", multiObjectFailure(mor)
+		return nil, multiObjectFailure(mor)
 	}
 	obj, ok := mor.Successful["0"]
 	if !ok {
-		return "", fmt.Errorf("POST /collections: no successful result")
+		return nil, fmt.Errorf("POST /collections: no successful result")
 	}
-	k, _ := obj["key"].(string)
-	if k == "" {
-		return "", fmt.Errorf("POST /collections: successful object has no key")
+	raw, err := json.Marshal(obj)
+	if err != nil {
+		return nil, fmt.Errorf("re-encode successful collection: %w", err)
 	}
-	return k, nil
+	var coll client.Collection
+	if err := json.Unmarshal(raw, &coll); err != nil {
+		return nil, fmt.Errorf("parse successful collection: %w", err)
+	}
+	if coll.Key == "" {
+		return nil, fmt.Errorf("POST /collections: successful object has no key")
+	}
+	return &coll, nil
 }
 
 // getCollectionRaw fetches a collection by key. Used internally for

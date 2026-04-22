@@ -20,7 +20,7 @@ import (
 // library state, use local.Reader against the local zotero.sqlite.
 type Writer interface {
 	// Items
-	CreateItem(ctx context.Context, data client.ItemData) (string, error)
+	CreateItem(ctx context.Context, data client.ItemData) (*client.Item, error)
 	UpdateItem(ctx context.Context, key string, patch client.ItemData) error
 	UpdateItemsBatch(ctx context.Context, patches []ItemPatch) (map[string]error, error)
 	TrashItem(ctx context.Context, key string) error
@@ -42,7 +42,7 @@ type Writer interface {
 	UploadAttachmentFile(ctx context.Context, itemKey string, r io.Reader, filename, contentType string) error
 
 	// Collections
-	CreateCollection(ctx context.Context, name, parentKey string) (string, error)
+	CreateCollection(ctx context.Context, name, parentKey string) (*client.Collection, error)
 	DeleteCollection(ctx context.Context, key string) error
 
 	// Tags

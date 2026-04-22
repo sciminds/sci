@@ -43,6 +43,12 @@ func ConfigPath() string {
 
 // LoadConfig reads the zot config from disk.
 // Returns (nil, nil) if the file does not exist.
+//
+// Migrates legacy schemas transparently: pre-rename configs carry
+// `library_id` instead of `user_id`. When we spot one we populate
+// the current field and rewrite the file in the new shape, so the
+// user sees "it just works" on the next run instead of a misleading
+// "not configured" error.
 func LoadConfig() (*Config, error) {
 	data, err := os.ReadFile(ConfigPath())
 	if err != nil {
@@ -55,7 +61,36 @@ func LoadConfig() (*Config, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse zot config: %w", err)
 	}
+	migrated := migrateLegacyConfig(&cfg, data)
+	if migrated {
+		// Best-effort persist. If the rewrite fails the in-memory
+		// config is still correct for this process; the next run
+		// will migrate again.
+		_ = SaveConfig(&cfg)
+	}
 	return &cfg, nil
+}
+
+// migrateLegacyConfig patches cfg in-place from deprecated field names.
+// Returns true when anything changed (caller persists).
+//
+// Currently handles: library_id → user_id (renamed when the zot config
+// grew a distinct UserID + SharedGroupID split).
+func migrateLegacyConfig(cfg *Config, raw []byte) bool {
+	if cfg.UserID != "" {
+		return false
+	}
+	var legacy struct {
+		LibraryID string `json:"library_id"`
+	}
+	if err := json.Unmarshal(raw, &legacy); err != nil {
+		return false
+	}
+	if legacy.LibraryID == "" {
+		return false
+	}
+	cfg.UserID = legacy.LibraryID
+	return true
 }
 
 // SaveConfig writes the zot config to disk with restricted permissions (0600).

@@ -11,6 +11,8 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
 )
@@ -23,6 +25,9 @@ var (
 	listLimit      int
 	listOffset     int
 	listOrder      string
+	listRemote     bool
+
+	readRemote bool
 
 	searchLimit int
 
@@ -175,13 +180,29 @@ func readCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "read",
 		Usage:       "Show full details of a single item",
-		Description: "$ zot item read ABC12345",
+		Description: "$ zot item read ABC12345\n$ zot item read ABC12345 --remote   # bypass local SQLite, hit the Zotero Web API",
 		ArgsUsage:   "<key>",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (for items not yet synced)", Destination: &readRemote, Local: true},
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected an item key")
 			}
 			key := cmd.Args().First()
+			if readRemote {
+				c, err := requireAPIClient(ctx)
+				if err != nil {
+					return err
+				}
+				raw, err := c.GetItem(ctx, key)
+				if err != nil {
+					return err
+				}
+				it := api.ItemFromClient(raw)
+				cmdutil.Output(cmd, zot.ItemResult{Item: it})
+				return nil
+			}
 			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
@@ -202,16 +223,44 @@ func listCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "list",
 		Usage:       "List items in your library with optional filters",
-		Description: "$ zot item list\n$ zot item list --type journalArticle --limit 25\n$ zot item list --collection ABC12345\n$ zot item list --tag neuroimaging --order title",
+		Description: "$ zot item list\n$ zot item list --type journalArticle --limit 25\n$ zot item list --collection ABC12345\n$ zot item list --tag neuroimaging --order title\n$ zot item list --collection ABC12345 --remote   # bypass local SQLite (for items not yet synced)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "type", Aliases: []string{"t"}, Usage: "filter by item type (e.g. journalArticle, book)", Destination: &listType, Local: true},
 			&cli.StringFlag{Name: "collection", Aliases: []string{"c"}, Usage: "filter by collection key", Destination: &listCollection, Local: true},
-			&cli.StringFlag{Name: "tag", Usage: "filter by tag name", Destination: &listTag, Local: true},
+			&cli.StringFlag{Name: "tag", Usage: "filter by tag name (local only)", Destination: &listTag, Local: true},
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 25, Usage: "max results", Destination: &listLimit, Local: true},
 			&cli.IntFlag{Name: "offset", Value: 0, Usage: "pagination offset", Destination: &listOffset, Local: true},
-			&cli.StringFlag{Name: "order", Value: "added", Usage: "sort order: added, modified, title", Destination: &listOrder, Local: true},
+			&cli.StringFlag{Name: "order", Value: "added", Usage: "sort order: added, modified, title (local only)", Destination: &listOrder, Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API (shows items not yet synced locally)", Destination: &listRemote, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if listRemote {
+				if listTag != "" {
+					return cmdutil.UsageErrorf(cmd, "--tag is local-only; drop it or drop --remote")
+				}
+				c, err := requireAPIClient(ctx)
+				if err != nil {
+					return err
+				}
+				raw, err := c.ListItems(ctx, api.ListItemsOptions{
+					CollectionKey: listCollection,
+					ItemType:      listType,
+					Start:         listOffset,
+					Limit:         listLimit,
+				})
+				if err != nil {
+					return err
+				}
+				items := lo.Map(raw, func(it client.Item, _ int) local.Item {
+					return api.ItemFromClient(&it)
+				})
+				cmdutil.Output(cmd, zot.ListResult{
+					Count: len(items),
+					Items: items,
+				})
+				return nil
+			}
+
 			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err

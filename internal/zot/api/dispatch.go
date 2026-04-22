@@ -106,6 +106,80 @@ func (c *Client) createOrUpdateCollections(ctx context.Context, body []client.Co
 	return r.StatusCode(), r.Status(), r.Body, nil
 }
 
+// listCollections dispatches GET /collections with pagination params.
+//
+//nolint:dupl // per-op dispatch is intrinsically symmetric across user/group generated types
+func (c *Client) listCollections(ctx context.Context, start, limit int) (int, string, *[]client.Collection, error) {
+	s := client.Start(start)
+	l := client.Limit(limit)
+	if c.isShared() {
+		params := &client.ListCollectionsGroupParams{Start: &s, Limit: &l}
+		r, err := c.Gen.ListCollectionsGroupWithResponse(ctx, c.GroupID(), params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+	}
+	params := &client.ListCollectionsParams{Start: &s, Limit: &l}
+	r, err := c.Gen.ListCollectionsWithResponse(ctx, c.UserID, params)
+	if err != nil {
+		return 0, "", nil, err
+	}
+	return r.StatusCode(), r.Status(), r.JSON200, nil
+}
+
+// listItems dispatches GET /items (top-level) with pagination + filter params.
+// The itemType filter accepts boolean ops (`journalArticle`, `book || bookSection`,
+// `-attachment`). collection narrows to a single collection's membership.
+//
+//nolint:dupl // per-op dispatch is intrinsically symmetric across user/group generated types
+func (c *Client) listItems(ctx context.Context, opts ListItemsOptions) (int, string, *[]client.Item, error) {
+	s := client.Start(opts.Start)
+	l := client.Limit(opts.Limit)
+	// ListCollectionItems{,Group}Params intentionally lacks ItemType —
+	// the Zotero API exposes type filtering only on the library-wide
+	// endpoints. Callers that need both filters paginate whole collection
+	// and filter client-side.
+	if c.isShared() {
+		if opts.CollectionKey != "" {
+			params := &client.ListCollectionItemsGroupParams{Start: &s, Limit: &l}
+			r, err := c.Gen.ListCollectionItemsGroupWithResponse(ctx, c.GroupID(), client.CollectionKeyPath(opts.CollectionKey), params)
+			if err != nil {
+				return 0, "", nil, err
+			}
+			return r.StatusCode(), r.Status(), r.JSON200, nil
+		}
+		params := &client.ListItemsGroupParams{Start: &s, Limit: &l}
+		if opts.ItemType != "" {
+			t := client.ItemType(opts.ItemType)
+			params.ItemType = &t
+		}
+		r, err := c.Gen.ListItemsGroupWithResponse(ctx, c.GroupID(), params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+	}
+	if opts.CollectionKey != "" {
+		params := &client.ListCollectionItemsParams{Start: &s, Limit: &l}
+		r, err := c.Gen.ListCollectionItemsWithResponse(ctx, c.UserID, client.CollectionKeyPath(opts.CollectionKey), params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+	}
+	params := &client.ListItemsParams{Start: &s, Limit: &l}
+	if opts.ItemType != "" {
+		t := client.ItemType(opts.ItemType)
+		params.ItemType = &t
+	}
+	r, err := c.Gen.ListItemsWithResponse(ctx, c.UserID, params)
+	if err != nil {
+		return 0, "", nil, err
+	}
+	return r.StatusCode(), r.Status(), r.JSON200, nil
+}
+
 // getCollection dispatches GET /collections/{key}.
 func (c *Client) getCollection(ctx context.Context, key string) (int, string, *client.Collection, error) {
 	if c.isShared() {

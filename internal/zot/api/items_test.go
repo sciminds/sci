@@ -43,6 +43,19 @@ func (h *itemHandler) seed(key string, data client.ItemData, version int) {
 
 func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/users/42/items":
+		// Library-wide item list. Paginated by ?start&limit in production;
+		// the fake returns all rows in one page.
+		wrapped := make([]client.Item, 0, len(h.items))
+		for k, fi := range h.items {
+			wrapped = append(wrapped, client.Item{
+				Key:     k,
+				Version: fi.version,
+				Data:    fi.data,
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(wrapped)
 	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/users/42/items/") && !strings.HasSuffix(r.URL.Path, "/items/"):
 		atomic.AddInt32(&h.gets, 1)
 		key := strings.TrimPrefix(r.URL.Path, "/users/42/items/")
@@ -132,7 +145,12 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					it.data.Tags = d.Tags
 				}
 				it.version++
-				result["successful"].(map[string]any)[itoaIdx(idx)] = map[string]any{"key": key, "version": it.version}
+				// Zotero returns the full wrapped Item JSON under successful.{idx}.
+				result["successful"].(map[string]any)[itoaIdx(idx)] = client.Item{
+					Key:     key,
+					Version: it.version,
+					Data:    it.data,
+				}
 				continue
 			}
 			key := "NEWKEY00"
@@ -140,7 +158,11 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			v := 1
 			d.Version = &v
 			h.items[key] = &fakeItem{data: d, version: 1}
-			result["successful"].(map[string]any)[itoaIdx(idx)] = map[string]any{"key": key, "version": 1}
+			result["successful"].(map[string]any)[itoaIdx(idx)] = client.Item{
+				Key:     key,
+				Version: 1,
+				Data:    d,
+			}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(result)
@@ -168,21 +190,84 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func itoaIdx(i int) string { return string(rune('0' + i)) }
 
+func TestGetItem_ReturnsFullItem(t *testing.T) {
+	t.Parallel()
+	h := newItemHandler(t)
+	title := "Successor Representation"
+	doi := "10.1523/JNEUROSCI.0151-18.2018"
+	h.seed("ABC12345", client.ItemData{
+		ItemType: "journalArticle",
+		Title:    &title,
+		DOI:      &doi,
+	}, 42)
+	c, _ := newTestClient(t, h)
+
+	got, err := c.GetItem(context.Background(), "ABC12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Key != "ABC12345" || got.Version != 42 {
+		t.Errorf("got %+v", got)
+	}
+	if got.Data.Title == nil || *got.Data.Title != title {
+		t.Errorf("title not round-tripped: %+v", got.Data.Title)
+	}
+}
+
+func TestListItems_ReturnsAll(t *testing.T) {
+	t.Parallel()
+	h := newItemHandler(t)
+	t1, t2 := "One", "Two"
+	h.seed("AAA11111", client.ItemData{ItemType: "journalArticle", Title: &t1}, 1)
+	h.seed("BBB22222", client.ItemData{ItemType: "book", Title: &t2}, 2)
+	c, _ := newTestClient(t, h)
+
+	got, err := c.ListItems(context.Background(), ListItemsOptions{Limit: 25})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+}
+
+func TestGetItem_NotFound(t *testing.T) {
+	t.Parallel()
+	h := newItemHandler(t)
+	c, _ := newTestClient(t, h)
+	_, err := c.GetItem(context.Background(), "MISSING1")
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Errorf("err = %v, want 'not found'", err)
+	}
+}
+
 func TestCreateItem(t *testing.T) {
 	t.Parallel()
 	h := newItemHandler(t)
 	c, _ := newTestClient(t, h)
 
 	title := "Test paper"
-	key, err := c.CreateItem(context.Background(), client.ItemData{
+	it, err := c.CreateItem(context.Background(), client.ItemData{
 		ItemType: "journalArticle",
 		Title:    &title,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if key != "NEWKEY00" {
-		t.Errorf("key = %q", key)
+	if it == nil {
+		t.Fatal("CreateItem returned nil item")
+	}
+	if it.Key != "NEWKEY00" {
+		t.Errorf("Key = %q", it.Key)
+	}
+	if it.Version == 0 {
+		t.Error("Version not populated from successful response")
+	}
+	if it.Data.Title == nil || *it.Data.Title != "Test paper" {
+		t.Errorf("Data.Title not hydrated: %+v", it.Data.Title)
+	}
+	if it.Data.ItemType != "journalArticle" {
+		t.Errorf("Data.ItemType = %q", it.Data.ItemType)
 	}
 }
 

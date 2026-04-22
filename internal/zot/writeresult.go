@@ -12,11 +12,17 @@ import (
 // WriteResult is the standard return type for write commands. Action is
 // a short verb ("created", "updated", "trashed", …) and Target is the key
 // or name of the affected entity.
+//
+// Data optionally carries the full hydrated entity (local.Item for items,
+// local.Collection for collections) so callers — especially LLM agents
+// consuming --json — can see what was just written without a second
+// round-trip against the (possibly unsynced) local SQLite.
 type WriteResult struct {
 	Action  string `json:"action"`
 	Kind    string `json:"kind"`   // "item" | "collection" | "tag"
 	Target  string `json:"target"` // key or name
 	Message string `json:"message,omitempty"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // JSON implements cmdutil.Result.

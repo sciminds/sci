@@ -40,6 +40,20 @@ func (h *collHandler) seed(key, name string, version int) {
 
 func (h *collHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/users/42/collections":
+		// Library-wide collection list. Paginated by ?start&limit, but the
+		// fake returns all in one page (callers test the 100-per-page cap
+		// separately if needed).
+		wrapped := make([]client.Collection, 0, len(h.colls))
+		for k, fc := range h.colls {
+			wrapped = append(wrapped, client.Collection{
+				Key:     k,
+				Version: fc.version,
+				Data:    fc.data,
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(wrapped)
 	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/users/42/collections/"):
 		key := strings.TrimPrefix(r.URL.Path, "/users/42/collections/")
 		c, ok := h.colls[key]
@@ -73,7 +87,11 @@ func (h *collHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			v := 1
 			d.Version = &v
 			h.colls[key] = &fakeColl{data: d, version: 1}
-			result["successful"].(map[string]any)[itoaIdx(idx)] = map[string]any{"key": key, "version": 1}
+			result["successful"].(map[string]any)[itoaIdx(idx)] = client.Collection{
+				Key:     key,
+				Version: 1,
+				Data:    d,
+			}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(result)
@@ -104,12 +122,21 @@ func TestCreateCollection_TopLevel(t *testing.T) {
 	h := newCollHandler(t)
 	c, _ := newTestClient(t, h)
 
-	key, err := c.CreateCollection(context.Background(), "Papers", "")
+	got, err := c.CreateCollection(context.Background(), "Papers", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if key != "COLLNEW1" {
-		t.Errorf("key = %q", key)
+	if got == nil {
+		t.Fatal("CreateCollection returned nil")
+	}
+	if got.Key != "COLLNEW1" {
+		t.Errorf("Key = %q", got.Key)
+	}
+	if got.Data.Name != "Papers" {
+		t.Errorf("hydrated Name = %q, want Papers", got.Data.Name)
+	}
+	if got.Version == 0 {
+		t.Error("Version not populated from successful response")
 	}
 	if h.posts != 1 {
 		t.Errorf("posts = %d, want 1", h.posts)
@@ -175,6 +202,29 @@ func TestDeleteCollection(t *testing.T) {
 	}
 	if _, ok := h.colls["COLLXXX1"]; ok {
 		t.Error("collection still present after delete")
+	}
+}
+
+func TestListCollections_ReturnsAll(t *testing.T) {
+	t.Parallel()
+	h := newCollHandler(t)
+	h.seed("AAA11111", "Alpha", 5)
+	h.seed("BBB22222", "Beta", 6)
+	c, _ := newTestClient(t, h)
+
+	got, err := c.ListCollections(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2: %+v", len(got), got)
+	}
+	names := map[string]bool{}
+	for _, g := range got {
+		names[g.Data.Name] = true
+	}
+	if !names["Alpha"] || !names["Beta"] {
+		t.Errorf("expected Alpha and Beta, got %v", names)
 	}
 }
 
