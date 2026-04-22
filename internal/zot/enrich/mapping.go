@@ -40,7 +40,7 @@ func ToItemFields(w *openalex.Work) client.ItemData {
 		out.Url = &u
 	}
 	if ptitle := primarySourceName(w); ptitle != "" {
-		out.PublicationTitle = &ptitle
+		routeSourceTitle(&out, ptitle)
 	}
 	if abs := reconstructAbstract(w.AbstractInvertedIndex); abs != "" {
 		out.AbstractNote = &abs
@@ -133,6 +133,23 @@ func primarySourceName(w *openalex.Work) string {
 		return w.PrimaryLocation.Source.DisplayName
 	}
 	return ""
+}
+
+// routeSourceTitle stores the primary-location source name in the ItemType-
+// appropriate Zotero field. Writing publicationTitle on anything other than a
+// journalArticle makes Zotero reject the batch with "'publicationTitle' is not
+// a valid field for type X"; for preprints / theses / reports we leave the
+// source unattached rather than invent a home for it.
+func routeSourceTitle(out *client.ItemData, title string) {
+	t := title
+	switch out.ItemType {
+	case client.JournalArticle:
+		out.PublicationTitle = &t
+	case client.ConferencePaper:
+		out.ProceedingsTitle = &t
+	case client.BookSection:
+		out.BookTitle = &t
+	}
 }
 
 // toCreators unflattens OpenAlex's flat display_name strings into Zotero's

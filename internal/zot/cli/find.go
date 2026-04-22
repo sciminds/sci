@@ -76,7 +76,7 @@ func findAuthorsCommand() *cli.Command {
 // x_concepts, counts_by_year) so `zot find` stays skim-friendly even in
 // --json. Callers that want the full record can pass --select.
 var (
-	worksSelectFields   = []string{"id", "doi", "title", "display_name", "publication_year", "publication_date", "type", "authorships", "primary_location"}
+	worksSelectFields   = []string{"id", "doi", "title", "display_name", "publication_year", "publication_date", "type", "authorships", "primary_location", "cited_by_count", "open_access", "best_oa_location"}
 	authorsSelectFields = []string{"id", "orcid", "display_name", "works_count", "cited_by_count", "summary_stats", "last_known_institutions"}
 )
 

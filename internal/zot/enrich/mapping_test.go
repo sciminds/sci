@@ -122,6 +122,84 @@ func TestToItemFields_itemTypeMapping(t *testing.T) {
 	}
 }
 
+// TestToItemFields_sourceRoutingByType pins down that the primary-location
+// source name lands in the type-appropriate Zotero field. Most importantly,
+// preprint / thesis / report / book must NOT receive publicationTitle — Zotero
+// rejects batch writes with "'publicationTitle' is not a valid field for type X"
+// when we send it to non-journal items (OpenAlex Works with a Source.DisplayName
+// are common for all of these types).
+func TestToItemFields_sourceRoutingByType(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		openalexType  string
+		wantItemType  client.ItemDataItemType
+		wantInField   string // one of: publicationTitle, proceedingsTitle, bookTitle, "" (must be unset)
+		sourceDisplay string
+	}{
+		{"journal-article", client.JournalArticle, "publicationTitle", "Nature"},
+		{"proceedings-article", client.ConferencePaper, "proceedingsTitle", "NeurIPS 2023"},
+		{"book-chapter", client.BookSection, "bookTitle", "Handbook of RL"},
+		{"preprint", client.Preprint, "", "bioRxiv"},
+		{"posted-content", client.Preprint, "", "arXiv"},
+		{"dissertation", client.Thesis, "", "MIT Archive"},
+		{"report", client.Report, "", "NIST"},
+		{"book", client.Book, "", "Cambridge Univ Press"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.openalexType, func(t *testing.T) {
+			typ := tc.openalexType
+			got := ToItemFields(&openalex.Work{
+				ID:   "https://openalex.org/W1",
+				Type: &typ,
+				PrimaryLocation: &openalex.Location{
+					Source: &openalex.SourceRef{DisplayName: tc.sourceDisplay, Type: strPtr("journal")},
+				},
+			})
+			if got.ItemType != tc.wantItemType {
+				t.Fatalf("ItemType = %q, want %q", got.ItemType, tc.wantItemType)
+			}
+			// publicationTitle must be set only for journalArticle.
+			gotPub := derefOr(got.PublicationTitle)
+			gotProc := derefOr(got.ProceedingsTitle)
+			gotBook := derefOr(got.BookTitle)
+			switch tc.wantInField {
+			case "publicationTitle":
+				if gotPub != tc.sourceDisplay {
+					t.Errorf("PublicationTitle = %q, want %q", gotPub, tc.sourceDisplay)
+				}
+				if gotProc != "" || gotBook != "" {
+					t.Errorf("other title fields must be empty, got proc=%q book=%q", gotProc, gotBook)
+				}
+			case "proceedingsTitle":
+				if gotProc != tc.sourceDisplay {
+					t.Errorf("ProceedingsTitle = %q, want %q", gotProc, tc.sourceDisplay)
+				}
+				if gotPub != "" {
+					t.Errorf("PublicationTitle must be empty for %s, got %q", tc.openalexType, gotPub)
+				}
+			case "bookTitle":
+				if gotBook != tc.sourceDisplay {
+					t.Errorf("BookTitle = %q, want %q", gotBook, tc.sourceDisplay)
+				}
+				if gotPub != "" {
+					t.Errorf("PublicationTitle must be empty for %s, got %q", tc.openalexType, gotPub)
+				}
+			case "":
+				if gotPub != "" || gotProc != "" || gotBook != "" {
+					t.Errorf("no title field should be set for %s, got pub=%q proc=%q book=%q", tc.openalexType, gotPub, gotProc, gotBook)
+				}
+			}
+		})
+	}
+}
+
+func derefOr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 func TestToItemFields_institutionalCreator(t *testing.T) {
 	t.Parallel()
 	w := &openalex.Work{
