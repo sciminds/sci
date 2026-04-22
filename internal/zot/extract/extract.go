@@ -192,6 +192,7 @@ func (d *DoclingExtractor) Extract(ctx context.Context, opts ExtractOptions) (*E
 
 	args := buildDoclingArgs(opts, opts.PDFPath)
 	cmd := exec.CommandContext(ctx, d.Binary, args...)
+	configureProcessGroup(cmd)
 	stderr := d.Stderr
 	if stderr == nil {
 		stderr = os.Stderr
@@ -269,6 +270,7 @@ func (d *DoclingExtractor) ExtractBatch(ctx context.Context, opts ExtractOptions
 
 	args := buildDoclingArgs(opts, pdfs...)
 	cmd := exec.CommandContext(ctx, d.Binary, args...)
+	configureProcessGroup(cmd)
 
 	// Capture stderr for progress parsing. Docling's structured log
 	// lines go to stderr; stdout is unused by docling CLI.
