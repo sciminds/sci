@@ -231,6 +231,70 @@ func TestListItems_ReturnsAll(t *testing.T) {
 	}
 }
 
+// TestListItems_CollectionPath_ForwardsItemType pins down the fix for the
+// bug where dispatch silently dropped opts.ItemType on the collection-items
+// path. The generated client previously lacked itemType/q/tag on the
+// /collections/{key}/items endpoint; after regen the params are present
+// and dispatch must forward them to the outgoing URL query string.
+func TestListItems_CollectionPath_ForwardsItemType(t *testing.T) {
+	t.Parallel()
+	var gotPath, gotQuery string
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	})
+	c, _ := newTestClient(t, h)
+
+	_, err := c.ListItems(context.Background(), ListItemsOptions{
+		CollectionKey: "COLL1234",
+		ItemType:      "note",
+		Limit:         25,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Request must hit the collection-items path, not the library-wide one.
+	if !strings.HasSuffix(gotPath, "/collections/COLL1234/items") {
+		t.Errorf("path = %q, want .../collections/COLL1234/items", gotPath)
+	}
+	// And the ItemType must land in the URL query. Earlier behavior silently
+	// dropped it — this is the regression guard.
+	if !strings.Contains(gotQuery, "itemType=note") {
+		t.Errorf("query = %q, want to contain itemType=note", gotQuery)
+	}
+}
+
+// TestListItems_CollectionPath_ForwardsQuery covers the q/qmode filters on
+// the same path — same mechanism, small additional coverage.
+func TestListItems_CollectionPath_ForwardsQuery(t *testing.T) {
+	t.Parallel()
+	var gotQuery string
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	})
+	c, _ := newTestClient(t, h)
+
+	_, err := c.ListItems(context.Background(), ListItemsOptions{
+		CollectionKey: "COLL1234",
+		Query:         "dopamine",
+		QMode:         "everything",
+		Limit:         25,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(gotQuery, "q=dopamine") {
+		t.Errorf("query = %q, want q=dopamine", gotQuery)
+	}
+	if !strings.Contains(gotQuery, "qmode=everything") {
+		t.Errorf("query = %q, want qmode=everything", gotQuery)
+	}
+}
+
 func TestGetItem_NotFound(t *testing.T) {
 	t.Parallel()
 	h := newItemHandler(t)

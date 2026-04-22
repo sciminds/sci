@@ -76,7 +76,12 @@ func (d *DB) List(f ListFilter) ([]Item, error) {
 	args = append(args, listArgs()...)
 	where.WriteString(" WHERE i.libraryID = ? AND di.itemID IS NULL ")
 	args = append(args, d.libraryID)
-	where.WriteString(contentItemTypeFilter)
+	// Skip the blanket note/attachment exclusion when the caller explicitly
+	// asked for one of those types — otherwise the two clauses contradict
+	// each other and we silently return zero rows.
+	if !isExcludedContentType(f.ItemType) {
+		where.WriteString(contentItemTypeFilter)
+	}
 
 	if f.ItemType != "" {
 		where.WriteString(" AND it.typeName = ? ")
@@ -144,7 +149,12 @@ func (d *DB) ListAll(f ListFilter) ([]Item, error) {
 	args = append(args, listArgs()...)
 	where.WriteString(" WHERE i.libraryID = ? AND di.itemID IS NULL ")
 	args = append(args, d.libraryID)
-	where.WriteString(contentItemTypeFilter)
+	// Skip the blanket note/attachment exclusion when the caller explicitly
+	// asked for one of those types — otherwise the two clauses contradict
+	// each other and we silently return zero rows.
+	if !isExcludedContentType(f.ItemType) {
+		where.WriteString(contentItemTypeFilter)
+	}
 
 	if f.ItemType != "" {
 		where.WriteString(" AND it.typeName = ? ")

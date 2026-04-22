@@ -352,6 +352,105 @@ func (e Qmode) Valid() bool {
 	}
 }
 
+// Defines values for ListCollectionItemsGroupParamsQmode.
+const (
+	ListCollectionItemsGroupParamsQmodeEverything       ListCollectionItemsGroupParamsQmode = "everything"
+	ListCollectionItemsGroupParamsQmodeTitleCreatorYear ListCollectionItemsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsGroupParamsQmode enum.
+func (e ListCollectionItemsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListCollectionItemsGroupParamsQmodeEverything:
+		return true
+	case ListCollectionItemsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsGroupParamsDirection.
+const (
+	ListCollectionItemsGroupParamsDirectionAsc  ListCollectionItemsGroupParamsDirection = "asc"
+	ListCollectionItemsGroupParamsDirectionDesc ListCollectionItemsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsGroupParamsDirection enum.
+func (e ListCollectionItemsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionItemsGroupParamsDirectionAsc:
+		return true
+	case ListCollectionItemsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsGroupParamsFormat.
+const (
+	ListCollectionItemsGroupParamsFormatBiblatex         ListCollectionItemsGroupParamsFormat = "biblatex"
+	ListCollectionItemsGroupParamsFormatBibtex           ListCollectionItemsGroupParamsFormat = "bibtex"
+	ListCollectionItemsGroupParamsFormatBookmarks        ListCollectionItemsGroupParamsFormat = "bookmarks"
+	ListCollectionItemsGroupParamsFormatCoins            ListCollectionItemsGroupParamsFormat = "coins"
+	ListCollectionItemsGroupParamsFormatCsljson          ListCollectionItemsGroupParamsFormat = "csljson"
+	ListCollectionItemsGroupParamsFormatCsv              ListCollectionItemsGroupParamsFormat = "csv"
+	ListCollectionItemsGroupParamsFormatJson             ListCollectionItemsGroupParamsFormat = "json"
+	ListCollectionItemsGroupParamsFormatKeys             ListCollectionItemsGroupParamsFormat = "keys"
+	ListCollectionItemsGroupParamsFormatMods             ListCollectionItemsGroupParamsFormat = "mods"
+	ListCollectionItemsGroupParamsFormatRdfBibliontology ListCollectionItemsGroupParamsFormat = "rdf_bibliontology"
+	ListCollectionItemsGroupParamsFormatRdfDc            ListCollectionItemsGroupParamsFormat = "rdf_dc"
+	ListCollectionItemsGroupParamsFormatRdfZotero        ListCollectionItemsGroupParamsFormat = "rdf_zotero"
+	ListCollectionItemsGroupParamsFormatRefer            ListCollectionItemsGroupParamsFormat = "refer"
+	ListCollectionItemsGroupParamsFormatRis              ListCollectionItemsGroupParamsFormat = "ris"
+	ListCollectionItemsGroupParamsFormatTei              ListCollectionItemsGroupParamsFormat = "tei"
+	ListCollectionItemsGroupParamsFormatVersions         ListCollectionItemsGroupParamsFormat = "versions"
+	ListCollectionItemsGroupParamsFormatWikipedia        ListCollectionItemsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsGroupParamsFormat enum.
+func (e ListCollectionItemsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionItemsGroupParamsFormatBiblatex:
+		return true
+	case ListCollectionItemsGroupParamsFormatBibtex:
+		return true
+	case ListCollectionItemsGroupParamsFormatBookmarks:
+		return true
+	case ListCollectionItemsGroupParamsFormatCoins:
+		return true
+	case ListCollectionItemsGroupParamsFormatCsljson:
+		return true
+	case ListCollectionItemsGroupParamsFormatCsv:
+		return true
+	case ListCollectionItemsGroupParamsFormatJson:
+		return true
+	case ListCollectionItemsGroupParamsFormatKeys:
+		return true
+	case ListCollectionItemsGroupParamsFormatMods:
+		return true
+	case ListCollectionItemsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionItemsGroupParamsFormatRdfDc:
+		return true
+	case ListCollectionItemsGroupParamsFormatRdfZotero:
+		return true
+	case ListCollectionItemsGroupParamsFormatRefer:
+		return true
+	case ListCollectionItemsGroupParamsFormatRis:
+		return true
+	case ListCollectionItemsGroupParamsFormatTei:
+		return true
+	case ListCollectionItemsGroupParamsFormatVersions:
+		return true
+	case ListCollectionItemsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListItemsGroupParamsQmode.
 const (
 	ListItemsGroupParamsQmodeEverything       ListItemsGroupParamsQmode = "everything"
@@ -604,6 +703,105 @@ const (
 func (e UploadFileGroupParamsIfNoneMatch) Valid() bool {
 	switch e {
 	case UploadFileGroupParamsIfNoneMatchAsterisk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsParamsQmode.
+const (
+	ListCollectionItemsParamsQmodeEverything       ListCollectionItemsParamsQmode = "everything"
+	ListCollectionItemsParamsQmodeTitleCreatorYear ListCollectionItemsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsParamsQmode enum.
+func (e ListCollectionItemsParamsQmode) Valid() bool {
+	switch e {
+	case ListCollectionItemsParamsQmodeEverything:
+		return true
+	case ListCollectionItemsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsParamsDirection.
+const (
+	ListCollectionItemsParamsDirectionAsc  ListCollectionItemsParamsDirection = "asc"
+	ListCollectionItemsParamsDirectionDesc ListCollectionItemsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsParamsDirection enum.
+func (e ListCollectionItemsParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionItemsParamsDirectionAsc:
+		return true
+	case ListCollectionItemsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsParamsFormat.
+const (
+	ListCollectionItemsParamsFormatBiblatex         ListCollectionItemsParamsFormat = "biblatex"
+	ListCollectionItemsParamsFormatBibtex           ListCollectionItemsParamsFormat = "bibtex"
+	ListCollectionItemsParamsFormatBookmarks        ListCollectionItemsParamsFormat = "bookmarks"
+	ListCollectionItemsParamsFormatCoins            ListCollectionItemsParamsFormat = "coins"
+	ListCollectionItemsParamsFormatCsljson          ListCollectionItemsParamsFormat = "csljson"
+	ListCollectionItemsParamsFormatCsv              ListCollectionItemsParamsFormat = "csv"
+	ListCollectionItemsParamsFormatJson             ListCollectionItemsParamsFormat = "json"
+	ListCollectionItemsParamsFormatKeys             ListCollectionItemsParamsFormat = "keys"
+	ListCollectionItemsParamsFormatMods             ListCollectionItemsParamsFormat = "mods"
+	ListCollectionItemsParamsFormatRdfBibliontology ListCollectionItemsParamsFormat = "rdf_bibliontology"
+	ListCollectionItemsParamsFormatRdfDc            ListCollectionItemsParamsFormat = "rdf_dc"
+	ListCollectionItemsParamsFormatRdfZotero        ListCollectionItemsParamsFormat = "rdf_zotero"
+	ListCollectionItemsParamsFormatRefer            ListCollectionItemsParamsFormat = "refer"
+	ListCollectionItemsParamsFormatRis              ListCollectionItemsParamsFormat = "ris"
+	ListCollectionItemsParamsFormatTei              ListCollectionItemsParamsFormat = "tei"
+	ListCollectionItemsParamsFormatVersions         ListCollectionItemsParamsFormat = "versions"
+	ListCollectionItemsParamsFormatWikipedia        ListCollectionItemsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsParamsFormat enum.
+func (e ListCollectionItemsParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionItemsParamsFormatBiblatex:
+		return true
+	case ListCollectionItemsParamsFormatBibtex:
+		return true
+	case ListCollectionItemsParamsFormatBookmarks:
+		return true
+	case ListCollectionItemsParamsFormatCoins:
+		return true
+	case ListCollectionItemsParamsFormatCsljson:
+		return true
+	case ListCollectionItemsParamsFormatCsv:
+		return true
+	case ListCollectionItemsParamsFormatJson:
+		return true
+	case ListCollectionItemsParamsFormatKeys:
+		return true
+	case ListCollectionItemsParamsFormatMods:
+		return true
+	case ListCollectionItemsParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionItemsParamsFormatRdfDc:
+		return true
+	case ListCollectionItemsParamsFormatRdfZotero:
+		return true
+	case ListCollectionItemsParamsFormatRefer:
+		return true
+	case ListCollectionItemsParamsFormatRis:
+		return true
+	case ListCollectionItemsParamsFormatTei:
+		return true
+	case ListCollectionItemsParamsFormatVersions:
+		return true
+	case ListCollectionItemsParamsFormatWikipedia:
 		return true
 	default:
 		return false
@@ -1501,12 +1699,60 @@ type ListSubCollectionsGroupParams struct {
 
 // ListCollectionItemsGroupParams defines parameters for ListCollectionItemsGroup.
 type ListCollectionItemsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode:
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	Qmode *ListCollectionItemsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
+	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
+
+	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
+	// `creator`, `date`, `itemType`.
+	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionItemsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped item objects.
+	// `keys`/`versions` return lightweight lists. Export formats convert the
+	// items in-place and return a different content type.
+	Format *ListCollectionItemsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item.
+	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
 }
+
+// ListCollectionItemsGroupParamsQmode defines parameters for ListCollectionItemsGroup.
+type ListCollectionItemsGroupParamsQmode string
+
+// ListCollectionItemsGroupParamsDirection defines parameters for ListCollectionItemsGroup.
+type ListCollectionItemsGroupParamsDirection string
+
+// ListCollectionItemsGroupParamsFormat defines parameters for ListCollectionItemsGroup.
+type ListCollectionItemsGroupParamsFormat string
 
 // DeleteItemsGroupParams defines parameters for DeleteItemsGroup.
 type DeleteItemsGroupParams struct {
@@ -1799,12 +2045,60 @@ type ListSubCollectionsParams struct {
 
 // ListCollectionItemsParams defines parameters for ListCollectionItems.
 type ListCollectionItemsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode:
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	Qmode *ListCollectionItemsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
+	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
+
+	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
+	// `creator`, `date`, `itemType`.
+	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionItemsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped item objects.
+	// `keys`/`versions` return lightweight lists. Export formats convert the
+	// items in-place and return a different content type.
+	Format *ListCollectionItemsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item.
+	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
 }
+
+// ListCollectionItemsParamsQmode defines parameters for ListCollectionItems.
+type ListCollectionItemsParamsQmode string
+
+// ListCollectionItemsParamsDirection defines parameters for ListCollectionItems.
+type ListCollectionItemsParamsDirection string
+
+// ListCollectionItemsParamsFormat defines parameters for ListCollectionItems.
+type ListCollectionItemsParamsFormat string
 
 // DeleteItemsParams defines parameters for DeleteItems.
 type DeleteItemsParams struct {
@@ -6060,6 +6354,134 @@ func NewListCollectionItemsGroupRequest(server string, groupID GroupID, collecti
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", *params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -6079,6 +6501,38 @@ func NewListCollectionItemsGroupRequest(server string, groupID GroupID, collecti
 		if params.Limit != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -8004,6 +8458,134 @@ func NewListCollectionItemsRequest(server string, userID UserID, collectionKey C
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", *params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -8023,6 +8605,38 @@ func NewListCollectionItemsRequest(server string, userID UserID, collectionKey C
 		if params.Limit != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err

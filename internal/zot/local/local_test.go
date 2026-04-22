@@ -79,6 +79,75 @@ func TestList_FilterByType(t *testing.T) {
 	}
 }
 
+// TestList_FilterByType_Note guards against the bug where the hard-coded
+// "exclude notes and attachments from listings" rule silently overrode an
+// explicit --type note filter. Without the opt-out, asking the local DB
+// for `ItemType:"note"` returned zero rows because the unconditional
+// contentItemTypeFilter won.
+func TestList_FilterByType_Note(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	items, err := db.List(ListFilter{ItemType: "note"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Fixture has one standalone note (key ORPHNNOTE) and one child note
+	// (key NOTECH10). Both should surface when the user asks for notes.
+	got := keysOf(items)
+	wantSet := map[string]bool{"ORPHNNOTE": true, "NOTECH10": true}
+	for _, k := range got {
+		if !wantSet[k] {
+			t.Errorf("unexpected key in type=note results: %q", k)
+		}
+	}
+	for k := range wantSet {
+		found := false
+		for _, g := range got {
+			if g == k {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing expected note %q; got %v", k, got)
+		}
+	}
+}
+
+// TestList_FilterByType_Attachment: same logic as the note case but for
+// attachments (the other type excluded by contentItemTypeFilter).
+func TestList_FilterByType_Attachment(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	items, err := db.List(ListFilter{ItemType: "attachment"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Fixture has one child attachment (DDDD4444) and one standalone (ORPHANATT).
+	got := keysOf(items)
+	if len(got) < 2 {
+		t.Fatalf("expected at least 2 attachments, got %v", got)
+	}
+}
+
+// TestList_DefaultExcludesNotesAndAttachments pins the default behaviour —
+// without an explicit --type, notes/attachments must still be filtered out
+// of the listing (they're children of "real" items; surfacing them by
+// default would spam the top-level view).
+func TestList_DefaultExcludesNotesAndAttachments(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	items, err := db.List(ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range items {
+		if it.Type == "note" || it.Type == "attachment" {
+			t.Errorf("default listing surfaced a %s (key %s) — the hard-coded exclusion must still apply when no --type is set", it.Type, it.Key)
+		}
+	}
+}
+
 func TestList_FilterByCollection(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)

@@ -92,3 +92,11 @@ const (
 // rows from a query joined on itemTypes as alias "it". These are children
 // of "real" items and should not appear in top-level listings.
 const contentItemTypeFilter = " AND it.typeName NOT IN ('attachment','note') "
+
+// isExcludedContentType reports whether t is one of the item types that
+// contentItemTypeFilter would otherwise strip from listings. Used by
+// List/ListAll to opt out of the blanket exclusion when the caller
+// explicitly asked for notes or attachments via ListFilter.ItemType.
+func isExcludedContentType(t string) bool {
+	return t == "note" || t == "attachment"
+}
