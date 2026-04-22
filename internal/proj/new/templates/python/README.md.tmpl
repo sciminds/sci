@@ -4,33 +4,24 @@
 
 ## Getting Started
 
-> **Prerequisites**
-> 1. [Homebrew](https://brew.sh/) — `which brew`
-{{if eq .PkgManager "pixi"}}
-> 2. [Pixi](https://pixi.sh/) — `brew install pixi`
-{{if eq .DocSystem "quarto"}}
-> 3. [Quarto](https://quarto.org/) — `brew install quarto`
-{{end}}
+First make sure you have the lab CLI toolbox installed:
+
+`curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh`
+
+Or that it's up-to-date: `sci update`
+
+Then set up the Python environment:
 
 ```bash
 cd {{.ProjectName}}/
+{{- if eq .PkgManager "pixi"}}
 pixi install
 pixi run setup
-```
-{{else}}
-> 2. [uv](https://docs.astral.sh/uv/) — `brew install uv`
-{{if eq .DocSystem "quarto"}}
-> 3. [Quarto](https://quarto.org/) — `brew install quarto`
-{{else if eq .DocSystem "myst"}}
-> 3. [Node.js](https://nodejs.org/) — `brew install node` (for MyST)
-{{end}}
-
-```bash
-cd {{.ProjectName}}/
+{{- else}}
 uv sync
 uv run poe setup
+{{- end}}
 ```
-{{end}}
 
 Then open in your editor and install the recommended extensions.
 
@@ -38,39 +29,39 @@ Then open in your editor and install the recommended extensions.
 
 ```
 code/
-{{if eq .DocSystem "quarto"}}
+{{- if eq .DocSystem "quarto"}}
     report.qmd         # Quarto document → renders to PDF via Typst
     bibliography.bib   # BibTeX references
     templates/         # Typst template partials for PDF layout
-{{else if eq .DocSystem "myst"}}
+{{- else if eq .DocSystem "myst"}}
     report.md          # MyST Markdown document (executable)
     bibliography.bib   # BibTeX references
-{{end}}
+{{- end}}
     notebooks/         # Marimo analysis notebooks
 data/
     raw/               # raw data files
     derivatives/       # processed outputs
 figs/                  # generated figures (referenced by report)
-{{if eq .DocSystem "myst"}}
+{{- if eq .DocSystem "myst"}}
 myst.yml               # MyST project configuration
-{{end}}
+{{- end}}
 ```
 
 ## Workflow
-
-1. **Analyze** — work in `code/notebooks/` with Marimo, save figures to `figs/`
 {{if eq .DocSystem "quarto"}}
+1. **Analyze** — work in `code/notebooks/` with Marimo, save figures to `figs/`
 2. **Write** — reference figures in `code/report.qmd`, cite with `@key`
 3. **Render** — generate PDF with the render task
-{{else if eq .DocSystem "myst"}}
+{{- else if eq .DocSystem "myst"}}
+1. **Analyze** — work in `code/notebooks/` with Marimo, save figures to `figs/`
 2. **Write** — reference figures in `code/report.md`, cite with `` {cite}`key` ``
 3. **Preview** — live-preview with the docs-start task
 4. **Export** — generate PDF with the docs-pdf task
-{{else}}
-2. **Analyze** — iterate on notebooks, save outputs to `figs/` and `data/derivatives/`
-{{end}}
+{{- else}}
+1. **Analyze** — iterate on notebooks in `code/notebooks/`, save outputs to `figs/` and `data/derivatives/`
+{{- end}}
 
-{{if eq .PkgManager "pixi"}}
+{{if eq .PkgManager "pixi" -}}
 ## Managing Libraries
 
 ```bash
@@ -84,18 +75,18 @@ pixi list                         # list all installed
 
 ```bash
 pixi run setup                    # register Python kernel
-{{if eq .DocSystem "quarto"}}
+{{- if eq .DocSystem "quarto"}}
 pixi run render                   # render report to PDF
-{{else if eq .DocSystem "myst"}}
+{{- else if eq .DocSystem "myst"}}
 pixi run docs-start               # live-preview MyST site
 pixi run docs-build               # build MyST HTML site
 pixi run docs-pdf                 # export report to PDF
 pixi run docs-clean               # clean build artifacts
-{{end}}
+{{- end}}
 pixi run marimo file.py           # edit Marimo notebook
 pixi run kernels                  # list registered kernels
 ```
-{{else}}
+{{- else -}}
 ## Managing Libraries
 
 ```bash
@@ -109,16 +100,16 @@ uv sync                           # sync from lockfile
 
 ```bash
 uv run poe setup                  # register Python kernel
-{{if eq .DocSystem "quarto"}}
+{{- if eq .DocSystem "quarto"}}
 uv run poe render                 # render report to PDF
-{{else if eq .DocSystem "myst"}}
+{{- else if eq .DocSystem "myst"}}
 uv run poe docs-start             # live-preview MyST site
 uv run poe docs-build             # build MyST HTML site
 uv run poe docs-pdf               # export report to PDF
 uv run poe docs-clean             # clean build artifacts
-{{end}}
+{{- end}}
 uv run poe marimo file.py         # edit Marimo notebook
 uv run poe kernels                # list registered kernels
 uv run poe update                 # refresh packages
 ```
-{{end}}
+{{- end}}
