@@ -231,3 +231,65 @@ func TestValidateNoteTarget_both(t *testing.T) {
 		t.Errorf("parent+collection should be valid: %v", err)
 	}
 }
+
+// --- assertNoteType ---
+
+func TestAssertNoteType_acceptsNote(t *testing.T) {
+	t.Parallel()
+	if err := assertNoteType(string(client.Note)); err != nil {
+		t.Errorf("expected note type to be accepted: %v", err)
+	}
+}
+
+func TestAssertNoteType_rejectsJournalArticle(t *testing.T) {
+	t.Parallel()
+	err := assertNoteType(string(client.JournalArticle))
+	if err == nil {
+		t.Fatal("expected error for journalArticle type")
+	}
+	// Error should point the user at `zot item read` for bibliographic items.
+	if !strings.Contains(err.Error(), "item read") {
+		t.Errorf("err=%v should mention `item read` as the right command", err)
+	}
+}
+
+func TestAssertNoteType_rejectsEmpty(t *testing.T) {
+	t.Parallel()
+	if err := assertNoteType(""); err == nil {
+		t.Error("expected error on empty type")
+	}
+}
+
+// --- buildNoteUpdatePatch ---
+
+func TestBuildNoteUpdatePatch_setsTypeAndBody(t *testing.T) {
+	t.Parallel()
+	patch := buildNoteUpdatePatch("<p>new body</p>")
+	if patch.ItemType != client.Note {
+		t.Errorf("ItemType = %q, want note", patch.ItemType)
+	}
+	if patch.Note == nil || *patch.Note != "<p>new body</p>" {
+		t.Errorf("Note = %v", patch.Note)
+	}
+}
+
+func TestBuildNoteUpdatePatch_leavesOtherFieldsUnset(t *testing.T) {
+	t.Parallel()
+	// Update must not clobber title/DOI/parent/collections — only the body.
+	patch := buildNoteUpdatePatch("<p>x</p>")
+	if patch.Title != nil {
+		t.Error("Title should be unset on a note-body patch")
+	}
+	if patch.DOI != nil {
+		t.Error("DOI should be unset on a note-body patch")
+	}
+	if patch.ParentItem != nil {
+		t.Error("ParentItem should be unset on a note-body patch")
+	}
+	if patch.Collections != nil {
+		t.Error("Collections should be unset on a note-body patch")
+	}
+	if patch.Tags != nil {
+		t.Error("Tags should be unset on a note-body patch")
+	}
+}

@@ -54,6 +54,9 @@ func Output(cmd *cli.Command, r Result) {
 	if IsJSON(cmd) {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
+		// CLI output isn't embedded in HTML; keep `<>&` literal so note
+		// bodies and abstracts don't turn every tag into `<…` noise.
+		enc.SetEscapeHTML(false)
 		_ = enc.Encode(r.JSON())
 	} else {
 		fmt.Print(r.Human())
