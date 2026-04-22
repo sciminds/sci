@@ -216,11 +216,11 @@ jobs:
           # Exercises doctor.ListOptionalTools + doctor.InstallOptionalTool,
           # which use DirectInstall + a separate sync path.
           sci tools reccs --json | grep -q '"name"'
-          sci tools reccs --install rg --json
-          # Brew normalizes the rg alias to canonical ripgrep on dump,
+          sci tools reccs --install rga --json
+          # Brew normalizes the rga alias to canonical ripgrep-all on dump,
           # so list/uninstall use the canonical name.
-          sci tools list --json | grep -q '"ripgrep"'
-          sci tools uninstall --formula ripgrep --json
+          sci tools list --json | grep -q '"ripgrep-all"'
+          sci tools uninstall --formula ripgrep-all --json
 
           # ---- Outdated → upgrade branch ---------------------------------
           # macOS runners ship many preinstalled brew formulae, so

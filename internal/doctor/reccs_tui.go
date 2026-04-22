@@ -22,7 +22,7 @@ var toolDescs = map[string]string{
 	"lsd":                "Modern ls replacement with colors and icons",
 	"jq":                 "Lightweight command-line JSON processor",
 	"mq":                 "jq for Markdown — query and transform .md files",
-	"rg":                 "ripgrep — blazing fast recursive text search",
+	"rga":                "ripgrep-all — ripgrep across PDFs, archives, and more",
 	"ast-grep":           "Structural code search and rewrite using AST patterns",
 	"visual-studio-code": "Popular graphical code editor by Microsoft",
 	"zed":                "High-performance graphical code editor",
