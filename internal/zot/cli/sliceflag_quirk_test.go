@@ -101,6 +101,14 @@ func TestSliceFlagLocalQuirk_Reproduction(t *testing.T) {
 // expose to users with three repeated occurrences and asserts the values
 // all reach the destination. Catches regressions if anyone re-adds
 // `Local: true` to a slice flag.
+//
+// Subtests run serially (no t.Parallel inside the loop): every Commands()
+// build re-binds the same package-level Destinations (addTag, noteTag,
+// addAuthor, citekeysItem, …), and urfave/cli's PreParse re-zeroes
+// every flag's destination on every Run — so parallel subtests race on
+// the shared Destination memory and intermittently capture truncated
+// or empty slices. Production never hits this because each user
+// invocation is a fresh process. -race flags it instantly.
 func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -131,8 +139,9 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 
 	for _, tc := range cases {
 		tc := tc
+		// NB: no t.Parallel() — see test comment above. Subtests share
+		// package-level slice-flag Destinations and PreParse races them.
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			var captured []string
 			// Build a shadow tree mirroring the production root, but with
 			// every leaf command's Action replaced by one that captures
