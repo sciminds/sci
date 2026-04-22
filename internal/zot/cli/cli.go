@@ -141,6 +141,7 @@ func Commands() []*cli.Command {
 		notesCommand(),
 		llmCommand(),
 		doctorCommand(),
+		graphCommand(),
 		extractCommand(),
 		extractLibCommand(),
 	}

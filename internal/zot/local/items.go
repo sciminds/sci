@@ -3,6 +3,7 @@ package local
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -383,6 +384,56 @@ func inClauseStrings(keys []string) (string, []any) {
 	ph := lo.Map(keys, func(_ string, _ int) string { return "?" })
 	args := lo.Map(keys, func(k string, _ int) any { return k })
 	return strings.Join(ph, ","), args
+}
+
+// ItemKeysByDOI returns a map of DOI → Zotero key for every item in the
+// library whose DOI matches one of the inputs. Lookup is case-insensitive
+// (DOIs are case-insensitive per RFC 7595, but Zotero stores them as the
+// user typed them). Returns an empty map for an empty input.
+//
+// Used by graph traversal to figure out which OpenAlex referenced/citing
+// works are already in the user's library, so the agent-facing JSON can
+// split the result into in_library vs outside_library buckets.
+func (d *DB) ItemKeysByDOI(dois []string) (map[string]string, error) {
+	if len(dois) == 0 {
+		return map[string]string{}, nil
+	}
+
+	// Normalize input keys to lowercase for the result map; SQL match is
+	// case-insensitive via LOWER() on both sides. Zotero indexes itemData
+	// values raw, so a covering index on LOWER(value) doesn't exist —
+	// expect a scan, but it's only over the DOI subset.
+	lowered := lo.Map(dois, func(d string, _ int) string { return strings.ToLower(strings.TrimSpace(d)) })
+	placeholders, args := inClauseStrings(lowered)
+
+	q := `
+SELECT i.key, idv.value
+FROM items i
+JOIN itemData id ON id.itemID = i.itemID
+JOIN fields f ON id.fieldID = f.fieldID
+JOIN itemDataValues idv ON id.valueID = idv.valueID
+LEFT JOIN deletedItems di ON i.itemID = di.itemID
+WHERE i.libraryID = ?
+  AND di.itemID IS NULL
+  AND f.fieldName = 'DOI'
+  AND LOWER(idv.value) IN (` + placeholders + `)
+`
+	full := slices.Concat([]any{d.libraryID}, args)
+	rows, err := d.db.Query(q, full...)
+	if err != nil {
+		return nil, fmt.Errorf("ItemKeysByDOI: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := map[string]string{}
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, err
+		}
+		out[strings.ToLower(value)] = key
+	}
+	return out, rows.Err()
 }
 
 // Search returns items matching the query. The query is parsed by

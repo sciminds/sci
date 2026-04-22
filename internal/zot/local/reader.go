@@ -26,6 +26,7 @@ type Reader interface {
 	Search(query string, limit int) ([]Item, error)
 	Read(key string) (*Item, error)
 	GetItemsByKeys(keys []string) ([]Item, error)
+	ItemKeysByDOI(dois []string) (map[string]string, error)
 	Stats() (*Stats, error)
 
 	// Collections & Tags

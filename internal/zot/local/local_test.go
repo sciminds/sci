@@ -572,6 +572,41 @@ func TestListCollections(t *testing.T) {
 	}
 }
 
+func TestItemKeysByDOI(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	// Fixture: AAAA1111 has DOI "10.1000/abc123" — only item with a DOI.
+	// Hit case-insensitively against the stored value, plus a miss.
+	hits, err := db.ItemKeysByDOI([]string{
+		"10.1000/ABC123",
+		"10.0000/missing",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := hits["10.1000/abc123"]; got != "AAAA1111" {
+		t.Errorf("hit = %q (lower-cased key), want AAAA1111", got)
+	}
+	if _, ok := hits["10.0000/missing"]; ok {
+		t.Errorf("missing DOI should not appear in result map")
+	}
+	if len(hits) != 1 {
+		t.Errorf("len = %d, want 1 (%v)", len(hits), hits)
+	}
+}
+
+func TestItemKeysByDOI_Empty(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	hits, err := db.ItemKeysByDOI(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 0 {
+		t.Errorf("empty input should yield empty map, got %v", hits)
+	}
+}
+
 func TestCollectionByKey(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)

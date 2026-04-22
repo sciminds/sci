@@ -303,3 +303,33 @@ func TestExtractOpenAlexShortID(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenAlexID(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		extra string
+		want  string
+	}{
+		{"happy path", "OpenAlex: W2795843265", "W2795843265"},
+		{"with leading whitespace", "  OpenAlex:  W123\n", "W123"},
+		{"mixed with other lines", "PMID: 12345\nOpenAlex: W456\nORCID: 0000\n", "W456"},
+		{"case insensitive key", "openalex: W789", "W789"},
+		{"missing", "PMID: 12345\n", ""},
+		{"empty", "", ""},
+		{"prefix only", "OpenAlex: ", ""},
+	}
+	for _, tc := range cases {
+		got := openAlexIDFromExtra(tc.extra)
+		if got != tc.want {
+			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestOpenAlexID_NilSafe(t *testing.T) {
+	t.Parallel()
+	if got := OpenAlexID(nil); got != "" {
+		t.Errorf("nil item should yield empty, got %q", got)
+	}
+}

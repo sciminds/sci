@@ -14,8 +14,45 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/sciminds/cli/internal/zot/openalex"
 )
+
+// OpenAlexID extracts the OpenAlex W-id from an item's Extra field. Looks
+// for a `OpenAlex: W…` line (the format buildExtra writes). Returns "" if
+// no such line exists or the item is nil.
+//
+// Used by graph traversal to anchor a Zotero item back to OpenAlex without
+// a network round-trip when the item was added via `--openalex`.
+func OpenAlexID(it *local.Item) string {
+	if it == nil {
+		return ""
+	}
+	return openAlexIDFromExtra(it.Extra)
+}
+
+// openAlexIDFromExtra scans extra-field text for the `OpenAlex: W…` line
+// emitted by buildExtra. Tolerant of leading whitespace, mixed case on
+// the prefix, and trailing whitespace on the value.
+func openAlexIDFromExtra(extra string) string {
+	for _, line := range strings.Split(extra, "\n") {
+		line = strings.TrimSpace(line)
+		colon := strings.IndexByte(line, ':')
+		if colon < 0 {
+			continue
+		}
+		key := strings.TrimSpace(line[:colon])
+		if !strings.EqualFold(key, "OpenAlex") {
+			continue
+		}
+		val := strings.TrimSpace(line[colon+1:])
+		if val == "" {
+			continue
+		}
+		return val
+	}
+	return ""
+}
 
 // ToItemFields produces a Zotero ItemData snapshot from an OpenAlex Work.
 // Intended for full-item creation (zot add --openalex). It always sets
