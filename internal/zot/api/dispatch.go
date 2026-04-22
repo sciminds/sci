@@ -136,8 +136,8 @@ func (c *Client) listCollections(ctx context.Context, start, limit int) (int, st
 func (c *Client) listItems(ctx context.Context, opts ListItemsOptions) (int, string, *[]client.Item, error) {
 	s := client.Start(opts.Start)
 	l := client.Limit(opts.Limit)
-	// ListCollectionItems{,Group}Params intentionally lacks ItemType —
-	// the Zotero API exposes type filtering only on the library-wide
+	// ListCollectionItems{,Group}Params intentionally lacks ItemType and Q —
+	// the Zotero API exposes those filters only on the library-wide
 	// endpoints. Callers that need both filters paginate whole collection
 	// and filter client-side.
 	if c.isShared() {
@@ -153,6 +153,14 @@ func (c *Client) listItems(ctx context.Context, opts ListItemsOptions) (int, str
 		if opts.ItemType != "" {
 			t := client.ItemType(opts.ItemType)
 			params.ItemType = &t
+		}
+		if opts.Query != "" {
+			q := client.Query(opts.Query)
+			params.Q = &q
+			if opts.QMode != "" {
+				m := client.ListItemsGroupParamsQmode(opts.QMode)
+				params.Qmode = &m
+			}
 		}
 		r, err := c.Gen.ListItemsGroupWithResponse(ctx, c.GroupID(), params)
 		if err != nil {
@@ -172,6 +180,14 @@ func (c *Client) listItems(ctx context.Context, opts ListItemsOptions) (int, str
 	if opts.ItemType != "" {
 		t := client.ItemType(opts.ItemType)
 		params.ItemType = &t
+	}
+	if opts.Query != "" {
+		q := client.Query(opts.Query)
+		params.Q = &q
+		if opts.QMode != "" {
+			m := client.ListItemsParamsQmode(opts.QMode)
+			params.Qmode = &m
+		}
 	}
 	r, err := c.Gen.ListItemsWithResponse(ctx, c.UserID, params)
 	if err != nil {

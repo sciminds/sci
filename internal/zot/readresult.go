@@ -10,11 +10,18 @@ import (
 )
 
 // ListResult wraps a slice of items for search/list/recent outputs.
+//
+// Scope is an optional descriptor shown on zero-hit results — e.g.
+// "title, DOI, publication (local)" — so callers (especially LLM agents)
+// can tell WHY a search missed and adjust. Hint is a free-form follow-up
+// suggestion shown alongside Scope. Both are elided from JSON when empty.
 type ListResult struct {
 	Query   string       `json:"query,omitempty"`
 	Count   int          `json:"count"`
 	Items   []local.Item `json:"items"`
 	Library int64        `json:"library_id"`
+	Scope   string       `json:"searched,omitempty"`
+	Hint    string       `json:"hint,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -23,10 +30,19 @@ func (r ListResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r ListResult) Human() string {
 	if r.Count == 0 {
+		var b strings.Builder
 		if r.Query != "" {
-			return fmt.Sprintf("  %s no results for %q\n", uikit.TUI.Dim().Render("·"), r.Query)
+			fmt.Fprintf(&b, "  %s no results for %q\n", uikit.TUI.Dim().Render("·"), r.Query)
+		} else {
+			fmt.Fprintf(&b, "  %s no items\n", uikit.TUI.Dim().Render("·"))
 		}
-		return fmt.Sprintf("  %s no items\n", uikit.TUI.Dim().Render("·"))
+		if r.Scope != "" {
+			fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("searched:"), r.Scope)
+		}
+		if r.Hint != "" {
+			fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("hint:"), r.Hint)
+		}
+		return b.String()
 	}
 	var b strings.Builder
 	for _, it := range r.Items {

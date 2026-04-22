@@ -61,6 +61,33 @@ func TestRoot_RejectsMissingLibrary(t *testing.T) {
 	}
 }
 
+// `find` hits OpenAlex, not Zotero, so --library is meaningless. We still
+// let it be passed (cascades inertly) but never require it.
+func TestRoot_FindDoesNotRequireLibrary(t *testing.T) {
+	root := &cli.Command{
+		Name:   "zot",
+		Flags:  PersistentFlags(),
+		Before: ValidateLibraryBefore,
+		Commands: []*cli.Command{
+			{
+				Name: "find",
+				Commands: []*cli.Command{
+					{
+						Name: "works",
+						Action: func(ctx context.Context, _ *cli.Command) error {
+							return errReachedAction
+						},
+					},
+				},
+			},
+		},
+	}
+	err := root.Run(context.Background(), []string{"zot", "find", "works", "query"})
+	if !errors.Is(err, errReachedAction) {
+		t.Fatalf("find should bypass --library, got err=%v", err)
+	}
+}
+
 func TestRoot_RejectsInvalidLibraryValue(t *testing.T) {
 	root := buildTestRoot(t)
 	err := root.Run(context.Background(), []string{"zot", "--library", "bogus", "item", "list"})

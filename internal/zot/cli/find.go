@@ -35,7 +35,11 @@ func findCommand() *cli.Command {
 
 func findFlags() []cli.Flag {
 	return []cli.Flag{
-		&cli.IntFlag{Name: "per-page", Aliases: []string{"n"}, Value: 25, Usage: "results per page (1-200)", Destination: &findPerPage, Local: true},
+		// `--limit` is the canonical name (mirrors `search --limit` and
+		// `item list --limit`). `--per-page` stays as an alias to keep
+		// older scripts working — they alias at the flag layer so both
+		// populate findPerPage transparently.
+		&cli.IntFlag{Name: "limit", Aliases: []string{"n", "per-page"}, Value: 25, Usage: "max results per page (1-200)", Destination: &findPerPage, Local: true},
 		&cli.StringFlag{Name: "cursor", Usage: "continuation cursor from a previous page", Destination: &findCursor, Local: true},
 		&cli.StringFlag{Name: "sort", Usage: "sort expression, e.g. cited_by_count:desc", Destination: &findSort, Local: true},
 		&cli.StringSliceFlag{Name: "filter", Usage: "OpenAlex filter as key=value (repeatable)", Destination: &findFilters, Local: true},
@@ -49,7 +53,7 @@ func findWorksCommand() *cli.Command {
 		Usage:     "Search OpenAlex Works",
 		ArgsUsage: "<query>",
 		Description: "$ zot find works \"attention is all you need\"\n" +
-			"$ zot find works --per-page 10 --sort cited_by_count:desc transformers\n" +
+			"$ zot find works --limit 10 --sort cited_by_count:desc transformers\n" +
 			"$ zot find works --filter type=article --filter from_publication_date=2024-01-01 llm",
 		Flags:  findFlags(),
 		Action: runFindWorks,

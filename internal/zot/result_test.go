@@ -38,6 +38,26 @@ func TestListResult_Empty(t *testing.T) {
 	}
 }
 
+func TestListResult_ZeroHit_WithScopeAndHint(t *testing.T) {
+	t.Parallel()
+	r := ListResult{
+		Count: 0,
+		Query: "mcp",
+		Scope: "title, DOI, publication (local)",
+		Hint:  "try --remote to also match abstract and fulltext",
+	}
+	out := r.Human()
+	if !strings.Contains(out, "no results for") {
+		t.Errorf("missing no-results line:\n%s", out)
+	}
+	if !strings.Contains(out, "title, DOI, publication") {
+		t.Errorf("scope not shown on zero-hit:\n%s", out)
+	}
+	if !strings.Contains(out, "--remote") {
+		t.Errorf("hint not shown on zero-hit:\n%s", out)
+	}
+}
+
 func TestListResult_Populated(t *testing.T) {
 	t.Parallel()
 	r := ListResult{

@@ -50,9 +50,11 @@ func PersistentFlags() []cli.Flag {
 // libraryExemptCommands are subcommands where --library is optional.
 //   - setup configures both libraries at once.
 //   - info summarizes both when no scope is given; --library narrows.
+//   - find hits OpenAlex, not Zotero — scope is meaningless there.
 var libraryExemptCommands = map[string]bool{
 	"setup": true,
 	"info":  true,
+	"find":  true,
 }
 
 // ValidateLibraryBefore is the Before hook that validates --library and

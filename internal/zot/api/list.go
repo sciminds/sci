@@ -17,6 +17,13 @@ type ListItemsOptions struct {
 	// ItemType accepts Zotero's filter grammar: "journalArticle",
 	// "book || bookSection", "-attachment".
 	ItemType string
+	// Query is a free-text search term. Zotero's Web API scans title,
+	// creators, and year by default; set QMode = "everything" to also
+	// match abstract, fulltext, and notes.
+	Query string
+	// QMode selects the search mode. Valid values: "titleCreatorYear"
+	// (default), "everything". Only consulted when Query is non-empty.
+	QMode string
 	// Start is the zero-indexed pagination offset.
 	Start int
 	// Limit is the per-page cap (Zotero max is 100).

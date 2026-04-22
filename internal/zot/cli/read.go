@@ -29,7 +29,8 @@ var (
 
 	readRemote bool
 
-	searchLimit int
+	searchLimit  int
+	searchRemote bool
 
 	exportFormat string
 	exportOut    string
@@ -92,7 +93,8 @@ func searchCommand() *cli.Command {
 		Usage: "Search your library by title, DOI, or publication",
 		Description: "$ zot search \"large language models\"\n" +
 			"$ zot search --limit 100 neuroimaging\n" +
-			"$ zot search attention --export --out hits.bib",
+			"$ zot search attention --export --out hits.bib\n" +
+			"$ zot search llm --remote   # Zotero Web API fulltext search (title + creators + year + abstract + notes + PDFs)",
 		ArgsUsage: "<query>",
 		Flags: []cli.Flag{
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max results", Destination: &searchLimit, Local: true},
@@ -102,7 +104,8 @@ func searchCommand() *cli.Command {
 			// CSL-JSON should use the top-level `zot export` command.
 			&cli.BoolFlag{Name: "export", Usage: "emit results as bibtex instead of the normal hit list", Destination: &searchExport, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
-			&cli.BoolFlag{Name: "notes", Usage: "only show items that have docling extraction notes", Destination: &searchNotes, Local: true},
+			&cli.BoolFlag{Name: "notes", Usage: "only show items that have docling extraction notes (local only)", Destination: &searchNotes, Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "hit the Zotero Web API with qmode=everything (matches abstract + fulltext + notes)", Destination: &searchRemote, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -111,10 +114,42 @@ func searchCommand() *cli.Command {
 			if searchExportOut != "" && !searchExport {
 				return cmdutil.UsageErrorf(cmd, "--out requires --export")
 			}
+			if searchRemote && searchExport {
+				return cmdutil.UsageErrorf(cmd, "--remote and --export are mutually exclusive (export needs full local hydration)")
+			}
+			if searchRemote && searchNotes {
+				return cmdutil.UsageErrorf(cmd, "--notes is local-only; drop it or drop --remote")
+			}
 			// Join all positional args so unquoted multi-clause queries
 			// like `zot search @author: jolly @title: gossip` work without
 			// requiring the user to wrap the whole thing in shell quotes.
 			query := strings.Join(cmd.Args().Slice(), " ")
+
+			if searchRemote {
+				c, err := requireAPIClient(ctx)
+				if err != nil {
+					return err
+				}
+				raw, err := c.ListItems(ctx, api.ListItemsOptions{
+					Query: query,
+					QMode: "everything",
+					Limit: searchLimit,
+				})
+				if err != nil {
+					return err
+				}
+				items := lo.Map(raw, func(it client.Item, _ int) local.Item {
+					return api.ItemFromClient(&it)
+				})
+				cmdutil.Output(cmd, zot.ListResult{
+					Query: query,
+					Count: len(items),
+					Items: items,
+					Scope: "title, creators, year, abstract, fulltext, notes (remote)",
+				})
+				return nil
+			}
+
 			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
@@ -148,12 +183,17 @@ func searchCommand() *cli.Command {
 				cmdutil.Output(cmd, res)
 				return nil
 			}
-			cmdutil.Output(cmd, zot.ListResult{
+			res := zot.ListResult{
 				Query:   query,
 				Count:   len(items),
 				Items:   items,
 				Library: db.LibraryID(),
-			})
+			}
+			if len(items) == 0 {
+				res.Scope = "title, DOI, publication, creators (local)"
+				res.Hint = "try --remote to also match abstract, fulltext, and notes"
+			}
+			cmdutil.Output(cmd, res)
 			return nil
 		},
 	}

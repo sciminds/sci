@@ -6,8 +6,11 @@ package cli
 //
 //   - parseKeysFromReader: normalization, blanks, comments, de-duplication
 //   - buildCollectionAddPatches: merge-or-skip logic given local.Item state
+//   - resolveBulkCollectionAddItems: silent API fallback for keys missing
+//     locally (agent workflows where items were just created via API)
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -113,5 +116,89 @@ func TestBuildCollectionAddPatches_AllAlreadyMembers(t *testing.T) {
 	}
 	if !slices.Equal(alreadyMember, []string{"AAA11111", "BBB22222"}) {
 		t.Errorf("alreadyMember = %v", alreadyMember)
+	}
+}
+
+// resolveBulkCollectionAddItems: backfills items missing from the local
+// snapshot by calling getRemote. This is what makes `collection add
+// --from-file` work for agents that just created items via the API —
+// local SQLite hasn't synced yet, but the API knows them.
+
+func TestResolveBulkCollectionAddItems_AllLocal_NoFallback(t *testing.T) {
+	t.Parallel()
+	localItems := []local.Item{
+		{Key: "AAA11111", Version: 1, Type: "journalArticle"},
+		{Key: "BBB22222", Version: 2, Type: "journalArticle"},
+	}
+	called := 0
+	got, failed := resolveBulkCollectionAddItems(
+		[]string{"AAA11111", "BBB22222"},
+		localItems,
+		func(_ string) (local.Item, error) {
+			called++
+			return local.Item{}, fmt.Errorf("should not be called")
+		},
+	)
+	if called != 0 {
+		t.Errorf("getRemote called %d time(s), want 0", called)
+	}
+	if len(got) != 2 {
+		t.Errorf("len(got) = %d, want 2", len(got))
+	}
+	if len(failed) != 0 {
+		t.Errorf("failed = %v, want empty", failed)
+	}
+}
+
+func TestResolveBulkCollectionAddItems_MissingKey_FallsBackToAPI(t *testing.T) {
+	t.Parallel()
+	localItems := []local.Item{{Key: "AAA11111", Version: 1, Type: "journalArticle"}}
+	var calls []string
+	got, failed := resolveBulkCollectionAddItems(
+		[]string{"AAA11111", "REMOTE01"},
+		localItems,
+		func(k string) (local.Item, error) {
+			calls = append(calls, k)
+			return local.Item{Key: k, Version: 42, Type: "journalArticle", Collections: []string{"EXISTING"}}, nil
+		},
+	)
+	if !slices.Equal(calls, []string{"REMOTE01"}) {
+		t.Errorf("expected single fallback call for REMOTE01, got %v", calls)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len(got) = %d, want 2 (1 local + 1 remote-hydrated)", len(got))
+	}
+	if len(failed) != 0 {
+		t.Errorf("failed = %v, want none", failed)
+	}
+	// Remote-hydrated item must carry Version + Type so UpdateItemsBatch's
+	// fast path can skip the per-item GET that normally precedes a PATCH.
+	byKey := map[string]local.Item{}
+	for _, it := range got {
+		byKey[it.Key] = it
+	}
+	remote := byKey["REMOTE01"]
+	if remote.Version != 42 || remote.Type != "journalArticle" {
+		t.Errorf("remote item missing Version/Type: %+v", remote)
+	}
+	if !slices.Equal(remote.Collections, []string{"EXISTING"}) {
+		t.Errorf("remote Collections not preserved: %+v", remote.Collections)
+	}
+}
+
+func TestResolveBulkCollectionAddItems_FallbackErrorSurfaces(t *testing.T) {
+	t.Parallel()
+	got, failed := resolveBulkCollectionAddItems(
+		[]string{"NOPE0001"},
+		nil,
+		func(k string) (local.Item, error) {
+			return local.Item{}, fmt.Errorf("item %s not found", k)
+		},
+	)
+	if len(got) != 0 {
+		t.Errorf("got = %v, want empty", got)
+	}
+	if msg, ok := failed["NOPE0001"]; !ok || !strings.Contains(msg, "not found") {
+		t.Errorf("expected failed[NOPE0001] with 'not found', got %+v", failed)
 	}
 }

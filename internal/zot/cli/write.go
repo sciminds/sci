@@ -668,34 +668,40 @@ func runCollectionAdd(ctx context.Context, cmd *cli.Command) error {
 
 	// Bulk path: load local snapshots for every requested key in one SQL
 	// round-trip, merge collKey into each Item's Collections, batch-POST.
+	// Any keys missing locally (common when the caller just created them
+	// via the API and Zotero desktop hasn't synced yet) are fetched
+	// individually from the Web API — correct at the cost of one GET per
+	// miss; the common human case stays at zero API reads.
 	_, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = db.Close() }()
 
-	items, err := db.GetItemsByKeys(keys)
+	localItems, err := db.GetItemsByKeys(keys)
 	if err != nil {
 		return err
 	}
 
+	items, fallbackFailed := resolveBulkCollectionAddItems(
+		keys, localItems,
+		func(k string) (local.Item, error) {
+			raw, gerr := c.GetItem(ctx, k)
+			if gerr != nil {
+				return local.Item{}, gerr
+			}
+			return api.ItemFromClient(raw), nil
+		},
+	)
+
 	patches, alreadyMember := buildCollectionAddPatches(items, collKey)
 
-	// Keys the local DB didn't return → not found in scope (trashed, wrong
-	// library, typo). Surface but don't abort: the batch still applies to
-	// the keys we did find.
-	found := lo.Keyify(lo.Map(items, func(it local.Item, _ int) string { return it.Key }))
 	result := zot.BulkWriteResult{
 		Action:  "added",
 		Kind:    "item",
 		Total:   len(keys),
 		Success: slices.Clone(alreadyMember),
-		Failed:  map[string]string{},
-	}
-	for _, k := range keys {
-		if _, ok := found[k]; !ok {
-			result.Failed[k] = "not found in local library"
-		}
+		Failed:  fallbackFailed,
 	}
 
 	if len(patches) > 0 {
@@ -793,6 +799,38 @@ func parseKeysFromReader(r io.Reader) ([]string, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// resolveBulkCollectionAddItems merges a local-DB snapshot with an API
+// fallback, so `collection add --from-file` works for keys the local
+// SQLite doesn't yet know about — typically items the same caller
+// just created via the Web API before Zotero desktop synced them back.
+//
+// Local wins: keys already in `localItems` don't touch the API. Only
+// keys missing from local are passed to getRemote (one call each —
+// Zotero doesn't batch GETs by key across arbitrary keys without a
+// server-side index we control). Per-key fetch errors land in `failed`
+// so the caller can still POST a batch for the keys that did resolve.
+func resolveBulkCollectionAddItems(
+	keys []string,
+	localItems []local.Item,
+	getRemote func(key string) (local.Item, error),
+) (items []local.Item, failed map[string]string) {
+	failed = map[string]string{}
+	have := lo.Keyify(lo.Map(localItems, func(it local.Item, _ int) string { return it.Key }))
+	items = slices.Clone(localItems)
+	for _, k := range keys {
+		if _, ok := have[k]; ok {
+			continue
+		}
+		it, err := getRemote(k)
+		if err != nil {
+			failed[k] = err.Error()
+			continue
+		}
+		items = append(items, it)
+	}
+	return items, failed
 }
 
 // buildCollectionAddPatches splits local items into (needs-update, already-member).
