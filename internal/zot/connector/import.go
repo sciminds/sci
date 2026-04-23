@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -63,12 +64,35 @@ func Import(ctx context.Context, t Transport, path string, opts Options) (*Resul
 		opts.Timeout = DefaultTimeout
 	}
 
-	// Open the file early so we fail fast on bad paths — before pinging desktop.
+	// Open and validate the file early so we fail fast on bad paths — before
+	// pinging desktop. The Stat checks (regular file, non-zero) catch the
+	// most common user mistakes (passed a directory, empty placeholder file)
+	// with a clear error rather than letting Read fail later with EISDIR or
+	// silently uploading 0 bytes.
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open %q: %w", path, err)
 	}
 	defer func() { _ = f.Close() }()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("stat %q: %w", path, err)
+	}
+	if fi.IsDir() {
+		return nil, fmt.Errorf("%q is a directory; pass a single PDF file (folder import is not yet supported)", path)
+	}
+	if fi.Size() == 0 {
+		return nil, fmt.Errorf("%q is empty", path)
+	}
+	// Reject non-PDFs at the connector layer: desktop's recognize pipeline
+	// only fires for PDFs, and sending another type with Content-Type
+	// application/pdf would surface as a confusing "couldn't identify" miss.
+	// Users who want to import non-PDF attachments should use
+	// `zot item add --file` (Web API, no recognition).
+	if !strings.EqualFold(filepath.Ext(path), ".pdf") {
+		return nil, fmt.Errorf("%q is not a PDF; the desktop connector only supports PDFs (use `zot item add --file` for other types)", path)
+	}
 
 	if err := t.Ping(ctx); err != nil {
 		return nil, err

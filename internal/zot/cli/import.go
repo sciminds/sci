@@ -78,12 +78,10 @@ func runImport(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("zot import: %w", err)
 	}
-	cmdutil.Output(cmd, zot.ImportResult{
-		Path:       res.Path,
-		Recognized: res.Recognized,
-		Title:      res.Title,
-		ItemType:   res.ItemType,
-		Message:    res.Message,
-	})
+	// connector.Result and zot.ImportResult have identical fields/order, so
+	// Go's struct conversion handles the wire-shape→render-shape hop without
+	// a manual field-by-field copy. Tags differ (the render type carries
+	// JSON tags) — that's fine since Go 1.8 conversions ignore tags.
+	cmdutil.Output(cmd, zot.ImportResult(*res))
 	return nil
 }

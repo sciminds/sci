@@ -248,6 +248,61 @@ func TestImport_noWaitSkipsRecognize(t *testing.T) {
 	}
 }
 
+func TestImport_directoryRejected(t *testing.T) {
+	t.Parallel()
+	// A directory passed as <path> would Open successfully (dirs are
+	// readable) and only fail later inside io.ReadAll with a confusing
+	// EISDIR. The Stat guard catches this up front with a clear error.
+	ft := &fakeTransport{}
+	dir := t.TempDir()
+	_, err := Import(context.Background(), ft, dir, Options{Timeout: time.Second})
+	if err == nil {
+		t.Fatal("expected error for directory path")
+	}
+	if !strings.Contains(err.Error(), "directory") {
+		t.Errorf("err = %v; expected message to mention 'directory'", err)
+	}
+	if ft.pingCalls != 0 || ft.saveCalls != 0 {
+		t.Errorf("must reject before talking to desktop (ping=%d save=%d)", ft.pingCalls, ft.saveCalls)
+	}
+}
+
+func TestImport_emptyFileRejected(t *testing.T) {
+	t.Parallel()
+	ft := &fakeTransport{}
+	path := writeTempPDF(t, "")
+	_, err := Import(context.Background(), ft, path, Options{Timeout: time.Second})
+	if err == nil {
+		t.Fatal("expected error for empty file")
+	}
+	if ft.saveCalls != 0 {
+		t.Error("must not upload an empty file")
+	}
+}
+
+func TestImport_nonPDFRejected(t *testing.T) {
+	t.Parallel()
+	// The desktop recognize pipeline only fires for PDFs; sending a .docx
+	// or .epub with Content-Type application/pdf would be silently wrong.
+	// Reject at the connector layer rather than upload-then-fail-recognize.
+	ft := &fakeTransport{}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "notes.docx")
+	if err := os.WriteFile(path, []byte("not a pdf"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Import(context.Background(), ft, path, Options{Timeout: time.Second})
+	if err == nil {
+		t.Fatal("expected error for non-PDF file")
+	}
+	if !strings.Contains(err.Error(), "PDF") {
+		t.Errorf("err = %v; expected message to mention PDF", err)
+	}
+	if ft.saveCalls != 0 {
+		t.Error("must reject before upload")
+	}
+}
+
 func TestImport_contextCancelAbortsRecognize(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())

@@ -27,6 +27,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path/filepath"
 )
 
 // DefaultBaseURL is Zotero desktop's local HTTP server. The server binds to
@@ -48,9 +49,21 @@ const defaultUserAgent = "sci-zot-connector"
 const connectorAPIVersion = "3"
 
 // ErrDesktopUnreachable wraps network-layer failures so callers can branch on
-// "desktop is not running" without string-matching. Used by Ping and by the
-// other methods when the connection itself fails (pre-TLS, pre-first-byte).
+// "desktop is not running" without string-matching. Reserved for *dial-time*
+// failures (connection refused, no route to host) — post-connection errors
+// like a mid-stream EOF or a 5xx are something else and stay unwrapped.
 var ErrDesktopUnreachable = errors.New("zotero desktop connector is unreachable")
+
+// isDialError reports whether err comes from a failed connection attempt
+// (as opposed to a successful dial that then errored mid-request). Used to
+// scope ErrDesktopUnreachable wrapping so the typed sentinel only fires when
+// "desktop isn't listening" is actually true. *net.OpError with Op == "dial"
+// covers connection-refused, no-route-to-host, network-down, etc.; the
+// http.Client wraps it in *url.Error, which errors.As unwraps for us.
+func isDialError(err error) bool {
+	var opErr *net.OpError
+	return errors.As(err, &opErr) && opErr.Op == "dial"
+}
 
 // HTTPDoer matches the subset of *http.Client we need. Exposed so tests can
 // substitute, though the httptest.Server form in client_test.go runs the real
@@ -101,7 +114,10 @@ func (c *Client) Ping(ctx context.Context) error {
 	req.Header.Set("User-Agent", c.ua)
 	resp, err := c.doer.Do(req)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrDesktopUnreachable, err)
+		if isDialError(err) {
+			return fmt.Errorf("%w: %v", ErrDesktopUnreachable, err)
+		}
+		return fmt.Errorf("ping: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -136,14 +152,15 @@ type SaveResp struct {
 // as a stream via importFromNetworkStream. The metadata ride-along is a JSON
 // blob in the X-Metadata header.
 //
-// The body is fully buffered into memory before the POST so we can set an
-// explicit Content-Length. Desktop's saveStandaloneAttachment handler rejects
-// chunked transfer with 400 "Content-length not provided" — net/http falls
-// back to chunked whenever the body reader isn't a *bytes.Reader / *bytes.Buffer
-// / *strings.Reader, so a *os.File body from Import would fail without this
-// buffering. PDFs in practice are a few MB; streaming multi-GB uploads would
-// need a different approach (we'd have to Stat the file and wire the size
-// through without reading), but that isn't a real workload here.
+// The body is fully buffered into memory before the POST so net/http can
+// auto-set Content-Length from the *bytes.Reader type. Desktop's
+// saveStandaloneAttachment handler rejects chunked transfer with 400
+// "Content-length not provided" — net/http falls back to chunked whenever
+// the body reader isn't a *bytes.Reader / *bytes.Buffer / *strings.Reader,
+// so a *os.File body from Import would fail without this buffering. PDFs in
+// practice are a few MB; streaming multi-GB uploads would need a different
+// approach (Stat the file and wire size through without reading), but that
+// isn't a real workload here.
 //
 // When CanRecognize is true, desktop has kicked off the auto-recognize
 // pipeline internally (session.autoRecognizePromise is set); call
@@ -167,10 +184,6 @@ func (c *Client) SaveStandaloneAttachment(ctx context.Context, body io.Reader, m
 	if err != nil {
 		return nil, err
 	}
-	// bytes.NewReader sets Content-Length via NewRequest's type assertion,
-	// but set it explicitly for belt-and-suspenders in case anyone swaps the
-	// reader type later.
-	req.ContentLength = int64(len(buf))
 	req.Header.Set("User-Agent", c.ua)
 	req.Header.Set("Content-Type", "application/pdf")
 	req.Header.Set("X-Metadata", string(metaJSON))
@@ -178,7 +191,10 @@ func (c *Client) SaveStandaloneAttachment(ctx context.Context, body io.Reader, m
 
 	resp, err := c.doer.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrDesktopUnreachable, err)
+		if isDialError(err) {
+			return nil, fmt.Errorf("%w: %v", ErrDesktopUnreachable, err)
+		}
+		return nil, fmt.Errorf("saveStandaloneAttachment: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -234,11 +250,10 @@ func (c *Client) GetRecognizedItem(ctx context.Context, sessionID string) (*Reco
 
 	resp, err := c.doer.Do(req)
 	if err != nil {
-		var nerr net.Error
-		if errors.As(err, &nerr) {
+		if isDialError(err) {
 			return nil, fmt.Errorf("%w: %v", ErrDesktopUnreachable, err)
 		}
-		return nil, err
+		return nil, fmt.Errorf("getRecognizedItem: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -262,9 +277,10 @@ func (c *Client) GetRecognizedItem(ctx context.Context, sessionID string) (*Reco
 }
 
 // BuildFileURL returns a file:// URL for the given absolute filesystem path.
-// Used to populate SaveMeta.URL without the caller having to hand-roll URL
-// encoding. Kept exported for the Import orchestrator and any future caller.
+// filepath.ToSlash normalizes Windows backslashes to forward slashes so the
+// URL doesn't end up with %5C-encoded separators (`file:///C:%5Cfoo%5Cbar`)
+// that desktop's metadata stash would echo back ugly. No-op on POSIX.
 func BuildFileURL(absPath string) string {
-	u := &url.URL{Scheme: "file", Path: absPath}
+	u := &url.URL{Scheme: "file", Path: filepath.ToSlash(absPath)}
 	return u.String()
 }

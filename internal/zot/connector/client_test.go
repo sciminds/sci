@@ -19,6 +19,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -135,8 +136,9 @@ func TestSaveStandaloneAttachment_setsContentLength(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveStandaloneAttachment: %v", err)
 	}
-	if gotLen == "" {
-		t.Errorf("Content-Length header was missing; desktop's handler will 400 this")
+	wantLen := strconv.Itoa(len(pdf))
+	if gotLen != wantLen {
+		t.Errorf("Content-Length = %q, want %q (must equal real body length, not just non-empty)", gotLen, wantLen)
 	}
 	if len(gotTE) > 0 {
 		t.Errorf("request must not use Transfer-Encoding (got %v)", gotTE)
@@ -308,5 +310,50 @@ func TestGetRecognizedItem_parsesFinishedPayload(t *testing.T) {
 	}
 	if resp.ItemType != "journalArticle" {
 		t.Errorf("ItemType = %q, want journalArticle", resp.ItemType)
+	}
+}
+
+// --- Error scoping ---
+
+func TestSaveStandaloneAttachment_non5xxStatusIsNotUnreachable(t *testing.T) {
+	t.Parallel()
+	// A 4xx/5xx is a server response, not a connection failure. The handler
+	// is reachable; the request just got rejected. ErrDesktopUnreachable
+	// must NOT fire here — that sentinel is for "desktop isn't running".
+	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	})
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+
+	c := NewClient(WithBaseURL(srv.URL))
+	_, err := c.SaveStandaloneAttachment(context.Background(), strings.NewReader("x"), SaveMeta{SessionID: "S"})
+	if err == nil {
+		t.Fatal("expected error on 500")
+	}
+	if errors.Is(err, ErrDesktopUnreachable) {
+		t.Errorf("err = %v; 500 must not be classified as desktop-unreachable", err)
+	}
+}
+
+// --- BuildFileURL ---
+
+func TestBuildFileURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name, in, want string
+	}{
+		{"posix-absolute", "/Users/jane/papers/Smith2022.pdf", "file:///Users/jane/papers/Smith2022.pdf"},
+		{"posix-with-spaces", "/tmp/some paper.pdf", "file:///tmp/some%20paper.pdf"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := BuildFileURL(tc.in)
+			if got != tc.want {
+				t.Errorf("BuildFileURL(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
 	}
 }
