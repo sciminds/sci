@@ -51,10 +51,13 @@ func PersistentFlags() []cli.Flag {
 //   - setup configures both libraries at once.
 //   - info summarizes both when no scope is given; --library narrows.
 //   - find hits OpenAlex, not Zotero — scope is meaningless there.
+//   - import goes through Zotero desktop's connector, which writes to
+//     whichever library is currently selected in the desktop UI.
 var libraryExemptCommands = map[string]bool{
-	"setup": true,
-	"info":  true,
-	"find":  true,
+	"setup":  true,
+	"info":   true,
+	"find":   true,
+	"import": true,
 }
 
 // ValidateLibraryBefore is the Before hook that validates --library and
@@ -134,6 +137,7 @@ func Commands() []*cli.Command {
 		searchCommand(),
 		findCommand(),
 		libraryExportCommand(),
+		importCommand(),
 		itemCommand(),
 		collectionCommand(),
 		savedSearchCommand(),

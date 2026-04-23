@@ -224,6 +224,7 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 | `sci zot --library personal item extract <key> --out DIR` | Full extraction: md + json + referenced PNGs + CSV tables to DIR |
 | `sci zot --library personal item extract <key> --delete` | Undo: trash any note carrying this PDF's sci-extract sentinel |
 | `sci zot --library shared item add` / `update` / `delete` | Create / patch / trash items via the Zotero Web API |
+| `sci zot import <path>` | Drag-drop equivalent via Zotero desktop: upload + auto-recognize metadata (CrossRef/arXiv) |
 | `sci zot --library shared collection` / `tags` | Manage collections and tags in the shared group library |
 | `sci zot --library personal doctor` | Run all hygiene checks (invalid → missing → orphans → duplicates) |
 | `sci zot --library personal doctor {invalid,missing,orphans,duplicates}` | Drill into individual hygiene reports |
@@ -248,6 +249,10 @@ Also installable as a standalone binary: `go install github.com/sciminds/cli/cmd
 #### Items
 
 ![zot item](docs/casts/zot-item.gif)
+
+#### Import (desktop-assisted, with metadata recognition)
+
+![zot import](docs/casts/zot-import.gif)
 
 #### Organize
 

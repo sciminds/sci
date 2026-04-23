@@ -84,6 +84,19 @@ OpenAlex-led lookup for Zotero items missing their PDFs. Lives under `zot doctor
 
 Cache: scan results at `os.UserCacheDir()/sci/zot/pdffind/`. Survives across runs; `--refresh` re-queries, `--no-cache` disables the current run entirely.
 
+## Desktop connector path (`internal/zot/connector/`) — `zot import`
+
+`zot import <path>` is the drag-drop equivalent: it POSTs to Zotero desktop's local server on `127.0.0.1:23119/connector/saveStandaloneAttachment`, then calls `/connector/getRecognizedItem` to await the same metadata-recognition pipeline desktop runs for drag-drop (first-page-text → Zotero recognizer service → CrossRef/arXiv → parent bib item). Requires desktop to be running; exempt from `--library` because desktop writes to whichever library is currently selected in its UI.
+
+Wire-format landmines learned the hard way (source: `chrome/content/zotero/xpcom/server/server_connector.js` on `zotero/zotero` main):
+
+- **saveStandaloneAttachment demands Content-Length.** Chunked transfer gets a 400 "Content-length not provided" back. Go's `http.NewRequest` only sets Content-Length automatically for `*bytes.Reader` / `*bytes.Buffer` / `*strings.Reader`; a `*os.File` body falls through to chunked. `SaveStandaloneAttachment` buffers the full body into `[]byte` + `bytes.NewReader` and sets `req.ContentLength` explicitly. PDFs are a few MB; streaming huge uploads would need a different approach.
+- **getRecognizedItem blocks server-side** on `await session.autoRecognizePromise`. It is NOT a polling endpoint — one synchronous call waits until recognition completes. A ctx deadline is the only timeout knob.
+- **getRecognizedItem returns only `{title, itemType}` on success.** The Zotero itemKey is stripped out by the handler (`jsonItem = {title: item.getDisplayTitle(), itemType: item.itemType}`). On "recognition finished with no match" it returns **204 No Content**. Surfacing the parent itemKey would require a separate library lookup (by title, or by querying items added since a pre-upload version snapshot); v1 doesn't do this — the user finds the created item via `zot search <title>` if they want the key.
+- **Browser-guard bypass.** `server.js` flags any `User-Agent: Mozilla/…` as a browser and demands additional CSRF headers (`server.js:407–424`). We send a non-Mozilla UA (`sci-zot-connector`) and also set `X-Zotero-Connector-API-Version: 3` for belt-and-suspenders — real browser connectors send the version header and it silences the guard.
+
+The endpoint is undocumented for third-party use. Zotero maintainers have called it "not really intended for external consumption" — treat it as tolerated-but-unofficial. If desktop changes `getRecognizedItem`'s response shape, the `TestGetRecognizedItem_*` tests in `connector/client_test.go` are the regression line.
+
 ## Zotero file upload — 4-phase dance (`internal/zot/api/files.go`)
 
 Creating an `imported_file` attachment with actual bytes is a 4-call sequence. Canonical spec is the top-level description in `~/Documents/webapps/apis/zotero/openapi.yaml`.
