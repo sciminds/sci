@@ -55,49 +55,69 @@ type Result struct {
 	Message    string
 }
 
-// Import runs the connector flow end to end. The path must point to a
-// readable file; the entire file is streamed to desktop. ctx cancellation
-// aborts the blocking recognize call cleanly. Options zero values pick up
-// the DefaultTimeout constant above.
+// Import runs the connector flow end to end for a single file. The path
+// must point to a readable PDF; the entire file is streamed to desktop. ctx
+// cancellation aborts the blocking recognize call cleanly. Options zero
+// values pick up the DefaultTimeout constant above.
+//
+// Composition note: Import = openPDF + Ping + importOne. ImportBatch reuses
+// openPDF and importOne directly, pinging once for the whole batch instead
+// of per file.
 func Import(ctx context.Context, t Transport, path string, opts Options) (*Result, error) {
 	if opts.Timeout == 0 {
 		opts.Timeout = DefaultTimeout
 	}
 
-	// Open and validate the file early so we fail fast on bad paths — before
-	// pinging desktop. The Stat checks (regular file, non-zero) catch the
-	// most common user mistakes (passed a directory, empty placeholder file)
-	// with a clear error rather than letting Read fail later with EISDIR or
-	// silently uploading 0 bytes.
-	f, err := os.Open(path)
+	f, err := openPDF(path)
 	if err != nil {
-		return nil, fmt.Errorf("open %q: %w", path, err)
+		return nil, err
 	}
 	defer func() { _ = f.Close() }()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return nil, fmt.Errorf("stat %q: %w", path, err)
-	}
-	if fi.IsDir() {
-		return nil, fmt.Errorf("%q is a directory; pass a single PDF file (folder import is not yet supported)", path)
-	}
-	if fi.Size() == 0 {
-		return nil, fmt.Errorf("%q is empty", path)
-	}
-	// Reject non-PDFs at the connector layer: desktop's recognize pipeline
-	// only fires for PDFs, and sending another type with Content-Type
-	// application/pdf would surface as a confusing "couldn't identify" miss.
-	// Users who want to import non-PDF attachments should use
-	// `zot item add --file` (Web API, no recognition).
-	if !strings.EqualFold(filepath.Ext(path), ".pdf") {
-		return nil, fmt.Errorf("%q is not a PDF; the desktop connector only supports PDFs (use `zot item add --file` for other types)", path)
-	}
 
 	if err := t.Ping(ctx); err != nil {
 		return nil, err
 	}
+	return importOne(ctx, t, f, path, opts)
+}
 
+// openPDF opens path and verifies it's a non-empty regular file with a .pdf
+// extension. The Stat checks catch the most common user mistakes (passed a
+// directory, empty placeholder file) with a clear error rather than letting
+// Read fail later with EISDIR or silently uploading 0 bytes. Extension
+// rejection keeps non-PDFs out of the connector flow entirely — desktop's
+// recognize pipeline only fires for PDFs and sending other types as
+// application/pdf would surface as a confusing "couldn't identify" miss.
+// Caller owns the *os.File and must Close it.
+func openPDF(path string) (*os.File, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open %q: %w", path, err)
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("stat %q: %w", path, err)
+	}
+	if fi.IsDir() {
+		_ = f.Close()
+		return nil, fmt.Errorf("%q is a directory; pass a single PDF file or a directory containing PDFs", path)
+	}
+	if fi.Size() == 0 {
+		_ = f.Close()
+		return nil, fmt.Errorf("%q is empty", path)
+	}
+	if !strings.EqualFold(filepath.Ext(path), ".pdf") {
+		_ = f.Close()
+		return nil, fmt.Errorf("%q is not a PDF; the desktop connector only supports PDFs (use `zot item add --file` for other types)", path)
+	}
+	return f, nil
+}
+
+// importOne uploads an already-opened+validated PDF and (optionally) waits
+// for recognition. Caller is responsible for Ping and for Close — splitting
+// these out lets ImportBatch ping once and reuse the per-file core without
+// re-validating the path on every iteration.
+func importOne(ctx context.Context, t Transport, f *os.File, path string, opts Options) (*Result, error) {
 	sessionID, err := newSessionID()
 	if err != nil {
 		return nil, err
