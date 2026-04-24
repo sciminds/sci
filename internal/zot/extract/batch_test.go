@@ -878,3 +878,128 @@ func TestExecuteBatch_FreshOnlySkipsPostCached(t *testing.T) {
 		t.Errorf("phase[1] = %+v, want PostFresh", phases[1])
 	}
 }
+
+// TestExecuteBatch_TagsParentAfterFreshPost: every successful note post
+// for a freshly-extracted item triggers AddTagToItem(parent, MarkdownTag).
+// The tag is what powers Zotero saved searches like "PDFs without an
+// extraction" without a separate backfill pass for newly-posted items.
+func TestExecuteBatch_TagsParentAfterFreshPost(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	w := &fakeNoteWriter{}
+	_, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: &fakeExtractor{md: "# body\n", version: "docling 2.86.0"},
+		Writer:    w,
+		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(w.tagged) != 1 {
+		t.Fatalf("AddTagToItem calls = %d, want 1; tagged=%+v", len(w.tagged), w.tagged)
+	}
+	if w.tagged[0].item != "PA" || w.tagged[0].tag != MarkdownTag {
+		t.Errorf("tagged[0] = %+v, want {PA, %s}", w.tagged[0], MarkdownTag)
+	}
+}
+
+// TestExecuteBatch_TagsParentAfterCachedPost: cached items posted in
+// PhasePostCached also get the parent tag — the tagging hook lives in
+// postNote so both phases benefit identically.
+func TestExecuteBatch_TagsParentAfterCachedPost(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+	if _, err := cache.Put("PDFA", "ha", []byte("## cached\n")); err != nil {
+		t.Fatal(err)
+	}
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	w := &fakeNoteWriter{}
+	_, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: &fakeExtractor{md: "unused", version: "docling 2.86.0"},
+		Writer:    w,
+		Cache:     cache,
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(w.tagged) != 1 || w.tagged[0].item != "PA" {
+		t.Errorf("tagged = %+v, want one call for PA", w.tagged)
+	}
+}
+
+// TestExecuteBatch_TagFailureDoesNotFailPost: if AddTagToItem errors
+// after CreateChildNote succeeded, the post is still recorded as
+// successful (NoteKey set, no outcome.Err). The retroactive backfill
+// sweep on the next --apply will heal the missing tag.
+func TestExecuteBatch_TagFailureDoesNotFailPost(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+
+	items := []BatchItem{
+		{
+			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
+			Hash:    "ha",
+			Plan: &Plan{
+				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
+				Action:  ActionCreate,
+			},
+		},
+	}
+
+	w := &fakeNoteWriter{tagErr: errors.New("412 conflict")}
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: &fakeExtractor{md: "# body\n", version: "docling 2.86.0"},
+		Writer:    w,
+		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
+		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Outcomes[0].Err != nil {
+		t.Errorf("outcome.Err = %v, want nil (tag failure must not fail the post)", res.Outcomes[0].Err)
+	}
+	if res.Outcomes[0].NoteKey == "" {
+		t.Error("NoteKey empty: post was recorded as failed despite CreateChildNote success")
+	}
+	if len(w.created) != 1 {
+		t.Errorf("CreateChildNote calls = %d, want 1", len(w.created))
+	}
+}

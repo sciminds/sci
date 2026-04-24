@@ -167,6 +167,11 @@ type NoteDeleteResult struct {
 	Total     int               `json:"total"`
 	Trashed   []string          `json:"trashed,omitempty"`
 	Failed    map[string]string `json:"failed,omitempty"`
+	// UntaggedParents lists parent keys whose has-markdown tag was
+	// removed because their last docling note was trashed. Empty in the
+	// no-op case (no notes existed). The next extract-lib --apply will
+	// re-tag them if a new docling note is created.
+	UntaggedParents []string `json:"untagged_parents,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -191,6 +196,9 @@ func (r NoteDeleteResult) Human() string {
 		for _, k := range keys {
 			fmt.Fprintf(&b, "  %s %s: %s\n", uikit.SymFail, k, r.Failed[k])
 		}
+	}
+	if len(r.UntaggedParents) > 0 {
+		fmt.Fprintf(&b, "  %s removed has-markdown from %d parent(s)\n", uikit.SymArrow, len(r.UntaggedParents))
 	}
 	return b.String()
 }

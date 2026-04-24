@@ -75,17 +75,24 @@ func (f *fakeExtractor) ExtractBatch(_ context.Context, opts ExtractOptions, pdf
 	}, nil
 }
 
-// fakeNoteWriter records every CreateChildNote call.
+// fakeNoteWriter records every CreateChildNote and AddTagToItem call.
 type fakeNoteWriter struct {
 	created   []createCall
+	tagged    []tagCall
 	nextKey   int
 	createErr error
+	tagErr    error
 }
 
 type createCall struct {
 	parent string
 	body   string
 	tags   []string
+}
+
+type tagCall struct {
+	item string
+	tag  string
 }
 
 func (f *fakeNoteWriter) CreateChildNote(_ context.Context, parent, body string, tags []string) (string, error) {
@@ -96,6 +103,14 @@ func (f *fakeNoteWriter) CreateChildNote(_ context.Context, parent, body string,
 	key := fmt.Sprintf("NOTE%04d", f.nextKey)
 	f.created = append(f.created, createCall{parent: parent, body: body, tags: tags})
 	return key, nil
+}
+
+func (f *fakeNoteWriter) AddTagToItem(_ context.Context, item, tag string) error {
+	if f.tagErr != nil {
+		return f.tagErr
+	}
+	f.tagged = append(f.tagged, tagCall{item: item, tag: tag})
+	return nil
 }
 
 // baseInput builds a reusable ExecuteInput — each test copies and

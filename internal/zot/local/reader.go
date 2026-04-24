@@ -46,6 +46,7 @@ type Reader interface {
 	ResolvePDFAttachment(parentKey string) (*PDFAttachment, error)
 	ListAllPDFAttachments() ([]PDFParent, error)
 	ParentsWithDoclingNotes() (map[string]bool, error)
+	ParentsWithDoclingNotesMissingTag(tag string) ([]string, error)
 	DoclingNoteKeys(parentKey string) ([]string, error)
 
 	// View (denormalized reads for UI)

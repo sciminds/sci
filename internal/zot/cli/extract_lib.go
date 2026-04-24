@@ -71,6 +71,10 @@ func (noopNoteWriter) CreateChildNote(context.Context, string, string, []string)
 	return "CACHE_ONLY", nil
 }
 
+func (noopNoteWriter) AddTagToItem(context.Context, string, string) error {
+	return nil
+}
+
 func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	cfg, db, err := openLocalDB(ctx)
 	if err != nil {
@@ -129,12 +133,25 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 
 	// Default is cache-only (noops); --apply wires the real Zotero API.
 	var writer extract.NoteWriter
+	var backfillTagged, backfillFailed int
 	if extractLibApply {
 		apiClient, err := requireAPIClient(ctx)
 		if err != nil {
 			return err
 		}
 		writer = apiClient
+
+		// Retroactively tag any parent that already has a docling note
+		// in Zotero but is missing the has-markdown marker on the
+		// parent itself. Runs BEFORE the extract phase so the local-DB
+		// query isn't racing freshly-posted notes (which the inline
+		// tag in postNote covers anyway). Idempotent: a parent that
+		// already carries the tag is a no-op inside AddTagToItem.
+		tagged, failed, err := backfillHasMarkdownTag(ctx, db, apiClient)
+		if err != nil {
+			return err
+		}
+		backfillTagged, backfillFailed = tagged, failed
 	} else {
 		writer = noopNoteWriter{}
 	}
@@ -224,8 +241,10 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	// Check if there's anything to do.
 	if nCreate == 0 && nErr == 0 {
 		cmdutil.Output(cmd, zot.ExtractLibResult{
-			Total:   len(items),
-			Skipped: nSkip,
+			Total:          len(items),
+			Skipped:        nSkip,
+			BackfilledTags: backfillTagged,
+			BackfillFailed: backfillFailed,
 		})
 		return nil
 	}
@@ -327,12 +346,14 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 
 	created, skipped, cached, failed := batchResult.Counts()
 	result := zot.ExtractLibResult{
-		Total:    len(items),
-		Created:  created,
-		Skipped:  skipped,
-		Cached:   cached,
-		Failed:   failed,
-		Duration: time.Since(started),
+		Total:          len(items),
+		Created:        created,
+		Skipped:        skipped,
+		Cached:         cached,
+		Failed:         failed,
+		Duration:       time.Since(started),
+		BackfilledTags: backfillTagged,
+		BackfillFailed: backfillFailed,
 	}
 	if failed > 0 {
 		result.Errors = make(map[string]string)
@@ -344,4 +365,40 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	cmdutil.Output(cmd, result)
 	return nil
+}
+
+// backfillHasMarkdownTag adds extract.MarkdownTag to every parent that
+// has a docling note in Zotero but is missing the tag on the parent
+// item. Drives the saved-search workflow without requiring a separate
+// CLI command — every --apply heals the invariant. Returns the (tagged,
+// failed) counts for the result struct.
+//
+// Idempotent: AddTagToItem dedups against the current tag set, so
+// running the sweep on an already-consistent library is a no-op (one
+// query + zero PATCHes).
+func backfillHasMarkdownTag(ctx context.Context, db local.Reader, w extract.TagAdder) (int, int, error) {
+	parents, err := db.ParentsWithDoclingNotesMissingTag(extract.MarkdownTag)
+	if err != nil {
+		return 0, 0, fmt.Errorf("backfill: query parents missing tag: %w", err)
+	}
+	if len(parents) == 0 {
+		return 0, 0, nil
+	}
+
+	var res extract.BackfillResult
+	err = uikit.RunWithProgress("Backfilling has-markdown tag", func(t *uikit.ProgressTracker) error {
+		t.SetTotal(len(parents))
+		res = extract.BackfillParentTag(ctx, w, parents, extract.MarkdownTag, func(key string, perr error) {
+			if perr != nil {
+				t.Advance("failed", fmt.Sprintf("%s %s: %s", uikit.SymFail, key, perr))
+			} else {
+				t.Advance("tagged", fmt.Sprintf("%s %s", uikit.SymOK, key))
+			}
+		})
+		return nil
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	return len(res.Tagged), len(res.Failed), nil
 }

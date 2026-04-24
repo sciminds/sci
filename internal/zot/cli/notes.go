@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
@@ -475,6 +476,22 @@ func notesDeleteSingleAction(ctx context.Context, cmd *cli.Command, parentKey st
 		}
 		result.Trashed = append(result.Trashed, key)
 	}
+
+	// All docling notes for this parent are gone — strip the
+	// has-markdown marker so saved searches see the parent again.
+	// Only remove if at least one trash succeeded; otherwise the
+	// invariant (parent tagged ⇔ has docling note) was untouched.
+	if len(result.Trashed) > 0 && len(result.Trashed) == len(noteKeys) {
+		if err := apiClient.RemoveTagFromItem(ctx, parentKey, extract.MarkdownTag); err != nil {
+			if result.Failed == nil {
+				result.Failed = map[string]string{}
+			}
+			result.Failed[parentKey+":has-markdown"] = err.Error()
+		} else {
+			result.UntaggedParents = []string{parentKey}
+		}
+	}
+
 	cmdutil.Output(cmd, result)
 	return nil
 }
@@ -506,6 +523,16 @@ func notesDeleteAllAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	// Track per-parent trash outcomes so we only strip has-markdown
+	// from parents whose entire set of docling notes was successfully
+	// trashed. A parent with one trash success and one trash failure
+	// still has a docling note in Zotero — keep its tag intact.
+	parentTotal := map[string]int{}
+	parentTrashed := map[string]int{}
+	for _, n := range notes {
+		parentTotal[n.ParentKey]++
+	}
+
 	result := zot.NoteDeleteResult{Total: len(notes)}
 	for _, n := range notes {
 		if err := apiClient.TrashItem(ctx, n.NoteKey); err != nil {
@@ -516,7 +543,29 @@ func notesDeleteAllAction(ctx context.Context, cmd *cli.Command) error {
 			continue
 		}
 		result.Trashed = append(result.Trashed, n.NoteKey)
+		parentTrashed[n.ParentKey]++
 	}
+
+	// Strip has-markdown from each parent whose every docling note was
+	// trashed. Sort the keys for deterministic output.
+	var fullyCleared []string
+	for parent, total := range parentTotal {
+		if parentTrashed[parent] == total {
+			fullyCleared = append(fullyCleared, parent)
+		}
+	}
+	slices.Sort(fullyCleared)
+	for _, parent := range fullyCleared {
+		if err := apiClient.RemoveTagFromItem(ctx, parent, extract.MarkdownTag); err != nil {
+			if result.Failed == nil {
+				result.Failed = map[string]string{}
+			}
+			result.Failed[parent+":has-markdown"] = err.Error()
+			continue
+		}
+		result.UntaggedParents = append(result.UntaggedParents, parent)
+	}
+
 	cmdutil.Output(cmd, result)
 	return nil
 }

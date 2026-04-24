@@ -101,3 +101,33 @@ func TestResolvePDFAttachment_TrashedParent(t *testing.T) {
 		t.Fatal("expected error for trashed parent")
 	}
 }
+
+// TestParentsWithDoclingNotesMissingTag exercises the backfill query.
+// It's the inverse of ParentsWithDoclingNotes filtered by parent-tag
+// presence: returns parents that own a docling note but lack the named
+// tag on the parent itself (not on the child).
+//
+// AAAA1111 has docling note NOTECH10 + parent tags neuroimaging,
+// deep-learning. So:
+//   - MissingTag("has-markdown") includes AAAA1111 (lacks the tag).
+//   - MissingTag("neuroimaging") excludes AAAA1111 (already tagged).
+func TestParentsWithDoclingNotesMissingTag(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+
+	missing, err := db.ParentsWithDoclingNotesMissingTag("has-markdown")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) != 1 || missing[0] != "AAAA1111" {
+		t.Errorf("MissingTag(has-markdown) = %v, want [AAAA1111]", missing)
+	}
+
+	excluded, err := db.ParentsWithDoclingNotesMissingTag("neuroimaging")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(excluded) != 0 {
+		t.Errorf("MissingTag(neuroimaging) = %v, want [] (parent already tagged)", excluded)
+	}
+}

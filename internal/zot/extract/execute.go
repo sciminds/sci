@@ -8,11 +8,17 @@ import (
 )
 
 // NoteWriter is the narrow interface Execute needs from the Zotero Web
-// API layer. Implemented by *api.Client via its CreateChildNote method.
-// Tests substitute a fake so the extract package has no direct HTTP
-// dependency.
+// API layer. Implemented by *api.Client via its CreateChildNote and
+// AddTagToItem methods. Tests substitute a fake so the extract package
+// has no direct HTTP dependency.
+//
+// AddTagToItem must be idempotent: callers invoke it on every successful
+// note post and it is also driven by the backfill sweep, so re-applying
+// an already-present tag must be a no-op (the *api.Client implementation
+// inspects the current tag set before patching).
 type NoteWriter interface {
 	CreateChildNote(ctx context.Context, parentKey, body string, tags []string) (string, error)
+	AddTagToItem(ctx context.Context, itemKey, tag string) error
 }
 
 // NoteUpdater is the narrow interface Execute needs when updating an
@@ -87,7 +93,7 @@ type ExecuteResult struct {
 // defaultTags is what we apply to newly created notes when the caller
 // didn't supply an explicit list. Chosen so users can `zot item
 // list --tag docling` to find every sci-managed extraction.
-var defaultTags = []string{"docling"}
+var defaultTags = []string{DoclingTag}
 
 // Execute runs the action described by in.Plan: calls the extractor
 // (unless Action is Skip), renders the note body, and posts the result

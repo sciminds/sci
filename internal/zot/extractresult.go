@@ -148,6 +148,14 @@ type ExtractLibResult struct {
 	Failed   int               `json:"failed"`
 	Errors   map[string]string `json:"errors,omitempty"` // parentKey → error
 	Duration time.Duration     `json:"duration_ns"`
+
+	// BackfilledTags counts parent items whose has-markdown tag was
+	// added or refreshed by the --apply backfill sweep (independent of
+	// new extractions). Zero in cache-only mode.
+	BackfilledTags int `json:"backfilled_tags,omitempty"`
+	// BackfillFailed counts parents the sweep tried to tag but failed
+	// (e.g. transient API error). The next --apply run retries.
+	BackfillFailed int `json:"backfill_failed,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -165,6 +173,13 @@ func (r ExtractLibResult) Human() string {
 	}
 	if r.Failed > 0 {
 		fmt.Fprintf(&b, "      %s failed:  %d\n", uikit.SymFail, r.Failed)
+	}
+	if r.BackfilledTags > 0 || r.BackfillFailed > 0 {
+		fmt.Fprintf(&b, "      backfilled has-markdown tag: %d", r.BackfilledTags)
+		if r.BackfillFailed > 0 {
+			fmt.Fprintf(&b, " (%d failed — will retry next --apply)", r.BackfillFailed)
+		}
+		fmt.Fprintln(&b)
 	}
 	if len(r.Errors) > 0 {
 		keys := slices.Sorted(maps.Keys(r.Errors))

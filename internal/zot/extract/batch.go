@@ -523,6 +523,15 @@ func postNote(
 		return
 	}
 	outcomes[i].NoteKey = key
+
+	// Tag the parent with MarkdownTag so saved searches can target
+	// items missing an extraction. Best-effort: a tag failure here
+	// (e.g. transient 412) leaves the parent missing the tag, but
+	// the next --apply's backfill sweep will re-add it. Failing the
+	// post outcome over a tag glitch would be misleading — the note
+	// itself was successfully created.
+	_ = in.Writer.AddTagToItem(ctx, item.Plan.Request.ParentKey, MarkdownTag)
+
 	if in.OnItemDone != nil {
 		in.OnItemDone(i, outcomes[i])
 	}

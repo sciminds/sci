@@ -195,6 +195,55 @@ WHERE p.libraryID = ?
 	return out, rows.Err()
 }
 
+// ParentsWithDoclingNotesMissingTag returns parent item keys that own
+// at least one non-trashed child note tagged "docling" AND do NOT carry
+// the named tag on the parent itself. Drives the extract-lib --apply
+// backfill that retroactively adds the parent-level "has-markdown"
+// marker so saved-search workflows ("PDFs without an extraction") work.
+//
+// Note the asymmetry: the docling tag must live on a *child* note,
+// while the excluded tag is checked on the *parent*. The two tags live
+// in different rows for the same conceptual fact ("this paper has been
+// extracted").
+func (d *DB) ParentsWithDoclingNotesMissingTag(tag string) ([]string, error) {
+	const q = `
+SELECT DISTINCT p.key
+FROM items p
+JOIN itemNotes n ON n.parentItemID = p.itemID
+JOIN items ni ON ni.itemID = n.itemID
+JOIN itemTags nt ON ni.itemID = nt.itemID
+JOIN tags t ON nt.tagID = t.tagID
+LEFT JOIN deletedItems pdi ON p.itemID = pdi.itemID
+LEFT JOIN deletedItems ndi ON ni.itemID = ndi.itemID
+WHERE p.libraryID = ?
+  AND t.name = 'docling'
+  AND pdi.itemID IS NULL
+  AND ndi.itemID IS NULL
+  AND NOT EXISTS (
+    SELECT 1
+    FROM itemTags pt
+    JOIN tags ptn ON pt.tagID = ptn.tagID
+    WHERE pt.itemID = p.itemID AND ptn.name = ?
+  )
+ORDER BY p.key
+`
+	rows, err := d.db.Query(q, d.libraryID, tag)
+	if err != nil {
+		return nil, fmt.Errorf("parents missing tag %q: %w", tag, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, fmt.Errorf("scan parent missing tag: %w", err)
+		}
+		out = append(out, key)
+	}
+	return out, rows.Err()
+}
+
 // DoclingNoteKeys returns the Zotero item keys of all non-trashed
 // child notes of parentKey that are tagged "docling". Used by
 // `zot notes delete` and `zot notes update` to find notes to operate on.
