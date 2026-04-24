@@ -218,15 +218,17 @@ func (c *Client) listItems(ctx context.Context, opts ListItemsOptions) (int, str
 }
 
 // getCollection dispatches GET /collections/{key}.
+//
+//nolint:dupl // per-op dispatch is intrinsically symmetric across user/group generated types
 func (c *Client) getCollection(ctx context.Context, key string) (int, string, *client.Collection, error) {
 	if c.isShared() {
-		r, err := c.Gen.GetCollectionGroupWithResponse(ctx, c.GroupID(), client.CollectionKeyPath(key))
+		r, err := c.Gen.GetCollectionGroupWithResponse(ctx, c.GroupID(), client.CollectionKeyPath(key), nil)
 		if err != nil {
 			return 0, "", nil, err
 		}
 		return r.StatusCode(), r.Status(), r.JSON200, nil
 	}
-	r, err := c.Gen.GetCollectionWithResponse(ctx, c.UserID, client.CollectionKeyPath(key))
+	r, err := c.Gen.GetCollectionWithResponse(ctx, c.UserID, client.CollectionKeyPath(key), nil)
 	if err != nil {
 		return 0, "", nil, err
 	}
@@ -295,15 +297,17 @@ func (c *Client) listSearches(ctx context.Context, start, limit int) (int, strin
 }
 
 // getSearch dispatches GET /searches/{key}.
+//
+//nolint:dupl // per-op dispatch is intrinsically symmetric across user/group generated types
 func (c *Client) getSearch(ctx context.Context, key string) (int, string, *client.Search, error) {
 	if c.isShared() {
-		r, err := c.Gen.GetSearchGroupWithResponse(ctx, c.GroupID(), client.SearchKeyPath(key))
+		r, err := c.Gen.GetSearchGroupWithResponse(ctx, c.GroupID(), client.SearchKeyPath(key), nil)
 		if err != nil {
 			return 0, "", nil, err
 		}
 		return r.StatusCode(), r.Status(), r.JSON200, nil
 	}
-	r, err := c.Gen.GetSearchWithResponse(ctx, c.UserID, client.SearchKeyPath(key))
+	r, err := c.Gen.GetSearchWithResponse(ctx, c.UserID, client.SearchKeyPath(key), nil)
 	if err != nil {
 		return 0, "", nil, err
 	}

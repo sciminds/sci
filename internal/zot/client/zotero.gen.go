@@ -160,30 +160,6 @@ func (e ItemDataItemType) Valid() bool {
 	}
 }
 
-// Defines values for ItemDataLinkMode.
-const (
-	ImportedFile ItemDataLinkMode = "imported_file"
-	ImportedUrl  ItemDataLinkMode = "imported_url"
-	LinkedFile   ItemDataLinkMode = "linked_file"
-	LinkedUrl    ItemDataLinkMode = "linked_url"
-)
-
-// Valid indicates whether the value is a known member of the ItemDataLinkMode enum.
-func (e ItemDataLinkMode) Valid() bool {
-	switch e {
-	case ImportedFile:
-		return true
-	case ImportedUrl:
-		return true
-	case LinkedFile:
-		return true
-	case LinkedUrl:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for LibraryRefType.
 const (
 	LibraryRefTypeGroup LibraryRefType = "group"
@@ -196,6 +172,30 @@ func (e LibraryRefType) Valid() bool {
 	case LibraryRefTypeGroup:
 		return true
 	case LibraryRefTypeUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinkMode.
+const (
+	ImportedFile LinkMode = "imported_file"
+	ImportedUrl  LinkMode = "imported_url"
+	LinkedFile   LinkMode = "linked_file"
+	LinkedUrl    LinkMode = "linked_url"
+)
+
+// Valid indicates whether the value is a known member of the LinkMode enum.
+func (e LinkMode) Valid() bool {
+	switch e {
+	case ImportedFile:
+		return true
+	case ImportedUrl:
+		return true
+	case LinkedFile:
+		return true
+	case LinkedUrl:
 		return true
 	default:
 		return false
@@ -240,13 +240,13 @@ func (e TagWithMetaMetaType) Valid() bool {
 
 // Defines values for UploadExistsExists.
 const (
-	N1 UploadExistsExists = 1
+	UploadExistsExistsN1 UploadExistsExists = 1
 )
 
 // Valid indicates whether the value is a known member of the UploadExistsExists enum.
 func (e UploadExistsExists) Valid() bool {
 	switch e {
-	case N1:
+	case UploadExistsExistsN1:
 		return true
 	default:
 		return false
@@ -273,6 +273,8 @@ func (e Direction) Valid() bool {
 
 // Defines values for Format.
 const (
+	FormatAtom             Format = "atom"
+	FormatBib              Format = "bib"
 	FormatBiblatex         Format = "biblatex"
 	FormatBibtex           Format = "bibtex"
 	FormatBookmarks        Format = "bookmarks"
@@ -295,6 +297,10 @@ const (
 // Valid indicates whether the value is a known member of the Format enum.
 func (e Format) Valid() bool {
 	switch e {
+	case FormatAtom:
+		return true
+	case FormatBib:
+		return true
 	case FormatBiblatex:
 		return true
 	case FormatBibtex:
@@ -334,16 +340,58 @@ func (e Format) Valid() bool {
 	}
 }
 
+// Defines values for IncludeTrashed.
+const (
+	IncludeTrashedN0 IncludeTrashed = 0
+	IncludeTrashedN1 IncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the IncludeTrashed enum.
+func (e IncludeTrashed) Valid() bool {
+	switch e {
+	case IncludeTrashedN0:
+		return true
+	case IncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Linkwrap.
+const (
+	LinkwrapN0 Linkwrap = 0
+	LinkwrapN1 Linkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the Linkwrap enum.
+func (e Linkwrap) Valid() bool {
+	switch e {
+	case LinkwrapN0:
+		return true
+	case LinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Qmode.
 const (
+	QmodeContains         Qmode = "contains"
 	QmodeEverything       Qmode = "everything"
+	QmodeStartsWith       Qmode = "startsWith"
 	QmodeTitleCreatorYear Qmode = "titleCreatorYear"
 )
 
 // Valid indicates whether the value is a known member of the Qmode enum.
 func (e Qmode) Valid() bool {
 	switch e {
+	case QmodeContains:
+		return true
 	case QmodeEverything:
+		return true
+	case QmodeStartsWith:
 		return true
 	case QmodeTitleCreatorYear:
 		return true
@@ -352,18 +400,687 @@ func (e Qmode) Valid() bool {
 	}
 }
 
+// Defines values for Sort.
+const (
+	SortAccessDate          Sort = "accessDate"
+	SortAddedBy             Sort = "addedBy"
+	SortCallNumber          Sort = "callNumber"
+	SortCreator             Sort = "creator"
+	SortDate                Sort = "date"
+	SortDateAdded           Sort = "dateAdded"
+	SortDateModified        Sort = "dateModified"
+	SortItemType            Sort = "itemType"
+	SortJournalAbbreviation Sort = "journalAbbreviation"
+	SortLanguage            Sort = "language"
+	SortLibraryCatalog      Sort = "libraryCatalog"
+	SortNumItems            Sort = "numItems"
+	SortPublicationTitle    Sort = "publicationTitle"
+	SortPublisher           Sort = "publisher"
+	SortRights              Sort = "rights"
+	SortTitle               Sort = "title"
+)
+
+// Valid indicates whether the value is a known member of the Sort enum.
+func (e Sort) Valid() bool {
+	switch e {
+	case SortAccessDate:
+		return true
+	case SortAddedBy:
+		return true
+	case SortCallNumber:
+		return true
+	case SortCreator:
+		return true
+	case SortDate:
+		return true
+	case SortDateAdded:
+		return true
+	case SortDateModified:
+		return true
+	case SortItemType:
+		return true
+	case SortJournalAbbreviation:
+		return true
+	case SortLanguage:
+		return true
+	case SortLibraryCatalog:
+		return true
+	case SortNumItems:
+		return true
+	case SortPublicationTitle:
+		return true
+	case SortPublisher:
+		return true
+	case SortRights:
+		return true
+	case SortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ZoteroApiVersion.
+const (
+	ZoteroApiVersionN3 ZoteroApiVersion = 3
+)
+
+// Valid indicates whether the value is a known member of the ZoteroApiVersion enum.
+func (e ZoteroApiVersion) Valid() bool {
+	switch e {
+	case ZoteroApiVersionN3:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionsGroupParamsSort.
+const (
+	ListCollectionsGroupParamsSortAccessDate          ListCollectionsGroupParamsSort = "accessDate"
+	ListCollectionsGroupParamsSortAddedBy             ListCollectionsGroupParamsSort = "addedBy"
+	ListCollectionsGroupParamsSortCallNumber          ListCollectionsGroupParamsSort = "callNumber"
+	ListCollectionsGroupParamsSortCreator             ListCollectionsGroupParamsSort = "creator"
+	ListCollectionsGroupParamsSortDate                ListCollectionsGroupParamsSort = "date"
+	ListCollectionsGroupParamsSortDateAdded           ListCollectionsGroupParamsSort = "dateAdded"
+	ListCollectionsGroupParamsSortDateModified        ListCollectionsGroupParamsSort = "dateModified"
+	ListCollectionsGroupParamsSortItemType            ListCollectionsGroupParamsSort = "itemType"
+	ListCollectionsGroupParamsSortJournalAbbreviation ListCollectionsGroupParamsSort = "journalAbbreviation"
+	ListCollectionsGroupParamsSortLanguage            ListCollectionsGroupParamsSort = "language"
+	ListCollectionsGroupParamsSortLibraryCatalog      ListCollectionsGroupParamsSort = "libraryCatalog"
+	ListCollectionsGroupParamsSortNumItems            ListCollectionsGroupParamsSort = "numItems"
+	ListCollectionsGroupParamsSortPublicationTitle    ListCollectionsGroupParamsSort = "publicationTitle"
+	ListCollectionsGroupParamsSortPublisher           ListCollectionsGroupParamsSort = "publisher"
+	ListCollectionsGroupParamsSortRights              ListCollectionsGroupParamsSort = "rights"
+	ListCollectionsGroupParamsSortTitle               ListCollectionsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionsGroupParamsSort enum.
+func (e ListCollectionsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionsGroupParamsSortAccessDate:
+		return true
+	case ListCollectionsGroupParamsSortAddedBy:
+		return true
+	case ListCollectionsGroupParamsSortCallNumber:
+		return true
+	case ListCollectionsGroupParamsSortCreator:
+		return true
+	case ListCollectionsGroupParamsSortDate:
+		return true
+	case ListCollectionsGroupParamsSortDateAdded:
+		return true
+	case ListCollectionsGroupParamsSortDateModified:
+		return true
+	case ListCollectionsGroupParamsSortItemType:
+		return true
+	case ListCollectionsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionsGroupParamsSortLanguage:
+		return true
+	case ListCollectionsGroupParamsSortLibraryCatalog:
+		return true
+	case ListCollectionsGroupParamsSortNumItems:
+		return true
+	case ListCollectionsGroupParamsSortPublicationTitle:
+		return true
+	case ListCollectionsGroupParamsSortPublisher:
+		return true
+	case ListCollectionsGroupParamsSortRights:
+		return true
+	case ListCollectionsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionsGroupParamsDirection.
+const (
+	ListCollectionsGroupParamsDirectionAsc  ListCollectionsGroupParamsDirection = "asc"
+	ListCollectionsGroupParamsDirectionDesc ListCollectionsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionsGroupParamsDirection enum.
+func (e ListCollectionsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionsGroupParamsDirectionAsc:
+		return true
+	case ListCollectionsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionsGroupParamsFormat.
+const (
+	ListCollectionsGroupParamsFormatAtom             ListCollectionsGroupParamsFormat = "atom"
+	ListCollectionsGroupParamsFormatBib              ListCollectionsGroupParamsFormat = "bib"
+	ListCollectionsGroupParamsFormatBiblatex         ListCollectionsGroupParamsFormat = "biblatex"
+	ListCollectionsGroupParamsFormatBibtex           ListCollectionsGroupParamsFormat = "bibtex"
+	ListCollectionsGroupParamsFormatBookmarks        ListCollectionsGroupParamsFormat = "bookmarks"
+	ListCollectionsGroupParamsFormatCoins            ListCollectionsGroupParamsFormat = "coins"
+	ListCollectionsGroupParamsFormatCsljson          ListCollectionsGroupParamsFormat = "csljson"
+	ListCollectionsGroupParamsFormatCsv              ListCollectionsGroupParamsFormat = "csv"
+	ListCollectionsGroupParamsFormatJson             ListCollectionsGroupParamsFormat = "json"
+	ListCollectionsGroupParamsFormatKeys             ListCollectionsGroupParamsFormat = "keys"
+	ListCollectionsGroupParamsFormatMods             ListCollectionsGroupParamsFormat = "mods"
+	ListCollectionsGroupParamsFormatRdfBibliontology ListCollectionsGroupParamsFormat = "rdf_bibliontology"
+	ListCollectionsGroupParamsFormatRdfDc            ListCollectionsGroupParamsFormat = "rdf_dc"
+	ListCollectionsGroupParamsFormatRdfZotero        ListCollectionsGroupParamsFormat = "rdf_zotero"
+	ListCollectionsGroupParamsFormatRefer            ListCollectionsGroupParamsFormat = "refer"
+	ListCollectionsGroupParamsFormatRis              ListCollectionsGroupParamsFormat = "ris"
+	ListCollectionsGroupParamsFormatTei              ListCollectionsGroupParamsFormat = "tei"
+	ListCollectionsGroupParamsFormatVersions         ListCollectionsGroupParamsFormat = "versions"
+	ListCollectionsGroupParamsFormatWikipedia        ListCollectionsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionsGroupParamsFormat enum.
+func (e ListCollectionsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionsGroupParamsFormatAtom:
+		return true
+	case ListCollectionsGroupParamsFormatBib:
+		return true
+	case ListCollectionsGroupParamsFormatBiblatex:
+		return true
+	case ListCollectionsGroupParamsFormatBibtex:
+		return true
+	case ListCollectionsGroupParamsFormatBookmarks:
+		return true
+	case ListCollectionsGroupParamsFormatCoins:
+		return true
+	case ListCollectionsGroupParamsFormatCsljson:
+		return true
+	case ListCollectionsGroupParamsFormatCsv:
+		return true
+	case ListCollectionsGroupParamsFormatJson:
+		return true
+	case ListCollectionsGroupParamsFormatKeys:
+		return true
+	case ListCollectionsGroupParamsFormatMods:
+		return true
+	case ListCollectionsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionsGroupParamsFormatRdfDc:
+		return true
+	case ListCollectionsGroupParamsFormatRdfZotero:
+		return true
+	case ListCollectionsGroupParamsFormatRefer:
+		return true
+	case ListCollectionsGroupParamsFormatRis:
+		return true
+	case ListCollectionsGroupParamsFormatTei:
+		return true
+	case ListCollectionsGroupParamsFormatVersions:
+		return true
+	case ListCollectionsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopCollectionsGroupParamsSort.
+const (
+	ListTopCollectionsGroupParamsSortAccessDate          ListTopCollectionsGroupParamsSort = "accessDate"
+	ListTopCollectionsGroupParamsSortAddedBy             ListTopCollectionsGroupParamsSort = "addedBy"
+	ListTopCollectionsGroupParamsSortCallNumber          ListTopCollectionsGroupParamsSort = "callNumber"
+	ListTopCollectionsGroupParamsSortCreator             ListTopCollectionsGroupParamsSort = "creator"
+	ListTopCollectionsGroupParamsSortDate                ListTopCollectionsGroupParamsSort = "date"
+	ListTopCollectionsGroupParamsSortDateAdded           ListTopCollectionsGroupParamsSort = "dateAdded"
+	ListTopCollectionsGroupParamsSortDateModified        ListTopCollectionsGroupParamsSort = "dateModified"
+	ListTopCollectionsGroupParamsSortItemType            ListTopCollectionsGroupParamsSort = "itemType"
+	ListTopCollectionsGroupParamsSortJournalAbbreviation ListTopCollectionsGroupParamsSort = "journalAbbreviation"
+	ListTopCollectionsGroupParamsSortLanguage            ListTopCollectionsGroupParamsSort = "language"
+	ListTopCollectionsGroupParamsSortLibraryCatalog      ListTopCollectionsGroupParamsSort = "libraryCatalog"
+	ListTopCollectionsGroupParamsSortNumItems            ListTopCollectionsGroupParamsSort = "numItems"
+	ListTopCollectionsGroupParamsSortPublicationTitle    ListTopCollectionsGroupParamsSort = "publicationTitle"
+	ListTopCollectionsGroupParamsSortPublisher           ListTopCollectionsGroupParamsSort = "publisher"
+	ListTopCollectionsGroupParamsSortRights              ListTopCollectionsGroupParamsSort = "rights"
+	ListTopCollectionsGroupParamsSortTitle               ListTopCollectionsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTopCollectionsGroupParamsSort enum.
+func (e ListTopCollectionsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListTopCollectionsGroupParamsSortAccessDate:
+		return true
+	case ListTopCollectionsGroupParamsSortAddedBy:
+		return true
+	case ListTopCollectionsGroupParamsSortCallNumber:
+		return true
+	case ListTopCollectionsGroupParamsSortCreator:
+		return true
+	case ListTopCollectionsGroupParamsSortDate:
+		return true
+	case ListTopCollectionsGroupParamsSortDateAdded:
+		return true
+	case ListTopCollectionsGroupParamsSortDateModified:
+		return true
+	case ListTopCollectionsGroupParamsSortItemType:
+		return true
+	case ListTopCollectionsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListTopCollectionsGroupParamsSortLanguage:
+		return true
+	case ListTopCollectionsGroupParamsSortLibraryCatalog:
+		return true
+	case ListTopCollectionsGroupParamsSortNumItems:
+		return true
+	case ListTopCollectionsGroupParamsSortPublicationTitle:
+		return true
+	case ListTopCollectionsGroupParamsSortPublisher:
+		return true
+	case ListTopCollectionsGroupParamsSortRights:
+		return true
+	case ListTopCollectionsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopCollectionsGroupParamsDirection.
+const (
+	ListTopCollectionsGroupParamsDirectionAsc  ListTopCollectionsGroupParamsDirection = "asc"
+	ListTopCollectionsGroupParamsDirectionDesc ListTopCollectionsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTopCollectionsGroupParamsDirection enum.
+func (e ListTopCollectionsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListTopCollectionsGroupParamsDirectionAsc:
+		return true
+	case ListTopCollectionsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopCollectionsGroupParamsFormat.
+const (
+	ListTopCollectionsGroupParamsFormatAtom             ListTopCollectionsGroupParamsFormat = "atom"
+	ListTopCollectionsGroupParamsFormatBib              ListTopCollectionsGroupParamsFormat = "bib"
+	ListTopCollectionsGroupParamsFormatBiblatex         ListTopCollectionsGroupParamsFormat = "biblatex"
+	ListTopCollectionsGroupParamsFormatBibtex           ListTopCollectionsGroupParamsFormat = "bibtex"
+	ListTopCollectionsGroupParamsFormatBookmarks        ListTopCollectionsGroupParamsFormat = "bookmarks"
+	ListTopCollectionsGroupParamsFormatCoins            ListTopCollectionsGroupParamsFormat = "coins"
+	ListTopCollectionsGroupParamsFormatCsljson          ListTopCollectionsGroupParamsFormat = "csljson"
+	ListTopCollectionsGroupParamsFormatCsv              ListTopCollectionsGroupParamsFormat = "csv"
+	ListTopCollectionsGroupParamsFormatJson             ListTopCollectionsGroupParamsFormat = "json"
+	ListTopCollectionsGroupParamsFormatKeys             ListTopCollectionsGroupParamsFormat = "keys"
+	ListTopCollectionsGroupParamsFormatMods             ListTopCollectionsGroupParamsFormat = "mods"
+	ListTopCollectionsGroupParamsFormatRdfBibliontology ListTopCollectionsGroupParamsFormat = "rdf_bibliontology"
+	ListTopCollectionsGroupParamsFormatRdfDc            ListTopCollectionsGroupParamsFormat = "rdf_dc"
+	ListTopCollectionsGroupParamsFormatRdfZotero        ListTopCollectionsGroupParamsFormat = "rdf_zotero"
+	ListTopCollectionsGroupParamsFormatRefer            ListTopCollectionsGroupParamsFormat = "refer"
+	ListTopCollectionsGroupParamsFormatRis              ListTopCollectionsGroupParamsFormat = "ris"
+	ListTopCollectionsGroupParamsFormatTei              ListTopCollectionsGroupParamsFormat = "tei"
+	ListTopCollectionsGroupParamsFormatVersions         ListTopCollectionsGroupParamsFormat = "versions"
+	ListTopCollectionsGroupParamsFormatWikipedia        ListTopCollectionsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTopCollectionsGroupParamsFormat enum.
+func (e ListTopCollectionsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListTopCollectionsGroupParamsFormatAtom:
+		return true
+	case ListTopCollectionsGroupParamsFormatBib:
+		return true
+	case ListTopCollectionsGroupParamsFormatBiblatex:
+		return true
+	case ListTopCollectionsGroupParamsFormatBibtex:
+		return true
+	case ListTopCollectionsGroupParamsFormatBookmarks:
+		return true
+	case ListTopCollectionsGroupParamsFormatCoins:
+		return true
+	case ListTopCollectionsGroupParamsFormatCsljson:
+		return true
+	case ListTopCollectionsGroupParamsFormatCsv:
+		return true
+	case ListTopCollectionsGroupParamsFormatJson:
+		return true
+	case ListTopCollectionsGroupParamsFormatKeys:
+		return true
+	case ListTopCollectionsGroupParamsFormatMods:
+		return true
+	case ListTopCollectionsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListTopCollectionsGroupParamsFormatRdfDc:
+		return true
+	case ListTopCollectionsGroupParamsFormatRdfZotero:
+		return true
+	case ListTopCollectionsGroupParamsFormatRefer:
+		return true
+	case ListTopCollectionsGroupParamsFormatRis:
+		return true
+	case ListTopCollectionsGroupParamsFormatTei:
+		return true
+	case ListTopCollectionsGroupParamsFormatVersions:
+		return true
+	case ListTopCollectionsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionGroupParamsFormat.
+const (
+	GetCollectionGroupParamsFormatAtom             GetCollectionGroupParamsFormat = "atom"
+	GetCollectionGroupParamsFormatBib              GetCollectionGroupParamsFormat = "bib"
+	GetCollectionGroupParamsFormatBiblatex         GetCollectionGroupParamsFormat = "biblatex"
+	GetCollectionGroupParamsFormatBibtex           GetCollectionGroupParamsFormat = "bibtex"
+	GetCollectionGroupParamsFormatBookmarks        GetCollectionGroupParamsFormat = "bookmarks"
+	GetCollectionGroupParamsFormatCoins            GetCollectionGroupParamsFormat = "coins"
+	GetCollectionGroupParamsFormatCsljson          GetCollectionGroupParamsFormat = "csljson"
+	GetCollectionGroupParamsFormatCsv              GetCollectionGroupParamsFormat = "csv"
+	GetCollectionGroupParamsFormatJson             GetCollectionGroupParamsFormat = "json"
+	GetCollectionGroupParamsFormatKeys             GetCollectionGroupParamsFormat = "keys"
+	GetCollectionGroupParamsFormatMods             GetCollectionGroupParamsFormat = "mods"
+	GetCollectionGroupParamsFormatRdfBibliontology GetCollectionGroupParamsFormat = "rdf_bibliontology"
+	GetCollectionGroupParamsFormatRdfDc            GetCollectionGroupParamsFormat = "rdf_dc"
+	GetCollectionGroupParamsFormatRdfZotero        GetCollectionGroupParamsFormat = "rdf_zotero"
+	GetCollectionGroupParamsFormatRefer            GetCollectionGroupParamsFormat = "refer"
+	GetCollectionGroupParamsFormatRis              GetCollectionGroupParamsFormat = "ris"
+	GetCollectionGroupParamsFormatTei              GetCollectionGroupParamsFormat = "tei"
+	GetCollectionGroupParamsFormatVersions         GetCollectionGroupParamsFormat = "versions"
+	GetCollectionGroupParamsFormatWikipedia        GetCollectionGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionGroupParamsFormat enum.
+func (e GetCollectionGroupParamsFormat) Valid() bool {
+	switch e {
+	case GetCollectionGroupParamsFormatAtom:
+		return true
+	case GetCollectionGroupParamsFormatBib:
+		return true
+	case GetCollectionGroupParamsFormatBiblatex:
+		return true
+	case GetCollectionGroupParamsFormatBibtex:
+		return true
+	case GetCollectionGroupParamsFormatBookmarks:
+		return true
+	case GetCollectionGroupParamsFormatCoins:
+		return true
+	case GetCollectionGroupParamsFormatCsljson:
+		return true
+	case GetCollectionGroupParamsFormatCsv:
+		return true
+	case GetCollectionGroupParamsFormatJson:
+		return true
+	case GetCollectionGroupParamsFormatKeys:
+		return true
+	case GetCollectionGroupParamsFormatMods:
+		return true
+	case GetCollectionGroupParamsFormatRdfBibliontology:
+		return true
+	case GetCollectionGroupParamsFormatRdfDc:
+		return true
+	case GetCollectionGroupParamsFormatRdfZotero:
+		return true
+	case GetCollectionGroupParamsFormatRefer:
+		return true
+	case GetCollectionGroupParamsFormatRis:
+		return true
+	case GetCollectionGroupParamsFormatTei:
+		return true
+	case GetCollectionGroupParamsFormatVersions:
+		return true
+	case GetCollectionGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSubCollectionsGroupParamsSort.
+const (
+	ListSubCollectionsGroupParamsSortAccessDate          ListSubCollectionsGroupParamsSort = "accessDate"
+	ListSubCollectionsGroupParamsSortAddedBy             ListSubCollectionsGroupParamsSort = "addedBy"
+	ListSubCollectionsGroupParamsSortCallNumber          ListSubCollectionsGroupParamsSort = "callNumber"
+	ListSubCollectionsGroupParamsSortCreator             ListSubCollectionsGroupParamsSort = "creator"
+	ListSubCollectionsGroupParamsSortDate                ListSubCollectionsGroupParamsSort = "date"
+	ListSubCollectionsGroupParamsSortDateAdded           ListSubCollectionsGroupParamsSort = "dateAdded"
+	ListSubCollectionsGroupParamsSortDateModified        ListSubCollectionsGroupParamsSort = "dateModified"
+	ListSubCollectionsGroupParamsSortItemType            ListSubCollectionsGroupParamsSort = "itemType"
+	ListSubCollectionsGroupParamsSortJournalAbbreviation ListSubCollectionsGroupParamsSort = "journalAbbreviation"
+	ListSubCollectionsGroupParamsSortLanguage            ListSubCollectionsGroupParamsSort = "language"
+	ListSubCollectionsGroupParamsSortLibraryCatalog      ListSubCollectionsGroupParamsSort = "libraryCatalog"
+	ListSubCollectionsGroupParamsSortNumItems            ListSubCollectionsGroupParamsSort = "numItems"
+	ListSubCollectionsGroupParamsSortPublicationTitle    ListSubCollectionsGroupParamsSort = "publicationTitle"
+	ListSubCollectionsGroupParamsSortPublisher           ListSubCollectionsGroupParamsSort = "publisher"
+	ListSubCollectionsGroupParamsSortRights              ListSubCollectionsGroupParamsSort = "rights"
+	ListSubCollectionsGroupParamsSortTitle               ListSubCollectionsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListSubCollectionsGroupParamsSort enum.
+func (e ListSubCollectionsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListSubCollectionsGroupParamsSortAccessDate:
+		return true
+	case ListSubCollectionsGroupParamsSortAddedBy:
+		return true
+	case ListSubCollectionsGroupParamsSortCallNumber:
+		return true
+	case ListSubCollectionsGroupParamsSortCreator:
+		return true
+	case ListSubCollectionsGroupParamsSortDate:
+		return true
+	case ListSubCollectionsGroupParamsSortDateAdded:
+		return true
+	case ListSubCollectionsGroupParamsSortDateModified:
+		return true
+	case ListSubCollectionsGroupParamsSortItemType:
+		return true
+	case ListSubCollectionsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListSubCollectionsGroupParamsSortLanguage:
+		return true
+	case ListSubCollectionsGroupParamsSortLibraryCatalog:
+		return true
+	case ListSubCollectionsGroupParamsSortNumItems:
+		return true
+	case ListSubCollectionsGroupParamsSortPublicationTitle:
+		return true
+	case ListSubCollectionsGroupParamsSortPublisher:
+		return true
+	case ListSubCollectionsGroupParamsSortRights:
+		return true
+	case ListSubCollectionsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSubCollectionsGroupParamsDirection.
+const (
+	ListSubCollectionsGroupParamsDirectionAsc  ListSubCollectionsGroupParamsDirection = "asc"
+	ListSubCollectionsGroupParamsDirectionDesc ListSubCollectionsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListSubCollectionsGroupParamsDirection enum.
+func (e ListSubCollectionsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListSubCollectionsGroupParamsDirectionAsc:
+		return true
+	case ListSubCollectionsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSubCollectionsGroupParamsFormat.
+const (
+	ListSubCollectionsGroupParamsFormatAtom             ListSubCollectionsGroupParamsFormat = "atom"
+	ListSubCollectionsGroupParamsFormatBib              ListSubCollectionsGroupParamsFormat = "bib"
+	ListSubCollectionsGroupParamsFormatBiblatex         ListSubCollectionsGroupParamsFormat = "biblatex"
+	ListSubCollectionsGroupParamsFormatBibtex           ListSubCollectionsGroupParamsFormat = "bibtex"
+	ListSubCollectionsGroupParamsFormatBookmarks        ListSubCollectionsGroupParamsFormat = "bookmarks"
+	ListSubCollectionsGroupParamsFormatCoins            ListSubCollectionsGroupParamsFormat = "coins"
+	ListSubCollectionsGroupParamsFormatCsljson          ListSubCollectionsGroupParamsFormat = "csljson"
+	ListSubCollectionsGroupParamsFormatCsv              ListSubCollectionsGroupParamsFormat = "csv"
+	ListSubCollectionsGroupParamsFormatJson             ListSubCollectionsGroupParamsFormat = "json"
+	ListSubCollectionsGroupParamsFormatKeys             ListSubCollectionsGroupParamsFormat = "keys"
+	ListSubCollectionsGroupParamsFormatMods             ListSubCollectionsGroupParamsFormat = "mods"
+	ListSubCollectionsGroupParamsFormatRdfBibliontology ListSubCollectionsGroupParamsFormat = "rdf_bibliontology"
+	ListSubCollectionsGroupParamsFormatRdfDc            ListSubCollectionsGroupParamsFormat = "rdf_dc"
+	ListSubCollectionsGroupParamsFormatRdfZotero        ListSubCollectionsGroupParamsFormat = "rdf_zotero"
+	ListSubCollectionsGroupParamsFormatRefer            ListSubCollectionsGroupParamsFormat = "refer"
+	ListSubCollectionsGroupParamsFormatRis              ListSubCollectionsGroupParamsFormat = "ris"
+	ListSubCollectionsGroupParamsFormatTei              ListSubCollectionsGroupParamsFormat = "tei"
+	ListSubCollectionsGroupParamsFormatVersions         ListSubCollectionsGroupParamsFormat = "versions"
+	ListSubCollectionsGroupParamsFormatWikipedia        ListSubCollectionsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListSubCollectionsGroupParamsFormat enum.
+func (e ListSubCollectionsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListSubCollectionsGroupParamsFormatAtom:
+		return true
+	case ListSubCollectionsGroupParamsFormatBib:
+		return true
+	case ListSubCollectionsGroupParamsFormatBiblatex:
+		return true
+	case ListSubCollectionsGroupParamsFormatBibtex:
+		return true
+	case ListSubCollectionsGroupParamsFormatBookmarks:
+		return true
+	case ListSubCollectionsGroupParamsFormatCoins:
+		return true
+	case ListSubCollectionsGroupParamsFormatCsljson:
+		return true
+	case ListSubCollectionsGroupParamsFormatCsv:
+		return true
+	case ListSubCollectionsGroupParamsFormatJson:
+		return true
+	case ListSubCollectionsGroupParamsFormatKeys:
+		return true
+	case ListSubCollectionsGroupParamsFormatMods:
+		return true
+	case ListSubCollectionsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListSubCollectionsGroupParamsFormatRdfDc:
+		return true
+	case ListSubCollectionsGroupParamsFormatRdfZotero:
+		return true
+	case ListSubCollectionsGroupParamsFormatRefer:
+		return true
+	case ListSubCollectionsGroupParamsFormatRis:
+		return true
+	case ListSubCollectionsGroupParamsFormatTei:
+		return true
+	case ListSubCollectionsGroupParamsFormatVersions:
+		return true
+	case ListSubCollectionsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListCollectionItemsGroupParamsQmode.
 const (
+	ListCollectionItemsGroupParamsQmodeContains         ListCollectionItemsGroupParamsQmode = "contains"
 	ListCollectionItemsGroupParamsQmodeEverything       ListCollectionItemsGroupParamsQmode = "everything"
+	ListCollectionItemsGroupParamsQmodeStartsWith       ListCollectionItemsGroupParamsQmode = "startsWith"
 	ListCollectionItemsGroupParamsQmodeTitleCreatorYear ListCollectionItemsGroupParamsQmode = "titleCreatorYear"
 )
 
 // Valid indicates whether the value is a known member of the ListCollectionItemsGroupParamsQmode enum.
 func (e ListCollectionItemsGroupParamsQmode) Valid() bool {
 	switch e {
+	case ListCollectionItemsGroupParamsQmodeContains:
+		return true
 	case ListCollectionItemsGroupParamsQmodeEverything:
 		return true
+	case ListCollectionItemsGroupParamsQmodeStartsWith:
+		return true
 	case ListCollectionItemsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsGroupParamsIncludeTrashed.
+const (
+	ListCollectionItemsGroupParamsIncludeTrashedN0 ListCollectionItemsGroupParamsIncludeTrashed = 0
+	ListCollectionItemsGroupParamsIncludeTrashedN1 ListCollectionItemsGroupParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsGroupParamsIncludeTrashed enum.
+func (e ListCollectionItemsGroupParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListCollectionItemsGroupParamsIncludeTrashedN0:
+		return true
+	case ListCollectionItemsGroupParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsGroupParamsSort.
+const (
+	ListCollectionItemsGroupParamsSortAccessDate          ListCollectionItemsGroupParamsSort = "accessDate"
+	ListCollectionItemsGroupParamsSortAddedBy             ListCollectionItemsGroupParamsSort = "addedBy"
+	ListCollectionItemsGroupParamsSortCallNumber          ListCollectionItemsGroupParamsSort = "callNumber"
+	ListCollectionItemsGroupParamsSortCreator             ListCollectionItemsGroupParamsSort = "creator"
+	ListCollectionItemsGroupParamsSortDate                ListCollectionItemsGroupParamsSort = "date"
+	ListCollectionItemsGroupParamsSortDateAdded           ListCollectionItemsGroupParamsSort = "dateAdded"
+	ListCollectionItemsGroupParamsSortDateModified        ListCollectionItemsGroupParamsSort = "dateModified"
+	ListCollectionItemsGroupParamsSortItemType            ListCollectionItemsGroupParamsSort = "itemType"
+	ListCollectionItemsGroupParamsSortJournalAbbreviation ListCollectionItemsGroupParamsSort = "journalAbbreviation"
+	ListCollectionItemsGroupParamsSortLanguage            ListCollectionItemsGroupParamsSort = "language"
+	ListCollectionItemsGroupParamsSortLibraryCatalog      ListCollectionItemsGroupParamsSort = "libraryCatalog"
+	ListCollectionItemsGroupParamsSortNumItems            ListCollectionItemsGroupParamsSort = "numItems"
+	ListCollectionItemsGroupParamsSortPublicationTitle    ListCollectionItemsGroupParamsSort = "publicationTitle"
+	ListCollectionItemsGroupParamsSortPublisher           ListCollectionItemsGroupParamsSort = "publisher"
+	ListCollectionItemsGroupParamsSortRights              ListCollectionItemsGroupParamsSort = "rights"
+	ListCollectionItemsGroupParamsSortTitle               ListCollectionItemsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsGroupParamsSort enum.
+func (e ListCollectionItemsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionItemsGroupParamsSortAccessDate:
+		return true
+	case ListCollectionItemsGroupParamsSortAddedBy:
+		return true
+	case ListCollectionItemsGroupParamsSortCallNumber:
+		return true
+	case ListCollectionItemsGroupParamsSortCreator:
+		return true
+	case ListCollectionItemsGroupParamsSortDate:
+		return true
+	case ListCollectionItemsGroupParamsSortDateAdded:
+		return true
+	case ListCollectionItemsGroupParamsSortDateModified:
+		return true
+	case ListCollectionItemsGroupParamsSortItemType:
+		return true
+	case ListCollectionItemsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionItemsGroupParamsSortLanguage:
+		return true
+	case ListCollectionItemsGroupParamsSortLibraryCatalog:
+		return true
+	case ListCollectionItemsGroupParamsSortNumItems:
+		return true
+	case ListCollectionItemsGroupParamsSortPublicationTitle:
+		return true
+	case ListCollectionItemsGroupParamsSortPublisher:
+		return true
+	case ListCollectionItemsGroupParamsSortRights:
+		return true
+	case ListCollectionItemsGroupParamsSortTitle:
 		return true
 	default:
 		return false
@@ -390,6 +1107,8 @@ func (e ListCollectionItemsGroupParamsDirection) Valid() bool {
 
 // Defines values for ListCollectionItemsGroupParamsFormat.
 const (
+	ListCollectionItemsGroupParamsFormatAtom             ListCollectionItemsGroupParamsFormat = "atom"
+	ListCollectionItemsGroupParamsFormatBib              ListCollectionItemsGroupParamsFormat = "bib"
 	ListCollectionItemsGroupParamsFormatBiblatex         ListCollectionItemsGroupParamsFormat = "biblatex"
 	ListCollectionItemsGroupParamsFormatBibtex           ListCollectionItemsGroupParamsFormat = "bibtex"
 	ListCollectionItemsGroupParamsFormatBookmarks        ListCollectionItemsGroupParamsFormat = "bookmarks"
@@ -412,6 +1131,10 @@ const (
 // Valid indicates whether the value is a known member of the ListCollectionItemsGroupParamsFormat enum.
 func (e ListCollectionItemsGroupParamsFormat) Valid() bool {
 	switch e {
+	case ListCollectionItemsGroupParamsFormatAtom:
+		return true
+	case ListCollectionItemsGroupParamsFormatBib:
+		return true
 	case ListCollectionItemsGroupParamsFormatBiblatex:
 		return true
 	case ListCollectionItemsGroupParamsFormatBibtex:
@@ -451,18 +1174,876 @@ func (e ListCollectionItemsGroupParamsFormat) Valid() bool {
 	}
 }
 
+// Defines values for ListCollectionItemsGroupParamsLinkwrap.
+const (
+	ListCollectionItemsGroupParamsLinkwrapN0 ListCollectionItemsGroupParamsLinkwrap = 0
+	ListCollectionItemsGroupParamsLinkwrapN1 ListCollectionItemsGroupParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsGroupParamsLinkwrap enum.
+func (e ListCollectionItemsGroupParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListCollectionItemsGroupParamsLinkwrapN0:
+		return true
+	case ListCollectionItemsGroupParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsGroupParamsQmode.
+const (
+	ListCollectionItemsTagsGroupParamsQmodeContains         ListCollectionItemsTagsGroupParamsQmode = "contains"
+	ListCollectionItemsTagsGroupParamsQmodeEverything       ListCollectionItemsTagsGroupParamsQmode = "everything"
+	ListCollectionItemsTagsGroupParamsQmodeStartsWith       ListCollectionItemsTagsGroupParamsQmode = "startsWith"
+	ListCollectionItemsTagsGroupParamsQmodeTitleCreatorYear ListCollectionItemsTagsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsGroupParamsQmode enum.
+func (e ListCollectionItemsTagsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsGroupParamsQmodeContains:
+		return true
+	case ListCollectionItemsTagsGroupParamsQmodeEverything:
+		return true
+	case ListCollectionItemsTagsGroupParamsQmodeStartsWith:
+		return true
+	case ListCollectionItemsTagsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsGroupParamsIncludeTrashed.
+const (
+	ListCollectionItemsTagsGroupParamsIncludeTrashedN0 ListCollectionItemsTagsGroupParamsIncludeTrashed = 0
+	ListCollectionItemsTagsGroupParamsIncludeTrashedN1 ListCollectionItemsTagsGroupParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsGroupParamsIncludeTrashed enum.
+func (e ListCollectionItemsTagsGroupParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsGroupParamsIncludeTrashedN0:
+		return true
+	case ListCollectionItemsTagsGroupParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsGroupParamsSort.
+const (
+	ListCollectionItemsTagsGroupParamsSortAccessDate          ListCollectionItemsTagsGroupParamsSort = "accessDate"
+	ListCollectionItemsTagsGroupParamsSortAddedBy             ListCollectionItemsTagsGroupParamsSort = "addedBy"
+	ListCollectionItemsTagsGroupParamsSortCallNumber          ListCollectionItemsTagsGroupParamsSort = "callNumber"
+	ListCollectionItemsTagsGroupParamsSortCreator             ListCollectionItemsTagsGroupParamsSort = "creator"
+	ListCollectionItemsTagsGroupParamsSortDate                ListCollectionItemsTagsGroupParamsSort = "date"
+	ListCollectionItemsTagsGroupParamsSortDateAdded           ListCollectionItemsTagsGroupParamsSort = "dateAdded"
+	ListCollectionItemsTagsGroupParamsSortDateModified        ListCollectionItemsTagsGroupParamsSort = "dateModified"
+	ListCollectionItemsTagsGroupParamsSortItemType            ListCollectionItemsTagsGroupParamsSort = "itemType"
+	ListCollectionItemsTagsGroupParamsSortJournalAbbreviation ListCollectionItemsTagsGroupParamsSort = "journalAbbreviation"
+	ListCollectionItemsTagsGroupParamsSortLanguage            ListCollectionItemsTagsGroupParamsSort = "language"
+	ListCollectionItemsTagsGroupParamsSortLibraryCatalog      ListCollectionItemsTagsGroupParamsSort = "libraryCatalog"
+	ListCollectionItemsTagsGroupParamsSortNumItems            ListCollectionItemsTagsGroupParamsSort = "numItems"
+	ListCollectionItemsTagsGroupParamsSortPublicationTitle    ListCollectionItemsTagsGroupParamsSort = "publicationTitle"
+	ListCollectionItemsTagsGroupParamsSortPublisher           ListCollectionItemsTagsGroupParamsSort = "publisher"
+	ListCollectionItemsTagsGroupParamsSortRights              ListCollectionItemsTagsGroupParamsSort = "rights"
+	ListCollectionItemsTagsGroupParamsSortTitle               ListCollectionItemsTagsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsGroupParamsSort enum.
+func (e ListCollectionItemsTagsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsGroupParamsSortAccessDate:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortAddedBy:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortCallNumber:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortCreator:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortDate:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortDateAdded:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortDateModified:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortItemType:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortLanguage:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortLibraryCatalog:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortNumItems:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortPublicationTitle:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortPublisher:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortRights:
+		return true
+	case ListCollectionItemsTagsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsGroupParamsDirection.
+const (
+	ListCollectionItemsTagsGroupParamsDirectionAsc  ListCollectionItemsTagsGroupParamsDirection = "asc"
+	ListCollectionItemsTagsGroupParamsDirectionDesc ListCollectionItemsTagsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsGroupParamsDirection enum.
+func (e ListCollectionItemsTagsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsGroupParamsDirectionAsc:
+		return true
+	case ListCollectionItemsTagsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsGroupParamsFormat.
+const (
+	ListCollectionItemsTagsGroupParamsFormatAtom             ListCollectionItemsTagsGroupParamsFormat = "atom"
+	ListCollectionItemsTagsGroupParamsFormatBib              ListCollectionItemsTagsGroupParamsFormat = "bib"
+	ListCollectionItemsTagsGroupParamsFormatBiblatex         ListCollectionItemsTagsGroupParamsFormat = "biblatex"
+	ListCollectionItemsTagsGroupParamsFormatBibtex           ListCollectionItemsTagsGroupParamsFormat = "bibtex"
+	ListCollectionItemsTagsGroupParamsFormatBookmarks        ListCollectionItemsTagsGroupParamsFormat = "bookmarks"
+	ListCollectionItemsTagsGroupParamsFormatCoins            ListCollectionItemsTagsGroupParamsFormat = "coins"
+	ListCollectionItemsTagsGroupParamsFormatCsljson          ListCollectionItemsTagsGroupParamsFormat = "csljson"
+	ListCollectionItemsTagsGroupParamsFormatCsv              ListCollectionItemsTagsGroupParamsFormat = "csv"
+	ListCollectionItemsTagsGroupParamsFormatJson             ListCollectionItemsTagsGroupParamsFormat = "json"
+	ListCollectionItemsTagsGroupParamsFormatKeys             ListCollectionItemsTagsGroupParamsFormat = "keys"
+	ListCollectionItemsTagsGroupParamsFormatMods             ListCollectionItemsTagsGroupParamsFormat = "mods"
+	ListCollectionItemsTagsGroupParamsFormatRdfBibliontology ListCollectionItemsTagsGroupParamsFormat = "rdf_bibliontology"
+	ListCollectionItemsTagsGroupParamsFormatRdfDc            ListCollectionItemsTagsGroupParamsFormat = "rdf_dc"
+	ListCollectionItemsTagsGroupParamsFormatRdfZotero        ListCollectionItemsTagsGroupParamsFormat = "rdf_zotero"
+	ListCollectionItemsTagsGroupParamsFormatRefer            ListCollectionItemsTagsGroupParamsFormat = "refer"
+	ListCollectionItemsTagsGroupParamsFormatRis              ListCollectionItemsTagsGroupParamsFormat = "ris"
+	ListCollectionItemsTagsGroupParamsFormatTei              ListCollectionItemsTagsGroupParamsFormat = "tei"
+	ListCollectionItemsTagsGroupParamsFormatVersions         ListCollectionItemsTagsGroupParamsFormat = "versions"
+	ListCollectionItemsTagsGroupParamsFormatWikipedia        ListCollectionItemsTagsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsGroupParamsFormat enum.
+func (e ListCollectionItemsTagsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsGroupParamsFormatAtom:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatBib:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatBiblatex:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatBibtex:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatBookmarks:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatCoins:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatCsljson:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatCsv:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatJson:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatKeys:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatMods:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatRdfDc:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatRdfZotero:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatRefer:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatRis:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatTei:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatVersions:
+		return true
+	case ListCollectionItemsTagsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsGroupParamsQmode.
+const (
+	ListCollectionTopItemsGroupParamsQmodeContains         ListCollectionTopItemsGroupParamsQmode = "contains"
+	ListCollectionTopItemsGroupParamsQmodeEverything       ListCollectionTopItemsGroupParamsQmode = "everything"
+	ListCollectionTopItemsGroupParamsQmodeStartsWith       ListCollectionTopItemsGroupParamsQmode = "startsWith"
+	ListCollectionTopItemsGroupParamsQmodeTitleCreatorYear ListCollectionTopItemsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsGroupParamsQmode enum.
+func (e ListCollectionTopItemsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsGroupParamsQmodeContains:
+		return true
+	case ListCollectionTopItemsGroupParamsQmodeEverything:
+		return true
+	case ListCollectionTopItemsGroupParamsQmodeStartsWith:
+		return true
+	case ListCollectionTopItemsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsGroupParamsIncludeTrashed.
+const (
+	ListCollectionTopItemsGroupParamsIncludeTrashedN0 ListCollectionTopItemsGroupParamsIncludeTrashed = 0
+	ListCollectionTopItemsGroupParamsIncludeTrashedN1 ListCollectionTopItemsGroupParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsGroupParamsIncludeTrashed enum.
+func (e ListCollectionTopItemsGroupParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsGroupParamsIncludeTrashedN0:
+		return true
+	case ListCollectionTopItemsGroupParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsGroupParamsSort.
+const (
+	ListCollectionTopItemsGroupParamsSortAccessDate          ListCollectionTopItemsGroupParamsSort = "accessDate"
+	ListCollectionTopItemsGroupParamsSortAddedBy             ListCollectionTopItemsGroupParamsSort = "addedBy"
+	ListCollectionTopItemsGroupParamsSortCallNumber          ListCollectionTopItemsGroupParamsSort = "callNumber"
+	ListCollectionTopItemsGroupParamsSortCreator             ListCollectionTopItemsGroupParamsSort = "creator"
+	ListCollectionTopItemsGroupParamsSortDate                ListCollectionTopItemsGroupParamsSort = "date"
+	ListCollectionTopItemsGroupParamsSortDateAdded           ListCollectionTopItemsGroupParamsSort = "dateAdded"
+	ListCollectionTopItemsGroupParamsSortDateModified        ListCollectionTopItemsGroupParamsSort = "dateModified"
+	ListCollectionTopItemsGroupParamsSortItemType            ListCollectionTopItemsGroupParamsSort = "itemType"
+	ListCollectionTopItemsGroupParamsSortJournalAbbreviation ListCollectionTopItemsGroupParamsSort = "journalAbbreviation"
+	ListCollectionTopItemsGroupParamsSortLanguage            ListCollectionTopItemsGroupParamsSort = "language"
+	ListCollectionTopItemsGroupParamsSortLibraryCatalog      ListCollectionTopItemsGroupParamsSort = "libraryCatalog"
+	ListCollectionTopItemsGroupParamsSortNumItems            ListCollectionTopItemsGroupParamsSort = "numItems"
+	ListCollectionTopItemsGroupParamsSortPublicationTitle    ListCollectionTopItemsGroupParamsSort = "publicationTitle"
+	ListCollectionTopItemsGroupParamsSortPublisher           ListCollectionTopItemsGroupParamsSort = "publisher"
+	ListCollectionTopItemsGroupParamsSortRights              ListCollectionTopItemsGroupParamsSort = "rights"
+	ListCollectionTopItemsGroupParamsSortTitle               ListCollectionTopItemsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsGroupParamsSort enum.
+func (e ListCollectionTopItemsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsGroupParamsSortAccessDate:
+		return true
+	case ListCollectionTopItemsGroupParamsSortAddedBy:
+		return true
+	case ListCollectionTopItemsGroupParamsSortCallNumber:
+		return true
+	case ListCollectionTopItemsGroupParamsSortCreator:
+		return true
+	case ListCollectionTopItemsGroupParamsSortDate:
+		return true
+	case ListCollectionTopItemsGroupParamsSortDateAdded:
+		return true
+	case ListCollectionTopItemsGroupParamsSortDateModified:
+		return true
+	case ListCollectionTopItemsGroupParamsSortItemType:
+		return true
+	case ListCollectionTopItemsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionTopItemsGroupParamsSortLanguage:
+		return true
+	case ListCollectionTopItemsGroupParamsSortLibraryCatalog:
+		return true
+	case ListCollectionTopItemsGroupParamsSortNumItems:
+		return true
+	case ListCollectionTopItemsGroupParamsSortPublicationTitle:
+		return true
+	case ListCollectionTopItemsGroupParamsSortPublisher:
+		return true
+	case ListCollectionTopItemsGroupParamsSortRights:
+		return true
+	case ListCollectionTopItemsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsGroupParamsDirection.
+const (
+	ListCollectionTopItemsGroupParamsDirectionAsc  ListCollectionTopItemsGroupParamsDirection = "asc"
+	ListCollectionTopItemsGroupParamsDirectionDesc ListCollectionTopItemsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsGroupParamsDirection enum.
+func (e ListCollectionTopItemsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsGroupParamsDirectionAsc:
+		return true
+	case ListCollectionTopItemsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsGroupParamsFormat.
+const (
+	ListCollectionTopItemsGroupParamsFormatAtom             ListCollectionTopItemsGroupParamsFormat = "atom"
+	ListCollectionTopItemsGroupParamsFormatBib              ListCollectionTopItemsGroupParamsFormat = "bib"
+	ListCollectionTopItemsGroupParamsFormatBiblatex         ListCollectionTopItemsGroupParamsFormat = "biblatex"
+	ListCollectionTopItemsGroupParamsFormatBibtex           ListCollectionTopItemsGroupParamsFormat = "bibtex"
+	ListCollectionTopItemsGroupParamsFormatBookmarks        ListCollectionTopItemsGroupParamsFormat = "bookmarks"
+	ListCollectionTopItemsGroupParamsFormatCoins            ListCollectionTopItemsGroupParamsFormat = "coins"
+	ListCollectionTopItemsGroupParamsFormatCsljson          ListCollectionTopItemsGroupParamsFormat = "csljson"
+	ListCollectionTopItemsGroupParamsFormatCsv              ListCollectionTopItemsGroupParamsFormat = "csv"
+	ListCollectionTopItemsGroupParamsFormatJson             ListCollectionTopItemsGroupParamsFormat = "json"
+	ListCollectionTopItemsGroupParamsFormatKeys             ListCollectionTopItemsGroupParamsFormat = "keys"
+	ListCollectionTopItemsGroupParamsFormatMods             ListCollectionTopItemsGroupParamsFormat = "mods"
+	ListCollectionTopItemsGroupParamsFormatRdfBibliontology ListCollectionTopItemsGroupParamsFormat = "rdf_bibliontology"
+	ListCollectionTopItemsGroupParamsFormatRdfDc            ListCollectionTopItemsGroupParamsFormat = "rdf_dc"
+	ListCollectionTopItemsGroupParamsFormatRdfZotero        ListCollectionTopItemsGroupParamsFormat = "rdf_zotero"
+	ListCollectionTopItemsGroupParamsFormatRefer            ListCollectionTopItemsGroupParamsFormat = "refer"
+	ListCollectionTopItemsGroupParamsFormatRis              ListCollectionTopItemsGroupParamsFormat = "ris"
+	ListCollectionTopItemsGroupParamsFormatTei              ListCollectionTopItemsGroupParamsFormat = "tei"
+	ListCollectionTopItemsGroupParamsFormatVersions         ListCollectionTopItemsGroupParamsFormat = "versions"
+	ListCollectionTopItemsGroupParamsFormatWikipedia        ListCollectionTopItemsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsGroupParamsFormat enum.
+func (e ListCollectionTopItemsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsGroupParamsFormatAtom:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatBib:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatBiblatex:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatBibtex:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatBookmarks:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatCoins:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatCsljson:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatCsv:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatJson:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatKeys:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatMods:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatRdfDc:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatRdfZotero:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatRefer:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatRis:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatTei:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatVersions:
+		return true
+	case ListCollectionTopItemsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsGroupParamsLinkwrap.
+const (
+	ListCollectionTopItemsGroupParamsLinkwrapN0 ListCollectionTopItemsGroupParamsLinkwrap = 0
+	ListCollectionTopItemsGroupParamsLinkwrapN1 ListCollectionTopItemsGroupParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsGroupParamsLinkwrap enum.
+func (e ListCollectionTopItemsGroupParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsGroupParamsLinkwrapN0:
+		return true
+	case ListCollectionTopItemsGroupParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsGroupParamsQmode.
+const (
+	ListCollectionTopItemsTagsGroupParamsQmodeContains         ListCollectionTopItemsTagsGroupParamsQmode = "contains"
+	ListCollectionTopItemsTagsGroupParamsQmodeEverything       ListCollectionTopItemsTagsGroupParamsQmode = "everything"
+	ListCollectionTopItemsTagsGroupParamsQmodeStartsWith       ListCollectionTopItemsTagsGroupParamsQmode = "startsWith"
+	ListCollectionTopItemsTagsGroupParamsQmodeTitleCreatorYear ListCollectionTopItemsTagsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsGroupParamsQmode enum.
+func (e ListCollectionTopItemsTagsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsGroupParamsQmodeContains:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsQmodeEverything:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsQmodeStartsWith:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsGroupParamsIncludeTrashed.
+const (
+	ListCollectionTopItemsTagsGroupParamsIncludeTrashedN0 ListCollectionTopItemsTagsGroupParamsIncludeTrashed = 0
+	ListCollectionTopItemsTagsGroupParamsIncludeTrashedN1 ListCollectionTopItemsTagsGroupParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsGroupParamsIncludeTrashed enum.
+func (e ListCollectionTopItemsTagsGroupParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsGroupParamsIncludeTrashedN0:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsGroupParamsSort.
+const (
+	ListCollectionTopItemsTagsGroupParamsSortAccessDate          ListCollectionTopItemsTagsGroupParamsSort = "accessDate"
+	ListCollectionTopItemsTagsGroupParamsSortAddedBy             ListCollectionTopItemsTagsGroupParamsSort = "addedBy"
+	ListCollectionTopItemsTagsGroupParamsSortCallNumber          ListCollectionTopItemsTagsGroupParamsSort = "callNumber"
+	ListCollectionTopItemsTagsGroupParamsSortCreator             ListCollectionTopItemsTagsGroupParamsSort = "creator"
+	ListCollectionTopItemsTagsGroupParamsSortDate                ListCollectionTopItemsTagsGroupParamsSort = "date"
+	ListCollectionTopItemsTagsGroupParamsSortDateAdded           ListCollectionTopItemsTagsGroupParamsSort = "dateAdded"
+	ListCollectionTopItemsTagsGroupParamsSortDateModified        ListCollectionTopItemsTagsGroupParamsSort = "dateModified"
+	ListCollectionTopItemsTagsGroupParamsSortItemType            ListCollectionTopItemsTagsGroupParamsSort = "itemType"
+	ListCollectionTopItemsTagsGroupParamsSortJournalAbbreviation ListCollectionTopItemsTagsGroupParamsSort = "journalAbbreviation"
+	ListCollectionTopItemsTagsGroupParamsSortLanguage            ListCollectionTopItemsTagsGroupParamsSort = "language"
+	ListCollectionTopItemsTagsGroupParamsSortLibraryCatalog      ListCollectionTopItemsTagsGroupParamsSort = "libraryCatalog"
+	ListCollectionTopItemsTagsGroupParamsSortNumItems            ListCollectionTopItemsTagsGroupParamsSort = "numItems"
+	ListCollectionTopItemsTagsGroupParamsSortPublicationTitle    ListCollectionTopItemsTagsGroupParamsSort = "publicationTitle"
+	ListCollectionTopItemsTagsGroupParamsSortPublisher           ListCollectionTopItemsTagsGroupParamsSort = "publisher"
+	ListCollectionTopItemsTagsGroupParamsSortRights              ListCollectionTopItemsTagsGroupParamsSort = "rights"
+	ListCollectionTopItemsTagsGroupParamsSortTitle               ListCollectionTopItemsTagsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsGroupParamsSort enum.
+func (e ListCollectionTopItemsTagsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsGroupParamsSortAccessDate:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortAddedBy:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortCallNumber:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortCreator:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortDate:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortDateAdded:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortDateModified:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortItemType:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortLanguage:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortLibraryCatalog:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortNumItems:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortPublicationTitle:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortPublisher:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortRights:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsGroupParamsDirection.
+const (
+	ListCollectionTopItemsTagsGroupParamsDirectionAsc  ListCollectionTopItemsTagsGroupParamsDirection = "asc"
+	ListCollectionTopItemsTagsGroupParamsDirectionDesc ListCollectionTopItemsTagsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsGroupParamsDirection enum.
+func (e ListCollectionTopItemsTagsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsGroupParamsDirectionAsc:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsGroupParamsFormat.
+const (
+	ListCollectionTopItemsTagsGroupParamsFormatAtom             ListCollectionTopItemsTagsGroupParamsFormat = "atom"
+	ListCollectionTopItemsTagsGroupParamsFormatBib              ListCollectionTopItemsTagsGroupParamsFormat = "bib"
+	ListCollectionTopItemsTagsGroupParamsFormatBiblatex         ListCollectionTopItemsTagsGroupParamsFormat = "biblatex"
+	ListCollectionTopItemsTagsGroupParamsFormatBibtex           ListCollectionTopItemsTagsGroupParamsFormat = "bibtex"
+	ListCollectionTopItemsTagsGroupParamsFormatBookmarks        ListCollectionTopItemsTagsGroupParamsFormat = "bookmarks"
+	ListCollectionTopItemsTagsGroupParamsFormatCoins            ListCollectionTopItemsTagsGroupParamsFormat = "coins"
+	ListCollectionTopItemsTagsGroupParamsFormatCsljson          ListCollectionTopItemsTagsGroupParamsFormat = "csljson"
+	ListCollectionTopItemsTagsGroupParamsFormatCsv              ListCollectionTopItemsTagsGroupParamsFormat = "csv"
+	ListCollectionTopItemsTagsGroupParamsFormatJson             ListCollectionTopItemsTagsGroupParamsFormat = "json"
+	ListCollectionTopItemsTagsGroupParamsFormatKeys             ListCollectionTopItemsTagsGroupParamsFormat = "keys"
+	ListCollectionTopItemsTagsGroupParamsFormatMods             ListCollectionTopItemsTagsGroupParamsFormat = "mods"
+	ListCollectionTopItemsTagsGroupParamsFormatRdfBibliontology ListCollectionTopItemsTagsGroupParamsFormat = "rdf_bibliontology"
+	ListCollectionTopItemsTagsGroupParamsFormatRdfDc            ListCollectionTopItemsTagsGroupParamsFormat = "rdf_dc"
+	ListCollectionTopItemsTagsGroupParamsFormatRdfZotero        ListCollectionTopItemsTagsGroupParamsFormat = "rdf_zotero"
+	ListCollectionTopItemsTagsGroupParamsFormatRefer            ListCollectionTopItemsTagsGroupParamsFormat = "refer"
+	ListCollectionTopItemsTagsGroupParamsFormatRis              ListCollectionTopItemsTagsGroupParamsFormat = "ris"
+	ListCollectionTopItemsTagsGroupParamsFormatTei              ListCollectionTopItemsTagsGroupParamsFormat = "tei"
+	ListCollectionTopItemsTagsGroupParamsFormatVersions         ListCollectionTopItemsTagsGroupParamsFormat = "versions"
+	ListCollectionTopItemsTagsGroupParamsFormatWikipedia        ListCollectionTopItemsTagsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsGroupParamsFormat enum.
+func (e ListCollectionTopItemsTagsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsGroupParamsFormatAtom:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatBib:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatBiblatex:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatBibtex:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatBookmarks:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatCoins:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatCsljson:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatCsv:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatJson:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatKeys:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatMods:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatRdfDc:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatRdfZotero:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatRefer:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatRis:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatTei:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatVersions:
+		return true
+	case ListCollectionTopItemsTagsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionTagsGroupParamsQmode.
+const (
+	GetCollectionTagsGroupParamsQmodeContains         GetCollectionTagsGroupParamsQmode = "contains"
+	GetCollectionTagsGroupParamsQmodeEverything       GetCollectionTagsGroupParamsQmode = "everything"
+	GetCollectionTagsGroupParamsQmodeStartsWith       GetCollectionTagsGroupParamsQmode = "startsWith"
+	GetCollectionTagsGroupParamsQmodeTitleCreatorYear GetCollectionTagsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionTagsGroupParamsQmode enum.
+func (e GetCollectionTagsGroupParamsQmode) Valid() bool {
+	switch e {
+	case GetCollectionTagsGroupParamsQmodeContains:
+		return true
+	case GetCollectionTagsGroupParamsQmodeEverything:
+		return true
+	case GetCollectionTagsGroupParamsQmodeStartsWith:
+		return true
+	case GetCollectionTagsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionTagsGroupParamsSort.
+const (
+	GetCollectionTagsGroupParamsSortAccessDate          GetCollectionTagsGroupParamsSort = "accessDate"
+	GetCollectionTagsGroupParamsSortAddedBy             GetCollectionTagsGroupParamsSort = "addedBy"
+	GetCollectionTagsGroupParamsSortCallNumber          GetCollectionTagsGroupParamsSort = "callNumber"
+	GetCollectionTagsGroupParamsSortCreator             GetCollectionTagsGroupParamsSort = "creator"
+	GetCollectionTagsGroupParamsSortDate                GetCollectionTagsGroupParamsSort = "date"
+	GetCollectionTagsGroupParamsSortDateAdded           GetCollectionTagsGroupParamsSort = "dateAdded"
+	GetCollectionTagsGroupParamsSortDateModified        GetCollectionTagsGroupParamsSort = "dateModified"
+	GetCollectionTagsGroupParamsSortItemType            GetCollectionTagsGroupParamsSort = "itemType"
+	GetCollectionTagsGroupParamsSortJournalAbbreviation GetCollectionTagsGroupParamsSort = "journalAbbreviation"
+	GetCollectionTagsGroupParamsSortLanguage            GetCollectionTagsGroupParamsSort = "language"
+	GetCollectionTagsGroupParamsSortLibraryCatalog      GetCollectionTagsGroupParamsSort = "libraryCatalog"
+	GetCollectionTagsGroupParamsSortNumItems            GetCollectionTagsGroupParamsSort = "numItems"
+	GetCollectionTagsGroupParamsSortPublicationTitle    GetCollectionTagsGroupParamsSort = "publicationTitle"
+	GetCollectionTagsGroupParamsSortPublisher           GetCollectionTagsGroupParamsSort = "publisher"
+	GetCollectionTagsGroupParamsSortRights              GetCollectionTagsGroupParamsSort = "rights"
+	GetCollectionTagsGroupParamsSortTitle               GetCollectionTagsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionTagsGroupParamsSort enum.
+func (e GetCollectionTagsGroupParamsSort) Valid() bool {
+	switch e {
+	case GetCollectionTagsGroupParamsSortAccessDate:
+		return true
+	case GetCollectionTagsGroupParamsSortAddedBy:
+		return true
+	case GetCollectionTagsGroupParamsSortCallNumber:
+		return true
+	case GetCollectionTagsGroupParamsSortCreator:
+		return true
+	case GetCollectionTagsGroupParamsSortDate:
+		return true
+	case GetCollectionTagsGroupParamsSortDateAdded:
+		return true
+	case GetCollectionTagsGroupParamsSortDateModified:
+		return true
+	case GetCollectionTagsGroupParamsSortItemType:
+		return true
+	case GetCollectionTagsGroupParamsSortJournalAbbreviation:
+		return true
+	case GetCollectionTagsGroupParamsSortLanguage:
+		return true
+	case GetCollectionTagsGroupParamsSortLibraryCatalog:
+		return true
+	case GetCollectionTagsGroupParamsSortNumItems:
+		return true
+	case GetCollectionTagsGroupParamsSortPublicationTitle:
+		return true
+	case GetCollectionTagsGroupParamsSortPublisher:
+		return true
+	case GetCollectionTagsGroupParamsSortRights:
+		return true
+	case GetCollectionTagsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionTagsGroupParamsDirection.
+const (
+	GetCollectionTagsGroupParamsDirectionAsc  GetCollectionTagsGroupParamsDirection = "asc"
+	GetCollectionTagsGroupParamsDirectionDesc GetCollectionTagsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionTagsGroupParamsDirection enum.
+func (e GetCollectionTagsGroupParamsDirection) Valid() bool {
+	switch e {
+	case GetCollectionTagsGroupParamsDirectionAsc:
+		return true
+	case GetCollectionTagsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionTagsGroupParamsFormat.
+const (
+	GetCollectionTagsGroupParamsFormatAtom             GetCollectionTagsGroupParamsFormat = "atom"
+	GetCollectionTagsGroupParamsFormatBib              GetCollectionTagsGroupParamsFormat = "bib"
+	GetCollectionTagsGroupParamsFormatBiblatex         GetCollectionTagsGroupParamsFormat = "biblatex"
+	GetCollectionTagsGroupParamsFormatBibtex           GetCollectionTagsGroupParamsFormat = "bibtex"
+	GetCollectionTagsGroupParamsFormatBookmarks        GetCollectionTagsGroupParamsFormat = "bookmarks"
+	GetCollectionTagsGroupParamsFormatCoins            GetCollectionTagsGroupParamsFormat = "coins"
+	GetCollectionTagsGroupParamsFormatCsljson          GetCollectionTagsGroupParamsFormat = "csljson"
+	GetCollectionTagsGroupParamsFormatCsv              GetCollectionTagsGroupParamsFormat = "csv"
+	GetCollectionTagsGroupParamsFormatJson             GetCollectionTagsGroupParamsFormat = "json"
+	GetCollectionTagsGroupParamsFormatKeys             GetCollectionTagsGroupParamsFormat = "keys"
+	GetCollectionTagsGroupParamsFormatMods             GetCollectionTagsGroupParamsFormat = "mods"
+	GetCollectionTagsGroupParamsFormatRdfBibliontology GetCollectionTagsGroupParamsFormat = "rdf_bibliontology"
+	GetCollectionTagsGroupParamsFormatRdfDc            GetCollectionTagsGroupParamsFormat = "rdf_dc"
+	GetCollectionTagsGroupParamsFormatRdfZotero        GetCollectionTagsGroupParamsFormat = "rdf_zotero"
+	GetCollectionTagsGroupParamsFormatRefer            GetCollectionTagsGroupParamsFormat = "refer"
+	GetCollectionTagsGroupParamsFormatRis              GetCollectionTagsGroupParamsFormat = "ris"
+	GetCollectionTagsGroupParamsFormatTei              GetCollectionTagsGroupParamsFormat = "tei"
+	GetCollectionTagsGroupParamsFormatVersions         GetCollectionTagsGroupParamsFormat = "versions"
+	GetCollectionTagsGroupParamsFormatWikipedia        GetCollectionTagsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionTagsGroupParamsFormat enum.
+func (e GetCollectionTagsGroupParamsFormat) Valid() bool {
+	switch e {
+	case GetCollectionTagsGroupParamsFormatAtom:
+		return true
+	case GetCollectionTagsGroupParamsFormatBib:
+		return true
+	case GetCollectionTagsGroupParamsFormatBiblatex:
+		return true
+	case GetCollectionTagsGroupParamsFormatBibtex:
+		return true
+	case GetCollectionTagsGroupParamsFormatBookmarks:
+		return true
+	case GetCollectionTagsGroupParamsFormatCoins:
+		return true
+	case GetCollectionTagsGroupParamsFormatCsljson:
+		return true
+	case GetCollectionTagsGroupParamsFormatCsv:
+		return true
+	case GetCollectionTagsGroupParamsFormatJson:
+		return true
+	case GetCollectionTagsGroupParamsFormatKeys:
+		return true
+	case GetCollectionTagsGroupParamsFormatMods:
+		return true
+	case GetCollectionTagsGroupParamsFormatRdfBibliontology:
+		return true
+	case GetCollectionTagsGroupParamsFormatRdfDc:
+		return true
+	case GetCollectionTagsGroupParamsFormatRdfZotero:
+		return true
+	case GetCollectionTagsGroupParamsFormatRefer:
+		return true
+	case GetCollectionTagsGroupParamsFormatRis:
+		return true
+	case GetCollectionTagsGroupParamsFormatTei:
+		return true
+	case GetCollectionTagsGroupParamsFormatVersions:
+		return true
+	case GetCollectionTagsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListItemsGroupParamsQmode.
 const (
+	ListItemsGroupParamsQmodeContains         ListItemsGroupParamsQmode = "contains"
 	ListItemsGroupParamsQmodeEverything       ListItemsGroupParamsQmode = "everything"
+	ListItemsGroupParamsQmodeStartsWith       ListItemsGroupParamsQmode = "startsWith"
 	ListItemsGroupParamsQmodeTitleCreatorYear ListItemsGroupParamsQmode = "titleCreatorYear"
 )
 
 // Valid indicates whether the value is a known member of the ListItemsGroupParamsQmode enum.
 func (e ListItemsGroupParamsQmode) Valid() bool {
 	switch e {
+	case ListItemsGroupParamsQmodeContains:
+		return true
 	case ListItemsGroupParamsQmodeEverything:
 		return true
+	case ListItemsGroupParamsQmodeStartsWith:
+		return true
 	case ListItemsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListItemsGroupParamsIncludeTrashed.
+const (
+	ListItemsGroupParamsIncludeTrashedN0 ListItemsGroupParamsIncludeTrashed = 0
+	ListItemsGroupParamsIncludeTrashedN1 ListItemsGroupParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListItemsGroupParamsIncludeTrashed enum.
+func (e ListItemsGroupParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListItemsGroupParamsIncludeTrashedN0:
+		return true
+	case ListItemsGroupParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListItemsGroupParamsSort.
+const (
+	ListItemsGroupParamsSortAccessDate          ListItemsGroupParamsSort = "accessDate"
+	ListItemsGroupParamsSortAddedBy             ListItemsGroupParamsSort = "addedBy"
+	ListItemsGroupParamsSortCallNumber          ListItemsGroupParamsSort = "callNumber"
+	ListItemsGroupParamsSortCreator             ListItemsGroupParamsSort = "creator"
+	ListItemsGroupParamsSortDate                ListItemsGroupParamsSort = "date"
+	ListItemsGroupParamsSortDateAdded           ListItemsGroupParamsSort = "dateAdded"
+	ListItemsGroupParamsSortDateModified        ListItemsGroupParamsSort = "dateModified"
+	ListItemsGroupParamsSortItemType            ListItemsGroupParamsSort = "itemType"
+	ListItemsGroupParamsSortJournalAbbreviation ListItemsGroupParamsSort = "journalAbbreviation"
+	ListItemsGroupParamsSortLanguage            ListItemsGroupParamsSort = "language"
+	ListItemsGroupParamsSortLibraryCatalog      ListItemsGroupParamsSort = "libraryCatalog"
+	ListItemsGroupParamsSortNumItems            ListItemsGroupParamsSort = "numItems"
+	ListItemsGroupParamsSortPublicationTitle    ListItemsGroupParamsSort = "publicationTitle"
+	ListItemsGroupParamsSortPublisher           ListItemsGroupParamsSort = "publisher"
+	ListItemsGroupParamsSortRights              ListItemsGroupParamsSort = "rights"
+	ListItemsGroupParamsSortTitle               ListItemsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListItemsGroupParamsSort enum.
+func (e ListItemsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListItemsGroupParamsSortAccessDate:
+		return true
+	case ListItemsGroupParamsSortAddedBy:
+		return true
+	case ListItemsGroupParamsSortCallNumber:
+		return true
+	case ListItemsGroupParamsSortCreator:
+		return true
+	case ListItemsGroupParamsSortDate:
+		return true
+	case ListItemsGroupParamsSortDateAdded:
+		return true
+	case ListItemsGroupParamsSortDateModified:
+		return true
+	case ListItemsGroupParamsSortItemType:
+		return true
+	case ListItemsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListItemsGroupParamsSortLanguage:
+		return true
+	case ListItemsGroupParamsSortLibraryCatalog:
+		return true
+	case ListItemsGroupParamsSortNumItems:
+		return true
+	case ListItemsGroupParamsSortPublicationTitle:
+		return true
+	case ListItemsGroupParamsSortPublisher:
+		return true
+	case ListItemsGroupParamsSortRights:
+		return true
+	case ListItemsGroupParamsSortTitle:
 		return true
 	default:
 		return false
@@ -489,6 +2070,8 @@ func (e ListItemsGroupParamsDirection) Valid() bool {
 
 // Defines values for ListItemsGroupParamsFormat.
 const (
+	ListItemsGroupParamsFormatAtom             ListItemsGroupParamsFormat = "atom"
+	ListItemsGroupParamsFormatBib              ListItemsGroupParamsFormat = "bib"
 	ListItemsGroupParamsFormatBiblatex         ListItemsGroupParamsFormat = "biblatex"
 	ListItemsGroupParamsFormatBibtex           ListItemsGroupParamsFormat = "bibtex"
 	ListItemsGroupParamsFormatBookmarks        ListItemsGroupParamsFormat = "bookmarks"
@@ -511,6 +2094,10 @@ const (
 // Valid indicates whether the value is a known member of the ListItemsGroupParamsFormat enum.
 func (e ListItemsGroupParamsFormat) Valid() bool {
 	switch e {
+	case ListItemsGroupParamsFormatAtom:
+		return true
+	case ListItemsGroupParamsFormatBib:
+		return true
 	case ListItemsGroupParamsFormatBiblatex:
 		return true
 	case ListItemsGroupParamsFormatBibtex:
@@ -550,6 +2137,315 @@ func (e ListItemsGroupParamsFormat) Valid() bool {
 	}
 }
 
+// Defines values for ListItemsGroupParamsLinkwrap.
+const (
+	ListItemsGroupParamsLinkwrapN0 ListItemsGroupParamsLinkwrap = 0
+	ListItemsGroupParamsLinkwrapN1 ListItemsGroupParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListItemsGroupParamsLinkwrap enum.
+func (e ListItemsGroupParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListItemsGroupParamsLinkwrapN0:
+		return true
+	case ListItemsGroupParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsGroupParamsQmode.
+const (
+	ListAllItemsTagsGroupParamsQmodeContains         ListAllItemsTagsGroupParamsQmode = "contains"
+	ListAllItemsTagsGroupParamsQmodeEverything       ListAllItemsTagsGroupParamsQmode = "everything"
+	ListAllItemsTagsGroupParamsQmodeStartsWith       ListAllItemsTagsGroupParamsQmode = "startsWith"
+	ListAllItemsTagsGroupParamsQmodeTitleCreatorYear ListAllItemsTagsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsGroupParamsQmode enum.
+func (e ListAllItemsTagsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListAllItemsTagsGroupParamsQmodeContains:
+		return true
+	case ListAllItemsTagsGroupParamsQmodeEverything:
+		return true
+	case ListAllItemsTagsGroupParamsQmodeStartsWith:
+		return true
+	case ListAllItemsTagsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsGroupParamsIncludeTrashed.
+const (
+	ListAllItemsTagsGroupParamsIncludeTrashedN0 ListAllItemsTagsGroupParamsIncludeTrashed = 0
+	ListAllItemsTagsGroupParamsIncludeTrashedN1 ListAllItemsTagsGroupParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsGroupParamsIncludeTrashed enum.
+func (e ListAllItemsTagsGroupParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListAllItemsTagsGroupParamsIncludeTrashedN0:
+		return true
+	case ListAllItemsTagsGroupParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsGroupParamsSort.
+const (
+	ListAllItemsTagsGroupParamsSortAccessDate          ListAllItemsTagsGroupParamsSort = "accessDate"
+	ListAllItemsTagsGroupParamsSortAddedBy             ListAllItemsTagsGroupParamsSort = "addedBy"
+	ListAllItemsTagsGroupParamsSortCallNumber          ListAllItemsTagsGroupParamsSort = "callNumber"
+	ListAllItemsTagsGroupParamsSortCreator             ListAllItemsTagsGroupParamsSort = "creator"
+	ListAllItemsTagsGroupParamsSortDate                ListAllItemsTagsGroupParamsSort = "date"
+	ListAllItemsTagsGroupParamsSortDateAdded           ListAllItemsTagsGroupParamsSort = "dateAdded"
+	ListAllItemsTagsGroupParamsSortDateModified        ListAllItemsTagsGroupParamsSort = "dateModified"
+	ListAllItemsTagsGroupParamsSortItemType            ListAllItemsTagsGroupParamsSort = "itemType"
+	ListAllItemsTagsGroupParamsSortJournalAbbreviation ListAllItemsTagsGroupParamsSort = "journalAbbreviation"
+	ListAllItemsTagsGroupParamsSortLanguage            ListAllItemsTagsGroupParamsSort = "language"
+	ListAllItemsTagsGroupParamsSortLibraryCatalog      ListAllItemsTagsGroupParamsSort = "libraryCatalog"
+	ListAllItemsTagsGroupParamsSortNumItems            ListAllItemsTagsGroupParamsSort = "numItems"
+	ListAllItemsTagsGroupParamsSortPublicationTitle    ListAllItemsTagsGroupParamsSort = "publicationTitle"
+	ListAllItemsTagsGroupParamsSortPublisher           ListAllItemsTagsGroupParamsSort = "publisher"
+	ListAllItemsTagsGroupParamsSortRights              ListAllItemsTagsGroupParamsSort = "rights"
+	ListAllItemsTagsGroupParamsSortTitle               ListAllItemsTagsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsGroupParamsSort enum.
+func (e ListAllItemsTagsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListAllItemsTagsGroupParamsSortAccessDate:
+		return true
+	case ListAllItemsTagsGroupParamsSortAddedBy:
+		return true
+	case ListAllItemsTagsGroupParamsSortCallNumber:
+		return true
+	case ListAllItemsTagsGroupParamsSortCreator:
+		return true
+	case ListAllItemsTagsGroupParamsSortDate:
+		return true
+	case ListAllItemsTagsGroupParamsSortDateAdded:
+		return true
+	case ListAllItemsTagsGroupParamsSortDateModified:
+		return true
+	case ListAllItemsTagsGroupParamsSortItemType:
+		return true
+	case ListAllItemsTagsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListAllItemsTagsGroupParamsSortLanguage:
+		return true
+	case ListAllItemsTagsGroupParamsSortLibraryCatalog:
+		return true
+	case ListAllItemsTagsGroupParamsSortNumItems:
+		return true
+	case ListAllItemsTagsGroupParamsSortPublicationTitle:
+		return true
+	case ListAllItemsTagsGroupParamsSortPublisher:
+		return true
+	case ListAllItemsTagsGroupParamsSortRights:
+		return true
+	case ListAllItemsTagsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsGroupParamsDirection.
+const (
+	ListAllItemsTagsGroupParamsDirectionAsc  ListAllItemsTagsGroupParamsDirection = "asc"
+	ListAllItemsTagsGroupParamsDirectionDesc ListAllItemsTagsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsGroupParamsDirection enum.
+func (e ListAllItemsTagsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListAllItemsTagsGroupParamsDirectionAsc:
+		return true
+	case ListAllItemsTagsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsGroupParamsFormat.
+const (
+	ListAllItemsTagsGroupParamsFormatAtom             ListAllItemsTagsGroupParamsFormat = "atom"
+	ListAllItemsTagsGroupParamsFormatBib              ListAllItemsTagsGroupParamsFormat = "bib"
+	ListAllItemsTagsGroupParamsFormatBiblatex         ListAllItemsTagsGroupParamsFormat = "biblatex"
+	ListAllItemsTagsGroupParamsFormatBibtex           ListAllItemsTagsGroupParamsFormat = "bibtex"
+	ListAllItemsTagsGroupParamsFormatBookmarks        ListAllItemsTagsGroupParamsFormat = "bookmarks"
+	ListAllItemsTagsGroupParamsFormatCoins            ListAllItemsTagsGroupParamsFormat = "coins"
+	ListAllItemsTagsGroupParamsFormatCsljson          ListAllItemsTagsGroupParamsFormat = "csljson"
+	ListAllItemsTagsGroupParamsFormatCsv              ListAllItemsTagsGroupParamsFormat = "csv"
+	ListAllItemsTagsGroupParamsFormatJson             ListAllItemsTagsGroupParamsFormat = "json"
+	ListAllItemsTagsGroupParamsFormatKeys             ListAllItemsTagsGroupParamsFormat = "keys"
+	ListAllItemsTagsGroupParamsFormatMods             ListAllItemsTagsGroupParamsFormat = "mods"
+	ListAllItemsTagsGroupParamsFormatRdfBibliontology ListAllItemsTagsGroupParamsFormat = "rdf_bibliontology"
+	ListAllItemsTagsGroupParamsFormatRdfDc            ListAllItemsTagsGroupParamsFormat = "rdf_dc"
+	ListAllItemsTagsGroupParamsFormatRdfZotero        ListAllItemsTagsGroupParamsFormat = "rdf_zotero"
+	ListAllItemsTagsGroupParamsFormatRefer            ListAllItemsTagsGroupParamsFormat = "refer"
+	ListAllItemsTagsGroupParamsFormatRis              ListAllItemsTagsGroupParamsFormat = "ris"
+	ListAllItemsTagsGroupParamsFormatTei              ListAllItemsTagsGroupParamsFormat = "tei"
+	ListAllItemsTagsGroupParamsFormatVersions         ListAllItemsTagsGroupParamsFormat = "versions"
+	ListAllItemsTagsGroupParamsFormatWikipedia        ListAllItemsTagsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsGroupParamsFormat enum.
+func (e ListAllItemsTagsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListAllItemsTagsGroupParamsFormatAtom:
+		return true
+	case ListAllItemsTagsGroupParamsFormatBib:
+		return true
+	case ListAllItemsTagsGroupParamsFormatBiblatex:
+		return true
+	case ListAllItemsTagsGroupParamsFormatBibtex:
+		return true
+	case ListAllItemsTagsGroupParamsFormatBookmarks:
+		return true
+	case ListAllItemsTagsGroupParamsFormatCoins:
+		return true
+	case ListAllItemsTagsGroupParamsFormatCsljson:
+		return true
+	case ListAllItemsTagsGroupParamsFormatCsv:
+		return true
+	case ListAllItemsTagsGroupParamsFormatJson:
+		return true
+	case ListAllItemsTagsGroupParamsFormatKeys:
+		return true
+	case ListAllItemsTagsGroupParamsFormatMods:
+		return true
+	case ListAllItemsTagsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListAllItemsTagsGroupParamsFormatRdfDc:
+		return true
+	case ListAllItemsTagsGroupParamsFormatRdfZotero:
+		return true
+	case ListAllItemsTagsGroupParamsFormatRefer:
+		return true
+	case ListAllItemsTagsGroupParamsFormatRis:
+		return true
+	case ListAllItemsTagsGroupParamsFormatTei:
+		return true
+	case ListAllItemsTagsGroupParamsFormatVersions:
+		return true
+	case ListAllItemsTagsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsGroupParamsQmode.
+const (
+	ListTopItemsGroupParamsQmodeContains         ListTopItemsGroupParamsQmode = "contains"
+	ListTopItemsGroupParamsQmodeEverything       ListTopItemsGroupParamsQmode = "everything"
+	ListTopItemsGroupParamsQmodeStartsWith       ListTopItemsGroupParamsQmode = "startsWith"
+	ListTopItemsGroupParamsQmodeTitleCreatorYear ListTopItemsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsGroupParamsQmode enum.
+func (e ListTopItemsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListTopItemsGroupParamsQmodeContains:
+		return true
+	case ListTopItemsGroupParamsQmodeEverything:
+		return true
+	case ListTopItemsGroupParamsQmodeStartsWith:
+		return true
+	case ListTopItemsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsGroupParamsIncludeTrashed.
+const (
+	ListTopItemsGroupParamsIncludeTrashedN0 ListTopItemsGroupParamsIncludeTrashed = 0
+	ListTopItemsGroupParamsIncludeTrashedN1 ListTopItemsGroupParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsGroupParamsIncludeTrashed enum.
+func (e ListTopItemsGroupParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListTopItemsGroupParamsIncludeTrashedN0:
+		return true
+	case ListTopItemsGroupParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsGroupParamsSort.
+const (
+	ListTopItemsGroupParamsSortAccessDate          ListTopItemsGroupParamsSort = "accessDate"
+	ListTopItemsGroupParamsSortAddedBy             ListTopItemsGroupParamsSort = "addedBy"
+	ListTopItemsGroupParamsSortCallNumber          ListTopItemsGroupParamsSort = "callNumber"
+	ListTopItemsGroupParamsSortCreator             ListTopItemsGroupParamsSort = "creator"
+	ListTopItemsGroupParamsSortDate                ListTopItemsGroupParamsSort = "date"
+	ListTopItemsGroupParamsSortDateAdded           ListTopItemsGroupParamsSort = "dateAdded"
+	ListTopItemsGroupParamsSortDateModified        ListTopItemsGroupParamsSort = "dateModified"
+	ListTopItemsGroupParamsSortItemType            ListTopItemsGroupParamsSort = "itemType"
+	ListTopItemsGroupParamsSortJournalAbbreviation ListTopItemsGroupParamsSort = "journalAbbreviation"
+	ListTopItemsGroupParamsSortLanguage            ListTopItemsGroupParamsSort = "language"
+	ListTopItemsGroupParamsSortLibraryCatalog      ListTopItemsGroupParamsSort = "libraryCatalog"
+	ListTopItemsGroupParamsSortNumItems            ListTopItemsGroupParamsSort = "numItems"
+	ListTopItemsGroupParamsSortPublicationTitle    ListTopItemsGroupParamsSort = "publicationTitle"
+	ListTopItemsGroupParamsSortPublisher           ListTopItemsGroupParamsSort = "publisher"
+	ListTopItemsGroupParamsSortRights              ListTopItemsGroupParamsSort = "rights"
+	ListTopItemsGroupParamsSortTitle               ListTopItemsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsGroupParamsSort enum.
+func (e ListTopItemsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListTopItemsGroupParamsSortAccessDate:
+		return true
+	case ListTopItemsGroupParamsSortAddedBy:
+		return true
+	case ListTopItemsGroupParamsSortCallNumber:
+		return true
+	case ListTopItemsGroupParamsSortCreator:
+		return true
+	case ListTopItemsGroupParamsSortDate:
+		return true
+	case ListTopItemsGroupParamsSortDateAdded:
+		return true
+	case ListTopItemsGroupParamsSortDateModified:
+		return true
+	case ListTopItemsGroupParamsSortItemType:
+		return true
+	case ListTopItemsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListTopItemsGroupParamsSortLanguage:
+		return true
+	case ListTopItemsGroupParamsSortLibraryCatalog:
+		return true
+	case ListTopItemsGroupParamsSortNumItems:
+		return true
+	case ListTopItemsGroupParamsSortPublicationTitle:
+		return true
+	case ListTopItemsGroupParamsSortPublisher:
+		return true
+	case ListTopItemsGroupParamsSortRights:
+		return true
+	case ListTopItemsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListTopItemsGroupParamsDirection.
 const (
 	ListTopItemsGroupParamsDirectionAsc  ListTopItemsGroupParamsDirection = "asc"
@@ -570,6 +2466,8 @@ func (e ListTopItemsGroupParamsDirection) Valid() bool {
 
 // Defines values for ListTopItemsGroupParamsFormat.
 const (
+	ListTopItemsGroupParamsFormatAtom             ListTopItemsGroupParamsFormat = "atom"
+	ListTopItemsGroupParamsFormatBib              ListTopItemsGroupParamsFormat = "bib"
 	ListTopItemsGroupParamsFormatBiblatex         ListTopItemsGroupParamsFormat = "biblatex"
 	ListTopItemsGroupParamsFormatBibtex           ListTopItemsGroupParamsFormat = "bibtex"
 	ListTopItemsGroupParamsFormatBookmarks        ListTopItemsGroupParamsFormat = "bookmarks"
@@ -592,6 +2490,10 @@ const (
 // Valid indicates whether the value is a known member of the ListTopItemsGroupParamsFormat enum.
 func (e ListTopItemsGroupParamsFormat) Valid() bool {
 	switch e {
+	case ListTopItemsGroupParamsFormatAtom:
+		return true
+	case ListTopItemsGroupParamsFormatBib:
+		return true
 	case ListTopItemsGroupParamsFormatBiblatex:
 		return true
 	case ListTopItemsGroupParamsFormatBibtex:
@@ -631,8 +2533,559 @@ func (e ListTopItemsGroupParamsFormat) Valid() bool {
 	}
 }
 
+// Defines values for ListTopItemsGroupParamsLinkwrap.
+const (
+	ListTopItemsGroupParamsLinkwrapN0 ListTopItemsGroupParamsLinkwrap = 0
+	ListTopItemsGroupParamsLinkwrapN1 ListTopItemsGroupParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsGroupParamsLinkwrap enum.
+func (e ListTopItemsGroupParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListTopItemsGroupParamsLinkwrapN0:
+		return true
+	case ListTopItemsGroupParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsGroupParamsQmode.
+const (
+	ListTopItemsTagsGroupParamsQmodeContains         ListTopItemsTagsGroupParamsQmode = "contains"
+	ListTopItemsTagsGroupParamsQmodeEverything       ListTopItemsTagsGroupParamsQmode = "everything"
+	ListTopItemsTagsGroupParamsQmodeStartsWith       ListTopItemsTagsGroupParamsQmode = "startsWith"
+	ListTopItemsTagsGroupParamsQmodeTitleCreatorYear ListTopItemsTagsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsGroupParamsQmode enum.
+func (e ListTopItemsTagsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListTopItemsTagsGroupParamsQmodeContains:
+		return true
+	case ListTopItemsTagsGroupParamsQmodeEverything:
+		return true
+	case ListTopItemsTagsGroupParamsQmodeStartsWith:
+		return true
+	case ListTopItemsTagsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsGroupParamsIncludeTrashed.
+const (
+	ListTopItemsTagsGroupParamsIncludeTrashedN0 ListTopItemsTagsGroupParamsIncludeTrashed = 0
+	ListTopItemsTagsGroupParamsIncludeTrashedN1 ListTopItemsTagsGroupParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsGroupParamsIncludeTrashed enum.
+func (e ListTopItemsTagsGroupParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListTopItemsTagsGroupParamsIncludeTrashedN0:
+		return true
+	case ListTopItemsTagsGroupParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsGroupParamsSort.
+const (
+	ListTopItemsTagsGroupParamsSortAccessDate          ListTopItemsTagsGroupParamsSort = "accessDate"
+	ListTopItemsTagsGroupParamsSortAddedBy             ListTopItemsTagsGroupParamsSort = "addedBy"
+	ListTopItemsTagsGroupParamsSortCallNumber          ListTopItemsTagsGroupParamsSort = "callNumber"
+	ListTopItemsTagsGroupParamsSortCreator             ListTopItemsTagsGroupParamsSort = "creator"
+	ListTopItemsTagsGroupParamsSortDate                ListTopItemsTagsGroupParamsSort = "date"
+	ListTopItemsTagsGroupParamsSortDateAdded           ListTopItemsTagsGroupParamsSort = "dateAdded"
+	ListTopItemsTagsGroupParamsSortDateModified        ListTopItemsTagsGroupParamsSort = "dateModified"
+	ListTopItemsTagsGroupParamsSortItemType            ListTopItemsTagsGroupParamsSort = "itemType"
+	ListTopItemsTagsGroupParamsSortJournalAbbreviation ListTopItemsTagsGroupParamsSort = "journalAbbreviation"
+	ListTopItemsTagsGroupParamsSortLanguage            ListTopItemsTagsGroupParamsSort = "language"
+	ListTopItemsTagsGroupParamsSortLibraryCatalog      ListTopItemsTagsGroupParamsSort = "libraryCatalog"
+	ListTopItemsTagsGroupParamsSortNumItems            ListTopItemsTagsGroupParamsSort = "numItems"
+	ListTopItemsTagsGroupParamsSortPublicationTitle    ListTopItemsTagsGroupParamsSort = "publicationTitle"
+	ListTopItemsTagsGroupParamsSortPublisher           ListTopItemsTagsGroupParamsSort = "publisher"
+	ListTopItemsTagsGroupParamsSortRights              ListTopItemsTagsGroupParamsSort = "rights"
+	ListTopItemsTagsGroupParamsSortTitle               ListTopItemsTagsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsGroupParamsSort enum.
+func (e ListTopItemsTagsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListTopItemsTagsGroupParamsSortAccessDate:
+		return true
+	case ListTopItemsTagsGroupParamsSortAddedBy:
+		return true
+	case ListTopItemsTagsGroupParamsSortCallNumber:
+		return true
+	case ListTopItemsTagsGroupParamsSortCreator:
+		return true
+	case ListTopItemsTagsGroupParamsSortDate:
+		return true
+	case ListTopItemsTagsGroupParamsSortDateAdded:
+		return true
+	case ListTopItemsTagsGroupParamsSortDateModified:
+		return true
+	case ListTopItemsTagsGroupParamsSortItemType:
+		return true
+	case ListTopItemsTagsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListTopItemsTagsGroupParamsSortLanguage:
+		return true
+	case ListTopItemsTagsGroupParamsSortLibraryCatalog:
+		return true
+	case ListTopItemsTagsGroupParamsSortNumItems:
+		return true
+	case ListTopItemsTagsGroupParamsSortPublicationTitle:
+		return true
+	case ListTopItemsTagsGroupParamsSortPublisher:
+		return true
+	case ListTopItemsTagsGroupParamsSortRights:
+		return true
+	case ListTopItemsTagsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsGroupParamsDirection.
+const (
+	ListTopItemsTagsGroupParamsDirectionAsc  ListTopItemsTagsGroupParamsDirection = "asc"
+	ListTopItemsTagsGroupParamsDirectionDesc ListTopItemsTagsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsGroupParamsDirection enum.
+func (e ListTopItemsTagsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListTopItemsTagsGroupParamsDirectionAsc:
+		return true
+	case ListTopItemsTagsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsGroupParamsFormat.
+const (
+	ListTopItemsTagsGroupParamsFormatAtom             ListTopItemsTagsGroupParamsFormat = "atom"
+	ListTopItemsTagsGroupParamsFormatBib              ListTopItemsTagsGroupParamsFormat = "bib"
+	ListTopItemsTagsGroupParamsFormatBiblatex         ListTopItemsTagsGroupParamsFormat = "biblatex"
+	ListTopItemsTagsGroupParamsFormatBibtex           ListTopItemsTagsGroupParamsFormat = "bibtex"
+	ListTopItemsTagsGroupParamsFormatBookmarks        ListTopItemsTagsGroupParamsFormat = "bookmarks"
+	ListTopItemsTagsGroupParamsFormatCoins            ListTopItemsTagsGroupParamsFormat = "coins"
+	ListTopItemsTagsGroupParamsFormatCsljson          ListTopItemsTagsGroupParamsFormat = "csljson"
+	ListTopItemsTagsGroupParamsFormatCsv              ListTopItemsTagsGroupParamsFormat = "csv"
+	ListTopItemsTagsGroupParamsFormatJson             ListTopItemsTagsGroupParamsFormat = "json"
+	ListTopItemsTagsGroupParamsFormatKeys             ListTopItemsTagsGroupParamsFormat = "keys"
+	ListTopItemsTagsGroupParamsFormatMods             ListTopItemsTagsGroupParamsFormat = "mods"
+	ListTopItemsTagsGroupParamsFormatRdfBibliontology ListTopItemsTagsGroupParamsFormat = "rdf_bibliontology"
+	ListTopItemsTagsGroupParamsFormatRdfDc            ListTopItemsTagsGroupParamsFormat = "rdf_dc"
+	ListTopItemsTagsGroupParamsFormatRdfZotero        ListTopItemsTagsGroupParamsFormat = "rdf_zotero"
+	ListTopItemsTagsGroupParamsFormatRefer            ListTopItemsTagsGroupParamsFormat = "refer"
+	ListTopItemsTagsGroupParamsFormatRis              ListTopItemsTagsGroupParamsFormat = "ris"
+	ListTopItemsTagsGroupParamsFormatTei              ListTopItemsTagsGroupParamsFormat = "tei"
+	ListTopItemsTagsGroupParamsFormatVersions         ListTopItemsTagsGroupParamsFormat = "versions"
+	ListTopItemsTagsGroupParamsFormatWikipedia        ListTopItemsTagsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsGroupParamsFormat enum.
+func (e ListTopItemsTagsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListTopItemsTagsGroupParamsFormatAtom:
+		return true
+	case ListTopItemsTagsGroupParamsFormatBib:
+		return true
+	case ListTopItemsTagsGroupParamsFormatBiblatex:
+		return true
+	case ListTopItemsTagsGroupParamsFormatBibtex:
+		return true
+	case ListTopItemsTagsGroupParamsFormatBookmarks:
+		return true
+	case ListTopItemsTagsGroupParamsFormatCoins:
+		return true
+	case ListTopItemsTagsGroupParamsFormatCsljson:
+		return true
+	case ListTopItemsTagsGroupParamsFormatCsv:
+		return true
+	case ListTopItemsTagsGroupParamsFormatJson:
+		return true
+	case ListTopItemsTagsGroupParamsFormatKeys:
+		return true
+	case ListTopItemsTagsGroupParamsFormatMods:
+		return true
+	case ListTopItemsTagsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListTopItemsTagsGroupParamsFormatRdfDc:
+		return true
+	case ListTopItemsTagsGroupParamsFormatRdfZotero:
+		return true
+	case ListTopItemsTagsGroupParamsFormatRefer:
+		return true
+	case ListTopItemsTagsGroupParamsFormatRis:
+		return true
+	case ListTopItemsTagsGroupParamsFormatTei:
+		return true
+	case ListTopItemsTagsGroupParamsFormatVersions:
+		return true
+	case ListTopItemsTagsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsGroupParamsQmode.
+const (
+	ListTrashedItemsGroupParamsQmodeContains         ListTrashedItemsGroupParamsQmode = "contains"
+	ListTrashedItemsGroupParamsQmodeEverything       ListTrashedItemsGroupParamsQmode = "everything"
+	ListTrashedItemsGroupParamsQmodeStartsWith       ListTrashedItemsGroupParamsQmode = "startsWith"
+	ListTrashedItemsGroupParamsQmodeTitleCreatorYear ListTrashedItemsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsGroupParamsQmode enum.
+func (e ListTrashedItemsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListTrashedItemsGroupParamsQmodeContains:
+		return true
+	case ListTrashedItemsGroupParamsQmodeEverything:
+		return true
+	case ListTrashedItemsGroupParamsQmodeStartsWith:
+		return true
+	case ListTrashedItemsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsGroupParamsSort.
+const (
+	ListTrashedItemsGroupParamsSortAccessDate          ListTrashedItemsGroupParamsSort = "accessDate"
+	ListTrashedItemsGroupParamsSortAddedBy             ListTrashedItemsGroupParamsSort = "addedBy"
+	ListTrashedItemsGroupParamsSortCallNumber          ListTrashedItemsGroupParamsSort = "callNumber"
+	ListTrashedItemsGroupParamsSortCreator             ListTrashedItemsGroupParamsSort = "creator"
+	ListTrashedItemsGroupParamsSortDate                ListTrashedItemsGroupParamsSort = "date"
+	ListTrashedItemsGroupParamsSortDateAdded           ListTrashedItemsGroupParamsSort = "dateAdded"
+	ListTrashedItemsGroupParamsSortDateModified        ListTrashedItemsGroupParamsSort = "dateModified"
+	ListTrashedItemsGroupParamsSortItemType            ListTrashedItemsGroupParamsSort = "itemType"
+	ListTrashedItemsGroupParamsSortJournalAbbreviation ListTrashedItemsGroupParamsSort = "journalAbbreviation"
+	ListTrashedItemsGroupParamsSortLanguage            ListTrashedItemsGroupParamsSort = "language"
+	ListTrashedItemsGroupParamsSortLibraryCatalog      ListTrashedItemsGroupParamsSort = "libraryCatalog"
+	ListTrashedItemsGroupParamsSortNumItems            ListTrashedItemsGroupParamsSort = "numItems"
+	ListTrashedItemsGroupParamsSortPublicationTitle    ListTrashedItemsGroupParamsSort = "publicationTitle"
+	ListTrashedItemsGroupParamsSortPublisher           ListTrashedItemsGroupParamsSort = "publisher"
+	ListTrashedItemsGroupParamsSortRights              ListTrashedItemsGroupParamsSort = "rights"
+	ListTrashedItemsGroupParamsSortTitle               ListTrashedItemsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsGroupParamsSort enum.
+func (e ListTrashedItemsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListTrashedItemsGroupParamsSortAccessDate:
+		return true
+	case ListTrashedItemsGroupParamsSortAddedBy:
+		return true
+	case ListTrashedItemsGroupParamsSortCallNumber:
+		return true
+	case ListTrashedItemsGroupParamsSortCreator:
+		return true
+	case ListTrashedItemsGroupParamsSortDate:
+		return true
+	case ListTrashedItemsGroupParamsSortDateAdded:
+		return true
+	case ListTrashedItemsGroupParamsSortDateModified:
+		return true
+	case ListTrashedItemsGroupParamsSortItemType:
+		return true
+	case ListTrashedItemsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListTrashedItemsGroupParamsSortLanguage:
+		return true
+	case ListTrashedItemsGroupParamsSortLibraryCatalog:
+		return true
+	case ListTrashedItemsGroupParamsSortNumItems:
+		return true
+	case ListTrashedItemsGroupParamsSortPublicationTitle:
+		return true
+	case ListTrashedItemsGroupParamsSortPublisher:
+		return true
+	case ListTrashedItemsGroupParamsSortRights:
+		return true
+	case ListTrashedItemsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsGroupParamsDirection.
+const (
+	ListTrashedItemsGroupParamsDirectionAsc  ListTrashedItemsGroupParamsDirection = "asc"
+	ListTrashedItemsGroupParamsDirectionDesc ListTrashedItemsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsGroupParamsDirection enum.
+func (e ListTrashedItemsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListTrashedItemsGroupParamsDirectionAsc:
+		return true
+	case ListTrashedItemsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsGroupParamsFormat.
+const (
+	ListTrashedItemsGroupParamsFormatAtom             ListTrashedItemsGroupParamsFormat = "atom"
+	ListTrashedItemsGroupParamsFormatBib              ListTrashedItemsGroupParamsFormat = "bib"
+	ListTrashedItemsGroupParamsFormatBiblatex         ListTrashedItemsGroupParamsFormat = "biblatex"
+	ListTrashedItemsGroupParamsFormatBibtex           ListTrashedItemsGroupParamsFormat = "bibtex"
+	ListTrashedItemsGroupParamsFormatBookmarks        ListTrashedItemsGroupParamsFormat = "bookmarks"
+	ListTrashedItemsGroupParamsFormatCoins            ListTrashedItemsGroupParamsFormat = "coins"
+	ListTrashedItemsGroupParamsFormatCsljson          ListTrashedItemsGroupParamsFormat = "csljson"
+	ListTrashedItemsGroupParamsFormatCsv              ListTrashedItemsGroupParamsFormat = "csv"
+	ListTrashedItemsGroupParamsFormatJson             ListTrashedItemsGroupParamsFormat = "json"
+	ListTrashedItemsGroupParamsFormatKeys             ListTrashedItemsGroupParamsFormat = "keys"
+	ListTrashedItemsGroupParamsFormatMods             ListTrashedItemsGroupParamsFormat = "mods"
+	ListTrashedItemsGroupParamsFormatRdfBibliontology ListTrashedItemsGroupParamsFormat = "rdf_bibliontology"
+	ListTrashedItemsGroupParamsFormatRdfDc            ListTrashedItemsGroupParamsFormat = "rdf_dc"
+	ListTrashedItemsGroupParamsFormatRdfZotero        ListTrashedItemsGroupParamsFormat = "rdf_zotero"
+	ListTrashedItemsGroupParamsFormatRefer            ListTrashedItemsGroupParamsFormat = "refer"
+	ListTrashedItemsGroupParamsFormatRis              ListTrashedItemsGroupParamsFormat = "ris"
+	ListTrashedItemsGroupParamsFormatTei              ListTrashedItemsGroupParamsFormat = "tei"
+	ListTrashedItemsGroupParamsFormatVersions         ListTrashedItemsGroupParamsFormat = "versions"
+	ListTrashedItemsGroupParamsFormatWikipedia        ListTrashedItemsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsGroupParamsFormat enum.
+func (e ListTrashedItemsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListTrashedItemsGroupParamsFormatAtom:
+		return true
+	case ListTrashedItemsGroupParamsFormatBib:
+		return true
+	case ListTrashedItemsGroupParamsFormatBiblatex:
+		return true
+	case ListTrashedItemsGroupParamsFormatBibtex:
+		return true
+	case ListTrashedItemsGroupParamsFormatBookmarks:
+		return true
+	case ListTrashedItemsGroupParamsFormatCoins:
+		return true
+	case ListTrashedItemsGroupParamsFormatCsljson:
+		return true
+	case ListTrashedItemsGroupParamsFormatCsv:
+		return true
+	case ListTrashedItemsGroupParamsFormatJson:
+		return true
+	case ListTrashedItemsGroupParamsFormatKeys:
+		return true
+	case ListTrashedItemsGroupParamsFormatMods:
+		return true
+	case ListTrashedItemsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListTrashedItemsGroupParamsFormatRdfDc:
+		return true
+	case ListTrashedItemsGroupParamsFormatRdfZotero:
+		return true
+	case ListTrashedItemsGroupParamsFormatRefer:
+		return true
+	case ListTrashedItemsGroupParamsFormatRis:
+		return true
+	case ListTrashedItemsGroupParamsFormatTei:
+		return true
+	case ListTrashedItemsGroupParamsFormatVersions:
+		return true
+	case ListTrashedItemsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsTagsGroupParamsQmode.
+const (
+	ListTrashedItemsTagsGroupParamsQmodeContains         ListTrashedItemsTagsGroupParamsQmode = "contains"
+	ListTrashedItemsTagsGroupParamsQmodeEverything       ListTrashedItemsTagsGroupParamsQmode = "everything"
+	ListTrashedItemsTagsGroupParamsQmodeStartsWith       ListTrashedItemsTagsGroupParamsQmode = "startsWith"
+	ListTrashedItemsTagsGroupParamsQmodeTitleCreatorYear ListTrashedItemsTagsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsTagsGroupParamsQmode enum.
+func (e ListTrashedItemsTagsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListTrashedItemsTagsGroupParamsQmodeContains:
+		return true
+	case ListTrashedItemsTagsGroupParamsQmodeEverything:
+		return true
+	case ListTrashedItemsTagsGroupParamsQmodeStartsWith:
+		return true
+	case ListTrashedItemsTagsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsTagsGroupParamsSort.
+const (
+	ListTrashedItemsTagsGroupParamsSortAccessDate          ListTrashedItemsTagsGroupParamsSort = "accessDate"
+	ListTrashedItemsTagsGroupParamsSortAddedBy             ListTrashedItemsTagsGroupParamsSort = "addedBy"
+	ListTrashedItemsTagsGroupParamsSortCallNumber          ListTrashedItemsTagsGroupParamsSort = "callNumber"
+	ListTrashedItemsTagsGroupParamsSortCreator             ListTrashedItemsTagsGroupParamsSort = "creator"
+	ListTrashedItemsTagsGroupParamsSortDate                ListTrashedItemsTagsGroupParamsSort = "date"
+	ListTrashedItemsTagsGroupParamsSortDateAdded           ListTrashedItemsTagsGroupParamsSort = "dateAdded"
+	ListTrashedItemsTagsGroupParamsSortDateModified        ListTrashedItemsTagsGroupParamsSort = "dateModified"
+	ListTrashedItemsTagsGroupParamsSortItemType            ListTrashedItemsTagsGroupParamsSort = "itemType"
+	ListTrashedItemsTagsGroupParamsSortJournalAbbreviation ListTrashedItemsTagsGroupParamsSort = "journalAbbreviation"
+	ListTrashedItemsTagsGroupParamsSortLanguage            ListTrashedItemsTagsGroupParamsSort = "language"
+	ListTrashedItemsTagsGroupParamsSortLibraryCatalog      ListTrashedItemsTagsGroupParamsSort = "libraryCatalog"
+	ListTrashedItemsTagsGroupParamsSortNumItems            ListTrashedItemsTagsGroupParamsSort = "numItems"
+	ListTrashedItemsTagsGroupParamsSortPublicationTitle    ListTrashedItemsTagsGroupParamsSort = "publicationTitle"
+	ListTrashedItemsTagsGroupParamsSortPublisher           ListTrashedItemsTagsGroupParamsSort = "publisher"
+	ListTrashedItemsTagsGroupParamsSortRights              ListTrashedItemsTagsGroupParamsSort = "rights"
+	ListTrashedItemsTagsGroupParamsSortTitle               ListTrashedItemsTagsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsTagsGroupParamsSort enum.
+func (e ListTrashedItemsTagsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListTrashedItemsTagsGroupParamsSortAccessDate:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortAddedBy:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortCallNumber:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortCreator:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortDate:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortDateAdded:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortDateModified:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortItemType:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortLanguage:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortLibraryCatalog:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortNumItems:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortPublicationTitle:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortPublisher:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortRights:
+		return true
+	case ListTrashedItemsTagsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsTagsGroupParamsDirection.
+const (
+	ListTrashedItemsTagsGroupParamsDirectionAsc  ListTrashedItemsTagsGroupParamsDirection = "asc"
+	ListTrashedItemsTagsGroupParamsDirectionDesc ListTrashedItemsTagsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsTagsGroupParamsDirection enum.
+func (e ListTrashedItemsTagsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListTrashedItemsTagsGroupParamsDirectionAsc:
+		return true
+	case ListTrashedItemsTagsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsTagsGroupParamsFormat.
+const (
+	ListTrashedItemsTagsGroupParamsFormatAtom             ListTrashedItemsTagsGroupParamsFormat = "atom"
+	ListTrashedItemsTagsGroupParamsFormatBib              ListTrashedItemsTagsGroupParamsFormat = "bib"
+	ListTrashedItemsTagsGroupParamsFormatBiblatex         ListTrashedItemsTagsGroupParamsFormat = "biblatex"
+	ListTrashedItemsTagsGroupParamsFormatBibtex           ListTrashedItemsTagsGroupParamsFormat = "bibtex"
+	ListTrashedItemsTagsGroupParamsFormatBookmarks        ListTrashedItemsTagsGroupParamsFormat = "bookmarks"
+	ListTrashedItemsTagsGroupParamsFormatCoins            ListTrashedItemsTagsGroupParamsFormat = "coins"
+	ListTrashedItemsTagsGroupParamsFormatCsljson          ListTrashedItemsTagsGroupParamsFormat = "csljson"
+	ListTrashedItemsTagsGroupParamsFormatCsv              ListTrashedItemsTagsGroupParamsFormat = "csv"
+	ListTrashedItemsTagsGroupParamsFormatJson             ListTrashedItemsTagsGroupParamsFormat = "json"
+	ListTrashedItemsTagsGroupParamsFormatKeys             ListTrashedItemsTagsGroupParamsFormat = "keys"
+	ListTrashedItemsTagsGroupParamsFormatMods             ListTrashedItemsTagsGroupParamsFormat = "mods"
+	ListTrashedItemsTagsGroupParamsFormatRdfBibliontology ListTrashedItemsTagsGroupParamsFormat = "rdf_bibliontology"
+	ListTrashedItemsTagsGroupParamsFormatRdfDc            ListTrashedItemsTagsGroupParamsFormat = "rdf_dc"
+	ListTrashedItemsTagsGroupParamsFormatRdfZotero        ListTrashedItemsTagsGroupParamsFormat = "rdf_zotero"
+	ListTrashedItemsTagsGroupParamsFormatRefer            ListTrashedItemsTagsGroupParamsFormat = "refer"
+	ListTrashedItemsTagsGroupParamsFormatRis              ListTrashedItemsTagsGroupParamsFormat = "ris"
+	ListTrashedItemsTagsGroupParamsFormatTei              ListTrashedItemsTagsGroupParamsFormat = "tei"
+	ListTrashedItemsTagsGroupParamsFormatVersions         ListTrashedItemsTagsGroupParamsFormat = "versions"
+	ListTrashedItemsTagsGroupParamsFormatWikipedia        ListTrashedItemsTagsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsTagsGroupParamsFormat enum.
+func (e ListTrashedItemsTagsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListTrashedItemsTagsGroupParamsFormatAtom:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatBib:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatBiblatex:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatBibtex:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatBookmarks:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatCoins:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatCsljson:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatCsv:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatJson:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatKeys:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatMods:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatRdfDc:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatRdfZotero:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatRefer:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatRis:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatTei:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatVersions:
+		return true
+	case ListTrashedItemsTagsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetItemGroupParamsFormat.
 const (
+	GetItemGroupParamsFormatAtom             GetItemGroupParamsFormat = "atom"
+	GetItemGroupParamsFormatBib              GetItemGroupParamsFormat = "bib"
 	GetItemGroupParamsFormatBiblatex         GetItemGroupParamsFormat = "biblatex"
 	GetItemGroupParamsFormatBibtex           GetItemGroupParamsFormat = "bibtex"
 	GetItemGroupParamsFormatBookmarks        GetItemGroupParamsFormat = "bookmarks"
@@ -655,6 +3108,10 @@ const (
 // Valid indicates whether the value is a known member of the GetItemGroupParamsFormat enum.
 func (e GetItemGroupParamsFormat) Valid() bool {
 	switch e {
+	case GetItemGroupParamsFormatAtom:
+		return true
+	case GetItemGroupParamsFormatBib:
+		return true
 	case GetItemGroupParamsFormatBiblatex:
 		return true
 	case GetItemGroupParamsFormatBibtex:
@@ -694,6 +3151,192 @@ func (e GetItemGroupParamsFormat) Valid() bool {
 	}
 }
 
+// Defines values for GetItemGroupParamsLinkwrap.
+const (
+	GetItemGroupParamsLinkwrapN0 GetItemGroupParamsLinkwrap = 0
+	GetItemGroupParamsLinkwrapN1 GetItemGroupParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the GetItemGroupParamsLinkwrap enum.
+func (e GetItemGroupParamsLinkwrap) Valid() bool {
+	switch e {
+	case GetItemGroupParamsLinkwrapN0:
+		return true
+	case GetItemGroupParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemChildrenGroupParamsSort.
+const (
+	GetItemChildrenGroupParamsSortAccessDate          GetItemChildrenGroupParamsSort = "accessDate"
+	GetItemChildrenGroupParamsSortAddedBy             GetItemChildrenGroupParamsSort = "addedBy"
+	GetItemChildrenGroupParamsSortCallNumber          GetItemChildrenGroupParamsSort = "callNumber"
+	GetItemChildrenGroupParamsSortCreator             GetItemChildrenGroupParamsSort = "creator"
+	GetItemChildrenGroupParamsSortDate                GetItemChildrenGroupParamsSort = "date"
+	GetItemChildrenGroupParamsSortDateAdded           GetItemChildrenGroupParamsSort = "dateAdded"
+	GetItemChildrenGroupParamsSortDateModified        GetItemChildrenGroupParamsSort = "dateModified"
+	GetItemChildrenGroupParamsSortItemType            GetItemChildrenGroupParamsSort = "itemType"
+	GetItemChildrenGroupParamsSortJournalAbbreviation GetItemChildrenGroupParamsSort = "journalAbbreviation"
+	GetItemChildrenGroupParamsSortLanguage            GetItemChildrenGroupParamsSort = "language"
+	GetItemChildrenGroupParamsSortLibraryCatalog      GetItemChildrenGroupParamsSort = "libraryCatalog"
+	GetItemChildrenGroupParamsSortNumItems            GetItemChildrenGroupParamsSort = "numItems"
+	GetItemChildrenGroupParamsSortPublicationTitle    GetItemChildrenGroupParamsSort = "publicationTitle"
+	GetItemChildrenGroupParamsSortPublisher           GetItemChildrenGroupParamsSort = "publisher"
+	GetItemChildrenGroupParamsSortRights              GetItemChildrenGroupParamsSort = "rights"
+	GetItemChildrenGroupParamsSortTitle               GetItemChildrenGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the GetItemChildrenGroupParamsSort enum.
+func (e GetItemChildrenGroupParamsSort) Valid() bool {
+	switch e {
+	case GetItemChildrenGroupParamsSortAccessDate:
+		return true
+	case GetItemChildrenGroupParamsSortAddedBy:
+		return true
+	case GetItemChildrenGroupParamsSortCallNumber:
+		return true
+	case GetItemChildrenGroupParamsSortCreator:
+		return true
+	case GetItemChildrenGroupParamsSortDate:
+		return true
+	case GetItemChildrenGroupParamsSortDateAdded:
+		return true
+	case GetItemChildrenGroupParamsSortDateModified:
+		return true
+	case GetItemChildrenGroupParamsSortItemType:
+		return true
+	case GetItemChildrenGroupParamsSortJournalAbbreviation:
+		return true
+	case GetItemChildrenGroupParamsSortLanguage:
+		return true
+	case GetItemChildrenGroupParamsSortLibraryCatalog:
+		return true
+	case GetItemChildrenGroupParamsSortNumItems:
+		return true
+	case GetItemChildrenGroupParamsSortPublicationTitle:
+		return true
+	case GetItemChildrenGroupParamsSortPublisher:
+		return true
+	case GetItemChildrenGroupParamsSortRights:
+		return true
+	case GetItemChildrenGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemChildrenGroupParamsDirection.
+const (
+	GetItemChildrenGroupParamsDirectionAsc  GetItemChildrenGroupParamsDirection = "asc"
+	GetItemChildrenGroupParamsDirectionDesc GetItemChildrenGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetItemChildrenGroupParamsDirection enum.
+func (e GetItemChildrenGroupParamsDirection) Valid() bool {
+	switch e {
+	case GetItemChildrenGroupParamsDirectionAsc:
+		return true
+	case GetItemChildrenGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemChildrenGroupParamsFormat.
+const (
+	GetItemChildrenGroupParamsFormatAtom             GetItemChildrenGroupParamsFormat = "atom"
+	GetItemChildrenGroupParamsFormatBib              GetItemChildrenGroupParamsFormat = "bib"
+	GetItemChildrenGroupParamsFormatBiblatex         GetItemChildrenGroupParamsFormat = "biblatex"
+	GetItemChildrenGroupParamsFormatBibtex           GetItemChildrenGroupParamsFormat = "bibtex"
+	GetItemChildrenGroupParamsFormatBookmarks        GetItemChildrenGroupParamsFormat = "bookmarks"
+	GetItemChildrenGroupParamsFormatCoins            GetItemChildrenGroupParamsFormat = "coins"
+	GetItemChildrenGroupParamsFormatCsljson          GetItemChildrenGroupParamsFormat = "csljson"
+	GetItemChildrenGroupParamsFormatCsv              GetItemChildrenGroupParamsFormat = "csv"
+	GetItemChildrenGroupParamsFormatJson             GetItemChildrenGroupParamsFormat = "json"
+	GetItemChildrenGroupParamsFormatKeys             GetItemChildrenGroupParamsFormat = "keys"
+	GetItemChildrenGroupParamsFormatMods             GetItemChildrenGroupParamsFormat = "mods"
+	GetItemChildrenGroupParamsFormatRdfBibliontology GetItemChildrenGroupParamsFormat = "rdf_bibliontology"
+	GetItemChildrenGroupParamsFormatRdfDc            GetItemChildrenGroupParamsFormat = "rdf_dc"
+	GetItemChildrenGroupParamsFormatRdfZotero        GetItemChildrenGroupParamsFormat = "rdf_zotero"
+	GetItemChildrenGroupParamsFormatRefer            GetItemChildrenGroupParamsFormat = "refer"
+	GetItemChildrenGroupParamsFormatRis              GetItemChildrenGroupParamsFormat = "ris"
+	GetItemChildrenGroupParamsFormatTei              GetItemChildrenGroupParamsFormat = "tei"
+	GetItemChildrenGroupParamsFormatVersions         GetItemChildrenGroupParamsFormat = "versions"
+	GetItemChildrenGroupParamsFormatWikipedia        GetItemChildrenGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetItemChildrenGroupParamsFormat enum.
+func (e GetItemChildrenGroupParamsFormat) Valid() bool {
+	switch e {
+	case GetItemChildrenGroupParamsFormatAtom:
+		return true
+	case GetItemChildrenGroupParamsFormatBib:
+		return true
+	case GetItemChildrenGroupParamsFormatBiblatex:
+		return true
+	case GetItemChildrenGroupParamsFormatBibtex:
+		return true
+	case GetItemChildrenGroupParamsFormatBookmarks:
+		return true
+	case GetItemChildrenGroupParamsFormatCoins:
+		return true
+	case GetItemChildrenGroupParamsFormatCsljson:
+		return true
+	case GetItemChildrenGroupParamsFormatCsv:
+		return true
+	case GetItemChildrenGroupParamsFormatJson:
+		return true
+	case GetItemChildrenGroupParamsFormatKeys:
+		return true
+	case GetItemChildrenGroupParamsFormatMods:
+		return true
+	case GetItemChildrenGroupParamsFormatRdfBibliontology:
+		return true
+	case GetItemChildrenGroupParamsFormatRdfDc:
+		return true
+	case GetItemChildrenGroupParamsFormatRdfZotero:
+		return true
+	case GetItemChildrenGroupParamsFormatRefer:
+		return true
+	case GetItemChildrenGroupParamsFormatRis:
+		return true
+	case GetItemChildrenGroupParamsFormatTei:
+		return true
+	case GetItemChildrenGroupParamsFormatVersions:
+		return true
+	case GetItemChildrenGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UploadFilePartialGroupParamsAlgorithm.
+const (
+	UploadFilePartialGroupParamsAlgorithmBsdiff UploadFilePartialGroupParamsAlgorithm = "bsdiff"
+	UploadFilePartialGroupParamsAlgorithmVcdiff UploadFilePartialGroupParamsAlgorithm = "vcdiff"
+	UploadFilePartialGroupParamsAlgorithmXdelta UploadFilePartialGroupParamsAlgorithm = "xdelta"
+)
+
+// Valid indicates whether the value is a known member of the UploadFilePartialGroupParamsAlgorithm enum.
+func (e UploadFilePartialGroupParamsAlgorithm) Valid() bool {
+	switch e {
+	case UploadFilePartialGroupParamsAlgorithmBsdiff:
+		return true
+	case UploadFilePartialGroupParamsAlgorithmVcdiff:
+		return true
+	case UploadFilePartialGroupParamsAlgorithmXdelta:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UploadFileGroupParamsIfNoneMatch.
 const (
 	UploadFileGroupParamsIfNoneMatchAsterisk UploadFileGroupParamsIfNoneMatch = "*"
@@ -709,18 +3352,1176 @@ func (e UploadFileGroupParamsIfNoneMatch) Valid() bool {
 	}
 }
 
+// Defines values for GetItemTagsGroupParamsQmode.
+const (
+	GetItemTagsGroupParamsQmodeContains         GetItemTagsGroupParamsQmode = "contains"
+	GetItemTagsGroupParamsQmodeEverything       GetItemTagsGroupParamsQmode = "everything"
+	GetItemTagsGroupParamsQmodeStartsWith       GetItemTagsGroupParamsQmode = "startsWith"
+	GetItemTagsGroupParamsQmodeTitleCreatorYear GetItemTagsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the GetItemTagsGroupParamsQmode enum.
+func (e GetItemTagsGroupParamsQmode) Valid() bool {
+	switch e {
+	case GetItemTagsGroupParamsQmodeContains:
+		return true
+	case GetItemTagsGroupParamsQmodeEverything:
+		return true
+	case GetItemTagsGroupParamsQmodeStartsWith:
+		return true
+	case GetItemTagsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemTagsGroupParamsSort.
+const (
+	GetItemTagsGroupParamsSortAccessDate          GetItemTagsGroupParamsSort = "accessDate"
+	GetItemTagsGroupParamsSortAddedBy             GetItemTagsGroupParamsSort = "addedBy"
+	GetItemTagsGroupParamsSortCallNumber          GetItemTagsGroupParamsSort = "callNumber"
+	GetItemTagsGroupParamsSortCreator             GetItemTagsGroupParamsSort = "creator"
+	GetItemTagsGroupParamsSortDate                GetItemTagsGroupParamsSort = "date"
+	GetItemTagsGroupParamsSortDateAdded           GetItemTagsGroupParamsSort = "dateAdded"
+	GetItemTagsGroupParamsSortDateModified        GetItemTagsGroupParamsSort = "dateModified"
+	GetItemTagsGroupParamsSortItemType            GetItemTagsGroupParamsSort = "itemType"
+	GetItemTagsGroupParamsSortJournalAbbreviation GetItemTagsGroupParamsSort = "journalAbbreviation"
+	GetItemTagsGroupParamsSortLanguage            GetItemTagsGroupParamsSort = "language"
+	GetItemTagsGroupParamsSortLibraryCatalog      GetItemTagsGroupParamsSort = "libraryCatalog"
+	GetItemTagsGroupParamsSortNumItems            GetItemTagsGroupParamsSort = "numItems"
+	GetItemTagsGroupParamsSortPublicationTitle    GetItemTagsGroupParamsSort = "publicationTitle"
+	GetItemTagsGroupParamsSortPublisher           GetItemTagsGroupParamsSort = "publisher"
+	GetItemTagsGroupParamsSortRights              GetItemTagsGroupParamsSort = "rights"
+	GetItemTagsGroupParamsSortTitle               GetItemTagsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the GetItemTagsGroupParamsSort enum.
+func (e GetItemTagsGroupParamsSort) Valid() bool {
+	switch e {
+	case GetItemTagsGroupParamsSortAccessDate:
+		return true
+	case GetItemTagsGroupParamsSortAddedBy:
+		return true
+	case GetItemTagsGroupParamsSortCallNumber:
+		return true
+	case GetItemTagsGroupParamsSortCreator:
+		return true
+	case GetItemTagsGroupParamsSortDate:
+		return true
+	case GetItemTagsGroupParamsSortDateAdded:
+		return true
+	case GetItemTagsGroupParamsSortDateModified:
+		return true
+	case GetItemTagsGroupParamsSortItemType:
+		return true
+	case GetItemTagsGroupParamsSortJournalAbbreviation:
+		return true
+	case GetItemTagsGroupParamsSortLanguage:
+		return true
+	case GetItemTagsGroupParamsSortLibraryCatalog:
+		return true
+	case GetItemTagsGroupParamsSortNumItems:
+		return true
+	case GetItemTagsGroupParamsSortPublicationTitle:
+		return true
+	case GetItemTagsGroupParamsSortPublisher:
+		return true
+	case GetItemTagsGroupParamsSortRights:
+		return true
+	case GetItemTagsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemTagsGroupParamsDirection.
+const (
+	GetItemTagsGroupParamsDirectionAsc  GetItemTagsGroupParamsDirection = "asc"
+	GetItemTagsGroupParamsDirectionDesc GetItemTagsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetItemTagsGroupParamsDirection enum.
+func (e GetItemTagsGroupParamsDirection) Valid() bool {
+	switch e {
+	case GetItemTagsGroupParamsDirectionAsc:
+		return true
+	case GetItemTagsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemTagsGroupParamsFormat.
+const (
+	GetItemTagsGroupParamsFormatAtom             GetItemTagsGroupParamsFormat = "atom"
+	GetItemTagsGroupParamsFormatBib              GetItemTagsGroupParamsFormat = "bib"
+	GetItemTagsGroupParamsFormatBiblatex         GetItemTagsGroupParamsFormat = "biblatex"
+	GetItemTagsGroupParamsFormatBibtex           GetItemTagsGroupParamsFormat = "bibtex"
+	GetItemTagsGroupParamsFormatBookmarks        GetItemTagsGroupParamsFormat = "bookmarks"
+	GetItemTagsGroupParamsFormatCoins            GetItemTagsGroupParamsFormat = "coins"
+	GetItemTagsGroupParamsFormatCsljson          GetItemTagsGroupParamsFormat = "csljson"
+	GetItemTagsGroupParamsFormatCsv              GetItemTagsGroupParamsFormat = "csv"
+	GetItemTagsGroupParamsFormatJson             GetItemTagsGroupParamsFormat = "json"
+	GetItemTagsGroupParamsFormatKeys             GetItemTagsGroupParamsFormat = "keys"
+	GetItemTagsGroupParamsFormatMods             GetItemTagsGroupParamsFormat = "mods"
+	GetItemTagsGroupParamsFormatRdfBibliontology GetItemTagsGroupParamsFormat = "rdf_bibliontology"
+	GetItemTagsGroupParamsFormatRdfDc            GetItemTagsGroupParamsFormat = "rdf_dc"
+	GetItemTagsGroupParamsFormatRdfZotero        GetItemTagsGroupParamsFormat = "rdf_zotero"
+	GetItemTagsGroupParamsFormatRefer            GetItemTagsGroupParamsFormat = "refer"
+	GetItemTagsGroupParamsFormatRis              GetItemTagsGroupParamsFormat = "ris"
+	GetItemTagsGroupParamsFormatTei              GetItemTagsGroupParamsFormat = "tei"
+	GetItemTagsGroupParamsFormatVersions         GetItemTagsGroupParamsFormat = "versions"
+	GetItemTagsGroupParamsFormatWikipedia        GetItemTagsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetItemTagsGroupParamsFormat enum.
+func (e GetItemTagsGroupParamsFormat) Valid() bool {
+	switch e {
+	case GetItemTagsGroupParamsFormatAtom:
+		return true
+	case GetItemTagsGroupParamsFormatBib:
+		return true
+	case GetItemTagsGroupParamsFormatBiblatex:
+		return true
+	case GetItemTagsGroupParamsFormatBibtex:
+		return true
+	case GetItemTagsGroupParamsFormatBookmarks:
+		return true
+	case GetItemTagsGroupParamsFormatCoins:
+		return true
+	case GetItemTagsGroupParamsFormatCsljson:
+		return true
+	case GetItemTagsGroupParamsFormatCsv:
+		return true
+	case GetItemTagsGroupParamsFormatJson:
+		return true
+	case GetItemTagsGroupParamsFormatKeys:
+		return true
+	case GetItemTagsGroupParamsFormatMods:
+		return true
+	case GetItemTagsGroupParamsFormatRdfBibliontology:
+		return true
+	case GetItemTagsGroupParamsFormatRdfDc:
+		return true
+	case GetItemTagsGroupParamsFormatRdfZotero:
+		return true
+	case GetItemTagsGroupParamsFormatRefer:
+		return true
+	case GetItemTagsGroupParamsFormatRis:
+		return true
+	case GetItemTagsGroupParamsFormatTei:
+		return true
+	case GetItemTagsGroupParamsFormatVersions:
+		return true
+	case GetItemTagsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSearchesGroupParamsFormat.
+const (
+	ListSearchesGroupParamsFormatAtom             ListSearchesGroupParamsFormat = "atom"
+	ListSearchesGroupParamsFormatBib              ListSearchesGroupParamsFormat = "bib"
+	ListSearchesGroupParamsFormatBiblatex         ListSearchesGroupParamsFormat = "biblatex"
+	ListSearchesGroupParamsFormatBibtex           ListSearchesGroupParamsFormat = "bibtex"
+	ListSearchesGroupParamsFormatBookmarks        ListSearchesGroupParamsFormat = "bookmarks"
+	ListSearchesGroupParamsFormatCoins            ListSearchesGroupParamsFormat = "coins"
+	ListSearchesGroupParamsFormatCsljson          ListSearchesGroupParamsFormat = "csljson"
+	ListSearchesGroupParamsFormatCsv              ListSearchesGroupParamsFormat = "csv"
+	ListSearchesGroupParamsFormatJson             ListSearchesGroupParamsFormat = "json"
+	ListSearchesGroupParamsFormatKeys             ListSearchesGroupParamsFormat = "keys"
+	ListSearchesGroupParamsFormatMods             ListSearchesGroupParamsFormat = "mods"
+	ListSearchesGroupParamsFormatRdfBibliontology ListSearchesGroupParamsFormat = "rdf_bibliontology"
+	ListSearchesGroupParamsFormatRdfDc            ListSearchesGroupParamsFormat = "rdf_dc"
+	ListSearchesGroupParamsFormatRdfZotero        ListSearchesGroupParamsFormat = "rdf_zotero"
+	ListSearchesGroupParamsFormatRefer            ListSearchesGroupParamsFormat = "refer"
+	ListSearchesGroupParamsFormatRis              ListSearchesGroupParamsFormat = "ris"
+	ListSearchesGroupParamsFormatTei              ListSearchesGroupParamsFormat = "tei"
+	ListSearchesGroupParamsFormatVersions         ListSearchesGroupParamsFormat = "versions"
+	ListSearchesGroupParamsFormatWikipedia        ListSearchesGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListSearchesGroupParamsFormat enum.
+func (e ListSearchesGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListSearchesGroupParamsFormatAtom:
+		return true
+	case ListSearchesGroupParamsFormatBib:
+		return true
+	case ListSearchesGroupParamsFormatBiblatex:
+		return true
+	case ListSearchesGroupParamsFormatBibtex:
+		return true
+	case ListSearchesGroupParamsFormatBookmarks:
+		return true
+	case ListSearchesGroupParamsFormatCoins:
+		return true
+	case ListSearchesGroupParamsFormatCsljson:
+		return true
+	case ListSearchesGroupParamsFormatCsv:
+		return true
+	case ListSearchesGroupParamsFormatJson:
+		return true
+	case ListSearchesGroupParamsFormatKeys:
+		return true
+	case ListSearchesGroupParamsFormatMods:
+		return true
+	case ListSearchesGroupParamsFormatRdfBibliontology:
+		return true
+	case ListSearchesGroupParamsFormatRdfDc:
+		return true
+	case ListSearchesGroupParamsFormatRdfZotero:
+		return true
+	case ListSearchesGroupParamsFormatRefer:
+		return true
+	case ListSearchesGroupParamsFormatRis:
+		return true
+	case ListSearchesGroupParamsFormatTei:
+		return true
+	case ListSearchesGroupParamsFormatVersions:
+		return true
+	case ListSearchesGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetSearchGroupParamsFormat.
+const (
+	GetSearchGroupParamsFormatAtom             GetSearchGroupParamsFormat = "atom"
+	GetSearchGroupParamsFormatBib              GetSearchGroupParamsFormat = "bib"
+	GetSearchGroupParamsFormatBiblatex         GetSearchGroupParamsFormat = "biblatex"
+	GetSearchGroupParamsFormatBibtex           GetSearchGroupParamsFormat = "bibtex"
+	GetSearchGroupParamsFormatBookmarks        GetSearchGroupParamsFormat = "bookmarks"
+	GetSearchGroupParamsFormatCoins            GetSearchGroupParamsFormat = "coins"
+	GetSearchGroupParamsFormatCsljson          GetSearchGroupParamsFormat = "csljson"
+	GetSearchGroupParamsFormatCsv              GetSearchGroupParamsFormat = "csv"
+	GetSearchGroupParamsFormatJson             GetSearchGroupParamsFormat = "json"
+	GetSearchGroupParamsFormatKeys             GetSearchGroupParamsFormat = "keys"
+	GetSearchGroupParamsFormatMods             GetSearchGroupParamsFormat = "mods"
+	GetSearchGroupParamsFormatRdfBibliontology GetSearchGroupParamsFormat = "rdf_bibliontology"
+	GetSearchGroupParamsFormatRdfDc            GetSearchGroupParamsFormat = "rdf_dc"
+	GetSearchGroupParamsFormatRdfZotero        GetSearchGroupParamsFormat = "rdf_zotero"
+	GetSearchGroupParamsFormatRefer            GetSearchGroupParamsFormat = "refer"
+	GetSearchGroupParamsFormatRis              GetSearchGroupParamsFormat = "ris"
+	GetSearchGroupParamsFormatTei              GetSearchGroupParamsFormat = "tei"
+	GetSearchGroupParamsFormatVersions         GetSearchGroupParamsFormat = "versions"
+	GetSearchGroupParamsFormatWikipedia        GetSearchGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetSearchGroupParamsFormat enum.
+func (e GetSearchGroupParamsFormat) Valid() bool {
+	switch e {
+	case GetSearchGroupParamsFormatAtom:
+		return true
+	case GetSearchGroupParamsFormatBib:
+		return true
+	case GetSearchGroupParamsFormatBiblatex:
+		return true
+	case GetSearchGroupParamsFormatBibtex:
+		return true
+	case GetSearchGroupParamsFormatBookmarks:
+		return true
+	case GetSearchGroupParamsFormatCoins:
+		return true
+	case GetSearchGroupParamsFormatCsljson:
+		return true
+	case GetSearchGroupParamsFormatCsv:
+		return true
+	case GetSearchGroupParamsFormatJson:
+		return true
+	case GetSearchGroupParamsFormatKeys:
+		return true
+	case GetSearchGroupParamsFormatMods:
+		return true
+	case GetSearchGroupParamsFormatRdfBibliontology:
+		return true
+	case GetSearchGroupParamsFormatRdfDc:
+		return true
+	case GetSearchGroupParamsFormatRdfZotero:
+		return true
+	case GetSearchGroupParamsFormatRefer:
+		return true
+	case GetSearchGroupParamsFormatRis:
+		return true
+	case GetSearchGroupParamsFormatTei:
+		return true
+	case GetSearchGroupParamsFormatVersions:
+		return true
+	case GetSearchGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTagsGroupParamsQmode.
+const (
+	ListTagsGroupParamsQmodeContains         ListTagsGroupParamsQmode = "contains"
+	ListTagsGroupParamsQmodeEverything       ListTagsGroupParamsQmode = "everything"
+	ListTagsGroupParamsQmodeStartsWith       ListTagsGroupParamsQmode = "startsWith"
+	ListTagsGroupParamsQmodeTitleCreatorYear ListTagsGroupParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTagsGroupParamsQmode enum.
+func (e ListTagsGroupParamsQmode) Valid() bool {
+	switch e {
+	case ListTagsGroupParamsQmodeContains:
+		return true
+	case ListTagsGroupParamsQmodeEverything:
+		return true
+	case ListTagsGroupParamsQmodeStartsWith:
+		return true
+	case ListTagsGroupParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTagsGroupParamsSort.
+const (
+	ListTagsGroupParamsSortAccessDate          ListTagsGroupParamsSort = "accessDate"
+	ListTagsGroupParamsSortAddedBy             ListTagsGroupParamsSort = "addedBy"
+	ListTagsGroupParamsSortCallNumber          ListTagsGroupParamsSort = "callNumber"
+	ListTagsGroupParamsSortCreator             ListTagsGroupParamsSort = "creator"
+	ListTagsGroupParamsSortDate                ListTagsGroupParamsSort = "date"
+	ListTagsGroupParamsSortDateAdded           ListTagsGroupParamsSort = "dateAdded"
+	ListTagsGroupParamsSortDateModified        ListTagsGroupParamsSort = "dateModified"
+	ListTagsGroupParamsSortItemType            ListTagsGroupParamsSort = "itemType"
+	ListTagsGroupParamsSortJournalAbbreviation ListTagsGroupParamsSort = "journalAbbreviation"
+	ListTagsGroupParamsSortLanguage            ListTagsGroupParamsSort = "language"
+	ListTagsGroupParamsSortLibraryCatalog      ListTagsGroupParamsSort = "libraryCatalog"
+	ListTagsGroupParamsSortNumItems            ListTagsGroupParamsSort = "numItems"
+	ListTagsGroupParamsSortPublicationTitle    ListTagsGroupParamsSort = "publicationTitle"
+	ListTagsGroupParamsSortPublisher           ListTagsGroupParamsSort = "publisher"
+	ListTagsGroupParamsSortRights              ListTagsGroupParamsSort = "rights"
+	ListTagsGroupParamsSortTitle               ListTagsGroupParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTagsGroupParamsSort enum.
+func (e ListTagsGroupParamsSort) Valid() bool {
+	switch e {
+	case ListTagsGroupParamsSortAccessDate:
+		return true
+	case ListTagsGroupParamsSortAddedBy:
+		return true
+	case ListTagsGroupParamsSortCallNumber:
+		return true
+	case ListTagsGroupParamsSortCreator:
+		return true
+	case ListTagsGroupParamsSortDate:
+		return true
+	case ListTagsGroupParamsSortDateAdded:
+		return true
+	case ListTagsGroupParamsSortDateModified:
+		return true
+	case ListTagsGroupParamsSortItemType:
+		return true
+	case ListTagsGroupParamsSortJournalAbbreviation:
+		return true
+	case ListTagsGroupParamsSortLanguage:
+		return true
+	case ListTagsGroupParamsSortLibraryCatalog:
+		return true
+	case ListTagsGroupParamsSortNumItems:
+		return true
+	case ListTagsGroupParamsSortPublicationTitle:
+		return true
+	case ListTagsGroupParamsSortPublisher:
+		return true
+	case ListTagsGroupParamsSortRights:
+		return true
+	case ListTagsGroupParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTagsGroupParamsDirection.
+const (
+	ListTagsGroupParamsDirectionAsc  ListTagsGroupParamsDirection = "asc"
+	ListTagsGroupParamsDirectionDesc ListTagsGroupParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTagsGroupParamsDirection enum.
+func (e ListTagsGroupParamsDirection) Valid() bool {
+	switch e {
+	case ListTagsGroupParamsDirectionAsc:
+		return true
+	case ListTagsGroupParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTagsGroupParamsFormat.
+const (
+	ListTagsGroupParamsFormatAtom             ListTagsGroupParamsFormat = "atom"
+	ListTagsGroupParamsFormatBib              ListTagsGroupParamsFormat = "bib"
+	ListTagsGroupParamsFormatBiblatex         ListTagsGroupParamsFormat = "biblatex"
+	ListTagsGroupParamsFormatBibtex           ListTagsGroupParamsFormat = "bibtex"
+	ListTagsGroupParamsFormatBookmarks        ListTagsGroupParamsFormat = "bookmarks"
+	ListTagsGroupParamsFormatCoins            ListTagsGroupParamsFormat = "coins"
+	ListTagsGroupParamsFormatCsljson          ListTagsGroupParamsFormat = "csljson"
+	ListTagsGroupParamsFormatCsv              ListTagsGroupParamsFormat = "csv"
+	ListTagsGroupParamsFormatJson             ListTagsGroupParamsFormat = "json"
+	ListTagsGroupParamsFormatKeys             ListTagsGroupParamsFormat = "keys"
+	ListTagsGroupParamsFormatMods             ListTagsGroupParamsFormat = "mods"
+	ListTagsGroupParamsFormatRdfBibliontology ListTagsGroupParamsFormat = "rdf_bibliontology"
+	ListTagsGroupParamsFormatRdfDc            ListTagsGroupParamsFormat = "rdf_dc"
+	ListTagsGroupParamsFormatRdfZotero        ListTagsGroupParamsFormat = "rdf_zotero"
+	ListTagsGroupParamsFormatRefer            ListTagsGroupParamsFormat = "refer"
+	ListTagsGroupParamsFormatRis              ListTagsGroupParamsFormat = "ris"
+	ListTagsGroupParamsFormatTei              ListTagsGroupParamsFormat = "tei"
+	ListTagsGroupParamsFormatVersions         ListTagsGroupParamsFormat = "versions"
+	ListTagsGroupParamsFormatWikipedia        ListTagsGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTagsGroupParamsFormat enum.
+func (e ListTagsGroupParamsFormat) Valid() bool {
+	switch e {
+	case ListTagsGroupParamsFormatAtom:
+		return true
+	case ListTagsGroupParamsFormatBib:
+		return true
+	case ListTagsGroupParamsFormatBiblatex:
+		return true
+	case ListTagsGroupParamsFormatBibtex:
+		return true
+	case ListTagsGroupParamsFormatBookmarks:
+		return true
+	case ListTagsGroupParamsFormatCoins:
+		return true
+	case ListTagsGroupParamsFormatCsljson:
+		return true
+	case ListTagsGroupParamsFormatCsv:
+		return true
+	case ListTagsGroupParamsFormatJson:
+		return true
+	case ListTagsGroupParamsFormatKeys:
+		return true
+	case ListTagsGroupParamsFormatMods:
+		return true
+	case ListTagsGroupParamsFormatRdfBibliontology:
+		return true
+	case ListTagsGroupParamsFormatRdfDc:
+		return true
+	case ListTagsGroupParamsFormatRdfZotero:
+		return true
+	case ListTagsGroupParamsFormatRefer:
+		return true
+	case ListTagsGroupParamsFormatRis:
+		return true
+	case ListTagsGroupParamsFormatTei:
+		return true
+	case ListTagsGroupParamsFormatVersions:
+		return true
+	case ListTagsGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetTagGroupParamsFormat.
+const (
+	GetTagGroupParamsFormatAtom             GetTagGroupParamsFormat = "atom"
+	GetTagGroupParamsFormatBib              GetTagGroupParamsFormat = "bib"
+	GetTagGroupParamsFormatBiblatex         GetTagGroupParamsFormat = "biblatex"
+	GetTagGroupParamsFormatBibtex           GetTagGroupParamsFormat = "bibtex"
+	GetTagGroupParamsFormatBookmarks        GetTagGroupParamsFormat = "bookmarks"
+	GetTagGroupParamsFormatCoins            GetTagGroupParamsFormat = "coins"
+	GetTagGroupParamsFormatCsljson          GetTagGroupParamsFormat = "csljson"
+	GetTagGroupParamsFormatCsv              GetTagGroupParamsFormat = "csv"
+	GetTagGroupParamsFormatJson             GetTagGroupParamsFormat = "json"
+	GetTagGroupParamsFormatKeys             GetTagGroupParamsFormat = "keys"
+	GetTagGroupParamsFormatMods             GetTagGroupParamsFormat = "mods"
+	GetTagGroupParamsFormatRdfBibliontology GetTagGroupParamsFormat = "rdf_bibliontology"
+	GetTagGroupParamsFormatRdfDc            GetTagGroupParamsFormat = "rdf_dc"
+	GetTagGroupParamsFormatRdfZotero        GetTagGroupParamsFormat = "rdf_zotero"
+	GetTagGroupParamsFormatRefer            GetTagGroupParamsFormat = "refer"
+	GetTagGroupParamsFormatRis              GetTagGroupParamsFormat = "ris"
+	GetTagGroupParamsFormatTei              GetTagGroupParamsFormat = "tei"
+	GetTagGroupParamsFormatVersions         GetTagGroupParamsFormat = "versions"
+	GetTagGroupParamsFormatWikipedia        GetTagGroupParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetTagGroupParamsFormat enum.
+func (e GetTagGroupParamsFormat) Valid() bool {
+	switch e {
+	case GetTagGroupParamsFormatAtom:
+		return true
+	case GetTagGroupParamsFormatBib:
+		return true
+	case GetTagGroupParamsFormatBiblatex:
+		return true
+	case GetTagGroupParamsFormatBibtex:
+		return true
+	case GetTagGroupParamsFormatBookmarks:
+		return true
+	case GetTagGroupParamsFormatCoins:
+		return true
+	case GetTagGroupParamsFormatCsljson:
+		return true
+	case GetTagGroupParamsFormatCsv:
+		return true
+	case GetTagGroupParamsFormatJson:
+		return true
+	case GetTagGroupParamsFormatKeys:
+		return true
+	case GetTagGroupParamsFormatMods:
+		return true
+	case GetTagGroupParamsFormatRdfBibliontology:
+		return true
+	case GetTagGroupParamsFormatRdfDc:
+		return true
+	case GetTagGroupParamsFormatRdfZotero:
+		return true
+	case GetTagGroupParamsFormatRefer:
+		return true
+	case GetTagGroupParamsFormatRis:
+		return true
+	case GetTagGroupParamsFormatTei:
+		return true
+	case GetTagGroupParamsFormatVersions:
+		return true
+	case GetTagGroupParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCurrentKeyParamsZoteroAPIVersion.
+const (
+	GetCurrentKeyParamsZoteroAPIVersionN3 GetCurrentKeyParamsZoteroAPIVersion = 3
+)
+
+// Valid indicates whether the value is a known member of the GetCurrentKeyParamsZoteroAPIVersion enum.
+func (e GetCurrentKeyParamsZoteroAPIVersion) Valid() bool {
+	switch e {
+	case GetCurrentKeyParamsZoteroAPIVersionN3:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionsParamsSort.
+const (
+	ListCollectionsParamsSortAccessDate          ListCollectionsParamsSort = "accessDate"
+	ListCollectionsParamsSortAddedBy             ListCollectionsParamsSort = "addedBy"
+	ListCollectionsParamsSortCallNumber          ListCollectionsParamsSort = "callNumber"
+	ListCollectionsParamsSortCreator             ListCollectionsParamsSort = "creator"
+	ListCollectionsParamsSortDate                ListCollectionsParamsSort = "date"
+	ListCollectionsParamsSortDateAdded           ListCollectionsParamsSort = "dateAdded"
+	ListCollectionsParamsSortDateModified        ListCollectionsParamsSort = "dateModified"
+	ListCollectionsParamsSortItemType            ListCollectionsParamsSort = "itemType"
+	ListCollectionsParamsSortJournalAbbreviation ListCollectionsParamsSort = "journalAbbreviation"
+	ListCollectionsParamsSortLanguage            ListCollectionsParamsSort = "language"
+	ListCollectionsParamsSortLibraryCatalog      ListCollectionsParamsSort = "libraryCatalog"
+	ListCollectionsParamsSortNumItems            ListCollectionsParamsSort = "numItems"
+	ListCollectionsParamsSortPublicationTitle    ListCollectionsParamsSort = "publicationTitle"
+	ListCollectionsParamsSortPublisher           ListCollectionsParamsSort = "publisher"
+	ListCollectionsParamsSortRights              ListCollectionsParamsSort = "rights"
+	ListCollectionsParamsSortTitle               ListCollectionsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionsParamsSort enum.
+func (e ListCollectionsParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionsParamsSortAccessDate:
+		return true
+	case ListCollectionsParamsSortAddedBy:
+		return true
+	case ListCollectionsParamsSortCallNumber:
+		return true
+	case ListCollectionsParamsSortCreator:
+		return true
+	case ListCollectionsParamsSortDate:
+		return true
+	case ListCollectionsParamsSortDateAdded:
+		return true
+	case ListCollectionsParamsSortDateModified:
+		return true
+	case ListCollectionsParamsSortItemType:
+		return true
+	case ListCollectionsParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionsParamsSortLanguage:
+		return true
+	case ListCollectionsParamsSortLibraryCatalog:
+		return true
+	case ListCollectionsParamsSortNumItems:
+		return true
+	case ListCollectionsParamsSortPublicationTitle:
+		return true
+	case ListCollectionsParamsSortPublisher:
+		return true
+	case ListCollectionsParamsSortRights:
+		return true
+	case ListCollectionsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionsParamsDirection.
+const (
+	ListCollectionsParamsDirectionAsc  ListCollectionsParamsDirection = "asc"
+	ListCollectionsParamsDirectionDesc ListCollectionsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionsParamsDirection enum.
+func (e ListCollectionsParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionsParamsDirectionAsc:
+		return true
+	case ListCollectionsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionsParamsFormat.
+const (
+	ListCollectionsParamsFormatAtom             ListCollectionsParamsFormat = "atom"
+	ListCollectionsParamsFormatBib              ListCollectionsParamsFormat = "bib"
+	ListCollectionsParamsFormatBiblatex         ListCollectionsParamsFormat = "biblatex"
+	ListCollectionsParamsFormatBibtex           ListCollectionsParamsFormat = "bibtex"
+	ListCollectionsParamsFormatBookmarks        ListCollectionsParamsFormat = "bookmarks"
+	ListCollectionsParamsFormatCoins            ListCollectionsParamsFormat = "coins"
+	ListCollectionsParamsFormatCsljson          ListCollectionsParamsFormat = "csljson"
+	ListCollectionsParamsFormatCsv              ListCollectionsParamsFormat = "csv"
+	ListCollectionsParamsFormatJson             ListCollectionsParamsFormat = "json"
+	ListCollectionsParamsFormatKeys             ListCollectionsParamsFormat = "keys"
+	ListCollectionsParamsFormatMods             ListCollectionsParamsFormat = "mods"
+	ListCollectionsParamsFormatRdfBibliontology ListCollectionsParamsFormat = "rdf_bibliontology"
+	ListCollectionsParamsFormatRdfDc            ListCollectionsParamsFormat = "rdf_dc"
+	ListCollectionsParamsFormatRdfZotero        ListCollectionsParamsFormat = "rdf_zotero"
+	ListCollectionsParamsFormatRefer            ListCollectionsParamsFormat = "refer"
+	ListCollectionsParamsFormatRis              ListCollectionsParamsFormat = "ris"
+	ListCollectionsParamsFormatTei              ListCollectionsParamsFormat = "tei"
+	ListCollectionsParamsFormatVersions         ListCollectionsParamsFormat = "versions"
+	ListCollectionsParamsFormatWikipedia        ListCollectionsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionsParamsFormat enum.
+func (e ListCollectionsParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionsParamsFormatAtom:
+		return true
+	case ListCollectionsParamsFormatBib:
+		return true
+	case ListCollectionsParamsFormatBiblatex:
+		return true
+	case ListCollectionsParamsFormatBibtex:
+		return true
+	case ListCollectionsParamsFormatBookmarks:
+		return true
+	case ListCollectionsParamsFormatCoins:
+		return true
+	case ListCollectionsParamsFormatCsljson:
+		return true
+	case ListCollectionsParamsFormatCsv:
+		return true
+	case ListCollectionsParamsFormatJson:
+		return true
+	case ListCollectionsParamsFormatKeys:
+		return true
+	case ListCollectionsParamsFormatMods:
+		return true
+	case ListCollectionsParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionsParamsFormatRdfDc:
+		return true
+	case ListCollectionsParamsFormatRdfZotero:
+		return true
+	case ListCollectionsParamsFormatRefer:
+		return true
+	case ListCollectionsParamsFormatRis:
+		return true
+	case ListCollectionsParamsFormatTei:
+		return true
+	case ListCollectionsParamsFormatVersions:
+		return true
+	case ListCollectionsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopCollectionsParamsSort.
+const (
+	ListTopCollectionsParamsSortAccessDate          ListTopCollectionsParamsSort = "accessDate"
+	ListTopCollectionsParamsSortAddedBy             ListTopCollectionsParamsSort = "addedBy"
+	ListTopCollectionsParamsSortCallNumber          ListTopCollectionsParamsSort = "callNumber"
+	ListTopCollectionsParamsSortCreator             ListTopCollectionsParamsSort = "creator"
+	ListTopCollectionsParamsSortDate                ListTopCollectionsParamsSort = "date"
+	ListTopCollectionsParamsSortDateAdded           ListTopCollectionsParamsSort = "dateAdded"
+	ListTopCollectionsParamsSortDateModified        ListTopCollectionsParamsSort = "dateModified"
+	ListTopCollectionsParamsSortItemType            ListTopCollectionsParamsSort = "itemType"
+	ListTopCollectionsParamsSortJournalAbbreviation ListTopCollectionsParamsSort = "journalAbbreviation"
+	ListTopCollectionsParamsSortLanguage            ListTopCollectionsParamsSort = "language"
+	ListTopCollectionsParamsSortLibraryCatalog      ListTopCollectionsParamsSort = "libraryCatalog"
+	ListTopCollectionsParamsSortNumItems            ListTopCollectionsParamsSort = "numItems"
+	ListTopCollectionsParamsSortPublicationTitle    ListTopCollectionsParamsSort = "publicationTitle"
+	ListTopCollectionsParamsSortPublisher           ListTopCollectionsParamsSort = "publisher"
+	ListTopCollectionsParamsSortRights              ListTopCollectionsParamsSort = "rights"
+	ListTopCollectionsParamsSortTitle               ListTopCollectionsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTopCollectionsParamsSort enum.
+func (e ListTopCollectionsParamsSort) Valid() bool {
+	switch e {
+	case ListTopCollectionsParamsSortAccessDate:
+		return true
+	case ListTopCollectionsParamsSortAddedBy:
+		return true
+	case ListTopCollectionsParamsSortCallNumber:
+		return true
+	case ListTopCollectionsParamsSortCreator:
+		return true
+	case ListTopCollectionsParamsSortDate:
+		return true
+	case ListTopCollectionsParamsSortDateAdded:
+		return true
+	case ListTopCollectionsParamsSortDateModified:
+		return true
+	case ListTopCollectionsParamsSortItemType:
+		return true
+	case ListTopCollectionsParamsSortJournalAbbreviation:
+		return true
+	case ListTopCollectionsParamsSortLanguage:
+		return true
+	case ListTopCollectionsParamsSortLibraryCatalog:
+		return true
+	case ListTopCollectionsParamsSortNumItems:
+		return true
+	case ListTopCollectionsParamsSortPublicationTitle:
+		return true
+	case ListTopCollectionsParamsSortPublisher:
+		return true
+	case ListTopCollectionsParamsSortRights:
+		return true
+	case ListTopCollectionsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopCollectionsParamsDirection.
+const (
+	ListTopCollectionsParamsDirectionAsc  ListTopCollectionsParamsDirection = "asc"
+	ListTopCollectionsParamsDirectionDesc ListTopCollectionsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTopCollectionsParamsDirection enum.
+func (e ListTopCollectionsParamsDirection) Valid() bool {
+	switch e {
+	case ListTopCollectionsParamsDirectionAsc:
+		return true
+	case ListTopCollectionsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopCollectionsParamsFormat.
+const (
+	ListTopCollectionsParamsFormatAtom             ListTopCollectionsParamsFormat = "atom"
+	ListTopCollectionsParamsFormatBib              ListTopCollectionsParamsFormat = "bib"
+	ListTopCollectionsParamsFormatBiblatex         ListTopCollectionsParamsFormat = "biblatex"
+	ListTopCollectionsParamsFormatBibtex           ListTopCollectionsParamsFormat = "bibtex"
+	ListTopCollectionsParamsFormatBookmarks        ListTopCollectionsParamsFormat = "bookmarks"
+	ListTopCollectionsParamsFormatCoins            ListTopCollectionsParamsFormat = "coins"
+	ListTopCollectionsParamsFormatCsljson          ListTopCollectionsParamsFormat = "csljson"
+	ListTopCollectionsParamsFormatCsv              ListTopCollectionsParamsFormat = "csv"
+	ListTopCollectionsParamsFormatJson             ListTopCollectionsParamsFormat = "json"
+	ListTopCollectionsParamsFormatKeys             ListTopCollectionsParamsFormat = "keys"
+	ListTopCollectionsParamsFormatMods             ListTopCollectionsParamsFormat = "mods"
+	ListTopCollectionsParamsFormatRdfBibliontology ListTopCollectionsParamsFormat = "rdf_bibliontology"
+	ListTopCollectionsParamsFormatRdfDc            ListTopCollectionsParamsFormat = "rdf_dc"
+	ListTopCollectionsParamsFormatRdfZotero        ListTopCollectionsParamsFormat = "rdf_zotero"
+	ListTopCollectionsParamsFormatRefer            ListTopCollectionsParamsFormat = "refer"
+	ListTopCollectionsParamsFormatRis              ListTopCollectionsParamsFormat = "ris"
+	ListTopCollectionsParamsFormatTei              ListTopCollectionsParamsFormat = "tei"
+	ListTopCollectionsParamsFormatVersions         ListTopCollectionsParamsFormat = "versions"
+	ListTopCollectionsParamsFormatWikipedia        ListTopCollectionsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTopCollectionsParamsFormat enum.
+func (e ListTopCollectionsParamsFormat) Valid() bool {
+	switch e {
+	case ListTopCollectionsParamsFormatAtom:
+		return true
+	case ListTopCollectionsParamsFormatBib:
+		return true
+	case ListTopCollectionsParamsFormatBiblatex:
+		return true
+	case ListTopCollectionsParamsFormatBibtex:
+		return true
+	case ListTopCollectionsParamsFormatBookmarks:
+		return true
+	case ListTopCollectionsParamsFormatCoins:
+		return true
+	case ListTopCollectionsParamsFormatCsljson:
+		return true
+	case ListTopCollectionsParamsFormatCsv:
+		return true
+	case ListTopCollectionsParamsFormatJson:
+		return true
+	case ListTopCollectionsParamsFormatKeys:
+		return true
+	case ListTopCollectionsParamsFormatMods:
+		return true
+	case ListTopCollectionsParamsFormatRdfBibliontology:
+		return true
+	case ListTopCollectionsParamsFormatRdfDc:
+		return true
+	case ListTopCollectionsParamsFormatRdfZotero:
+		return true
+	case ListTopCollectionsParamsFormatRefer:
+		return true
+	case ListTopCollectionsParamsFormatRis:
+		return true
+	case ListTopCollectionsParamsFormatTei:
+		return true
+	case ListTopCollectionsParamsFormatVersions:
+		return true
+	case ListTopCollectionsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionParamsFormat.
+const (
+	GetCollectionParamsFormatAtom             GetCollectionParamsFormat = "atom"
+	GetCollectionParamsFormatBib              GetCollectionParamsFormat = "bib"
+	GetCollectionParamsFormatBiblatex         GetCollectionParamsFormat = "biblatex"
+	GetCollectionParamsFormatBibtex           GetCollectionParamsFormat = "bibtex"
+	GetCollectionParamsFormatBookmarks        GetCollectionParamsFormat = "bookmarks"
+	GetCollectionParamsFormatCoins            GetCollectionParamsFormat = "coins"
+	GetCollectionParamsFormatCsljson          GetCollectionParamsFormat = "csljson"
+	GetCollectionParamsFormatCsv              GetCollectionParamsFormat = "csv"
+	GetCollectionParamsFormatJson             GetCollectionParamsFormat = "json"
+	GetCollectionParamsFormatKeys             GetCollectionParamsFormat = "keys"
+	GetCollectionParamsFormatMods             GetCollectionParamsFormat = "mods"
+	GetCollectionParamsFormatRdfBibliontology GetCollectionParamsFormat = "rdf_bibliontology"
+	GetCollectionParamsFormatRdfDc            GetCollectionParamsFormat = "rdf_dc"
+	GetCollectionParamsFormatRdfZotero        GetCollectionParamsFormat = "rdf_zotero"
+	GetCollectionParamsFormatRefer            GetCollectionParamsFormat = "refer"
+	GetCollectionParamsFormatRis              GetCollectionParamsFormat = "ris"
+	GetCollectionParamsFormatTei              GetCollectionParamsFormat = "tei"
+	GetCollectionParamsFormatVersions         GetCollectionParamsFormat = "versions"
+	GetCollectionParamsFormatWikipedia        GetCollectionParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionParamsFormat enum.
+func (e GetCollectionParamsFormat) Valid() bool {
+	switch e {
+	case GetCollectionParamsFormatAtom:
+		return true
+	case GetCollectionParamsFormatBib:
+		return true
+	case GetCollectionParamsFormatBiblatex:
+		return true
+	case GetCollectionParamsFormatBibtex:
+		return true
+	case GetCollectionParamsFormatBookmarks:
+		return true
+	case GetCollectionParamsFormatCoins:
+		return true
+	case GetCollectionParamsFormatCsljson:
+		return true
+	case GetCollectionParamsFormatCsv:
+		return true
+	case GetCollectionParamsFormatJson:
+		return true
+	case GetCollectionParamsFormatKeys:
+		return true
+	case GetCollectionParamsFormatMods:
+		return true
+	case GetCollectionParamsFormatRdfBibliontology:
+		return true
+	case GetCollectionParamsFormatRdfDc:
+		return true
+	case GetCollectionParamsFormatRdfZotero:
+		return true
+	case GetCollectionParamsFormatRefer:
+		return true
+	case GetCollectionParamsFormatRis:
+		return true
+	case GetCollectionParamsFormatTei:
+		return true
+	case GetCollectionParamsFormatVersions:
+		return true
+	case GetCollectionParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSubCollectionsParamsSort.
+const (
+	ListSubCollectionsParamsSortAccessDate          ListSubCollectionsParamsSort = "accessDate"
+	ListSubCollectionsParamsSortAddedBy             ListSubCollectionsParamsSort = "addedBy"
+	ListSubCollectionsParamsSortCallNumber          ListSubCollectionsParamsSort = "callNumber"
+	ListSubCollectionsParamsSortCreator             ListSubCollectionsParamsSort = "creator"
+	ListSubCollectionsParamsSortDate                ListSubCollectionsParamsSort = "date"
+	ListSubCollectionsParamsSortDateAdded           ListSubCollectionsParamsSort = "dateAdded"
+	ListSubCollectionsParamsSortDateModified        ListSubCollectionsParamsSort = "dateModified"
+	ListSubCollectionsParamsSortItemType            ListSubCollectionsParamsSort = "itemType"
+	ListSubCollectionsParamsSortJournalAbbreviation ListSubCollectionsParamsSort = "journalAbbreviation"
+	ListSubCollectionsParamsSortLanguage            ListSubCollectionsParamsSort = "language"
+	ListSubCollectionsParamsSortLibraryCatalog      ListSubCollectionsParamsSort = "libraryCatalog"
+	ListSubCollectionsParamsSortNumItems            ListSubCollectionsParamsSort = "numItems"
+	ListSubCollectionsParamsSortPublicationTitle    ListSubCollectionsParamsSort = "publicationTitle"
+	ListSubCollectionsParamsSortPublisher           ListSubCollectionsParamsSort = "publisher"
+	ListSubCollectionsParamsSortRights              ListSubCollectionsParamsSort = "rights"
+	ListSubCollectionsParamsSortTitle               ListSubCollectionsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListSubCollectionsParamsSort enum.
+func (e ListSubCollectionsParamsSort) Valid() bool {
+	switch e {
+	case ListSubCollectionsParamsSortAccessDate:
+		return true
+	case ListSubCollectionsParamsSortAddedBy:
+		return true
+	case ListSubCollectionsParamsSortCallNumber:
+		return true
+	case ListSubCollectionsParamsSortCreator:
+		return true
+	case ListSubCollectionsParamsSortDate:
+		return true
+	case ListSubCollectionsParamsSortDateAdded:
+		return true
+	case ListSubCollectionsParamsSortDateModified:
+		return true
+	case ListSubCollectionsParamsSortItemType:
+		return true
+	case ListSubCollectionsParamsSortJournalAbbreviation:
+		return true
+	case ListSubCollectionsParamsSortLanguage:
+		return true
+	case ListSubCollectionsParamsSortLibraryCatalog:
+		return true
+	case ListSubCollectionsParamsSortNumItems:
+		return true
+	case ListSubCollectionsParamsSortPublicationTitle:
+		return true
+	case ListSubCollectionsParamsSortPublisher:
+		return true
+	case ListSubCollectionsParamsSortRights:
+		return true
+	case ListSubCollectionsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSubCollectionsParamsDirection.
+const (
+	ListSubCollectionsParamsDirectionAsc  ListSubCollectionsParamsDirection = "asc"
+	ListSubCollectionsParamsDirectionDesc ListSubCollectionsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListSubCollectionsParamsDirection enum.
+func (e ListSubCollectionsParamsDirection) Valid() bool {
+	switch e {
+	case ListSubCollectionsParamsDirectionAsc:
+		return true
+	case ListSubCollectionsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSubCollectionsParamsFormat.
+const (
+	ListSubCollectionsParamsFormatAtom             ListSubCollectionsParamsFormat = "atom"
+	ListSubCollectionsParamsFormatBib              ListSubCollectionsParamsFormat = "bib"
+	ListSubCollectionsParamsFormatBiblatex         ListSubCollectionsParamsFormat = "biblatex"
+	ListSubCollectionsParamsFormatBibtex           ListSubCollectionsParamsFormat = "bibtex"
+	ListSubCollectionsParamsFormatBookmarks        ListSubCollectionsParamsFormat = "bookmarks"
+	ListSubCollectionsParamsFormatCoins            ListSubCollectionsParamsFormat = "coins"
+	ListSubCollectionsParamsFormatCsljson          ListSubCollectionsParamsFormat = "csljson"
+	ListSubCollectionsParamsFormatCsv              ListSubCollectionsParamsFormat = "csv"
+	ListSubCollectionsParamsFormatJson             ListSubCollectionsParamsFormat = "json"
+	ListSubCollectionsParamsFormatKeys             ListSubCollectionsParamsFormat = "keys"
+	ListSubCollectionsParamsFormatMods             ListSubCollectionsParamsFormat = "mods"
+	ListSubCollectionsParamsFormatRdfBibliontology ListSubCollectionsParamsFormat = "rdf_bibliontology"
+	ListSubCollectionsParamsFormatRdfDc            ListSubCollectionsParamsFormat = "rdf_dc"
+	ListSubCollectionsParamsFormatRdfZotero        ListSubCollectionsParamsFormat = "rdf_zotero"
+	ListSubCollectionsParamsFormatRefer            ListSubCollectionsParamsFormat = "refer"
+	ListSubCollectionsParamsFormatRis              ListSubCollectionsParamsFormat = "ris"
+	ListSubCollectionsParamsFormatTei              ListSubCollectionsParamsFormat = "tei"
+	ListSubCollectionsParamsFormatVersions         ListSubCollectionsParamsFormat = "versions"
+	ListSubCollectionsParamsFormatWikipedia        ListSubCollectionsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListSubCollectionsParamsFormat enum.
+func (e ListSubCollectionsParamsFormat) Valid() bool {
+	switch e {
+	case ListSubCollectionsParamsFormatAtom:
+		return true
+	case ListSubCollectionsParamsFormatBib:
+		return true
+	case ListSubCollectionsParamsFormatBiblatex:
+		return true
+	case ListSubCollectionsParamsFormatBibtex:
+		return true
+	case ListSubCollectionsParamsFormatBookmarks:
+		return true
+	case ListSubCollectionsParamsFormatCoins:
+		return true
+	case ListSubCollectionsParamsFormatCsljson:
+		return true
+	case ListSubCollectionsParamsFormatCsv:
+		return true
+	case ListSubCollectionsParamsFormatJson:
+		return true
+	case ListSubCollectionsParamsFormatKeys:
+		return true
+	case ListSubCollectionsParamsFormatMods:
+		return true
+	case ListSubCollectionsParamsFormatRdfBibliontology:
+		return true
+	case ListSubCollectionsParamsFormatRdfDc:
+		return true
+	case ListSubCollectionsParamsFormatRdfZotero:
+		return true
+	case ListSubCollectionsParamsFormatRefer:
+		return true
+	case ListSubCollectionsParamsFormatRis:
+		return true
+	case ListSubCollectionsParamsFormatTei:
+		return true
+	case ListSubCollectionsParamsFormatVersions:
+		return true
+	case ListSubCollectionsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListCollectionItemsParamsQmode.
 const (
+	ListCollectionItemsParamsQmodeContains         ListCollectionItemsParamsQmode = "contains"
 	ListCollectionItemsParamsQmodeEverything       ListCollectionItemsParamsQmode = "everything"
+	ListCollectionItemsParamsQmodeStartsWith       ListCollectionItemsParamsQmode = "startsWith"
 	ListCollectionItemsParamsQmodeTitleCreatorYear ListCollectionItemsParamsQmode = "titleCreatorYear"
 )
 
 // Valid indicates whether the value is a known member of the ListCollectionItemsParamsQmode enum.
 func (e ListCollectionItemsParamsQmode) Valid() bool {
 	switch e {
+	case ListCollectionItemsParamsQmodeContains:
+		return true
 	case ListCollectionItemsParamsQmodeEverything:
 		return true
+	case ListCollectionItemsParamsQmodeStartsWith:
+		return true
 	case ListCollectionItemsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsParamsIncludeTrashed.
+const (
+	ListCollectionItemsParamsIncludeTrashedN0 ListCollectionItemsParamsIncludeTrashed = 0
+	ListCollectionItemsParamsIncludeTrashedN1 ListCollectionItemsParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsParamsIncludeTrashed enum.
+func (e ListCollectionItemsParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListCollectionItemsParamsIncludeTrashedN0:
+		return true
+	case ListCollectionItemsParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsParamsSort.
+const (
+	ListCollectionItemsParamsSortAccessDate          ListCollectionItemsParamsSort = "accessDate"
+	ListCollectionItemsParamsSortAddedBy             ListCollectionItemsParamsSort = "addedBy"
+	ListCollectionItemsParamsSortCallNumber          ListCollectionItemsParamsSort = "callNumber"
+	ListCollectionItemsParamsSortCreator             ListCollectionItemsParamsSort = "creator"
+	ListCollectionItemsParamsSortDate                ListCollectionItemsParamsSort = "date"
+	ListCollectionItemsParamsSortDateAdded           ListCollectionItemsParamsSort = "dateAdded"
+	ListCollectionItemsParamsSortDateModified        ListCollectionItemsParamsSort = "dateModified"
+	ListCollectionItemsParamsSortItemType            ListCollectionItemsParamsSort = "itemType"
+	ListCollectionItemsParamsSortJournalAbbreviation ListCollectionItemsParamsSort = "journalAbbreviation"
+	ListCollectionItemsParamsSortLanguage            ListCollectionItemsParamsSort = "language"
+	ListCollectionItemsParamsSortLibraryCatalog      ListCollectionItemsParamsSort = "libraryCatalog"
+	ListCollectionItemsParamsSortNumItems            ListCollectionItemsParamsSort = "numItems"
+	ListCollectionItemsParamsSortPublicationTitle    ListCollectionItemsParamsSort = "publicationTitle"
+	ListCollectionItemsParamsSortPublisher           ListCollectionItemsParamsSort = "publisher"
+	ListCollectionItemsParamsSortRights              ListCollectionItemsParamsSort = "rights"
+	ListCollectionItemsParamsSortTitle               ListCollectionItemsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsParamsSort enum.
+func (e ListCollectionItemsParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionItemsParamsSortAccessDate:
+		return true
+	case ListCollectionItemsParamsSortAddedBy:
+		return true
+	case ListCollectionItemsParamsSortCallNumber:
+		return true
+	case ListCollectionItemsParamsSortCreator:
+		return true
+	case ListCollectionItemsParamsSortDate:
+		return true
+	case ListCollectionItemsParamsSortDateAdded:
+		return true
+	case ListCollectionItemsParamsSortDateModified:
+		return true
+	case ListCollectionItemsParamsSortItemType:
+		return true
+	case ListCollectionItemsParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionItemsParamsSortLanguage:
+		return true
+	case ListCollectionItemsParamsSortLibraryCatalog:
+		return true
+	case ListCollectionItemsParamsSortNumItems:
+		return true
+	case ListCollectionItemsParamsSortPublicationTitle:
+		return true
+	case ListCollectionItemsParamsSortPublisher:
+		return true
+	case ListCollectionItemsParamsSortRights:
+		return true
+	case ListCollectionItemsParamsSortTitle:
 		return true
 	default:
 		return false
@@ -747,6 +4548,8 @@ func (e ListCollectionItemsParamsDirection) Valid() bool {
 
 // Defines values for ListCollectionItemsParamsFormat.
 const (
+	ListCollectionItemsParamsFormatAtom             ListCollectionItemsParamsFormat = "atom"
+	ListCollectionItemsParamsFormatBib              ListCollectionItemsParamsFormat = "bib"
 	ListCollectionItemsParamsFormatBiblatex         ListCollectionItemsParamsFormat = "biblatex"
 	ListCollectionItemsParamsFormatBibtex           ListCollectionItemsParamsFormat = "bibtex"
 	ListCollectionItemsParamsFormatBookmarks        ListCollectionItemsParamsFormat = "bookmarks"
@@ -769,6 +4572,10 @@ const (
 // Valid indicates whether the value is a known member of the ListCollectionItemsParamsFormat enum.
 func (e ListCollectionItemsParamsFormat) Valid() bool {
 	switch e {
+	case ListCollectionItemsParamsFormatAtom:
+		return true
+	case ListCollectionItemsParamsFormatBib:
+		return true
 	case ListCollectionItemsParamsFormatBiblatex:
 		return true
 	case ListCollectionItemsParamsFormatBibtex:
@@ -808,18 +4615,876 @@ func (e ListCollectionItemsParamsFormat) Valid() bool {
 	}
 }
 
+// Defines values for ListCollectionItemsParamsLinkwrap.
+const (
+	ListCollectionItemsParamsLinkwrapN0 ListCollectionItemsParamsLinkwrap = 0
+	ListCollectionItemsParamsLinkwrapN1 ListCollectionItemsParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsParamsLinkwrap enum.
+func (e ListCollectionItemsParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListCollectionItemsParamsLinkwrapN0:
+		return true
+	case ListCollectionItemsParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsParamsQmode.
+const (
+	ListCollectionItemsTagsParamsQmodeContains         ListCollectionItemsTagsParamsQmode = "contains"
+	ListCollectionItemsTagsParamsQmodeEverything       ListCollectionItemsTagsParamsQmode = "everything"
+	ListCollectionItemsTagsParamsQmodeStartsWith       ListCollectionItemsTagsParamsQmode = "startsWith"
+	ListCollectionItemsTagsParamsQmodeTitleCreatorYear ListCollectionItemsTagsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsParamsQmode enum.
+func (e ListCollectionItemsTagsParamsQmode) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsParamsQmodeContains:
+		return true
+	case ListCollectionItemsTagsParamsQmodeEverything:
+		return true
+	case ListCollectionItemsTagsParamsQmodeStartsWith:
+		return true
+	case ListCollectionItemsTagsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsParamsIncludeTrashed.
+const (
+	ListCollectionItemsTagsParamsIncludeTrashedN0 ListCollectionItemsTagsParamsIncludeTrashed = 0
+	ListCollectionItemsTagsParamsIncludeTrashedN1 ListCollectionItemsTagsParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsParamsIncludeTrashed enum.
+func (e ListCollectionItemsTagsParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsParamsIncludeTrashedN0:
+		return true
+	case ListCollectionItemsTagsParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsParamsSort.
+const (
+	ListCollectionItemsTagsParamsSortAccessDate          ListCollectionItemsTagsParamsSort = "accessDate"
+	ListCollectionItemsTagsParamsSortAddedBy             ListCollectionItemsTagsParamsSort = "addedBy"
+	ListCollectionItemsTagsParamsSortCallNumber          ListCollectionItemsTagsParamsSort = "callNumber"
+	ListCollectionItemsTagsParamsSortCreator             ListCollectionItemsTagsParamsSort = "creator"
+	ListCollectionItemsTagsParamsSortDate                ListCollectionItemsTagsParamsSort = "date"
+	ListCollectionItemsTagsParamsSortDateAdded           ListCollectionItemsTagsParamsSort = "dateAdded"
+	ListCollectionItemsTagsParamsSortDateModified        ListCollectionItemsTagsParamsSort = "dateModified"
+	ListCollectionItemsTagsParamsSortItemType            ListCollectionItemsTagsParamsSort = "itemType"
+	ListCollectionItemsTagsParamsSortJournalAbbreviation ListCollectionItemsTagsParamsSort = "journalAbbreviation"
+	ListCollectionItemsTagsParamsSortLanguage            ListCollectionItemsTagsParamsSort = "language"
+	ListCollectionItemsTagsParamsSortLibraryCatalog      ListCollectionItemsTagsParamsSort = "libraryCatalog"
+	ListCollectionItemsTagsParamsSortNumItems            ListCollectionItemsTagsParamsSort = "numItems"
+	ListCollectionItemsTagsParamsSortPublicationTitle    ListCollectionItemsTagsParamsSort = "publicationTitle"
+	ListCollectionItemsTagsParamsSortPublisher           ListCollectionItemsTagsParamsSort = "publisher"
+	ListCollectionItemsTagsParamsSortRights              ListCollectionItemsTagsParamsSort = "rights"
+	ListCollectionItemsTagsParamsSortTitle               ListCollectionItemsTagsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsParamsSort enum.
+func (e ListCollectionItemsTagsParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsParamsSortAccessDate:
+		return true
+	case ListCollectionItemsTagsParamsSortAddedBy:
+		return true
+	case ListCollectionItemsTagsParamsSortCallNumber:
+		return true
+	case ListCollectionItemsTagsParamsSortCreator:
+		return true
+	case ListCollectionItemsTagsParamsSortDate:
+		return true
+	case ListCollectionItemsTagsParamsSortDateAdded:
+		return true
+	case ListCollectionItemsTagsParamsSortDateModified:
+		return true
+	case ListCollectionItemsTagsParamsSortItemType:
+		return true
+	case ListCollectionItemsTagsParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionItemsTagsParamsSortLanguage:
+		return true
+	case ListCollectionItemsTagsParamsSortLibraryCatalog:
+		return true
+	case ListCollectionItemsTagsParamsSortNumItems:
+		return true
+	case ListCollectionItemsTagsParamsSortPublicationTitle:
+		return true
+	case ListCollectionItemsTagsParamsSortPublisher:
+		return true
+	case ListCollectionItemsTagsParamsSortRights:
+		return true
+	case ListCollectionItemsTagsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsParamsDirection.
+const (
+	ListCollectionItemsTagsParamsDirectionAsc  ListCollectionItemsTagsParamsDirection = "asc"
+	ListCollectionItemsTagsParamsDirectionDesc ListCollectionItemsTagsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsParamsDirection enum.
+func (e ListCollectionItemsTagsParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsParamsDirectionAsc:
+		return true
+	case ListCollectionItemsTagsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionItemsTagsParamsFormat.
+const (
+	ListCollectionItemsTagsParamsFormatAtom             ListCollectionItemsTagsParamsFormat = "atom"
+	ListCollectionItemsTagsParamsFormatBib              ListCollectionItemsTagsParamsFormat = "bib"
+	ListCollectionItemsTagsParamsFormatBiblatex         ListCollectionItemsTagsParamsFormat = "biblatex"
+	ListCollectionItemsTagsParamsFormatBibtex           ListCollectionItemsTagsParamsFormat = "bibtex"
+	ListCollectionItemsTagsParamsFormatBookmarks        ListCollectionItemsTagsParamsFormat = "bookmarks"
+	ListCollectionItemsTagsParamsFormatCoins            ListCollectionItemsTagsParamsFormat = "coins"
+	ListCollectionItemsTagsParamsFormatCsljson          ListCollectionItemsTagsParamsFormat = "csljson"
+	ListCollectionItemsTagsParamsFormatCsv              ListCollectionItemsTagsParamsFormat = "csv"
+	ListCollectionItemsTagsParamsFormatJson             ListCollectionItemsTagsParamsFormat = "json"
+	ListCollectionItemsTagsParamsFormatKeys             ListCollectionItemsTagsParamsFormat = "keys"
+	ListCollectionItemsTagsParamsFormatMods             ListCollectionItemsTagsParamsFormat = "mods"
+	ListCollectionItemsTagsParamsFormatRdfBibliontology ListCollectionItemsTagsParamsFormat = "rdf_bibliontology"
+	ListCollectionItemsTagsParamsFormatRdfDc            ListCollectionItemsTagsParamsFormat = "rdf_dc"
+	ListCollectionItemsTagsParamsFormatRdfZotero        ListCollectionItemsTagsParamsFormat = "rdf_zotero"
+	ListCollectionItemsTagsParamsFormatRefer            ListCollectionItemsTagsParamsFormat = "refer"
+	ListCollectionItemsTagsParamsFormatRis              ListCollectionItemsTagsParamsFormat = "ris"
+	ListCollectionItemsTagsParamsFormatTei              ListCollectionItemsTagsParamsFormat = "tei"
+	ListCollectionItemsTagsParamsFormatVersions         ListCollectionItemsTagsParamsFormat = "versions"
+	ListCollectionItemsTagsParamsFormatWikipedia        ListCollectionItemsTagsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionItemsTagsParamsFormat enum.
+func (e ListCollectionItemsTagsParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionItemsTagsParamsFormatAtom:
+		return true
+	case ListCollectionItemsTagsParamsFormatBib:
+		return true
+	case ListCollectionItemsTagsParamsFormatBiblatex:
+		return true
+	case ListCollectionItemsTagsParamsFormatBibtex:
+		return true
+	case ListCollectionItemsTagsParamsFormatBookmarks:
+		return true
+	case ListCollectionItemsTagsParamsFormatCoins:
+		return true
+	case ListCollectionItemsTagsParamsFormatCsljson:
+		return true
+	case ListCollectionItemsTagsParamsFormatCsv:
+		return true
+	case ListCollectionItemsTagsParamsFormatJson:
+		return true
+	case ListCollectionItemsTagsParamsFormatKeys:
+		return true
+	case ListCollectionItemsTagsParamsFormatMods:
+		return true
+	case ListCollectionItemsTagsParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionItemsTagsParamsFormatRdfDc:
+		return true
+	case ListCollectionItemsTagsParamsFormatRdfZotero:
+		return true
+	case ListCollectionItemsTagsParamsFormatRefer:
+		return true
+	case ListCollectionItemsTagsParamsFormatRis:
+		return true
+	case ListCollectionItemsTagsParamsFormatTei:
+		return true
+	case ListCollectionItemsTagsParamsFormatVersions:
+		return true
+	case ListCollectionItemsTagsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsParamsQmode.
+const (
+	ListCollectionTopItemsParamsQmodeContains         ListCollectionTopItemsParamsQmode = "contains"
+	ListCollectionTopItemsParamsQmodeEverything       ListCollectionTopItemsParamsQmode = "everything"
+	ListCollectionTopItemsParamsQmodeStartsWith       ListCollectionTopItemsParamsQmode = "startsWith"
+	ListCollectionTopItemsParamsQmodeTitleCreatorYear ListCollectionTopItemsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsParamsQmode enum.
+func (e ListCollectionTopItemsParamsQmode) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsParamsQmodeContains:
+		return true
+	case ListCollectionTopItemsParamsQmodeEverything:
+		return true
+	case ListCollectionTopItemsParamsQmodeStartsWith:
+		return true
+	case ListCollectionTopItemsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsParamsIncludeTrashed.
+const (
+	ListCollectionTopItemsParamsIncludeTrashedN0 ListCollectionTopItemsParamsIncludeTrashed = 0
+	ListCollectionTopItemsParamsIncludeTrashedN1 ListCollectionTopItemsParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsParamsIncludeTrashed enum.
+func (e ListCollectionTopItemsParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsParamsIncludeTrashedN0:
+		return true
+	case ListCollectionTopItemsParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsParamsSort.
+const (
+	ListCollectionTopItemsParamsSortAccessDate          ListCollectionTopItemsParamsSort = "accessDate"
+	ListCollectionTopItemsParamsSortAddedBy             ListCollectionTopItemsParamsSort = "addedBy"
+	ListCollectionTopItemsParamsSortCallNumber          ListCollectionTopItemsParamsSort = "callNumber"
+	ListCollectionTopItemsParamsSortCreator             ListCollectionTopItemsParamsSort = "creator"
+	ListCollectionTopItemsParamsSortDate                ListCollectionTopItemsParamsSort = "date"
+	ListCollectionTopItemsParamsSortDateAdded           ListCollectionTopItemsParamsSort = "dateAdded"
+	ListCollectionTopItemsParamsSortDateModified        ListCollectionTopItemsParamsSort = "dateModified"
+	ListCollectionTopItemsParamsSortItemType            ListCollectionTopItemsParamsSort = "itemType"
+	ListCollectionTopItemsParamsSortJournalAbbreviation ListCollectionTopItemsParamsSort = "journalAbbreviation"
+	ListCollectionTopItemsParamsSortLanguage            ListCollectionTopItemsParamsSort = "language"
+	ListCollectionTopItemsParamsSortLibraryCatalog      ListCollectionTopItemsParamsSort = "libraryCatalog"
+	ListCollectionTopItemsParamsSortNumItems            ListCollectionTopItemsParamsSort = "numItems"
+	ListCollectionTopItemsParamsSortPublicationTitle    ListCollectionTopItemsParamsSort = "publicationTitle"
+	ListCollectionTopItemsParamsSortPublisher           ListCollectionTopItemsParamsSort = "publisher"
+	ListCollectionTopItemsParamsSortRights              ListCollectionTopItemsParamsSort = "rights"
+	ListCollectionTopItemsParamsSortTitle               ListCollectionTopItemsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsParamsSort enum.
+func (e ListCollectionTopItemsParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsParamsSortAccessDate:
+		return true
+	case ListCollectionTopItemsParamsSortAddedBy:
+		return true
+	case ListCollectionTopItemsParamsSortCallNumber:
+		return true
+	case ListCollectionTopItemsParamsSortCreator:
+		return true
+	case ListCollectionTopItemsParamsSortDate:
+		return true
+	case ListCollectionTopItemsParamsSortDateAdded:
+		return true
+	case ListCollectionTopItemsParamsSortDateModified:
+		return true
+	case ListCollectionTopItemsParamsSortItemType:
+		return true
+	case ListCollectionTopItemsParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionTopItemsParamsSortLanguage:
+		return true
+	case ListCollectionTopItemsParamsSortLibraryCatalog:
+		return true
+	case ListCollectionTopItemsParamsSortNumItems:
+		return true
+	case ListCollectionTopItemsParamsSortPublicationTitle:
+		return true
+	case ListCollectionTopItemsParamsSortPublisher:
+		return true
+	case ListCollectionTopItemsParamsSortRights:
+		return true
+	case ListCollectionTopItemsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsParamsDirection.
+const (
+	ListCollectionTopItemsParamsDirectionAsc  ListCollectionTopItemsParamsDirection = "asc"
+	ListCollectionTopItemsParamsDirectionDesc ListCollectionTopItemsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsParamsDirection enum.
+func (e ListCollectionTopItemsParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsParamsDirectionAsc:
+		return true
+	case ListCollectionTopItemsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsParamsFormat.
+const (
+	ListCollectionTopItemsParamsFormatAtom             ListCollectionTopItemsParamsFormat = "atom"
+	ListCollectionTopItemsParamsFormatBib              ListCollectionTopItemsParamsFormat = "bib"
+	ListCollectionTopItemsParamsFormatBiblatex         ListCollectionTopItemsParamsFormat = "biblatex"
+	ListCollectionTopItemsParamsFormatBibtex           ListCollectionTopItemsParamsFormat = "bibtex"
+	ListCollectionTopItemsParamsFormatBookmarks        ListCollectionTopItemsParamsFormat = "bookmarks"
+	ListCollectionTopItemsParamsFormatCoins            ListCollectionTopItemsParamsFormat = "coins"
+	ListCollectionTopItemsParamsFormatCsljson          ListCollectionTopItemsParamsFormat = "csljson"
+	ListCollectionTopItemsParamsFormatCsv              ListCollectionTopItemsParamsFormat = "csv"
+	ListCollectionTopItemsParamsFormatJson             ListCollectionTopItemsParamsFormat = "json"
+	ListCollectionTopItemsParamsFormatKeys             ListCollectionTopItemsParamsFormat = "keys"
+	ListCollectionTopItemsParamsFormatMods             ListCollectionTopItemsParamsFormat = "mods"
+	ListCollectionTopItemsParamsFormatRdfBibliontology ListCollectionTopItemsParamsFormat = "rdf_bibliontology"
+	ListCollectionTopItemsParamsFormatRdfDc            ListCollectionTopItemsParamsFormat = "rdf_dc"
+	ListCollectionTopItemsParamsFormatRdfZotero        ListCollectionTopItemsParamsFormat = "rdf_zotero"
+	ListCollectionTopItemsParamsFormatRefer            ListCollectionTopItemsParamsFormat = "refer"
+	ListCollectionTopItemsParamsFormatRis              ListCollectionTopItemsParamsFormat = "ris"
+	ListCollectionTopItemsParamsFormatTei              ListCollectionTopItemsParamsFormat = "tei"
+	ListCollectionTopItemsParamsFormatVersions         ListCollectionTopItemsParamsFormat = "versions"
+	ListCollectionTopItemsParamsFormatWikipedia        ListCollectionTopItemsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsParamsFormat enum.
+func (e ListCollectionTopItemsParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsParamsFormatAtom:
+		return true
+	case ListCollectionTopItemsParamsFormatBib:
+		return true
+	case ListCollectionTopItemsParamsFormatBiblatex:
+		return true
+	case ListCollectionTopItemsParamsFormatBibtex:
+		return true
+	case ListCollectionTopItemsParamsFormatBookmarks:
+		return true
+	case ListCollectionTopItemsParamsFormatCoins:
+		return true
+	case ListCollectionTopItemsParamsFormatCsljson:
+		return true
+	case ListCollectionTopItemsParamsFormatCsv:
+		return true
+	case ListCollectionTopItemsParamsFormatJson:
+		return true
+	case ListCollectionTopItemsParamsFormatKeys:
+		return true
+	case ListCollectionTopItemsParamsFormatMods:
+		return true
+	case ListCollectionTopItemsParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionTopItemsParamsFormatRdfDc:
+		return true
+	case ListCollectionTopItemsParamsFormatRdfZotero:
+		return true
+	case ListCollectionTopItemsParamsFormatRefer:
+		return true
+	case ListCollectionTopItemsParamsFormatRis:
+		return true
+	case ListCollectionTopItemsParamsFormatTei:
+		return true
+	case ListCollectionTopItemsParamsFormatVersions:
+		return true
+	case ListCollectionTopItemsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsParamsLinkwrap.
+const (
+	ListCollectionTopItemsParamsLinkwrapN0 ListCollectionTopItemsParamsLinkwrap = 0
+	ListCollectionTopItemsParamsLinkwrapN1 ListCollectionTopItemsParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsParamsLinkwrap enum.
+func (e ListCollectionTopItemsParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsParamsLinkwrapN0:
+		return true
+	case ListCollectionTopItemsParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsParamsQmode.
+const (
+	ListCollectionTopItemsTagsParamsQmodeContains         ListCollectionTopItemsTagsParamsQmode = "contains"
+	ListCollectionTopItemsTagsParamsQmodeEverything       ListCollectionTopItemsTagsParamsQmode = "everything"
+	ListCollectionTopItemsTagsParamsQmodeStartsWith       ListCollectionTopItemsTagsParamsQmode = "startsWith"
+	ListCollectionTopItemsTagsParamsQmodeTitleCreatorYear ListCollectionTopItemsTagsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsParamsQmode enum.
+func (e ListCollectionTopItemsTagsParamsQmode) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsParamsQmodeContains:
+		return true
+	case ListCollectionTopItemsTagsParamsQmodeEverything:
+		return true
+	case ListCollectionTopItemsTagsParamsQmodeStartsWith:
+		return true
+	case ListCollectionTopItemsTagsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsParamsIncludeTrashed.
+const (
+	ListCollectionTopItemsTagsParamsIncludeTrashedN0 ListCollectionTopItemsTagsParamsIncludeTrashed = 0
+	ListCollectionTopItemsTagsParamsIncludeTrashedN1 ListCollectionTopItemsTagsParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsParamsIncludeTrashed enum.
+func (e ListCollectionTopItemsTagsParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsParamsIncludeTrashedN0:
+		return true
+	case ListCollectionTopItemsTagsParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsParamsSort.
+const (
+	ListCollectionTopItemsTagsParamsSortAccessDate          ListCollectionTopItemsTagsParamsSort = "accessDate"
+	ListCollectionTopItemsTagsParamsSortAddedBy             ListCollectionTopItemsTagsParamsSort = "addedBy"
+	ListCollectionTopItemsTagsParamsSortCallNumber          ListCollectionTopItemsTagsParamsSort = "callNumber"
+	ListCollectionTopItemsTagsParamsSortCreator             ListCollectionTopItemsTagsParamsSort = "creator"
+	ListCollectionTopItemsTagsParamsSortDate                ListCollectionTopItemsTagsParamsSort = "date"
+	ListCollectionTopItemsTagsParamsSortDateAdded           ListCollectionTopItemsTagsParamsSort = "dateAdded"
+	ListCollectionTopItemsTagsParamsSortDateModified        ListCollectionTopItemsTagsParamsSort = "dateModified"
+	ListCollectionTopItemsTagsParamsSortItemType            ListCollectionTopItemsTagsParamsSort = "itemType"
+	ListCollectionTopItemsTagsParamsSortJournalAbbreviation ListCollectionTopItemsTagsParamsSort = "journalAbbreviation"
+	ListCollectionTopItemsTagsParamsSortLanguage            ListCollectionTopItemsTagsParamsSort = "language"
+	ListCollectionTopItemsTagsParamsSortLibraryCatalog      ListCollectionTopItemsTagsParamsSort = "libraryCatalog"
+	ListCollectionTopItemsTagsParamsSortNumItems            ListCollectionTopItemsTagsParamsSort = "numItems"
+	ListCollectionTopItemsTagsParamsSortPublicationTitle    ListCollectionTopItemsTagsParamsSort = "publicationTitle"
+	ListCollectionTopItemsTagsParamsSortPublisher           ListCollectionTopItemsTagsParamsSort = "publisher"
+	ListCollectionTopItemsTagsParamsSortRights              ListCollectionTopItemsTagsParamsSort = "rights"
+	ListCollectionTopItemsTagsParamsSortTitle               ListCollectionTopItemsTagsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsParamsSort enum.
+func (e ListCollectionTopItemsTagsParamsSort) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsParamsSortAccessDate:
+		return true
+	case ListCollectionTopItemsTagsParamsSortAddedBy:
+		return true
+	case ListCollectionTopItemsTagsParamsSortCallNumber:
+		return true
+	case ListCollectionTopItemsTagsParamsSortCreator:
+		return true
+	case ListCollectionTopItemsTagsParamsSortDate:
+		return true
+	case ListCollectionTopItemsTagsParamsSortDateAdded:
+		return true
+	case ListCollectionTopItemsTagsParamsSortDateModified:
+		return true
+	case ListCollectionTopItemsTagsParamsSortItemType:
+		return true
+	case ListCollectionTopItemsTagsParamsSortJournalAbbreviation:
+		return true
+	case ListCollectionTopItemsTagsParamsSortLanguage:
+		return true
+	case ListCollectionTopItemsTagsParamsSortLibraryCatalog:
+		return true
+	case ListCollectionTopItemsTagsParamsSortNumItems:
+		return true
+	case ListCollectionTopItemsTagsParamsSortPublicationTitle:
+		return true
+	case ListCollectionTopItemsTagsParamsSortPublisher:
+		return true
+	case ListCollectionTopItemsTagsParamsSortRights:
+		return true
+	case ListCollectionTopItemsTagsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsParamsDirection.
+const (
+	ListCollectionTopItemsTagsParamsDirectionAsc  ListCollectionTopItemsTagsParamsDirection = "asc"
+	ListCollectionTopItemsTagsParamsDirectionDesc ListCollectionTopItemsTagsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsParamsDirection enum.
+func (e ListCollectionTopItemsTagsParamsDirection) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsParamsDirectionAsc:
+		return true
+	case ListCollectionTopItemsTagsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCollectionTopItemsTagsParamsFormat.
+const (
+	ListCollectionTopItemsTagsParamsFormatAtom             ListCollectionTopItemsTagsParamsFormat = "atom"
+	ListCollectionTopItemsTagsParamsFormatBib              ListCollectionTopItemsTagsParamsFormat = "bib"
+	ListCollectionTopItemsTagsParamsFormatBiblatex         ListCollectionTopItemsTagsParamsFormat = "biblatex"
+	ListCollectionTopItemsTagsParamsFormatBibtex           ListCollectionTopItemsTagsParamsFormat = "bibtex"
+	ListCollectionTopItemsTagsParamsFormatBookmarks        ListCollectionTopItemsTagsParamsFormat = "bookmarks"
+	ListCollectionTopItemsTagsParamsFormatCoins            ListCollectionTopItemsTagsParamsFormat = "coins"
+	ListCollectionTopItemsTagsParamsFormatCsljson          ListCollectionTopItemsTagsParamsFormat = "csljson"
+	ListCollectionTopItemsTagsParamsFormatCsv              ListCollectionTopItemsTagsParamsFormat = "csv"
+	ListCollectionTopItemsTagsParamsFormatJson             ListCollectionTopItemsTagsParamsFormat = "json"
+	ListCollectionTopItemsTagsParamsFormatKeys             ListCollectionTopItemsTagsParamsFormat = "keys"
+	ListCollectionTopItemsTagsParamsFormatMods             ListCollectionTopItemsTagsParamsFormat = "mods"
+	ListCollectionTopItemsTagsParamsFormatRdfBibliontology ListCollectionTopItemsTagsParamsFormat = "rdf_bibliontology"
+	ListCollectionTopItemsTagsParamsFormatRdfDc            ListCollectionTopItemsTagsParamsFormat = "rdf_dc"
+	ListCollectionTopItemsTagsParamsFormatRdfZotero        ListCollectionTopItemsTagsParamsFormat = "rdf_zotero"
+	ListCollectionTopItemsTagsParamsFormatRefer            ListCollectionTopItemsTagsParamsFormat = "refer"
+	ListCollectionTopItemsTagsParamsFormatRis              ListCollectionTopItemsTagsParamsFormat = "ris"
+	ListCollectionTopItemsTagsParamsFormatTei              ListCollectionTopItemsTagsParamsFormat = "tei"
+	ListCollectionTopItemsTagsParamsFormatVersions         ListCollectionTopItemsTagsParamsFormat = "versions"
+	ListCollectionTopItemsTagsParamsFormatWikipedia        ListCollectionTopItemsTagsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListCollectionTopItemsTagsParamsFormat enum.
+func (e ListCollectionTopItemsTagsParamsFormat) Valid() bool {
+	switch e {
+	case ListCollectionTopItemsTagsParamsFormatAtom:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatBib:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatBiblatex:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatBibtex:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatBookmarks:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatCoins:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatCsljson:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatCsv:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatJson:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatKeys:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatMods:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatRdfBibliontology:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatRdfDc:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatRdfZotero:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatRefer:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatRis:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatTei:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatVersions:
+		return true
+	case ListCollectionTopItemsTagsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionTagsParamsQmode.
+const (
+	GetCollectionTagsParamsQmodeContains         GetCollectionTagsParamsQmode = "contains"
+	GetCollectionTagsParamsQmodeEverything       GetCollectionTagsParamsQmode = "everything"
+	GetCollectionTagsParamsQmodeStartsWith       GetCollectionTagsParamsQmode = "startsWith"
+	GetCollectionTagsParamsQmodeTitleCreatorYear GetCollectionTagsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionTagsParamsQmode enum.
+func (e GetCollectionTagsParamsQmode) Valid() bool {
+	switch e {
+	case GetCollectionTagsParamsQmodeContains:
+		return true
+	case GetCollectionTagsParamsQmodeEverything:
+		return true
+	case GetCollectionTagsParamsQmodeStartsWith:
+		return true
+	case GetCollectionTagsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionTagsParamsSort.
+const (
+	GetCollectionTagsParamsSortAccessDate          GetCollectionTagsParamsSort = "accessDate"
+	GetCollectionTagsParamsSortAddedBy             GetCollectionTagsParamsSort = "addedBy"
+	GetCollectionTagsParamsSortCallNumber          GetCollectionTagsParamsSort = "callNumber"
+	GetCollectionTagsParamsSortCreator             GetCollectionTagsParamsSort = "creator"
+	GetCollectionTagsParamsSortDate                GetCollectionTagsParamsSort = "date"
+	GetCollectionTagsParamsSortDateAdded           GetCollectionTagsParamsSort = "dateAdded"
+	GetCollectionTagsParamsSortDateModified        GetCollectionTagsParamsSort = "dateModified"
+	GetCollectionTagsParamsSortItemType            GetCollectionTagsParamsSort = "itemType"
+	GetCollectionTagsParamsSortJournalAbbreviation GetCollectionTagsParamsSort = "journalAbbreviation"
+	GetCollectionTagsParamsSortLanguage            GetCollectionTagsParamsSort = "language"
+	GetCollectionTagsParamsSortLibraryCatalog      GetCollectionTagsParamsSort = "libraryCatalog"
+	GetCollectionTagsParamsSortNumItems            GetCollectionTagsParamsSort = "numItems"
+	GetCollectionTagsParamsSortPublicationTitle    GetCollectionTagsParamsSort = "publicationTitle"
+	GetCollectionTagsParamsSortPublisher           GetCollectionTagsParamsSort = "publisher"
+	GetCollectionTagsParamsSortRights              GetCollectionTagsParamsSort = "rights"
+	GetCollectionTagsParamsSortTitle               GetCollectionTagsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionTagsParamsSort enum.
+func (e GetCollectionTagsParamsSort) Valid() bool {
+	switch e {
+	case GetCollectionTagsParamsSortAccessDate:
+		return true
+	case GetCollectionTagsParamsSortAddedBy:
+		return true
+	case GetCollectionTagsParamsSortCallNumber:
+		return true
+	case GetCollectionTagsParamsSortCreator:
+		return true
+	case GetCollectionTagsParamsSortDate:
+		return true
+	case GetCollectionTagsParamsSortDateAdded:
+		return true
+	case GetCollectionTagsParamsSortDateModified:
+		return true
+	case GetCollectionTagsParamsSortItemType:
+		return true
+	case GetCollectionTagsParamsSortJournalAbbreviation:
+		return true
+	case GetCollectionTagsParamsSortLanguage:
+		return true
+	case GetCollectionTagsParamsSortLibraryCatalog:
+		return true
+	case GetCollectionTagsParamsSortNumItems:
+		return true
+	case GetCollectionTagsParamsSortPublicationTitle:
+		return true
+	case GetCollectionTagsParamsSortPublisher:
+		return true
+	case GetCollectionTagsParamsSortRights:
+		return true
+	case GetCollectionTagsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionTagsParamsDirection.
+const (
+	GetCollectionTagsParamsDirectionAsc  GetCollectionTagsParamsDirection = "asc"
+	GetCollectionTagsParamsDirectionDesc GetCollectionTagsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionTagsParamsDirection enum.
+func (e GetCollectionTagsParamsDirection) Valid() bool {
+	switch e {
+	case GetCollectionTagsParamsDirectionAsc:
+		return true
+	case GetCollectionTagsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetCollectionTagsParamsFormat.
+const (
+	GetCollectionTagsParamsFormatAtom             GetCollectionTagsParamsFormat = "atom"
+	GetCollectionTagsParamsFormatBib              GetCollectionTagsParamsFormat = "bib"
+	GetCollectionTagsParamsFormatBiblatex         GetCollectionTagsParamsFormat = "biblatex"
+	GetCollectionTagsParamsFormatBibtex           GetCollectionTagsParamsFormat = "bibtex"
+	GetCollectionTagsParamsFormatBookmarks        GetCollectionTagsParamsFormat = "bookmarks"
+	GetCollectionTagsParamsFormatCoins            GetCollectionTagsParamsFormat = "coins"
+	GetCollectionTagsParamsFormatCsljson          GetCollectionTagsParamsFormat = "csljson"
+	GetCollectionTagsParamsFormatCsv              GetCollectionTagsParamsFormat = "csv"
+	GetCollectionTagsParamsFormatJson             GetCollectionTagsParamsFormat = "json"
+	GetCollectionTagsParamsFormatKeys             GetCollectionTagsParamsFormat = "keys"
+	GetCollectionTagsParamsFormatMods             GetCollectionTagsParamsFormat = "mods"
+	GetCollectionTagsParamsFormatRdfBibliontology GetCollectionTagsParamsFormat = "rdf_bibliontology"
+	GetCollectionTagsParamsFormatRdfDc            GetCollectionTagsParamsFormat = "rdf_dc"
+	GetCollectionTagsParamsFormatRdfZotero        GetCollectionTagsParamsFormat = "rdf_zotero"
+	GetCollectionTagsParamsFormatRefer            GetCollectionTagsParamsFormat = "refer"
+	GetCollectionTagsParamsFormatRis              GetCollectionTagsParamsFormat = "ris"
+	GetCollectionTagsParamsFormatTei              GetCollectionTagsParamsFormat = "tei"
+	GetCollectionTagsParamsFormatVersions         GetCollectionTagsParamsFormat = "versions"
+	GetCollectionTagsParamsFormatWikipedia        GetCollectionTagsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetCollectionTagsParamsFormat enum.
+func (e GetCollectionTagsParamsFormat) Valid() bool {
+	switch e {
+	case GetCollectionTagsParamsFormatAtom:
+		return true
+	case GetCollectionTagsParamsFormatBib:
+		return true
+	case GetCollectionTagsParamsFormatBiblatex:
+		return true
+	case GetCollectionTagsParamsFormatBibtex:
+		return true
+	case GetCollectionTagsParamsFormatBookmarks:
+		return true
+	case GetCollectionTagsParamsFormatCoins:
+		return true
+	case GetCollectionTagsParamsFormatCsljson:
+		return true
+	case GetCollectionTagsParamsFormatCsv:
+		return true
+	case GetCollectionTagsParamsFormatJson:
+		return true
+	case GetCollectionTagsParamsFormatKeys:
+		return true
+	case GetCollectionTagsParamsFormatMods:
+		return true
+	case GetCollectionTagsParamsFormatRdfBibliontology:
+		return true
+	case GetCollectionTagsParamsFormatRdfDc:
+		return true
+	case GetCollectionTagsParamsFormatRdfZotero:
+		return true
+	case GetCollectionTagsParamsFormatRefer:
+		return true
+	case GetCollectionTagsParamsFormatRis:
+		return true
+	case GetCollectionTagsParamsFormatTei:
+		return true
+	case GetCollectionTagsParamsFormatVersions:
+		return true
+	case GetCollectionTagsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListItemsParamsQmode.
 const (
-	Everything       ListItemsParamsQmode = "everything"
-	TitleCreatorYear ListItemsParamsQmode = "titleCreatorYear"
+	ListItemsParamsQmodeContains         ListItemsParamsQmode = "contains"
+	ListItemsParamsQmodeEverything       ListItemsParamsQmode = "everything"
+	ListItemsParamsQmodeStartsWith       ListItemsParamsQmode = "startsWith"
+	ListItemsParamsQmodeTitleCreatorYear ListItemsParamsQmode = "titleCreatorYear"
 )
 
 // Valid indicates whether the value is a known member of the ListItemsParamsQmode enum.
 func (e ListItemsParamsQmode) Valid() bool {
 	switch e {
-	case Everything:
+	case ListItemsParamsQmodeContains:
 		return true
-	case TitleCreatorYear:
+	case ListItemsParamsQmodeEverything:
+		return true
+	case ListItemsParamsQmodeStartsWith:
+		return true
+	case ListItemsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListItemsParamsIncludeTrashed.
+const (
+	ListItemsParamsIncludeTrashedN0 ListItemsParamsIncludeTrashed = 0
+	ListItemsParamsIncludeTrashedN1 ListItemsParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListItemsParamsIncludeTrashed enum.
+func (e ListItemsParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListItemsParamsIncludeTrashedN0:
+		return true
+	case ListItemsParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListItemsParamsSort.
+const (
+	ListItemsParamsSortAccessDate          ListItemsParamsSort = "accessDate"
+	ListItemsParamsSortAddedBy             ListItemsParamsSort = "addedBy"
+	ListItemsParamsSortCallNumber          ListItemsParamsSort = "callNumber"
+	ListItemsParamsSortCreator             ListItemsParamsSort = "creator"
+	ListItemsParamsSortDate                ListItemsParamsSort = "date"
+	ListItemsParamsSortDateAdded           ListItemsParamsSort = "dateAdded"
+	ListItemsParamsSortDateModified        ListItemsParamsSort = "dateModified"
+	ListItemsParamsSortItemType            ListItemsParamsSort = "itemType"
+	ListItemsParamsSortJournalAbbreviation ListItemsParamsSort = "journalAbbreviation"
+	ListItemsParamsSortLanguage            ListItemsParamsSort = "language"
+	ListItemsParamsSortLibraryCatalog      ListItemsParamsSort = "libraryCatalog"
+	ListItemsParamsSortNumItems            ListItemsParamsSort = "numItems"
+	ListItemsParamsSortPublicationTitle    ListItemsParamsSort = "publicationTitle"
+	ListItemsParamsSortPublisher           ListItemsParamsSort = "publisher"
+	ListItemsParamsSortRights              ListItemsParamsSort = "rights"
+	ListItemsParamsSortTitle               ListItemsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListItemsParamsSort enum.
+func (e ListItemsParamsSort) Valid() bool {
+	switch e {
+	case ListItemsParamsSortAccessDate:
+		return true
+	case ListItemsParamsSortAddedBy:
+		return true
+	case ListItemsParamsSortCallNumber:
+		return true
+	case ListItemsParamsSortCreator:
+		return true
+	case ListItemsParamsSortDate:
+		return true
+	case ListItemsParamsSortDateAdded:
+		return true
+	case ListItemsParamsSortDateModified:
+		return true
+	case ListItemsParamsSortItemType:
+		return true
+	case ListItemsParamsSortJournalAbbreviation:
+		return true
+	case ListItemsParamsSortLanguage:
+		return true
+	case ListItemsParamsSortLibraryCatalog:
+		return true
+	case ListItemsParamsSortNumItems:
+		return true
+	case ListItemsParamsSortPublicationTitle:
+		return true
+	case ListItemsParamsSortPublisher:
+		return true
+	case ListItemsParamsSortRights:
+		return true
+	case ListItemsParamsSortTitle:
 		return true
 	default:
 		return false
@@ -846,6 +5511,8 @@ func (e ListItemsParamsDirection) Valid() bool {
 
 // Defines values for ListItemsParamsFormat.
 const (
+	ListItemsParamsFormatAtom             ListItemsParamsFormat = "atom"
+	ListItemsParamsFormatBib              ListItemsParamsFormat = "bib"
 	ListItemsParamsFormatBiblatex         ListItemsParamsFormat = "biblatex"
 	ListItemsParamsFormatBibtex           ListItemsParamsFormat = "bibtex"
 	ListItemsParamsFormatBookmarks        ListItemsParamsFormat = "bookmarks"
@@ -868,6 +5535,10 @@ const (
 // Valid indicates whether the value is a known member of the ListItemsParamsFormat enum.
 func (e ListItemsParamsFormat) Valid() bool {
 	switch e {
+	case ListItemsParamsFormatAtom:
+		return true
+	case ListItemsParamsFormatBib:
+		return true
 	case ListItemsParamsFormatBiblatex:
 		return true
 	case ListItemsParamsFormatBibtex:
@@ -907,18 +5578,327 @@ func (e ListItemsParamsFormat) Valid() bool {
 	}
 }
 
+// Defines values for ListItemsParamsLinkwrap.
+const (
+	ListItemsParamsLinkwrapN0 ListItemsParamsLinkwrap = 0
+	ListItemsParamsLinkwrapN1 ListItemsParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListItemsParamsLinkwrap enum.
+func (e ListItemsParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListItemsParamsLinkwrapN0:
+		return true
+	case ListItemsParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsParamsQmode.
+const (
+	ListAllItemsTagsParamsQmodeContains         ListAllItemsTagsParamsQmode = "contains"
+	ListAllItemsTagsParamsQmodeEverything       ListAllItemsTagsParamsQmode = "everything"
+	ListAllItemsTagsParamsQmodeStartsWith       ListAllItemsTagsParamsQmode = "startsWith"
+	ListAllItemsTagsParamsQmodeTitleCreatorYear ListAllItemsTagsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsParamsQmode enum.
+func (e ListAllItemsTagsParamsQmode) Valid() bool {
+	switch e {
+	case ListAllItemsTagsParamsQmodeContains:
+		return true
+	case ListAllItemsTagsParamsQmodeEverything:
+		return true
+	case ListAllItemsTagsParamsQmodeStartsWith:
+		return true
+	case ListAllItemsTagsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsParamsIncludeTrashed.
+const (
+	ListAllItemsTagsParamsIncludeTrashedN0 ListAllItemsTagsParamsIncludeTrashed = 0
+	ListAllItemsTagsParamsIncludeTrashedN1 ListAllItemsTagsParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsParamsIncludeTrashed enum.
+func (e ListAllItemsTagsParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListAllItemsTagsParamsIncludeTrashedN0:
+		return true
+	case ListAllItemsTagsParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsParamsSort.
+const (
+	ListAllItemsTagsParamsSortAccessDate          ListAllItemsTagsParamsSort = "accessDate"
+	ListAllItemsTagsParamsSortAddedBy             ListAllItemsTagsParamsSort = "addedBy"
+	ListAllItemsTagsParamsSortCallNumber          ListAllItemsTagsParamsSort = "callNumber"
+	ListAllItemsTagsParamsSortCreator             ListAllItemsTagsParamsSort = "creator"
+	ListAllItemsTagsParamsSortDate                ListAllItemsTagsParamsSort = "date"
+	ListAllItemsTagsParamsSortDateAdded           ListAllItemsTagsParamsSort = "dateAdded"
+	ListAllItemsTagsParamsSortDateModified        ListAllItemsTagsParamsSort = "dateModified"
+	ListAllItemsTagsParamsSortItemType            ListAllItemsTagsParamsSort = "itemType"
+	ListAllItemsTagsParamsSortJournalAbbreviation ListAllItemsTagsParamsSort = "journalAbbreviation"
+	ListAllItemsTagsParamsSortLanguage            ListAllItemsTagsParamsSort = "language"
+	ListAllItemsTagsParamsSortLibraryCatalog      ListAllItemsTagsParamsSort = "libraryCatalog"
+	ListAllItemsTagsParamsSortNumItems            ListAllItemsTagsParamsSort = "numItems"
+	ListAllItemsTagsParamsSortPublicationTitle    ListAllItemsTagsParamsSort = "publicationTitle"
+	ListAllItemsTagsParamsSortPublisher           ListAllItemsTagsParamsSort = "publisher"
+	ListAllItemsTagsParamsSortRights              ListAllItemsTagsParamsSort = "rights"
+	ListAllItemsTagsParamsSortTitle               ListAllItemsTagsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsParamsSort enum.
+func (e ListAllItemsTagsParamsSort) Valid() bool {
+	switch e {
+	case ListAllItemsTagsParamsSortAccessDate:
+		return true
+	case ListAllItemsTagsParamsSortAddedBy:
+		return true
+	case ListAllItemsTagsParamsSortCallNumber:
+		return true
+	case ListAllItemsTagsParamsSortCreator:
+		return true
+	case ListAllItemsTagsParamsSortDate:
+		return true
+	case ListAllItemsTagsParamsSortDateAdded:
+		return true
+	case ListAllItemsTagsParamsSortDateModified:
+		return true
+	case ListAllItemsTagsParamsSortItemType:
+		return true
+	case ListAllItemsTagsParamsSortJournalAbbreviation:
+		return true
+	case ListAllItemsTagsParamsSortLanguage:
+		return true
+	case ListAllItemsTagsParamsSortLibraryCatalog:
+		return true
+	case ListAllItemsTagsParamsSortNumItems:
+		return true
+	case ListAllItemsTagsParamsSortPublicationTitle:
+		return true
+	case ListAllItemsTagsParamsSortPublisher:
+		return true
+	case ListAllItemsTagsParamsSortRights:
+		return true
+	case ListAllItemsTagsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsParamsDirection.
+const (
+	ListAllItemsTagsParamsDirectionAsc  ListAllItemsTagsParamsDirection = "asc"
+	ListAllItemsTagsParamsDirectionDesc ListAllItemsTagsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsParamsDirection enum.
+func (e ListAllItemsTagsParamsDirection) Valid() bool {
+	switch e {
+	case ListAllItemsTagsParamsDirectionAsc:
+		return true
+	case ListAllItemsTagsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListAllItemsTagsParamsFormat.
+const (
+	ListAllItemsTagsParamsFormatAtom             ListAllItemsTagsParamsFormat = "atom"
+	ListAllItemsTagsParamsFormatBib              ListAllItemsTagsParamsFormat = "bib"
+	ListAllItemsTagsParamsFormatBiblatex         ListAllItemsTagsParamsFormat = "biblatex"
+	ListAllItemsTagsParamsFormatBibtex           ListAllItemsTagsParamsFormat = "bibtex"
+	ListAllItemsTagsParamsFormatBookmarks        ListAllItemsTagsParamsFormat = "bookmarks"
+	ListAllItemsTagsParamsFormatCoins            ListAllItemsTagsParamsFormat = "coins"
+	ListAllItemsTagsParamsFormatCsljson          ListAllItemsTagsParamsFormat = "csljson"
+	ListAllItemsTagsParamsFormatCsv              ListAllItemsTagsParamsFormat = "csv"
+	ListAllItemsTagsParamsFormatJson             ListAllItemsTagsParamsFormat = "json"
+	ListAllItemsTagsParamsFormatKeys             ListAllItemsTagsParamsFormat = "keys"
+	ListAllItemsTagsParamsFormatMods             ListAllItemsTagsParamsFormat = "mods"
+	ListAllItemsTagsParamsFormatRdfBibliontology ListAllItemsTagsParamsFormat = "rdf_bibliontology"
+	ListAllItemsTagsParamsFormatRdfDc            ListAllItemsTagsParamsFormat = "rdf_dc"
+	ListAllItemsTagsParamsFormatRdfZotero        ListAllItemsTagsParamsFormat = "rdf_zotero"
+	ListAllItemsTagsParamsFormatRefer            ListAllItemsTagsParamsFormat = "refer"
+	ListAllItemsTagsParamsFormatRis              ListAllItemsTagsParamsFormat = "ris"
+	ListAllItemsTagsParamsFormatTei              ListAllItemsTagsParamsFormat = "tei"
+	ListAllItemsTagsParamsFormatVersions         ListAllItemsTagsParamsFormat = "versions"
+	ListAllItemsTagsParamsFormatWikipedia        ListAllItemsTagsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListAllItemsTagsParamsFormat enum.
+func (e ListAllItemsTagsParamsFormat) Valid() bool {
+	switch e {
+	case ListAllItemsTagsParamsFormatAtom:
+		return true
+	case ListAllItemsTagsParamsFormatBib:
+		return true
+	case ListAllItemsTagsParamsFormatBiblatex:
+		return true
+	case ListAllItemsTagsParamsFormatBibtex:
+		return true
+	case ListAllItemsTagsParamsFormatBookmarks:
+		return true
+	case ListAllItemsTagsParamsFormatCoins:
+		return true
+	case ListAllItemsTagsParamsFormatCsljson:
+		return true
+	case ListAllItemsTagsParamsFormatCsv:
+		return true
+	case ListAllItemsTagsParamsFormatJson:
+		return true
+	case ListAllItemsTagsParamsFormatKeys:
+		return true
+	case ListAllItemsTagsParamsFormatMods:
+		return true
+	case ListAllItemsTagsParamsFormatRdfBibliontology:
+		return true
+	case ListAllItemsTagsParamsFormatRdfDc:
+		return true
+	case ListAllItemsTagsParamsFormatRdfZotero:
+		return true
+	case ListAllItemsTagsParamsFormatRefer:
+		return true
+	case ListAllItemsTagsParamsFormatRis:
+		return true
+	case ListAllItemsTagsParamsFormatTei:
+		return true
+	case ListAllItemsTagsParamsFormatVersions:
+		return true
+	case ListAllItemsTagsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsParamsQmode.
+const (
+	ListTopItemsParamsQmodeContains         ListTopItemsParamsQmode = "contains"
+	ListTopItemsParamsQmodeEverything       ListTopItemsParamsQmode = "everything"
+	ListTopItemsParamsQmodeStartsWith       ListTopItemsParamsQmode = "startsWith"
+	ListTopItemsParamsQmodeTitleCreatorYear ListTopItemsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsParamsQmode enum.
+func (e ListTopItemsParamsQmode) Valid() bool {
+	switch e {
+	case ListTopItemsParamsQmodeContains:
+		return true
+	case ListTopItemsParamsQmodeEverything:
+		return true
+	case ListTopItemsParamsQmodeStartsWith:
+		return true
+	case ListTopItemsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsParamsIncludeTrashed.
+const (
+	ListTopItemsParamsIncludeTrashedN0 ListTopItemsParamsIncludeTrashed = 0
+	ListTopItemsParamsIncludeTrashedN1 ListTopItemsParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsParamsIncludeTrashed enum.
+func (e ListTopItemsParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListTopItemsParamsIncludeTrashedN0:
+		return true
+	case ListTopItemsParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsParamsSort.
+const (
+	ListTopItemsParamsSortAccessDate          ListTopItemsParamsSort = "accessDate"
+	ListTopItemsParamsSortAddedBy             ListTopItemsParamsSort = "addedBy"
+	ListTopItemsParamsSortCallNumber          ListTopItemsParamsSort = "callNumber"
+	ListTopItemsParamsSortCreator             ListTopItemsParamsSort = "creator"
+	ListTopItemsParamsSortDate                ListTopItemsParamsSort = "date"
+	ListTopItemsParamsSortDateAdded           ListTopItemsParamsSort = "dateAdded"
+	ListTopItemsParamsSortDateModified        ListTopItemsParamsSort = "dateModified"
+	ListTopItemsParamsSortItemType            ListTopItemsParamsSort = "itemType"
+	ListTopItemsParamsSortJournalAbbreviation ListTopItemsParamsSort = "journalAbbreviation"
+	ListTopItemsParamsSortLanguage            ListTopItemsParamsSort = "language"
+	ListTopItemsParamsSortLibraryCatalog      ListTopItemsParamsSort = "libraryCatalog"
+	ListTopItemsParamsSortNumItems            ListTopItemsParamsSort = "numItems"
+	ListTopItemsParamsSortPublicationTitle    ListTopItemsParamsSort = "publicationTitle"
+	ListTopItemsParamsSortPublisher           ListTopItemsParamsSort = "publisher"
+	ListTopItemsParamsSortRights              ListTopItemsParamsSort = "rights"
+	ListTopItemsParamsSortTitle               ListTopItemsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsParamsSort enum.
+func (e ListTopItemsParamsSort) Valid() bool {
+	switch e {
+	case ListTopItemsParamsSortAccessDate:
+		return true
+	case ListTopItemsParamsSortAddedBy:
+		return true
+	case ListTopItemsParamsSortCallNumber:
+		return true
+	case ListTopItemsParamsSortCreator:
+		return true
+	case ListTopItemsParamsSortDate:
+		return true
+	case ListTopItemsParamsSortDateAdded:
+		return true
+	case ListTopItemsParamsSortDateModified:
+		return true
+	case ListTopItemsParamsSortItemType:
+		return true
+	case ListTopItemsParamsSortJournalAbbreviation:
+		return true
+	case ListTopItemsParamsSortLanguage:
+		return true
+	case ListTopItemsParamsSortLibraryCatalog:
+		return true
+	case ListTopItemsParamsSortNumItems:
+		return true
+	case ListTopItemsParamsSortPublicationTitle:
+		return true
+	case ListTopItemsParamsSortPublisher:
+		return true
+	case ListTopItemsParamsSortRights:
+		return true
+	case ListTopItemsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListTopItemsParamsDirection.
 const (
-	Asc  ListTopItemsParamsDirection = "asc"
-	Desc ListTopItemsParamsDirection = "desc"
+	ListTopItemsParamsDirectionAsc  ListTopItemsParamsDirection = "asc"
+	ListTopItemsParamsDirectionDesc ListTopItemsParamsDirection = "desc"
 )
 
 // Valid indicates whether the value is a known member of the ListTopItemsParamsDirection enum.
 func (e ListTopItemsParamsDirection) Valid() bool {
 	switch e {
-	case Asc:
+	case ListTopItemsParamsDirectionAsc:
 		return true
-	case Desc:
+	case ListTopItemsParamsDirectionDesc:
 		return true
 	default:
 		return false
@@ -927,6 +5907,8 @@ func (e ListTopItemsParamsDirection) Valid() bool {
 
 // Defines values for ListTopItemsParamsFormat.
 const (
+	ListTopItemsParamsFormatAtom             ListTopItemsParamsFormat = "atom"
+	ListTopItemsParamsFormatBib              ListTopItemsParamsFormat = "bib"
 	ListTopItemsParamsFormatBiblatex         ListTopItemsParamsFormat = "biblatex"
 	ListTopItemsParamsFormatBibtex           ListTopItemsParamsFormat = "bibtex"
 	ListTopItemsParamsFormatBookmarks        ListTopItemsParamsFormat = "bookmarks"
@@ -949,6 +5931,10 @@ const (
 // Valid indicates whether the value is a known member of the ListTopItemsParamsFormat enum.
 func (e ListTopItemsParamsFormat) Valid() bool {
 	switch e {
+	case ListTopItemsParamsFormatAtom:
+		return true
+	case ListTopItemsParamsFormatBib:
+		return true
 	case ListTopItemsParamsFormatBiblatex:
 		return true
 	case ListTopItemsParamsFormatBibtex:
@@ -988,30 +5974,1989 @@ func (e ListTopItemsParamsFormat) Valid() bool {
 	}
 }
 
+// Defines values for ListTopItemsParamsLinkwrap.
+const (
+	ListTopItemsParamsLinkwrapN0 ListTopItemsParamsLinkwrap = 0
+	ListTopItemsParamsLinkwrapN1 ListTopItemsParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsParamsLinkwrap enum.
+func (e ListTopItemsParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListTopItemsParamsLinkwrapN0:
+		return true
+	case ListTopItemsParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsParamsQmode.
+const (
+	ListTopItemsTagsParamsQmodeContains         ListTopItemsTagsParamsQmode = "contains"
+	ListTopItemsTagsParamsQmodeEverything       ListTopItemsTagsParamsQmode = "everything"
+	ListTopItemsTagsParamsQmodeStartsWith       ListTopItemsTagsParamsQmode = "startsWith"
+	ListTopItemsTagsParamsQmodeTitleCreatorYear ListTopItemsTagsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsParamsQmode enum.
+func (e ListTopItemsTagsParamsQmode) Valid() bool {
+	switch e {
+	case ListTopItemsTagsParamsQmodeContains:
+		return true
+	case ListTopItemsTagsParamsQmodeEverything:
+		return true
+	case ListTopItemsTagsParamsQmodeStartsWith:
+		return true
+	case ListTopItemsTagsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsParamsIncludeTrashed.
+const (
+	ListTopItemsTagsParamsIncludeTrashedN0 ListTopItemsTagsParamsIncludeTrashed = 0
+	ListTopItemsTagsParamsIncludeTrashedN1 ListTopItemsTagsParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsParamsIncludeTrashed enum.
+func (e ListTopItemsTagsParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListTopItemsTagsParamsIncludeTrashedN0:
+		return true
+	case ListTopItemsTagsParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsParamsSort.
+const (
+	ListTopItemsTagsParamsSortAccessDate          ListTopItemsTagsParamsSort = "accessDate"
+	ListTopItemsTagsParamsSortAddedBy             ListTopItemsTagsParamsSort = "addedBy"
+	ListTopItemsTagsParamsSortCallNumber          ListTopItemsTagsParamsSort = "callNumber"
+	ListTopItemsTagsParamsSortCreator             ListTopItemsTagsParamsSort = "creator"
+	ListTopItemsTagsParamsSortDate                ListTopItemsTagsParamsSort = "date"
+	ListTopItemsTagsParamsSortDateAdded           ListTopItemsTagsParamsSort = "dateAdded"
+	ListTopItemsTagsParamsSortDateModified        ListTopItemsTagsParamsSort = "dateModified"
+	ListTopItemsTagsParamsSortItemType            ListTopItemsTagsParamsSort = "itemType"
+	ListTopItemsTagsParamsSortJournalAbbreviation ListTopItemsTagsParamsSort = "journalAbbreviation"
+	ListTopItemsTagsParamsSortLanguage            ListTopItemsTagsParamsSort = "language"
+	ListTopItemsTagsParamsSortLibraryCatalog      ListTopItemsTagsParamsSort = "libraryCatalog"
+	ListTopItemsTagsParamsSortNumItems            ListTopItemsTagsParamsSort = "numItems"
+	ListTopItemsTagsParamsSortPublicationTitle    ListTopItemsTagsParamsSort = "publicationTitle"
+	ListTopItemsTagsParamsSortPublisher           ListTopItemsTagsParamsSort = "publisher"
+	ListTopItemsTagsParamsSortRights              ListTopItemsTagsParamsSort = "rights"
+	ListTopItemsTagsParamsSortTitle               ListTopItemsTagsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsParamsSort enum.
+func (e ListTopItemsTagsParamsSort) Valid() bool {
+	switch e {
+	case ListTopItemsTagsParamsSortAccessDate:
+		return true
+	case ListTopItemsTagsParamsSortAddedBy:
+		return true
+	case ListTopItemsTagsParamsSortCallNumber:
+		return true
+	case ListTopItemsTagsParamsSortCreator:
+		return true
+	case ListTopItemsTagsParamsSortDate:
+		return true
+	case ListTopItemsTagsParamsSortDateAdded:
+		return true
+	case ListTopItemsTagsParamsSortDateModified:
+		return true
+	case ListTopItemsTagsParamsSortItemType:
+		return true
+	case ListTopItemsTagsParamsSortJournalAbbreviation:
+		return true
+	case ListTopItemsTagsParamsSortLanguage:
+		return true
+	case ListTopItemsTagsParamsSortLibraryCatalog:
+		return true
+	case ListTopItemsTagsParamsSortNumItems:
+		return true
+	case ListTopItemsTagsParamsSortPublicationTitle:
+		return true
+	case ListTopItemsTagsParamsSortPublisher:
+		return true
+	case ListTopItemsTagsParamsSortRights:
+		return true
+	case ListTopItemsTagsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsParamsDirection.
+const (
+	ListTopItemsTagsParamsDirectionAsc  ListTopItemsTagsParamsDirection = "asc"
+	ListTopItemsTagsParamsDirectionDesc ListTopItemsTagsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsParamsDirection enum.
+func (e ListTopItemsTagsParamsDirection) Valid() bool {
+	switch e {
+	case ListTopItemsTagsParamsDirectionAsc:
+		return true
+	case ListTopItemsTagsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTopItemsTagsParamsFormat.
+const (
+	ListTopItemsTagsParamsFormatAtom             ListTopItemsTagsParamsFormat = "atom"
+	ListTopItemsTagsParamsFormatBib              ListTopItemsTagsParamsFormat = "bib"
+	ListTopItemsTagsParamsFormatBiblatex         ListTopItemsTagsParamsFormat = "biblatex"
+	ListTopItemsTagsParamsFormatBibtex           ListTopItemsTagsParamsFormat = "bibtex"
+	ListTopItemsTagsParamsFormatBookmarks        ListTopItemsTagsParamsFormat = "bookmarks"
+	ListTopItemsTagsParamsFormatCoins            ListTopItemsTagsParamsFormat = "coins"
+	ListTopItemsTagsParamsFormatCsljson          ListTopItemsTagsParamsFormat = "csljson"
+	ListTopItemsTagsParamsFormatCsv              ListTopItemsTagsParamsFormat = "csv"
+	ListTopItemsTagsParamsFormatJson             ListTopItemsTagsParamsFormat = "json"
+	ListTopItemsTagsParamsFormatKeys             ListTopItemsTagsParamsFormat = "keys"
+	ListTopItemsTagsParamsFormatMods             ListTopItemsTagsParamsFormat = "mods"
+	ListTopItemsTagsParamsFormatRdfBibliontology ListTopItemsTagsParamsFormat = "rdf_bibliontology"
+	ListTopItemsTagsParamsFormatRdfDc            ListTopItemsTagsParamsFormat = "rdf_dc"
+	ListTopItemsTagsParamsFormatRdfZotero        ListTopItemsTagsParamsFormat = "rdf_zotero"
+	ListTopItemsTagsParamsFormatRefer            ListTopItemsTagsParamsFormat = "refer"
+	ListTopItemsTagsParamsFormatRis              ListTopItemsTagsParamsFormat = "ris"
+	ListTopItemsTagsParamsFormatTei              ListTopItemsTagsParamsFormat = "tei"
+	ListTopItemsTagsParamsFormatVersions         ListTopItemsTagsParamsFormat = "versions"
+	ListTopItemsTagsParamsFormatWikipedia        ListTopItemsTagsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTopItemsTagsParamsFormat enum.
+func (e ListTopItemsTagsParamsFormat) Valid() bool {
+	switch e {
+	case ListTopItemsTagsParamsFormatAtom:
+		return true
+	case ListTopItemsTagsParamsFormatBib:
+		return true
+	case ListTopItemsTagsParamsFormatBiblatex:
+		return true
+	case ListTopItemsTagsParamsFormatBibtex:
+		return true
+	case ListTopItemsTagsParamsFormatBookmarks:
+		return true
+	case ListTopItemsTagsParamsFormatCoins:
+		return true
+	case ListTopItemsTagsParamsFormatCsljson:
+		return true
+	case ListTopItemsTagsParamsFormatCsv:
+		return true
+	case ListTopItemsTagsParamsFormatJson:
+		return true
+	case ListTopItemsTagsParamsFormatKeys:
+		return true
+	case ListTopItemsTagsParamsFormatMods:
+		return true
+	case ListTopItemsTagsParamsFormatRdfBibliontology:
+		return true
+	case ListTopItemsTagsParamsFormatRdfDc:
+		return true
+	case ListTopItemsTagsParamsFormatRdfZotero:
+		return true
+	case ListTopItemsTagsParamsFormatRefer:
+		return true
+	case ListTopItemsTagsParamsFormatRis:
+		return true
+	case ListTopItemsTagsParamsFormatTei:
+		return true
+	case ListTopItemsTagsParamsFormatVersions:
+		return true
+	case ListTopItemsTagsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsParamsQmode.
+const (
+	ListTrashedItemsParamsQmodeContains         ListTrashedItemsParamsQmode = "contains"
+	ListTrashedItemsParamsQmodeEverything       ListTrashedItemsParamsQmode = "everything"
+	ListTrashedItemsParamsQmodeStartsWith       ListTrashedItemsParamsQmode = "startsWith"
+	ListTrashedItemsParamsQmodeTitleCreatorYear ListTrashedItemsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsParamsQmode enum.
+func (e ListTrashedItemsParamsQmode) Valid() bool {
+	switch e {
+	case ListTrashedItemsParamsQmodeContains:
+		return true
+	case ListTrashedItemsParamsQmodeEverything:
+		return true
+	case ListTrashedItemsParamsQmodeStartsWith:
+		return true
+	case ListTrashedItemsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsParamsSort.
+const (
+	ListTrashedItemsParamsSortAccessDate          ListTrashedItemsParamsSort = "accessDate"
+	ListTrashedItemsParamsSortAddedBy             ListTrashedItemsParamsSort = "addedBy"
+	ListTrashedItemsParamsSortCallNumber          ListTrashedItemsParamsSort = "callNumber"
+	ListTrashedItemsParamsSortCreator             ListTrashedItemsParamsSort = "creator"
+	ListTrashedItemsParamsSortDate                ListTrashedItemsParamsSort = "date"
+	ListTrashedItemsParamsSortDateAdded           ListTrashedItemsParamsSort = "dateAdded"
+	ListTrashedItemsParamsSortDateModified        ListTrashedItemsParamsSort = "dateModified"
+	ListTrashedItemsParamsSortItemType            ListTrashedItemsParamsSort = "itemType"
+	ListTrashedItemsParamsSortJournalAbbreviation ListTrashedItemsParamsSort = "journalAbbreviation"
+	ListTrashedItemsParamsSortLanguage            ListTrashedItemsParamsSort = "language"
+	ListTrashedItemsParamsSortLibraryCatalog      ListTrashedItemsParamsSort = "libraryCatalog"
+	ListTrashedItemsParamsSortNumItems            ListTrashedItemsParamsSort = "numItems"
+	ListTrashedItemsParamsSortPublicationTitle    ListTrashedItemsParamsSort = "publicationTitle"
+	ListTrashedItemsParamsSortPublisher           ListTrashedItemsParamsSort = "publisher"
+	ListTrashedItemsParamsSortRights              ListTrashedItemsParamsSort = "rights"
+	ListTrashedItemsParamsSortTitle               ListTrashedItemsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsParamsSort enum.
+func (e ListTrashedItemsParamsSort) Valid() bool {
+	switch e {
+	case ListTrashedItemsParamsSortAccessDate:
+		return true
+	case ListTrashedItemsParamsSortAddedBy:
+		return true
+	case ListTrashedItemsParamsSortCallNumber:
+		return true
+	case ListTrashedItemsParamsSortCreator:
+		return true
+	case ListTrashedItemsParamsSortDate:
+		return true
+	case ListTrashedItemsParamsSortDateAdded:
+		return true
+	case ListTrashedItemsParamsSortDateModified:
+		return true
+	case ListTrashedItemsParamsSortItemType:
+		return true
+	case ListTrashedItemsParamsSortJournalAbbreviation:
+		return true
+	case ListTrashedItemsParamsSortLanguage:
+		return true
+	case ListTrashedItemsParamsSortLibraryCatalog:
+		return true
+	case ListTrashedItemsParamsSortNumItems:
+		return true
+	case ListTrashedItemsParamsSortPublicationTitle:
+		return true
+	case ListTrashedItemsParamsSortPublisher:
+		return true
+	case ListTrashedItemsParamsSortRights:
+		return true
+	case ListTrashedItemsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsParamsDirection.
+const (
+	ListTrashedItemsParamsDirectionAsc  ListTrashedItemsParamsDirection = "asc"
+	ListTrashedItemsParamsDirectionDesc ListTrashedItemsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsParamsDirection enum.
+func (e ListTrashedItemsParamsDirection) Valid() bool {
+	switch e {
+	case ListTrashedItemsParamsDirectionAsc:
+		return true
+	case ListTrashedItemsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsParamsFormat.
+const (
+	ListTrashedItemsParamsFormatAtom             ListTrashedItemsParamsFormat = "atom"
+	ListTrashedItemsParamsFormatBib              ListTrashedItemsParamsFormat = "bib"
+	ListTrashedItemsParamsFormatBiblatex         ListTrashedItemsParamsFormat = "biblatex"
+	ListTrashedItemsParamsFormatBibtex           ListTrashedItemsParamsFormat = "bibtex"
+	ListTrashedItemsParamsFormatBookmarks        ListTrashedItemsParamsFormat = "bookmarks"
+	ListTrashedItemsParamsFormatCoins            ListTrashedItemsParamsFormat = "coins"
+	ListTrashedItemsParamsFormatCsljson          ListTrashedItemsParamsFormat = "csljson"
+	ListTrashedItemsParamsFormatCsv              ListTrashedItemsParamsFormat = "csv"
+	ListTrashedItemsParamsFormatJson             ListTrashedItemsParamsFormat = "json"
+	ListTrashedItemsParamsFormatKeys             ListTrashedItemsParamsFormat = "keys"
+	ListTrashedItemsParamsFormatMods             ListTrashedItemsParamsFormat = "mods"
+	ListTrashedItemsParamsFormatRdfBibliontology ListTrashedItemsParamsFormat = "rdf_bibliontology"
+	ListTrashedItemsParamsFormatRdfDc            ListTrashedItemsParamsFormat = "rdf_dc"
+	ListTrashedItemsParamsFormatRdfZotero        ListTrashedItemsParamsFormat = "rdf_zotero"
+	ListTrashedItemsParamsFormatRefer            ListTrashedItemsParamsFormat = "refer"
+	ListTrashedItemsParamsFormatRis              ListTrashedItemsParamsFormat = "ris"
+	ListTrashedItemsParamsFormatTei              ListTrashedItemsParamsFormat = "tei"
+	ListTrashedItemsParamsFormatVersions         ListTrashedItemsParamsFormat = "versions"
+	ListTrashedItemsParamsFormatWikipedia        ListTrashedItemsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsParamsFormat enum.
+func (e ListTrashedItemsParamsFormat) Valid() bool {
+	switch e {
+	case ListTrashedItemsParamsFormatAtom:
+		return true
+	case ListTrashedItemsParamsFormatBib:
+		return true
+	case ListTrashedItemsParamsFormatBiblatex:
+		return true
+	case ListTrashedItemsParamsFormatBibtex:
+		return true
+	case ListTrashedItemsParamsFormatBookmarks:
+		return true
+	case ListTrashedItemsParamsFormatCoins:
+		return true
+	case ListTrashedItemsParamsFormatCsljson:
+		return true
+	case ListTrashedItemsParamsFormatCsv:
+		return true
+	case ListTrashedItemsParamsFormatJson:
+		return true
+	case ListTrashedItemsParamsFormatKeys:
+		return true
+	case ListTrashedItemsParamsFormatMods:
+		return true
+	case ListTrashedItemsParamsFormatRdfBibliontology:
+		return true
+	case ListTrashedItemsParamsFormatRdfDc:
+		return true
+	case ListTrashedItemsParamsFormatRdfZotero:
+		return true
+	case ListTrashedItemsParamsFormatRefer:
+		return true
+	case ListTrashedItemsParamsFormatRis:
+		return true
+	case ListTrashedItemsParamsFormatTei:
+		return true
+	case ListTrashedItemsParamsFormatVersions:
+		return true
+	case ListTrashedItemsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsTagsParamsQmode.
+const (
+	ListTrashedItemsTagsParamsQmodeContains         ListTrashedItemsTagsParamsQmode = "contains"
+	ListTrashedItemsTagsParamsQmodeEverything       ListTrashedItemsTagsParamsQmode = "everything"
+	ListTrashedItemsTagsParamsQmodeStartsWith       ListTrashedItemsTagsParamsQmode = "startsWith"
+	ListTrashedItemsTagsParamsQmodeTitleCreatorYear ListTrashedItemsTagsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsTagsParamsQmode enum.
+func (e ListTrashedItemsTagsParamsQmode) Valid() bool {
+	switch e {
+	case ListTrashedItemsTagsParamsQmodeContains:
+		return true
+	case ListTrashedItemsTagsParamsQmodeEverything:
+		return true
+	case ListTrashedItemsTagsParamsQmodeStartsWith:
+		return true
+	case ListTrashedItemsTagsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsTagsParamsSort.
+const (
+	ListTrashedItemsTagsParamsSortAccessDate          ListTrashedItemsTagsParamsSort = "accessDate"
+	ListTrashedItemsTagsParamsSortAddedBy             ListTrashedItemsTagsParamsSort = "addedBy"
+	ListTrashedItemsTagsParamsSortCallNumber          ListTrashedItemsTagsParamsSort = "callNumber"
+	ListTrashedItemsTagsParamsSortCreator             ListTrashedItemsTagsParamsSort = "creator"
+	ListTrashedItemsTagsParamsSortDate                ListTrashedItemsTagsParamsSort = "date"
+	ListTrashedItemsTagsParamsSortDateAdded           ListTrashedItemsTagsParamsSort = "dateAdded"
+	ListTrashedItemsTagsParamsSortDateModified        ListTrashedItemsTagsParamsSort = "dateModified"
+	ListTrashedItemsTagsParamsSortItemType            ListTrashedItemsTagsParamsSort = "itemType"
+	ListTrashedItemsTagsParamsSortJournalAbbreviation ListTrashedItemsTagsParamsSort = "journalAbbreviation"
+	ListTrashedItemsTagsParamsSortLanguage            ListTrashedItemsTagsParamsSort = "language"
+	ListTrashedItemsTagsParamsSortLibraryCatalog      ListTrashedItemsTagsParamsSort = "libraryCatalog"
+	ListTrashedItemsTagsParamsSortNumItems            ListTrashedItemsTagsParamsSort = "numItems"
+	ListTrashedItemsTagsParamsSortPublicationTitle    ListTrashedItemsTagsParamsSort = "publicationTitle"
+	ListTrashedItemsTagsParamsSortPublisher           ListTrashedItemsTagsParamsSort = "publisher"
+	ListTrashedItemsTagsParamsSortRights              ListTrashedItemsTagsParamsSort = "rights"
+	ListTrashedItemsTagsParamsSortTitle               ListTrashedItemsTagsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsTagsParamsSort enum.
+func (e ListTrashedItemsTagsParamsSort) Valid() bool {
+	switch e {
+	case ListTrashedItemsTagsParamsSortAccessDate:
+		return true
+	case ListTrashedItemsTagsParamsSortAddedBy:
+		return true
+	case ListTrashedItemsTagsParamsSortCallNumber:
+		return true
+	case ListTrashedItemsTagsParamsSortCreator:
+		return true
+	case ListTrashedItemsTagsParamsSortDate:
+		return true
+	case ListTrashedItemsTagsParamsSortDateAdded:
+		return true
+	case ListTrashedItemsTagsParamsSortDateModified:
+		return true
+	case ListTrashedItemsTagsParamsSortItemType:
+		return true
+	case ListTrashedItemsTagsParamsSortJournalAbbreviation:
+		return true
+	case ListTrashedItemsTagsParamsSortLanguage:
+		return true
+	case ListTrashedItemsTagsParamsSortLibraryCatalog:
+		return true
+	case ListTrashedItemsTagsParamsSortNumItems:
+		return true
+	case ListTrashedItemsTagsParamsSortPublicationTitle:
+		return true
+	case ListTrashedItemsTagsParamsSortPublisher:
+		return true
+	case ListTrashedItemsTagsParamsSortRights:
+		return true
+	case ListTrashedItemsTagsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsTagsParamsDirection.
+const (
+	ListTrashedItemsTagsParamsDirectionAsc  ListTrashedItemsTagsParamsDirection = "asc"
+	ListTrashedItemsTagsParamsDirectionDesc ListTrashedItemsTagsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsTagsParamsDirection enum.
+func (e ListTrashedItemsTagsParamsDirection) Valid() bool {
+	switch e {
+	case ListTrashedItemsTagsParamsDirectionAsc:
+		return true
+	case ListTrashedItemsTagsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashedItemsTagsParamsFormat.
+const (
+	ListTrashedItemsTagsParamsFormatAtom             ListTrashedItemsTagsParamsFormat = "atom"
+	ListTrashedItemsTagsParamsFormatBib              ListTrashedItemsTagsParamsFormat = "bib"
+	ListTrashedItemsTagsParamsFormatBiblatex         ListTrashedItemsTagsParamsFormat = "biblatex"
+	ListTrashedItemsTagsParamsFormatBibtex           ListTrashedItemsTagsParamsFormat = "bibtex"
+	ListTrashedItemsTagsParamsFormatBookmarks        ListTrashedItemsTagsParamsFormat = "bookmarks"
+	ListTrashedItemsTagsParamsFormatCoins            ListTrashedItemsTagsParamsFormat = "coins"
+	ListTrashedItemsTagsParamsFormatCsljson          ListTrashedItemsTagsParamsFormat = "csljson"
+	ListTrashedItemsTagsParamsFormatCsv              ListTrashedItemsTagsParamsFormat = "csv"
+	ListTrashedItemsTagsParamsFormatJson             ListTrashedItemsTagsParamsFormat = "json"
+	ListTrashedItemsTagsParamsFormatKeys             ListTrashedItemsTagsParamsFormat = "keys"
+	ListTrashedItemsTagsParamsFormatMods             ListTrashedItemsTagsParamsFormat = "mods"
+	ListTrashedItemsTagsParamsFormatRdfBibliontology ListTrashedItemsTagsParamsFormat = "rdf_bibliontology"
+	ListTrashedItemsTagsParamsFormatRdfDc            ListTrashedItemsTagsParamsFormat = "rdf_dc"
+	ListTrashedItemsTagsParamsFormatRdfZotero        ListTrashedItemsTagsParamsFormat = "rdf_zotero"
+	ListTrashedItemsTagsParamsFormatRefer            ListTrashedItemsTagsParamsFormat = "refer"
+	ListTrashedItemsTagsParamsFormatRis              ListTrashedItemsTagsParamsFormat = "ris"
+	ListTrashedItemsTagsParamsFormatTei              ListTrashedItemsTagsParamsFormat = "tei"
+	ListTrashedItemsTagsParamsFormatVersions         ListTrashedItemsTagsParamsFormat = "versions"
+	ListTrashedItemsTagsParamsFormatWikipedia        ListTrashedItemsTagsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashedItemsTagsParamsFormat enum.
+func (e ListTrashedItemsTagsParamsFormat) Valid() bool {
+	switch e {
+	case ListTrashedItemsTagsParamsFormatAtom:
+		return true
+	case ListTrashedItemsTagsParamsFormatBib:
+		return true
+	case ListTrashedItemsTagsParamsFormatBiblatex:
+		return true
+	case ListTrashedItemsTagsParamsFormatBibtex:
+		return true
+	case ListTrashedItemsTagsParamsFormatBookmarks:
+		return true
+	case ListTrashedItemsTagsParamsFormatCoins:
+		return true
+	case ListTrashedItemsTagsParamsFormatCsljson:
+		return true
+	case ListTrashedItemsTagsParamsFormatCsv:
+		return true
+	case ListTrashedItemsTagsParamsFormatJson:
+		return true
+	case ListTrashedItemsTagsParamsFormatKeys:
+		return true
+	case ListTrashedItemsTagsParamsFormatMods:
+		return true
+	case ListTrashedItemsTagsParamsFormatRdfBibliontology:
+		return true
+	case ListTrashedItemsTagsParamsFormatRdfDc:
+		return true
+	case ListTrashedItemsTagsParamsFormatRdfZotero:
+		return true
+	case ListTrashedItemsTagsParamsFormatRefer:
+		return true
+	case ListTrashedItemsTagsParamsFormatRis:
+		return true
+	case ListTrashedItemsTagsParamsFormatTei:
+		return true
+	case ListTrashedItemsTagsParamsFormatVersions:
+		return true
+	case ListTrashedItemsTagsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetItemParamsFormat.
 const (
-	Biblatex         GetItemParamsFormat = "biblatex"
-	Bibtex           GetItemParamsFormat = "bibtex"
-	Bookmarks        GetItemParamsFormat = "bookmarks"
-	Coins            GetItemParamsFormat = "coins"
-	Csljson          GetItemParamsFormat = "csljson"
-	Csv              GetItemParamsFormat = "csv"
-	Json             GetItemParamsFormat = "json"
-	Keys             GetItemParamsFormat = "keys"
-	Mods             GetItemParamsFormat = "mods"
-	RdfBibliontology GetItemParamsFormat = "rdf_bibliontology"
-	RdfDc            GetItemParamsFormat = "rdf_dc"
-	RdfZotero        GetItemParamsFormat = "rdf_zotero"
-	Refer            GetItemParamsFormat = "refer"
-	Ris              GetItemParamsFormat = "ris"
-	Tei              GetItemParamsFormat = "tei"
-	Versions         GetItemParamsFormat = "versions"
-	Wikipedia        GetItemParamsFormat = "wikipedia"
+	GetItemParamsFormatAtom             GetItemParamsFormat = "atom"
+	GetItemParamsFormatBib              GetItemParamsFormat = "bib"
+	GetItemParamsFormatBiblatex         GetItemParamsFormat = "biblatex"
+	GetItemParamsFormatBibtex           GetItemParamsFormat = "bibtex"
+	GetItemParamsFormatBookmarks        GetItemParamsFormat = "bookmarks"
+	GetItemParamsFormatCoins            GetItemParamsFormat = "coins"
+	GetItemParamsFormatCsljson          GetItemParamsFormat = "csljson"
+	GetItemParamsFormatCsv              GetItemParamsFormat = "csv"
+	GetItemParamsFormatJson             GetItemParamsFormat = "json"
+	GetItemParamsFormatKeys             GetItemParamsFormat = "keys"
+	GetItemParamsFormatMods             GetItemParamsFormat = "mods"
+	GetItemParamsFormatRdfBibliontology GetItemParamsFormat = "rdf_bibliontology"
+	GetItemParamsFormatRdfDc            GetItemParamsFormat = "rdf_dc"
+	GetItemParamsFormatRdfZotero        GetItemParamsFormat = "rdf_zotero"
+	GetItemParamsFormatRefer            GetItemParamsFormat = "refer"
+	GetItemParamsFormatRis              GetItemParamsFormat = "ris"
+	GetItemParamsFormatTei              GetItemParamsFormat = "tei"
+	GetItemParamsFormatVersions         GetItemParamsFormat = "versions"
+	GetItemParamsFormatWikipedia        GetItemParamsFormat = "wikipedia"
 )
 
 // Valid indicates whether the value is a known member of the GetItemParamsFormat enum.
 func (e GetItemParamsFormat) Valid() bool {
 	switch e {
+	case GetItemParamsFormatAtom:
+		return true
+	case GetItemParamsFormatBib:
+		return true
+	case GetItemParamsFormatBiblatex:
+		return true
+	case GetItemParamsFormatBibtex:
+		return true
+	case GetItemParamsFormatBookmarks:
+		return true
+	case GetItemParamsFormatCoins:
+		return true
+	case GetItemParamsFormatCsljson:
+		return true
+	case GetItemParamsFormatCsv:
+		return true
+	case GetItemParamsFormatJson:
+		return true
+	case GetItemParamsFormatKeys:
+		return true
+	case GetItemParamsFormatMods:
+		return true
+	case GetItemParamsFormatRdfBibliontology:
+		return true
+	case GetItemParamsFormatRdfDc:
+		return true
+	case GetItemParamsFormatRdfZotero:
+		return true
+	case GetItemParamsFormatRefer:
+		return true
+	case GetItemParamsFormatRis:
+		return true
+	case GetItemParamsFormatTei:
+		return true
+	case GetItemParamsFormatVersions:
+		return true
+	case GetItemParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemParamsLinkwrap.
+const (
+	GetItemParamsLinkwrapN0 GetItemParamsLinkwrap = 0
+	GetItemParamsLinkwrapN1 GetItemParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the GetItemParamsLinkwrap enum.
+func (e GetItemParamsLinkwrap) Valid() bool {
+	switch e {
+	case GetItemParamsLinkwrapN0:
+		return true
+	case GetItemParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemChildrenParamsSort.
+const (
+	GetItemChildrenParamsSortAccessDate          GetItemChildrenParamsSort = "accessDate"
+	GetItemChildrenParamsSortAddedBy             GetItemChildrenParamsSort = "addedBy"
+	GetItemChildrenParamsSortCallNumber          GetItemChildrenParamsSort = "callNumber"
+	GetItemChildrenParamsSortCreator             GetItemChildrenParamsSort = "creator"
+	GetItemChildrenParamsSortDate                GetItemChildrenParamsSort = "date"
+	GetItemChildrenParamsSortDateAdded           GetItemChildrenParamsSort = "dateAdded"
+	GetItemChildrenParamsSortDateModified        GetItemChildrenParamsSort = "dateModified"
+	GetItemChildrenParamsSortItemType            GetItemChildrenParamsSort = "itemType"
+	GetItemChildrenParamsSortJournalAbbreviation GetItemChildrenParamsSort = "journalAbbreviation"
+	GetItemChildrenParamsSortLanguage            GetItemChildrenParamsSort = "language"
+	GetItemChildrenParamsSortLibraryCatalog      GetItemChildrenParamsSort = "libraryCatalog"
+	GetItemChildrenParamsSortNumItems            GetItemChildrenParamsSort = "numItems"
+	GetItemChildrenParamsSortPublicationTitle    GetItemChildrenParamsSort = "publicationTitle"
+	GetItemChildrenParamsSortPublisher           GetItemChildrenParamsSort = "publisher"
+	GetItemChildrenParamsSortRights              GetItemChildrenParamsSort = "rights"
+	GetItemChildrenParamsSortTitle               GetItemChildrenParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the GetItemChildrenParamsSort enum.
+func (e GetItemChildrenParamsSort) Valid() bool {
+	switch e {
+	case GetItemChildrenParamsSortAccessDate:
+		return true
+	case GetItemChildrenParamsSortAddedBy:
+		return true
+	case GetItemChildrenParamsSortCallNumber:
+		return true
+	case GetItemChildrenParamsSortCreator:
+		return true
+	case GetItemChildrenParamsSortDate:
+		return true
+	case GetItemChildrenParamsSortDateAdded:
+		return true
+	case GetItemChildrenParamsSortDateModified:
+		return true
+	case GetItemChildrenParamsSortItemType:
+		return true
+	case GetItemChildrenParamsSortJournalAbbreviation:
+		return true
+	case GetItemChildrenParamsSortLanguage:
+		return true
+	case GetItemChildrenParamsSortLibraryCatalog:
+		return true
+	case GetItemChildrenParamsSortNumItems:
+		return true
+	case GetItemChildrenParamsSortPublicationTitle:
+		return true
+	case GetItemChildrenParamsSortPublisher:
+		return true
+	case GetItemChildrenParamsSortRights:
+		return true
+	case GetItemChildrenParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemChildrenParamsDirection.
+const (
+	GetItemChildrenParamsDirectionAsc  GetItemChildrenParamsDirection = "asc"
+	GetItemChildrenParamsDirectionDesc GetItemChildrenParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetItemChildrenParamsDirection enum.
+func (e GetItemChildrenParamsDirection) Valid() bool {
+	switch e {
+	case GetItemChildrenParamsDirectionAsc:
+		return true
+	case GetItemChildrenParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemChildrenParamsFormat.
+const (
+	GetItemChildrenParamsFormatAtom             GetItemChildrenParamsFormat = "atom"
+	GetItemChildrenParamsFormatBib              GetItemChildrenParamsFormat = "bib"
+	GetItemChildrenParamsFormatBiblatex         GetItemChildrenParamsFormat = "biblatex"
+	GetItemChildrenParamsFormatBibtex           GetItemChildrenParamsFormat = "bibtex"
+	GetItemChildrenParamsFormatBookmarks        GetItemChildrenParamsFormat = "bookmarks"
+	GetItemChildrenParamsFormatCoins            GetItemChildrenParamsFormat = "coins"
+	GetItemChildrenParamsFormatCsljson          GetItemChildrenParamsFormat = "csljson"
+	GetItemChildrenParamsFormatCsv              GetItemChildrenParamsFormat = "csv"
+	GetItemChildrenParamsFormatJson             GetItemChildrenParamsFormat = "json"
+	GetItemChildrenParamsFormatKeys             GetItemChildrenParamsFormat = "keys"
+	GetItemChildrenParamsFormatMods             GetItemChildrenParamsFormat = "mods"
+	GetItemChildrenParamsFormatRdfBibliontology GetItemChildrenParamsFormat = "rdf_bibliontology"
+	GetItemChildrenParamsFormatRdfDc            GetItemChildrenParamsFormat = "rdf_dc"
+	GetItemChildrenParamsFormatRdfZotero        GetItemChildrenParamsFormat = "rdf_zotero"
+	GetItemChildrenParamsFormatRefer            GetItemChildrenParamsFormat = "refer"
+	GetItemChildrenParamsFormatRis              GetItemChildrenParamsFormat = "ris"
+	GetItemChildrenParamsFormatTei              GetItemChildrenParamsFormat = "tei"
+	GetItemChildrenParamsFormatVersions         GetItemChildrenParamsFormat = "versions"
+	GetItemChildrenParamsFormatWikipedia        GetItemChildrenParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetItemChildrenParamsFormat enum.
+func (e GetItemChildrenParamsFormat) Valid() bool {
+	switch e {
+	case GetItemChildrenParamsFormatAtom:
+		return true
+	case GetItemChildrenParamsFormatBib:
+		return true
+	case GetItemChildrenParamsFormatBiblatex:
+		return true
+	case GetItemChildrenParamsFormatBibtex:
+		return true
+	case GetItemChildrenParamsFormatBookmarks:
+		return true
+	case GetItemChildrenParamsFormatCoins:
+		return true
+	case GetItemChildrenParamsFormatCsljson:
+		return true
+	case GetItemChildrenParamsFormatCsv:
+		return true
+	case GetItemChildrenParamsFormatJson:
+		return true
+	case GetItemChildrenParamsFormatKeys:
+		return true
+	case GetItemChildrenParamsFormatMods:
+		return true
+	case GetItemChildrenParamsFormatRdfBibliontology:
+		return true
+	case GetItemChildrenParamsFormatRdfDc:
+		return true
+	case GetItemChildrenParamsFormatRdfZotero:
+		return true
+	case GetItemChildrenParamsFormatRefer:
+		return true
+	case GetItemChildrenParamsFormatRis:
+		return true
+	case GetItemChildrenParamsFormatTei:
+		return true
+	case GetItemChildrenParamsFormatVersions:
+		return true
+	case GetItemChildrenParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UploadFilePartialParamsAlgorithm.
+const (
+	UploadFilePartialParamsAlgorithmBsdiff UploadFilePartialParamsAlgorithm = "bsdiff"
+	UploadFilePartialParamsAlgorithmVcdiff UploadFilePartialParamsAlgorithm = "vcdiff"
+	UploadFilePartialParamsAlgorithmXdelta UploadFilePartialParamsAlgorithm = "xdelta"
+)
+
+// Valid indicates whether the value is a known member of the UploadFilePartialParamsAlgorithm enum.
+func (e UploadFilePartialParamsAlgorithm) Valid() bool {
+	switch e {
+	case UploadFilePartialParamsAlgorithmBsdiff:
+		return true
+	case UploadFilePartialParamsAlgorithmVcdiff:
+		return true
+	case UploadFilePartialParamsAlgorithmXdelta:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UploadFileParamsIfNoneMatch.
+const (
+	UploadFileParamsIfNoneMatchAsterisk UploadFileParamsIfNoneMatch = "*"
+)
+
+// Valid indicates whether the value is a known member of the UploadFileParamsIfNoneMatch enum.
+func (e UploadFileParamsIfNoneMatch) Valid() bool {
+	switch e {
+	case UploadFileParamsIfNoneMatchAsterisk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemTagsParamsQmode.
+const (
+	GetItemTagsParamsQmodeContains         GetItemTagsParamsQmode = "contains"
+	GetItemTagsParamsQmodeEverything       GetItemTagsParamsQmode = "everything"
+	GetItemTagsParamsQmodeStartsWith       GetItemTagsParamsQmode = "startsWith"
+	GetItemTagsParamsQmodeTitleCreatorYear GetItemTagsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the GetItemTagsParamsQmode enum.
+func (e GetItemTagsParamsQmode) Valid() bool {
+	switch e {
+	case GetItemTagsParamsQmodeContains:
+		return true
+	case GetItemTagsParamsQmodeEverything:
+		return true
+	case GetItemTagsParamsQmodeStartsWith:
+		return true
+	case GetItemTagsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemTagsParamsSort.
+const (
+	GetItemTagsParamsSortAccessDate          GetItemTagsParamsSort = "accessDate"
+	GetItemTagsParamsSortAddedBy             GetItemTagsParamsSort = "addedBy"
+	GetItemTagsParamsSortCallNumber          GetItemTagsParamsSort = "callNumber"
+	GetItemTagsParamsSortCreator             GetItemTagsParamsSort = "creator"
+	GetItemTagsParamsSortDate                GetItemTagsParamsSort = "date"
+	GetItemTagsParamsSortDateAdded           GetItemTagsParamsSort = "dateAdded"
+	GetItemTagsParamsSortDateModified        GetItemTagsParamsSort = "dateModified"
+	GetItemTagsParamsSortItemType            GetItemTagsParamsSort = "itemType"
+	GetItemTagsParamsSortJournalAbbreviation GetItemTagsParamsSort = "journalAbbreviation"
+	GetItemTagsParamsSortLanguage            GetItemTagsParamsSort = "language"
+	GetItemTagsParamsSortLibraryCatalog      GetItemTagsParamsSort = "libraryCatalog"
+	GetItemTagsParamsSortNumItems            GetItemTagsParamsSort = "numItems"
+	GetItemTagsParamsSortPublicationTitle    GetItemTagsParamsSort = "publicationTitle"
+	GetItemTagsParamsSortPublisher           GetItemTagsParamsSort = "publisher"
+	GetItemTagsParamsSortRights              GetItemTagsParamsSort = "rights"
+	GetItemTagsParamsSortTitle               GetItemTagsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the GetItemTagsParamsSort enum.
+func (e GetItemTagsParamsSort) Valid() bool {
+	switch e {
+	case GetItemTagsParamsSortAccessDate:
+		return true
+	case GetItemTagsParamsSortAddedBy:
+		return true
+	case GetItemTagsParamsSortCallNumber:
+		return true
+	case GetItemTagsParamsSortCreator:
+		return true
+	case GetItemTagsParamsSortDate:
+		return true
+	case GetItemTagsParamsSortDateAdded:
+		return true
+	case GetItemTagsParamsSortDateModified:
+		return true
+	case GetItemTagsParamsSortItemType:
+		return true
+	case GetItemTagsParamsSortJournalAbbreviation:
+		return true
+	case GetItemTagsParamsSortLanguage:
+		return true
+	case GetItemTagsParamsSortLibraryCatalog:
+		return true
+	case GetItemTagsParamsSortNumItems:
+		return true
+	case GetItemTagsParamsSortPublicationTitle:
+		return true
+	case GetItemTagsParamsSortPublisher:
+		return true
+	case GetItemTagsParamsSortRights:
+		return true
+	case GetItemTagsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemTagsParamsDirection.
+const (
+	GetItemTagsParamsDirectionAsc  GetItemTagsParamsDirection = "asc"
+	GetItemTagsParamsDirectionDesc GetItemTagsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetItemTagsParamsDirection enum.
+func (e GetItemTagsParamsDirection) Valid() bool {
+	switch e {
+	case GetItemTagsParamsDirectionAsc:
+		return true
+	case GetItemTagsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetItemTagsParamsFormat.
+const (
+	GetItemTagsParamsFormatAtom             GetItemTagsParamsFormat = "atom"
+	GetItemTagsParamsFormatBib              GetItemTagsParamsFormat = "bib"
+	GetItemTagsParamsFormatBiblatex         GetItemTagsParamsFormat = "biblatex"
+	GetItemTagsParamsFormatBibtex           GetItemTagsParamsFormat = "bibtex"
+	GetItemTagsParamsFormatBookmarks        GetItemTagsParamsFormat = "bookmarks"
+	GetItemTagsParamsFormatCoins            GetItemTagsParamsFormat = "coins"
+	GetItemTagsParamsFormatCsljson          GetItemTagsParamsFormat = "csljson"
+	GetItemTagsParamsFormatCsv              GetItemTagsParamsFormat = "csv"
+	GetItemTagsParamsFormatJson             GetItemTagsParamsFormat = "json"
+	GetItemTagsParamsFormatKeys             GetItemTagsParamsFormat = "keys"
+	GetItemTagsParamsFormatMods             GetItemTagsParamsFormat = "mods"
+	GetItemTagsParamsFormatRdfBibliontology GetItemTagsParamsFormat = "rdf_bibliontology"
+	GetItemTagsParamsFormatRdfDc            GetItemTagsParamsFormat = "rdf_dc"
+	GetItemTagsParamsFormatRdfZotero        GetItemTagsParamsFormat = "rdf_zotero"
+	GetItemTagsParamsFormatRefer            GetItemTagsParamsFormat = "refer"
+	GetItemTagsParamsFormatRis              GetItemTagsParamsFormat = "ris"
+	GetItemTagsParamsFormatTei              GetItemTagsParamsFormat = "tei"
+	GetItemTagsParamsFormatVersions         GetItemTagsParamsFormat = "versions"
+	GetItemTagsParamsFormatWikipedia        GetItemTagsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetItemTagsParamsFormat enum.
+func (e GetItemTagsParamsFormat) Valid() bool {
+	switch e {
+	case GetItemTagsParamsFormatAtom:
+		return true
+	case GetItemTagsParamsFormatBib:
+		return true
+	case GetItemTagsParamsFormatBiblatex:
+		return true
+	case GetItemTagsParamsFormatBibtex:
+		return true
+	case GetItemTagsParamsFormatBookmarks:
+		return true
+	case GetItemTagsParamsFormatCoins:
+		return true
+	case GetItemTagsParamsFormatCsljson:
+		return true
+	case GetItemTagsParamsFormatCsv:
+		return true
+	case GetItemTagsParamsFormatJson:
+		return true
+	case GetItemTagsParamsFormatKeys:
+		return true
+	case GetItemTagsParamsFormatMods:
+		return true
+	case GetItemTagsParamsFormatRdfBibliontology:
+		return true
+	case GetItemTagsParamsFormatRdfDc:
+		return true
+	case GetItemTagsParamsFormatRdfZotero:
+		return true
+	case GetItemTagsParamsFormatRefer:
+		return true
+	case GetItemTagsParamsFormatRis:
+		return true
+	case GetItemTagsParamsFormatTei:
+		return true
+	case GetItemTagsParamsFormatVersions:
+		return true
+	case GetItemTagsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsParamsQmode.
+const (
+	ListPublicationItemsParamsQmodeContains         ListPublicationItemsParamsQmode = "contains"
+	ListPublicationItemsParamsQmodeEverything       ListPublicationItemsParamsQmode = "everything"
+	ListPublicationItemsParamsQmodeStartsWith       ListPublicationItemsParamsQmode = "startsWith"
+	ListPublicationItemsParamsQmodeTitleCreatorYear ListPublicationItemsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsParamsQmode enum.
+func (e ListPublicationItemsParamsQmode) Valid() bool {
+	switch e {
+	case ListPublicationItemsParamsQmodeContains:
+		return true
+	case ListPublicationItemsParamsQmodeEverything:
+		return true
+	case ListPublicationItemsParamsQmodeStartsWith:
+		return true
+	case ListPublicationItemsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsParamsIncludeTrashed.
+const (
+	ListPublicationItemsParamsIncludeTrashedN0 ListPublicationItemsParamsIncludeTrashed = 0
+	ListPublicationItemsParamsIncludeTrashedN1 ListPublicationItemsParamsIncludeTrashed = 1
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsParamsIncludeTrashed enum.
+func (e ListPublicationItemsParamsIncludeTrashed) Valid() bool {
+	switch e {
+	case ListPublicationItemsParamsIncludeTrashedN0:
+		return true
+	case ListPublicationItemsParamsIncludeTrashedN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsParamsSort.
+const (
+	ListPublicationItemsParamsSortAccessDate          ListPublicationItemsParamsSort = "accessDate"
+	ListPublicationItemsParamsSortAddedBy             ListPublicationItemsParamsSort = "addedBy"
+	ListPublicationItemsParamsSortCallNumber          ListPublicationItemsParamsSort = "callNumber"
+	ListPublicationItemsParamsSortCreator             ListPublicationItemsParamsSort = "creator"
+	ListPublicationItemsParamsSortDate                ListPublicationItemsParamsSort = "date"
+	ListPublicationItemsParamsSortDateAdded           ListPublicationItemsParamsSort = "dateAdded"
+	ListPublicationItemsParamsSortDateModified        ListPublicationItemsParamsSort = "dateModified"
+	ListPublicationItemsParamsSortItemType            ListPublicationItemsParamsSort = "itemType"
+	ListPublicationItemsParamsSortJournalAbbreviation ListPublicationItemsParamsSort = "journalAbbreviation"
+	ListPublicationItemsParamsSortLanguage            ListPublicationItemsParamsSort = "language"
+	ListPublicationItemsParamsSortLibraryCatalog      ListPublicationItemsParamsSort = "libraryCatalog"
+	ListPublicationItemsParamsSortNumItems            ListPublicationItemsParamsSort = "numItems"
+	ListPublicationItemsParamsSortPublicationTitle    ListPublicationItemsParamsSort = "publicationTitle"
+	ListPublicationItemsParamsSortPublisher           ListPublicationItemsParamsSort = "publisher"
+	ListPublicationItemsParamsSortRights              ListPublicationItemsParamsSort = "rights"
+	ListPublicationItemsParamsSortTitle               ListPublicationItemsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsParamsSort enum.
+func (e ListPublicationItemsParamsSort) Valid() bool {
+	switch e {
+	case ListPublicationItemsParamsSortAccessDate:
+		return true
+	case ListPublicationItemsParamsSortAddedBy:
+		return true
+	case ListPublicationItemsParamsSortCallNumber:
+		return true
+	case ListPublicationItemsParamsSortCreator:
+		return true
+	case ListPublicationItemsParamsSortDate:
+		return true
+	case ListPublicationItemsParamsSortDateAdded:
+		return true
+	case ListPublicationItemsParamsSortDateModified:
+		return true
+	case ListPublicationItemsParamsSortItemType:
+		return true
+	case ListPublicationItemsParamsSortJournalAbbreviation:
+		return true
+	case ListPublicationItemsParamsSortLanguage:
+		return true
+	case ListPublicationItemsParamsSortLibraryCatalog:
+		return true
+	case ListPublicationItemsParamsSortNumItems:
+		return true
+	case ListPublicationItemsParamsSortPublicationTitle:
+		return true
+	case ListPublicationItemsParamsSortPublisher:
+		return true
+	case ListPublicationItemsParamsSortRights:
+		return true
+	case ListPublicationItemsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsParamsDirection.
+const (
+	ListPublicationItemsParamsDirectionAsc  ListPublicationItemsParamsDirection = "asc"
+	ListPublicationItemsParamsDirectionDesc ListPublicationItemsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsParamsDirection enum.
+func (e ListPublicationItemsParamsDirection) Valid() bool {
+	switch e {
+	case ListPublicationItemsParamsDirectionAsc:
+		return true
+	case ListPublicationItemsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsParamsFormat.
+const (
+	ListPublicationItemsParamsFormatAtom             ListPublicationItemsParamsFormat = "atom"
+	ListPublicationItemsParamsFormatBib              ListPublicationItemsParamsFormat = "bib"
+	ListPublicationItemsParamsFormatBiblatex         ListPublicationItemsParamsFormat = "biblatex"
+	ListPublicationItemsParamsFormatBibtex           ListPublicationItemsParamsFormat = "bibtex"
+	ListPublicationItemsParamsFormatBookmarks        ListPublicationItemsParamsFormat = "bookmarks"
+	ListPublicationItemsParamsFormatCoins            ListPublicationItemsParamsFormat = "coins"
+	ListPublicationItemsParamsFormatCsljson          ListPublicationItemsParamsFormat = "csljson"
+	ListPublicationItemsParamsFormatCsv              ListPublicationItemsParamsFormat = "csv"
+	ListPublicationItemsParamsFormatJson             ListPublicationItemsParamsFormat = "json"
+	ListPublicationItemsParamsFormatKeys             ListPublicationItemsParamsFormat = "keys"
+	ListPublicationItemsParamsFormatMods             ListPublicationItemsParamsFormat = "mods"
+	ListPublicationItemsParamsFormatRdfBibliontology ListPublicationItemsParamsFormat = "rdf_bibliontology"
+	ListPublicationItemsParamsFormatRdfDc            ListPublicationItemsParamsFormat = "rdf_dc"
+	ListPublicationItemsParamsFormatRdfZotero        ListPublicationItemsParamsFormat = "rdf_zotero"
+	ListPublicationItemsParamsFormatRefer            ListPublicationItemsParamsFormat = "refer"
+	ListPublicationItemsParamsFormatRis              ListPublicationItemsParamsFormat = "ris"
+	ListPublicationItemsParamsFormatTei              ListPublicationItemsParamsFormat = "tei"
+	ListPublicationItemsParamsFormatVersions         ListPublicationItemsParamsFormat = "versions"
+	ListPublicationItemsParamsFormatWikipedia        ListPublicationItemsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsParamsFormat enum.
+func (e ListPublicationItemsParamsFormat) Valid() bool {
+	switch e {
+	case ListPublicationItemsParamsFormatAtom:
+		return true
+	case ListPublicationItemsParamsFormatBib:
+		return true
+	case ListPublicationItemsParamsFormatBiblatex:
+		return true
+	case ListPublicationItemsParamsFormatBibtex:
+		return true
+	case ListPublicationItemsParamsFormatBookmarks:
+		return true
+	case ListPublicationItemsParamsFormatCoins:
+		return true
+	case ListPublicationItemsParamsFormatCsljson:
+		return true
+	case ListPublicationItemsParamsFormatCsv:
+		return true
+	case ListPublicationItemsParamsFormatJson:
+		return true
+	case ListPublicationItemsParamsFormatKeys:
+		return true
+	case ListPublicationItemsParamsFormatMods:
+		return true
+	case ListPublicationItemsParamsFormatRdfBibliontology:
+		return true
+	case ListPublicationItemsParamsFormatRdfDc:
+		return true
+	case ListPublicationItemsParamsFormatRdfZotero:
+		return true
+	case ListPublicationItemsParamsFormatRefer:
+		return true
+	case ListPublicationItemsParamsFormatRis:
+		return true
+	case ListPublicationItemsParamsFormatTei:
+		return true
+	case ListPublicationItemsParamsFormatVersions:
+		return true
+	case ListPublicationItemsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsParamsLinkwrap.
+const (
+	ListPublicationItemsParamsLinkwrapN0 ListPublicationItemsParamsLinkwrap = 0
+	ListPublicationItemsParamsLinkwrapN1 ListPublicationItemsParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsParamsLinkwrap enum.
+func (e ListPublicationItemsParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListPublicationItemsParamsLinkwrapN0:
+		return true
+	case ListPublicationItemsParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsTagsParamsQmode.
+const (
+	ListPublicationItemsTagsParamsQmodeContains         ListPublicationItemsTagsParamsQmode = "contains"
+	ListPublicationItemsTagsParamsQmodeEverything       ListPublicationItemsTagsParamsQmode = "everything"
+	ListPublicationItemsTagsParamsQmodeStartsWith       ListPublicationItemsTagsParamsQmode = "startsWith"
+	ListPublicationItemsTagsParamsQmodeTitleCreatorYear ListPublicationItemsTagsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsTagsParamsQmode enum.
+func (e ListPublicationItemsTagsParamsQmode) Valid() bool {
+	switch e {
+	case ListPublicationItemsTagsParamsQmodeContains:
+		return true
+	case ListPublicationItemsTagsParamsQmodeEverything:
+		return true
+	case ListPublicationItemsTagsParamsQmodeStartsWith:
+		return true
+	case ListPublicationItemsTagsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsTagsParamsSort.
+const (
+	ListPublicationItemsTagsParamsSortAccessDate          ListPublicationItemsTagsParamsSort = "accessDate"
+	ListPublicationItemsTagsParamsSortAddedBy             ListPublicationItemsTagsParamsSort = "addedBy"
+	ListPublicationItemsTagsParamsSortCallNumber          ListPublicationItemsTagsParamsSort = "callNumber"
+	ListPublicationItemsTagsParamsSortCreator             ListPublicationItemsTagsParamsSort = "creator"
+	ListPublicationItemsTagsParamsSortDate                ListPublicationItemsTagsParamsSort = "date"
+	ListPublicationItemsTagsParamsSortDateAdded           ListPublicationItemsTagsParamsSort = "dateAdded"
+	ListPublicationItemsTagsParamsSortDateModified        ListPublicationItemsTagsParamsSort = "dateModified"
+	ListPublicationItemsTagsParamsSortItemType            ListPublicationItemsTagsParamsSort = "itemType"
+	ListPublicationItemsTagsParamsSortJournalAbbreviation ListPublicationItemsTagsParamsSort = "journalAbbreviation"
+	ListPublicationItemsTagsParamsSortLanguage            ListPublicationItemsTagsParamsSort = "language"
+	ListPublicationItemsTagsParamsSortLibraryCatalog      ListPublicationItemsTagsParamsSort = "libraryCatalog"
+	ListPublicationItemsTagsParamsSortNumItems            ListPublicationItemsTagsParamsSort = "numItems"
+	ListPublicationItemsTagsParamsSortPublicationTitle    ListPublicationItemsTagsParamsSort = "publicationTitle"
+	ListPublicationItemsTagsParamsSortPublisher           ListPublicationItemsTagsParamsSort = "publisher"
+	ListPublicationItemsTagsParamsSortRights              ListPublicationItemsTagsParamsSort = "rights"
+	ListPublicationItemsTagsParamsSortTitle               ListPublicationItemsTagsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsTagsParamsSort enum.
+func (e ListPublicationItemsTagsParamsSort) Valid() bool {
+	switch e {
+	case ListPublicationItemsTagsParamsSortAccessDate:
+		return true
+	case ListPublicationItemsTagsParamsSortAddedBy:
+		return true
+	case ListPublicationItemsTagsParamsSortCallNumber:
+		return true
+	case ListPublicationItemsTagsParamsSortCreator:
+		return true
+	case ListPublicationItemsTagsParamsSortDate:
+		return true
+	case ListPublicationItemsTagsParamsSortDateAdded:
+		return true
+	case ListPublicationItemsTagsParamsSortDateModified:
+		return true
+	case ListPublicationItemsTagsParamsSortItemType:
+		return true
+	case ListPublicationItemsTagsParamsSortJournalAbbreviation:
+		return true
+	case ListPublicationItemsTagsParamsSortLanguage:
+		return true
+	case ListPublicationItemsTagsParamsSortLibraryCatalog:
+		return true
+	case ListPublicationItemsTagsParamsSortNumItems:
+		return true
+	case ListPublicationItemsTagsParamsSortPublicationTitle:
+		return true
+	case ListPublicationItemsTagsParamsSortPublisher:
+		return true
+	case ListPublicationItemsTagsParamsSortRights:
+		return true
+	case ListPublicationItemsTagsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsTagsParamsDirection.
+const (
+	ListPublicationItemsTagsParamsDirectionAsc  ListPublicationItemsTagsParamsDirection = "asc"
+	ListPublicationItemsTagsParamsDirectionDesc ListPublicationItemsTagsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsTagsParamsDirection enum.
+func (e ListPublicationItemsTagsParamsDirection) Valid() bool {
+	switch e {
+	case ListPublicationItemsTagsParamsDirectionAsc:
+		return true
+	case ListPublicationItemsTagsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationItemsTagsParamsFormat.
+const (
+	ListPublicationItemsTagsParamsFormatAtom             ListPublicationItemsTagsParamsFormat = "atom"
+	ListPublicationItemsTagsParamsFormatBib              ListPublicationItemsTagsParamsFormat = "bib"
+	ListPublicationItemsTagsParamsFormatBiblatex         ListPublicationItemsTagsParamsFormat = "biblatex"
+	ListPublicationItemsTagsParamsFormatBibtex           ListPublicationItemsTagsParamsFormat = "bibtex"
+	ListPublicationItemsTagsParamsFormatBookmarks        ListPublicationItemsTagsParamsFormat = "bookmarks"
+	ListPublicationItemsTagsParamsFormatCoins            ListPublicationItemsTagsParamsFormat = "coins"
+	ListPublicationItemsTagsParamsFormatCsljson          ListPublicationItemsTagsParamsFormat = "csljson"
+	ListPublicationItemsTagsParamsFormatCsv              ListPublicationItemsTagsParamsFormat = "csv"
+	ListPublicationItemsTagsParamsFormatJson             ListPublicationItemsTagsParamsFormat = "json"
+	ListPublicationItemsTagsParamsFormatKeys             ListPublicationItemsTagsParamsFormat = "keys"
+	ListPublicationItemsTagsParamsFormatMods             ListPublicationItemsTagsParamsFormat = "mods"
+	ListPublicationItemsTagsParamsFormatRdfBibliontology ListPublicationItemsTagsParamsFormat = "rdf_bibliontology"
+	ListPublicationItemsTagsParamsFormatRdfDc            ListPublicationItemsTagsParamsFormat = "rdf_dc"
+	ListPublicationItemsTagsParamsFormatRdfZotero        ListPublicationItemsTagsParamsFormat = "rdf_zotero"
+	ListPublicationItemsTagsParamsFormatRefer            ListPublicationItemsTagsParamsFormat = "refer"
+	ListPublicationItemsTagsParamsFormatRis              ListPublicationItemsTagsParamsFormat = "ris"
+	ListPublicationItemsTagsParamsFormatTei              ListPublicationItemsTagsParamsFormat = "tei"
+	ListPublicationItemsTagsParamsFormatVersions         ListPublicationItemsTagsParamsFormat = "versions"
+	ListPublicationItemsTagsParamsFormatWikipedia        ListPublicationItemsTagsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationItemsTagsParamsFormat enum.
+func (e ListPublicationItemsTagsParamsFormat) Valid() bool {
+	switch e {
+	case ListPublicationItemsTagsParamsFormatAtom:
+		return true
+	case ListPublicationItemsTagsParamsFormatBib:
+		return true
+	case ListPublicationItemsTagsParamsFormatBiblatex:
+		return true
+	case ListPublicationItemsTagsParamsFormatBibtex:
+		return true
+	case ListPublicationItemsTagsParamsFormatBookmarks:
+		return true
+	case ListPublicationItemsTagsParamsFormatCoins:
+		return true
+	case ListPublicationItemsTagsParamsFormatCsljson:
+		return true
+	case ListPublicationItemsTagsParamsFormatCsv:
+		return true
+	case ListPublicationItemsTagsParamsFormatJson:
+		return true
+	case ListPublicationItemsTagsParamsFormatKeys:
+		return true
+	case ListPublicationItemsTagsParamsFormatMods:
+		return true
+	case ListPublicationItemsTagsParamsFormatRdfBibliontology:
+		return true
+	case ListPublicationItemsTagsParamsFormatRdfDc:
+		return true
+	case ListPublicationItemsTagsParamsFormatRdfZotero:
+		return true
+	case ListPublicationItemsTagsParamsFormatRefer:
+		return true
+	case ListPublicationItemsTagsParamsFormatRis:
+		return true
+	case ListPublicationItemsTagsParamsFormatTei:
+		return true
+	case ListPublicationItemsTagsParamsFormatVersions:
+		return true
+	case ListPublicationItemsTagsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationTopItemsParamsQmode.
+const (
+	ListPublicationTopItemsParamsQmodeContains         ListPublicationTopItemsParamsQmode = "contains"
+	ListPublicationTopItemsParamsQmodeEverything       ListPublicationTopItemsParamsQmode = "everything"
+	ListPublicationTopItemsParamsQmodeStartsWith       ListPublicationTopItemsParamsQmode = "startsWith"
+	ListPublicationTopItemsParamsQmodeTitleCreatorYear ListPublicationTopItemsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationTopItemsParamsQmode enum.
+func (e ListPublicationTopItemsParamsQmode) Valid() bool {
+	switch e {
+	case ListPublicationTopItemsParamsQmodeContains:
+		return true
+	case ListPublicationTopItemsParamsQmodeEverything:
+		return true
+	case ListPublicationTopItemsParamsQmodeStartsWith:
+		return true
+	case ListPublicationTopItemsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationTopItemsParamsSort.
+const (
+	ListPublicationTopItemsParamsSortAccessDate          ListPublicationTopItemsParamsSort = "accessDate"
+	ListPublicationTopItemsParamsSortAddedBy             ListPublicationTopItemsParamsSort = "addedBy"
+	ListPublicationTopItemsParamsSortCallNumber          ListPublicationTopItemsParamsSort = "callNumber"
+	ListPublicationTopItemsParamsSortCreator             ListPublicationTopItemsParamsSort = "creator"
+	ListPublicationTopItemsParamsSortDate                ListPublicationTopItemsParamsSort = "date"
+	ListPublicationTopItemsParamsSortDateAdded           ListPublicationTopItemsParamsSort = "dateAdded"
+	ListPublicationTopItemsParamsSortDateModified        ListPublicationTopItemsParamsSort = "dateModified"
+	ListPublicationTopItemsParamsSortItemType            ListPublicationTopItemsParamsSort = "itemType"
+	ListPublicationTopItemsParamsSortJournalAbbreviation ListPublicationTopItemsParamsSort = "journalAbbreviation"
+	ListPublicationTopItemsParamsSortLanguage            ListPublicationTopItemsParamsSort = "language"
+	ListPublicationTopItemsParamsSortLibraryCatalog      ListPublicationTopItemsParamsSort = "libraryCatalog"
+	ListPublicationTopItemsParamsSortNumItems            ListPublicationTopItemsParamsSort = "numItems"
+	ListPublicationTopItemsParamsSortPublicationTitle    ListPublicationTopItemsParamsSort = "publicationTitle"
+	ListPublicationTopItemsParamsSortPublisher           ListPublicationTopItemsParamsSort = "publisher"
+	ListPublicationTopItemsParamsSortRights              ListPublicationTopItemsParamsSort = "rights"
+	ListPublicationTopItemsParamsSortTitle               ListPublicationTopItemsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationTopItemsParamsSort enum.
+func (e ListPublicationTopItemsParamsSort) Valid() bool {
+	switch e {
+	case ListPublicationTopItemsParamsSortAccessDate:
+		return true
+	case ListPublicationTopItemsParamsSortAddedBy:
+		return true
+	case ListPublicationTopItemsParamsSortCallNumber:
+		return true
+	case ListPublicationTopItemsParamsSortCreator:
+		return true
+	case ListPublicationTopItemsParamsSortDate:
+		return true
+	case ListPublicationTopItemsParamsSortDateAdded:
+		return true
+	case ListPublicationTopItemsParamsSortDateModified:
+		return true
+	case ListPublicationTopItemsParamsSortItemType:
+		return true
+	case ListPublicationTopItemsParamsSortJournalAbbreviation:
+		return true
+	case ListPublicationTopItemsParamsSortLanguage:
+		return true
+	case ListPublicationTopItemsParamsSortLibraryCatalog:
+		return true
+	case ListPublicationTopItemsParamsSortNumItems:
+		return true
+	case ListPublicationTopItemsParamsSortPublicationTitle:
+		return true
+	case ListPublicationTopItemsParamsSortPublisher:
+		return true
+	case ListPublicationTopItemsParamsSortRights:
+		return true
+	case ListPublicationTopItemsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationTopItemsParamsDirection.
+const (
+	ListPublicationTopItemsParamsDirectionAsc  ListPublicationTopItemsParamsDirection = "asc"
+	ListPublicationTopItemsParamsDirectionDesc ListPublicationTopItemsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationTopItemsParamsDirection enum.
+func (e ListPublicationTopItemsParamsDirection) Valid() bool {
+	switch e {
+	case ListPublicationTopItemsParamsDirectionAsc:
+		return true
+	case ListPublicationTopItemsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationTopItemsParamsFormat.
+const (
+	ListPublicationTopItemsParamsFormatAtom             ListPublicationTopItemsParamsFormat = "atom"
+	ListPublicationTopItemsParamsFormatBib              ListPublicationTopItemsParamsFormat = "bib"
+	ListPublicationTopItemsParamsFormatBiblatex         ListPublicationTopItemsParamsFormat = "biblatex"
+	ListPublicationTopItemsParamsFormatBibtex           ListPublicationTopItemsParamsFormat = "bibtex"
+	ListPublicationTopItemsParamsFormatBookmarks        ListPublicationTopItemsParamsFormat = "bookmarks"
+	ListPublicationTopItemsParamsFormatCoins            ListPublicationTopItemsParamsFormat = "coins"
+	ListPublicationTopItemsParamsFormatCsljson          ListPublicationTopItemsParamsFormat = "csljson"
+	ListPublicationTopItemsParamsFormatCsv              ListPublicationTopItemsParamsFormat = "csv"
+	ListPublicationTopItemsParamsFormatJson             ListPublicationTopItemsParamsFormat = "json"
+	ListPublicationTopItemsParamsFormatKeys             ListPublicationTopItemsParamsFormat = "keys"
+	ListPublicationTopItemsParamsFormatMods             ListPublicationTopItemsParamsFormat = "mods"
+	ListPublicationTopItemsParamsFormatRdfBibliontology ListPublicationTopItemsParamsFormat = "rdf_bibliontology"
+	ListPublicationTopItemsParamsFormatRdfDc            ListPublicationTopItemsParamsFormat = "rdf_dc"
+	ListPublicationTopItemsParamsFormatRdfZotero        ListPublicationTopItemsParamsFormat = "rdf_zotero"
+	ListPublicationTopItemsParamsFormatRefer            ListPublicationTopItemsParamsFormat = "refer"
+	ListPublicationTopItemsParamsFormatRis              ListPublicationTopItemsParamsFormat = "ris"
+	ListPublicationTopItemsParamsFormatTei              ListPublicationTopItemsParamsFormat = "tei"
+	ListPublicationTopItemsParamsFormatVersions         ListPublicationTopItemsParamsFormat = "versions"
+	ListPublicationTopItemsParamsFormatWikipedia        ListPublicationTopItemsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationTopItemsParamsFormat enum.
+func (e ListPublicationTopItemsParamsFormat) Valid() bool {
+	switch e {
+	case ListPublicationTopItemsParamsFormatAtom:
+		return true
+	case ListPublicationTopItemsParamsFormatBib:
+		return true
+	case ListPublicationTopItemsParamsFormatBiblatex:
+		return true
+	case ListPublicationTopItemsParamsFormatBibtex:
+		return true
+	case ListPublicationTopItemsParamsFormatBookmarks:
+		return true
+	case ListPublicationTopItemsParamsFormatCoins:
+		return true
+	case ListPublicationTopItemsParamsFormatCsljson:
+		return true
+	case ListPublicationTopItemsParamsFormatCsv:
+		return true
+	case ListPublicationTopItemsParamsFormatJson:
+		return true
+	case ListPublicationTopItemsParamsFormatKeys:
+		return true
+	case ListPublicationTopItemsParamsFormatMods:
+		return true
+	case ListPublicationTopItemsParamsFormatRdfBibliontology:
+		return true
+	case ListPublicationTopItemsParamsFormatRdfDc:
+		return true
+	case ListPublicationTopItemsParamsFormatRdfZotero:
+		return true
+	case ListPublicationTopItemsParamsFormatRefer:
+		return true
+	case ListPublicationTopItemsParamsFormatRis:
+		return true
+	case ListPublicationTopItemsParamsFormatTei:
+		return true
+	case ListPublicationTopItemsParamsFormatVersions:
+		return true
+	case ListPublicationTopItemsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPublicationTopItemsParamsLinkwrap.
+const (
+	ListPublicationTopItemsParamsLinkwrapN0 ListPublicationTopItemsParamsLinkwrap = 0
+	ListPublicationTopItemsParamsLinkwrapN1 ListPublicationTopItemsParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the ListPublicationTopItemsParamsLinkwrap enum.
+func (e ListPublicationTopItemsParamsLinkwrap) Valid() bool {
+	switch e {
+	case ListPublicationTopItemsParamsLinkwrapN0:
+		return true
+	case ListPublicationTopItemsParamsLinkwrapN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetPublicationItemParamsFormat.
+const (
+	GetPublicationItemParamsFormatAtom             GetPublicationItemParamsFormat = "atom"
+	GetPublicationItemParamsFormatBib              GetPublicationItemParamsFormat = "bib"
+	GetPublicationItemParamsFormatBiblatex         GetPublicationItemParamsFormat = "biblatex"
+	GetPublicationItemParamsFormatBibtex           GetPublicationItemParamsFormat = "bibtex"
+	GetPublicationItemParamsFormatBookmarks        GetPublicationItemParamsFormat = "bookmarks"
+	GetPublicationItemParamsFormatCoins            GetPublicationItemParamsFormat = "coins"
+	GetPublicationItemParamsFormatCsljson          GetPublicationItemParamsFormat = "csljson"
+	GetPublicationItemParamsFormatCsv              GetPublicationItemParamsFormat = "csv"
+	GetPublicationItemParamsFormatJson             GetPublicationItemParamsFormat = "json"
+	GetPublicationItemParamsFormatKeys             GetPublicationItemParamsFormat = "keys"
+	GetPublicationItemParamsFormatMods             GetPublicationItemParamsFormat = "mods"
+	GetPublicationItemParamsFormatRdfBibliontology GetPublicationItemParamsFormat = "rdf_bibliontology"
+	GetPublicationItemParamsFormatRdfDc            GetPublicationItemParamsFormat = "rdf_dc"
+	GetPublicationItemParamsFormatRdfZotero        GetPublicationItemParamsFormat = "rdf_zotero"
+	GetPublicationItemParamsFormatRefer            GetPublicationItemParamsFormat = "refer"
+	GetPublicationItemParamsFormatRis              GetPublicationItemParamsFormat = "ris"
+	GetPublicationItemParamsFormatTei              GetPublicationItemParamsFormat = "tei"
+	GetPublicationItemParamsFormatVersions         GetPublicationItemParamsFormat = "versions"
+	GetPublicationItemParamsFormatWikipedia        GetPublicationItemParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetPublicationItemParamsFormat enum.
+func (e GetPublicationItemParamsFormat) Valid() bool {
+	switch e {
+	case GetPublicationItemParamsFormatAtom:
+		return true
+	case GetPublicationItemParamsFormatBib:
+		return true
+	case GetPublicationItemParamsFormatBiblatex:
+		return true
+	case GetPublicationItemParamsFormatBibtex:
+		return true
+	case GetPublicationItemParamsFormatBookmarks:
+		return true
+	case GetPublicationItemParamsFormatCoins:
+		return true
+	case GetPublicationItemParamsFormatCsljson:
+		return true
+	case GetPublicationItemParamsFormatCsv:
+		return true
+	case GetPublicationItemParamsFormatJson:
+		return true
+	case GetPublicationItemParamsFormatKeys:
+		return true
+	case GetPublicationItemParamsFormatMods:
+		return true
+	case GetPublicationItemParamsFormatRdfBibliontology:
+		return true
+	case GetPublicationItemParamsFormatRdfDc:
+		return true
+	case GetPublicationItemParamsFormatRdfZotero:
+		return true
+	case GetPublicationItemParamsFormatRefer:
+		return true
+	case GetPublicationItemParamsFormatRis:
+		return true
+	case GetPublicationItemParamsFormatTei:
+		return true
+	case GetPublicationItemParamsFormatVersions:
+		return true
+	case GetPublicationItemParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetPublicationItemParamsLinkwrap.
+const (
+	N0 GetPublicationItemParamsLinkwrap = 0
+	N1 GetPublicationItemParamsLinkwrap = 1
+)
+
+// Valid indicates whether the value is a known member of the GetPublicationItemParamsLinkwrap enum.
+func (e GetPublicationItemParamsLinkwrap) Valid() bool {
+	switch e {
+	case N0:
+		return true
+	case N1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSearchesParamsFormat.
+const (
+	ListSearchesParamsFormatAtom             ListSearchesParamsFormat = "atom"
+	ListSearchesParamsFormatBib              ListSearchesParamsFormat = "bib"
+	ListSearchesParamsFormatBiblatex         ListSearchesParamsFormat = "biblatex"
+	ListSearchesParamsFormatBibtex           ListSearchesParamsFormat = "bibtex"
+	ListSearchesParamsFormatBookmarks        ListSearchesParamsFormat = "bookmarks"
+	ListSearchesParamsFormatCoins            ListSearchesParamsFormat = "coins"
+	ListSearchesParamsFormatCsljson          ListSearchesParamsFormat = "csljson"
+	ListSearchesParamsFormatCsv              ListSearchesParamsFormat = "csv"
+	ListSearchesParamsFormatJson             ListSearchesParamsFormat = "json"
+	ListSearchesParamsFormatKeys             ListSearchesParamsFormat = "keys"
+	ListSearchesParamsFormatMods             ListSearchesParamsFormat = "mods"
+	ListSearchesParamsFormatRdfBibliontology ListSearchesParamsFormat = "rdf_bibliontology"
+	ListSearchesParamsFormatRdfDc            ListSearchesParamsFormat = "rdf_dc"
+	ListSearchesParamsFormatRdfZotero        ListSearchesParamsFormat = "rdf_zotero"
+	ListSearchesParamsFormatRefer            ListSearchesParamsFormat = "refer"
+	ListSearchesParamsFormatRis              ListSearchesParamsFormat = "ris"
+	ListSearchesParamsFormatTei              ListSearchesParamsFormat = "tei"
+	ListSearchesParamsFormatVersions         ListSearchesParamsFormat = "versions"
+	ListSearchesParamsFormatWikipedia        ListSearchesParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListSearchesParamsFormat enum.
+func (e ListSearchesParamsFormat) Valid() bool {
+	switch e {
+	case ListSearchesParamsFormatAtom:
+		return true
+	case ListSearchesParamsFormatBib:
+		return true
+	case ListSearchesParamsFormatBiblatex:
+		return true
+	case ListSearchesParamsFormatBibtex:
+		return true
+	case ListSearchesParamsFormatBookmarks:
+		return true
+	case ListSearchesParamsFormatCoins:
+		return true
+	case ListSearchesParamsFormatCsljson:
+		return true
+	case ListSearchesParamsFormatCsv:
+		return true
+	case ListSearchesParamsFormatJson:
+		return true
+	case ListSearchesParamsFormatKeys:
+		return true
+	case ListSearchesParamsFormatMods:
+		return true
+	case ListSearchesParamsFormatRdfBibliontology:
+		return true
+	case ListSearchesParamsFormatRdfDc:
+		return true
+	case ListSearchesParamsFormatRdfZotero:
+		return true
+	case ListSearchesParamsFormatRefer:
+		return true
+	case ListSearchesParamsFormatRis:
+		return true
+	case ListSearchesParamsFormatTei:
+		return true
+	case ListSearchesParamsFormatVersions:
+		return true
+	case ListSearchesParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetSearchParamsFormat.
+const (
+	GetSearchParamsFormatAtom             GetSearchParamsFormat = "atom"
+	GetSearchParamsFormatBib              GetSearchParamsFormat = "bib"
+	GetSearchParamsFormatBiblatex         GetSearchParamsFormat = "biblatex"
+	GetSearchParamsFormatBibtex           GetSearchParamsFormat = "bibtex"
+	GetSearchParamsFormatBookmarks        GetSearchParamsFormat = "bookmarks"
+	GetSearchParamsFormatCoins            GetSearchParamsFormat = "coins"
+	GetSearchParamsFormatCsljson          GetSearchParamsFormat = "csljson"
+	GetSearchParamsFormatCsv              GetSearchParamsFormat = "csv"
+	GetSearchParamsFormatJson             GetSearchParamsFormat = "json"
+	GetSearchParamsFormatKeys             GetSearchParamsFormat = "keys"
+	GetSearchParamsFormatMods             GetSearchParamsFormat = "mods"
+	GetSearchParamsFormatRdfBibliontology GetSearchParamsFormat = "rdf_bibliontology"
+	GetSearchParamsFormatRdfDc            GetSearchParamsFormat = "rdf_dc"
+	GetSearchParamsFormatRdfZotero        GetSearchParamsFormat = "rdf_zotero"
+	GetSearchParamsFormatRefer            GetSearchParamsFormat = "refer"
+	GetSearchParamsFormatRis              GetSearchParamsFormat = "ris"
+	GetSearchParamsFormatTei              GetSearchParamsFormat = "tei"
+	GetSearchParamsFormatVersions         GetSearchParamsFormat = "versions"
+	GetSearchParamsFormatWikipedia        GetSearchParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetSearchParamsFormat enum.
+func (e GetSearchParamsFormat) Valid() bool {
+	switch e {
+	case GetSearchParamsFormatAtom:
+		return true
+	case GetSearchParamsFormatBib:
+		return true
+	case GetSearchParamsFormatBiblatex:
+		return true
+	case GetSearchParamsFormatBibtex:
+		return true
+	case GetSearchParamsFormatBookmarks:
+		return true
+	case GetSearchParamsFormatCoins:
+		return true
+	case GetSearchParamsFormatCsljson:
+		return true
+	case GetSearchParamsFormatCsv:
+		return true
+	case GetSearchParamsFormatJson:
+		return true
+	case GetSearchParamsFormatKeys:
+		return true
+	case GetSearchParamsFormatMods:
+		return true
+	case GetSearchParamsFormatRdfBibliontology:
+		return true
+	case GetSearchParamsFormatRdfDc:
+		return true
+	case GetSearchParamsFormatRdfZotero:
+		return true
+	case GetSearchParamsFormatRefer:
+		return true
+	case GetSearchParamsFormatRis:
+		return true
+	case GetSearchParamsFormatTei:
+		return true
+	case GetSearchParamsFormatVersions:
+		return true
+	case GetSearchParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTagsParamsQmode.
+const (
+	ListTagsParamsQmodeContains         ListTagsParamsQmode = "contains"
+	ListTagsParamsQmodeEverything       ListTagsParamsQmode = "everything"
+	ListTagsParamsQmodeStartsWith       ListTagsParamsQmode = "startsWith"
+	ListTagsParamsQmodeTitleCreatorYear ListTagsParamsQmode = "titleCreatorYear"
+)
+
+// Valid indicates whether the value is a known member of the ListTagsParamsQmode enum.
+func (e ListTagsParamsQmode) Valid() bool {
+	switch e {
+	case ListTagsParamsQmodeContains:
+		return true
+	case ListTagsParamsQmodeEverything:
+		return true
+	case ListTagsParamsQmodeStartsWith:
+		return true
+	case ListTagsParamsQmodeTitleCreatorYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTagsParamsSort.
+const (
+	ListTagsParamsSortAccessDate          ListTagsParamsSort = "accessDate"
+	ListTagsParamsSortAddedBy             ListTagsParamsSort = "addedBy"
+	ListTagsParamsSortCallNumber          ListTagsParamsSort = "callNumber"
+	ListTagsParamsSortCreator             ListTagsParamsSort = "creator"
+	ListTagsParamsSortDate                ListTagsParamsSort = "date"
+	ListTagsParamsSortDateAdded           ListTagsParamsSort = "dateAdded"
+	ListTagsParamsSortDateModified        ListTagsParamsSort = "dateModified"
+	ListTagsParamsSortItemType            ListTagsParamsSort = "itemType"
+	ListTagsParamsSortJournalAbbreviation ListTagsParamsSort = "journalAbbreviation"
+	ListTagsParamsSortLanguage            ListTagsParamsSort = "language"
+	ListTagsParamsSortLibraryCatalog      ListTagsParamsSort = "libraryCatalog"
+	ListTagsParamsSortNumItems            ListTagsParamsSort = "numItems"
+	ListTagsParamsSortPublicationTitle    ListTagsParamsSort = "publicationTitle"
+	ListTagsParamsSortPublisher           ListTagsParamsSort = "publisher"
+	ListTagsParamsSortRights              ListTagsParamsSort = "rights"
+	ListTagsParamsSortTitle               ListTagsParamsSort = "title"
+)
+
+// Valid indicates whether the value is a known member of the ListTagsParamsSort enum.
+func (e ListTagsParamsSort) Valid() bool {
+	switch e {
+	case ListTagsParamsSortAccessDate:
+		return true
+	case ListTagsParamsSortAddedBy:
+		return true
+	case ListTagsParamsSortCallNumber:
+		return true
+	case ListTagsParamsSortCreator:
+		return true
+	case ListTagsParamsSortDate:
+		return true
+	case ListTagsParamsSortDateAdded:
+		return true
+	case ListTagsParamsSortDateModified:
+		return true
+	case ListTagsParamsSortItemType:
+		return true
+	case ListTagsParamsSortJournalAbbreviation:
+		return true
+	case ListTagsParamsSortLanguage:
+		return true
+	case ListTagsParamsSortLibraryCatalog:
+		return true
+	case ListTagsParamsSortNumItems:
+		return true
+	case ListTagsParamsSortPublicationTitle:
+		return true
+	case ListTagsParamsSortPublisher:
+		return true
+	case ListTagsParamsSortRights:
+		return true
+	case ListTagsParamsSortTitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTagsParamsDirection.
+const (
+	ListTagsParamsDirectionAsc  ListTagsParamsDirection = "asc"
+	ListTagsParamsDirectionDesc ListTagsParamsDirection = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListTagsParamsDirection enum.
+func (e ListTagsParamsDirection) Valid() bool {
+	switch e {
+	case ListTagsParamsDirectionAsc:
+		return true
+	case ListTagsParamsDirectionDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTagsParamsFormat.
+const (
+	ListTagsParamsFormatAtom             ListTagsParamsFormat = "atom"
+	ListTagsParamsFormatBib              ListTagsParamsFormat = "bib"
+	ListTagsParamsFormatBiblatex         ListTagsParamsFormat = "biblatex"
+	ListTagsParamsFormatBibtex           ListTagsParamsFormat = "bibtex"
+	ListTagsParamsFormatBookmarks        ListTagsParamsFormat = "bookmarks"
+	ListTagsParamsFormatCoins            ListTagsParamsFormat = "coins"
+	ListTagsParamsFormatCsljson          ListTagsParamsFormat = "csljson"
+	ListTagsParamsFormatCsv              ListTagsParamsFormat = "csv"
+	ListTagsParamsFormatJson             ListTagsParamsFormat = "json"
+	ListTagsParamsFormatKeys             ListTagsParamsFormat = "keys"
+	ListTagsParamsFormatMods             ListTagsParamsFormat = "mods"
+	ListTagsParamsFormatRdfBibliontology ListTagsParamsFormat = "rdf_bibliontology"
+	ListTagsParamsFormatRdfDc            ListTagsParamsFormat = "rdf_dc"
+	ListTagsParamsFormatRdfZotero        ListTagsParamsFormat = "rdf_zotero"
+	ListTagsParamsFormatRefer            ListTagsParamsFormat = "refer"
+	ListTagsParamsFormatRis              ListTagsParamsFormat = "ris"
+	ListTagsParamsFormatTei              ListTagsParamsFormat = "tei"
+	ListTagsParamsFormatVersions         ListTagsParamsFormat = "versions"
+	ListTagsParamsFormatWikipedia        ListTagsParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the ListTagsParamsFormat enum.
+func (e ListTagsParamsFormat) Valid() bool {
+	switch e {
+	case ListTagsParamsFormatAtom:
+		return true
+	case ListTagsParamsFormatBib:
+		return true
+	case ListTagsParamsFormatBiblatex:
+		return true
+	case ListTagsParamsFormatBibtex:
+		return true
+	case ListTagsParamsFormatBookmarks:
+		return true
+	case ListTagsParamsFormatCoins:
+		return true
+	case ListTagsParamsFormatCsljson:
+		return true
+	case ListTagsParamsFormatCsv:
+		return true
+	case ListTagsParamsFormatJson:
+		return true
+	case ListTagsParamsFormatKeys:
+		return true
+	case ListTagsParamsFormatMods:
+		return true
+	case ListTagsParamsFormatRdfBibliontology:
+		return true
+	case ListTagsParamsFormatRdfDc:
+		return true
+	case ListTagsParamsFormatRdfZotero:
+		return true
+	case ListTagsParamsFormatRefer:
+		return true
+	case ListTagsParamsFormatRis:
+		return true
+	case ListTagsParamsFormatTei:
+		return true
+	case ListTagsParamsFormatVersions:
+		return true
+	case ListTagsParamsFormatWikipedia:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetTagParamsFormat.
+const (
+	Atom             GetTagParamsFormat = "atom"
+	Bib              GetTagParamsFormat = "bib"
+	Biblatex         GetTagParamsFormat = "biblatex"
+	Bibtex           GetTagParamsFormat = "bibtex"
+	Bookmarks        GetTagParamsFormat = "bookmarks"
+	Coins            GetTagParamsFormat = "coins"
+	Csljson          GetTagParamsFormat = "csljson"
+	Csv              GetTagParamsFormat = "csv"
+	Json             GetTagParamsFormat = "json"
+	Keys             GetTagParamsFormat = "keys"
+	Mods             GetTagParamsFormat = "mods"
+	RdfBibliontology GetTagParamsFormat = "rdf_bibliontology"
+	RdfDc            GetTagParamsFormat = "rdf_dc"
+	RdfZotero        GetTagParamsFormat = "rdf_zotero"
+	Refer            GetTagParamsFormat = "refer"
+	Ris              GetTagParamsFormat = "ris"
+	Tei              GetTagParamsFormat = "tei"
+	Versions         GetTagParamsFormat = "versions"
+	Wikipedia        GetTagParamsFormat = "wikipedia"
+)
+
+// Valid indicates whether the value is a known member of the GetTagParamsFormat enum.
+func (e GetTagParamsFormat) Valid() bool {
+	switch e {
+	case Atom:
+		return true
+	case Bib:
+		return true
 	case Biblatex:
 		return true
 	case Bibtex:
@@ -1045,21 +7990,6 @@ func (e GetItemParamsFormat) Valid() bool {
 	case Versions:
 		return true
 	case Wikipedia:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for UploadFileParamsIfNoneMatch.
-const (
-	UploadFileParamsIfNoneMatchAsterisk UploadFileParamsIfNoneMatch = "*"
-)
-
-// Valid indicates whether the value is a known member of the UploadFileParamsIfNoneMatch enum.
-func (e UploadFileParamsIfNoneMatch) Valid() bool {
-	switch e {
-	case UploadFileParamsIfNoneMatchAsterisk:
 		return true
 	default:
 		return false
@@ -1144,6 +8074,29 @@ type Creator struct {
 	Name *string `json:"name,omitempty"`
 }
 
+// DeletedContent Tombstone feed for incremental sync. Each field is the list of
+// identifiers of objects of that type that were deleted since the
+// client's last known library version.
+type DeletedContent struct {
+	// Collections Keys of collections deleted since `since`.
+	Collections []string `json:"collections"`
+
+	// Items Keys of items deleted since `since`.
+	Items []string `json:"items"`
+
+	// Searches Keys of saved searches deleted since `since`.
+	Searches []string `json:"searches"`
+
+	// Settings Keys of settings removed since `since` (e.g. `tagColors`,
+	// `feeds`). Included for completeness — this spec does not
+	// currently model the `/settings` read/write surface.
+	Settings []string `json:"settings"`
+
+	// Tags Names of tags removed from the library since `since`. Tags
+	// are identified by name, not by key.
+	Tags []string `json:"tags"`
+}
+
 // Fulltext Indexed fulltext content for an attachment.
 type Fulltext struct {
 	// Content The extracted plain-text content.
@@ -1162,6 +8115,12 @@ type Fulltext struct {
 	TotalPages           *int                   `json:"totalPages,omitempty"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
+
+// FulltextVersions Map of `itemKey` to the current fulltext version for items whose
+// indexed fulltext content changed since the caller's `since`
+// version. An empty object means no fulltext changed in that
+// window.
+type FulltextVersions map[string]int
 
 // Group A Zotero group library as returned by `GET /users/{userID}/groups`.
 // Mirrors the Item wrapper shape — `id` + `version` at the top level,
@@ -1345,12 +8304,12 @@ type ItemData struct {
 	Language       *string `json:"language,omitempty"`
 	LibraryCatalog *string `json:"libraryCatalog,omitempty"`
 
-	// LinkMode How the attachment is stored:
-	// - `imported_file`: file uploaded to Zotero storage
-	// - `imported_url`: snapshot of a web page
-	// - `linked_file`: reference to a local file path (not uploaded)
-	// - `linked_url`: plain URL reference
-	LinkMode *ItemDataLinkMode `json:"linkMode,omitempty"`
+	// LinkMode How an attachment item is stored.
+	// - `imported_file`: bytes uploaded to Zotero storage.
+	// - `imported_url`: snapshot of a web page.
+	// - `linked_file`: reference to a local file path (not uploaded).
+	// - `linked_url`: plain URL reference.
+	LinkMode *LinkMode `json:"linkMode,omitempty"`
 
 	// Md5 MD5 hash of the stored file (null for non-imported_file).
 	Md5 *string `json:"md5,omitempty"`
@@ -1407,13 +8366,6 @@ type ItemData struct {
 // See `/schema` for the canonical list.
 type ItemDataItemType string
 
-// ItemDataLinkMode How the attachment is stored:
-// - `imported_file`: file uploaded to Zotero storage
-// - `imported_url`: snapshot of a web page
-// - `linked_file`: reference to a local file path (not uploaded)
-// - `linked_url`: plain URL reference
-type ItemDataLinkMode string
-
 // ItemDataRelations0 defines model for .
 type ItemDataRelations0 = string
 
@@ -1466,6 +8418,13 @@ type LibraryRef struct {
 // LibraryRefType defines model for LibraryRef.Type.
 type LibraryRefType string
 
+// LinkMode How an attachment item is stored.
+// - `imported_file`: bytes uploaded to Zotero storage.
+// - `imported_url`: snapshot of a web page.
+// - `linked_file`: reference to a local file path (not uploaded).
+// - `linked_url`: plain URL reference.
+type LinkMode string
+
 // MultiObjectResult Response to a multi-object write (`POST /items`, `POST /collections`).
 // Objects are keyed by their zero-indexed position in the request array.
 // The objects inside `successful` are wrapped `Item` or `Collection`
@@ -1495,6 +8454,24 @@ type MultiObjectResult struct {
 // `itemTypes`, `meta`, `csl`, and `locales`. Treat as opaque and use it
 // to drive validation / field mapping.
 type Schema map[string]interface{}
+
+// SchemaLabelled A single schema entry — an item type, field, or creator type —
+// paired with its localized display label.
+//
+// The key-name field depends on the endpoint:
+//
+// - `/itemTypes` → `itemType: string`
+// - `/itemFields`, `/itemTypeFields`, `/creatorFields` → `field: string`
+// - `/itemTypeCreatorTypes` → `creatorType: string`
+//
+// Modelled loosely because oapi-codegen would otherwise generate
+// three near-identical types. Callers can read the relevant key by
+// name; `localized` is always present.
+type SchemaLabelled struct {
+	// Localized Human-readable label in the requested `locale`.
+	Localized            string                 `json:"localized"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
 
 // Search A wrapped saved search as returned by GET endpoints. The mutable
 // payload lives in `data`; the outer object carries library + links.
@@ -1646,8 +8623,14 @@ type UploadRegisterRequest struct {
 	Upload string `json:"upload"`
 }
 
+// CollectionKey defines model for collectionKey.
+type CollectionKey = string
+
 // CollectionKeyPath defines model for collectionKeyPath.
 type CollectionKeyPath = string
+
+// Content defines model for content.
+type Content = string
 
 // Direction defines model for direction.
 type Direction string
@@ -1658,11 +8641,17 @@ type Format string
 // GroupID defines model for groupID.
 type GroupID = int
 
+// IfModifiedSinceVersion defines model for ifModifiedSinceVersion.
+type IfModifiedSinceVersion = int
+
 // IfUnmodifiedSinceVersion defines model for ifUnmodifiedSinceVersion.
 type IfUnmodifiedSinceVersion = int
 
 // Include defines model for include.
 type Include = string
+
+// IncludeTrashed defines model for includeTrashed.
+type IncludeTrashed int
 
 // ItemKey defines model for itemKey.
 type ItemKey = string
@@ -1673,14 +8662,26 @@ type ItemKeyPath = string
 // ItemType defines model for itemType.
 type ItemType = string
 
+// KeyPath defines model for keyPath.
+type KeyPath = string
+
 // Limit defines model for limit.
 type Limit = int
+
+// Linkwrap defines model for linkwrap.
+type Linkwrap int
+
+// Locale defines model for locale.
+type Locale = string
 
 // Qmode defines model for qmode.
 type Qmode string
 
 // Query defines model for query.
 type Query = string
+
+// SearchKey defines model for searchKey.
+type SearchKey = string
 
 // SearchKeyPath defines model for searchKeyPath.
 type SearchKeyPath = string
@@ -1689,19 +8690,45 @@ type SearchKeyPath = string
 type Since = int
 
 // Sort defines model for sort.
-type Sort = string
+type Sort string
 
 // Start defines model for start.
 type Start = int
 
+// Style defines model for style.
+type Style = string
+
 // TagFilter defines model for tagFilter.
 type TagFilter = string
+
+// TagNamePath defines model for tagNamePath.
+type TagNamePath = string
 
 // UserID defines model for userID.
 type UserID = int
 
 // WriteToken defines model for writeToken.
 type WriteToken = string
+
+// ZoteroApiVersion defines model for zoteroApiVersion.
+type ZoteroApiVersion int
+
+// GetCreatorFieldsParams defines parameters for GetCreatorFields.
+type GetCreatorFieldsParams struct {
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+}
+
+// GetGroupParams defines parameters for GetGroup.
+type GetGroupParams struct {
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
 
 // DeleteCollectionsGroupParams defines parameters for DeleteCollectionsGroup.
 type DeleteCollectionsGroupParams struct {
@@ -1716,12 +8743,69 @@ type DeleteCollectionsGroupParams struct {
 
 // ListCollectionsGroupParams defines parameters for ListCollectionsGroup.
 type ListCollectionsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// CollectionKey Comma-separated list of collection keys to fetch in a single call.
+	// Up to 50. Mirrors the `itemKey` query parameter on item endpoints.
+	CollectionKey *CollectionKey `form:"collectionKey,omitempty" json:"collectionKey,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListCollectionsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListCollectionsGroupParamsSort defines parameters for ListCollectionsGroup.
+type ListCollectionsGroupParamsSort string
+
+// ListCollectionsGroupParamsDirection defines parameters for ListCollectionsGroup.
+type ListCollectionsGroupParamsDirection string
+
+// ListCollectionsGroupParamsFormat defines parameters for ListCollectionsGroup.
+type ListCollectionsGroupParamsFormat string
 
 // CreateOrUpdateCollectionsGroupJSONBody defines parameters for CreateOrUpdateCollectionsGroup.
 type CreateOrUpdateCollectionsGroupJSONBody = []CollectionData
@@ -1742,12 +8826,65 @@ type CreateOrUpdateCollectionsGroupParams struct {
 
 // ListTopCollectionsGroupParams defines parameters for ListTopCollectionsGroup.
 type ListTopCollectionsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTopCollectionsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTopCollectionsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTopCollectionsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListTopCollectionsGroupParamsSort defines parameters for ListTopCollectionsGroup.
+type ListTopCollectionsGroupParamsSort string
+
+// ListTopCollectionsGroupParamsDirection defines parameters for ListTopCollectionsGroup.
+type ListTopCollectionsGroupParamsDirection string
+
+// ListTopCollectionsGroupParamsFormat defines parameters for ListTopCollectionsGroup.
+type ListTopCollectionsGroupParamsFormat string
 
 // DeleteCollectionGroupParams defines parameters for DeleteCollectionGroup.
 type DeleteCollectionGroupParams struct {
@@ -1757,6 +8894,40 @@ type DeleteCollectionGroupParams struct {
 	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
 }
 
+// GetCollectionGroupParams defines parameters for GetCollectionGroup.
+type GetCollectionGroupParams struct {
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetCollectionGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetCollectionGroupParamsFormat defines parameters for GetCollectionGroup.
+type GetCollectionGroupParamsFormat string
+
 // UpdateCollectionGroupParams defines parameters for UpdateCollectionGroup.
 type UpdateCollectionGroupParams struct {
 	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
@@ -1765,23 +8936,93 @@ type UpdateCollectionGroupParams struct {
 	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
 }
 
+// ReplaceCollectionGroupParams defines parameters for ReplaceCollectionGroup.
+type ReplaceCollectionGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
 // ListSubCollectionsGroupParams defines parameters for ListSubCollectionsGroup.
 type ListSubCollectionsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListSubCollectionsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListSubCollectionsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListSubCollectionsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListSubCollectionsGroupParamsSort defines parameters for ListSubCollectionsGroup.
+type ListSubCollectionsGroupParamsSort string
+
+// ListSubCollectionsGroupParamsDirection defines parameters for ListSubCollectionsGroup.
+type ListSubCollectionsGroupParamsDirection string
+
+// ListSubCollectionsGroupParamsFormat defines parameters for ListSubCollectionsGroup.
+type ListSubCollectionsGroupParamsFormat string
 
 // ListCollectionItemsGroupParams defines parameters for ListCollectionItemsGroup.
 type ListCollectionItemsGroupParams struct {
 	// Q Search query string (matches title, creators, and year by default).
 	Q *Query `form:"q,omitempty" json:"q,omitempty"`
 
-	// Qmode Search mode:
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
 	// - `titleCreatorYear` (default): match against title, creators, and year.
 	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
 	Qmode *ListCollectionItemsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
 
 	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
@@ -1799,9 +9040,18 @@ type ListCollectionItemsGroupParams struct {
 	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
 	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
 
-	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
-	// `creator`, `date`, `itemType`.
-	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListCollectionItemsGroupParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionItemsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// Direction Sort direction.
 	Direction *ListCollectionItemsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
@@ -1812,24 +9062,549 @@ type ListCollectionItemsGroupParams struct {
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Format Response format. `json` (default) returns wrapped item objects.
-	// `keys`/`versions` return lightweight lists. Export formats convert the
-	// items in-place and return a different content type.
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
 	Format *ListCollectionItemsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
 
-	// Include Comma-separated list of representations to include for each item.
-	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
 	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListCollectionItemsGroupParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
 
 // ListCollectionItemsGroupParamsQmode defines parameters for ListCollectionItemsGroup.
 type ListCollectionItemsGroupParamsQmode string
+
+// ListCollectionItemsGroupParamsIncludeTrashed defines parameters for ListCollectionItemsGroup.
+type ListCollectionItemsGroupParamsIncludeTrashed int
+
+// ListCollectionItemsGroupParamsSort defines parameters for ListCollectionItemsGroup.
+type ListCollectionItemsGroupParamsSort string
 
 // ListCollectionItemsGroupParamsDirection defines parameters for ListCollectionItemsGroup.
 type ListCollectionItemsGroupParamsDirection string
 
 // ListCollectionItemsGroupParamsFormat defines parameters for ListCollectionItemsGroup.
 type ListCollectionItemsGroupParamsFormat string
+
+// ListCollectionItemsGroupParamsLinkwrap defines parameters for ListCollectionItemsGroup.
+type ListCollectionItemsGroupParamsLinkwrap int
+
+// ListCollectionItemsTagsGroupParams defines parameters for ListCollectionItemsTagsGroup.
+type ListCollectionItemsTagsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListCollectionItemsTagsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListCollectionItemsTagsGroupParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionItemsTagsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionItemsTagsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListCollectionItemsTagsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListCollectionItemsTagsGroupParamsQmode defines parameters for ListCollectionItemsTagsGroup.
+type ListCollectionItemsTagsGroupParamsQmode string
+
+// ListCollectionItemsTagsGroupParamsIncludeTrashed defines parameters for ListCollectionItemsTagsGroup.
+type ListCollectionItemsTagsGroupParamsIncludeTrashed int
+
+// ListCollectionItemsTagsGroupParamsSort defines parameters for ListCollectionItemsTagsGroup.
+type ListCollectionItemsTagsGroupParamsSort string
+
+// ListCollectionItemsTagsGroupParamsDirection defines parameters for ListCollectionItemsTagsGroup.
+type ListCollectionItemsTagsGroupParamsDirection string
+
+// ListCollectionItemsTagsGroupParamsFormat defines parameters for ListCollectionItemsTagsGroup.
+type ListCollectionItemsTagsGroupParamsFormat string
+
+// ListCollectionTopItemsGroupParams defines parameters for ListCollectionTopItemsGroup.
+type ListCollectionTopItemsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListCollectionTopItemsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
+	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListCollectionTopItemsGroupParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionTopItemsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionTopItemsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListCollectionTopItemsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListCollectionTopItemsGroupParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListCollectionTopItemsGroupParamsQmode defines parameters for ListCollectionTopItemsGroup.
+type ListCollectionTopItemsGroupParamsQmode string
+
+// ListCollectionTopItemsGroupParamsIncludeTrashed defines parameters for ListCollectionTopItemsGroup.
+type ListCollectionTopItemsGroupParamsIncludeTrashed int
+
+// ListCollectionTopItemsGroupParamsSort defines parameters for ListCollectionTopItemsGroup.
+type ListCollectionTopItemsGroupParamsSort string
+
+// ListCollectionTopItemsGroupParamsDirection defines parameters for ListCollectionTopItemsGroup.
+type ListCollectionTopItemsGroupParamsDirection string
+
+// ListCollectionTopItemsGroupParamsFormat defines parameters for ListCollectionTopItemsGroup.
+type ListCollectionTopItemsGroupParamsFormat string
+
+// ListCollectionTopItemsGroupParamsLinkwrap defines parameters for ListCollectionTopItemsGroup.
+type ListCollectionTopItemsGroupParamsLinkwrap int
+
+// ListCollectionTopItemsTagsGroupParams defines parameters for ListCollectionTopItemsTagsGroup.
+type ListCollectionTopItemsTagsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListCollectionTopItemsTagsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListCollectionTopItemsTagsGroupParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionTopItemsTagsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionTopItemsTagsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListCollectionTopItemsTagsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListCollectionTopItemsTagsGroupParamsQmode defines parameters for ListCollectionTopItemsTagsGroup.
+type ListCollectionTopItemsTagsGroupParamsQmode string
+
+// ListCollectionTopItemsTagsGroupParamsIncludeTrashed defines parameters for ListCollectionTopItemsTagsGroup.
+type ListCollectionTopItemsTagsGroupParamsIncludeTrashed int
+
+// ListCollectionTopItemsTagsGroupParamsSort defines parameters for ListCollectionTopItemsTagsGroup.
+type ListCollectionTopItemsTagsGroupParamsSort string
+
+// ListCollectionTopItemsTagsGroupParamsDirection defines parameters for ListCollectionTopItemsTagsGroup.
+type ListCollectionTopItemsTagsGroupParamsDirection string
+
+// ListCollectionTopItemsTagsGroupParamsFormat defines parameters for ListCollectionTopItemsTagsGroup.
+type ListCollectionTopItemsTagsGroupParamsFormat string
+
+// GetCollectionTagsGroupParams defines parameters for GetCollectionTagsGroup.
+type GetCollectionTagsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *GetCollectionTagsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *GetCollectionTagsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *GetCollectionTagsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetCollectionTagsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetCollectionTagsGroupParamsQmode defines parameters for GetCollectionTagsGroup.
+type GetCollectionTagsGroupParamsQmode string
+
+// GetCollectionTagsGroupParamsSort defines parameters for GetCollectionTagsGroup.
+type GetCollectionTagsGroupParamsSort string
+
+// GetCollectionTagsGroupParamsDirection defines parameters for GetCollectionTagsGroup.
+type GetCollectionTagsGroupParamsDirection string
+
+// GetCollectionTagsGroupParamsFormat defines parameters for GetCollectionTagsGroup.
+type GetCollectionTagsGroupParamsFormat string
+
+// ListDeletedContentGroupParams defines parameters for ListDeletedContentGroup.
+type ListDeletedContentGroupParams struct {
+	// Since Return objects deleted after this library version. Pass the
+	// `Last-Modified-Version` header value from your previous sync
+	// pass, or `0` on the initial pass.
+	Since int `form:"since" json:"since"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListFulltextVersionsGroupParams defines parameters for ListFulltextVersionsGroup.
+type ListFulltextVersionsGroupParams struct {
+	// Since Return fulltext versions for items modified after this library
+	// version. Pass `0` to retrieve the full map on a cold start.
+	Since int `form:"since" json:"since"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
 
 // DeleteItemsGroupParams defines parameters for DeleteItemsGroup.
 type DeleteItemsGroupParams struct {
@@ -1847,9 +9622,18 @@ type ListItemsGroupParams struct {
 	// Q Search query string (matches title, creators, and year by default).
 	Q *Query `form:"q,omitempty" json:"q,omitempty"`
 
-	// Qmode Search mode:
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
 	// - `titleCreatorYear` (default): match against title, creators, and year.
 	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
 	Qmode *ListItemsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
 
 	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
@@ -1867,9 +9651,18 @@ type ListItemsGroupParams struct {
 	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
 	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
 
-	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
-	// `creator`, `date`, `itemType`.
-	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListItemsGroupParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListItemsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// Direction Sort direction.
 	Direction *ListItemsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
@@ -1880,24 +9673,94 @@ type ListItemsGroupParams struct {
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Format Response format. `json` (default) returns wrapped item objects.
-	// `keys`/`versions` return lightweight lists. Export formats convert the
-	// items in-place and return a different content type.
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
 	Format *ListItemsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
 
-	// Include Comma-separated list of representations to include for each item.
-	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
 	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListItemsGroupParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
 
 // ListItemsGroupParamsQmode defines parameters for ListItemsGroup.
 type ListItemsGroupParamsQmode string
+
+// ListItemsGroupParamsIncludeTrashed defines parameters for ListItemsGroup.
+type ListItemsGroupParamsIncludeTrashed int
+
+// ListItemsGroupParamsSort defines parameters for ListItemsGroup.
+type ListItemsGroupParamsSort string
 
 // ListItemsGroupParamsDirection defines parameters for ListItemsGroup.
 type ListItemsGroupParamsDirection string
 
 // ListItemsGroupParamsFormat defines parameters for ListItemsGroup.
 type ListItemsGroupParamsFormat string
+
+// ListItemsGroupParamsLinkwrap defines parameters for ListItemsGroup.
+type ListItemsGroupParamsLinkwrap int
 
 // CreateOrUpdateItemsGroupJSONBody defines parameters for CreateOrUpdateItemsGroup.
 type CreateOrUpdateItemsGroupJSONBody = []ItemData
@@ -1916,10 +9779,24 @@ type CreateOrUpdateItemsGroupParams struct {
 	ZoteroWriteToken *WriteToken `json:"Zotero-Write-Token,omitempty"`
 }
 
-// ListTopItemsGroupParams defines parameters for ListTopItemsGroup.
-type ListTopItemsGroupParams struct {
+// ListAllItemsTagsGroupParams defines parameters for ListAllItemsTagsGroup.
+type ListAllItemsTagsGroupParams struct {
 	// Q Search query string (matches title, creators, and year by default).
 	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListAllItemsTagsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
 
 	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
 	// `book || bookSection`, `-attachment` (exclude).
@@ -1933,9 +9810,118 @@ type ListTopItemsGroupParams struct {
 	// incremental sync.
 	Since *Since `form:"since,omitempty" json:"since,omitempty"`
 
-	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
-	// `creator`, `date`, `itemType`.
-	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListAllItemsTagsGroupParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListAllItemsTagsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListAllItemsTagsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListAllItemsTagsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListAllItemsTagsGroupParamsQmode defines parameters for ListAllItemsTagsGroup.
+type ListAllItemsTagsGroupParamsQmode string
+
+// ListAllItemsTagsGroupParamsIncludeTrashed defines parameters for ListAllItemsTagsGroup.
+type ListAllItemsTagsGroupParamsIncludeTrashed int
+
+// ListAllItemsTagsGroupParamsSort defines parameters for ListAllItemsTagsGroup.
+type ListAllItemsTagsGroupParamsSort string
+
+// ListAllItemsTagsGroupParamsDirection defines parameters for ListAllItemsTagsGroup.
+type ListAllItemsTagsGroupParamsDirection string
+
+// ListAllItemsTagsGroupParamsFormat defines parameters for ListAllItemsTagsGroup.
+type ListAllItemsTagsGroupParamsFormat string
+
+// ListTopItemsGroupParams defines parameters for ListTopItemsGroup.
+type ListTopItemsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTopItemsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
+	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListTopItemsGroupParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTopItemsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// Direction Sort direction.
 	Direction *ListTopItemsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
@@ -1946,15 +9932,85 @@ type ListTopItemsGroupParams struct {
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Format Response format. `json` (default) returns wrapped item objects.
-	// `keys`/`versions` return lightweight lists. Export formats convert the
-	// items in-place and return a different content type.
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
 	Format *ListTopItemsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
 
-	// Include Comma-separated list of representations to include for each item.
-	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
 	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListTopItemsGroupParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListTopItemsGroupParamsQmode defines parameters for ListTopItemsGroup.
+type ListTopItemsGroupParamsQmode string
+
+// ListTopItemsGroupParamsIncludeTrashed defines parameters for ListTopItemsGroup.
+type ListTopItemsGroupParamsIncludeTrashed int
+
+// ListTopItemsGroupParamsSort defines parameters for ListTopItemsGroup.
+type ListTopItemsGroupParamsSort string
 
 // ListTopItemsGroupParamsDirection defines parameters for ListTopItemsGroup.
 type ListTopItemsGroupParamsDirection string
@@ -1962,14 +10018,298 @@ type ListTopItemsGroupParamsDirection string
 // ListTopItemsGroupParamsFormat defines parameters for ListTopItemsGroup.
 type ListTopItemsGroupParamsFormat string
 
-// ListTrashedItemsGroupParams defines parameters for ListTrashedItemsGroup.
-type ListTrashedItemsGroupParams struct {
+// ListTopItemsGroupParamsLinkwrap defines parameters for ListTopItemsGroup.
+type ListTopItemsGroupParamsLinkwrap int
+
+// ListTopItemsTagsGroupParams defines parameters for ListTopItemsTagsGroup.
+type ListTopItemsTagsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTopItemsTagsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListTopItemsTagsGroupParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTopItemsTagsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTopItemsTagsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTopItemsTagsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListTopItemsTagsGroupParamsQmode defines parameters for ListTopItemsTagsGroup.
+type ListTopItemsTagsGroupParamsQmode string
+
+// ListTopItemsTagsGroupParamsIncludeTrashed defines parameters for ListTopItemsTagsGroup.
+type ListTopItemsTagsGroupParamsIncludeTrashed int
+
+// ListTopItemsTagsGroupParamsSort defines parameters for ListTopItemsTagsGroup.
+type ListTopItemsTagsGroupParamsSort string
+
+// ListTopItemsTagsGroupParamsDirection defines parameters for ListTopItemsTagsGroup.
+type ListTopItemsTagsGroupParamsDirection string
+
+// ListTopItemsTagsGroupParamsFormat defines parameters for ListTopItemsTagsGroup.
+type ListTopItemsTagsGroupParamsFormat string
+
+// ListTrashedItemsGroupParams defines parameters for ListTrashedItemsGroup.
+type ListTrashedItemsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTrashedItemsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTrashedItemsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTrashedItemsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTrashedItemsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListTrashedItemsGroupParamsQmode defines parameters for ListTrashedItemsGroup.
+type ListTrashedItemsGroupParamsQmode string
+
+// ListTrashedItemsGroupParamsSort defines parameters for ListTrashedItemsGroup.
+type ListTrashedItemsGroupParamsSort string
+
+// ListTrashedItemsGroupParamsDirection defines parameters for ListTrashedItemsGroup.
+type ListTrashedItemsGroupParamsDirection string
+
+// ListTrashedItemsGroupParamsFormat defines parameters for ListTrashedItemsGroup.
+type ListTrashedItemsGroupParamsFormat string
+
+// ListTrashedItemsTagsGroupParams defines parameters for ListTrashedItemsTagsGroup.
+type ListTrashedItemsTagsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTrashedItemsTagsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTrashedItemsTagsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTrashedItemsTagsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTrashedItemsTagsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListTrashedItemsTagsGroupParamsQmode defines parameters for ListTrashedItemsTagsGroup.
+type ListTrashedItemsTagsGroupParamsQmode string
+
+// ListTrashedItemsTagsGroupParamsSort defines parameters for ListTrashedItemsTagsGroup.
+type ListTrashedItemsTagsGroupParamsSort string
+
+// ListTrashedItemsTagsGroupParamsDirection defines parameters for ListTrashedItemsTagsGroup.
+type ListTrashedItemsTagsGroupParamsDirection string
+
+// ListTrashedItemsTagsGroupParamsFormat defines parameters for ListTrashedItemsTagsGroup.
+type ListTrashedItemsTagsGroupParamsFormat string
 
 // DeleteItemGroupParams defines parameters for DeleteItemGroup.
 type DeleteItemGroupParams struct {
@@ -1981,18 +10321,82 @@ type DeleteItemGroupParams struct {
 
 // GetItemGroupParams defines parameters for GetItemGroup.
 type GetItemGroupParams struct {
-	// Format Response format. `json` (default) returns wrapped item objects.
-	// `keys`/`versions` return lightweight lists. Export formats convert the
-	// items in-place and return a different content type.
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
 	Format *GetItemGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
 
-	// Include Comma-separated list of representations to include for each item.
-	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
 	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *GetItemGroupParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
 
 // GetItemGroupParamsFormat defines parameters for GetItemGroup.
 type GetItemGroupParamsFormat string
+
+// GetItemGroupParamsLinkwrap defines parameters for GetItemGroup.
+type GetItemGroupParamsLinkwrap int
 
 // UpdateItemGroupParams defines parameters for UpdateItemGroup.
 type UpdateItemGroupParams struct {
@@ -2002,11 +10406,110 @@ type UpdateItemGroupParams struct {
 	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
 }
 
+// ReplaceItemGroupParams defines parameters for ReplaceItemGroup.
+type ReplaceItemGroupParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
 // GetItemChildrenGroupParams defines parameters for GetItemChildrenGroup.
 type GetItemChildrenGroupParams struct {
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *GetItemChildrenGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *GetItemChildrenGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetItemChildrenGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// GetItemChildrenGroupParamsSort defines parameters for GetItemChildrenGroup.
+type GetItemChildrenGroupParamsSort string
+
+// GetItemChildrenGroupParamsDirection defines parameters for GetItemChildrenGroup.
+type GetItemChildrenGroupParamsDirection string
+
+// GetItemChildrenGroupParamsFormat defines parameters for GetItemChildrenGroup.
+type GetItemChildrenGroupParamsFormat string
+
+// UploadFilePartialGroupParams defines parameters for UploadFilePartialGroup.
+type UploadFilePartialGroupParams struct {
+	// Algorithm Binary-diff algorithm used to produce the patch body.
+	Algorithm UploadFilePartialGroupParamsAlgorithm `form:"algorithm" json:"algorithm"`
+
+	// Upload Upload key returned from the phase-2 auth request.
+	Upload string `form:"upload" json:"upload"`
+
+	// IfMatch MD5 hash of the file the patch was computed against.
+	IfMatch string `json:"If-Match"`
+}
+
+// UploadFilePartialGroupParamsAlgorithm defines parameters for UploadFilePartialGroup.
+type UploadFilePartialGroupParamsAlgorithm string
 
 // UploadFileGroupFormdataBody defines parameters for UploadFileGroup.
 type UploadFileGroupFormdataBody struct {
@@ -2025,6 +10528,85 @@ type UploadFileGroupParams struct {
 // UploadFileGroupParamsIfNoneMatch defines parameters for UploadFileGroup.
 type UploadFileGroupParamsIfNoneMatch string
 
+// GetItemTagsGroupParams defines parameters for GetItemTagsGroup.
+type GetItemTagsGroupParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *GetItemTagsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *GetItemTagsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *GetItemTagsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetItemTagsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetItemTagsGroupParamsQmode defines parameters for GetItemTagsGroup.
+type GetItemTagsGroupParamsQmode string
+
+// GetItemTagsGroupParamsSort defines parameters for GetItemTagsGroup.
+type GetItemTagsGroupParamsSort string
+
+// GetItemTagsGroupParamsDirection defines parameters for GetItemTagsGroup.
+type GetItemTagsGroupParamsDirection string
+
+// GetItemTagsGroupParamsFormat defines parameters for GetItemTagsGroup.
+type GetItemTagsGroupParamsFormat string
+
 // DeleteSearchesGroupParams defines parameters for DeleteSearchesGroup.
 type DeleteSearchesGroupParams struct {
 	// SearchKey Comma-separated list of up to 50 saved-search keys.
@@ -2038,12 +10620,52 @@ type DeleteSearchesGroupParams struct {
 
 // ListSearchesGroupParams defines parameters for ListSearchesGroup.
 type ListSearchesGroupParams struct {
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// SearchKey Comma-separated list of saved-search keys to fetch in a single
+	// call. Up to 50. Mirrors the `itemKey` query parameter on item
+	// endpoints.
+	SearchKey *SearchKey `form:"searchKey,omitempty" json:"searchKey,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListSearchesGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListSearchesGroupParamsFormat defines parameters for ListSearchesGroup.
+type ListSearchesGroupParamsFormat string
 
 // CreateOrUpdateSearchesGroupJSONBody defines parameters for CreateOrUpdateSearchesGroup.
 type CreateOrUpdateSearchesGroupJSONBody = []SearchData
@@ -2070,6 +10692,40 @@ type DeleteSearchGroupParams struct {
 	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
 }
 
+// GetSearchGroupParams defines parameters for GetSearchGroup.
+type GetSearchGroupParams struct {
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetSearchGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetSearchGroupParamsFormat defines parameters for GetSearchGroup.
+type GetSearchGroupParamsFormat string
+
 // DeleteTagsGroupParams defines parameters for DeleteTagsGroup.
 type DeleteTagsGroupParams struct {
 	// Tag Pipe-separated list of up to 50 tags to delete from the library.
@@ -2087,12 +10743,180 @@ type ListTagsGroupParams struct {
 	// Q Search query string (matches title, creators, and year by default).
 	Q *Query `form:"q,omitempty" json:"q,omitempty"`
 
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTagsGroupParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTagsGroupParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTagsGroupParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTagsGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListTagsGroupParamsQmode defines parameters for ListTagsGroup.
+type ListTagsGroupParamsQmode string
+
+// ListTagsGroupParamsSort defines parameters for ListTagsGroup.
+type ListTagsGroupParamsSort string
+
+// ListTagsGroupParamsDirection defines parameters for ListTagsGroup.
+type ListTagsGroupParamsDirection string
+
+// ListTagsGroupParamsFormat defines parameters for ListTagsGroup.
+type ListTagsGroupParamsFormat string
+
+// GetTagGroupParams defines parameters for GetTagGroup.
+type GetTagGroupParams struct {
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetTagGroupParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetTagGroupParamsFormat defines parameters for GetTagGroup.
+type GetTagGroupParamsFormat string
+
+// GetItemFieldsParams defines parameters for GetItemFields.
+type GetItemFieldsParams struct {
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+}
+
+// GetItemTypeCreatorTypesParams defines parameters for GetItemTypeCreatorTypes.
+type GetItemTypeCreatorTypesParams struct {
+	// ItemType Item type identifier.
+	ItemType string `form:"itemType" json:"itemType"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+}
+
+// GetItemTypeFieldsParams defines parameters for GetItemTypeFields.
+type GetItemTypeFieldsParams struct {
+	// ItemType Item type identifier (e.g. `journalArticle`, `book`).
+	ItemType string `form:"itemType" json:"itemType"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+}
+
+// GetItemTypesParams defines parameters for GetItemTypes.
+type GetItemTypesParams struct {
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+}
+
+// GetItemTemplateParams defines parameters for GetItemTemplate.
+type GetItemTemplateParams struct {
+	// ItemType Item type identifier the template should target.
+	ItemType string `form:"itemType" json:"itemType"`
+
+	// LinkMode Attachment link mode — required when `itemType=attachment`,
+	// ignored otherwise.
+	LinkMode *LinkMode `form:"linkMode,omitempty" json:"linkMode,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+}
+
+// GetCurrentKeyParams defines parameters for GetCurrentKey.
+type GetCurrentKeyParams struct {
+	// ZoteroAPIVersion Pin the API version for a single request. Zotero Web API v3 is the
+	// only version currently served; this header is accepted for forward
+	// compatibility. Equivalent to the `v=<n>` query parameter.
+	ZoteroAPIVersion *GetCurrentKeyParamsZoteroAPIVersion `json:"Zotero-API-Version,omitempty"`
+}
+
+// GetCurrentKeyParamsZoteroAPIVersion defines parameters for GetCurrentKey.
+type GetCurrentKeyParamsZoteroAPIVersion int
 
 // DeleteCollectionsParams defines parameters for DeleteCollections.
 type DeleteCollectionsParams struct {
@@ -2107,12 +10931,69 @@ type DeleteCollectionsParams struct {
 
 // ListCollectionsParams defines parameters for ListCollections.
 type ListCollectionsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// CollectionKey Comma-separated list of collection keys to fetch in a single call.
+	// Up to 50. Mirrors the `itemKey` query parameter on item endpoints.
+	CollectionKey *CollectionKey `form:"collectionKey,omitempty" json:"collectionKey,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListCollectionsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListCollectionsParamsSort defines parameters for ListCollections.
+type ListCollectionsParamsSort string
+
+// ListCollectionsParamsDirection defines parameters for ListCollections.
+type ListCollectionsParamsDirection string
+
+// ListCollectionsParamsFormat defines parameters for ListCollections.
+type ListCollectionsParamsFormat string
 
 // CreateOrUpdateCollectionsJSONBody defines parameters for CreateOrUpdateCollections.
 type CreateOrUpdateCollectionsJSONBody = []CollectionData
@@ -2133,12 +11014,65 @@ type CreateOrUpdateCollectionsParams struct {
 
 // ListTopCollectionsParams defines parameters for ListTopCollections.
 type ListTopCollectionsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTopCollectionsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTopCollectionsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTopCollectionsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListTopCollectionsParamsSort defines parameters for ListTopCollections.
+type ListTopCollectionsParamsSort string
+
+// ListTopCollectionsParamsDirection defines parameters for ListTopCollections.
+type ListTopCollectionsParamsDirection string
+
+// ListTopCollectionsParamsFormat defines parameters for ListTopCollections.
+type ListTopCollectionsParamsFormat string
 
 // DeleteCollectionParams defines parameters for DeleteCollection.
 type DeleteCollectionParams struct {
@@ -2148,6 +11082,40 @@ type DeleteCollectionParams struct {
 	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
 }
 
+// GetCollectionParams defines parameters for GetCollection.
+type GetCollectionParams struct {
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetCollectionParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetCollectionParamsFormat defines parameters for GetCollection.
+type GetCollectionParamsFormat string
+
 // UpdateCollectionParams defines parameters for UpdateCollection.
 type UpdateCollectionParams struct {
 	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
@@ -2156,23 +11124,93 @@ type UpdateCollectionParams struct {
 	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
 }
 
+// ReplaceCollectionParams defines parameters for ReplaceCollection.
+type ReplaceCollectionParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
 // ListSubCollectionsParams defines parameters for ListSubCollections.
 type ListSubCollectionsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListSubCollectionsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListSubCollectionsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListSubCollectionsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListSubCollectionsParamsSort defines parameters for ListSubCollections.
+type ListSubCollectionsParamsSort string
+
+// ListSubCollectionsParamsDirection defines parameters for ListSubCollections.
+type ListSubCollectionsParamsDirection string
+
+// ListSubCollectionsParamsFormat defines parameters for ListSubCollections.
+type ListSubCollectionsParamsFormat string
 
 // ListCollectionItemsParams defines parameters for ListCollectionItems.
 type ListCollectionItemsParams struct {
 	// Q Search query string (matches title, creators, and year by default).
 	Q *Query `form:"q,omitempty" json:"q,omitempty"`
 
-	// Qmode Search mode:
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
 	// - `titleCreatorYear` (default): match against title, creators, and year.
 	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
 	Qmode *ListCollectionItemsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
 
 	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
@@ -2190,9 +11228,18 @@ type ListCollectionItemsParams struct {
 	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
 	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
 
-	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
-	// `creator`, `date`, `itemType`.
-	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListCollectionItemsParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionItemsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// Direction Sort direction.
 	Direction *ListCollectionItemsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
@@ -2203,24 +11250,549 @@ type ListCollectionItemsParams struct {
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Format Response format. `json` (default) returns wrapped item objects.
-	// `keys`/`versions` return lightweight lists. Export formats convert the
-	// items in-place and return a different content type.
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
 	Format *ListCollectionItemsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
 
-	// Include Comma-separated list of representations to include for each item.
-	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
 	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListCollectionItemsParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
 
 // ListCollectionItemsParamsQmode defines parameters for ListCollectionItems.
 type ListCollectionItemsParamsQmode string
+
+// ListCollectionItemsParamsIncludeTrashed defines parameters for ListCollectionItems.
+type ListCollectionItemsParamsIncludeTrashed int
+
+// ListCollectionItemsParamsSort defines parameters for ListCollectionItems.
+type ListCollectionItemsParamsSort string
 
 // ListCollectionItemsParamsDirection defines parameters for ListCollectionItems.
 type ListCollectionItemsParamsDirection string
 
 // ListCollectionItemsParamsFormat defines parameters for ListCollectionItems.
 type ListCollectionItemsParamsFormat string
+
+// ListCollectionItemsParamsLinkwrap defines parameters for ListCollectionItems.
+type ListCollectionItemsParamsLinkwrap int
+
+// ListCollectionItemsTagsParams defines parameters for ListCollectionItemsTags.
+type ListCollectionItemsTagsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListCollectionItemsTagsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListCollectionItemsTagsParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionItemsTagsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionItemsTagsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListCollectionItemsTagsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListCollectionItemsTagsParamsQmode defines parameters for ListCollectionItemsTags.
+type ListCollectionItemsTagsParamsQmode string
+
+// ListCollectionItemsTagsParamsIncludeTrashed defines parameters for ListCollectionItemsTags.
+type ListCollectionItemsTagsParamsIncludeTrashed int
+
+// ListCollectionItemsTagsParamsSort defines parameters for ListCollectionItemsTags.
+type ListCollectionItemsTagsParamsSort string
+
+// ListCollectionItemsTagsParamsDirection defines parameters for ListCollectionItemsTags.
+type ListCollectionItemsTagsParamsDirection string
+
+// ListCollectionItemsTagsParamsFormat defines parameters for ListCollectionItemsTags.
+type ListCollectionItemsTagsParamsFormat string
+
+// ListCollectionTopItemsParams defines parameters for ListCollectionTopItems.
+type ListCollectionTopItemsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListCollectionTopItemsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
+	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListCollectionTopItemsParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionTopItemsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionTopItemsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListCollectionTopItemsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListCollectionTopItemsParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListCollectionTopItemsParamsQmode defines parameters for ListCollectionTopItems.
+type ListCollectionTopItemsParamsQmode string
+
+// ListCollectionTopItemsParamsIncludeTrashed defines parameters for ListCollectionTopItems.
+type ListCollectionTopItemsParamsIncludeTrashed int
+
+// ListCollectionTopItemsParamsSort defines parameters for ListCollectionTopItems.
+type ListCollectionTopItemsParamsSort string
+
+// ListCollectionTopItemsParamsDirection defines parameters for ListCollectionTopItems.
+type ListCollectionTopItemsParamsDirection string
+
+// ListCollectionTopItemsParamsFormat defines parameters for ListCollectionTopItems.
+type ListCollectionTopItemsParamsFormat string
+
+// ListCollectionTopItemsParamsLinkwrap defines parameters for ListCollectionTopItems.
+type ListCollectionTopItemsParamsLinkwrap int
+
+// ListCollectionTopItemsTagsParams defines parameters for ListCollectionTopItemsTags.
+type ListCollectionTopItemsTagsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListCollectionTopItemsTagsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListCollectionTopItemsTagsParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListCollectionTopItemsTagsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListCollectionTopItemsTagsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListCollectionTopItemsTagsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListCollectionTopItemsTagsParamsQmode defines parameters for ListCollectionTopItemsTags.
+type ListCollectionTopItemsTagsParamsQmode string
+
+// ListCollectionTopItemsTagsParamsIncludeTrashed defines parameters for ListCollectionTopItemsTags.
+type ListCollectionTopItemsTagsParamsIncludeTrashed int
+
+// ListCollectionTopItemsTagsParamsSort defines parameters for ListCollectionTopItemsTags.
+type ListCollectionTopItemsTagsParamsSort string
+
+// ListCollectionTopItemsTagsParamsDirection defines parameters for ListCollectionTopItemsTags.
+type ListCollectionTopItemsTagsParamsDirection string
+
+// ListCollectionTopItemsTagsParamsFormat defines parameters for ListCollectionTopItemsTags.
+type ListCollectionTopItemsTagsParamsFormat string
+
+// GetCollectionTagsParams defines parameters for GetCollectionTags.
+type GetCollectionTagsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *GetCollectionTagsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *GetCollectionTagsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *GetCollectionTagsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetCollectionTagsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetCollectionTagsParamsQmode defines parameters for GetCollectionTags.
+type GetCollectionTagsParamsQmode string
+
+// GetCollectionTagsParamsSort defines parameters for GetCollectionTags.
+type GetCollectionTagsParamsSort string
+
+// GetCollectionTagsParamsDirection defines parameters for GetCollectionTags.
+type GetCollectionTagsParamsDirection string
+
+// GetCollectionTagsParamsFormat defines parameters for GetCollectionTags.
+type GetCollectionTagsParamsFormat string
+
+// ListDeletedContentParams defines parameters for ListDeletedContent.
+type ListDeletedContentParams struct {
+	// Since Return objects deleted after this library version. Pass the
+	// `Last-Modified-Version` header value from your previous sync
+	// pass, or `0` on the initial pass.
+	Since int `form:"since" json:"since"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListFulltextVersionsParams defines parameters for ListFulltextVersions.
+type ListFulltextVersionsParams struct {
+	// Since Return fulltext versions for items modified after this library
+	// version. Pass `0` to retrieve the full map on a cold start.
+	Since int `form:"since" json:"since"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
 
 // DeleteItemsParams defines parameters for DeleteItems.
 type DeleteItemsParams struct {
@@ -2238,9 +11810,18 @@ type ListItemsParams struct {
 	// Q Search query string (matches title, creators, and year by default).
 	Q *Query `form:"q,omitempty" json:"q,omitempty"`
 
-	// Qmode Search mode:
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
 	// - `titleCreatorYear` (default): match against title, creators, and year.
 	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
 	Qmode *ListItemsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
 
 	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
@@ -2258,9 +11839,18 @@ type ListItemsParams struct {
 	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
 	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
 
-	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
-	// `creator`, `date`, `itemType`.
-	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListItemsParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListItemsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// Direction Sort direction.
 	Direction *ListItemsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
@@ -2271,24 +11861,94 @@ type ListItemsParams struct {
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Format Response format. `json` (default) returns wrapped item objects.
-	// `keys`/`versions` return lightweight lists. Export formats convert the
-	// items in-place and return a different content type.
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
 	Format *ListItemsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
 
-	// Include Comma-separated list of representations to include for each item.
-	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
 	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListItemsParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
 
 // ListItemsParamsQmode defines parameters for ListItems.
 type ListItemsParamsQmode string
+
+// ListItemsParamsIncludeTrashed defines parameters for ListItems.
+type ListItemsParamsIncludeTrashed int
+
+// ListItemsParamsSort defines parameters for ListItems.
+type ListItemsParamsSort string
 
 // ListItemsParamsDirection defines parameters for ListItems.
 type ListItemsParamsDirection string
 
 // ListItemsParamsFormat defines parameters for ListItems.
 type ListItemsParamsFormat string
+
+// ListItemsParamsLinkwrap defines parameters for ListItems.
+type ListItemsParamsLinkwrap int
 
 // CreateOrUpdateItemsJSONBody defines parameters for CreateOrUpdateItems.
 type CreateOrUpdateItemsJSONBody = []ItemData
@@ -2307,10 +11967,24 @@ type CreateOrUpdateItemsParams struct {
 	ZoteroWriteToken *WriteToken `json:"Zotero-Write-Token,omitempty"`
 }
 
-// ListTopItemsParams defines parameters for ListTopItems.
-type ListTopItemsParams struct {
+// ListAllItemsTagsParams defines parameters for ListAllItemsTags.
+type ListAllItemsTagsParams struct {
 	// Q Search query string (matches title, creators, and year by default).
 	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListAllItemsTagsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
 
 	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
 	// `book || bookSection`, `-attachment` (exclude).
@@ -2324,9 +11998,118 @@ type ListTopItemsParams struct {
 	// incremental sync.
 	Since *Since `form:"since,omitempty" json:"since,omitempty"`
 
-	// Sort Sort field. Common values: `dateAdded`, `dateModified`, `title`,
-	// `creator`, `date`, `itemType`.
-	Sort *Sort `form:"sort,omitempty" json:"sort,omitempty"`
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListAllItemsTagsParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListAllItemsTagsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListAllItemsTagsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListAllItemsTagsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListAllItemsTagsParamsQmode defines parameters for ListAllItemsTags.
+type ListAllItemsTagsParamsQmode string
+
+// ListAllItemsTagsParamsIncludeTrashed defines parameters for ListAllItemsTags.
+type ListAllItemsTagsParamsIncludeTrashed int
+
+// ListAllItemsTagsParamsSort defines parameters for ListAllItemsTags.
+type ListAllItemsTagsParamsSort string
+
+// ListAllItemsTagsParamsDirection defines parameters for ListAllItemsTags.
+type ListAllItemsTagsParamsDirection string
+
+// ListAllItemsTagsParamsFormat defines parameters for ListAllItemsTags.
+type ListAllItemsTagsParamsFormat string
+
+// ListTopItemsParams defines parameters for ListTopItems.
+type ListTopItemsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTopItemsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
+	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListTopItemsParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTopItemsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// Direction Sort direction.
 	Direction *ListTopItemsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
@@ -2337,15 +12120,85 @@ type ListTopItemsParams struct {
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
 
-	// Format Response format. `json` (default) returns wrapped item objects.
-	// `keys`/`versions` return lightweight lists. Export formats convert the
-	// items in-place and return a different content type.
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
 	Format *ListTopItemsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
 
-	// Include Comma-separated list of representations to include for each item.
-	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
 	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListTopItemsParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListTopItemsParamsQmode defines parameters for ListTopItems.
+type ListTopItemsParamsQmode string
+
+// ListTopItemsParamsIncludeTrashed defines parameters for ListTopItems.
+type ListTopItemsParamsIncludeTrashed int
+
+// ListTopItemsParamsSort defines parameters for ListTopItems.
+type ListTopItemsParamsSort string
 
 // ListTopItemsParamsDirection defines parameters for ListTopItems.
 type ListTopItemsParamsDirection string
@@ -2353,14 +12206,298 @@ type ListTopItemsParamsDirection string
 // ListTopItemsParamsFormat defines parameters for ListTopItems.
 type ListTopItemsParamsFormat string
 
-// ListTrashedItemsParams defines parameters for ListTrashedItems.
-type ListTrashedItemsParams struct {
+// ListTopItemsParamsLinkwrap defines parameters for ListTopItems.
+type ListTopItemsParamsLinkwrap int
+
+// ListTopItemsTagsParams defines parameters for ListTopItemsTags.
+type ListTopItemsTagsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTopItemsTagsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListTopItemsTagsParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTopItemsTagsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTopItemsTagsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTopItemsTagsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListTopItemsTagsParamsQmode defines parameters for ListTopItemsTags.
+type ListTopItemsTagsParamsQmode string
+
+// ListTopItemsTagsParamsIncludeTrashed defines parameters for ListTopItemsTags.
+type ListTopItemsTagsParamsIncludeTrashed int
+
+// ListTopItemsTagsParamsSort defines parameters for ListTopItemsTags.
+type ListTopItemsTagsParamsSort string
+
+// ListTopItemsTagsParamsDirection defines parameters for ListTopItemsTags.
+type ListTopItemsTagsParamsDirection string
+
+// ListTopItemsTagsParamsFormat defines parameters for ListTopItemsTags.
+type ListTopItemsTagsParamsFormat string
+
+// ListTrashedItemsParams defines parameters for ListTrashedItems.
+type ListTrashedItemsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTrashedItemsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTrashedItemsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTrashedItemsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTrashedItemsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListTrashedItemsParamsQmode defines parameters for ListTrashedItems.
+type ListTrashedItemsParamsQmode string
+
+// ListTrashedItemsParamsSort defines parameters for ListTrashedItems.
+type ListTrashedItemsParamsSort string
+
+// ListTrashedItemsParamsDirection defines parameters for ListTrashedItems.
+type ListTrashedItemsParamsDirection string
+
+// ListTrashedItemsParamsFormat defines parameters for ListTrashedItems.
+type ListTrashedItemsParamsFormat string
+
+// ListTrashedItemsTagsParams defines parameters for ListTrashedItemsTags.
+type ListTrashedItemsTagsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTrashedItemsTagsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTrashedItemsTagsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTrashedItemsTagsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTrashedItemsTagsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListTrashedItemsTagsParamsQmode defines parameters for ListTrashedItemsTags.
+type ListTrashedItemsTagsParamsQmode string
+
+// ListTrashedItemsTagsParamsSort defines parameters for ListTrashedItemsTags.
+type ListTrashedItemsTagsParamsSort string
+
+// ListTrashedItemsTagsParamsDirection defines parameters for ListTrashedItemsTags.
+type ListTrashedItemsTagsParamsDirection string
+
+// ListTrashedItemsTagsParamsFormat defines parameters for ListTrashedItemsTags.
+type ListTrashedItemsTagsParamsFormat string
 
 // DeleteItemParams defines parameters for DeleteItem.
 type DeleteItemParams struct {
@@ -2372,18 +12509,82 @@ type DeleteItemParams struct {
 
 // GetItemParams defines parameters for GetItem.
 type GetItemParams struct {
-	// Format Response format. `json` (default) returns wrapped item objects.
-	// `keys`/`versions` return lightweight lists. Export formats convert the
-	// items in-place and return a different content type.
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
 	Format *GetItemParamsFormat `form:"format,omitempty" json:"format,omitempty"`
 
-	// Include Comma-separated list of representations to include for each item.
-	// Values: `data` (default), `bib`, `citation`, `bibtex`, `csljson`, etc.
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
 	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *GetItemParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
 
 // GetItemParamsFormat defines parameters for GetItem.
 type GetItemParamsFormat string
+
+// GetItemParamsLinkwrap defines parameters for GetItem.
+type GetItemParamsLinkwrap int
 
 // UpdateItemParams defines parameters for UpdateItem.
 type UpdateItemParams struct {
@@ -2393,11 +12594,110 @@ type UpdateItemParams struct {
 	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
 }
 
+// ReplaceItemParams defines parameters for ReplaceItem.
+type ReplaceItemParams struct {
+	// IfUnmodifiedSinceVersion Optimistic concurrency gate. The request succeeds only if the target
+	// object (or, for multi-object writes, the library) has not been modified
+	// since this version. Returns `412 Precondition Failed` on mismatch.
+	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
+}
+
 // GetItemChildrenParams defines parameters for GetItemChildren.
 type GetItemChildrenParams struct {
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *GetItemChildrenParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *GetItemChildrenParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetItemChildrenParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// GetItemChildrenParamsSort defines parameters for GetItemChildren.
+type GetItemChildrenParamsSort string
+
+// GetItemChildrenParamsDirection defines parameters for GetItemChildren.
+type GetItemChildrenParamsDirection string
+
+// GetItemChildrenParamsFormat defines parameters for GetItemChildren.
+type GetItemChildrenParamsFormat string
+
+// UploadFilePartialParams defines parameters for UploadFilePartial.
+type UploadFilePartialParams struct {
+	// Algorithm Binary-diff algorithm used to produce the patch body.
+	Algorithm UploadFilePartialParamsAlgorithm `form:"algorithm" json:"algorithm"`
+
+	// Upload Upload key returned from the phase-2 auth request.
+	Upload string `form:"upload" json:"upload"`
+
+	// IfMatch MD5 hash of the file the patch was computed against.
+	IfMatch string `json:"If-Match"`
+}
+
+// UploadFilePartialParamsAlgorithm defines parameters for UploadFilePartial.
+type UploadFilePartialParamsAlgorithm string
 
 // UploadFileFormdataBody defines parameters for UploadFile.
 type UploadFileFormdataBody struct {
@@ -2416,6 +12716,531 @@ type UploadFileParams struct {
 // UploadFileParamsIfNoneMatch defines parameters for UploadFile.
 type UploadFileParamsIfNoneMatch string
 
+// GetItemTagsParams defines parameters for GetItemTags.
+type GetItemTagsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *GetItemTagsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *GetItemTagsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *GetItemTagsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetItemTagsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetItemTagsParamsQmode defines parameters for GetItemTags.
+type GetItemTagsParamsQmode string
+
+// GetItemTagsParamsSort defines parameters for GetItemTags.
+type GetItemTagsParamsSort string
+
+// GetItemTagsParamsDirection defines parameters for GetItemTags.
+type GetItemTagsParamsDirection string
+
+// GetItemTagsParamsFormat defines parameters for GetItemTags.
+type GetItemTagsParamsFormat string
+
+// ListPublicationItemsParams defines parameters for ListPublicationItems.
+type ListPublicationItemsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListPublicationItemsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
+	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
+
+	// IncludeTrashed When `1`, item list endpoints include items that are currently in
+	// the trash. When `0` (default), trashed items are excluded. Only
+	// meaningful on item-listing endpoints (`/items`, `/items/top`,
+	// `/collections/{k}/items`) — the dedicated `/items/trash` endpoint
+	// ignores this parameter.
+	IncludeTrashed *ListPublicationItemsParamsIncludeTrashed `form:"includeTrashed,omitempty" json:"includeTrashed,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListPublicationItemsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListPublicationItemsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListPublicationItemsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListPublicationItemsParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListPublicationItemsParamsQmode defines parameters for ListPublicationItems.
+type ListPublicationItemsParamsQmode string
+
+// ListPublicationItemsParamsIncludeTrashed defines parameters for ListPublicationItems.
+type ListPublicationItemsParamsIncludeTrashed int
+
+// ListPublicationItemsParamsSort defines parameters for ListPublicationItems.
+type ListPublicationItemsParamsSort string
+
+// ListPublicationItemsParamsDirection defines parameters for ListPublicationItems.
+type ListPublicationItemsParamsDirection string
+
+// ListPublicationItemsParamsFormat defines parameters for ListPublicationItems.
+type ListPublicationItemsParamsFormat string
+
+// ListPublicationItemsParamsLinkwrap defines parameters for ListPublicationItems.
+type ListPublicationItemsParamsLinkwrap int
+
+// ListPublicationItemsTagsParams defines parameters for ListPublicationItemsTags.
+type ListPublicationItemsTagsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListPublicationItemsTagsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListPublicationItemsTagsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListPublicationItemsTagsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListPublicationItemsTagsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListPublicationItemsTagsParamsQmode defines parameters for ListPublicationItemsTags.
+type ListPublicationItemsTagsParamsQmode string
+
+// ListPublicationItemsTagsParamsSort defines parameters for ListPublicationItemsTags.
+type ListPublicationItemsTagsParamsSort string
+
+// ListPublicationItemsTagsParamsDirection defines parameters for ListPublicationItemsTags.
+type ListPublicationItemsTagsParamsDirection string
+
+// ListPublicationItemsTagsParamsFormat defines parameters for ListPublicationItemsTags.
+type ListPublicationItemsTagsParamsFormat string
+
+// ListPublicationTopItemsParams defines parameters for ListPublicationTopItems.
+type ListPublicationTopItemsParams struct {
+	// Q Search query string (matches title, creators, and year by default).
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListPublicationTopItemsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// ItemKey Comma-separated list of item keys to fetch in a single call. Up to 50.
+	ItemKey *ItemKey `form:"itemKey,omitempty" json:"itemKey,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListPublicationTopItemsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListPublicationTopItemsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
+	// Start Zero-indexed offset for pagination.
+	Start *Start `form:"start,omitempty" json:"start,omitempty"`
+
+	// Limit Number of results per request (max 100 for most endpoints).
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListPublicationTopItemsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *ListPublicationTopItemsParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// ListPublicationTopItemsParamsQmode defines parameters for ListPublicationTopItems.
+type ListPublicationTopItemsParamsQmode string
+
+// ListPublicationTopItemsParamsSort defines parameters for ListPublicationTopItems.
+type ListPublicationTopItemsParamsSort string
+
+// ListPublicationTopItemsParamsDirection defines parameters for ListPublicationTopItems.
+type ListPublicationTopItemsParamsDirection string
+
+// ListPublicationTopItemsParamsFormat defines parameters for ListPublicationTopItems.
+type ListPublicationTopItemsParamsFormat string
+
+// ListPublicationTopItemsParamsLinkwrap defines parameters for ListPublicationTopItems.
+type ListPublicationTopItemsParamsLinkwrap int
+
+// GetPublicationItemParams defines parameters for GetPublicationItem.
+type GetPublicationItemParams struct {
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetPublicationItemParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// Include Comma-separated list of representations to include for each item in
+	// the response envelope. The union of all requested representations is
+	// returned alongside `data`.
+	//
+	// Core values:
+	// - `data` (default) — the raw item/collection/search data object.
+	// - `bib` — a CSL-rendered HTML bibliography string. Honours `style` +
+	//   `locale` + `linkwrap`.
+	// - `citation` — a CSL-rendered HTML inline citation string. Same
+	//   style/locale knobs as `bib`.
+	//
+	// Export format values (each produces a string in that format):
+	// `bibtex`, `biblatex`, `bookmarks`, `coins`, `csljson`, `csv`,
+	// `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`, `rdf_zotero`,
+	// `ris`, `tei`, `wikipedia`.
+	//
+	// Example: `include=data,bib,bibtex`.
+	Include *Include `form:"include,omitempty" json:"include,omitempty"`
+
+	// Content Per-entry content representation used when `format=atom`. Selects
+	// what the Atom `<content>` element carries.
+	//
+	// Values: `json` (default for atom — wraps the `data` object),
+	// `html` (styled citation), `bib`, `citation`, `none`, plus any export
+	// format value (`bibtex`, `biblatex`, `csljson`, …).
+	//
+	// Has no effect outside `format=atom`.
+	Content *Content `form:"content,omitempty" json:"content,omitempty"`
+
+	// Style CSL style identifier (filename without extension) used to render
+	// `include=bib` / `include=citation` and `format=bib` responses.
+	// Examples: `chicago-note-bibliography`, `apa`, `ieee`.
+	Style *Style `form:"style,omitempty" json:"style,omitempty"`
+
+	// Locale BCP-47 locale code used for CSL rendering of `bib` / `citation`
+	// output. Examples: `en-US`, `fr-FR`, `de-DE`.
+	Locale *Locale `form:"locale,omitempty" json:"locale,omitempty"`
+
+	// Linkwrap When `1`, URLs in `bib` / `citation` output are wrapped in `<a>`
+	// tags. When `0` (default), URLs appear as plain text.
+	Linkwrap *GetPublicationItemParamsLinkwrap `form:"linkwrap,omitempty" json:"linkwrap,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetPublicationItemParamsFormat defines parameters for GetPublicationItem.
+type GetPublicationItemParamsFormat string
+
+// GetPublicationItemParamsLinkwrap defines parameters for GetPublicationItem.
+type GetPublicationItemParamsLinkwrap int
+
 // DeleteSearchesParams defines parameters for DeleteSearches.
 type DeleteSearchesParams struct {
 	// SearchKey Comma-separated list of up to 50 saved-search keys.
@@ -2429,12 +13254,52 @@ type DeleteSearchesParams struct {
 
 // ListSearchesParams defines parameters for ListSearches.
 type ListSearchesParams struct {
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// SearchKey Comma-separated list of saved-search keys to fetch in a single
+	// call. Up to 50. Mirrors the `itemKey` query parameter on item
+	// endpoints.
+	SearchKey *SearchKey `form:"searchKey,omitempty" json:"searchKey,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListSearchesParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListSearchesParamsFormat defines parameters for ListSearches.
+type ListSearchesParamsFormat string
 
 // CreateOrUpdateSearchesJSONBody defines parameters for CreateOrUpdateSearches.
 type CreateOrUpdateSearchesJSONBody = []SearchData
@@ -2461,6 +13326,40 @@ type DeleteSearchParams struct {
 	IfUnmodifiedSinceVersion *IfUnmodifiedSinceVersion `json:"If-Unmodified-Since-Version,omitempty"`
 }
 
+// GetSearchParams defines parameters for GetSearch.
+type GetSearchParams struct {
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetSearchParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetSearchParamsFormat defines parameters for GetSearch.
+type GetSearchParamsFormat string
+
 // DeleteTagsParams defines parameters for DeleteTags.
 type DeleteTagsParams struct {
 	// Tag Pipe-separated list of up to 50 tags to delete from the library.
@@ -2478,12 +13377,121 @@ type ListTagsParams struct {
 	// Q Search query string (matches title, creators, and year by default).
 	Q *Query `form:"q,omitempty" json:"q,omitempty"`
 
+	// Qmode Search mode. The valid values are scope-dependent:
+	//
+	// **On item endpoints** (`/items`, `/items/top`, `/collections/{k}/items`, …):
+	// - `titleCreatorYear` (default): match against title, creators, and year.
+	// - `everything`: match against all fields, including fulltext and notes.
+	//
+	// **On tag endpoints** (`/tags`, `/items/{k}/tags`, `/collections/{k}/tags`, …):
+	// - `contains` (default): substring match.
+	// - `startsWith`: prefix match.
+	//
+	// The server silently ignores values that don't apply to the current
+	// scope — e.g. `qmode=contains` on `/items` is a no-op.
+	Qmode *ListTagsParamsQmode `form:"qmode,omitempty" json:"qmode,omitempty"`
+
+	// ItemType Filter by item type. Supports boolean operators: `journalArticle`,
+	// `book || bookSection`, `-attachment` (exclude).
+	ItemType *ItemType `form:"itemType,omitempty" json:"itemType,omitempty"`
+
+	// Tag Filter by tag. Multiple `tag` parameters are ANDed. Use `||` for OR,
+	// `-` prefix for exclusion.
+	Tag *TagFilter `form:"tag,omitempty" json:"tag,omitempty"`
+
+	// Since Return only items modified after the supplied library version. Used for
+	// incremental sync.
+	Since *Since `form:"since,omitempty" json:"since,omitempty"`
+
+	// Sort Sort field. Scope-dependent — item endpoints accept item-oriented
+	// fields, tag endpoints accept `title` and `numItems`, and `addedBy`
+	// only applies inside group libraries. Values outside the scope are
+	// silently ignored by the server.
+	Sort *ListTagsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+
+	// Direction Sort direction.
+	Direction *ListTagsParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
+
 	// Start Zero-indexed offset for pagination.
 	Start *Start `form:"start,omitempty" json:"start,omitempty"`
 
 	// Limit Number of results per request (max 100 for most endpoints).
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *ListTagsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
 }
+
+// ListTagsParamsQmode defines parameters for ListTags.
+type ListTagsParamsQmode string
+
+// ListTagsParamsSort defines parameters for ListTags.
+type ListTagsParamsSort string
+
+// ListTagsParamsDirection defines parameters for ListTags.
+type ListTagsParamsDirection string
+
+// ListTagsParamsFormat defines parameters for ListTags.
+type ListTagsParamsFormat string
+
+// GetTagParams defines parameters for GetTag.
+type GetTagParams struct {
+	// Format Response format. `json` (default) returns wrapped objects.
+	// Lightweight variants:
+	//
+	// - `keys` — newline-separated list of object keys (`text/plain`).
+	// - `versions` — JSON object mapping each object key to its current
+	//   library version (`{"ABCD1234": 42, …}`). Cheaper than full JSON
+	//   for incremental-sync drift detection.
+	//
+	// Non-JSON variants:
+	//
+	// - `atom` — Atom XML feed (`application/atom+xml`). Pair with
+	//   `content=json|bib|citation|…` to pick what each entry carries.
+	// - `bib` — a single styled HTML bibliography string
+	//   (`text/html`) rendered server-side via `style` + `locale`.
+	//
+	// Export formats (`bibtex`, `biblatex`, `bookmarks`, `coins`,
+	// `csljson`, `csv`, `mods`, `refer`, `rdf_bibliontology`, `rdf_dc`,
+	// `rdf_zotero`, `ris`, `tei`, `wikipedia`) convert items in-place and
+	// return the format's native content type.
+	Format *GetTagParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+
+	// IfModifiedSinceVersion Conditional-read gate. The server returns `304 Not Modified` if the
+	// target object (or the library, for list endpoints) has not been
+	// modified since this version. Useful for incremental-sync polling and
+	// cheap drift detection — pair with the `Last-Modified-Version` header
+	// from the previous response.
+	IfModifiedSinceVersion *IfModifiedSinceVersion `json:"If-Modified-Since-Version,omitempty"`
+}
+
+// GetTagParamsFormat defines parameters for GetTag.
+type GetTagParamsFormat string
 
 // CreateOrUpdateCollectionsGroupJSONRequestBody defines body for CreateOrUpdateCollectionsGroup for application/json ContentType.
 type CreateOrUpdateCollectionsGroupJSONRequestBody = CreateOrUpdateCollectionsGroupJSONBody
@@ -2491,11 +13499,17 @@ type CreateOrUpdateCollectionsGroupJSONRequestBody = CreateOrUpdateCollectionsGr
 // UpdateCollectionGroupJSONRequestBody defines body for UpdateCollectionGroup for application/json ContentType.
 type UpdateCollectionGroupJSONRequestBody = CollectionData
 
+// ReplaceCollectionGroupJSONRequestBody defines body for ReplaceCollectionGroup for application/json ContentType.
+type ReplaceCollectionGroupJSONRequestBody = CollectionData
+
 // CreateOrUpdateItemsGroupJSONRequestBody defines body for CreateOrUpdateItemsGroup for application/json ContentType.
 type CreateOrUpdateItemsGroupJSONRequestBody = CreateOrUpdateItemsGroupJSONBody
 
 // UpdateItemGroupJSONRequestBody defines body for UpdateItemGroup for application/json ContentType.
 type UpdateItemGroupJSONRequestBody = ItemData
+
+// ReplaceItemGroupJSONRequestBody defines body for ReplaceItemGroup for application/json ContentType.
+type ReplaceItemGroupJSONRequestBody = ItemData
 
 // UploadFileGroupFormdataRequestBody defines body for UploadFileGroup for application/x-www-form-urlencoded ContentType.
 type UploadFileGroupFormdataRequestBody UploadFileGroupFormdataBody
@@ -2512,11 +13526,17 @@ type CreateOrUpdateCollectionsJSONRequestBody = CreateOrUpdateCollectionsJSONBod
 // UpdateCollectionJSONRequestBody defines body for UpdateCollection for application/json ContentType.
 type UpdateCollectionJSONRequestBody = CollectionData
 
+// ReplaceCollectionJSONRequestBody defines body for ReplaceCollection for application/json ContentType.
+type ReplaceCollectionJSONRequestBody = CollectionData
+
 // CreateOrUpdateItemsJSONRequestBody defines body for CreateOrUpdateItems for application/json ContentType.
 type CreateOrUpdateItemsJSONRequestBody = CreateOrUpdateItemsJSONBody
 
 // UpdateItemJSONRequestBody defines body for UpdateItem for application/json ContentType.
 type UpdateItemJSONRequestBody = ItemData
+
+// ReplaceItemJSONRequestBody defines body for ReplaceItem for application/json ContentType.
+type ReplaceItemJSONRequestBody = ItemData
 
 // UploadFileFormdataRequestBody defines body for UploadFile for application/x-www-form-urlencoded ContentType.
 type UploadFileFormdataRequestBody UploadFileFormdataBody
@@ -4733,6 +15753,72 @@ func (a MultiObjectResult) MarshalJSON() ([]byte, error) {
 	return json.Marshal(object)
 }
 
+// Getter for additional properties for SchemaLabelled. Returns the specified
+// element and whether it was found
+func (a SchemaLabelled) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for SchemaLabelled
+func (a *SchemaLabelled) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for SchemaLabelled to handle AdditionalProperties
+func (a *SchemaLabelled) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["localized"]; found {
+		err = json.Unmarshal(raw, &a.Localized)
+		if err != nil {
+			return fmt.Errorf("error reading 'localized': %w", err)
+		}
+		delete(object, "localized")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for SchemaLabelled to handle AdditionalProperties
+func (a SchemaLabelled) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	object["localized"], err = json.Marshal(a.Localized)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'localized': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
+
 // Getter for additional properties for Search. Returns the specified
 // element and whether it was found
 func (a Search) Get(fieldName string) (value interface{}, found bool) {
@@ -5289,6 +16375,12 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetCreatorFields request
+	GetCreatorFields(ctx context.Context, params *GetCreatorFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetGroup request
+	GetGroup(ctx context.Context, groupID GroupID, params *GetGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteCollectionsGroup request
 	DeleteCollectionsGroup(ctx context.Context, groupID GroupID, params *DeleteCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -5307,18 +16399,41 @@ type ClientInterface interface {
 	DeleteCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *DeleteCollectionGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetCollectionGroup request
-	GetCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateCollectionGroupWithBody request with any body
 	UpdateCollectionGroupWithBody(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, body UpdateCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReplaceCollectionGroupWithBody request with any body
+	ReplaceCollectionGroupWithBody(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ReplaceCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, body ReplaceCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListSubCollectionsGroup request
 	ListSubCollectionsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCollectionItemsGroup request
 	ListCollectionItemsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCollectionItemsTagsGroup request
+	ListCollectionItemsTagsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCollectionTopItemsGroup request
+	ListCollectionTopItemsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCollectionTopItemsTagsGroup request
+	ListCollectionTopItemsTagsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCollectionTagsGroup request
+	GetCollectionTagsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDeletedContentGroup request
+	ListDeletedContentGroup(ctx context.Context, groupID GroupID, params *ListDeletedContentGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListFulltextVersionsGroup request
+	ListFulltextVersionsGroup(ctx context.Context, groupID GroupID, params *ListFulltextVersionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteItemsGroup request
 	DeleteItemsGroup(ctx context.Context, groupID GroupID, params *DeleteItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5331,11 +16446,20 @@ type ClientInterface interface {
 
 	CreateOrUpdateItemsGroup(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, body CreateOrUpdateItemsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListAllItemsTagsGroup request
+	ListAllItemsTagsGroup(ctx context.Context, groupID GroupID, params *ListAllItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTopItemsGroup request
 	ListTopItemsGroup(ctx context.Context, groupID GroupID, params *ListTopItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListTopItemsTagsGroup request
+	ListTopItemsTagsGroup(ctx context.Context, groupID GroupID, params *ListTopItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTrashedItemsGroup request
 	ListTrashedItemsGroup(ctx context.Context, groupID GroupID, params *ListTrashedItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTrashedItemsTagsGroup request
+	ListTrashedItemsTagsGroup(ctx context.Context, groupID GroupID, params *ListTrashedItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteItemGroup request
 	DeleteItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *DeleteItemGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5348,11 +16472,19 @@ type ClientInterface interface {
 
 	UpdateItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, body UpdateItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReplaceItemGroupWithBody request with any body
+	ReplaceItemGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ReplaceItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, body ReplaceItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetItemChildrenGroup request
 	GetItemChildrenGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DownloadFileGroup request
 	DownloadFileGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UploadFilePartialGroupWithBody request with any body
+	UploadFilePartialGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFilePartialGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UploadFileGroupWithBody request with any body
 	UploadFileGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5366,6 +16498,9 @@ type ClientInterface interface {
 	SetFulltextGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SetFulltextGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemTagsGroup request
+	GetItemTagsGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteSearchesGroup request
 	DeleteSearchesGroup(ctx context.Context, groupID GroupID, params *DeleteSearchesGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5382,7 +16517,7 @@ type ClientInterface interface {
 	DeleteSearchGroup(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *DeleteSearchGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSearchGroup request
-	GetSearchGroup(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetSearchGroup(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *GetSearchGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteTagsGroup request
 	DeleteTagsGroup(ctx context.Context, groupID GroupID, params *DeleteTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5390,8 +16525,32 @@ type ClientInterface interface {
 	// ListTagsGroup request
 	ListTagsGroup(ctx context.Context, groupID GroupID, params *ListTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetTagGroup request
+	GetTagGroup(ctx context.Context, groupID GroupID, tag TagNamePath, params *GetTagGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemFields request
+	GetItemFields(ctx context.Context, params *GetItemFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemTypeCreatorTypes request
+	GetItemTypeCreatorTypes(ctx context.Context, params *GetItemTypeCreatorTypesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemTypeFields request
+	GetItemTypeFields(ctx context.Context, params *GetItemTypeFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemTypes request
+	GetItemTypes(ctx context.Context, params *GetItemTypesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemTemplate request
+	GetItemTemplate(ctx context.Context, params *GetItemTemplateParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetCurrentKey request
-	GetCurrentKey(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetCurrentKey(ctx context.Context, params *GetCurrentKeyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteKey request
+	DeleteKey(ctx context.Context, key KeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetKey request
+	GetKey(ctx context.Context, key KeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSchema request
 	GetSchema(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5414,18 +16573,41 @@ type ClientInterface interface {
 	DeleteCollection(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *DeleteCollectionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetCollection request
-	GetCollection(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetCollection(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateCollectionWithBody request with any body
 	UpdateCollectionWithBody(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *UpdateCollectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateCollection(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *UpdateCollectionParams, body UpdateCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReplaceCollectionWithBody request with any body
+	ReplaceCollectionWithBody(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ReplaceCollection(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, body ReplaceCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListSubCollections request
 	ListSubCollections(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListSubCollectionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCollectionItems request
 	ListCollectionItems(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCollectionItemsTags request
+	ListCollectionItemsTags(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCollectionTopItems request
+	ListCollectionTopItems(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCollectionTopItemsTags request
+	ListCollectionTopItemsTags(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCollectionTags request
+	GetCollectionTags(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDeletedContent request
+	ListDeletedContent(ctx context.Context, userID UserID, params *ListDeletedContentParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListFulltextVersions request
+	ListFulltextVersions(ctx context.Context, userID UserID, params *ListFulltextVersionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListGroups request
 	ListGroups(ctx context.Context, userID UserID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5441,11 +16623,20 @@ type ClientInterface interface {
 
 	CreateOrUpdateItems(ctx context.Context, userID UserID, params *CreateOrUpdateItemsParams, body CreateOrUpdateItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListAllItemsTags request
+	ListAllItemsTags(ctx context.Context, userID UserID, params *ListAllItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTopItems request
 	ListTopItems(ctx context.Context, userID UserID, params *ListTopItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListTopItemsTags request
+	ListTopItemsTags(ctx context.Context, userID UserID, params *ListTopItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTrashedItems request
 	ListTrashedItems(ctx context.Context, userID UserID, params *ListTrashedItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTrashedItemsTags request
+	ListTrashedItemsTags(ctx context.Context, userID UserID, params *ListTrashedItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteItem request
 	DeleteItem(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *DeleteItemParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5458,11 +16649,19 @@ type ClientInterface interface {
 
 	UpdateItem(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *UpdateItemParams, body UpdateItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReplaceItemWithBody request with any body
+	ReplaceItemWithBody(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ReplaceItem(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, body ReplaceItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetItemChildren request
 	GetItemChildren(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetItemChildrenParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DownloadFile request
 	DownloadFile(ctx context.Context, userID UserID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UploadFilePartialWithBody request with any body
+	UploadFilePartialWithBody(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *UploadFilePartialParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UploadFileWithBody request with any body
 	UploadFileWithBody(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *UploadFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5476,6 +16675,21 @@ type ClientInterface interface {
 	SetFulltextWithBody(ctx context.Context, userID UserID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SetFulltext(ctx context.Context, userID UserID, itemKey ItemKeyPath, body SetFulltextJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemTags request
+	GetItemTags(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetItemTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPublicationItems request
+	ListPublicationItems(ctx context.Context, userID UserID, params *ListPublicationItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPublicationItemsTags request
+	ListPublicationItemsTags(ctx context.Context, userID UserID, params *ListPublicationItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPublicationTopItems request
+	ListPublicationTopItems(ctx context.Context, userID UserID, params *ListPublicationTopItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPublicationItem request
+	GetPublicationItem(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetPublicationItemParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteSearches request
 	DeleteSearches(ctx context.Context, userID UserID, params *DeleteSearchesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -5492,13 +16706,40 @@ type ClientInterface interface {
 	DeleteSearch(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *DeleteSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetSearch request
-	GetSearch(ctx context.Context, userID UserID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetSearch(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *GetSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteTags request
 	DeleteTags(ctx context.Context, userID UserID, params *DeleteTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTags request
 	ListTags(ctx context.Context, userID UserID, params *ListTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTag request
+	GetTag(ctx context.Context, userID UserID, tag TagNamePath, params *GetTagParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) GetCreatorFields(ctx context.Context, params *GetCreatorFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCreatorFieldsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetGroup(ctx context.Context, groupID GroupID, params *GetGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) DeleteCollectionsGroup(ctx context.Context, groupID GroupID, params *DeleteCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -5573,8 +16814,8 @@ func (c *Client) DeleteCollectionGroup(ctx context.Context, groupID GroupID, col
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetCollectionGroupRequest(c.Server, groupID, collectionKey)
+func (c *Client) GetCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCollectionGroupRequest(c.Server, groupID, collectionKey, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5609,6 +16850,30 @@ func (c *Client) UpdateCollectionGroup(ctx context.Context, groupID GroupID, col
 	return c.Client.Do(req)
 }
 
+func (c *Client) ReplaceCollectionGroupWithBody(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceCollectionGroupRequestWithBody(c.Server, groupID, collectionKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReplaceCollectionGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, body ReplaceCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceCollectionGroupRequest(c.Server, groupID, collectionKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListSubCollectionsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListSubCollectionsGroupRequest(c.Server, groupID, collectionKey, params)
 	if err != nil {
@@ -5623,6 +16888,78 @@ func (c *Client) ListSubCollectionsGroup(ctx context.Context, groupID GroupID, c
 
 func (c *Client) ListCollectionItemsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCollectionItemsGroupRequest(c.Server, groupID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListCollectionItemsTagsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCollectionItemsTagsGroupRequest(c.Server, groupID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListCollectionTopItemsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCollectionTopItemsGroupRequest(c.Server, groupID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListCollectionTopItemsTagsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCollectionTopItemsTagsGroupRequest(c.Server, groupID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetCollectionTagsGroup(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCollectionTagsGroupRequest(c.Server, groupID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListDeletedContentGroup(ctx context.Context, groupID GroupID, params *ListDeletedContentGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDeletedContentGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListFulltextVersionsGroup(ctx context.Context, groupID GroupID, params *ListFulltextVersionsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListFulltextVersionsGroupRequest(c.Server, groupID, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5681,6 +17018,18 @@ func (c *Client) CreateOrUpdateItemsGroup(ctx context.Context, groupID GroupID, 
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListAllItemsTagsGroup(ctx context.Context, groupID GroupID, params *ListAllItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAllItemsTagsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListTopItemsGroup(ctx context.Context, groupID GroupID, params *ListTopItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListTopItemsGroupRequest(c.Server, groupID, params)
 	if err != nil {
@@ -5693,8 +17042,32 @@ func (c *Client) ListTopItemsGroup(ctx context.Context, groupID GroupID, params 
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListTopItemsTagsGroup(ctx context.Context, groupID GroupID, params *ListTopItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTopItemsTagsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListTrashedItemsGroup(ctx context.Context, groupID GroupID, params *ListTrashedItemsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListTrashedItemsGroupRequest(c.Server, groupID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListTrashedItemsTagsGroup(ctx context.Context, groupID GroupID, params *ListTrashedItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTrashedItemsTagsGroupRequest(c.Server, groupID, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5753,6 +17126,30 @@ func (c *Client) UpdateItemGroup(ctx context.Context, groupID GroupID, itemKey I
 	return c.Client.Do(req)
 }
 
+func (c *Client) ReplaceItemGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceItemGroupRequestWithBody(c.Server, groupID, itemKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReplaceItemGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, body ReplaceItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceItemGroupRequest(c.Server, groupID, itemKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetItemChildrenGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetItemChildrenGroupRequest(c.Server, groupID, itemKey, params)
 	if err != nil {
@@ -5767,6 +17164,18 @@ func (c *Client) GetItemChildrenGroup(ctx context.Context, groupID GroupID, item
 
 func (c *Client) DownloadFileGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDownloadFileGroupRequest(c.Server, groupID, itemKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UploadFilePartialGroupWithBody(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFilePartialGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUploadFilePartialGroupRequestWithBody(c.Server, groupID, itemKey, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -5837,6 +17246,18 @@ func (c *Client) SetFulltextGroup(ctx context.Context, groupID GroupID, itemKey 
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetItemTagsGroup(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemTagsGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemTagsGroupRequest(c.Server, groupID, itemKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) DeleteSearchesGroup(ctx context.Context, groupID GroupID, params *DeleteSearchesGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteSearchesGroupRequest(c.Server, groupID, params)
 	if err != nil {
@@ -5897,8 +17318,8 @@ func (c *Client) DeleteSearchGroup(ctx context.Context, groupID GroupID, searchK
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetSearchGroup(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetSearchGroupRequest(c.Server, groupID, searchKey)
+func (c *Client) GetSearchGroup(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *GetSearchGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSearchGroupRequest(c.Server, groupID, searchKey, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5933,8 +17354,104 @@ func (c *Client) ListTagsGroup(ctx context.Context, groupID GroupID, params *Lis
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetCurrentKey(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetCurrentKeyRequest(c.Server)
+func (c *Client) GetTagGroup(ctx context.Context, groupID GroupID, tag TagNamePath, params *GetTagGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTagGroupRequest(c.Server, groupID, tag, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetItemFields(ctx context.Context, params *GetItemFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemFieldsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetItemTypeCreatorTypes(ctx context.Context, params *GetItemTypeCreatorTypesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemTypeCreatorTypesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetItemTypeFields(ctx context.Context, params *GetItemTypeFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemTypeFieldsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetItemTypes(ctx context.Context, params *GetItemTypesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemTypesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetItemTemplate(ctx context.Context, params *GetItemTemplateParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemTemplateRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetCurrentKey(ctx context.Context, params *GetCurrentKeyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCurrentKeyRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteKey(ctx context.Context, key KeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteKeyRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetKey(ctx context.Context, key KeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetKeyRequest(c.Server, key)
 	if err != nil {
 		return nil, err
 	}
@@ -6029,8 +17546,8 @@ func (c *Client) DeleteCollection(ctx context.Context, userID UserID, collection
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetCollection(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetCollectionRequest(c.Server, userID, collectionKey)
+func (c *Client) GetCollection(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCollectionRequest(c.Server, userID, collectionKey, params)
 	if err != nil {
 		return nil, err
 	}
@@ -6065,6 +17582,30 @@ func (c *Client) UpdateCollection(ctx context.Context, userID UserID, collection
 	return c.Client.Do(req)
 }
 
+func (c *Client) ReplaceCollectionWithBody(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceCollectionRequestWithBody(c.Server, userID, collectionKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReplaceCollection(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, body ReplaceCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceCollectionRequest(c.Server, userID, collectionKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListSubCollections(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListSubCollectionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListSubCollectionsRequest(c.Server, userID, collectionKey, params)
 	if err != nil {
@@ -6079,6 +17620,78 @@ func (c *Client) ListSubCollections(ctx context.Context, userID UserID, collecti
 
 func (c *Client) ListCollectionItems(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCollectionItemsRequest(c.Server, userID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListCollectionItemsTags(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCollectionItemsTagsRequest(c.Server, userID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListCollectionTopItems(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCollectionTopItemsRequest(c.Server, userID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListCollectionTopItemsTags(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCollectionTopItemsTagsRequest(c.Server, userID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetCollectionTags(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCollectionTagsRequest(c.Server, userID, collectionKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListDeletedContent(ctx context.Context, userID UserID, params *ListDeletedContentParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDeletedContentRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListFulltextVersions(ctx context.Context, userID UserID, params *ListFulltextVersionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListFulltextVersionsRequest(c.Server, userID, params)
 	if err != nil {
 		return nil, err
 	}
@@ -6149,6 +17762,18 @@ func (c *Client) CreateOrUpdateItems(ctx context.Context, userID UserID, params 
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListAllItemsTags(ctx context.Context, userID UserID, params *ListAllItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAllItemsTagsRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListTopItems(ctx context.Context, userID UserID, params *ListTopItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListTopItemsRequest(c.Server, userID, params)
 	if err != nil {
@@ -6161,8 +17786,32 @@ func (c *Client) ListTopItems(ctx context.Context, userID UserID, params *ListTo
 	return c.Client.Do(req)
 }
 
+func (c *Client) ListTopItemsTags(ctx context.Context, userID UserID, params *ListTopItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTopItemsTagsRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) ListTrashedItems(ctx context.Context, userID UserID, params *ListTrashedItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListTrashedItemsRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListTrashedItemsTags(ctx context.Context, userID UserID, params *ListTrashedItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTrashedItemsTagsRequest(c.Server, userID, params)
 	if err != nil {
 		return nil, err
 	}
@@ -6221,6 +17870,30 @@ func (c *Client) UpdateItem(ctx context.Context, userID UserID, itemKey ItemKeyP
 	return c.Client.Do(req)
 }
 
+func (c *Client) ReplaceItemWithBody(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceItemRequestWithBody(c.Server, userID, itemKey, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReplaceItem(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, body ReplaceItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReplaceItemRequest(c.Server, userID, itemKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetItemChildren(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetItemChildrenParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetItemChildrenRequest(c.Server, userID, itemKey, params)
 	if err != nil {
@@ -6235,6 +17908,18 @@ func (c *Client) GetItemChildren(ctx context.Context, userID UserID, itemKey Ite
 
 func (c *Client) DownloadFile(ctx context.Context, userID UserID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDownloadFileRequest(c.Server, userID, itemKey)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UploadFilePartialWithBody(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *UploadFilePartialParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUploadFilePartialRequestWithBody(c.Server, userID, itemKey, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -6305,6 +17990,66 @@ func (c *Client) SetFulltext(ctx context.Context, userID UserID, itemKey ItemKey
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetItemTags(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetItemTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemTagsRequest(c.Server, userID, itemKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListPublicationItems(ctx context.Context, userID UserID, params *ListPublicationItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPublicationItemsRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListPublicationItemsTags(ctx context.Context, userID UserID, params *ListPublicationItemsTagsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPublicationItemsTagsRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListPublicationTopItems(ctx context.Context, userID UserID, params *ListPublicationTopItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPublicationTopItemsRequest(c.Server, userID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetPublicationItem(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetPublicationItemParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPublicationItemRequest(c.Server, userID, itemKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) DeleteSearches(ctx context.Context, userID UserID, params *DeleteSearchesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteSearchesRequest(c.Server, userID, params)
 	if err != nil {
@@ -6365,8 +18110,8 @@ func (c *Client) DeleteSearch(ctx context.Context, userID UserID, searchKey Sear
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetSearch(ctx context.Context, userID UserID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetSearchRequest(c.Server, userID, searchKey)
+func (c *Client) GetSearch(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *GetSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSearchRequest(c.Server, userID, searchKey, params)
 	if err != nil {
 		return nil, err
 	}
@@ -6399,6 +18144,116 @@ func (c *Client) ListTags(ctx context.Context, userID UserID, params *ListTagsPa
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+func (c *Client) GetTag(ctx context.Context, userID UserID, tag TagNamePath, params *GetTagParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTagRequest(c.Server, userID, tag, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewGetCreatorFieldsRequest generates requests for GetCreatorFields
+func NewGetCreatorFieldsRequest(server string, params *GetCreatorFieldsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/creatorFields")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetGroupRequest generates requests for GetGroup
+func NewGetGroupRequest(server string, groupID GroupID, params *GetGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
 }
 
 // NewDeleteCollectionsGroupRequest generates requests for DeleteCollectionsGroup
@@ -6497,6 +18352,86 @@ func NewListCollectionsGroupRequest(server string, groupID GroupID, params *List
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.CollectionKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collectionKey", *params.CollectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -6529,12 +18464,43 @@ func NewListCollectionsGroupRequest(server string, groupID GroupID, params *List
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -6642,6 +18608,70 @@ func NewListTopCollectionsGroupRequest(server string, groupID GroupID, params *L
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -6674,12 +18704,43 @@ func NewListTopCollectionsGroupRequest(server string, groupID GroupID, params *L
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -6742,7 +18803,7 @@ func NewDeleteCollectionGroupRequest(server string, groupID GroupID, collectionK
 }
 
 // NewGetCollectionGroupRequest generates requests for GetCollectionGroup
-func NewGetCollectionGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath) (*http.Request, error) {
+func NewGetCollectionGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionGroupParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -6774,9 +18835,46 @@ func NewGetCollectionGroupRequest(server string, groupID GroupID, collectionKey 
 		return nil, err
 	}
 
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -6851,6 +18949,75 @@ func NewUpdateCollectionGroupRequestWithBody(server string, groupID GroupID, col
 	return req, nil
 }
 
+// NewReplaceCollectionGroupRequest calls the generic ReplaceCollectionGroup builder with application/json body
+func NewReplaceCollectionGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, body ReplaceCollectionGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceCollectionGroupRequestWithBody(server, groupID, collectionKey, params, "application/json", bodyReader)
+}
+
+// NewReplaceCollectionGroupRequestWithBody generates requests for ReplaceCollectionGroup with any type of body
+func NewReplaceCollectionGroupRequestWithBody(server string, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListSubCollectionsGroupRequest generates requests for ListSubCollectionsGroup
 func NewListSubCollectionsGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams) (*http.Request, error) {
 	var err error
@@ -6887,6 +19054,70 @@ func NewListSubCollectionsGroupRequest(server string, groupID GroupID, collectio
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -6919,12 +19150,43 @@ func NewListSubCollectionsGroupRequest(server string, groupID GroupID, collectio
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -7062,6 +19324,22 @@ func NewListCollectionItemsGroupRequest(server string, groupID GroupID, collecti
 
 		}
 
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Sort != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -7158,12 +19436,1257 @@ func NewListCollectionItemsGroupRequest(server string, groupID GroupID, collecti
 
 		}
 
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCollectionItemsTagsGroupRequest generates requests for ListCollectionItemsTagsGroup
+func NewListCollectionItemsTagsGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s/items/tags", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCollectionTopItemsGroupRequest generates requests for ListCollectionTopItemsGroup
+func NewListCollectionTopItemsGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s/items/top", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", *params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCollectionTopItemsTagsGroupRequest generates requests for ListCollectionTopItemsTagsGroup
+func NewListCollectionTopItemsTagsGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s/items/top/tags", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetCollectionTagsGroupRequest generates requests for GetCollectionTagsGroup
+func NewGetCollectionTagsGroupRequest(server string, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionTagsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/collections/%s/tags", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListDeletedContentGroupRequest generates requests for ListDeletedContentGroup
+func NewListDeletedContentGroupRequest(server string, groupID GroupID, params *ListDeletedContentGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/deleted", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListFulltextVersionsGroupRequest generates requests for ListFulltextVersionsGroup
+func NewListFulltextVersionsGroupRequest(server string, groupID GroupID, params *ListFulltextVersionsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/fulltext", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -7361,6 +20884,22 @@ func NewListItemsGroupRequest(server string, groupID GroupID, params *ListItemsG
 
 		}
 
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Sort != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -7457,12 +20996,91 @@ func NewListItemsGroupRequest(server string, groupID GroupID, params *ListItemsG
 
 		}
 
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -7541,6 +21159,237 @@ func NewCreateOrUpdateItemsGroupRequestWithBody(server string, groupID GroupID, 
 	return req, nil
 }
 
+// NewListAllItemsTagsGroupRequest generates requests for ListAllItemsTagsGroup
+func NewListAllItemsTagsGroupRequest(server string, groupID GroupID, params *ListAllItemsTagsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/tags", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListTopItemsGroupRequest generates requests for ListTopItemsGroup
 func NewListTopItemsGroupRequest(server string, groupID GroupID, params *ListTopItemsGroupParams) (*http.Request, error) {
 	var err error
@@ -7573,6 +21422,580 @@ func NewListTopItemsGroupRequest(server string, groupID GroupID, params *ListTop
 		if params.Q != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", *params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListTopItemsTagsGroupRequest generates requests for ListTopItemsTagsGroup
+func NewListTopItemsTagsGroupRequest(server string, groupID GroupID, params *ListTopItemsTagsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/top/tags", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListTrashedItemsGroupRequest generates requests for ListTrashedItemsGroup
+func NewListTrashedItemsGroupRequest(server string, groupID GroupID, params *ListTrashedItemsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/trash", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -7738,11 +22161,26 @@ func NewListTopItemsGroupRequest(server string, groupID GroupID, params *ListTop
 		return nil, err
 	}
 
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
-// NewListTrashedItemsGroupRequest generates requests for ListTrashedItemsGroup
-func NewListTrashedItemsGroupRequest(server string, groupID GroupID, params *ListTrashedItemsGroupParams) (*http.Request, error) {
+// NewListTrashedItemsTagsGroupRequest generates requests for ListTrashedItemsTagsGroup
+func NewListTrashedItemsTagsGroupRequest(server string, groupID GroupID, params *ListTrashedItemsTagsGroupParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -7757,7 +22195,7 @@ func NewListTrashedItemsGroupRequest(server string, groupID GroupID, params *Lis
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/groups/%s/items/trash", pathParam0)
+	operationPath := fmt.Sprintf("/groups/%s/items/trash/tags", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -7769,6 +22207,118 @@ func NewListTrashedItemsGroupRequest(server string, groupID GroupID, params *Lis
 
 	if params != nil {
 		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
 
 		if params.Start != nil {
 
@@ -7802,12 +22352,43 @@ func NewListTrashedItemsGroupRequest(server string, groupID GroupID, params *Lis
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -7937,12 +22518,91 @@ func NewGetItemGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath,
 
 		}
 
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -8017,6 +22677,75 @@ func NewUpdateItemGroupRequestWithBody(server string, groupID GroupID, itemKey I
 	return req, nil
 }
 
+// NewReplaceItemGroupRequest calls the generic ReplaceItemGroup builder with application/json body
+func NewReplaceItemGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, body ReplaceItemGroupJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceItemGroupRequestWithBody(server, groupID, itemKey, params, "application/json", bodyReader)
+}
+
+// NewReplaceItemGroupRequestWithBody generates requests for ReplaceItemGroup with any type of body
+func NewReplaceItemGroupRequestWithBody(server string, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewGetItemChildrenGroupRequest generates requests for GetItemChildrenGroup
 func NewGetItemChildrenGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams) (*http.Request, error) {
 	var err error
@@ -8053,9 +22782,121 @@ func NewGetItemChildrenGroupRequest(server string, groupID GroupID, itemKey Item
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Limit != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -8075,6 +22916,21 @@ func NewGetItemChildrenGroupRequest(server string, groupID GroupID, itemKey Item
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -8116,6 +22972,92 @@ func NewDownloadFileGroupRequest(server string, groupID GroupID, itemKey ItemKey
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUploadFilePartialGroupRequestWithBody generates requests for UploadFilePartialGroup with any type of body
+func NewUploadFilePartialGroupRequestWithBody(server string, groupID GroupID, itemKey ItemKeyPath, params *UploadFilePartialGroupParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s/file", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "algorithm", params.Algorithm, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "upload", params.Upload, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("If-Match", headerParam0)
+
 	}
 
 	return req, nil
@@ -8296,6 +23238,196 @@ func NewSetFulltextGroupRequestWithBody(server string, groupID GroupID, itemKey 
 	return req, nil
 }
 
+// NewGetItemTagsGroupRequest generates requests for GetItemTagsGroup
+func NewGetItemTagsGroupRequest(server string, groupID GroupID, itemKey ItemKeyPath, params *GetItemTagsGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/items/%s/tags", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewDeleteSearchesGroupRequest generates requests for DeleteSearchesGroup
 func NewDeleteSearchesGroupRequest(server string, groupID GroupID, params *DeleteSearchesGroupParams) (*http.Request, error) {
 	var err error
@@ -8392,6 +23524,38 @@ func NewListSearchesGroupRequest(server string, groupID GroupID, params *ListSea
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.SearchKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "searchKey", *params.SearchKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -8424,12 +23588,43 @@ func NewListSearchesGroupRequest(server string, groupID GroupID, params *ListSea
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -8565,7 +23760,7 @@ func NewDeleteSearchGroupRequest(server string, groupID GroupID, searchKey Searc
 }
 
 // NewGetSearchGroupRequest generates requests for GetSearchGroup
-func NewGetSearchGroupRequest(server string, groupID GroupID, searchKey SearchKeyPath) (*http.Request, error) {
+func NewGetSearchGroupRequest(server string, groupID GroupID, searchKey SearchKeyPath, params *GetSearchGroupParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -8597,9 +23792,46 @@ func NewGetSearchGroupRequest(server string, groupID GroupID, searchKey SearchKe
 		return nil, err
 	}
 
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -8717,6 +23949,102 @@ func NewListTagsGroupRequest(server string, groupID GroupID, params *ListTagsGro
 
 		}
 
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -8749,6 +24077,412 @@ func NewListTagsGroupRequest(server string, groupID GroupID, params *ListTagsGro
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetTagGroupRequest generates requests for GetTagGroup
+func NewGetTagGroupRequest(server string, groupID GroupID, tag TagNamePath, params *GetTagGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "groupID", groupID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "tag", tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/groups/%s/tags/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetItemFieldsRequest generates requests for GetItemFields
+func NewGetItemFieldsRequest(server string, params *GetItemFieldsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/itemFields")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetItemTypeCreatorTypesRequest generates requests for GetItemTypeCreatorTypes
+func NewGetItemTypeCreatorTypesRequest(server string, params *GetItemTypeCreatorTypesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/itemTypeCreatorTypes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetItemTypeFieldsRequest generates requests for GetItemTypeFields
+func NewGetItemTypeFieldsRequest(server string, params *GetItemTypeFieldsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/itemTypeFields")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetItemTypesRequest generates requests for GetItemTypes
+func NewGetItemTypesRequest(server string, params *GetItemTypesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/itemTypes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetItemTemplateRequest generates requests for GetItemTemplate
+func NewGetItemTemplateRequest(server string, params *GetItemTemplateParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/new")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if params.LinkMode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkMode", *params.LinkMode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
@@ -8761,7 +24495,7 @@ func NewListTagsGroupRequest(server string, groupID GroupID, params *ListTagsGro
 }
 
 // NewGetCurrentKeyRequest generates requests for GetCurrentKey
-func NewGetCurrentKeyRequest(server string) (*http.Request, error) {
+func NewGetCurrentKeyRequest(server string, params *GetCurrentKeyParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -8770,6 +24504,89 @@ func NewGetCurrentKeyRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/keys/current")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.ZoteroAPIVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Zotero-API-Version", *params.ZoteroAPIVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Zotero-API-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteKeyRequest generates requests for DeleteKey
+func NewDeleteKeyRequest(server string, key KeyPath) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/keys/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetKeyRequest generates requests for GetKey
+func NewGetKeyRequest(server string, key KeyPath) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/keys/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -8910,6 +24727,86 @@ func NewListCollectionsRequest(server string, userID UserID, params *ListCollect
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.CollectionKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collectionKey", *params.CollectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -8942,12 +24839,43 @@ func NewListCollectionsRequest(server string, userID UserID, params *ListCollect
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -9055,6 +24983,70 @@ func NewListTopCollectionsRequest(server string, userID UserID, params *ListTopC
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -9087,12 +25079,43 @@ func NewListTopCollectionsRequest(server string, userID UserID, params *ListTopC
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -9155,7 +25178,7 @@ func NewDeleteCollectionRequest(server string, userID UserID, collectionKey Coll
 }
 
 // NewGetCollectionRequest generates requests for GetCollection
-func NewGetCollectionRequest(server string, userID UserID, collectionKey CollectionKeyPath) (*http.Request, error) {
+func NewGetCollectionRequest(server string, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -9187,9 +25210,46 @@ func NewGetCollectionRequest(server string, userID UserID, collectionKey Collect
 		return nil, err
 	}
 
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -9264,6 +25324,75 @@ func NewUpdateCollectionRequestWithBody(server string, userID UserID, collection
 	return req, nil
 }
 
+// NewReplaceCollectionRequest calls the generic ReplaceCollection builder with application/json body
+func NewReplaceCollectionRequest(server string, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, body ReplaceCollectionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceCollectionRequestWithBody(server, userID, collectionKey, params, "application/json", bodyReader)
+}
+
+// NewReplaceCollectionRequestWithBody generates requests for ReplaceCollection with any type of body
+func NewReplaceCollectionRequestWithBody(server string, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/collections/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListSubCollectionsRequest generates requests for ListSubCollections
 func NewListSubCollectionsRequest(server string, userID UserID, collectionKey CollectionKeyPath, params *ListSubCollectionsParams) (*http.Request, error) {
 	var err error
@@ -9300,6 +25429,70 @@ func NewListSubCollectionsRequest(server string, userID UserID, collectionKey Co
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -9332,12 +25525,43 @@ func NewListSubCollectionsRequest(server string, userID UserID, collectionKey Co
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -9475,6 +25699,22 @@ func NewListCollectionItemsRequest(server string, userID UserID, collectionKey C
 
 		}
 
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Sort != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -9571,12 +25811,1257 @@ func NewListCollectionItemsRequest(server string, userID UserID, collectionKey C
 
 		}
 
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCollectionItemsTagsRequest generates requests for ListCollectionItemsTags
+func NewListCollectionItemsTagsRequest(server string, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/collections/%s/items/tags", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCollectionTopItemsRequest generates requests for ListCollectionTopItems
+func NewListCollectionTopItemsRequest(server string, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/collections/%s/items/top", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", *params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListCollectionTopItemsTagsRequest generates requests for ListCollectionTopItemsTags
+func NewListCollectionTopItemsTagsRequest(server string, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/collections/%s/items/top/tags", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetCollectionTagsRequest generates requests for GetCollectionTags
+func NewGetCollectionTagsRequest(server string, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionTagsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "collectionKey", collectionKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/collections/%s/tags", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListDeletedContentRequest generates requests for ListDeletedContent
+func NewListDeletedContentRequest(server string, userID UserID, params *ListDeletedContentParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/deleted", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListFulltextVersionsRequest generates requests for ListFulltextVersions
+func NewListFulltextVersionsRequest(server string, userID UserID, params *ListFulltextVersionsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/fulltext", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -9808,6 +27293,22 @@ func NewListItemsRequest(server string, userID UserID, params *ListItemsParams) 
 
 		}
 
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Sort != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
@@ -9904,12 +27405,91 @@ func NewListItemsRequest(server string, userID UserID, params *ListItemsParams) 
 
 		}
 
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -9988,6 +27568,237 @@ func NewCreateOrUpdateItemsRequestWithBody(server string, userID UserID, params 
 	return req, nil
 }
 
+// NewListAllItemsTagsRequest generates requests for ListAllItemsTags
+func NewListAllItemsTagsRequest(server string, userID UserID, params *ListAllItemsTagsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/items/tags", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListTopItemsRequest generates requests for ListTopItems
 func NewListTopItemsRequest(server string, userID UserID, params *ListTopItemsParams) (*http.Request, error) {
 	var err error
@@ -10020,6 +27831,580 @@ func NewListTopItemsRequest(server string, userID UserID, params *ListTopItemsPa
 		if params.Q != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", *params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListTopItemsTagsRequest generates requests for ListTopItemsTags
+func NewListTopItemsTagsRequest(server string, userID UserID, params *ListTopItemsTagsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/items/top/tags", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListTrashedItemsRequest generates requests for ListTrashedItems
+func NewListTrashedItemsRequest(server string, userID UserID, params *ListTrashedItemsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/items/trash", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -10185,11 +28570,26 @@ func NewListTopItemsRequest(server string, userID UserID, params *ListTopItemsPa
 		return nil, err
 	}
 
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
-// NewListTrashedItemsRequest generates requests for ListTrashedItems
-func NewListTrashedItemsRequest(server string, userID UserID, params *ListTrashedItemsParams) (*http.Request, error) {
+// NewListTrashedItemsTagsRequest generates requests for ListTrashedItemsTags
+func NewListTrashedItemsTagsRequest(server string, userID UserID, params *ListTrashedItemsTagsParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -10204,7 +28604,7 @@ func NewListTrashedItemsRequest(server string, userID UserID, params *ListTrashe
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/users/%s/items/trash", pathParam0)
+	operationPath := fmt.Sprintf("/users/%s/items/trash/tags", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -10216,6 +28616,118 @@ func NewListTrashedItemsRequest(server string, userID UserID, params *ListTrashe
 
 	if params != nil {
 		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
 
 		if params.Start != nil {
 
@@ -10249,12 +28761,43 @@ func NewListTrashedItemsRequest(server string, userID UserID, params *ListTrashe
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -10384,12 +28927,91 @@ func NewGetItemRequest(server string, userID UserID, itemKey ItemKeyPath, params
 
 		}
 
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -10464,6 +29086,75 @@ func NewUpdateItemRequestWithBody(server string, userID UserID, itemKey ItemKeyP
 	return req, nil
 }
 
+// NewReplaceItemRequest calls the generic ReplaceItem builder with application/json body
+func NewReplaceItemRequest(server string, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, body ReplaceItemJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReplaceItemRequestWithBody(server, userID, itemKey, params, "application/json", bodyReader)
+}
+
+// NewReplaceItemRequestWithBody generates requests for ReplaceItem with any type of body
+func NewReplaceItemRequestWithBody(server string, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/items/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfUnmodifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Unmodified-Since-Version", *params.IfUnmodifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Unmodified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewGetItemChildrenRequest generates requests for GetItemChildren
 func NewGetItemChildrenRequest(server string, userID UserID, itemKey ItemKeyPath, params *GetItemChildrenParams) (*http.Request, error) {
 	var err error
@@ -10500,9 +29191,121 @@ func NewGetItemChildrenRequest(server string, userID UserID, itemKey ItemKeyPath
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Limit != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -10522,6 +29325,21 @@ func NewGetItemChildrenRequest(server string, userID UserID, itemKey ItemKeyPath
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -10563,6 +29381,92 @@ func NewDownloadFileRequest(server string, userID UserID, itemKey ItemKeyPath) (
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUploadFilePartialRequestWithBody generates requests for UploadFilePartial with any type of body
+func NewUploadFilePartialRequestWithBody(server string, userID UserID, itemKey ItemKeyPath, params *UploadFilePartialParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/items/%s/file", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "algorithm", params.Algorithm, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "upload", params.Upload, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("If-Match", headerParam0)
+
 	}
 
 	return req, nil
@@ -10743,6 +29647,1207 @@ func NewSetFulltextRequestWithBody(server string, userID UserID, itemKey ItemKey
 	return req, nil
 }
 
+// NewGetItemTagsRequest generates requests for GetItemTags
+func NewGetItemTagsRequest(server string, userID UserID, itemKey ItemKeyPath, params *GetItemTagsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/items/%s/tags", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListPublicationItemsRequest generates requests for ListPublicationItems
+func NewListPublicationItemsRequest(server string, userID UserID, params *ListPublicationItemsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/publications/items", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", *params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.IncludeTrashed != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeTrashed", *params.IncludeTrashed, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListPublicationItemsTagsRequest generates requests for ListPublicationItemsTags
+func NewListPublicationItemsTagsRequest(server string, userID UserID, params *ListPublicationItemsTagsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/publications/items/tags", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListPublicationTopItemsRequest generates requests for ListPublicationTopItems
+func NewListPublicationTopItemsRequest(server string, userID UserID, params *ListPublicationTopItemsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/publications/items/top", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemKey", *params.ItemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Start != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetPublicationItemRequest generates requests for GetPublicationItem
+func NewGetPublicationItemRequest(server string, userID UserID, itemKey ItemKeyPath, params *GetPublicationItemParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "itemKey", itemKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/publications/items/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Include != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include", *params.Include, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Content != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "content", *params.Content, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Style != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "style", *params.Style, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Linkwrap != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "linkwrap", *params.Linkwrap, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewDeleteSearchesRequest generates requests for DeleteSearches
 func NewDeleteSearchesRequest(server string, userID UserID, params *DeleteSearchesParams) (*http.Request, error) {
 	var err error
@@ -10839,6 +30944,38 @@ func NewListSearchesRequest(server string, userID UserID, params *ListSearchesPa
 	if params != nil {
 		queryValues := queryURL.Query()
 
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.SearchKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "searchKey", *params.SearchKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -10871,12 +31008,43 @@ func NewListSearchesRequest(server string, userID UserID, params *ListSearchesPa
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -11012,7 +31180,7 @@ func NewDeleteSearchRequest(server string, userID UserID, searchKey SearchKeyPat
 }
 
 // NewGetSearchRequest generates requests for GetSearch
-func NewGetSearchRequest(server string, userID UserID, searchKey SearchKeyPath) (*http.Request, error) {
+func NewGetSearchRequest(server string, userID UserID, searchKey SearchKeyPath, params *GetSearchParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -11044,9 +31212,46 @@ func NewGetSearchRequest(server string, userID UserID, searchKey SearchKeyPath) 
 		return nil, err
 	}
 
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -11164,6 +31369,102 @@ func NewListTagsRequest(server string, userID UserID, params *ListTagsParams) (*
 
 		}
 
+		if params.Qmode != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "qmode", *params.Qmode, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ItemType != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "itemType", *params.ItemType, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Tag != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tag", *params.Tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Since != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "since", *params.Since, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Direction != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "direction", *params.Direction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Start != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "start", *params.Start, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -11196,12 +31497,121 @@ func NewListTagsRequest(server string, userID UserID, params *ListTagsParams) (*
 
 		}
 
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewGetTagRequest generates requests for GetTag
+func NewGetTagRequest(server string, userID UserID, tag TagNamePath, params *GetTagParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "userID", userID, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "tag", tag, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/users/%s/tags/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Format != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "format", *params.Format, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfModifiedSinceVersion != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Modified-Since-Version", *params.IfModifiedSinceVersion, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "integer", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Modified-Since-Version", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -11250,6 +31660,12 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetCreatorFieldsWithResponse request
+	GetCreatorFieldsWithResponse(ctx context.Context, params *GetCreatorFieldsParams, reqEditors ...RequestEditorFn) (*GetCreatorFieldsResponse, error)
+
+	// GetGroupWithResponse request
+	GetGroupWithResponse(ctx context.Context, groupID GroupID, params *GetGroupParams, reqEditors ...RequestEditorFn) (*GetGroupResponse, error)
+
 	// DeleteCollectionsGroupWithResponse request
 	DeleteCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteCollectionsGroupParams, reqEditors ...RequestEditorFn) (*DeleteCollectionsGroupResponse, error)
 
@@ -11268,18 +31684,41 @@ type ClientWithResponsesInterface interface {
 	DeleteCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *DeleteCollectionGroupParams, reqEditors ...RequestEditorFn) (*DeleteCollectionGroupResponse, error)
 
 	// GetCollectionGroupWithResponse request
-	GetCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*GetCollectionGroupResponse, error)
+	GetCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionGroupParams, reqEditors ...RequestEditorFn) (*GetCollectionGroupResponse, error)
 
 	// UpdateCollectionGroupWithBodyWithResponse request with any body
 	UpdateCollectionGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCollectionGroupResponse, error)
 
 	UpdateCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *UpdateCollectionGroupParams, body UpdateCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCollectionGroupResponse, error)
 
+	// ReplaceCollectionGroupWithBodyWithResponse request with any body
+	ReplaceCollectionGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceCollectionGroupResponse, error)
+
+	ReplaceCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, body ReplaceCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceCollectionGroupResponse, error)
+
 	// ListSubCollectionsGroupWithResponse request
 	ListSubCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams, reqEditors ...RequestEditorFn) (*ListSubCollectionsGroupResponse, error)
 
 	// ListCollectionItemsGroupWithResponse request
 	ListCollectionItemsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionItemsGroupResponse, error)
+
+	// ListCollectionItemsTagsGroupWithResponse request
+	ListCollectionItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionItemsTagsGroupResponse, error)
+
+	// ListCollectionTopItemsGroupWithResponse request
+	ListCollectionTopItemsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionTopItemsGroupResponse, error)
+
+	// ListCollectionTopItemsTagsGroupWithResponse request
+	ListCollectionTopItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionTopItemsTagsGroupResponse, error)
+
+	// GetCollectionTagsGroupWithResponse request
+	GetCollectionTagsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionTagsGroupParams, reqEditors ...RequestEditorFn) (*GetCollectionTagsGroupResponse, error)
+
+	// ListDeletedContentGroupWithResponse request
+	ListDeletedContentGroupWithResponse(ctx context.Context, groupID GroupID, params *ListDeletedContentGroupParams, reqEditors ...RequestEditorFn) (*ListDeletedContentGroupResponse, error)
+
+	// ListFulltextVersionsGroupWithResponse request
+	ListFulltextVersionsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListFulltextVersionsGroupParams, reqEditors ...RequestEditorFn) (*ListFulltextVersionsGroupResponse, error)
 
 	// DeleteItemsGroupWithResponse request
 	DeleteItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteItemsGroupParams, reqEditors ...RequestEditorFn) (*DeleteItemsGroupResponse, error)
@@ -11292,11 +31731,20 @@ type ClientWithResponsesInterface interface {
 
 	CreateOrUpdateItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *CreateOrUpdateItemsGroupParams, body CreateOrUpdateItemsGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateItemsGroupResponse, error)
 
+	// ListAllItemsTagsGroupWithResponse request
+	ListAllItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListAllItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListAllItemsTagsGroupResponse, error)
+
 	// ListTopItemsGroupWithResponse request
 	ListTopItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTopItemsGroupParams, reqEditors ...RequestEditorFn) (*ListTopItemsGroupResponse, error)
 
+	// ListTopItemsTagsGroupWithResponse request
+	ListTopItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTopItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListTopItemsTagsGroupResponse, error)
+
 	// ListTrashedItemsGroupWithResponse request
 	ListTrashedItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTrashedItemsGroupParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsGroupResponse, error)
+
+	// ListTrashedItemsTagsGroupWithResponse request
+	ListTrashedItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTrashedItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsTagsGroupResponse, error)
 
 	// DeleteItemGroupWithResponse request
 	DeleteItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *DeleteItemGroupParams, reqEditors ...RequestEditorFn) (*DeleteItemGroupResponse, error)
@@ -11309,11 +31757,19 @@ type ClientWithResponsesInterface interface {
 
 	UpdateItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UpdateItemGroupParams, body UpdateItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateItemGroupResponse, error)
 
+	// ReplaceItemGroupWithBodyWithResponse request with any body
+	ReplaceItemGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceItemGroupResponse, error)
+
+	ReplaceItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, body ReplaceItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceItemGroupResponse, error)
+
 	// GetItemChildrenGroupWithResponse request
 	GetItemChildrenGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams, reqEditors ...RequestEditorFn) (*GetItemChildrenGroupResponse, error)
 
 	// DownloadFileGroupWithResponse request
 	DownloadFileGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*DownloadFileGroupResponse, error)
+
+	// UploadFilePartialGroupWithBodyWithResponse request with any body
+	UploadFilePartialGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFilePartialGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadFilePartialGroupResponse, error)
 
 	// UploadFileGroupWithBodyWithResponse request with any body
 	UploadFileGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFileGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadFileGroupResponse, error)
@@ -11327,6 +31783,9 @@ type ClientWithResponsesInterface interface {
 	SetFulltextGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetFulltextGroupResponse, error)
 
 	SetFulltextGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, body SetFulltextGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*SetFulltextGroupResponse, error)
+
+	// GetItemTagsGroupWithResponse request
+	GetItemTagsGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemTagsGroupParams, reqEditors ...RequestEditorFn) (*GetItemTagsGroupResponse, error)
 
 	// DeleteSearchesGroupWithResponse request
 	DeleteSearchesGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteSearchesGroupParams, reqEditors ...RequestEditorFn) (*DeleteSearchesGroupResponse, error)
@@ -11343,7 +31802,7 @@ type ClientWithResponsesInterface interface {
 	DeleteSearchGroupWithResponse(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *DeleteSearchGroupParams, reqEditors ...RequestEditorFn) (*DeleteSearchGroupResponse, error)
 
 	// GetSearchGroupWithResponse request
-	GetSearchGroupWithResponse(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*GetSearchGroupResponse, error)
+	GetSearchGroupWithResponse(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *GetSearchGroupParams, reqEditors ...RequestEditorFn) (*GetSearchGroupResponse, error)
 
 	// DeleteTagsGroupWithResponse request
 	DeleteTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteTagsGroupParams, reqEditors ...RequestEditorFn) (*DeleteTagsGroupResponse, error)
@@ -11351,8 +31810,32 @@ type ClientWithResponsesInterface interface {
 	// ListTagsGroupWithResponse request
 	ListTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTagsGroupParams, reqEditors ...RequestEditorFn) (*ListTagsGroupResponse, error)
 
+	// GetTagGroupWithResponse request
+	GetTagGroupWithResponse(ctx context.Context, groupID GroupID, tag TagNamePath, params *GetTagGroupParams, reqEditors ...RequestEditorFn) (*GetTagGroupResponse, error)
+
+	// GetItemFieldsWithResponse request
+	GetItemFieldsWithResponse(ctx context.Context, params *GetItemFieldsParams, reqEditors ...RequestEditorFn) (*GetItemFieldsResponse, error)
+
+	// GetItemTypeCreatorTypesWithResponse request
+	GetItemTypeCreatorTypesWithResponse(ctx context.Context, params *GetItemTypeCreatorTypesParams, reqEditors ...RequestEditorFn) (*GetItemTypeCreatorTypesResponse, error)
+
+	// GetItemTypeFieldsWithResponse request
+	GetItemTypeFieldsWithResponse(ctx context.Context, params *GetItemTypeFieldsParams, reqEditors ...RequestEditorFn) (*GetItemTypeFieldsResponse, error)
+
+	// GetItemTypesWithResponse request
+	GetItemTypesWithResponse(ctx context.Context, params *GetItemTypesParams, reqEditors ...RequestEditorFn) (*GetItemTypesResponse, error)
+
+	// GetItemTemplateWithResponse request
+	GetItemTemplateWithResponse(ctx context.Context, params *GetItemTemplateParams, reqEditors ...RequestEditorFn) (*GetItemTemplateResponse, error)
+
 	// GetCurrentKeyWithResponse request
-	GetCurrentKeyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCurrentKeyResponse, error)
+	GetCurrentKeyWithResponse(ctx context.Context, params *GetCurrentKeyParams, reqEditors ...RequestEditorFn) (*GetCurrentKeyResponse, error)
+
+	// DeleteKeyWithResponse request
+	DeleteKeyWithResponse(ctx context.Context, key KeyPath, reqEditors ...RequestEditorFn) (*DeleteKeyResponse, error)
+
+	// GetKeyWithResponse request
+	GetKeyWithResponse(ctx context.Context, key KeyPath, reqEditors ...RequestEditorFn) (*GetKeyResponse, error)
 
 	// GetSchemaWithResponse request
 	GetSchemaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSchemaResponse, error)
@@ -11375,18 +31858,41 @@ type ClientWithResponsesInterface interface {
 	DeleteCollectionWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *DeleteCollectionParams, reqEditors ...RequestEditorFn) (*DeleteCollectionResponse, error)
 
 	// GetCollectionWithResponse request
-	GetCollectionWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*GetCollectionResponse, error)
+	GetCollectionWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionParams, reqEditors ...RequestEditorFn) (*GetCollectionResponse, error)
 
 	// UpdateCollectionWithBodyWithResponse request with any body
 	UpdateCollectionWithBodyWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *UpdateCollectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCollectionResponse, error)
 
 	UpdateCollectionWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *UpdateCollectionParams, body UpdateCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCollectionResponse, error)
 
+	// ReplaceCollectionWithBodyWithResponse request with any body
+	ReplaceCollectionWithBodyWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceCollectionResponse, error)
+
+	ReplaceCollectionWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, body ReplaceCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceCollectionResponse, error)
+
 	// ListSubCollectionsWithResponse request
 	ListSubCollectionsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListSubCollectionsParams, reqEditors ...RequestEditorFn) (*ListSubCollectionsResponse, error)
 
 	// ListCollectionItemsWithResponse request
 	ListCollectionItemsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsParams, reqEditors ...RequestEditorFn) (*ListCollectionItemsResponse, error)
+
+	// ListCollectionItemsTagsWithResponse request
+	ListCollectionItemsTagsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsParams, reqEditors ...RequestEditorFn) (*ListCollectionItemsTagsResponse, error)
+
+	// ListCollectionTopItemsWithResponse request
+	ListCollectionTopItemsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsParams, reqEditors ...RequestEditorFn) (*ListCollectionTopItemsResponse, error)
+
+	// ListCollectionTopItemsTagsWithResponse request
+	ListCollectionTopItemsTagsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsParams, reqEditors ...RequestEditorFn) (*ListCollectionTopItemsTagsResponse, error)
+
+	// GetCollectionTagsWithResponse request
+	GetCollectionTagsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionTagsParams, reqEditors ...RequestEditorFn) (*GetCollectionTagsResponse, error)
+
+	// ListDeletedContentWithResponse request
+	ListDeletedContentWithResponse(ctx context.Context, userID UserID, params *ListDeletedContentParams, reqEditors ...RequestEditorFn) (*ListDeletedContentResponse, error)
+
+	// ListFulltextVersionsWithResponse request
+	ListFulltextVersionsWithResponse(ctx context.Context, userID UserID, params *ListFulltextVersionsParams, reqEditors ...RequestEditorFn) (*ListFulltextVersionsResponse, error)
 
 	// ListGroupsWithResponse request
 	ListGroupsWithResponse(ctx context.Context, userID UserID, reqEditors ...RequestEditorFn) (*ListGroupsResponse, error)
@@ -11402,11 +31908,20 @@ type ClientWithResponsesInterface interface {
 
 	CreateOrUpdateItemsWithResponse(ctx context.Context, userID UserID, params *CreateOrUpdateItemsParams, body CreateOrUpdateItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateOrUpdateItemsResponse, error)
 
+	// ListAllItemsTagsWithResponse request
+	ListAllItemsTagsWithResponse(ctx context.Context, userID UserID, params *ListAllItemsTagsParams, reqEditors ...RequestEditorFn) (*ListAllItemsTagsResponse, error)
+
 	// ListTopItemsWithResponse request
 	ListTopItemsWithResponse(ctx context.Context, userID UserID, params *ListTopItemsParams, reqEditors ...RequestEditorFn) (*ListTopItemsResponse, error)
 
+	// ListTopItemsTagsWithResponse request
+	ListTopItemsTagsWithResponse(ctx context.Context, userID UserID, params *ListTopItemsTagsParams, reqEditors ...RequestEditorFn) (*ListTopItemsTagsResponse, error)
+
 	// ListTrashedItemsWithResponse request
 	ListTrashedItemsWithResponse(ctx context.Context, userID UserID, params *ListTrashedItemsParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsResponse, error)
+
+	// ListTrashedItemsTagsWithResponse request
+	ListTrashedItemsTagsWithResponse(ctx context.Context, userID UserID, params *ListTrashedItemsTagsParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsTagsResponse, error)
 
 	// DeleteItemWithResponse request
 	DeleteItemWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *DeleteItemParams, reqEditors ...RequestEditorFn) (*DeleteItemResponse, error)
@@ -11419,11 +31934,19 @@ type ClientWithResponsesInterface interface {
 
 	UpdateItemWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *UpdateItemParams, body UpdateItemJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateItemResponse, error)
 
+	// ReplaceItemWithBodyWithResponse request with any body
+	ReplaceItemWithBodyWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceItemResponse, error)
+
+	ReplaceItemWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, body ReplaceItemJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceItemResponse, error)
+
 	// GetItemChildrenWithResponse request
 	GetItemChildrenWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetItemChildrenParams, reqEditors ...RequestEditorFn) (*GetItemChildrenResponse, error)
 
 	// DownloadFileWithResponse request
 	DownloadFileWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, reqEditors ...RequestEditorFn) (*DownloadFileResponse, error)
+
+	// UploadFilePartialWithBodyWithResponse request with any body
+	UploadFilePartialWithBodyWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *UploadFilePartialParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadFilePartialResponse, error)
 
 	// UploadFileWithBodyWithResponse request with any body
 	UploadFileWithBodyWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *UploadFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadFileResponse, error)
@@ -11437,6 +31960,21 @@ type ClientWithResponsesInterface interface {
 	SetFulltextWithBodyWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetFulltextResponse, error)
 
 	SetFulltextWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, body SetFulltextJSONRequestBody, reqEditors ...RequestEditorFn) (*SetFulltextResponse, error)
+
+	// GetItemTagsWithResponse request
+	GetItemTagsWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetItemTagsParams, reqEditors ...RequestEditorFn) (*GetItemTagsResponse, error)
+
+	// ListPublicationItemsWithResponse request
+	ListPublicationItemsWithResponse(ctx context.Context, userID UserID, params *ListPublicationItemsParams, reqEditors ...RequestEditorFn) (*ListPublicationItemsResponse, error)
+
+	// ListPublicationItemsTagsWithResponse request
+	ListPublicationItemsTagsWithResponse(ctx context.Context, userID UserID, params *ListPublicationItemsTagsParams, reqEditors ...RequestEditorFn) (*ListPublicationItemsTagsResponse, error)
+
+	// ListPublicationTopItemsWithResponse request
+	ListPublicationTopItemsWithResponse(ctx context.Context, userID UserID, params *ListPublicationTopItemsParams, reqEditors ...RequestEditorFn) (*ListPublicationTopItemsResponse, error)
+
+	// GetPublicationItemWithResponse request
+	GetPublicationItemWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetPublicationItemParams, reqEditors ...RequestEditorFn) (*GetPublicationItemResponse, error)
 
 	// DeleteSearchesWithResponse request
 	DeleteSearchesWithResponse(ctx context.Context, userID UserID, params *DeleteSearchesParams, reqEditors ...RequestEditorFn) (*DeleteSearchesResponse, error)
@@ -11453,13 +31991,60 @@ type ClientWithResponsesInterface interface {
 	DeleteSearchWithResponse(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *DeleteSearchParams, reqEditors ...RequestEditorFn) (*DeleteSearchResponse, error)
 
 	// GetSearchWithResponse request
-	GetSearchWithResponse(ctx context.Context, userID UserID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*GetSearchResponse, error)
+	GetSearchWithResponse(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *GetSearchParams, reqEditors ...RequestEditorFn) (*GetSearchResponse, error)
 
 	// DeleteTagsWithResponse request
 	DeleteTagsWithResponse(ctx context.Context, userID UserID, params *DeleteTagsParams, reqEditors ...RequestEditorFn) (*DeleteTagsResponse, error)
 
 	// ListTagsWithResponse request
 	ListTagsWithResponse(ctx context.Context, userID UserID, params *ListTagsParams, reqEditors ...RequestEditorFn) (*ListTagsResponse, error)
+
+	// GetTagWithResponse request
+	GetTagWithResponse(ctx context.Context, userID UserID, tag TagNamePath, params *GetTagParams, reqEditors ...RequestEditorFn) (*GetTagResponse, error)
+}
+
+type GetCreatorFieldsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]SchemaLabelled
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCreatorFieldsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCreatorFieldsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Group
+}
+
+// Status returns HTTPResponse.Status
+func (r GetGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type DeleteCollectionsGroupResponse struct {
@@ -11613,6 +32198,27 @@ func (r UpdateCollectionGroupResponse) StatusCode() int {
 	return 0
 }
 
+type ReplaceCollectionGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplaceCollectionGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplaceCollectionGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListSubCollectionsGroupResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11651,6 +32257,138 @@ func (r ListCollectionItemsGroupResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListCollectionItemsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListCollectionItemsTagsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCollectionItemsTagsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCollectionItemsTagsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListCollectionTopItemsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Item
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCollectionTopItemsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCollectionTopItemsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListCollectionTopItemsTagsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCollectionTopItemsTagsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCollectionTopItemsTagsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetCollectionTagsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCollectionTagsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCollectionTagsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListDeletedContentGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DeletedContent
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDeletedContentGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDeletedContentGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListFulltextVersionsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *FulltextVersions
+}
+
+// Status returns HTTPResponse.Status
+func (r ListFulltextVersionsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListFulltextVersionsGroupResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -11722,6 +32460,28 @@ func (r CreateOrUpdateItemsGroupResponse) StatusCode() int {
 	return 0
 }
 
+type ListAllItemsTagsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAllItemsTagsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAllItemsTagsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListTopItemsGroupResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11744,6 +32504,28 @@ func (r ListTopItemsGroupResponse) StatusCode() int {
 	return 0
 }
 
+type ListTopItemsTagsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTopItemsTagsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTopItemsTagsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListTrashedItemsGroupResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11760,6 +32542,28 @@ func (r ListTrashedItemsGroupResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListTrashedItemsGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListTrashedItemsTagsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTrashedItemsTagsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTrashedItemsTagsGroupResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -11830,6 +32634,27 @@ func (r UpdateItemGroupResponse) StatusCode() int {
 	return 0
 }
 
+type ReplaceItemGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplaceItemGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplaceItemGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetItemChildrenGroupResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11867,6 +32692,27 @@ func (r DownloadFileGroupResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r DownloadFileGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UploadFilePartialGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r UploadFilePartialGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UploadFilePartialGroupResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -11934,6 +32780,28 @@ func (r SetFulltextGroupResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r SetFulltextGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemTagsGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemTagsGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemTagsGroupResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -12091,6 +32959,138 @@ func (r ListTagsGroupResponse) StatusCode() int {
 	return 0
 }
 
+type GetTagGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTagGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTagGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemFieldsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]SchemaLabelled
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemFieldsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemFieldsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemTypeCreatorTypesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]SchemaLabelled
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemTypeCreatorTypesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemTypeCreatorTypesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemTypeFieldsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]SchemaLabelled
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemTypeFieldsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemTypeFieldsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemTypesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]SchemaLabelled
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemTypesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemTypesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemTemplateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ItemData
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemTemplateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemTemplateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetCurrentKeyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12107,6 +33107,49 @@ func (r GetCurrentKeyResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetCurrentKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *KeyInfo
+}
+
+// Status returns HTTPResponse.Status
+func (r GetKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetKeyResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -12286,6 +33329,27 @@ func (r UpdateCollectionResponse) StatusCode() int {
 	return 0
 }
 
+type ReplaceCollectionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplaceCollectionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplaceCollectionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListSubCollectionsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12324,6 +33388,138 @@ func (r ListCollectionItemsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListCollectionItemsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListCollectionItemsTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCollectionItemsTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCollectionItemsTagsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListCollectionTopItemsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Item
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCollectionTopItemsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCollectionTopItemsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListCollectionTopItemsTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCollectionTopItemsTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCollectionTopItemsTagsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetCollectionTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCollectionTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCollectionTagsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListDeletedContentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DeletedContent
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDeletedContentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDeletedContentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListFulltextVersionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *FulltextVersions
+}
+
+// Status returns HTTPResponse.Status
+func (r ListFulltextVersionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListFulltextVersionsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -12417,6 +33613,28 @@ func (r CreateOrUpdateItemsResponse) StatusCode() int {
 	return 0
 }
 
+type ListAllItemsTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAllItemsTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAllItemsTagsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListTopItemsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12439,6 +33657,28 @@ func (r ListTopItemsResponse) StatusCode() int {
 	return 0
 }
 
+type ListTopItemsTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTopItemsTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTopItemsTagsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ListTrashedItemsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12455,6 +33695,28 @@ func (r ListTrashedItemsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListTrashedItemsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListTrashedItemsTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTrashedItemsTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTrashedItemsTagsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -12525,6 +33787,27 @@ func (r UpdateItemResponse) StatusCode() int {
 	return 0
 }
 
+type ReplaceItemResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r ReplaceItemResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReplaceItemResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetItemChildrenResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12562,6 +33845,27 @@ func (r DownloadFileResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r DownloadFileResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UploadFilePartialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r UploadFilePartialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UploadFilePartialResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -12629,6 +33933,116 @@ func (r SetFulltextResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r SetFulltextResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemTagsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListPublicationItemsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Item
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPublicationItemsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPublicationItemsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListPublicationItemsTagsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPublicationItemsTagsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPublicationItemsTagsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListPublicationTopItemsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Item
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPublicationTopItemsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPublicationTopItemsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetPublicationItemResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Item
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPublicationItemResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPublicationItemResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -12786,6 +34200,46 @@ func (r ListTagsResponse) StatusCode() int {
 	return 0
 }
 
+type GetTagResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TagWithMeta
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTagResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTagResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// GetCreatorFieldsWithResponse request returning *GetCreatorFieldsResponse
+func (c *ClientWithResponses) GetCreatorFieldsWithResponse(ctx context.Context, params *GetCreatorFieldsParams, reqEditors ...RequestEditorFn) (*GetCreatorFieldsResponse, error) {
+	rsp, err := c.GetCreatorFields(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCreatorFieldsResponse(rsp)
+}
+
+// GetGroupWithResponse request returning *GetGroupResponse
+func (c *ClientWithResponses) GetGroupWithResponse(ctx context.Context, groupID GroupID, params *GetGroupParams, reqEditors ...RequestEditorFn) (*GetGroupResponse, error) {
+	rsp, err := c.GetGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetGroupResponse(rsp)
+}
+
 // DeleteCollectionsGroupWithResponse request returning *DeleteCollectionsGroupResponse
 func (c *ClientWithResponses) DeleteCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, params *DeleteCollectionsGroupParams, reqEditors ...RequestEditorFn) (*DeleteCollectionsGroupResponse, error) {
 	rsp, err := c.DeleteCollectionsGroup(ctx, groupID, params, reqEditors...)
@@ -12840,8 +34294,8 @@ func (c *ClientWithResponses) DeleteCollectionGroupWithResponse(ctx context.Cont
 }
 
 // GetCollectionGroupWithResponse request returning *GetCollectionGroupResponse
-func (c *ClientWithResponses) GetCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*GetCollectionGroupResponse, error) {
-	rsp, err := c.GetCollectionGroup(ctx, groupID, collectionKey, reqEditors...)
+func (c *ClientWithResponses) GetCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionGroupParams, reqEditors ...RequestEditorFn) (*GetCollectionGroupResponse, error) {
+	rsp, err := c.GetCollectionGroup(ctx, groupID, collectionKey, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -12865,6 +34319,23 @@ func (c *ClientWithResponses) UpdateCollectionGroupWithResponse(ctx context.Cont
 	return ParseUpdateCollectionGroupResponse(rsp)
 }
 
+// ReplaceCollectionGroupWithBodyWithResponse request with arbitrary body returning *ReplaceCollectionGroupResponse
+func (c *ClientWithResponses) ReplaceCollectionGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceCollectionGroupResponse, error) {
+	rsp, err := c.ReplaceCollectionGroupWithBody(ctx, groupID, collectionKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceCollectionGroupResponse(rsp)
+}
+
+func (c *ClientWithResponses) ReplaceCollectionGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ReplaceCollectionGroupParams, body ReplaceCollectionGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceCollectionGroupResponse, error) {
+	rsp, err := c.ReplaceCollectionGroup(ctx, groupID, collectionKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceCollectionGroupResponse(rsp)
+}
+
 // ListSubCollectionsGroupWithResponse request returning *ListSubCollectionsGroupResponse
 func (c *ClientWithResponses) ListSubCollectionsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListSubCollectionsGroupParams, reqEditors ...RequestEditorFn) (*ListSubCollectionsGroupResponse, error) {
 	rsp, err := c.ListSubCollectionsGroup(ctx, groupID, collectionKey, params, reqEditors...)
@@ -12881,6 +34352,60 @@ func (c *ClientWithResponses) ListCollectionItemsGroupWithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseListCollectionItemsGroupResponse(rsp)
+}
+
+// ListCollectionItemsTagsGroupWithResponse request returning *ListCollectionItemsTagsGroupResponse
+func (c *ClientWithResponses) ListCollectionItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionItemsTagsGroupResponse, error) {
+	rsp, err := c.ListCollectionItemsTagsGroup(ctx, groupID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCollectionItemsTagsGroupResponse(rsp)
+}
+
+// ListCollectionTopItemsGroupWithResponse request returning *ListCollectionTopItemsGroupResponse
+func (c *ClientWithResponses) ListCollectionTopItemsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionTopItemsGroupResponse, error) {
+	rsp, err := c.ListCollectionTopItemsGroup(ctx, groupID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCollectionTopItemsGroupResponse(rsp)
+}
+
+// ListCollectionTopItemsTagsGroupWithResponse request returning *ListCollectionTopItemsTagsGroupResponse
+func (c *ClientWithResponses) ListCollectionTopItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListCollectionTopItemsTagsGroupResponse, error) {
+	rsp, err := c.ListCollectionTopItemsTagsGroup(ctx, groupID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCollectionTopItemsTagsGroupResponse(rsp)
+}
+
+// GetCollectionTagsGroupWithResponse request returning *GetCollectionTagsGroupResponse
+func (c *ClientWithResponses) GetCollectionTagsGroupWithResponse(ctx context.Context, groupID GroupID, collectionKey CollectionKeyPath, params *GetCollectionTagsGroupParams, reqEditors ...RequestEditorFn) (*GetCollectionTagsGroupResponse, error) {
+	rsp, err := c.GetCollectionTagsGroup(ctx, groupID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCollectionTagsGroupResponse(rsp)
+}
+
+// ListDeletedContentGroupWithResponse request returning *ListDeletedContentGroupResponse
+func (c *ClientWithResponses) ListDeletedContentGroupWithResponse(ctx context.Context, groupID GroupID, params *ListDeletedContentGroupParams, reqEditors ...RequestEditorFn) (*ListDeletedContentGroupResponse, error) {
+	rsp, err := c.ListDeletedContentGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDeletedContentGroupResponse(rsp)
+}
+
+// ListFulltextVersionsGroupWithResponse request returning *ListFulltextVersionsGroupResponse
+func (c *ClientWithResponses) ListFulltextVersionsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListFulltextVersionsGroupParams, reqEditors ...RequestEditorFn) (*ListFulltextVersionsGroupResponse, error) {
+	rsp, err := c.ListFulltextVersionsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListFulltextVersionsGroupResponse(rsp)
 }
 
 // DeleteItemsGroupWithResponse request returning *DeleteItemsGroupResponse
@@ -12918,6 +34443,15 @@ func (c *ClientWithResponses) CreateOrUpdateItemsGroupWithResponse(ctx context.C
 	return ParseCreateOrUpdateItemsGroupResponse(rsp)
 }
 
+// ListAllItemsTagsGroupWithResponse request returning *ListAllItemsTagsGroupResponse
+func (c *ClientWithResponses) ListAllItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListAllItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListAllItemsTagsGroupResponse, error) {
+	rsp, err := c.ListAllItemsTagsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAllItemsTagsGroupResponse(rsp)
+}
+
 // ListTopItemsGroupWithResponse request returning *ListTopItemsGroupResponse
 func (c *ClientWithResponses) ListTopItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTopItemsGroupParams, reqEditors ...RequestEditorFn) (*ListTopItemsGroupResponse, error) {
 	rsp, err := c.ListTopItemsGroup(ctx, groupID, params, reqEditors...)
@@ -12927,6 +34461,15 @@ func (c *ClientWithResponses) ListTopItemsGroupWithResponse(ctx context.Context,
 	return ParseListTopItemsGroupResponse(rsp)
 }
 
+// ListTopItemsTagsGroupWithResponse request returning *ListTopItemsTagsGroupResponse
+func (c *ClientWithResponses) ListTopItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTopItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListTopItemsTagsGroupResponse, error) {
+	rsp, err := c.ListTopItemsTagsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTopItemsTagsGroupResponse(rsp)
+}
+
 // ListTrashedItemsGroupWithResponse request returning *ListTrashedItemsGroupResponse
 func (c *ClientWithResponses) ListTrashedItemsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTrashedItemsGroupParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsGroupResponse, error) {
 	rsp, err := c.ListTrashedItemsGroup(ctx, groupID, params, reqEditors...)
@@ -12934,6 +34477,15 @@ func (c *ClientWithResponses) ListTrashedItemsGroupWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseListTrashedItemsGroupResponse(rsp)
+}
+
+// ListTrashedItemsTagsGroupWithResponse request returning *ListTrashedItemsTagsGroupResponse
+func (c *ClientWithResponses) ListTrashedItemsTagsGroupWithResponse(ctx context.Context, groupID GroupID, params *ListTrashedItemsTagsGroupParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsTagsGroupResponse, error) {
+	rsp, err := c.ListTrashedItemsTagsGroup(ctx, groupID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTrashedItemsTagsGroupResponse(rsp)
 }
 
 // DeleteItemGroupWithResponse request returning *DeleteItemGroupResponse
@@ -12971,6 +34523,23 @@ func (c *ClientWithResponses) UpdateItemGroupWithResponse(ctx context.Context, g
 	return ParseUpdateItemGroupResponse(rsp)
 }
 
+// ReplaceItemGroupWithBodyWithResponse request with arbitrary body returning *ReplaceItemGroupResponse
+func (c *ClientWithResponses) ReplaceItemGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceItemGroupResponse, error) {
+	rsp, err := c.ReplaceItemGroupWithBody(ctx, groupID, itemKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceItemGroupResponse(rsp)
+}
+
+func (c *ClientWithResponses) ReplaceItemGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *ReplaceItemGroupParams, body ReplaceItemGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceItemGroupResponse, error) {
+	rsp, err := c.ReplaceItemGroup(ctx, groupID, itemKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceItemGroupResponse(rsp)
+}
+
 // GetItemChildrenGroupWithResponse request returning *GetItemChildrenGroupResponse
 func (c *ClientWithResponses) GetItemChildrenGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemChildrenGroupParams, reqEditors ...RequestEditorFn) (*GetItemChildrenGroupResponse, error) {
 	rsp, err := c.GetItemChildrenGroup(ctx, groupID, itemKey, params, reqEditors...)
@@ -12987,6 +34556,15 @@ func (c *ClientWithResponses) DownloadFileGroupWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseDownloadFileGroupResponse(rsp)
+}
+
+// UploadFilePartialGroupWithBodyWithResponse request with arbitrary body returning *UploadFilePartialGroupResponse
+func (c *ClientWithResponses) UploadFilePartialGroupWithBodyWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *UploadFilePartialGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadFilePartialGroupResponse, error) {
+	rsp, err := c.UploadFilePartialGroupWithBody(ctx, groupID, itemKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUploadFilePartialGroupResponse(rsp)
 }
 
 // UploadFileGroupWithBodyWithResponse request with arbitrary body returning *UploadFileGroupResponse
@@ -13030,6 +34608,15 @@ func (c *ClientWithResponses) SetFulltextGroupWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseSetFulltextGroupResponse(rsp)
+}
+
+// GetItemTagsGroupWithResponse request returning *GetItemTagsGroupResponse
+func (c *ClientWithResponses) GetItemTagsGroupWithResponse(ctx context.Context, groupID GroupID, itemKey ItemKeyPath, params *GetItemTagsGroupParams, reqEditors ...RequestEditorFn) (*GetItemTagsGroupResponse, error) {
+	rsp, err := c.GetItemTagsGroup(ctx, groupID, itemKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemTagsGroupResponse(rsp)
 }
 
 // DeleteSearchesGroupWithResponse request returning *DeleteSearchesGroupResponse
@@ -13077,8 +34664,8 @@ func (c *ClientWithResponses) DeleteSearchGroupWithResponse(ctx context.Context,
 }
 
 // GetSearchGroupWithResponse request returning *GetSearchGroupResponse
-func (c *ClientWithResponses) GetSearchGroupWithResponse(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*GetSearchGroupResponse, error) {
-	rsp, err := c.GetSearchGroup(ctx, groupID, searchKey, reqEditors...)
+func (c *ClientWithResponses) GetSearchGroupWithResponse(ctx context.Context, groupID GroupID, searchKey SearchKeyPath, params *GetSearchGroupParams, reqEditors ...RequestEditorFn) (*GetSearchGroupResponse, error) {
+	rsp, err := c.GetSearchGroup(ctx, groupID, searchKey, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -13103,13 +34690,85 @@ func (c *ClientWithResponses) ListTagsGroupWithResponse(ctx context.Context, gro
 	return ParseListTagsGroupResponse(rsp)
 }
 
+// GetTagGroupWithResponse request returning *GetTagGroupResponse
+func (c *ClientWithResponses) GetTagGroupWithResponse(ctx context.Context, groupID GroupID, tag TagNamePath, params *GetTagGroupParams, reqEditors ...RequestEditorFn) (*GetTagGroupResponse, error) {
+	rsp, err := c.GetTagGroup(ctx, groupID, tag, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTagGroupResponse(rsp)
+}
+
+// GetItemFieldsWithResponse request returning *GetItemFieldsResponse
+func (c *ClientWithResponses) GetItemFieldsWithResponse(ctx context.Context, params *GetItemFieldsParams, reqEditors ...RequestEditorFn) (*GetItemFieldsResponse, error) {
+	rsp, err := c.GetItemFields(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemFieldsResponse(rsp)
+}
+
+// GetItemTypeCreatorTypesWithResponse request returning *GetItemTypeCreatorTypesResponse
+func (c *ClientWithResponses) GetItemTypeCreatorTypesWithResponse(ctx context.Context, params *GetItemTypeCreatorTypesParams, reqEditors ...RequestEditorFn) (*GetItemTypeCreatorTypesResponse, error) {
+	rsp, err := c.GetItemTypeCreatorTypes(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemTypeCreatorTypesResponse(rsp)
+}
+
+// GetItemTypeFieldsWithResponse request returning *GetItemTypeFieldsResponse
+func (c *ClientWithResponses) GetItemTypeFieldsWithResponse(ctx context.Context, params *GetItemTypeFieldsParams, reqEditors ...RequestEditorFn) (*GetItemTypeFieldsResponse, error) {
+	rsp, err := c.GetItemTypeFields(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemTypeFieldsResponse(rsp)
+}
+
+// GetItemTypesWithResponse request returning *GetItemTypesResponse
+func (c *ClientWithResponses) GetItemTypesWithResponse(ctx context.Context, params *GetItemTypesParams, reqEditors ...RequestEditorFn) (*GetItemTypesResponse, error) {
+	rsp, err := c.GetItemTypes(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemTypesResponse(rsp)
+}
+
+// GetItemTemplateWithResponse request returning *GetItemTemplateResponse
+func (c *ClientWithResponses) GetItemTemplateWithResponse(ctx context.Context, params *GetItemTemplateParams, reqEditors ...RequestEditorFn) (*GetItemTemplateResponse, error) {
+	rsp, err := c.GetItemTemplate(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemTemplateResponse(rsp)
+}
+
 // GetCurrentKeyWithResponse request returning *GetCurrentKeyResponse
-func (c *ClientWithResponses) GetCurrentKeyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetCurrentKeyResponse, error) {
-	rsp, err := c.GetCurrentKey(ctx, reqEditors...)
+func (c *ClientWithResponses) GetCurrentKeyWithResponse(ctx context.Context, params *GetCurrentKeyParams, reqEditors ...RequestEditorFn) (*GetCurrentKeyResponse, error) {
+	rsp, err := c.GetCurrentKey(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseGetCurrentKeyResponse(rsp)
+}
+
+// DeleteKeyWithResponse request returning *DeleteKeyResponse
+func (c *ClientWithResponses) DeleteKeyWithResponse(ctx context.Context, key KeyPath, reqEditors ...RequestEditorFn) (*DeleteKeyResponse, error) {
+	rsp, err := c.DeleteKey(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteKeyResponse(rsp)
+}
+
+// GetKeyWithResponse request returning *GetKeyResponse
+func (c *ClientWithResponses) GetKeyWithResponse(ctx context.Context, key KeyPath, reqEditors ...RequestEditorFn) (*GetKeyResponse, error) {
+	rsp, err := c.GetKey(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetKeyResponse(rsp)
 }
 
 // GetSchemaWithResponse request returning *GetSchemaResponse
@@ -13175,8 +34834,8 @@ func (c *ClientWithResponses) DeleteCollectionWithResponse(ctx context.Context, 
 }
 
 // GetCollectionWithResponse request returning *GetCollectionResponse
-func (c *ClientWithResponses) GetCollectionWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, reqEditors ...RequestEditorFn) (*GetCollectionResponse, error) {
-	rsp, err := c.GetCollection(ctx, userID, collectionKey, reqEditors...)
+func (c *ClientWithResponses) GetCollectionWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionParams, reqEditors ...RequestEditorFn) (*GetCollectionResponse, error) {
+	rsp, err := c.GetCollection(ctx, userID, collectionKey, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -13200,6 +34859,23 @@ func (c *ClientWithResponses) UpdateCollectionWithResponse(ctx context.Context, 
 	return ParseUpdateCollectionResponse(rsp)
 }
 
+// ReplaceCollectionWithBodyWithResponse request with arbitrary body returning *ReplaceCollectionResponse
+func (c *ClientWithResponses) ReplaceCollectionWithBodyWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceCollectionResponse, error) {
+	rsp, err := c.ReplaceCollectionWithBody(ctx, userID, collectionKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceCollectionResponse(rsp)
+}
+
+func (c *ClientWithResponses) ReplaceCollectionWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ReplaceCollectionParams, body ReplaceCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceCollectionResponse, error) {
+	rsp, err := c.ReplaceCollection(ctx, userID, collectionKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceCollectionResponse(rsp)
+}
+
 // ListSubCollectionsWithResponse request returning *ListSubCollectionsResponse
 func (c *ClientWithResponses) ListSubCollectionsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListSubCollectionsParams, reqEditors ...RequestEditorFn) (*ListSubCollectionsResponse, error) {
 	rsp, err := c.ListSubCollections(ctx, userID, collectionKey, params, reqEditors...)
@@ -13216,6 +34892,60 @@ func (c *ClientWithResponses) ListCollectionItemsWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseListCollectionItemsResponse(rsp)
+}
+
+// ListCollectionItemsTagsWithResponse request returning *ListCollectionItemsTagsResponse
+func (c *ClientWithResponses) ListCollectionItemsTagsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionItemsTagsParams, reqEditors ...RequestEditorFn) (*ListCollectionItemsTagsResponse, error) {
+	rsp, err := c.ListCollectionItemsTags(ctx, userID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCollectionItemsTagsResponse(rsp)
+}
+
+// ListCollectionTopItemsWithResponse request returning *ListCollectionTopItemsResponse
+func (c *ClientWithResponses) ListCollectionTopItemsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsParams, reqEditors ...RequestEditorFn) (*ListCollectionTopItemsResponse, error) {
+	rsp, err := c.ListCollectionTopItems(ctx, userID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCollectionTopItemsResponse(rsp)
+}
+
+// ListCollectionTopItemsTagsWithResponse request returning *ListCollectionTopItemsTagsResponse
+func (c *ClientWithResponses) ListCollectionTopItemsTagsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *ListCollectionTopItemsTagsParams, reqEditors ...RequestEditorFn) (*ListCollectionTopItemsTagsResponse, error) {
+	rsp, err := c.ListCollectionTopItemsTags(ctx, userID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCollectionTopItemsTagsResponse(rsp)
+}
+
+// GetCollectionTagsWithResponse request returning *GetCollectionTagsResponse
+func (c *ClientWithResponses) GetCollectionTagsWithResponse(ctx context.Context, userID UserID, collectionKey CollectionKeyPath, params *GetCollectionTagsParams, reqEditors ...RequestEditorFn) (*GetCollectionTagsResponse, error) {
+	rsp, err := c.GetCollectionTags(ctx, userID, collectionKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCollectionTagsResponse(rsp)
+}
+
+// ListDeletedContentWithResponse request returning *ListDeletedContentResponse
+func (c *ClientWithResponses) ListDeletedContentWithResponse(ctx context.Context, userID UserID, params *ListDeletedContentParams, reqEditors ...RequestEditorFn) (*ListDeletedContentResponse, error) {
+	rsp, err := c.ListDeletedContent(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDeletedContentResponse(rsp)
+}
+
+// ListFulltextVersionsWithResponse request returning *ListFulltextVersionsResponse
+func (c *ClientWithResponses) ListFulltextVersionsWithResponse(ctx context.Context, userID UserID, params *ListFulltextVersionsParams, reqEditors ...RequestEditorFn) (*ListFulltextVersionsResponse, error) {
+	rsp, err := c.ListFulltextVersions(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListFulltextVersionsResponse(rsp)
 }
 
 // ListGroupsWithResponse request returning *ListGroupsResponse
@@ -13262,6 +34992,15 @@ func (c *ClientWithResponses) CreateOrUpdateItemsWithResponse(ctx context.Contex
 	return ParseCreateOrUpdateItemsResponse(rsp)
 }
 
+// ListAllItemsTagsWithResponse request returning *ListAllItemsTagsResponse
+func (c *ClientWithResponses) ListAllItemsTagsWithResponse(ctx context.Context, userID UserID, params *ListAllItemsTagsParams, reqEditors ...RequestEditorFn) (*ListAllItemsTagsResponse, error) {
+	rsp, err := c.ListAllItemsTags(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAllItemsTagsResponse(rsp)
+}
+
 // ListTopItemsWithResponse request returning *ListTopItemsResponse
 func (c *ClientWithResponses) ListTopItemsWithResponse(ctx context.Context, userID UserID, params *ListTopItemsParams, reqEditors ...RequestEditorFn) (*ListTopItemsResponse, error) {
 	rsp, err := c.ListTopItems(ctx, userID, params, reqEditors...)
@@ -13271,6 +35010,15 @@ func (c *ClientWithResponses) ListTopItemsWithResponse(ctx context.Context, user
 	return ParseListTopItemsResponse(rsp)
 }
 
+// ListTopItemsTagsWithResponse request returning *ListTopItemsTagsResponse
+func (c *ClientWithResponses) ListTopItemsTagsWithResponse(ctx context.Context, userID UserID, params *ListTopItemsTagsParams, reqEditors ...RequestEditorFn) (*ListTopItemsTagsResponse, error) {
+	rsp, err := c.ListTopItemsTags(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTopItemsTagsResponse(rsp)
+}
+
 // ListTrashedItemsWithResponse request returning *ListTrashedItemsResponse
 func (c *ClientWithResponses) ListTrashedItemsWithResponse(ctx context.Context, userID UserID, params *ListTrashedItemsParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsResponse, error) {
 	rsp, err := c.ListTrashedItems(ctx, userID, params, reqEditors...)
@@ -13278,6 +35026,15 @@ func (c *ClientWithResponses) ListTrashedItemsWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseListTrashedItemsResponse(rsp)
+}
+
+// ListTrashedItemsTagsWithResponse request returning *ListTrashedItemsTagsResponse
+func (c *ClientWithResponses) ListTrashedItemsTagsWithResponse(ctx context.Context, userID UserID, params *ListTrashedItemsTagsParams, reqEditors ...RequestEditorFn) (*ListTrashedItemsTagsResponse, error) {
+	rsp, err := c.ListTrashedItemsTags(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTrashedItemsTagsResponse(rsp)
 }
 
 // DeleteItemWithResponse request returning *DeleteItemResponse
@@ -13315,6 +35072,23 @@ func (c *ClientWithResponses) UpdateItemWithResponse(ctx context.Context, userID
 	return ParseUpdateItemResponse(rsp)
 }
 
+// ReplaceItemWithBodyWithResponse request with arbitrary body returning *ReplaceItemResponse
+func (c *ClientWithResponses) ReplaceItemWithBodyWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReplaceItemResponse, error) {
+	rsp, err := c.ReplaceItemWithBody(ctx, userID, itemKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceItemResponse(rsp)
+}
+
+func (c *ClientWithResponses) ReplaceItemWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *ReplaceItemParams, body ReplaceItemJSONRequestBody, reqEditors ...RequestEditorFn) (*ReplaceItemResponse, error) {
+	rsp, err := c.ReplaceItem(ctx, userID, itemKey, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReplaceItemResponse(rsp)
+}
+
 // GetItemChildrenWithResponse request returning *GetItemChildrenResponse
 func (c *ClientWithResponses) GetItemChildrenWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetItemChildrenParams, reqEditors ...RequestEditorFn) (*GetItemChildrenResponse, error) {
 	rsp, err := c.GetItemChildren(ctx, userID, itemKey, params, reqEditors...)
@@ -13331,6 +35105,15 @@ func (c *ClientWithResponses) DownloadFileWithResponse(ctx context.Context, user
 		return nil, err
 	}
 	return ParseDownloadFileResponse(rsp)
+}
+
+// UploadFilePartialWithBodyWithResponse request with arbitrary body returning *UploadFilePartialResponse
+func (c *ClientWithResponses) UploadFilePartialWithBodyWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *UploadFilePartialParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadFilePartialResponse, error) {
+	rsp, err := c.UploadFilePartialWithBody(ctx, userID, itemKey, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUploadFilePartialResponse(rsp)
 }
 
 // UploadFileWithBodyWithResponse request with arbitrary body returning *UploadFileResponse
@@ -13374,6 +35157,51 @@ func (c *ClientWithResponses) SetFulltextWithResponse(ctx context.Context, userI
 		return nil, err
 	}
 	return ParseSetFulltextResponse(rsp)
+}
+
+// GetItemTagsWithResponse request returning *GetItemTagsResponse
+func (c *ClientWithResponses) GetItemTagsWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetItemTagsParams, reqEditors ...RequestEditorFn) (*GetItemTagsResponse, error) {
+	rsp, err := c.GetItemTags(ctx, userID, itemKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemTagsResponse(rsp)
+}
+
+// ListPublicationItemsWithResponse request returning *ListPublicationItemsResponse
+func (c *ClientWithResponses) ListPublicationItemsWithResponse(ctx context.Context, userID UserID, params *ListPublicationItemsParams, reqEditors ...RequestEditorFn) (*ListPublicationItemsResponse, error) {
+	rsp, err := c.ListPublicationItems(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPublicationItemsResponse(rsp)
+}
+
+// ListPublicationItemsTagsWithResponse request returning *ListPublicationItemsTagsResponse
+func (c *ClientWithResponses) ListPublicationItemsTagsWithResponse(ctx context.Context, userID UserID, params *ListPublicationItemsTagsParams, reqEditors ...RequestEditorFn) (*ListPublicationItemsTagsResponse, error) {
+	rsp, err := c.ListPublicationItemsTags(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPublicationItemsTagsResponse(rsp)
+}
+
+// ListPublicationTopItemsWithResponse request returning *ListPublicationTopItemsResponse
+func (c *ClientWithResponses) ListPublicationTopItemsWithResponse(ctx context.Context, userID UserID, params *ListPublicationTopItemsParams, reqEditors ...RequestEditorFn) (*ListPublicationTopItemsResponse, error) {
+	rsp, err := c.ListPublicationTopItems(ctx, userID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPublicationTopItemsResponse(rsp)
+}
+
+// GetPublicationItemWithResponse request returning *GetPublicationItemResponse
+func (c *ClientWithResponses) GetPublicationItemWithResponse(ctx context.Context, userID UserID, itemKey ItemKeyPath, params *GetPublicationItemParams, reqEditors ...RequestEditorFn) (*GetPublicationItemResponse, error) {
+	rsp, err := c.GetPublicationItem(ctx, userID, itemKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPublicationItemResponse(rsp)
 }
 
 // DeleteSearchesWithResponse request returning *DeleteSearchesResponse
@@ -13421,8 +35249,8 @@ func (c *ClientWithResponses) DeleteSearchWithResponse(ctx context.Context, user
 }
 
 // GetSearchWithResponse request returning *GetSearchResponse
-func (c *ClientWithResponses) GetSearchWithResponse(ctx context.Context, userID UserID, searchKey SearchKeyPath, reqEditors ...RequestEditorFn) (*GetSearchResponse, error) {
-	rsp, err := c.GetSearch(ctx, userID, searchKey, reqEditors...)
+func (c *ClientWithResponses) GetSearchWithResponse(ctx context.Context, userID UserID, searchKey SearchKeyPath, params *GetSearchParams, reqEditors ...RequestEditorFn) (*GetSearchResponse, error) {
+	rsp, err := c.GetSearch(ctx, userID, searchKey, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -13445,6 +35273,67 @@ func (c *ClientWithResponses) ListTagsWithResponse(ctx context.Context, userID U
 		return nil, err
 	}
 	return ParseListTagsResponse(rsp)
+}
+
+// GetTagWithResponse request returning *GetTagResponse
+func (c *ClientWithResponses) GetTagWithResponse(ctx context.Context, userID UserID, tag TagNamePath, params *GetTagParams, reqEditors ...RequestEditorFn) (*GetTagResponse, error) {
+	rsp, err := c.GetTag(ctx, userID, tag, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTagResponse(rsp)
+}
+
+// ParseGetCreatorFieldsResponse parses an HTTP response from a GetCreatorFieldsWithResponse call
+func ParseGetCreatorFieldsResponse(rsp *http.Response) (*GetCreatorFieldsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCreatorFieldsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SchemaLabelled
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetGroupResponse parses an HTTP response from a GetGroupWithResponse call
+func ParseGetGroupResponse(rsp *http.Response) (*GetGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Group
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseDeleteCollectionsGroupResponse parses an HTTP response from a DeleteCollectionsGroupWithResponse call
@@ -13599,6 +35488,22 @@ func ParseUpdateCollectionGroupResponse(rsp *http.Response) (*UpdateCollectionGr
 	return response, nil
 }
 
+// ParseReplaceCollectionGroupResponse parses an HTTP response from a ReplaceCollectionGroupWithResponse call
+func ParseReplaceCollectionGroupResponse(rsp *http.Response) (*ReplaceCollectionGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplaceCollectionGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseListSubCollectionsGroupResponse parses an HTTP response from a ListSubCollectionsGroupWithResponse call
 func ParseListSubCollectionsGroupResponse(rsp *http.Response) (*ListSubCollectionsGroupResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -13641,6 +35546,162 @@ func ParseListCollectionItemsGroupResponse(rsp *http.Response) (*ListCollectionI
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCollectionItemsTagsGroupResponse parses an HTTP response from a ListCollectionItemsTagsGroupWithResponse call
+func ParseListCollectionItemsTagsGroupResponse(rsp *http.Response) (*ListCollectionItemsTagsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCollectionItemsTagsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCollectionTopItemsGroupResponse parses an HTTP response from a ListCollectionTopItemsGroupWithResponse call
+func ParseListCollectionTopItemsGroupResponse(rsp *http.Response) (*ListCollectionTopItemsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCollectionTopItemsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCollectionTopItemsTagsGroupResponse parses an HTTP response from a ListCollectionTopItemsTagsGroupWithResponse call
+func ParseListCollectionTopItemsTagsGroupResponse(rsp *http.Response) (*ListCollectionTopItemsTagsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCollectionTopItemsTagsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCollectionTagsGroupResponse parses an HTTP response from a GetCollectionTagsGroupWithResponse call
+func ParseGetCollectionTagsGroupResponse(rsp *http.Response) (*GetCollectionTagsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCollectionTagsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDeletedContentGroupResponse parses an HTTP response from a ListDeletedContentGroupWithResponse call
+func ParseListDeletedContentGroupResponse(rsp *http.Response) (*ListDeletedContentGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDeletedContentGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeletedContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListFulltextVersionsGroupResponse parses an HTTP response from a ListFulltextVersionsGroupWithResponse call
+func ParseListFulltextVersionsGroupResponse(rsp *http.Response) (*ListFulltextVersionsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListFulltextVersionsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FulltextVersions
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -13719,6 +35780,32 @@ func ParseCreateOrUpdateItemsGroupResponse(rsp *http.Response) (*CreateOrUpdateI
 	return response, nil
 }
 
+// ParseListAllItemsTagsGroupResponse parses an HTTP response from a ListAllItemsTagsGroupWithResponse call
+func ParseListAllItemsTagsGroupResponse(rsp *http.Response) (*ListAllItemsTagsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAllItemsTagsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListTopItemsGroupResponse parses an HTTP response from a ListTopItemsGroupWithResponse call
 func ParseListTopItemsGroupResponse(rsp *http.Response) (*ListTopItemsGroupResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -13745,6 +35832,32 @@ func ParseListTopItemsGroupResponse(rsp *http.Response) (*ListTopItemsGroupRespo
 	return response, nil
 }
 
+// ParseListTopItemsTagsGroupResponse parses an HTTP response from a ListTopItemsTagsGroupWithResponse call
+func ParseListTopItemsTagsGroupResponse(rsp *http.Response) (*ListTopItemsTagsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTopItemsTagsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListTrashedItemsGroupResponse parses an HTTP response from a ListTrashedItemsGroupWithResponse call
 func ParseListTrashedItemsGroupResponse(rsp *http.Response) (*ListTrashedItemsGroupResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -13761,6 +35874,32 @@ func ParseListTrashedItemsGroupResponse(rsp *http.Response) (*ListTrashedItemsGr
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListTrashedItemsTagsGroupResponse parses an HTTP response from a ListTrashedItemsTagsGroupWithResponse call
+func ParseListTrashedItemsTagsGroupResponse(rsp *http.Response) (*ListTrashedItemsTagsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTrashedItemsTagsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -13829,6 +35968,22 @@ func ParseUpdateItemGroupResponse(rsp *http.Response) (*UpdateItemGroupResponse,
 	return response, nil
 }
 
+// ParseReplaceItemGroupResponse parses an HTTP response from a ReplaceItemGroupWithResponse call
+func ParseReplaceItemGroupResponse(rsp *http.Response) (*ReplaceItemGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplaceItemGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseGetItemChildrenGroupResponse parses an HTTP response from a GetItemChildrenGroupWithResponse call
 func ParseGetItemChildrenGroupResponse(rsp *http.Response) (*GetItemChildrenGroupResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -13864,6 +36019,22 @@ func ParseDownloadFileGroupResponse(rsp *http.Response) (*DownloadFileGroupRespo
 	}
 
 	response := &DownloadFileGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseUploadFilePartialGroupResponse parses an HTTP response from a UploadFilePartialGroupWithResponse call
+func ParseUploadFilePartialGroupResponse(rsp *http.Response) (*UploadFilePartialGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UploadFilePartialGroupResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -13936,6 +36107,32 @@ func ParseSetFulltextGroupResponse(rsp *http.Response) (*SetFulltextGroupRespons
 	response := &SetFulltextGroupResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetItemTagsGroupResponse parses an HTTP response from a GetItemTagsGroupWithResponse call
+func ParseGetItemTagsGroupResponse(rsp *http.Response) (*GetItemTagsGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemTagsGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
@@ -14093,6 +36290,162 @@ func ParseListTagsGroupResponse(rsp *http.Response) (*ListTagsGroupResponse, err
 	return response, nil
 }
 
+// ParseGetTagGroupResponse parses an HTTP response from a GetTagGroupWithResponse call
+func ParseGetTagGroupResponse(rsp *http.Response) (*GetTagGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTagGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetItemFieldsResponse parses an HTTP response from a GetItemFieldsWithResponse call
+func ParseGetItemFieldsResponse(rsp *http.Response) (*GetItemFieldsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemFieldsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SchemaLabelled
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetItemTypeCreatorTypesResponse parses an HTTP response from a GetItemTypeCreatorTypesWithResponse call
+func ParseGetItemTypeCreatorTypesResponse(rsp *http.Response) (*GetItemTypeCreatorTypesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemTypeCreatorTypesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SchemaLabelled
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetItemTypeFieldsResponse parses an HTTP response from a GetItemTypeFieldsWithResponse call
+func ParseGetItemTypeFieldsResponse(rsp *http.Response) (*GetItemTypeFieldsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemTypeFieldsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SchemaLabelled
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetItemTypesResponse parses an HTTP response from a GetItemTypesWithResponse call
+func ParseGetItemTypesResponse(rsp *http.Response) (*GetItemTypesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemTypesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SchemaLabelled
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetItemTemplateResponse parses an HTTP response from a GetItemTemplateWithResponse call
+func ParseGetItemTemplateResponse(rsp *http.Response) (*GetItemTemplateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemTemplateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ItemData
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetCurrentKeyResponse parses an HTTP response from a GetCurrentKeyWithResponse call
 func ParseGetCurrentKeyResponse(rsp *http.Response) (*GetCurrentKeyResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -14102,6 +36455,48 @@ func ParseGetCurrentKeyResponse(rsp *http.Response) (*GetCurrentKeyResponse, err
 	}
 
 	response := &GetCurrentKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest KeyInfo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteKeyResponse parses an HTTP response from a DeleteKeyWithResponse call
+func ParseDeleteKeyResponse(rsp *http.Response) (*DeleteKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetKeyResponse parses an HTTP response from a GetKeyWithResponse call
+func ParseGetKeyResponse(rsp *http.Response) (*GetKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetKeyResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -14297,6 +36692,22 @@ func ParseUpdateCollectionResponse(rsp *http.Response) (*UpdateCollectionRespons
 	return response, nil
 }
 
+// ParseReplaceCollectionResponse parses an HTTP response from a ReplaceCollectionWithResponse call
+func ParseReplaceCollectionResponse(rsp *http.Response) (*ReplaceCollectionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplaceCollectionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseListSubCollectionsResponse parses an HTTP response from a ListSubCollectionsWithResponse call
 func ParseListSubCollectionsResponse(rsp *http.Response) (*ListSubCollectionsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -14339,6 +36750,162 @@ func ParseListCollectionItemsResponse(rsp *http.Response) (*ListCollectionItemsR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCollectionItemsTagsResponse parses an HTTP response from a ListCollectionItemsTagsWithResponse call
+func ParseListCollectionItemsTagsResponse(rsp *http.Response) (*ListCollectionItemsTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCollectionItemsTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCollectionTopItemsResponse parses an HTTP response from a ListCollectionTopItemsWithResponse call
+func ParseListCollectionTopItemsResponse(rsp *http.Response) (*ListCollectionTopItemsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCollectionTopItemsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCollectionTopItemsTagsResponse parses an HTTP response from a ListCollectionTopItemsTagsWithResponse call
+func ParseListCollectionTopItemsTagsResponse(rsp *http.Response) (*ListCollectionTopItemsTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCollectionTopItemsTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCollectionTagsResponse parses an HTTP response from a GetCollectionTagsWithResponse call
+func ParseGetCollectionTagsResponse(rsp *http.Response) (*GetCollectionTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCollectionTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDeletedContentResponse parses an HTTP response from a ListDeletedContentWithResponse call
+func ParseListDeletedContentResponse(rsp *http.Response) (*ListDeletedContentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDeletedContentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeletedContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListFulltextVersionsResponse parses an HTTP response from a ListFulltextVersionsWithResponse call
+func ParseListFulltextVersionsResponse(rsp *http.Response) (*ListFulltextVersionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListFulltextVersionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FulltextVersions
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -14443,6 +37010,32 @@ func ParseCreateOrUpdateItemsResponse(rsp *http.Response) (*CreateOrUpdateItemsR
 	return response, nil
 }
 
+// ParseListAllItemsTagsResponse parses an HTTP response from a ListAllItemsTagsWithResponse call
+func ParseListAllItemsTagsResponse(rsp *http.Response) (*ListAllItemsTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAllItemsTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListTopItemsResponse parses an HTTP response from a ListTopItemsWithResponse call
 func ParseListTopItemsResponse(rsp *http.Response) (*ListTopItemsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -14469,6 +37062,32 @@ func ParseListTopItemsResponse(rsp *http.Response) (*ListTopItemsResponse, error
 	return response, nil
 }
 
+// ParseListTopItemsTagsResponse parses an HTTP response from a ListTopItemsTagsWithResponse call
+func ParseListTopItemsTagsResponse(rsp *http.Response) (*ListTopItemsTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTopItemsTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListTrashedItemsResponse parses an HTTP response from a ListTrashedItemsWithResponse call
 func ParseListTrashedItemsResponse(rsp *http.Response) (*ListTrashedItemsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -14485,6 +37104,32 @@ func ParseListTrashedItemsResponse(rsp *http.Response) (*ListTrashedItemsRespons
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListTrashedItemsTagsResponse parses an HTTP response from a ListTrashedItemsTagsWithResponse call
+func ParseListTrashedItemsTagsResponse(rsp *http.Response) (*ListTrashedItemsTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTrashedItemsTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -14553,6 +37198,22 @@ func ParseUpdateItemResponse(rsp *http.Response) (*UpdateItemResponse, error) {
 	return response, nil
 }
 
+// ParseReplaceItemResponse parses an HTTP response from a ReplaceItemWithResponse call
+func ParseReplaceItemResponse(rsp *http.Response) (*ReplaceItemResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReplaceItemResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseGetItemChildrenResponse parses an HTTP response from a GetItemChildrenWithResponse call
 func ParseGetItemChildrenResponse(rsp *http.Response) (*GetItemChildrenResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -14588,6 +37249,22 @@ func ParseDownloadFileResponse(rsp *http.Response) (*DownloadFileResponse, error
 	}
 
 	response := &DownloadFileResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseUploadFilePartialResponse parses an HTTP response from a UploadFilePartialWithResponse call
+func ParseUploadFilePartialResponse(rsp *http.Response) (*UploadFilePartialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UploadFilePartialResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -14660,6 +37337,136 @@ func ParseSetFulltextResponse(rsp *http.Response) (*SetFulltextResponse, error) 
 	response := &SetFulltextResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetItemTagsResponse parses an HTTP response from a GetItemTagsWithResponse call
+func ParseGetItemTagsResponse(rsp *http.Response) (*GetItemTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPublicationItemsResponse parses an HTTP response from a ListPublicationItemsWithResponse call
+func ParseListPublicationItemsResponse(rsp *http.Response) (*ListPublicationItemsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPublicationItemsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPublicationItemsTagsResponse parses an HTTP response from a ListPublicationItemsTagsWithResponse call
+func ParseListPublicationItemsTagsResponse(rsp *http.Response) (*ListPublicationItemsTagsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPublicationItemsTagsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPublicationTopItemsResponse parses an HTTP response from a ListPublicationTopItemsWithResponse call
+func ParseListPublicationTopItemsResponse(rsp *http.Response) (*ListPublicationTopItemsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPublicationTopItemsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPublicationItemResponse parses an HTTP response from a GetPublicationItemWithResponse call
+func ParseGetPublicationItemResponse(rsp *http.Response) (*GetPublicationItemResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPublicationItemResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Item
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
@@ -14807,6 +37614,32 @@ func ParseListTagsResponse(rsp *http.Response) (*ListTagsResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []TagWithMeta
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTagResponse parses an HTTP response from a GetTagWithResponse call
+func ParseGetTagResponse(rsp *http.Response) (*GetTagResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTagResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TagWithMeta
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

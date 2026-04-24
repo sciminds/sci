@@ -11,7 +11,7 @@ import (
 // library owner's user ID, username, and scoped permissions. Useful as a
 // round-trip auth sanity check.
 func (c *Client) CurrentKey(ctx context.Context) (*client.KeyInfo, error) {
-	resp, err := c.Gen.GetCurrentKeyWithResponse(ctx)
+	resp, err := c.Gen.GetCurrentKeyWithResponse(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

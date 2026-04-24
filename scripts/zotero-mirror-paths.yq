@@ -2,6 +2,7 @@
   select(
     (.key | test("^/users/\{userID\}"))
     and (.key != "/users/{userID}/groups")
+    and (.key | test("^/users/\{userID\}/publications") | not)
   )
   | .key |= sub("^/users/\{userID\}"; "/groups/{groupID}")
   | .value |= (
