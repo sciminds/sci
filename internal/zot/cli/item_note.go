@@ -288,7 +288,7 @@ func assertNoteType(itemType string) error {
 	if itemType == "" {
 		return errors.New("item has no type — cannot confirm it's a note")
 	}
-	return fmt.Errorf("item is a %s, not a note — use `zot item read` for bibliographic items", itemType)
+	return fmt.Errorf("item is a %s, not a note — use `sci zot item read` for bibliographic items", itemType)
 }
 
 // itemNoteUpdateCommand: `zot item note update KEY` — PATCH a note's body.
@@ -363,7 +363,7 @@ func itemNoteListCommand() *cli.Command {
 		ArgsUsage: "<parent-key>",
 		Description: "$ sci zot item note list PAPER567\n" +
 			"\n" +
-			"For notes in a collection use `zot item list --type note --collection COLL`.",
+			"For notes in a collection use `sci zot item list --type note --collection COLL`.",
 		Action: runItemNoteList,
 	}
 }

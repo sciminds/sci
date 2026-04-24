@@ -314,7 +314,7 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if len(noteKeys) == 0 {
-		return fmt.Errorf("no docling note found for %s — use `zot notes add` to create one", parentKey)
+		return fmt.Errorf("no docling note found for %s — use `sci zot notes add` to create one", parentKey)
 	}
 	existingKey := noteKeys[0] // update the oldest (first-created)
 

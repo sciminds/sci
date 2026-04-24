@@ -206,7 +206,7 @@ func (r *DoctorResult) Human() string {
 
 	fmt.Fprintf(&b, "\n  %s run %s for per-finding detail\n",
 		uikit.SymArrow,
-		uikit.TUI.Dim().Render("`zot doctor invalid`, `zot doctor missing`, `zot doctor orphans`, `zot doctor duplicates`, `zot doctor citekeys`"),
+		uikit.TUI.Dim().Render("`sci zot doctor invalid`, `sci zot doctor missing`, `sci zot doctor orphans`, `sci zot doctor duplicates`, `sci zot doctor citekeys`"),
 	)
 	return b.String()
 }

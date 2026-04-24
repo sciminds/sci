@@ -63,7 +63,7 @@ func importCommand() *cli.Command {
 			"Requires Zotero desktop to be running. Uses desktop's currently\n" +
 			"selected library — not the --library flag — which is why this command\n" +
 			"is exempt from --library. For a headless Web-API upload (no recognition,\n" +
-			"standalone attachment), use `zot item add --file` instead.",
+			"standalone attachment), use `sci zot item add --file` instead.",
 		Flags: []cli.Flag{
 			&cli.DurationFlag{
 				Name:        "timeout",

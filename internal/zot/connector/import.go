@@ -108,7 +108,7 @@ func openPDF(path string) (*os.File, error) {
 	}
 	if !strings.EqualFold(filepath.Ext(path), ".pdf") {
 		_ = f.Close()
-		return nil, fmt.Errorf("%q is not a PDF; the desktop connector only supports PDFs (use `zot item add --file` for other types)", path)
+		return nil, fmt.Errorf("%q is not a PDF; the desktop connector only supports PDFs (use `sci zot item add --file` for other types)", path)
 	}
 	return f, nil
 }

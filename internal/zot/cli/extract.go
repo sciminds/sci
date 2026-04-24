@@ -40,7 +40,7 @@ func extractCommand() *cli.Command {
 			"Zotero mode (default): raw markdown with YAML frontmatter posted as a child note (--html for rendered HTML).\n" +
 			"Full mode (--out):     md + json + referenced PNGs + CSV tables written to DIR.\n" +
 			"\n" +
-			"To manage existing notes, use `zot notes` (list, read, add, update, delete).\n" +
+			"To manage existing notes, use `sci zot notes` (list, read, add, update, delete).\n" +
 			"Uses the existing PDF attachment's contentType + path from the local zotero.sqlite.\n" +
 			"The Plan step is pure (no docling run); pass --apply to actually extract and post.",
 		ArgsUsage: "<parent-item-key>",

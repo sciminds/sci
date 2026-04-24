@@ -1,12 +1,12 @@
 package cli
 
-// Tests for the persistent --library flag + context plumbing. These reference
-// symbols not yet implemented:
-//   - PersistentFlags() []cli.Flag        (to be added in cli/cli.go)
+// Tests for the persistent --library flag + context plumbing. Covers:
+//   - PersistentFlags() []cli.Flag
 //   - ValidateLibraryBefore                (Before hook for the zot root)
 //   - LibraryFromContext(ctx) (zot.LibraryRef, bool)
-// Entry points (cmd/zot/main.go, cmd/sci/zot.go) wire these into their
-// root commands; both test cases exercise the same shared helpers.
+// cmd/sci/zot.go wires these into the `sci zot` subcommand; the tests
+// construct a minimal equivalent root so they can exercise the hook without
+// pulling in the full sci wrapper.
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 )
 
 // buildTestRoot constructs a minimal zot root command that mirrors the
-// wiring in cmd/zot/main.go, so we can exercise the persistent --library
+// wiring in cmd/sci/zot.go, so we can exercise the persistent --library
 // flag and its Before hook without pulling in the full sci wrapper.
 func buildTestRoot(t *testing.T) *cli.Command {
 	t.Helper()
