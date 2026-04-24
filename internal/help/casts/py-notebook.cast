@@ -1,6 +1,6 @@
 {"version": 2, "width": 80, "height": 24}
 [0.5, "o", "$ "]
-[0.8, "o", "sci py marimo"]
+[0.8, "o", "sci py notebook"]
 [1.0, "o", "\r\n"]
 [1.3, "o", "  Detected pixi environment in my-analysis/\r\n"]
 [1.6, "o", "  → launching marimo…\r\n"]

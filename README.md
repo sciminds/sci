@@ -70,7 +70,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | Command | What it does |
 |---------|--------------|
 | `sci py repl` | Open a Python scratchpad |
-| `sci py marimo` | Open a marimo notebook |
+| `sci py notebook` | Open a marimo notebook |
 | `sci py convert` | Convert between marimo (.py), MyST (.md), and Quarto (.qmd) |
 
 </details>

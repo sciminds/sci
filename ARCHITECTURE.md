@@ -95,7 +95,7 @@ The reason is uniformity — every command should look like every other command 
 
 ## Process-replacing exec
 
-Some commands launch interactive tools — `sci py repl` opens IPython, `sci py marimo` opens marimo, `sci proj preview` opens Quarto's dev server. For these, we don't use `exec.Command` (which would leave the Go process sitting in the middle, forwarding stdin/stdout). We use `syscall.Exec`, which **replaces** the current process with the child. Go evaporates, the child takes over the terminal, signals work correctly, no weirdness.
+Some commands launch interactive tools — `sci py repl` opens IPython, `sci py notebook` opens marimo, `sci proj preview` opens Quarto's dev server. For these, we don't use `exec.Command` (which would leave the Go process sitting in the middle, forwarding stdin/stdout). We use `syscall.Exec`, which **replaces** the current process with the child. Go evaporates, the child takes over the terminal, signals work correctly, no weirdness.
 
 The catch: once you `syscall.Exec`, your test can't observe what happened. So every package that does this exports `Build*Args` helpers — pure functions that compute the argv slice — and tests assert on those instead of running the real thing.
 
