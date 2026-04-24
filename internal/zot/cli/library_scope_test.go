@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/urfave/cli/v3"
 )
 
@@ -49,20 +50,74 @@ func TestPersistentFlags_IncludesLibrary(t *testing.T) {
 	}
 }
 
-func TestRoot_RejectsMissingLibrary(t *testing.T) {
-	root := buildTestRoot(t)
-	// Any non-setup leaf command should require the flag.
-	err := root.Run(context.Background(), []string{"zot", "item", "list"})
+// TestRoot_MissingLibrary_PropagatesToLeaf — the Before hook deliberately
+// does NOT reject a missing --library (that would shadow help for
+// sub-namespaces; see ValidateLibraryBefore's doc comment). Missing scope
+// surfaces at the leaf via localSelectorFor / resolveLibraryRef, with an
+// error that mentions --library so the user still sees the right hint.
+func TestRoot_MissingLibrary_PropagatesToLeaf(t *testing.T) {
+	// Probe leaf that mimics what every library-requiring leaf does:
+	// pull the ref from ctx; absence is the error condition.
+	root := &cli.Command{
+		Name:   "zot",
+		Flags:  PersistentFlags(),
+		Before: ValidateLibraryBefore,
+		Commands: []*cli.Command{
+			{
+				Name: "probe",
+				Action: func(ctx context.Context, _ *cli.Command) error {
+					if _, ok := LibraryFromContext(ctx); !ok {
+						return errors.New("--library is required (values: personal, shared)")
+					}
+					return errReachedAction
+				},
+			},
+		},
+	}
+	err := root.Run(context.Background(), []string{"zot", "probe"})
 	if err == nil {
-		t.Fatal("expected error when --library is missing")
+		t.Fatal("expected error when --library is missing at the leaf")
 	}
 	if !strings.Contains(strings.ToLower(err.Error()), "library") {
 		t.Errorf("err=%v, want mention of --library", err)
 	}
 }
 
-// `find` hits OpenAlex, not Zotero, so --library is meaningless. We still
-// let it be passed (cascades inertly) but never require it.
+// TestRoot_MissingLibrary_NamespaceShowsHelp — the whole reason we moved
+// required-ness to the leaf: `sci zot item` with no trailing args should
+// dump help, not error with "--library is required". Exercises the full
+// Before chain (WireNamespaceDefaults + ValidateLibraryBefore) on pure
+// namespaces under zot. Commands with their own Action (doctor, tools,
+// etc.) run their Action instead of showing help and are out of scope
+// for this test.
+func TestRoot_MissingLibrary_NamespaceShowsHelp(t *testing.T) {
+	// Mirror cmd/sci's wiring: WireNamespaceDefaults chains
+	// RejectUnknownSubcommand into every namespace's Before, matching
+	// what buildRoot does for the real binary.
+	root := buildTestRoot(t)
+	cmdutil.WireNamespaceDefaults(root)
+	var buf strings.Builder
+	root.Writer = &buf
+
+	for _, path := range [][]string{
+		{"zot", "item"},
+		{"zot", "collection"},
+		{"zot", "tags"},
+		{"zot", "notes"},
+		{"zot", "llm"},
+		{"zot", "saved-search"},
+	} {
+		buf.Reset()
+		err := root.Run(context.Background(), path)
+		if err != nil {
+			t.Errorf("%v: expected help (nil error), got: %v", path, err)
+		}
+	}
+}
+
+// `find` hits OpenAlex, not Zotero, so --library is meaningless. It simply
+// never reads LibraryFromContext, so the Before hook's no-op behavior on
+// missing --library lets the command run through.
 func TestRoot_FindDoesNotRequireLibrary(t *testing.T) {
 	root := &cli.Command{
 		Name:   "zot",
@@ -158,9 +213,10 @@ func TestRoot_AcceptsShared(t *testing.T) {
 }
 
 // TestRoot_SetupDoesNotRequireLibrary — the setup command configures
-// both libraries at once, so the persistent flag must be exempt.
-// Implementation should either skip the Before check for setup or make
-// the flag optional with a special meaning when setup is the subcommand.
+// both libraries at once, so it must not require --library. Since the
+// Before hook no longer enforces required-ness (see ValidateLibraryBefore's
+// doc comment) and setup doesn't read LibraryFromContext, this just confirms
+// the path stays open.
 func TestRoot_SetupDoesNotRequireLibrary(t *testing.T) {
 	root := buildTestRoot(t)
 	// We invoke `zot setup --help` to avoid the interactive prompts and

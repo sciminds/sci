@@ -12,7 +12,6 @@ package cli
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
@@ -42,46 +41,30 @@ func PersistentFlags() []cli.Flag {
 	}
 }
 
-// libraryExemptCommands are subcommands where --library is optional.
-//   - setup configures both libraries at once.
-//   - info summarizes both when no scope is given; --library narrows.
-//   - find hits OpenAlex, not Zotero — scope is meaningless there.
-//   - import goes through Zotero desktop's connector, which writes to
-//     whichever library is currently selected in the desktop UI.
-var libraryExemptCommands = map[string]bool{
-	"setup":  true,
-	"info":   true,
-	"find":   true,
-	"import": true,
-}
-
-// ValidateLibraryBefore is the Before hook that validates --library and
-// stashes the scope in the context for every subcommand action.
+// ValidateLibraryBefore is the Before hook that validates the --library
+// value (if supplied) and stashes the resolved scope in the context for
+// every subcommand action.
 //
-// Exempt: subcommands listed in libraryExemptCommands, empty args (help
-// listing), and --help/--version (handled by urfave/cli before Before fires).
+// It deliberately does NOT enforce that --library is present — doing so at
+// this level would shadow help for sub-namespaces (`sci zot item` with no
+// further args would error instead of dumping help). Leaf commands that
+// actually need the scope call openLocalDB / requireAPIClient, which route
+// through localSelectorFor / resolveLibraryRef and error with "library
+// scope not found in context — did you pass --library?" when ctx is empty.
+// That surfaces the same required-ness guarantee exactly where it's needed,
+// and leaves namespace traversal free to show help.
+//
+// Commands that don't need --library at all (`setup`, `info` without a
+// flag, `find`, `import`) simply never read LibraryFromContext — `info`
+// branches on presence, the others ignore it.
+//
 // Unknown subcommands are handled upstream by cmdutil.RejectUnknownSubcommand
-// (wired in via cmdutil.WireNamespaceDefaults on the sci root), so they
-// never reach this hook. For exempt commands, --library is still validated
-// if supplied so typos are caught early.
+// (wired tree-wide by cmdutil.WireNamespaceDefaults in buildRoot), so they
+// never reach this hook.
 func ValidateLibraryBefore(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-	first := cmd.Args().First()
 	val := cmd.String("library")
-
-	if first == "" || libraryExemptCommands[first] {
-		if val == "" {
-			return ctx, nil
-		}
-		// Still validate the value if the user supplied one.
-		if err := zot.ValidateLibraryScope(val); err != nil {
-			return ctx, err
-		}
-		ref := zot.LibraryRef{Scope: zot.LibraryScope(val)}
-		return context.WithValue(ctx, libraryCtxKey{}, ref), nil
-	}
-
 	if val == "" {
-		return ctx, fmt.Errorf("--library is required (values: personal, shared)")
+		return ctx, nil
 	}
 	if err := zot.ValidateLibraryScope(val); err != nil {
 		return ctx, err

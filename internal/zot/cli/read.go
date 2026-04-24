@@ -65,12 +65,12 @@ func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
 // localSelectorFor picks a local.LibrarySelector based on the scope stashed
 // in ctx by ValidateLibraryBefore. Shared scope resolves the group's SQLite
 // libraryID via the groups table (see local.ForGroupByAPIID). Errors if ctx
-// has no ref — every zot command except `setup` goes through the Before
-// hook, so a missing ref indicates a wiring bug.
+// has no ref — the Before hook deliberately doesn't enforce --library so
+// namespace-help still works; required-ness lands here at the leaf.
 func localSelectorFor(ctx context.Context, cfg *zot.Config) (local.LibrarySelector, error) {
 	ref, ok := LibraryFromContext(ctx)
 	if !ok {
-		return local.LibrarySelector{}, fmt.Errorf("library scope not found in context — did you pass --library?")
+		return local.LibrarySelector{}, fmt.Errorf("--library is required (values: personal, shared)")
 	}
 	switch ref.Scope {
 	case zot.LibPersonal:

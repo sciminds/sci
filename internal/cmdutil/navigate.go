@@ -44,8 +44,9 @@ const wireMarker = "cmdutil.namespaceDefaultsWired"
 // it dumps the parent's help and returns an error.
 //
 // No-op when:
-//   - the first arg is empty (urfave will auto-show help via the default
-//     Action — the empty-args case is fine), or
+//   - the first arg is empty (pure namespaces get urfave's auto-help via
+//     the default Action; mixed Action+Commands shapes like `sci tools`
+//     run their own Action — either way, that's fine), or
 //   - the first arg matches a real subcommand (descent continues normally).
 func RejectUnknownSubcommand(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	first := cmd.Args().First()

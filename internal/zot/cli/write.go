@@ -80,12 +80,12 @@ func requireAPIClient(ctx context.Context) (*api.Client, error) {
 // into a full zot.LibraryRef by reading config. Shared-scope resolution uses
 // ResolveWithProbe so a first-time --library shared command lazily auto-detects
 // the group via the Web API and caches the result. Errors if the ctx was not
-// seeded — every zot command except `setup` must go through
-// ValidateLibraryBefore, so a missing ref indicates a wiring bug.
+// seeded — the Before hook deliberately doesn't enforce --library so
+// namespace-help still works; required-ness lands here at the leaf.
 func resolveLibraryRef(ctx context.Context, cfg *zot.Config) (zot.LibraryRef, error) {
 	partial, ok := LibraryFromContext(ctx)
 	if !ok {
-		return zot.LibraryRef{}, fmt.Errorf("library scope not found in context — did you pass --library?")
+		return zot.LibraryRef{}, fmt.Errorf("--library is required (values: personal, shared)")
 	}
 	probe := func() ([]zot.GroupRef, error) {
 		// Build a throwaway client bound to the personal library just to

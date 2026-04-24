@@ -299,27 +299,18 @@ func walkCommands(cmds []*cli.Command, prefix string, fn func(path string, cmd *
 func TestNamespaceRejectsUnknownChildren(t *testing.T) {
 	root := buildRoot()
 
-	// Flags that are required on certain subtrees for the Before chain to
-	// even reach the unknown-subcommand check. Keyed by top-level parent.
-	preArgs := map[string][]string{
-		"zot": {"--library", "personal"},
-	}
-
-	var namespaces []*cli.Command
 	var paths []string
 	walkCommands(root.Commands, "sci", func(path string, cmd *cli.Command) {
 		if len(cmd.Commands) > 0 {
-			namespaces = append(namespaces, cmd)
 			paths = append(paths, path)
 		}
 	})
 
-	if len(namespaces) == 0 {
+	if len(paths) == 0 {
 		t.Fatal("tree walk found no namespaces — did buildRoot() change?")
 	}
 
-	for i, cmd := range namespaces {
-		path := paths[i]
+	for _, path := range paths {
 		t.Run(path, func(t *testing.T) {
 			// Rebuild root per-iteration so state from prior Run calls
 			// doesn't leak (urfave mutates cmd.parsedArgs, etc.).
@@ -327,21 +318,11 @@ func TestNamespaceRejectsUnknownChildren(t *testing.T) {
 			var buf strings.Builder
 			r.Writer = &buf
 
-			// Reconstruct argv: root name, the top-level segment (e.g. "zot"),
-			// any required pre-args for that subtree (e.g. "--library personal"),
-			// then the deeper path segments, then a bogus child name.
-			// Pre-args belong *after* the top-level name because they're flags
-			// defined on that subtree's command, not on the root.
-			segs := strings.Split(path, " ")
-			argv := []string{segs[0]}
-			if len(segs) > 1 {
-				argv = append(argv, segs[1])
-				if pre, ok := preArgs[segs[1]]; ok {
-					argv = append(argv, pre...)
-				}
-				argv = append(argv, segs[2:]...)
-			}
-			argv = append(argv, "bogus-subcommand-xyz")
+			// RejectUnknownSubcommand is the first link in each namespace's
+			// Before chain (see cmdutil.WireNamespaceDefaults), so it fires
+			// before any command-specific Before hooks — argv is just the
+			// path segments plus a bogus child name, no pre-args needed.
+			argv := append(strings.Split(path, " "), "bogus-subcommand-xyz")
 
 			err := r.Run(context.Background(), argv)
 			if err == nil {
@@ -350,7 +331,6 @@ func TestNamespaceRejectsUnknownChildren(t *testing.T) {
 			if !strings.Contains(err.Error(), "unknown command") {
 				t.Errorf("%s: error should contain \"unknown command\", got: %v", path, err)
 			}
-			_ = cmd
 		})
 	}
 }
