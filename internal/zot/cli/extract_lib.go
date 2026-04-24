@@ -155,6 +155,11 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	// Filter out items that are already cached (prior run extracted
 	// but didn't --apply). Without this, --limit keeps hitting cache
 	// instead of advancing to new items.
+	//
+	// In --apply mode cached items are kept (they still need posting)
+	// and tracked in cachedIdx so the confirm prompt can distinguish
+	// "needs new extraction" from "already cached, only needs posting".
+	cachedIdx := make(map[int]bool)
 	if !extractLibReextract {
 		filtered := items[:0]
 		for _, it := range items {
@@ -165,6 +170,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			if _, ok := cache.Get(it.Request.PDFKey, it.Hash); ok {
 				// Already cached — skip unless --apply needs to post.
 				if extractLibApply {
+					cachedIdx[len(filtered)] = true
 					filtered = append(filtered, it)
 				}
 				// In cache-only mode, nothing to do — drop it.
@@ -178,11 +184,17 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	// Apply --limit after filtering so re-runs advance past cached items.
 	if extractLibLimit > 0 && extractLibLimit < len(items) {
 		items = items[:extractLibLimit]
+		for i := range cachedIdx {
+			if i >= extractLibLimit {
+				delete(cachedIdx, i)
+			}
+		}
 	}
 
-	// Tally the plan for confirmation.
-	var nCreate, nSkip, nErr int
-	for _, it := range items {
+	// Tally the plan for confirmation. nFresh = needs new extraction,
+	// nCachedPost = already cached, only needs posting (--apply only).
+	var nCreate, nSkip, nErr, nFresh, nCachedPost int
+	for i, it := range items {
 		if it.Err != nil {
 			nErr++
 			continue
@@ -190,6 +202,11 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		switch it.Plan.Action {
 		case extract.ActionCreate:
 			nCreate++
+			if cachedIdx[i] {
+				nCachedPost++
+			} else {
+				nFresh++
+			}
 		case extract.ActionSkip:
 			nSkip++
 		}
@@ -218,8 +235,14 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	if extractLibApply {
 		mode = " (apply: posting notes to Zotero)"
 	}
-	msg := fmt.Sprintf("Extract %d items (%d create, %d skip",
-		len(items), nCreate, nSkip)
+	var msg string
+	if extractLibApply && nCachedPost > 0 {
+		msg = fmt.Sprintf("Process %d items (%d new extractions, %d post from cache, %d skip",
+			len(items), nFresh, nCachedPost, nSkip)
+	} else {
+		msg = fmt.Sprintf("Extract %d items (%d create, %d skip",
+			len(items), nCreate, nSkip)
+	}
 	if nErr > 0 {
 		msg += fmt.Sprintf(", %d plan errors", nErr)
 	}
