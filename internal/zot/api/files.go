@@ -47,14 +47,17 @@ type AttachmentMeta struct {
 }
 
 // CreateChildAttachment performs phase 1 of the upload dance: it creates an
-// `imported_file` attachment item as a child of parentKey. The returned key
-// is the Zotero item key to pass to UploadAttachmentFile for phases 2→4.
-func (c *Client) CreateChildAttachment(ctx context.Context, parentKey string, meta AttachmentMeta) (string, error) {
-	parent := parentKey
+// `imported_file` attachment item as a child of parentKey. Returns the
+// hydrated item so callers can thread it into WriteResult.Data (or read
+// .Key for the phase 2→4 handoff) without a follow-up GET. parentKey must
+// be non-empty — top-level attachments are the Zotero-desktop drag-drop
+// shape and are handled by `zot import`, not by the Web API surface.
+func (c *Client) CreateChildAttachment(ctx context.Context, parentKey string, meta AttachmentMeta) (*client.Item, error) {
 	filename := meta.Filename
 	ctype := meta.ContentType
 	title := meta.Title
 	linkMode := client.ImportedFile
+	parent := parentKey
 
 	data := client.ItemData{
 		ItemType:    client.Attachment,
@@ -66,11 +69,7 @@ func (c *Client) CreateChildAttachment(ctx context.Context, parentKey string, me
 	if title != "" {
 		data.Title = &title
 	}
-	it, err := c.CreateItem(ctx, data)
-	if err != nil {
-		return "", err
-	}
-	return it.Key, nil
+	return c.CreateItem(ctx, data)
 }
 
 // UploadAuthorization is the phase-2 authorization object: everything needed

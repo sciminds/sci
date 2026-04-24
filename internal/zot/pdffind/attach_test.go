@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/cli/internal/zot/client"
 )
 
 // fakeAttacher records every call and scripts per-parent outcomes. One per
@@ -38,13 +39,13 @@ func newFakeAttacher() *fakeAttacher {
 	}
 }
 
-func (f *fakeAttacher) CreateChildAttachment(_ context.Context, parentKey string, meta api.AttachmentMeta) (string, error) {
+func (f *fakeAttacher) CreateChildAttachment(_ context.Context, parentKey string, meta api.AttachmentMeta) (*client.Item, error) {
 	f.creates = append(f.creates, meta)
 	f.parents = append(f.parents, parentKey)
 	if err, ok := f.createErrByParent[parentKey]; ok {
-		return "", err
+		return nil, err
 	}
-	return f.createKeyByParent[parentKey], nil
+	return &client.Item{Key: f.createKeyByParent[parentKey]}, nil
 }
 
 func (f *fakeAttacher) UploadAttachmentFile(_ context.Context, itemKey string, r io.Reader, filename, _ string) error {

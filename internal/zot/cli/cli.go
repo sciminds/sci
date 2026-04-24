@@ -164,6 +164,7 @@ func itemCommand() *cli.Command {
 		Commands: []*cli.Command{
 			readCommand(),
 			addCommand(),
+			itemAttachCommand(),
 			updateCommand(),
 			deleteCommand(),
 			listCommand(),

@@ -47,3 +47,7 @@
 [13.2, "o", "  \u001b[36mNOTE0001\u001b[m  \u001b[90mnote\u001b[m        Docling extraction 2026-04-11  \u001b[90m[docling]\u001b[m\r\n"]
 [13.4, "o", "\r\n  \u001b[36m→\u001b[m 2 child(ren)\r\n"]
 [14.2, "o", "$ "]
+[14.5, "o", "zot --library personal item attach ABC12345 ~/papers/wei-2022-supp.pdf"]
+[15.0, "o", "\r\n"]
+[15.4, "o", "  \u001b[32m✓\u001b[m attached wei-2022-supp.pdf to item ABC12345\r\n"]
+[16.2, "o", "$ "]

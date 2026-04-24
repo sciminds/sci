@@ -38,7 +38,7 @@ type Writer interface {
 	// Attachments — 4-phase upload dance (see files.go). CreateChildAttachment
 	// is phase 1 (item creation); UploadAttachmentFile drives phases 2→4
 	// (authorization → S3 → register) with a dedup short-circuit.
-	CreateChildAttachment(ctx context.Context, parentKey string, meta AttachmentMeta) (string, error)
+	CreateChildAttachment(ctx context.Context, parentKey string, meta AttachmentMeta) (*client.Item, error)
 	UploadAttachmentFile(ctx context.Context, itemKey string, r io.Reader, filename, contentType string) error
 
 	// Collections

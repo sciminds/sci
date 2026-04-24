@@ -9,13 +9,14 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/cli/internal/zot/client"
 )
 
 // Attacher is the narrow Zotero-write contract Attach depends on. Kept as an
 // interface so tests can substitute an in-memory stub. *api.Client satisfies
 // it via its CreateChildAttachment and UploadAttachmentFile methods.
 type Attacher interface {
-	CreateChildAttachment(ctx context.Context, parentKey string, meta api.AttachmentMeta) (string, error)
+	CreateChildAttachment(ctx context.Context, parentKey string, meta api.AttachmentMeta) (*client.Item, error)
 	UploadAttachmentFile(ctx context.Context, itemKey string, r io.Reader, filename, contentType string) error
 }
 
@@ -81,11 +82,12 @@ func attachOne(ctx context.Context, w Attacher, f *Finding) {
 		ContentType: "application/pdf",
 		Title:       f.Title,
 	}
-	key, err := w.CreateChildAttachment(ctx, f.ItemKey, meta)
+	it, err := w.CreateChildAttachment(ctx, f.ItemKey, meta)
 	if err != nil {
 		f.AttachError = fmt.Sprintf("create attachment: %s", err.Error())
 		return
 	}
+	key := it.Key
 	f.AttachmentKey = key
 
 	file, err := os.Open(f.DownloadedPath)

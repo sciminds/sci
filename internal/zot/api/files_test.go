@@ -129,14 +129,14 @@ func TestCreateChildAttachment_PostsImportedFileShape(t *testing.T) {
 	})
 	c, _ := newTestClient(t, h)
 
-	key, err := c.CreateChildAttachment(context.Background(), "PARENT00", AttachmentMeta{
+	it, err := c.CreateChildAttachment(context.Background(), "PARENT00", AttachmentMeta{
 		Filename: "paper.pdf", ContentType: "application/pdf", Title: "Hello PDF",
 	})
 	if err != nil {
 		t.Fatalf("CreateChildAttachment: %v", err)
 	}
-	if key != "NEWATT01" {
-		t.Errorf("key = %q, want NEWATT01", key)
+	if it == nil || it.Key != "NEWATT01" {
+		t.Errorf("it = %+v, want Key=NEWATT01", it)
 	}
 
 	// The body MUST be a one-element array with the required attachment
