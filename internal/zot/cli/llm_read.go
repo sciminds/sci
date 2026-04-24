@@ -15,7 +15,7 @@ func llmReadCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "read",
 		Usage:       "Full markdown content of notes with attribution headers",
-		Description: "$ zot llm read ABC12345 DEF67890",
+		Description: "$ sci zot llm read ABC12345 DEF67890",
 		ArgsUsage:   "<parent-key...>",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {

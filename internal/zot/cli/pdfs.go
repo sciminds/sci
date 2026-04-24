@@ -41,15 +41,15 @@ func pdfsCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "pdfs",
 		Usage: "Find retrievable PDFs on OpenAlex for items in a collection",
-		Description: `$ zot --library personal doctor pdfs                          # scans default 'missing-pdf' collection
-$ zot --library personal doctor pdfs --collection ABCD1234    # by key
-$ zot --library personal doctor pdfs --collection missing-pdf # by name
-$ zot --library personal doctor pdfs --download ~/pdfs        # also retrieve each PDF (5-way parallel)
-$ zot --library personal doctor pdfs --download ~/pdfs -P 10  # bump download concurrency
-$ zot --library personal doctor pdfs --download ~/pdfs --attach       # upload downloaded PDFs as Zotero child attachments
-$ zot --library personal doctor pdfs --download ~/pdfs --attach --yes # skip confirmation
-$ zot --library personal doctor pdfs --refresh                # bypass cache, re-query all
-$ zot --library personal doctor pdfs --json > missing.json
+		Description: `$ sci zot --library personal doctor pdfs                          # scans default 'missing-pdf' collection
+$ sci zot --library personal doctor pdfs --collection ABCD1234    # by key
+$ sci zot --library personal doctor pdfs --collection missing-pdf # by name
+$ sci zot --library personal doctor pdfs --download ~/pdfs        # also retrieve each PDF (5-way parallel)
+$ sci zot --library personal doctor pdfs --download ~/pdfs -P 10  # bump download concurrency
+$ sci zot --library personal doctor pdfs --download ~/pdfs --attach       # upload downloaded PDFs as Zotero child attachments
+$ sci zot --library personal doctor pdfs --download ~/pdfs --attach --yes # skip confirmation
+$ sci zot --library personal doctor pdfs --refresh                # bypass cache, re-query all
+$ sci zot --library personal doctor pdfs --json > missing.json
 
 For each item in the target collection, queries OpenAlex:
   - by DOI if present (deterministic),
@@ -393,7 +393,7 @@ func resolveCollectionKey(db local.Reader, input string) (key, displayName strin
 	})
 	switch len(matches) {
 	case 0:
-		return "", "", fmt.Errorf("collection %q not found (use 'zot collection list' to see names)", input)
+		return "", "", fmt.Errorf("collection %q not found (use 'sci zot collection list' to see names)", input)
 	case 1:
 		return matches[0].Key, matches[0].Name, nil
 	default:

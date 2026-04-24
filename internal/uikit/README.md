@@ -101,9 +101,8 @@ normally — existing teatest patterns work unchanged.
 ## Architecture
 
 ```
-sci (cmd/sci)          ──┐
-dbtui (cmd/dbtui)      ──┤── all import ──▶  internal/uikit/
-zot (cmd/zot)          ──┘
+sci (cmd/sci)          ──┐── all import ──▶  internal/uikit/
+dbtui (cmd/dbtui)      ──┘
 
 internal/cmdutil/      ── CLI-framework glue (help renderer, huh theme)
                           imports uikit for styles/palette

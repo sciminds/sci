@@ -28,9 +28,9 @@ func graphCommand() *cli.Command {
 		Description: "Direction cheat-sheet (the source paper is `ABC12345`):\n" +
 			"  refs  → outgoing edges — works THIS paper cites (its bibliography)\n" +
 			"  cites → incoming edges — works that cite THIS paper (impact)\n\n" +
-			"$ zot graph refs ABC12345                      # what does this paper cite?\n" +
-			"$ zot graph cites ABC12345                     # what cites this paper?\n" +
-			"$ zot graph cites ABC12345 --limit 50 --year-from 2022\n\n" +
+			"$ sci zot graph refs ABC12345                      # what does this paper cite?\n" +
+			"$ sci zot graph cites ABC12345                     # what cites this paper?\n" +
+			"$ sci zot graph cites ABC12345 --limit 50 --year-from 2022\n\n" +
 			"Each result splits into in_library (Zotero keys) vs outside_library\n" +
 			"(OpenAlex ids you can pipe into `item add --openalex`).",
 		Commands: []*cli.Command{
@@ -44,7 +44,7 @@ func graphRefsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "refs",
 		Usage:       "Show works this item cites, split into in-library vs outside",
-		Description: "$ zot graph refs ABC12345\n$ zot graph refs ABC12345 --remote   # bypass local sqlite, hit the Zotero Web API",
+		Description: "$ sci zot graph refs ABC12345\n$ sci zot graph refs ABC12345 --remote   # bypass local sqlite, hit the Zotero Web API",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "remote", Usage: "fetch the source item from the Zotero Web API (use when the item was just created and isn't synced yet)", Destination: &graphRefsRemote, Local: true},
@@ -78,7 +78,7 @@ func graphCitesCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "cites",
 		Usage:       "Show works that cite this item, split into in-library vs outside",
-		Description: "$ zot graph cites ABC12345\n$ zot graph cites ABC12345 --limit 50 --year-from 2022\n$ zot graph cites ABC12345 --remote",
+		Description: "$ sci zot graph cites ABC12345\n$ sci zot graph cites ABC12345 --limit 50 --year-from 2022\n$ sci zot graph cites ABC12345 --remote",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 25, Usage: "max citing works to surface (1-200)", Destination: &graphCitesLimit, Local: true},

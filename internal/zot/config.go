@@ -4,8 +4,7 @@
 // handles sync back to local, so write callers do not need to wait.
 //
 // The command tree is defined in [github.com/sciminds/cli/internal/zot/cli]
-// and is reused by both the standalone `zot` binary (cmd/zot) and the
-// integrated `sci zot` subcommand (cmd/sci/zot.go).
+// and mounted under `sci zot` from cmd/sci/zot.go.
 package zot
 
 import (
@@ -113,7 +112,7 @@ func RequireConfig() (*Config, error) {
 		return nil, err
 	}
 	if cfg == nil || cfg.APIKey == "" || cfg.UserID == "" {
-		return nil, fmt.Errorf("zot not configured — run 'zot setup' or 'sci zot setup' first")
+		return nil, fmt.Errorf("zot not configured — run 'sci zot setup' first")
 	}
 	return cfg, nil
 }
@@ -249,7 +248,7 @@ func (c *Config) Resolve(scope LibraryScope) (LibraryRef, error) {
 	switch scope {
 	case LibPersonal:
 		if c.UserID == "" {
-			return LibraryRef{}, fmt.Errorf("personal library not configured — run 'zot setup' first")
+			return LibraryRef{}, fmt.Errorf("personal library not configured — run 'sci zot setup' first")
 		}
 		return LibraryRef{
 			Scope:   LibPersonal,
@@ -258,7 +257,7 @@ func (c *Config) Resolve(scope LibraryScope) (LibraryRef, error) {
 		}, nil
 	case LibShared:
 		if c.SharedGroupID == "" {
-			return LibraryRef{}, fmt.Errorf("shared library not configured — run 'zot setup' to auto-detect")
+			return LibraryRef{}, fmt.Errorf("shared library not configured — run 'sci zot setup' to auto-detect")
 		}
 		name := c.SharedGroupName
 		if name == "" {
@@ -304,6 +303,6 @@ func (c *Config) ResolveWithProbe(scope LibraryScope, probe GroupProbeFunc) (Lib
 		for _, g := range groups {
 			names = append(names, g.Name)
 		}
-		return LibraryRef{}, fmt.Errorf("zotero account has multiple groups (%s) — re-run 'zot setup' and pick one with --shared-group-id", strings.Join(names, ", "))
+		return LibraryRef{}, fmt.Errorf("zotero account has multiple groups (%s) — re-run 'sci zot setup' and pick one with --shared-group-id", strings.Join(names, ", "))
 	}
 }

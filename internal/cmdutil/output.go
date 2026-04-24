@@ -63,10 +63,26 @@ func Output(cmd *cli.Command, r Result) {
 	}
 }
 
-// UsageErrorf returns an error that includes the command's usage line and a --help hint.
-// Use it for argument-validation errors so users see how to fix the problem.
+// UsageErrorf returns an error for argument-validation failures.
+//
+// Behavior depends on whether the user gave us anything to work with:
+//
+//   - No positional args (bare `sci zot import`) → dump the full help page
+//     first, then return a short error. The user had nothing to go on; show
+//     them what the command expects the same way `--help` would.
+//   - Args present (flag conflict, wrong count) → keep the terse "Usage: …"
+//     tail. A wall of help would bury the real error.
+//   - --json mode → never dump styled help (the consumer is a machine);
+//     always use the terse form.
+//
+// Parent namespaces (`sci zot`, `sci zot item`, …) don't hit this path —
+// urfave's auto-help fires for them because they have no Action.
 func UsageErrorf(cmd *cli.Command, format string, args ...any) error {
 	msg := fmt.Sprintf(format, args...)
+	if cmd.Args().Len() == 0 && !IsJSON(cmd) {
+		_ = cli.ShowSubcommandHelp(cmd)
+		return fmt.Errorf("%s", msg)
+	}
 	usage := cmd.FullName()
 	if au := cmd.ArgsUsage; au != "" {
 		usage += " " + au

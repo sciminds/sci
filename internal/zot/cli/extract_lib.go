@@ -41,12 +41,12 @@ func extractLibCommand() *cli.Command {
 			"  1. Items whose docling-tagged note already exists in Zotero are skipped (--apply only).\n" +
 			"  2. Items whose docling output was cached locally skip re-extraction.\n" +
 			"\n" +
-			"$ zot extract-lib                  # extract all PDFs to local cache\n" +
-			"$ zot extract-lib --apply          # extract + post notes to Zotero\n" +
-			"$ zot extract-lib --apply --yes    # skip confirmation\n" +
-			"$ zot extract-lib --reextract      # re-run docling, ignore cached output\n" +
-			"$ zot extract-lib --force --apply  # create new notes even where docling note exists\n" +
-			"$ zot extract-lib --limit 5        # extract at most 5 items (smoke test)",
+			"$ sci zot extract-lib                  # extract all PDFs to local cache\n" +
+			"$ sci zot extract-lib --apply          # extract + post notes to Zotero\n" +
+			"$ sci zot extract-lib --apply --yes    # skip confirmation\n" +
+			"$ sci zot extract-lib --reextract      # re-run docling, ignore cached output\n" +
+			"$ sci zot extract-lib --force --apply  # create new notes even where docling note exists\n" +
+			"$ sci zot extract-lib --limit 5        # extract at most 5 items (smoke test)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "mps", Destination: &extractLibDevice, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default)", Destination: &extractLibNumThreads, Local: true},

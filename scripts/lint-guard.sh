@@ -77,12 +77,11 @@ if [[ -n "$sleep_hits" ]]; then
 fi
 
 # ── Rule 3: No pocketbase/dbx in standalone packages ────────────────────────
-# These packages compile into standalone binaries (dbtui, zot). Importing
-# dbx would bloat the binary and violate the documented exception.
+# dbtui compiles into a standalone binary; importing dbx would bloat it and
+# violate the documented exception (raw database/sql for lean reuse).
 
 standalone_pkgs=(
 	"internal/tui/dbtui"
-	"internal/zot/local"
 )
 for pkg in "${standalone_pkgs[@]}"; do
 	dbx_hits=$(rg -n '"github\.com/pocketbase/dbx"' --type go "$pkg/" 2>/dev/null || true)

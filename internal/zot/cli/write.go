@@ -113,9 +113,9 @@ func addCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "add",
 		Usage: "Create a new item in your Zotero library",
-		Description: "$ zot item add --type journalArticle --title \"My Paper\" --author \"Smith, Alice\" --doi 10.1000/abc\n" +
-			"$ zot item add --openalex 10.1038/nature12373\n" +
-			"$ zot item add --openalex W2963403868 --collection ABC12345 --tag ml",
+		Description: "$ sci zot item add --type journalArticle --title \"My Paper\" --author \"Smith, Alice\" --doi 10.1000/abc\n" +
+			"$ sci zot item add --openalex 10.1038/nature12373\n" +
+			"$ sci zot item add --openalex W2963403868 --collection ABC12345 --tag ml",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "openalex", Usage: "lookup metadata on OpenAlex by DOI / W…-ID / arXiv / PMID", Destination: &addOpenAlex, Local: true},
 			&cli.StringFlag{Name: "type", Value: "journalArticle", Usage: "item type (e.g. journalArticle, book, webpage)", Destination: &addType, Local: true},
@@ -258,8 +258,8 @@ func updateCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "update",
 		Usage: "Update fields on one or more items",
-		Description: "$ zot item update ABC12345 --title \"Corrected Title\"\n" +
-			"$ zot item update ABC12345 DEF67890 --publication \"Nature\"\n" +
+		Description: "$ sci zot item update ABC12345 --title \"Corrected Title\"\n" +
+			"$ sci zot item update ABC12345 DEF67890 --publication \"Nature\"\n" +
 			"Providing multiple keys applies the same field patch to each item via a\n" +
 			"batched POST /items request (up to 50 items per round-trip).",
 		ArgsUsage: "<key> [<key>...]",
@@ -345,7 +345,7 @@ func deleteCommand() *cli.Command {
 		Name:        "delete",
 		Aliases:     []string{"trash"},
 		Usage:       "Move an item to trash",
-		Description: "$ zot item delete ABC12345\n$ zot item delete ABC12345 --yes",
+		Description: "$ sci zot item delete ABC12345\n$ sci zot item delete ABC12345 --yes",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &deleteYes, Local: true},
@@ -380,12 +380,12 @@ func collectionCommand() *cli.Command {
 		Name:        "collection",
 		Aliases:     []string{"coll"},
 		Usage:       "Manage collections (list, create, delete, add/remove items)",
-		Description: "$ zot collection list\n$ zot collection create \"Brain Papers\"\n$ zot collection add ABC12345 COLLXXX1\n$ zot collection delete COLLXXX1",
+		Description: "$ sci zot collection list\n$ sci zot collection create \"Brain Papers\"\n$ sci zot collection add ABC12345 COLLXXX1\n$ sci zot collection delete COLLXXX1",
 		Commands: []*cli.Command{
 			{
 				Name:        "list",
 				Usage:       "List every collection in the library with item counts",
-				Description: "$ zot collection list\n$ zot collection list --remote   # bypass local SQLite, hit the Zotero Web API",
+				Description: "$ sci zot collection list\n$ sci zot collection list --remote   # bypass local SQLite, hit the Zotero Web API",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API (shows collections not yet synced locally)", Destination: &collListRemote, Local: true},
 				},
@@ -421,7 +421,7 @@ func collectionCommand() *cli.Command {
 			{
 				Name:        "create",
 				Usage:       "Create a new collection",
-				Description: "$ zot collection create \"Brain Papers\"\n$ zot collection create \"Sub-topic\" --parent COLLXXX1",
+				Description: "$ sci zot collection create \"Brain Papers\"\n$ sci zot collection create \"Sub-topic\" --parent COLLXXX1",
 				ArgsUsage:   "<name>",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "parent", Usage: "parent collection key", Destination: &collNewParent, Local: true},
@@ -452,7 +452,7 @@ func collectionCommand() *cli.Command {
 			{
 				Name:        "delete",
 				Usage:       "Delete a collection",
-				Description: "$ zot collection delete COLLXXX1\n$ zot collection delete COLLXXX1 --yes",
+				Description: "$ sci zot collection delete COLLXXX1\n$ sci zot collection delete COLLXXX1 --yes",
 				ArgsUsage:   "<key>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &deleteYes, Local: true},
@@ -479,8 +479,8 @@ func collectionCommand() *cli.Command {
 			{
 				Name:  "add",
 				Usage: "Add one or many items to a collection",
-				Description: "$ zot collection add ABC12345 COLLXXX1\n" +
-					"$ zot collection add --from-file keys.txt COLLXXX1\n" +
+				Description: "$ sci zot collection add ABC12345 COLLXXX1\n" +
+					"$ sci zot collection add --from-file keys.txt COLLXXX1\n" +
 					"$ cat keys.txt | zot collection add - COLLXXX1",
 				ArgsUsage: "<itemKey> <collectionKey>  (or --from-file FILE <collectionKey>; '-' reads stdin)",
 				Flags: []cli.Flag{
@@ -496,7 +496,7 @@ func collectionCommand() *cli.Command {
 			{
 				Name:        "remove",
 				Usage:       "Remove an item from a collection",
-				Description: "$ zot collection remove ABC12345 COLLXXX1",
+				Description: "$ sci zot collection remove ABC12345 COLLXXX1",
 				ArgsUsage:   "<itemKey> <collectionKey>",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					args := cmd.Args().Slice()
@@ -527,12 +527,12 @@ func tagsCommand() *cli.Command {
 		Name:        "tags",
 		Aliases:     []string{"tag"},
 		Usage:       "Manage tags (list, add/remove per item, delete library-wide)",
-		Description: "$ zot tags list\n$ zot tags add ABC12345 neuroimaging\n$ zot tags remove ABC12345 deprecated\n$ zot tags delete deprecated",
+		Description: "$ sci zot tags list\n$ sci zot tags add ABC12345 neuroimaging\n$ sci zot tags remove ABC12345 deprecated\n$ sci zot tags delete deprecated",
 		Commands: []*cli.Command{
 			{
 				Name:        "list",
 				Usage:       "List every tag in the library with usage counts",
-				Description: "$ zot tags list",
+				Description: "$ sci zot tags list",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					_, db, err := openLocalDB(ctx)
 					if err != nil {
@@ -550,7 +550,7 @@ func tagsCommand() *cli.Command {
 			{
 				Name:        "add",
 				Usage:       "Attach a tag to an item",
-				Description: "$ zot tags add ABC12345 neuroimaging",
+				Description: "$ sci zot tags add ABC12345 neuroimaging",
 				ArgsUsage:   "<itemKey> <tag>",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					args := cmd.Args().Slice()
@@ -574,7 +574,7 @@ func tagsCommand() *cli.Command {
 			{
 				Name:        "remove",
 				Usage:       "Remove a tag from a single item",
-				Description: "$ zot tags remove ABC12345 deprecated\n$ zot tags remove ABC12345 deprecated --yes",
+				Description: "$ sci zot tags remove ABC12345 deprecated\n$ sci zot tags remove ABC12345 deprecated --yes",
 				ArgsUsage:   "<itemKey> <tag>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Destination: &tagRemoveYes, Local: true},
@@ -605,7 +605,7 @@ func tagsCommand() *cli.Command {
 			{
 				Name:        "delete",
 				Usage:       "Delete a tag from ALL items in the library",
-				Description: "$ zot tags delete deprecated\n$ zot tags delete deprecated --yes\nRemoves the tag from every item in the library in one API call.",
+				Description: "$ sci zot tags delete deprecated\n$ sci zot tags delete deprecated --yes\nRemoves the tag from every item in the library in one API call.",
 				ArgsUsage:   "<tag>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Destination: &tagDeleteYes, Local: true},

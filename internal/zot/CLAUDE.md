@@ -1,19 +1,14 @@
 # CLAUDE.md — zot (internal/zot/)
 
-Zotero library management. Also installable standalone via `cmd/zot/` (mirrors the `dbtui` / `markdb` pattern).
+Zotero library management, mounted under `sci zot`.
 
 **Before writing any slice/map/set transforms, invoke the `lo` skill** to pick the right `lo` or stdlib function. See root `CLAUDE.md` § Modern Go style.
 
 For the package layout, command tree, and type definitions, read the source — `cli/cli.go`, `result.go`, `hygiene/hygiene.go` are the entry points.
 
-## Two surfaces, one command tree
+## Command tree
 
-The full urfave/cli v3 tree lives in `internal/zot/cli.Commands()`. Both entry points import it:
-
-- `cmd/zot/main.go` — standalone `zot` binary
-- `cmd/sci/zot.go` — `sci zot …` subcommand
-
-Any subcommand added to `internal/zot/cli` shows up in both surfaces automatically. **Never duplicate wiring.**
+The full urfave/cli v3 tree lives in `internal/zot/cli.Commands()` and is mounted by `cmd/sci/zot.go`. The tree is its own package (rather than being inlined into `cmd/sci/zot.go` like simpler subcommands) because it's substantial — 20+ files of CLI glue — and benefits from a testable package boundary.
 
 ## Reads local, writes cloud (load-bearing split)
 

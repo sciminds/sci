@@ -43,7 +43,7 @@ There are two ways we talk to SQLite, and the split matters:
 - **`pocketbase/dbx`** in `internal/db/data/`. A typed query builder, ergonomic for the database-manager commands (create, import, rename, etc.).
 - **Raw `database/sql`** in `internal/tui/dbtui/data/` and `internal/zot/local/`.
 
-The raw-SQL packages exist for two reasons. Either they need dynamic SQL the query builder can't express cleanly (FTS5, virtual tables, user-supplied queries), or they ship as standalone binaries (`dbtui`, `zot`) and we don't want to drag the entire pocketbase dependency into a 20MB tool. Both reasons are fine. Pick the right one when you add a new package.
+The raw-SQL packages exist for two reasons. Either they need dynamic SQL the query builder can't express cleanly (FTS5, virtual tables, user-supplied queries), or the layer is intentionally narrow and read-only (e.g. `zot/local/` opens `zotero.sqlite` in immutable mode — dbx's write-oriented ergonomics would be dead weight). `dbtui` additionally ships as a standalone binary and keeps dbx out to stay lean. Pick the right one when you add a new package.
 
 ## Bubbletea, gently
 
@@ -99,9 +99,13 @@ Some commands launch interactive tools — `sci py repl` opens IPython, `sci py 
 
 The catch: once you `syscall.Exec`, your test can't observe what happened. So every package that does this exports `Build*Args` helpers — pure functions that compute the argv slice — and tests assert on those instead of running the real thing.
 
-## Two-surface CLIs
+## Subcommand layout
 
-`dbtui` and `zot` exist as both standalone binaries (`cmd/dbtui/`, `cmd/zot/`) and as `sci` subcommands (`sci view`, `sci zot`). To avoid duplicating wiring, the full urfave/cli command tree lives in `internal/<pkg>/cli.Commands()`, and both entry points import it. Add a subcommand in one place, it shows up in both surfaces. If you're tempted to write the same flag declaration twice, stop and find the shared `cli.Commands()`.
+Small subcommands (proj, db, py, vid, etc.) are declared directly in `cmd/sci/<pkg>.go` — one file, maybe a few handlers. The business logic sits in `internal/<pkg>/`; the cmd file is just CLI glue.
+
+Large subcommand trees like `zot` keep their CLI glue in their own package under `internal/<pkg>/cli/` because the glue is substantial enough to warrant a package boundary and its own test suite. `cmd/sci/zot.go` is then a thin mount point that imports and installs `internal/zot/cli.Commands()`.
+
+`dbtui` is the one remaining exception with a standalone binary (`cmd/dbtui/`) in addition to its `sci view` mount — it's small enough to ship as a dedicated TUI tool.
 
 ## Finding your way around
 

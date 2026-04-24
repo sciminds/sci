@@ -18,7 +18,7 @@ func viewCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "view",
 		Usage:       "Browse your library in an interactive table (read-only)",
-		Description: "$ zot view",
+		Description: "$ sci zot view",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			_, db, err := openLocalDB(ctx)
 			if err != nil {

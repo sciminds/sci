@@ -18,26 +18,26 @@ func doctorCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "doctor",
 		Usage: "Run every hygiene check and print a library-health dashboard",
-		Description: `$ zot doctor                 # fast aggregate across every check
-$ zot doctor --deep          # enables fuzzy duplicate matching + uncollected-item orphan scan
-$ zot doctor --check missing --check invalid
-$ zot doctor --json > health.json
+		Description: `$ sci zot doctor                 # fast aggregate across every check
+$ sci zot doctor --deep          # enables fuzzy duplicate matching + uncollected-item orphan scan
+$ sci zot doctor --check missing --check invalid
+$ sci zot doctor --json > health.json
 
-$ zot doctor invalid         # drill into a single check
-$ zot doctor missing --field title,creators
-$ zot doctor orphans --kind uncollected-item
-$ zot doctor duplicates --fuzzy
-$ zot doctor citekeys
+$ sci zot doctor invalid         # drill into a single check
+$ sci zot doctor missing --field title,creators
+$ sci zot doctor orphans --kind uncollected-item
+$ sci zot doctor duplicates --fuzzy
+$ sci zot doctor citekeys
 
-Bare 'zot doctor' runs every hygiene check in order — invalid, missing,
+Bare 'sci zot doctor' runs every hygiene check in order — invalid, missing,
 orphans, duplicates, citekeys — and prints a one-line summary per check
 plus an aggregate totals footer. Doctor is strictly read-only; use the
-sub-commands ('zot doctor invalid', etc.) for per-finding detail.
+sub-commands ('sci zot doctor invalid', etc.) for per-finding detail.
 
 Deep mode flips the slow/accurate paths: duplicate detection adds the
 fuzzy title pass (~30s on a 5k-item library) and orphans additionally
 reports items that live in zero collections. It does NOT stat attachment
-files on disk — use 'zot doctor orphans --kind missing-file --check-files'
+files on disk — use 'sci zot doctor orphans --kind missing-file --check-files'
 for that.`,
 		Commands: []*cli.Command{
 			invalidCommand(),

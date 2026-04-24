@@ -16,8 +16,8 @@ func llmCatalogCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "catalog",
 		Usage: "Compact index of every paper with a docling note",
-		Description: "$ zot llm catalog\n" +
-			"$ zot llm catalog --full   # inline abstract + citekey + authors + year per entry",
+		Description: "$ sci zot llm catalog\n" +
+			"$ sci zot llm catalog --full   # inline abstract + citekey + authors + year per entry",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "inline abstract + citekey + authors + year per entry (trades size for fewer follow-up item reads)", Destination: &llmCatalogFull, Local: true},
 		},

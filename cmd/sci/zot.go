@@ -5,9 +5,9 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// zotCommand wires the shared zot command tree into sci as a subcommand.
-// Both `sci zot …` and the standalone `zot …` binary (cmd/zot) reuse the
-// same command tree via internal/zot/cli.Commands().
+// zotCommand mounts the Zotero command tree under `sci zot`. The tree lives
+// in internal/zot/cli because it's substantial (20+ files) and warrants its
+// own package boundary and test suite.
 func zotCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "zot",

@@ -41,13 +41,13 @@ func savedSearchCommand() *cli.Command {
 		Name:    "saved-search",
 		Aliases: []string{"ss"},
 		Usage:   "Manage Zotero saved searches (list, show, create, update, delete)",
-		Description: "$ zot saved-search list\n" +
-			"$ zot saved-search show ABCD1234\n" +
-			"$ zot saved-search create \"Recent ML\" --condition title:contains:transformer --condition dateAdded:isInTheLast:30 days\n" +
-			"$ zot saved-search create \"Either\" --any --condition tag:is:ml --condition tag:is:nlp\n" +
-			"$ zot saved-search create \"From file\" --from-json conds.json\n" +
-			"$ zot saved-search update ABCD1234 --name \"Renamed\" --condition title:contains:gpt\n" +
-			"$ zot saved-search delete ABCD1234",
+		Description: "$ sci zot saved-search list\n" +
+			"$ sci zot saved-search show ABCD1234\n" +
+			"$ sci zot saved-search create \"Recent ML\" --condition title:contains:transformer --condition dateAdded:isInTheLast:30 days\n" +
+			"$ sci zot saved-search create \"Either\" --any --condition tag:is:ml --condition tag:is:nlp\n" +
+			"$ sci zot saved-search create \"From file\" --from-json conds.json\n" +
+			"$ sci zot saved-search update ABCD1234 --name \"Renamed\" --condition title:contains:gpt\n" +
+			"$ sci zot saved-search delete ABCD1234",
 		Commands: []*cli.Command{
 			savedSearchListCommand(),
 			savedSearchShowCommand(),
@@ -62,8 +62,8 @@ func savedSearchListCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "list",
 		Usage: "List every saved search in the library",
-		Description: "$ zot saved-search list             # active searches only (matches Zotero desktop sidebar)\n" +
-			"$ zot saved-search list --all       # include trashed searches",
+		Description: "$ sci zot saved-search list             # active searches only (matches Zotero desktop sidebar)\n" +
+			"$ sci zot saved-search list --all       # include trashed searches",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "all", Usage: "include trashed saved searches", Destination: &savedSearchListAll, Local: true},
 		},
@@ -94,7 +94,7 @@ func savedSearchShowCommand() *cli.Command {
 		Name:        "show",
 		Aliases:     []string{"read", "get"},
 		Usage:       "Show a saved search's name and conditions",
-		Description: "$ zot saved-search show ABCD1234",
+		Description: "$ sci zot saved-search show ABCD1234",
 		ArgsUsage:   "<key>",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -118,9 +118,9 @@ func savedSearchCreateCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "create",
 		Usage: "Create a new saved search",
-		Description: "$ zot saved-search create \"Recent ML\" --condition title:contains:transformer --condition dateAdded:isInTheLast:30 days\n" +
-			"$ zot saved-search create \"Either\" --any --condition tag:is:ml --condition tag:is:nlp\n" +
-			"$ zot saved-search create \"From JSON\" --from-json conds.json   # array of {condition,operator,value}\n" +
+		Description: "$ sci zot saved-search create \"Recent ML\" --condition title:contains:transformer --condition dateAdded:isInTheLast:30 days\n" +
+			"$ sci zot saved-search create \"Either\" --any --condition tag:is:ml --condition tag:is:nlp\n" +
+			"$ sci zot saved-search create \"From JSON\" --from-json conds.json   # array of {condition,operator,value}\n" +
 			"$ cat conds.json | zot saved-search create \"Piped\" --from-json -\n" +
 			"\n" +
 			"Conditions use the form 'condition:operator:value'. The value may itself contain colons —\n" +
@@ -166,8 +166,8 @@ func savedSearchUpdateCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "update",
 		Usage: "Replace a saved search's name and/or conditions",
-		Description: "$ zot saved-search update ABCD1234 --name \"Renamed\"\n" +
-			"$ zot saved-search update ABCD1234 --condition title:contains:gpt --condition itemType:is:journalArticle\n" +
+		Description: "$ sci zot saved-search update ABCD1234 --name \"Renamed\"\n" +
+			"$ sci zot saved-search update ABCD1234 --condition title:contains:gpt --condition itemType:is:journalArticle\n" +
 			"\n" +
 			"Saved-search updates are full replacements (the Zotero API has no per-condition PATCH).\n" +
 			"Omit --name to keep the existing name; omit --condition / --from-json to keep existing\n" +
@@ -228,7 +228,7 @@ func savedSearchDeleteCommand() *cli.Command {
 		Name:        "delete",
 		Aliases:     []string{"trash"},
 		Usage:       "Delete a saved search (items are untouched)",
-		Description: "$ zot saved-search delete ABCD1234\n$ zot saved-search delete ABCD1234 --yes",
+		Description: "$ sci zot saved-search delete ABCD1234\n$ sci zot saved-search delete ABCD1234 --yes",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &savedSearchDeleteYes, Local: true},

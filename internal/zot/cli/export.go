@@ -38,9 +38,9 @@ func libraryExportCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "export",
 		Usage: "Export your whole library as BibTeX or CSL-JSON",
-		Description: "$ zot export --out refs.bib\n" +
-			"$ zot export --format csl-json --out refs.json\n" +
-			"$ zot export --collection COLLAAA1 --out brain.bib",
+		Description: "$ sci zot export --out refs.bib\n" +
+			"$ sci zot export --format csl-json --out refs.json\n" +
+			"$ sci zot export --collection COLLAAA1 --out brain.bib",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "bibtex", Usage: "output format: bibtex, csl-json", Destination: &libExportFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file (enables drift-detection keymap sidecar)", Destination: &libExportOut, Local: true},

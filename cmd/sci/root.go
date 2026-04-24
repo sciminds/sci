@@ -75,6 +75,7 @@ func buildRoot() *cli.Command {
 		},
 	}
 	cmdutil.SetupHelp(root)
+	cmdutil.WireNamespaceDefaults(root)
 	return root
 }
 

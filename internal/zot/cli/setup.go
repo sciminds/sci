@@ -32,11 +32,11 @@ func setupCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "setup",
 		Usage: "Configure Zotero API credentials and data directory",
-		Description: "$ zot setup\n" +
-			"$ zot setup --api <key> --user-id <id>\n" +
-			"$ zot setup --api <key> --user-id <id> --data-dir ~/Zotero\n" +
-			"$ zot setup --openalex-email you@example.com --openalex-api <key>\n" +
-			"$ zot setup --logout",
+		Description: "$ sci zot setup\n" +
+			"$ sci zot setup --api <key> --user-id <id>\n" +
+			"$ sci zot setup --api <key> --user-id <id> --data-dir ~/Zotero\n" +
+			"$ sci zot setup --openalex-email you@example.com --openalex-api <key>\n" +
+			"$ sci zot setup --logout",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "api", Usage: "Zotero Web API key (required in --json mode)", Destination: &setupAPIKey, Local: true},
 			&cli.StringFlag{Name: "user-id", Usage: "Zotero numeric user ID (required in --json mode)", Destination: &setupUserID, Local: true},
@@ -89,7 +89,7 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 		if cfg == nil {
-			return fmt.Errorf("zot not configured — run 'zot setup' first")
+			return fmt.Errorf("zot not configured — run 'sci zot setup' first")
 		}
 		cmdutil.Output(cmd, cfg)
 		return nil

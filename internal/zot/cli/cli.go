@@ -1,18 +1,13 @@
-// Package cli builds the urfave/cli v3 command tree for Zotero operations.
-//
-// The tree is consumed by two entry points:
-//   - cmd/zot (standalone `zot` binary)
-//   - cmd/sci/zot.go (integrated `sci zot` subcommand)
-//
-// Both share identical behavior: any change here shows up in both surfaces.
+// Package cli builds the urfave/cli v3 command tree for Zotero operations,
+// mounted under `sci zot` from cmd/sci/zot.go.
 //
 // # Library scope (`--library personal|shared`)
 //
 // The persistent `--library` flag threads through every non-setup command via
-// PersistentFlags + ValidateLibraryBefore. Entry points install both on their
-// root command. The resolved zot.LibraryRef lives on ctx; requireAPIClient
-// and openLocalDB pull it back out and route the api client / local reader
-// to the user or group library accordingly.
+// PersistentFlags + ValidateLibraryBefore. cmd/sci/zot.go installs both on
+// the zot subcommand. The resolved zot.LibraryRef lives on ctx;
+// requireAPIClient and openLocalDB pull it back out and route the api client
+// / local reader to the user or group library accordingly.
 package cli
 
 import (
@@ -31,12 +26,12 @@ var experimental = uikit.TUI.TextPink().Render("[experimental]")
 // the resolved library scope for subcommand actions.
 type libraryCtxKey struct{}
 
-// PersistentFlags are the root-level flags that every zot subcommand inherits.
-// Entry points install these on the `zot` root command; they cascade to all
-// subcommands. Deliberately no Destination — the Before hook reads via
+// PersistentFlags are the flags every zot subcommand inherits.
+// cmd/sci/zot.go installs these on the `zot` command; they cascade to all
+// its subcommands. Deliberately no Destination — the Before hook reads via
 // cmd.String("library") so the value is per-invocation, not retained in a
 // package-level var (which would leak between tests and between repeated
-// runs of the root command).
+// runs).
 func PersistentFlags() []cli.Flag {
 	return []cli.Flag{
 		// lint:no-local — persistent flag intentionally cascades to subcommands.
@@ -65,8 +60,10 @@ var libraryExemptCommands = map[string]bool{
 //
 // Exempt: subcommands listed in libraryExemptCommands, empty args (help
 // listing), and --help/--version (handled by urfave/cli before Before fires).
-// For exempt commands, --library is still validated if supplied so typos
-// are caught early.
+// Unknown subcommands are handled upstream by cmdutil.RejectUnknownSubcommand
+// (wired in via cmdutil.WireNamespaceDefaults on the sci root), so they
+// never reach this hook. For exempt commands, --library is still validated
+// if supplied so typos are caught early.
 func ValidateLibraryBefore(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	first := cmd.Args().First()
 	val := cmd.String("library")
@@ -157,10 +154,10 @@ func itemCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "item",
 		Usage: "Work with individual items (read, add, update, delete, list, open, export)",
-		Description: "$ zot --library personal item read ABC12345\n" +
-			"$ zot --library personal item add --type journalArticle --title \"My Paper\"\n" +
-			"$ zot --library personal item list --limit 20\n" +
-			"$ zot --library shared item export ABC12345",
+		Description: "$ sci zot --library personal item read ABC12345\n" +
+			"$ sci zot --library personal item add --type journalArticle --title \"My Paper\"\n" +
+			"$ sci zot --library personal item list --limit 20\n" +
+			"$ sci zot --library shared item export ABC12345",
 		Commands: []*cli.Command{
 			readCommand(),
 			addCommand(),

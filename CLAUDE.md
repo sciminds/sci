@@ -38,14 +38,15 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 
 - **`cmdutil.Result`:** every command returns `JSON() any` + `Human() string`; emit via `cmdutil.Output(cmd, result)`.
 - **CLI framework:** urfave/cli v3. All flags use `Local: true`.
-- **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/` and `internal/zot/local/`. The reason in every case is "this package is reusable standalone and must not pull in pocketbase".
+- **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Default to `pocketbase/dbx` via `internal/db/data/`. Documented exceptions that use raw `database/sql`: `internal/tui/dbtui/data/` (still a standalone binary — keep it lean) and `internal/zot/local/` (read-only immutable-mode connection; dbx would bring write-oriented ergonomics the layer doesn't need).
 - **Bubbletea v2 + bubbles v2** everywhere. No v1 imports.
 - **No inline `lipgloss.NewStyle()`** outside `internal/uikit/` or `internal/tui/*/ui/`. Access via the `uikit.TUI` singleton.
 - **`huh` forms go through `uikit`:** use `uikit.RunForm` / `uikit.Input` / `uikit.InputInto` / `uikit.Select`. Never call `.Run()` on a huh form directly — `RunForm` handles theme, keymap, and stdin drain. Confirmations use `cmdutil.Confirm`/`cmdutil.ConfirmYes`. Enforced by lint-guard rule 14.
 - **`uikit` first for TUI components.** See `internal/uikit/doc.go` for the catalog. Extend uikit when a pattern appears in ≥ 2 TUIs.
 - **Process-replacing exec** (REPL, marimo, quarto) via `syscall.Exec`, not `exec.Command`. Export `Build*Args` helpers for tests.
 - **New TUI apps** go under `internal/tui/<name>/` and follow the dbtui split (`app/`, `ui/`, root-pkg `Run` entry).
-- **Two-surface CLIs** (e.g. `zot`): full command tree lives in `internal/<pkg>/cli.Commands()`; both `cmd/<pkg>/main.go` and `cmd/sci/<pkg>.go` import it. Never duplicate wiring.
+- **Large subcommand trees** (e.g. `zot`) live in `internal/<pkg>/cli.Commands()` and are mounted under `sci` via `cmd/sci/<pkg>.go`. Small single-file subcommands (proj, db, etc.) are declared directly in `cmd/sci/<pkg>.go`. There is no standalone binary for sub-tools — everything is `sci <cmd>`.
+- **Namespace parents reject unknown children automatically** via `cmdutil.WireNamespaceDefaults(root)` called once in `cmd/sci/root.go:buildRoot()`. Don't wire per-command; don't disable this unless you have a specific reason (and then add a test).
 
 ## Testing rules
 

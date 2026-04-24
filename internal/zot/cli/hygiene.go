@@ -48,12 +48,12 @@ func missingCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "missing",
 		Usage: "Scan the library for items missing common fields",
-		Description: `$ zot doctor missing
-$ zot doctor missing --field title,creators
-$ zot doctor missing --field doi,abstract
-$ zot doctor missing --limit 0 --json > coverage.json
-$ zot doctor missing --enrich                    # dry-run: what OpenAlex would fill
-$ zot doctor missing --enrich --apply --yes      # actually patch the library
+		Description: `$ sci zot doctor missing
+$ sci zot doctor missing --field title,creators
+$ sci zot doctor missing --field doi,abstract
+$ sci zot doctor missing --limit 0 --json > coverage.json
+$ sci zot doctor missing --enrich                    # dry-run: what OpenAlex would fill
+$ sci zot doctor missing --enrich --apply --yes      # actually patch the library
 
 Fields: title, creators, date, doi, abstract, url, pdf, tags. Defaults to all.
 Severity: title=error, creators/date=warn, others=info.
@@ -175,11 +175,11 @@ func duplicatesCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "duplicates",
 		Usage: "Find potential duplicate items (by DOI and/or title)",
-		Description: `$ zot doctor duplicates                  # fast: DOI + exact-normalized title
-$ zot doctor duplicates --fuzzy          # adds slow fuzzy title pass (~30s on 5k items)
-$ zot doctor duplicates --strategy doi
-$ zot doctor duplicates --fuzzy --threshold 0.9
-$ zot doctor duplicates --limit 0 --json > dupes.json
+		Description: `$ sci zot doctor duplicates                  # fast: DOI + exact-normalized title
+$ sci zot doctor duplicates --fuzzy          # adds slow fuzzy title pass (~30s on 5k items)
+$ sci zot doctor duplicates --strategy doi
+$ sci zot doctor duplicates --fuzzy --threshold 0.9
+$ sci zot doctor duplicates --limit 0 --json > dupes.json
 
 Strategies: doi (strongest), title, both (default).
 
@@ -253,9 +253,9 @@ func invalidCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "invalid",
 		Usage: "Scan the library for malformed field values (DOI/ISBN/URL/date)",
-		Description: `$ zot doctor invalid
-$ zot doctor invalid --field doi,date
-$ zot doctor invalid --limit 0 --json > invalid.json
+		Description: `$ sci zot doctor invalid
+$ sci zot doctor invalid --field doi,date
+$ sci zot doctor invalid --limit 0 --json > invalid.json
 
 Fields: doi, isbn, url, date. Defaults to all.
 All invalid findings are graded SevWarn (citation-affecting).`,
@@ -301,10 +301,10 @@ func orphansCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "orphans",
 		Usage: "Find structural orphans (empty collections, standalone attachments/notes, unused tags, uncollected items, missing files)",
-		Description: `$ zot doctor orphans
-$ zot doctor orphans --kind uncollected-item
-$ zot doctor orphans --kind missing-file --check-files
-$ zot doctor orphans --limit 0 --json > orphans.json
+		Description: `$ sci zot doctor orphans
+$ sci zot doctor orphans --kind uncollected-item
+$ sci zot doctor orphans --kind missing-file --check-files
+$ sci zot doctor orphans --limit 0 --json > orphans.json
 
 Default kinds: empty-collection, standalone-attachment,
 standalone-note, unused-tag.
@@ -365,14 +365,14 @@ func citekeysCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "citekeys",
 		Usage: "Validate stored cite-keys against the {author}{year}-{words}-{ZOTKEY} spec",
-		Description: `$ zot doctor citekeys                     # read-only check
-$ zot doctor citekeys --limit 0 --json > citekeys.json
+		Description: `$ sci zot doctor citekeys                     # read-only check
+$ sci zot doctor citekeys --limit 0 --json > citekeys.json
 
-$ zot doctor citekeys --fix               # dry-run: preview what would change
-$ zot doctor citekeys --fix --apply       # actually write through Zotero Web API
-$ zot doctor citekeys --fix --apply --kind invalid,collision
-$ zot doctor citekeys --fix --apply --item ABCD1234
-$ zot doctor citekeys --fix --apply --yes
+$ sci zot doctor citekeys --fix               # dry-run: preview what would change
+$ sci zot doctor citekeys --fix --apply       # actually write through Zotero Web API
+$ sci zot doctor citekeys --fix --apply --kind invalid,collision
+$ sci zot doctor citekeys --fix --apply --item ABCD1234
+$ sci zot doctor citekeys --fix --apply --yes
 
 Categories and severities:
   invalid       SevError   structurally broken (whitespace, BibTeX-illegal chars)

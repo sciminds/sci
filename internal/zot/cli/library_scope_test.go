@@ -171,3 +171,9 @@ func TestRoot_SetupDoesNotRequireLibrary(t *testing.T) {
 		t.Fatalf("setup --help should not require --library: %v", err)
 	}
 }
+
+// Unknown-subcommand handling is now a tree-wide invariant enforced by
+// cmdutil.WireNamespaceDefaults on the sci root; the dedicated test for
+// that behavior lives in cmd/sci/commands_test.go (TestNamespaceRejects
+// UnknownChildren) and covers every namespace in the tree, including
+// zot. No per-package regression test needed here.

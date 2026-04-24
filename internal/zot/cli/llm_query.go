@@ -51,11 +51,11 @@ func llmQueryCommand() *cli.Command {
 			"  .heading | select(contains(\"Method\") || contains(\"Result\"))\n" +
 			"mq docs + install: https://github.com/harehare/mq\n" +
 			"\n" +
-			"$ zot llm query -s transformers -- .h2\n" +
-			"$ zot llm query -t ml -n 10\n" +
-			"$ zot llm query -k ABC123 -k DEF456 -- .heading\n" +
-			"$ zot llm query -s '@tag: ToM' -- '.h2 | select(contains(\"Method\"))'\n" +
-			"$ zot llm query -k ABC123 -- '.heading | select(contains(\"Discussion\") || contains(\"Conclusion\"))'",
+			"$ sci zot llm query -s transformers -- .h2\n" +
+			"$ sci zot llm query -t ml -n 10\n" +
+			"$ sci zot llm query -k ABC123 -k DEF456 -- .heading\n" +
+			"$ sci zot llm query -s '@tag: ToM' -- '.h2 | select(contains(\"Method\"))'\n" +
+			"$ sci zot llm query -k ABC123 -- '.heading | select(contains(\"Discussion\") || contains(\"Conclusion\"))'",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "search", Aliases: []string{"s"}, Usage: "Cross-field text search", Destination: &llmQuerySearch, Local: true},
 			&cli.StringFlag{Name: "tag", Aliases: []string{"t"}, Usage: "Filter by tag", Destination: &llmQueryTag, Local: true},

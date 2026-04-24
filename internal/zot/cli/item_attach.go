@@ -31,7 +31,7 @@ func itemAttachCommand() *cli.Command {
 		Name:      "attach",
 		Usage:     "Upload a local file as a child attachment of an existing item",
 		ArgsUsage: "<parent-key> <path>",
-		Description: "$ zot --library personal item attach ABC12345 ~/papers/Smith2022.pdf\n" +
+		Description: "$ sci zot --library personal item attach ABC12345 ~/papers/Smith2022.pdf\n" +
 			"\n" +
 			"Creates a new imported_file attachment as a child of <parent-key> and\n" +
 			"uploads the file bytes. Existing attachments on the parent are left\n" +

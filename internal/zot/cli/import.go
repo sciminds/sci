@@ -43,11 +43,11 @@ func importCommand() *cli.Command {
 		Name:      "import",
 		Usage:     "Import local PDFs via Zotero desktop (drag-drop equivalent, with metadata recognition)",
 		ArgsUsage: "<path>...",
-		Description: "$ zot import ~/papers/Smith2022.pdf\n" +
-			"$ zot import ~/papers/Smith2022.pdf --timeout 90s\n" +
-			"$ zot import ~/papers/Smith2022.pdf --no-wait\n" +
-			"$ zot import ~/papers/                       # recursive folder import\n" +
-			"$ zot import a.pdf b.pdf c.pdf               # explicit file list\n" +
+		Description: "$ sci zot import ~/papers/Smith2022.pdf\n" +
+			"$ sci zot import ~/papers/Smith2022.pdf --timeout 90s\n" +
+			"$ sci zot import ~/papers/Smith2022.pdf --no-wait\n" +
+			"$ sci zot import ~/papers/                       # recursive folder import\n" +
+			"$ sci zot import a.pdf b.pdf c.pdf               # explicit file list\n" +
 			"\n" +
 			"Posts each PDF to Zotero desktop's local connector server\n" +
 			"(127.0.0.1:23119). For single files the command waits for desktop's\n" +

@@ -38,13 +38,13 @@ func notesCommand() *cli.Command {
 		Name:    "notes",
 		Aliases: []string{"note"},
 		Usage:   "Manage docling extraction notes (list, read, add, update, delete)",
-		Description: "$ zot notes list\n" +
-			"$ zot notes list AAAA1111\n" +
-			"$ zot notes read NOTECH10\n" +
-			"$ zot notes add AAAA1111\n" +
-			"$ zot notes update AAAA1111\n" +
-			"$ zot notes delete AAAA1111\n" +
-			"$ zot notes delete --all",
+		Description: "$ sci zot notes list\n" +
+			"$ sci zot notes list AAAA1111\n" +
+			"$ sci zot notes read NOTECH10\n" +
+			"$ sci zot notes add AAAA1111\n" +
+			"$ sci zot notes update AAAA1111\n" +
+			"$ sci zot notes delete AAAA1111\n" +
+			"$ sci zot notes delete --all",
 		Commands: []*cli.Command{
 			notesListCommand(),
 			notesReadCommand(),
@@ -59,8 +59,8 @@ func notesListCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "list",
 		Usage: "List docling extraction notes",
-		Description: "$ zot notes list                   # all items with docling notes\n" +
-			"$ zot notes list AAAA1111           # docling notes for one item",
+		Description: "$ sci zot notes list                   # all items with docling notes\n" +
+			"$ sci zot notes list AAAA1111           # docling notes for one item",
 		ArgsUsage: "[parent-item-key]",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			_, db, err := openLocalDB(ctx)
@@ -114,7 +114,7 @@ func notesReadCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "read",
 		Usage:       "Show the full body of a note",
-		Description: "$ zot notes read NOTECH10",
+		Description: "$ sci zot notes read NOTECH10",
 		ArgsUsage:   "<note-key>",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -141,9 +141,9 @@ func notesAddCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "add",
 		Usage: "Extract a PDF and create a docling note",
-		Description: "$ zot notes add AAAA1111               # extract + create note\n" +
-			"$ zot notes add AAAA1111 --force        # even if docling note exists\n" +
-			"$ zot notes add AAAA1111 --html          # rendered HTML instead of raw markdown",
+		Description: "$ sci zot notes add AAAA1111               # extract + create note\n" +
+			"$ sci zot notes add AAAA1111 --force        # even if docling note exists\n" +
+			"$ sci zot notes add AAAA1111 --html          # rendered HTML instead of raw markdown",
 		ArgsUsage: "<parent-item-key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "force", Usage: "create a new note even if a docling note already exists", Destination: &notesAddForce, Local: true},
@@ -277,8 +277,8 @@ func notesUpdateCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "update",
 		Usage: "Re-extract and update an existing docling note in place",
-		Description: "$ zot notes update AAAA1111\n" +
-			"$ zot notes update AAAA1111 --reextract  # force re-run docling",
+		Description: "$ sci zot notes update AAAA1111\n" +
+			"$ sci zot notes update AAAA1111 --reextract  # force re-run docling",
 		ArgsUsage: "<parent-item-key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "reextract", Usage: "discard cached docling output and re-run", Destination: &notesUpdateReextract, Local: true},
@@ -408,9 +408,9 @@ func notesDeleteCommand() *cli.Command {
 		Name:    "delete",
 		Aliases: []string{"trash"},
 		Usage:   "Trash docling extraction notes",
-		Description: "$ zot notes delete AAAA1111            # trash docling notes for one item\n" +
-			"$ zot notes delete --all                # trash ALL docling notes in library\n" +
-			"$ zot notes delete AAAA1111 --yes       # skip confirmation",
+		Description: "$ sci zot notes delete AAAA1111            # trash docling notes for one item\n" +
+			"$ sci zot notes delete --all                # trash ALL docling notes in library\n" +
+			"$ sci zot notes delete AAAA1111 --yes       # skip confirmation",
 		ArgsUsage: "[parent-item-key]",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "all", Usage: "trash all docling notes in the entire library", Destination: &notesDeleteAll, Local: true},

@@ -15,9 +15,9 @@ func llmCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "llm",
 		Usage: experimental + " LLM-agent tools for querying docling notes",
-		Description: "$ zot llm catalog                        # compact paper index\n" +
-			"$ zot llm read ABC123                    # full note content\n" +
-			"$ zot llm query -s transformers -- .h2   # filter + mq pipeline",
+		Description: "$ sci zot llm catalog                        # compact paper index\n" +
+			"$ sci zot llm read ABC123                    # full note content\n" +
+			"$ sci zot llm query -s transformers -- .h2   # filter + mq pipeline",
 		Commands: []*cli.Command{
 			llmCatalogCommand(),
 			llmReadCommand(),

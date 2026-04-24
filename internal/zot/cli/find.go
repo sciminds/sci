@@ -23,9 +23,9 @@ func findCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "find",
 		Usage: "Look up papers or authors on OpenAlex",
-		Description: "$ zot find works \"attention is all you need\"\n" +
-			"$ zot find authors \"ashish vaswani\"\n" +
-			"$ zot find works --filter type=article --filter from_publication_date=2024-01-01 llm",
+		Description: "$ sci zot find works \"attention is all you need\"\n" +
+			"$ sci zot find authors \"ashish vaswani\"\n" +
+			"$ sci zot find works --filter type=article --filter from_publication_date=2024-01-01 llm",
 		Commands: []*cli.Command{
 			findWorksCommand(),
 			findAuthorsCommand(),
@@ -52,9 +52,9 @@ func findWorksCommand() *cli.Command {
 		Name:      "works",
 		Usage:     "Search OpenAlex Works",
 		ArgsUsage: "<query>",
-		Description: "$ zot find works \"attention is all you need\"\n" +
-			"$ zot find works --limit 10 --sort cited_by_count:desc transformers\n" +
-			"$ zot find works --filter type=article --filter from_publication_date=2024-01-01 llm",
+		Description: "$ sci zot find works \"attention is all you need\"\n" +
+			"$ sci zot find works --limit 10 --sort cited_by_count:desc transformers\n" +
+			"$ sci zot find works --filter type=article --filter from_publication_date=2024-01-01 llm",
 		Flags:  findFlags(),
 		Action: runFindWorks,
 	}
@@ -65,8 +65,8 @@ func findAuthorsCommand() *cli.Command {
 		Name:      "authors",
 		Usage:     "Search OpenAlex Authors",
 		ArgsUsage: "<query>",
-		Description: "$ zot find authors \"ashish vaswani\"\n" +
-			"$ zot find authors --sort works_count:desc hinton",
+		Description: "$ sci zot find authors \"ashish vaswani\"\n" +
+			"$ sci zot find authors --sort works_count:desc hinton",
 		Flags:  findFlags(),
 		Action: runFindAuthors,
 	}

@@ -77,7 +77,7 @@ func localSelectorFor(ctx context.Context, cfg *zot.Config) (local.LibrarySelect
 		return local.ForPersonal(), nil
 	case zot.LibShared:
 		if cfg.SharedGroupID == "" {
-			return local.LibrarySelector{}, fmt.Errorf("--library shared: SharedGroupID is empty (run 'zot setup' to auto-detect)")
+			return local.LibrarySelector{}, fmt.Errorf("--library shared: SharedGroupID is empty (run 'sci zot setup' to auto-detect)")
 		}
 		apiID, err := strconv.ParseInt(cfg.SharedGroupID, 10, 64)
 		if err != nil {
@@ -97,13 +97,13 @@ func searchCommand() *cli.Command {
 			"clause with @field: to scope it — fields: author, title, doi,\n" +
 			"pub, tag, type, year. Clauses AND by default; `|` separates OR\n" +
 			"groups; a leading `-` in the value negates the clause.\n\n" +
-			"$ zot search \"large language models\"\n" +
-			"$ zot search --limit 100 neuroimaging\n" +
-			"$ zot search '@tag: Generative_Agents'      # items carrying this tag\n" +
-			"$ zot search '@author: saxe @year: 2022'    # ANDed clauses\n" +
-			"$ zot search '@type: book | @type: thesis'  # OR across clauses\n" +
-			"$ zot search attention --export --out hits.bib\n" +
-			"$ zot search llm --remote   # Zotero Web API fulltext search (title + creators + year + abstract + notes + PDFs)",
+			"$ sci zot search \"large language models\"\n" +
+			"$ sci zot search --limit 100 neuroimaging\n" +
+			"$ sci zot search '@tag: Generative_Agents'      # items carrying this tag\n" +
+			"$ sci zot search '@author: saxe @year: 2022'    # ANDed clauses\n" +
+			"$ sci zot search '@type: book | @type: thesis'  # OR across clauses\n" +
+			"$ sci zot search attention --export --out hits.bib\n" +
+			"$ sci zot search llm --remote   # Zotero Web API fulltext search (title + creators + year + abstract + notes + PDFs)",
 		ArgsUsage: "<query>",
 		Flags: []cli.Flag{
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max results", Destination: &searchLimit, Local: true},
@@ -268,7 +268,7 @@ func readCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "read",
 		Usage:       "Show full details of a single item",
-		Description: "$ zot item read ABC12345\n$ zot item read ABC12345 --remote   # bypass local SQLite, hit the Zotero Web API",
+		Description: "$ sci zot item read ABC12345\n$ sci zot item read ABC12345 --remote   # bypass local SQLite, hit the Zotero Web API",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (for items not yet synced)", Destination: &readRemote, Local: true},
@@ -313,7 +313,7 @@ func listCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "list",
 		Usage:       "List items in your library with optional filters",
-		Description: "$ zot item list\n$ zot item list --type journalArticle --limit 25\n$ zot item list --collection ABC12345\n$ zot item list --tag neuroimaging --order title\n$ zot item list --collection ABC12345 --remote   # bypass local SQLite (for items not yet synced)",
+		Description: "$ sci zot item list\n$ sci zot item list --type journalArticle --limit 25\n$ sci zot item list --collection ABC12345\n$ sci zot item list --tag neuroimaging --order title\n$ sci zot item list --collection ABC12345 --remote   # bypass local SQLite (for items not yet synced)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "type", Aliases: []string{"t"}, Usage: "filter by item type (e.g. journalArticle, book)", Destination: &listType, Local: true},
 			&cli.StringFlag{Name: "collection", Aliases: []string{"c"}, Usage: "filter by collection key", Destination: &listCollection, Local: true},
@@ -406,9 +406,9 @@ func infoCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "info",
 		Usage: "Show library summary statistics",
-		Description: "$ zot info                     # summarize both libraries\n" +
-			"$ zot info --library personal  # narrow to personal\n" +
-			"$ zot info --library shared    # narrow to shared",
+		Description: "$ sci zot info                     # summarize both libraries\n" +
+			"$ sci zot info --library personal  # narrow to personal\n" +
+			"$ sci zot info --library shared    # narrow to shared",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfg, err := zot.RequireConfig()
 			if err != nil {
@@ -497,7 +497,7 @@ func exportCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "export",
 		Usage:       "Export a citation for an item (csl-json or bibtex)",
-		Description: "$ zot item export ABC12345\n$ zot item export ABC12345 --format bibtex\n$ zot item export ABC12345 --format bibtex --out ref.bib",
+		Description: "$ sci zot item export ABC12345\n$ sci zot item export ABC12345 --format bibtex\n$ sci zot item export ABC12345 --format bibtex --out ref.bib",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csl-json", Usage: "output format: csl-json, bibtex", Destination: &exportFormat, Local: true},
@@ -538,8 +538,8 @@ func childrenCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "children",
 		Usage: "List the child items (attachments + notes) of a parent item",
-		Description: "$ zot item children 6R45EVSB\n" +
-			"$ zot --json item children 6R45EVSB | jq '.children[] | select(.item_type==\"note\") | .key'\n" +
+		Description: "$ sci zot item children 6R45EVSB\n" +
+			"$ sci zot --json item children 6R45EVSB | jq '.children[] | select(.item_type==\"note\") | .key'\n" +
 			"\n" +
 			"Lists every child from the local Zotero database. Use together with\n" +
 			"`zot item delete` to prune specific notes or attachments.",
@@ -591,7 +591,7 @@ func openCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "open",
 		Usage:       "Open an item's attachment in the default viewer",
-		Description: "$ zot item open ABC12345",
+		Description: "$ sci zot item open ABC12345",
 		ArgsUsage:   "<key>",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {

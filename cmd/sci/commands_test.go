@@ -286,6 +286,75 @@ func walkCommands(cmds []*cli.Command, prefix string, fn func(path string, cmd *
 	}
 }
 
+// TestNamespaceRejectsUnknownChildren walks the entire sci command tree and,
+// for every command with subcommands, invokes it with a nonsense child name.
+// The invariant (enforced by cmdutil.WireNamespaceDefaults on the root) is
+// that any such invocation produces an "unknown command" error — never
+// urfave's default "No help topic for 'X'" nor silent fall-through to the
+// parent's Action.
+//
+// This test is the regression guard: adding a new namespace anywhere in the
+// tree gets coverage automatically, and unwiring the auto-defaults breaks
+// every row.
+func TestNamespaceRejectsUnknownChildren(t *testing.T) {
+	root := buildRoot()
+
+	// Flags that are required on certain subtrees for the Before chain to
+	// even reach the unknown-subcommand check. Keyed by top-level parent.
+	preArgs := map[string][]string{
+		"zot": {"--library", "personal"},
+	}
+
+	var namespaces []*cli.Command
+	var paths []string
+	walkCommands(root.Commands, "sci", func(path string, cmd *cli.Command) {
+		if len(cmd.Commands) > 0 {
+			namespaces = append(namespaces, cmd)
+			paths = append(paths, path)
+		}
+	})
+
+	if len(namespaces) == 0 {
+		t.Fatal("tree walk found no namespaces — did buildRoot() change?")
+	}
+
+	for i, cmd := range namespaces {
+		path := paths[i]
+		t.Run(path, func(t *testing.T) {
+			// Rebuild root per-iteration so state from prior Run calls
+			// doesn't leak (urfave mutates cmd.parsedArgs, etc.).
+			r := buildRoot()
+			var buf strings.Builder
+			r.Writer = &buf
+
+			// Reconstruct argv: root name, the top-level segment (e.g. "zot"),
+			// any required pre-args for that subtree (e.g. "--library personal"),
+			// then the deeper path segments, then a bogus child name.
+			// Pre-args belong *after* the top-level name because they're flags
+			// defined on that subtree's command, not on the root.
+			segs := strings.Split(path, " ")
+			argv := []string{segs[0]}
+			if len(segs) > 1 {
+				argv = append(argv, segs[1])
+				if pre, ok := preArgs[segs[1]]; ok {
+					argv = append(argv, pre...)
+				}
+				argv = append(argv, segs[2:]...)
+			}
+			argv = append(argv, "bogus-subcommand-xyz")
+
+			err := r.Run(context.Background(), argv)
+			if err == nil {
+				t.Fatalf("%s bogus-subcommand-xyz: expected error, got nil (output: %s)", path, buf.String())
+			}
+			if !strings.Contains(err.Error(), "unknown command") {
+				t.Errorf("%s: error should contain \"unknown command\", got: %v", path, err)
+			}
+			_ = cmd
+		})
+	}
+}
+
 // hasFlag returns true if cmd has a flag with the given name.
 func hasFlag(cmd *cli.Command, name string) bool {
 	for _, f := range cmd.Flags {

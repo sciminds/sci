@@ -54,9 +54,9 @@ func itemNoteCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "note",
 		Usage: "Create, read, update, and list Zotero note items",
-		Description: "$ zot item note add --collection COLL1234 --body-file summary.md\n" +
-			"$ zot item note add PARENT12 --body \"Quick thought on this paper\"\n" +
-			"$ zot item note add --collection COLL1234 --body - < summary.md\n" +
+		Description: "$ sci zot item note add --collection COLL1234 --body-file summary.md\n" +
+			"$ sci zot item note add PARENT12 --body \"Quick thought on this paper\"\n" +
+			"$ sci zot item note add --collection COLL1234 --body - < summary.md\n" +
 			"\n" +
 			"Notes are stored as HTML. By default --body / --body-file is parsed\n" +
 			"as markdown and rendered; pass --html to write literal HTML.",
@@ -74,9 +74,9 @@ func itemNoteAddCommand() *cli.Command {
 		Name:      "add",
 		Usage:     "Create a note item (standalone or attached to a parent)",
 		ArgsUsage: "[parent-key]",
-		Description: "$ zot item note add --collection COLL1234 --body-file summary.md\n" +
-			"$ zot item note add PARENT12 --body \"Quick thought\" --tag idea\n" +
-			"$ zot item note add --collection COLL1234 --body - < summary.md\n" +
+		Description: "$ sci zot item note add --collection COLL1234 --body-file summary.md\n" +
+			"$ sci zot item note add PARENT12 --body \"Quick thought\" --tag idea\n" +
+			"$ sci zot item note add --collection COLL1234 --body - < summary.md\n" +
 			"\n" +
 			"Pass a parent item key positionally to attach the note as a child.\n" +
 			"Omit the positional and pass --collection to create a standalone note.\n" +
@@ -216,9 +216,9 @@ func itemNoteReadCommand() *cli.Command {
 		Name:      "read",
 		Usage:     "Show a note item's body, parent, tags, and collections",
 		ArgsUsage: "<key>",
-		Description: "$ zot item note read NOTE1234\n" +
-			"$ zot item note read NOTE1234 --html       # raw HTML\n" +
-			"$ zot item note read NOTE1234 --json       # structured, incl. HTML body",
+		Description: "$ sci zot item note read NOTE1234\n" +
+			"$ sci zot item note read NOTE1234 --html       # raw HTML\n" +
+			"$ sci zot item note read NOTE1234 --json       # structured, incl. HTML body",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "html", Usage: "show raw HTML instead of stripping tags (human mode only)", Destination: &noteReadHTML, Local: true},
 		},
@@ -300,9 +300,9 @@ func itemNoteUpdateCommand() *cli.Command {
 		Name:      "update",
 		Usage:     "Replace a note's body in place",
 		ArgsUsage: "<key>",
-		Description: "$ zot item note update NOTE1234 --body-file revised.md\n" +
-			"$ zot item note update NOTE1234 --body \"Updated thought\"\n" +
-			"$ zot item note update NOTE1234 --body - < revised.md",
+		Description: "$ sci zot item note update NOTE1234 --body-file revised.md\n" +
+			"$ sci zot item note update NOTE1234 --body \"Updated thought\"\n" +
+			"$ sci zot item note update NOTE1234 --body - < revised.md",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "body", Usage: "inline note body (or `-` to read from stdin)", Destination: &noteUpdBody, Local: true},
 			&cli.StringFlag{Name: "body-file", Usage: "path to a note body file (or `-` for stdin)", Destination: &noteUpdBodyFile, Local: true},
@@ -361,7 +361,7 @@ func itemNoteListCommand() *cli.Command {
 		Name:      "list",
 		Usage:     "List note children of a parent item",
 		ArgsUsage: "<parent-key>",
-		Description: "$ zot item note list PAPER567\n" +
+		Description: "$ sci zot item note list PAPER567\n" +
 			"\n" +
 			"For notes in a collection use `zot item list --type note --collection COLL`.",
 		Action: runItemNoteList,
