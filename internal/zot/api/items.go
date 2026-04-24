@@ -105,6 +105,8 @@ func (c *Client) GetItem(ctx context.Context, key string) (*client.Item, error) 
 
 // getItemRaw fetches an item by key and returns its parsed form + version.
 // Used internally for 412 version-retry and to fill in ItemType on patches.
+//
+//nolint:dupl // single-object GET scaffolding is intrinsically symmetric across tag/item/etc
 func (c *Client) getItemRaw(ctx context.Context, key string) (*client.Item, error) {
 	var status int
 	var statusLine string

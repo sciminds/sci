@@ -123,3 +123,87 @@ func TestDeleteTags_ServerError(t *testing.T) {
 		t.Errorf("err = %v, want 'DELETE /tags' prefix", err)
 	}
 }
+
+// getTagHandler serves GET /users/{userID}/tags/{tag} for tests.
+type getTagHandler struct {
+	mu      sync.Mutex
+	gotPath string
+	status  int // 0 → 200
+	body    []byte
+}
+
+func (h *getTagHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	h.mu.Lock()
+	h.gotPath = r.URL.EscapedPath()
+	status := h.status
+	body := h.body
+	h.mu.Unlock()
+	if status == 0 {
+		status = http.StatusOK
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if len(body) > 0 {
+		_, _ = w.Write(body)
+	}
+}
+
+func TestGetTag_Success(t *testing.T) {
+	t.Parallel()
+	h := &getTagHandler{
+		body: []byte(`{"tag":"lit-review","meta":{"type":0,"numItems":5}}`),
+	}
+	c, _ := newTestClient(t, h)
+
+	tag, err := c.GetTag(context.Background(), "lit-review")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tag == nil || tag.Tag == nil || *tag.Tag != "lit-review" {
+		t.Fatalf("tag = %+v, want Tag='lit-review'", tag)
+	}
+	if h.gotPath != "/users/42/tags/lit-review" {
+		t.Errorf("path = %q, want /users/42/tags/lit-review", h.gotPath)
+	}
+}
+
+func TestGetTag_URLEncodesName(t *testing.T) {
+	t.Parallel()
+	h := &getTagHandler{
+		body: []byte(`{"tag":"lit review","meta":{"type":0,"numItems":3}}`),
+	}
+	c, _ := newTestClient(t, h)
+
+	if _, err := c.GetTag(context.Background(), "lit review"); err != nil {
+		t.Fatal(err)
+	}
+	// Generated client should percent-encode the space — exact form is
+	// either %20 or +; reject raw spaces, accept either encoding.
+	if strings.Contains(h.gotPath, " ") {
+		t.Errorf("path %q contains unencoded space", h.gotPath)
+	}
+	if !strings.Contains(h.gotPath, "lit") {
+		t.Errorf("path %q missing tag root", h.gotPath)
+	}
+}
+
+func TestGetTag_NotFound(t *testing.T) {
+	t.Parallel()
+	h := &getTagHandler{status: http.StatusNotFound}
+	c, _ := newTestClient(t, h)
+
+	_, err := c.GetTag(context.Background(), "ghost")
+	if err == nil {
+		t.Fatal("expected error on 404")
+	}
+	if !strings.Contains(err.Error(), "ghost") {
+		t.Errorf("err = %v, want tag name in message", err)
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("err = %v, want 'not found' in message", err)
+	}
+}
