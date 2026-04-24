@@ -73,6 +73,167 @@ func TestDetectEnv(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// FindEnv (walks up from cwd)
+// ---------------------------------------------------------------------------
+
+func TestFindEnv(t *testing.T) {
+	t.Run("match at cwd", func(t *testing.T) {
+		dir := t.TempDir()
+		mustTouch(t, filepath.Join(dir, "pyproject.toml"))
+		mustMkdir(t, filepath.Join(dir, ".venv"))
+		t.Setenv("HOME", t.TempDir())
+
+		env := FindEnv(dir)
+		if env.Kind != EnvUV {
+			t.Errorf("expected uv, got %v", env.Kind)
+		}
+		if env.Dir != dir {
+			t.Errorf("expected dir %q, got %q", dir, env.Dir)
+		}
+	})
+
+	t.Run("match at ancestor (uv)", func(t *testing.T) {
+		root := t.TempDir()
+		mustTouch(t, filepath.Join(root, "pyproject.toml"))
+		mustMkdir(t, filepath.Join(root, ".venv"))
+		sub := filepath.Join(root, "a", "b", "c")
+		if err := os.MkdirAll(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("HOME", t.TempDir())
+
+		env := FindEnv(sub)
+		if env.Kind != EnvUV {
+			t.Errorf("expected uv, got %v", env.Kind)
+		}
+		if env.Dir != root {
+			t.Errorf("expected dir %q, got %q", root, env.Dir)
+		}
+	})
+
+	t.Run("match at ancestor (pixi)", func(t *testing.T) {
+		root := t.TempDir()
+		mustMkdir(t, filepath.Join(root, ".pixi"))
+		sub := filepath.Join(root, "a")
+		if err := os.Mkdir(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("HOME", t.TempDir())
+
+		env := FindEnv(sub)
+		if env.Kind != EnvPixi {
+			t.Errorf("expected pixi, got %v", env.Kind)
+		}
+		if env.Dir != root {
+			t.Errorf("expected dir %q, got %q", root, env.Dir)
+		}
+	})
+
+	t.Run(".git boundary stops walk", func(t *testing.T) {
+		// pyproject lives above a .git boundary — must not be picked up.
+		outer := t.TempDir()
+		mustTouch(t, filepath.Join(outer, "pyproject.toml"))
+		mustMkdir(t, filepath.Join(outer, ".venv"))
+
+		repo := filepath.Join(outer, "repo")
+		if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		sub := filepath.Join(repo, "sub")
+		if err := os.Mkdir(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("HOME", t.TempDir())
+
+		env := FindEnv(sub)
+		if env.Kind != EnvNone {
+			t.Errorf("expected none (stopped at .git), got %v (dir=%q)", env.Kind, env.Dir)
+		}
+	})
+
+	t.Run(".git as file (worktree) also stops walk", func(t *testing.T) {
+		// Git worktrees use a `.git` file, not a directory.
+		outer := t.TempDir()
+		mustTouch(t, filepath.Join(outer, "pyproject.toml"))
+		mustMkdir(t, filepath.Join(outer, ".venv"))
+
+		repo := filepath.Join(outer, "repo")
+		if err := os.Mkdir(repo, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		mustTouch(t, filepath.Join(repo, ".git"))
+		sub := filepath.Join(repo, "sub")
+		if err := os.Mkdir(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("HOME", t.TempDir())
+
+		env := FindEnv(sub)
+		if env.Kind != EnvNone {
+			t.Errorf("expected none (stopped at .git file), got %v", env.Kind)
+		}
+	})
+
+	t.Run("HOME boundary stops walk", func(t *testing.T) {
+		// pyproject above $HOME must not be picked up.
+		parent := t.TempDir()
+		mustTouch(t, filepath.Join(parent, "pyproject.toml"))
+		mustMkdir(t, filepath.Join(parent, ".venv"))
+
+		home := filepath.Join(parent, "home")
+		if err := os.Mkdir(home, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		sub := filepath.Join(home, "proj")
+		if err := os.Mkdir(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("HOME", home)
+
+		env := FindEnv(sub)
+		if env.Kind != EnvNone {
+			t.Errorf("expected none (stopped at HOME), got %v", env.Kind)
+		}
+	})
+
+	t.Run("env at boundary itself is still returned", func(t *testing.T) {
+		// .git and pyproject+venv both at the same level — env wins,
+		// boundary only prevents ascending further.
+		root := t.TempDir()
+		mustMkdir(t, filepath.Join(root, ".git"))
+		mustTouch(t, filepath.Join(root, "pyproject.toml"))
+		mustMkdir(t, filepath.Join(root, ".venv"))
+		sub := filepath.Join(root, "sub")
+		if err := os.Mkdir(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("HOME", t.TempDir())
+
+		env := FindEnv(sub)
+		if env.Kind != EnvUV {
+			t.Errorf("expected uv, got %v", env.Kind)
+		}
+		if env.Dir != root {
+			t.Errorf("expected dir %q, got %q", root, env.Dir)
+		}
+	})
+
+	t.Run("no env anywhere returns none", func(t *testing.T) {
+		root := t.TempDir()
+		sub := filepath.Join(root, "a")
+		if err := os.Mkdir(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("HOME", root)
+
+		env := FindEnv(sub)
+		if env.Kind != EnvNone {
+			t.Errorf("expected none, got %v", env.Kind)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
 // BuildUVArgs — IPython
 // ---------------------------------------------------------------------------
 

@@ -7,7 +7,8 @@
 // Key functions:
 //
 //   - [RunTool] detects the environment and launches a tool (IPython, marimo, etc.)
-//   - [DetectEnv] checks for pixi / uv environments in a directory
+//   - [FindEnv] walks up from a directory to find the nearest env, bounded by .git / $HOME
+//   - [DetectEnv] checks a single directory for pixi / uv environments
 //   - [BuildUVArgs] / [BuildPixiCmd] construct command-line arguments (testable)
 //
 // Predefined tools: [IPythonTool], [MarimoTool].
@@ -101,6 +102,44 @@ func DetectEnv(dir string) EnvInfo {
 	return EnvInfo{Kind: EnvNone}
 }
 
+// findEnvMaxDepth bounds [FindEnv]'s upward walk as a final safety net.
+// Real repos won't come close; the .git / $HOME boundaries stop the walk first.
+const findEnvMaxDepth = 40
+
+// FindEnv walks up from dir to find the nearest Python environment,
+// applying [DetectEnv] at each ancestor. The walk stops (returning [EnvNone])
+// at a VCS root (a `.git` file or directory), the user's home directory,
+// or the filesystem root — whichever comes first. An environment *at* the
+// boundary directory is still returned; only ascending past it is blocked.
+func FindEnv(dir string) EnvInfo {
+	home, _ := os.UserHomeDir()
+	d := filepath.Clean(dir)
+	for depth := 0; depth < findEnvMaxDepth; depth++ {
+		if env := DetectEnv(d); env.Kind != EnvNone {
+			return env
+		}
+		if isVCSRoot(d) {
+			return EnvInfo{Kind: EnvNone}
+		}
+		if home != "" && d == home {
+			return EnvInfo{Kind: EnvNone}
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			return EnvInfo{Kind: EnvNone}
+		}
+		d = parent
+	}
+	return EnvInfo{Kind: EnvNone}
+}
+
+// isVCSRoot reports whether dir contains a `.git` entry.
+// Git worktrees use a `.git` *file* pointing at the main repo, so accept either.
+func isVCSRoot(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, ".git"))
+	return err == nil
+}
+
 func isDir(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
@@ -150,13 +189,14 @@ func BuildPixiCmd(dir string, tool Tool) []string {
 // Runners (replace process via syscall.Exec)
 // ---------------------------------------------------------------------------
 
-// RunTool detects the environment in dir and launches the specified tool.
-// If ignoreExisting is true, detection is skipped and an ephemeral session
-// is used. It replaces the current process (syscall.Exec).
+// RunTool detects the environment starting at dir (walking up to a .git / $HOME
+// boundary via [FindEnv]) and launches the specified tool. If ignoreExisting is
+// true, detection is skipped and an ephemeral session is used. It replaces the
+// current process (syscall.Exec).
 func RunTool(dir string, tool Tool, extraPkgs []string, ignoreExisting bool) error {
 	env := EnvInfo{Kind: EnvNone}
 	if !ignoreExisting {
-		env = DetectEnv(dir)
+		env = FindEnv(dir)
 	}
 
 	if env.Kind == EnvPixi {
