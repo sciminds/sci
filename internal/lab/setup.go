@@ -2,6 +2,7 @@ package lab
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -111,7 +112,11 @@ func Setup(user string) (*SetupResult, error) {
 		return nil, err
 	}
 	if testErr != nil {
-		return &SetupResult{OK: false, User: user, Message: testFailureMessage(testStderr.String())}, nil
+		return &SetupResult{
+			OK:      false,
+			User:    user,
+			Message: testFailureMessage(testStderr.String(), keyPath, probeSSHAgent()),
+		}, nil
 	}
 
 	// 7. Ensure remote write directory exists. Also non-interactive — at this
@@ -127,21 +132,75 @@ func Setup(user string) (*SetupResult, error) {
 	return &SetupResult{OK: true, User: user, Message: "lab configured for " + user + "@" + Host}, nil
 }
 
+// agentState reports the local ssh-agent's situation so we can steer the
+// "Permission denied (publickey)" diagnostic correctly. A passphrase-protected
+// private key + an empty (or missing) agent looks identical from the wire to
+// a server-side rejection — but the fix is `ssh-add`, not "contact support".
+type agentState int
+
+const (
+	// agentHasKeys: ssh-add -l listed at least one identity. Unlikely the
+	// failure is a passphrase issue; lean toward the SSRDE-side hypothesis.
+	agentHasKeys agentState = iota
+	// agentNoKeys: agent is reachable but empty. Passphrase-protected key
+	// without `ssh-add` is the prime suspect.
+	agentNoKeys
+	// agentUnavailable: SSH_AUTH_SOCK unset or socket gone. Same fix as
+	// agentNoKeys but the user needs to start an agent first.
+	agentUnavailable
+)
+
+// probeSSHAgent runs `ssh-add -l` and maps its exit code to an agentState.
+// Documented exit codes: 0 = at least one identity, 1 = no identities,
+// 2 = could not connect to agent. Any other state collapses to
+// agentUnavailable so we still produce a useful diagnostic.
+func probeSSHAgent() agentState {
+	err := exec.Command("ssh-add", "-l").Run()
+	if err == nil {
+		return agentHasKeys
+	}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		switch exitErr.ExitCode() {
+		case 1:
+			return agentNoKeys
+		case 2:
+			return agentUnavailable
+		}
+	}
+	return agentUnavailable
+}
+
 // testFailureMessage turns the captured stderr of a failed key-auth probe
-// into a message a user can act on. The two cases that actually happen in the
-// field:
-//   - "Permission denied (publickey)" — the key didn't authenticate. Most often
-//     this is the SSRDE forced-password-reset state from issue #2 (key auth
-//     gets through sshd but PAM's account stage rejects). We can't tell that
-//     apart from a genuinely bad key from the client side, so we point at both.
+// into a message a user can act on. Cases:
+//   - "Permission denied (publickey)" — the wire-level signal is identical for
+//     two very different problems: a passphrase-protected key with no agent
+//     loaded, vs. the SSRDE forced-password-reset state from issue #2. We
+//     consult agent to pick the right hint, and always include both fallbacks
+//     when we're not sure (agentNoKeys/agentUnavailable).
 //   - anything else — surface the raw stderr so the user has something to
 //     paste into a support ticket instead of "test connection failed".
-func testFailureMessage(stderr string) string {
+func testFailureMessage(stderr, keyPath string, agent agentState) string {
 	stderr = strings.TrimSpace(stderr)
 	if strings.Contains(stderr, "Permission denied (publickey)") {
-		return "SSH key was copied but the server rejected it on the test connection. " +
-			"If you're sure the key is correct, your SSRDE account may be in a " +
-			"forced-password-reset state — contact SSRDE support to verify."
+		switch agent {
+		case agentNoKeys:
+			return "SSH key was copied but the test connection was rejected. " +
+				"Your ssh-agent has no keys loaded — if " + keyPath + " has a passphrase, run:\n" +
+				"  ssh-add " + keyPath + "\n" +
+				"and retry. If the key has no passphrase, your SSRDE account may be in a " +
+				"forced-password-reset state — contact SSRDE support to verify."
+		case agentUnavailable:
+			return "SSH key was copied but the test connection was rejected. " +
+				"No ssh-agent is reachable. If " + keyPath + " has a passphrase, start an agent and load the key:\n" +
+				"  eval \"$(ssh-agent -s)\" && ssh-add " + keyPath + "\n" +
+				"and retry. If the key has no passphrase, your SSRDE account may be in a " +
+				"forced-password-reset state — contact SSRDE support to verify."
+		default: // agentHasKeys
+			return "SSH key was copied but the server rejected it on the test connection. " +
+				"If you're sure the key is correct, your SSRDE account may be in a " +
+				"forced-password-reset state — contact SSRDE support to verify."
+		}
 	}
 	if stderr != "" {
 		return "SSH key copied but test connection failed: " + stderr
@@ -295,12 +354,21 @@ func configureSSH(alias, user, keyPath, home string) error {
 	data, _ := os.ReadFile(configPath)
 	re := regexp.MustCompile(`(?m)^Host\s+` + regexp.QuoteMeta(alias) + `\s*$`)
 	if re.Match(data) {
-		updated, changed := upgradeControlPersist(string(data), alias, "12h")
-		if changed {
+		updated := string(data)
+		var changes []string
+		if next, changed := upgradeControlPersist(updated, alias, "12h"); changed {
+			updated = next
+			changes = append(changes, "ControlPersist→12h")
+		}
+		if next, changed := upgradeIdentityFile(updated, alias, keyPath, home); changed {
+			updated = next
+			changes = append(changes, "IdentityFile→"+keyPath)
+		}
+		if len(changes) > 0 {
 			if err := os.WriteFile(configPath, []byte(updated), 0o600); err != nil {
 				return fmt.Errorf("rewrite SSH config: %w", err)
 			}
-			uikit.OK("SSH config alias " + alias + " already exists (bumped ControlPersist → 12h)")
+			uikit.OK("SSH config alias " + alias + " already exists (refreshed: " + strings.Join(changes, ", ") + ")")
 		} else {
 			uikit.OK("SSH config alias " + alias + " already exists")
 		}
@@ -335,6 +403,47 @@ Host %s
 
 	uikit.OK("Added SSH config alias: " + alias)
 	return nil
+}
+
+// upgradeIdentityFile rewrites the IdentityFile line inside the alias's Host
+// block to want, but only when the existing entry resolves to a missing file.
+// A resolvable existing path may be a deliberate hand-edit, so we don't
+// clobber it. If the block has no IdentityFile line at all, we leave the
+// file alone — insertion is out of scope; configureSSH writes IdentityFile
+// when first creating the block, so this case only arises for hand-edited
+// blocks where silence is the polite default. Returns the new text and
+// whether anything changed.
+func upgradeIdentityFile(cfg, alias, want, home string) (string, bool) {
+	lines := strings.Split(cfg, "\n")
+	hostRE := regexp.MustCompile(`(?m)^Host\s+` + regexp.QuoteMeta(alias) + `\s*$`)
+	nextHostRE := regexp.MustCompile(`(?m)^Host\s+\S`)
+	idRE := regexp.MustCompile(`^(\s*)IdentityFile\s+(.+?)\s*$`)
+
+	inBlock := false
+	changed := false
+	for i, line := range lines {
+		if hostRE.MatchString(line) {
+			inBlock = true
+			continue
+		}
+		if inBlock && nextHostRE.MatchString(line) {
+			inBlock = false
+		}
+		if !inBlock {
+			continue
+		}
+		m := idRE.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		current := expandTilde(strings.Trim(m[2], `"`), home)
+		if _, err := os.Stat(current); err == nil {
+			continue // existing file — preserve hand-edit
+		}
+		lines[i] = m[1] + "IdentityFile " + want
+		changed = true
+	}
+	return strings.Join(lines, "\n"), changed
 }
 
 // upgradeControlPersist rewrites the ControlPersist line inside the given

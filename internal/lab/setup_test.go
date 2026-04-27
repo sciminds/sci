@@ -34,26 +34,139 @@ func TestNonInteractiveSSH_AlwaysBatchMode(t *testing.T) {
 	}
 }
 
-func TestTestFailureMessage_PublicKeyRejection(t *testing.T) {
-	stderr := "Warning: Permanently added 'ssrde.ucsd.edu' (ED25519) to the list of known hosts.\nuser@ssrde.ucsd.edu: Permission denied (publickey).\n"
-	got := testFailureMessage(stderr)
+// publickeyStderr is what ssh prints to stderr when key auth is rejected
+// under BatchMode=yes — the canonical signal from issue #2.
+const publickeyStderr = "Warning: Permanently added 'ssrde.ucsd.edu' (ED25519) to the list of known hosts.\nuser@ssrde.ucsd.edu: Permission denied (publickey).\n"
+
+func TestTestFailureMessage_PublicKey_AgentLoaded(t *testing.T) {
+	got := testFailureMessage(publickeyStderr, "/home/u/.ssh/id_ed25519", agentHasKeys)
 	if !strings.Contains(got, "forced-password-reset") {
-		t.Errorf("publickey rejection should hint at the SSRDE password-reset state; got %q", got)
+		t.Errorf("with a loaded agent, publickey rejection should point at SSRDE; got %q", got)
+	}
+	if strings.Contains(got, "ssh-add") {
+		t.Errorf("with a loaded agent, don't tell the user to ssh-add; got %q", got)
+	}
+}
+
+func TestTestFailureMessage_PublicKey_AgentEmpty(t *testing.T) {
+	keyPath := "/home/u/.ssh/id_ed25519"
+	got := testFailureMessage(publickeyStderr, keyPath, agentNoKeys)
+	if !strings.Contains(got, "ssh-add "+keyPath) {
+		t.Errorf("empty agent → message must include `ssh-add <keyPath>`; got %q", got)
+	}
+	if !strings.Contains(got, "forced-password-reset") {
+		t.Errorf("still mention the server-side fallback in case the key has no passphrase; got %q", got)
+	}
+}
+
+func TestTestFailureMessage_PublicKey_AgentUnavailable(t *testing.T) {
+	keyPath := "/home/u/.ssh/id_ed25519"
+	got := testFailureMessage(publickeyStderr, keyPath, agentUnavailable)
+	if !strings.Contains(got, "ssh-agent") {
+		t.Errorf("unavailable agent → message must mention ssh-agent; got %q", got)
+	}
+	if !strings.Contains(got, keyPath) {
+		t.Errorf("unavailable agent → message should reference the key path; got %q", got)
 	}
 }
 
 func TestTestFailureMessage_OtherStderrSurfaced(t *testing.T) {
 	stderr := "ssh: connect to host ssrde.ucsd.edu port 22: Connection timed out"
-	got := testFailureMessage(stderr)
+	got := testFailureMessage(stderr, "/key", agentHasKeys)
 	if !strings.Contains(got, "Connection timed out") {
 		t.Errorf("non-publickey stderr should be surfaced verbatim; got %q", got)
 	}
 }
 
 func TestTestFailureMessage_EmptyStderrFallback(t *testing.T) {
-	got := testFailureMessage("")
+	got := testFailureMessage("", "/key", agentHasKeys)
 	if got == "" {
 		t.Error("empty stderr should still produce a message")
+	}
+}
+
+// ── upgradeIdentityFile (issue #2 follow-up A) ──
+
+func TestUpgradeIdentityFile_RewritesMissingTarget(t *testing.T) {
+	home := t.TempDir()
+	want := writeFile(t, home, ".ssh/id_ed25519", "PRIVATE KEY")
+	cfg := `Host scilab-foo
+    Hostname ` + Host + `
+    IdentityFile ~/.ssh/gone
+    ControlPersist 12h
+`
+	out, changed := upgradeIdentityFile(cfg, "scilab-foo", want, home)
+	if !changed {
+		t.Fatal("missing IdentityFile target → expected changed=true")
+	}
+	if !strings.Contains(out, "    IdentityFile "+want+"\n") {
+		t.Errorf("IdentityFile not rewritten to %s; got:\n%s", want, out)
+	}
+}
+
+func TestUpgradeIdentityFile_PreservesExistingTarget(t *testing.T) {
+	home := t.TempDir()
+	existing := writeFile(t, home, ".ssh/already_works", "PRIVATE KEY")
+	want := writeFile(t, home, ".ssh/id_ed25519", "PRIVATE KEY")
+	cfg := `Host scilab-foo
+    Hostname ` + Host + `
+    IdentityFile ` + existing + `
+`
+	out, changed := upgradeIdentityFile(cfg, "scilab-foo", want, home)
+	if changed {
+		t.Error("existing IdentityFile resolves → must not overwrite (could be a hand-edit)")
+	}
+	if !strings.Contains(out, "    IdentityFile "+existing+"\n") {
+		t.Errorf("existing IdentityFile altered; got:\n%s", out)
+	}
+}
+
+func TestUpgradeIdentityFile_OnlyTouchesAliasBlock(t *testing.T) {
+	home := t.TempDir()
+	want := writeFile(t, home, ".ssh/id_ed25519", "PRIVATE KEY")
+	cfg := `Host other
+    IdentityFile ~/.ssh/also_gone
+
+Host scilab-foo
+    IdentityFile ~/.ssh/gone
+`
+	out, changed := upgradeIdentityFile(cfg, "scilab-foo", want, home)
+	if !changed {
+		t.Fatal("expected changed=true")
+	}
+	if !strings.Contains(out, "Host other\n    IdentityFile ~/.ssh/also_gone\n") {
+		t.Errorf("other host's IdentityFile must be untouched; got:\n%s", out)
+	}
+}
+
+func TestUpgradeIdentityFile_AliasMissingNoChange(t *testing.T) {
+	home := t.TempDir()
+	want := writeFile(t, home, ".ssh/id_ed25519", "PRIVATE KEY")
+	cfg := `Host other
+    IdentityFile ~/.ssh/gone
+`
+	out, changed := upgradeIdentityFile(cfg, "scilab-foo", want, home)
+	if changed {
+		t.Error("alias not present → no-op")
+	}
+	if out != cfg {
+		t.Error("output must equal input when alias not present")
+	}
+}
+
+func TestUpgradeIdentityFile_NoIdentityFileNoChange(t *testing.T) {
+	home := t.TempDir()
+	want := writeFile(t, home, ".ssh/id_ed25519", "PRIVATE KEY")
+	cfg := `Host scilab-foo
+    Hostname ` + Host + `
+    ControlPersist 12h
+`
+	out, changed := upgradeIdentityFile(cfg, "scilab-foo", want, home)
+	if changed {
+		t.Error("no IdentityFile in block → leave alone (insertion is out of scope)")
+	}
+	if out != cfg {
+		t.Error("output must equal input when nothing to rewrite")
 	}
 }
 
