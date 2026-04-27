@@ -93,7 +93,7 @@ func AddCSV(csvFiles []string, dbPath string, tableName string) (*MutationResult
 		for _, csvPath := range csvFiles {
 			name := tableName
 			if name == "" {
-				name = tableNameFromFile(csvPath)
+				name = data.TableNameFromFile(csvPath)
 			}
 			absCSV, err := filepath.Abs(csvPath)
 			if err != nil {

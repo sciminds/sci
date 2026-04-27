@@ -358,7 +358,7 @@ func (s *Store) UpdateCell(table, column string, rowID int64, pkValues map[strin
 	if !IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
-	if !IsSafeIdentifier(column) {
+	if !IsSafeColumnName(column) {
 		return fmt.Errorf("invalid column name: %q", column)
 	}
 	query := fmt.Sprintf("UPDATE %q SET %q = ? WHERE rowid = ?", table, column)
@@ -413,7 +413,7 @@ func (s *Store) InsertRows(table string, columns []string, rows [][]string) erro
 		return fmt.Errorf("invalid table name: %q", table)
 	}
 	for _, col := range columns {
-		if !IsSafeIdentifier(col) {
+		if !IsSafeColumnName(col) {
 			return fmt.Errorf("invalid column name: %q", col)
 		}
 	}

@@ -133,6 +133,87 @@ func TestImportCSV_Basic(t *testing.T) {
 	}
 }
 
+func TestImportCSV_BOMHeader(t *testing.T) {
+	dir := t.TempDir()
+	csvPath := filepath.Join(dir, "bom.csv")
+	// UTF-8 BOM + "Bad,Good\n1,2\n" — the exact shape from issue #1.
+	content := "\ufeffBad,Good\n1,2\n"
+	if err := os.WriteFile(csvPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dbPath := filepath.Join(dir, "test.db")
+	store, err := Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = store.Close() }()
+
+	if err := store.ImportFile(csvPath, "bom"); err != nil {
+		t.Fatalf("ImportFile: %v", err)
+	}
+
+	cols, err := store.TableColumns("bom")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cols) != 2 || cols[0].Name != "Bad" || cols[1].Name != "Good" {
+		names := make([]string, len(cols))
+		for i, c := range cols {
+			names[i] = c.Name
+		}
+		t.Errorf("columns = %q, want [Bad Good]", names)
+	}
+}
+
+func TestImportCSV_HeaderSanitation(t *testing.T) {
+	dir := t.TempDir()
+	csvPath := filepath.Join(dir, "messy.csv")
+	// Padded header, empty header, duplicate header, punctuation, Unicode.
+	content := "  Name  ,,Date (UTC),temp_°C,Name\nAlice,x,2024-01-01,21,A\n"
+	if err := os.WriteFile(csvPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dbPath := filepath.Join(dir, "test.db")
+	store, err := Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = store.Close() }()
+
+	if err := store.ImportFile(csvPath, "messy"); err != nil {
+		t.Fatalf("ImportFile: %v", err)
+	}
+
+	cols, err := store.TableColumns("messy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, len(cols))
+	for i, c := range cols {
+		got[i] = c.Name
+	}
+	want := []string{"Name", "column_2", "Date (UTC)", "temp_°C", "Name_1"}
+	if len(got) != len(want) {
+		t.Fatalf("columns = %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("col[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+
+	// Data should still land in the right column.
+	count, err := store.TableRowCount("messy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Errorf("row count = %d, want 1", count)
+	}
+}
+
 func TestImportCSV_WithNulls(t *testing.T) {
 	dir := t.TempDir()
 	csvPath := filepath.Join(dir, "data.csv")

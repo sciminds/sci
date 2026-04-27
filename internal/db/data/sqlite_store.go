@@ -359,7 +359,7 @@ func (s *SQLiteStore) UpdateCell(table, column string, rowID int64, pkValues map
 	if !IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
-	if !IsSafeIdentifier(column) {
+	if !IsSafeColumnName(column) {
 		return fmt.Errorf("invalid column name: %q", column)
 	}
 
@@ -369,7 +369,7 @@ func (s *SQLiteStore) UpdateCell(table, column string, rowID int64, pkValues map
 		pkCols := slices.Sorted(maps.Keys(pkValues))
 		var parts []string
 		for i, col := range pkCols {
-			if !IsSafeIdentifier(col) {
+			if !IsSafeColumnName(col) {
 				return fmt.Errorf("invalid PK column name: %q", col)
 			}
 			paramName := fmt.Sprintf("pk%d", i)
@@ -419,7 +419,7 @@ func (s *SQLiteStore) DeleteRows(table string, ids []RowIdentifier) (int64, erro
 			pkCols := slices.Sorted(maps.Keys(id.PKValues))
 			var parts []string
 			for _, col := range pkCols {
-				if !IsSafeIdentifier(col) {
+				if !IsSafeColumnName(col) {
 					return 0, fmt.Errorf("invalid PK column name: %q", col)
 				}
 				paramName := fmt.Sprintf("pk%d", paramIdx)
@@ -456,7 +456,7 @@ func (s *SQLiteStore) InsertRows(table string, columns []string, rows [][]string
 		return fmt.Errorf("invalid table name: %q", table)
 	}
 	for _, col := range columns {
-		if !IsSafeIdentifier(col) {
+		if !IsSafeColumnName(col) {
 			return fmt.Errorf("invalid column name: %q", col)
 		}
 	}
@@ -571,13 +571,14 @@ func (s *SQLiteStore) ImportCSV(csvPath, tableName string) error {
 	}
 	defer func() { _ = f.Close() }()
 
-	r := csv.NewReader(f)
+	r := csv.NewReader(DecodeReader(f))
 
 	// Read header only.
 	header, err := r.Read()
 	if err != nil {
 		return fmt.Errorf("csv file is empty or unreadable: %w", err)
 	}
+	header = SanitizeImportHeaders(header)
 
 	// Create table with TEXT columns (SQLite is dynamically typed anyway).
 	quotedCols := lo.Map(header, func(col string, _ int) string {
@@ -654,8 +655,11 @@ func (s *SQLiteStore) insertBatch(table, colList string, columns []string, rows 
 			params := dbx.Params{}
 			for ri, row := range chunk {
 				placeholders := make([]string, len(columns))
-				for ci, col := range columns {
-					key := fmt.Sprintf("%s_%d", col, ri)
+				for ci := range columns {
+					// dbx named-param keys must be identifier-safe — derive from
+					// position rather than column name (which may contain spaces
+					// or punctuation after [SanitizeImportHeaders]).
+					key := fmt.Sprintf("p%d_%d", ci, ri)
 					placeholders[ci] = fmt.Sprintf("{:%s}", key)
 					if ci < len(row) && row[ci] != "" {
 						params[key] = row[ci]

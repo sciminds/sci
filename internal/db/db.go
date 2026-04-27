@@ -11,10 +11,6 @@ package db
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/sciminds/cli/internal/db/data"
 )
@@ -38,25 +34,4 @@ func validateTableName(name string) error {
 		return fmt.Errorf("invalid table name: %q (only alphanumerics, underscores, and spaces allowed)", name)
 	}
 	return nil
-}
-
-// tableNameFromFile derives a SQL-safe table name from a CSV filename.
-func tableNameFromFile(path string) string {
-	base := filepath.Base(path)
-	name := strings.TrimSuffix(base, filepath.Ext(base))
-	name = strings.ReplaceAll(name, "-", "_")
-	var clean strings.Builder
-	for _, r := range name {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
-			clean.WriteRune(r)
-		}
-	}
-	name = clean.String()
-	if name == "" {
-		name = "imported"
-	}
-	if r, _ := utf8.DecodeRuneInString(name); unicode.IsDigit(r) {
-		name = "_" + name
-	}
-	return name
 }

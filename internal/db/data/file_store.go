@@ -54,8 +54,7 @@ func OpenFileStore(path string) (*FileViewStore, error) {
 		return nil, fmt.Errorf("resolve path: %w", err)
 	}
 
-	base := filepath.Base(path)
-	name := strings.TrimSuffix(base, filepath.Ext(base))
+	name := TableNameFromFile(path)
 
 	inner, err := OpenMemoryStore()
 	if err != nil {
@@ -88,7 +87,7 @@ func importCSVFile(store *SQLiteStore, path, tableName string, delimiter rune) e
 	}
 	defer func() { _ = f.Close() }()
 
-	r := csv.NewReader(f)
+	r := csv.NewReader(DecodeReader(f))
 	r.Comma = delimiter
 	r.LazyQuotes = true
 
@@ -100,7 +99,7 @@ func importCSVFile(store *SQLiteStore, path, tableName string, delimiter rune) e
 		return fmt.Errorf("file is empty")
 	}
 
-	header := records[0]
+	header := SanitizeImportHeaders(records[0])
 	quotedCols := lo.Map(header, func(col string, _ int) string {
 		return fmt.Sprintf(`"%s" TEXT`, col)
 	})
@@ -123,7 +122,7 @@ func importJSONFile(store *SQLiteStore, path, tableName string) error {
 	defer func() { _ = f.Close() }()
 
 	var records []map[string]any
-	if err := json.NewDecoder(f).Decode(&records); err != nil {
+	if err := json.NewDecoder(DecodeReader(f)).Decode(&records); err != nil {
 		return fmt.Errorf("parse json: %w", err)
 	}
 	if len(records) == 0 {
@@ -140,7 +139,7 @@ func importJSONLFile(store *SQLiteStore, path, tableName string) error {
 	defer func() { _ = f.Close() }()
 
 	var records []map[string]any
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(DecodeReader(f))
 	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024) // up to 10 MB per line
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -169,9 +168,10 @@ func importJSONRecords(store *SQLiteStore, records []map[string]any, tableName s
 			keySet[k] = true
 		}
 	}
-	keys := slices.Sorted(maps.Keys(keySet))
+	rawKeys := slices.Sorted(maps.Keys(keySet))
+	cols := SanitizeImportHeaders(rawKeys)
 
-	quotedCols := lo.Map(keys, func(col string, _ int) string {
+	quotedCols := lo.Map(cols, func(col string, _ int) string {
 		return fmt.Sprintf(`"%s" TEXT`, col)
 	})
 	createSQL := fmt.Sprintf(`CREATE TABLE "%s" (%s)`, tableName, strings.Join(quotedCols, ", "))
@@ -181,15 +181,15 @@ func importJSONRecords(store *SQLiteStore, records []map[string]any, tableName s
 
 	rows := make([][]string, len(records))
 	for i, rec := range records {
-		row := make([]string, len(keys))
-		for j, k := range keys {
+		row := make([]string, len(cols))
+		for j, k := range rawKeys {
 			if v, ok := rec[k]; ok && v != nil {
 				row[j] = fmt.Sprintf("%v", v)
 			}
 		}
 		rows[i] = row
 	}
-	return store.InsertRows(tableName, keys, rows)
+	return store.InsertRows(tableName, cols, rows)
 }
 
 // Close implements DataStore.

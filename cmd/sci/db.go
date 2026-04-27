@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/db"
+	"github.com/sciminds/cli/internal/db/data"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
@@ -131,7 +130,7 @@ func dbAddCommand() *cli.Command {
 				for _, f := range csvFiles {
 					tbl := dbAddTableName
 					if tbl == "" {
-						tbl = strings.TrimSuffix(filepath.Base(f), filepath.Ext(f))
+						tbl = data.TableNameFromFile(f)
 					}
 					uikit.Hint(fmt.Sprintf("would import %s → table %q in %s", f, tbl, dbPath))
 				}

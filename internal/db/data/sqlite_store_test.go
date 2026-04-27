@@ -545,6 +545,57 @@ func TestImportCSV_UnescapedQuotes(t *testing.T) {
 	}
 }
 
+func TestImportCSV_BOMHeader(t *testing.T) {
+	t.Parallel()
+	store := setupTestDB(t)
+	csvPath := t.TempDir() + "/bom.csv"
+	// UTF-8 BOM-prefixed CSV — the exact shape from issue #1.
+	writeFile(t, csvPath, "\ufeffBad,Good\n1,2\n")
+
+	if err := store.ImportCSV(csvPath, "bom"); err != nil {
+		t.Fatalf("ImportCSV: %v", err)
+	}
+
+	cols, err := store.TableColumns("bom")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cols) != 2 || cols[0].Name != "Bad" || cols[1].Name != "Good" {
+		names := make([]string, len(cols))
+		for i, c := range cols {
+			names[i] = c.Name
+		}
+		t.Errorf("columns = %q, want [Bad Good]", names)
+	}
+}
+
+func TestImportCSV_PunctuationHeaders(t *testing.T) {
+	t.Parallel()
+	store := setupTestDB(t)
+	csvPath := t.TempDir() + "/punc.csv"
+	writeFile(t, csvPath, "Date (UTC),% complete,temp_°C\n2024-01-01,90,21\n")
+
+	if err := store.ImportCSV(csvPath, "punc"); err != nil {
+		t.Fatalf("ImportCSV: %v", err)
+	}
+
+	cols, err := store.TableColumns("punc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, len(cols))
+	for i, c := range cols {
+		got[i] = c.Name
+	}
+	want := []string{"Date (UTC)", "% complete", "temp_°C"}
+	for i := range want {
+		if i >= len(got) || got[i] != want[i] {
+			t.Errorf("columns = %q, want %q", got, want)
+			return
+		}
+	}
+}
+
 func TestImportCSV_UnicodeData(t *testing.T) {
 	t.Parallel()
 	store := setupTestDB(t)

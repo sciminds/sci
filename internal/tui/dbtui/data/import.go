@@ -39,10 +39,10 @@ func (s *Store) RenameColumn(table, oldName, newName string) error {
 	if !IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
-	if !IsSafeIdentifier(oldName) {
+	if !IsSafeColumnName(oldName) {
 		return fmt.Errorf("invalid column name: %q", oldName)
 	}
-	if !IsSafeIdentifier(newName) {
+	if !IsSafeColumnName(newName) {
 		return fmt.Errorf("invalid column name: %q", newName)
 	}
 	_, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", table, oldName, newName))
@@ -55,7 +55,7 @@ func (s *Store) DropColumn(table, column string) error {
 	if !IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
-	if !IsSafeIdentifier(column) {
+	if !IsSafeColumnName(column) {
 		return fmt.Errorf("invalid column name: %q", column)
 	}
 	cols, err := s.TableColumns(table)
@@ -158,6 +158,8 @@ func inferColumnType(vals []string) string {
 }
 
 // readCSV reads a CSV (or TSV) file and returns the header and all rows.
+// Strips a leading BOM (UTF-8 or UTF-16 — see [DecodeReader]) and sanitizes
+// the header so real-world Excel exports import without manual cleanup.
 func readCSV(path string, delimiter rune) (header []string, rows [][]string, err error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -165,7 +167,7 @@ func readCSV(path string, delimiter rune) (header []string, rows [][]string, err
 	}
 	defer func() { _ = f.Close() }()
 
-	r := csv.NewReader(f)
+	r := csv.NewReader(DecodeReader(f))
 	r.Comma = delimiter
 	r.LazyQuotes = true
 
@@ -173,6 +175,7 @@ func readCSV(path string, delimiter rune) (header []string, rows [][]string, err
 	if err != nil {
 		return nil, nil, fmt.Errorf("read header: %w", err)
 	}
+	header = SanitizeImportHeaders(header)
 
 	for {
 		record, err := r.Read()
@@ -198,7 +201,7 @@ func readJSON(path string) (header []string, rows [][]string, err error) {
 	defer func() { _ = f.Close() }()
 
 	var records []map[string]any
-	if err := json.NewDecoder(f).Decode(&records); err != nil {
+	if err := json.NewDecoder(DecodeReader(f)).Decode(&records); err != nil {
 		return nil, nil, fmt.Errorf("decode JSON array: %w", err)
 	}
 
@@ -214,7 +217,7 @@ func readJSONL(path string) (header []string, rows [][]string, err error) {
 	defer func() { _ = f.Close() }()
 
 	var records []map[string]any
-	dec := json.NewDecoder(f)
+	dec := json.NewDecoder(DecodeReader(f))
 	for {
 		var obj map[string]any
 		if err := dec.Decode(&obj); err == io.EOF {
@@ -252,6 +255,7 @@ func flattenRecords(records []map[string]any) (header []string, rows [][]string,
 		}
 		rows = append(rows, row)
 	}
+	header = SanitizeImportHeaders(header)
 	return header, rows, nil
 }
 

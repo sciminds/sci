@@ -28,6 +28,18 @@ var ValidateReadOnlySQL = dbtuistore.ValidateReadOnlySQL
 // IsSafeIdentifier forwards to the dbtui implementation.
 var IsSafeIdentifier = dbtuistore.IsSafeIdentifier
 
+// IsSafeColumnName is the permissive validator used for imported column names.
+var IsSafeColumnName = dbtuistore.IsSafeColumnName
+
+// TableNameFromFile derives a SQL-safe table name from a filename.
+var TableNameFromFile = dbtuistore.TableNameFromFile
+
+// SanitizeImportHeaders cleans a header row for use as SQLite column names.
+var SanitizeImportHeaders = dbtuistore.SanitizeImportHeaders
+
+// DecodeReader strips a leading BOM from a byte stream (UTF-8 or UTF-16).
+var DecodeReader = dbtuistore.DecodeReader
+
 // ContainsWriteKeyword checks for write keywords in SQL.
 var ContainsWriteKeyword = dbtuistore.ContainsWriteKeyword
 

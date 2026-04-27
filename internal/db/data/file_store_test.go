@@ -280,6 +280,94 @@ func TestFileViewStoreExportCSV(t *testing.T) {
 	}
 }
 
+func TestFileViewStoreCSV_FilenameWithDashes(t *testing.T) {
+	t.Parallel()
+	// Filenames with dashes/punctuation must produce a valid table name.
+	dir := t.TempDir()
+	csvPath := filepath.Join(dir, "pairs-bom.csv")
+	writeFile(t, csvPath, "Bad,Good\n1,2\n")
+
+	store, err := OpenFileStore(csvPath)
+	if err != nil {
+		t.Fatalf("OpenFileStore: %v", err)
+	}
+	defer func() { _ = store.Close() }()
+
+	names, err := store.TableNames()
+	if err != nil {
+		t.Fatalf("TableNames: %v", err)
+	}
+	if len(names) != 1 || names[0] != "pairs_bom" {
+		t.Errorf("TableNames = %v, want [pairs_bom]", names)
+	}
+}
+
+func TestFileViewStoreCSV_BOMHeader(t *testing.T) {
+	t.Parallel()
+	// UTF-8 BOM-prefixed CSV — the exact shape from issue #1.
+	dir := t.TempDir()
+	csvPath := filepath.Join(dir, "bom.csv")
+	writeFile(t, csvPath, "\ufeffBad,Good\n1,2\n")
+
+	store, err := OpenFileStore(csvPath)
+	if err != nil {
+		t.Fatalf("OpenFileStore: %v", err)
+	}
+	defer func() { _ = store.Close() }()
+
+	cols, err := store.TableColumns("bom")
+	if err != nil {
+		t.Fatalf("TableColumns: %v", err)
+	}
+	if len(cols) != 2 || cols[0].Name != "Bad" || cols[1].Name != "Good" {
+		names := make([]string, len(cols))
+		for i, c := range cols {
+			names[i] = c.Name
+		}
+		t.Errorf("columns = %q, want [Bad Good]", names)
+	}
+
+	count, err := store.TableRowCount("bom")
+	if err != nil {
+		t.Fatalf("TableRowCount: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("row count = %d, want 1", count)
+	}
+}
+
+func TestFileViewStoreCSV_HeaderSanitation(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	csvPath := filepath.Join(dir, "messy.csv")
+	// Padded header, empty header, duplicate header, punctuation, Unicode.
+	writeFile(t, csvPath, "  Name  ,,Date (UTC),temp_°C,Name\nAlice,x,2024-01-01,21,A\n")
+
+	store, err := OpenFileStore(csvPath)
+	if err != nil {
+		t.Fatalf("OpenFileStore: %v", err)
+	}
+	defer func() { _ = store.Close() }()
+
+	cols, err := store.TableColumns("messy")
+	if err != nil {
+		t.Fatalf("TableColumns: %v", err)
+	}
+	got := make([]string, len(cols))
+	for i, c := range cols {
+		got[i] = c.Name
+	}
+	want := []string{"Name", "column_2", "Date (UTC)", "temp_°C", "Name_1"}
+	if len(got) != len(want) {
+		t.Fatalf("columns = %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("col[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestFileViewStoreUnsupportedExt(t *testing.T) {
 	t.Parallel()
 	tmp := filepath.Join(t.TempDir(), "data.xlsx")
