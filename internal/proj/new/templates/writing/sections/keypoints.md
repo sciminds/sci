@@ -1,7 +1,3 @@
----
-part: keypoints
----
-
 - One-sentence highlight #1
 - One-sentence highlight #2
 - One-sentence highlight #3
