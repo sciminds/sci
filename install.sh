@@ -74,8 +74,20 @@ case ":${PATH}:" in
     esac
 
     if [ -n "${RC}" ]; then
-      # Append only if the line isn't already there
-      if ! grep -qF "${INSTALL_DIR}" "${RC}" 2>/dev/null; then
+      if grep -qF "${INSTALL_DIR}" "${RC}" 2>/dev/null; then
+        : # already on PATH via this rc file
+      elif [ -e "${RC}" ] && [ ! -w "${RC}" ]; then
+        echo ""
+        echo "Note: ${RC} isn't writable (permission denied)."
+        echo "This usually means the file was created or modified by 'sudo' at some point,"
+        echo "so it's now owned by root instead of you."
+        echo ""
+        echo "To finish setup, fix ownership and append the PATH line manually:"
+        echo "  sudo chown \"\$(id -un)\" \"${RC}\""
+        echo "  echo '${LINE}' >> \"${RC}\""
+        echo ""
+        echo "Then run 'source ${RC}' or open a new terminal."
+      else
         echo "" >> "${RC}"
         echo "# Added by sci installer" >> "${RC}"
         echo "${LINE}" >> "${RC}"
