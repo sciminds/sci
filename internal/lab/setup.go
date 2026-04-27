@@ -1,15 +1,33 @@
 package lab
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sciminds/cli/internal/uikit"
 )
+
+// nonInteractiveSSH builds an ssh invocation that is guaranteed never to
+// prompt the user. BatchMode=yes makes ssh fail fast on key-auth rejection
+// instead of silently falling back to password auth.
+//
+// This contract is non-negotiable for any ssh command run under a spinner:
+// ssh's password prompt is written to /dev/tty (not stderr), so redirecting
+// stdio doesn't suppress it. A spinner running over a hidden Password: prompt
+// races for terminal input and produces both corrupted output and the very
+// real risk of the user typing a password into the wrong context. Routing all
+// non-interactive probes through this helper makes that whole class of bug
+// impossible by construction.
+func nonInteractiveSSH(alias string, remoteArgs ...string) *exec.Cmd {
+	args := slices.Concat([]string{"-o", "ConnectTimeout=10", "-o", "BatchMode=yes", alias}, remoteArgs)
+	return exec.Command("ssh", args...)
+}
 
 // Setup runs the interactive lab configuration flow:
 //  1. Validate username
@@ -59,7 +77,7 @@ func Setup(user string) (*SetupResult, error) {
 	}
 
 	// 4. Test if key auth already works — skip ssh-copy-id if so.
-	if exec.Command("ssh", "-o", "ConnectTimeout=10", "-o", "BatchMode=yes", alias, "echo", "ok").Run() == nil {
+	if nonInteractiveSSH(alias, "echo", "ok").Run() == nil {
 		uikit.OK("SSH key auth already works — skipping ssh-copy-id")
 	} else {
 		// 5. Copy key to server.
@@ -74,10 +92,15 @@ func Setup(user string) (*SetupResult, error) {
 		}
 	}
 
-	// 6. Test connection.
+	// 6. Test connection. Must use nonInteractiveSSH (BatchMode=yes) — running
+	//    a prompting ssh inside the spinner corrupts output and races for
+	//    terminal input with the spinner's stdin reader. See helper comment.
 	var testErr error
+	var testStderr bytes.Buffer
 	if err := uikit.RunWithSpinnerStatus("Testing SSH connection", func(setStatus func(string)) error {
-		testErr = exec.Command("ssh", "-o", "ConnectTimeout=10", alias, "echo", "ok").Run()
+		cmd := nonInteractiveSSH(alias, "echo", "ok")
+		cmd.Stderr = &testStderr
+		testErr = cmd.Run()
 		if testErr != nil {
 			setStatus("failed")
 		} else {
@@ -88,11 +111,13 @@ func Setup(user string) (*SetupResult, error) {
 		return nil, err
 	}
 	if testErr != nil {
-		return &SetupResult{OK: false, User: user, Message: "SSH key copied but test connection failed — check your SSH config"}, nil
+		return &SetupResult{OK: false, User: user, Message: testFailureMessage(testStderr.String())}, nil
 	}
 
-	// 7. Ensure remote write directory exists.
-	_ = exec.Command("ssh", alias, "mkdir", "-p", cfg.WriteDir()).Run()
+	// 7. Ensure remote write directory exists. Also non-interactive — at this
+	//    point key auth has just succeeded, but BatchMode=yes guarantees we
+	//    can't get an unexpected prompt if state changes between calls.
+	_ = nonInteractiveSSH(alias, "mkdir", "-p", cfg.WriteDir()).Run()
 
 	// 8. Save config.
 	if err := SaveConfig(cfg); err != nil {
@@ -100,6 +125,28 @@ func Setup(user string) (*SetupResult, error) {
 	}
 
 	return &SetupResult{OK: true, User: user, Message: "lab configured for " + user + "@" + Host}, nil
+}
+
+// testFailureMessage turns the captured stderr of a failed key-auth probe
+// into a message a user can act on. The two cases that actually happen in the
+// field:
+//   - "Permission denied (publickey)" — the key didn't authenticate. Most often
+//     this is the SSRDE forced-password-reset state from issue #2 (key auth
+//     gets through sshd but PAM's account stage rejects). We can't tell that
+//     apart from a genuinely bad key from the client side, so we point at both.
+//   - anything else — surface the raw stderr so the user has something to
+//     paste into a support ticket instead of "test connection failed".
+func testFailureMessage(stderr string) string {
+	stderr = strings.TrimSpace(stderr)
+	if strings.Contains(stderr, "Permission denied (publickey)") {
+		return "SSH key was copied but the server rejected it on the test connection. " +
+			"If you're sure the key is correct, your SSRDE account may be in a " +
+			"forced-password-reset state — contact SSRDE support to verify."
+	}
+	if stderr != "" {
+		return "SSH key copied but test connection failed: " + stderr
+	}
+	return "SSH key copied but test connection failed — check your SSH config"
 }
 
 // findSSHKey returns the path to the first existing SSH key, or "" if none found.
