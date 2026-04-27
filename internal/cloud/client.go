@@ -53,9 +53,6 @@ func Setup() (*Config, *Client, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	if cfg.Public == nil || cfg.Public.AccessKey == "" {
-		return nil, nil, fmt.Errorf("public bucket not configured — run 'sci cloud setup' to reconfigure")
-	}
 	return cfg, NewClient(cfg.AccountID, cfg.Username, cfg.Public), nil
 }
 
@@ -66,10 +63,7 @@ func (c *Client) objectKey(filename string) string {
 
 // PublicObjectURL returns the public download URL for a file.
 func (c *Client) PublicObjectURL(filename string) string {
-	if c.PublicURL != "" {
-		return c.PublicURL + "/" + c.objectKey(filename)
-	}
-	return fmt.Sprintf("https://%s.r2.cloudflarestorage.com/%s/%s", c.Bucket, c.Bucket, c.objectKey(filename))
+	return c.PublicURL + "/" + c.objectKey(filename)
 }
 
 // Upload uploads a file to R2 with optional user metadata.

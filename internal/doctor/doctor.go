@@ -196,13 +196,21 @@ func checkIdentity() CheckSection {
 
 	checks := []CheckResult{nameCheck, emailCheck, ghCheck}
 
-	// SciMinds R2 credentials — only shown if configured.
-	if cfg, _ := cloud.LoadConfig(); cfg != nil && cfg.Public != nil && cfg.Public.AccessKey != "" {
-		authCheck := CheckResult{Label: "SciMinds Public Cloud"}
-		authCheck.Status = StatusPass
-		authCheck.Message = "configured as @" + cfg.Username
-		checks = append(checks, authCheck)
+	// SciMinds R2 credentials — always shown so first-time users see the nudge.
+	sciCheck := CheckResult{Label: "SciMinds Public Cloud"}
+	cfg, cfgErr := cloud.LoadConfig()
+	switch {
+	case cfgErr != nil:
+		sciCheck.Status = StatusFail
+		sciCheck.Message = "credentials unreadable — run: sci cloud setup"
+	case cfg != nil && cfg.Public != nil && cfg.Public.AccessKey != "":
+		sciCheck.Status = StatusPass
+		sciCheck.Message = "configured as @" + cfg.Username
+	default:
+		sciCheck.Status = StatusWarn
+		sciCheck.Message = "not authenticated — run: sci cloud setup"
 	}
+	checks = append(checks, sciCheck)
 
 	// Lab SSH — only shown if configured. Checks local config + key, not connectivity.
 	if labCfg, _ := lab.LoadConfig(); labCfg != nil && labCfg.User != "" {

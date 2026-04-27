@@ -264,26 +264,24 @@ func Unshare(name string) (*CloudResult, error) {
 		return nil, err
 	}
 
-	filename := ensureExtension(name)
-
-	if err := uikit.RunWithSpinner("Removing "+filename, func() error {
+	if err := uikit.RunWithSpinner("Removing "+name, func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), metadataTimeout)
 		defer cancel()
-		exists, existsErr := c.Exists(ctx, filename)
+		exists, existsErr := c.Exists(ctx, name)
 		if existsErr != nil {
 			return netutil.Wrap("checking file", existsErr)
 		}
 		if !exists {
-			return fmt.Errorf("file %q not found", filename)
+			return fmt.Errorf("file %q not found", name)
 		}
-		if delErr := c.Delete(ctx, filename); delErr != nil {
+		if delErr := c.Delete(ctx, name); delErr != nil {
 			return netutil.Wrap("removing file", delErr)
 		}
 		return nil
 	}); err != nil {
 		return nil, err
 	}
-	return &CloudResult{OK: true, Action: "remove", Message: fmt.Sprintf("removed %q", filename)}, nil
+	return &CloudResult{OK: true, Action: "remove", Message: fmt.Sprintf("removed %q", name)}, nil
 }
 
 // SharedAll lists all users' shared files in the bucket.
@@ -396,11 +394,9 @@ func Get(name string) (*CloudResult, error) {
 		return nil, err
 	}
 
-	filename := ensureExtension(name)
-
-	outPath := filepath.Base(filename)
-	dl := downloadFunc(c, filename)
-	if err := uikit.RunWithSpinner("Downloading "+filepath.Base(filename), func() error {
+	outPath := filepath.Base(name)
+	dl := downloadFunc(c, name)
+	if err := uikit.RunWithSpinner("Downloading "+filepath.Base(name), func() error {
 		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
 		defer dlCancel()
 		f, createErr := os.Create(outPath)
@@ -418,8 +414,8 @@ func Get(name string) (*CloudResult, error) {
 
 	// Auto-extract zip files.
 	if filepath.Ext(outPath) == ".zip" {
-		extractDir := nameFromFile(filename)
-		if err := uikit.RunWithSpinner("Extracting "+filepath.Base(filename), func() error {
+		extractDir := nameFromFile(name)
+		if err := uikit.RunWithSpinner("Extracting "+filepath.Base(name), func() error {
 			return unzip(outPath, extractDir)
 		}); err != nil {
 			return nil, fmt.Errorf("extracting: %w", err)
@@ -448,12 +444,6 @@ func downloadFunc(c *cloud.Client, filename string) func(context.Context, io.Wri
 func nameFromFile(path string) string {
 	base := filepath.Base(path)
 	return strings.TrimSuffix(base, filepath.Ext(base))
-}
-
-// ensureExtension returns the name as-is if it has an extension,
-// otherwise it's returned unchanged (the caller may need to search).
-func ensureExtension(name string) string {
-	return name
 }
 
 // detectFileType maps file extensions to type labels.

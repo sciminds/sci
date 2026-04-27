@@ -2,9 +2,12 @@ package doctor
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/adrg/xdg"
 	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/cli/internal/cloud"
 )
 
 func TestBoolStatus(t *testing.T) {
@@ -69,6 +72,58 @@ func TestCheckIdentity_Structure(t *testing.T) {
 		if c.Message == "" {
 			t.Errorf("check %q has empty message", c.Label)
 		}
+	}
+}
+
+func TestCheckIdentity_SciMindsCloud(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+
+	findCloud := func() *CheckResult {
+		sec := checkIdentity()
+		for i := range sec.Checks {
+			if sec.Checks[i].Label == "SciMinds Public Cloud" {
+				return &sec.Checks[i]
+			}
+		}
+		return nil
+	}
+
+	c := findCloud()
+	if c == nil {
+		t.Fatal("SciMinds Public Cloud check missing when creds absent")
+	}
+	if c.Status != StatusWarn {
+		t.Errorf("status (no creds) = %q, want %q", c.Status, StatusWarn)
+	}
+	if !strings.Contains(c.Message, "sci cloud setup") {
+		t.Errorf("message = %q, want hint containing 'sci cloud setup'", c.Message)
+	}
+
+	cfg := &cloud.Config{
+		Username:  "alice",
+		AccountID: "acct",
+		Public: &cloud.BucketConfig{
+			AccessKey:  "AK",
+			SecretKey:  "SK",
+			BucketName: "sci-public",
+		},
+	}
+	if err := cloud.SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+
+	c = findCloud()
+	if c == nil {
+		t.Fatal("SciMinds Public Cloud check missing when configured")
+	}
+	if c.Status != StatusPass {
+		t.Errorf("status (configured) = %q, want %q", c.Status, StatusPass)
+	}
+	if !strings.Contains(c.Message, "alice") {
+		t.Errorf("message = %q, want username", c.Message)
 	}
 }
 

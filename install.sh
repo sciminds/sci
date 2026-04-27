@@ -60,6 +60,11 @@ trap - EXIT
 
 echo "Installed sci to ${INSTALL_DIR}/sci"
 
+# Tracks whether the user must take a manual step before sci is on PATH.
+# When set, we skip the auto-run of `sci doctor` so the next-step message
+# isn't buried under doctor output.
+NEEDS_MANUAL_PATH=0
+
 # Ensure INSTALL_DIR is on PATH
 case ":${PATH}:" in
   *":${INSTALL_DIR}:"*) ;;
@@ -77,6 +82,7 @@ case ":${PATH}:" in
       if grep -qF "${INSTALL_DIR}" "${RC}" 2>/dev/null; then
         : # already on PATH via this rc file
       elif [ -e "${RC}" ] && [ ! -w "${RC}" ]; then
+        NEEDS_MANUAL_PATH=1
         echo ""
         echo "Note: ${RC} isn't writable (permission denied)."
         echo "This usually means the file was created or modified by 'sudo' at some point,"
@@ -86,18 +92,32 @@ case ":${PATH}:" in
         echo "  sudo chown \"\$(id -un)\" \"${RC}\""
         echo "  echo '${LINE}' >> \"${RC}\""
         echo ""
-        echo "Then run 'source ${RC}' or open a new terminal."
+        echo "Then run 'source ${RC}' (or open a new terminal) and 'sci doctor'."
       else
         echo "" >> "${RC}"
         echo "# Added by sci installer" >> "${RC}"
         echo "${LINE}" >> "${RC}"
         echo "Added ${INSTALL_DIR} to PATH in ${RC}"
-        echo "Run 'source ${RC}' or open a new terminal to use sci."
       fi
     else
+      NEEDS_MANUAL_PATH=1
       echo ""
       echo "Add ${INSTALL_DIR} to your PATH:"
       echo "  ${LINE}"
+      echo "Then run 'sci doctor'."
     fi
     ;;
 esac
+
+# Auto-run doctor when stdin is a terminal (interactive install) and PATH is
+# in good shape. Otherwise nudge the user — for piped installs (curl ... | sh)
+# stdin is the script, so prompts in `sci doctor` would not work.
+if [ "${NEEDS_MANUAL_PATH}" = "0" ]; then
+  if [ -t 0 ]; then
+    echo ""
+    exec "${INSTALL_DIR}/sci" doctor
+  else
+    echo ""
+    echo "Run 'sci doctor' to finish setting up your environment."
+  fi
+fi
