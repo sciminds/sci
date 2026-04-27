@@ -16,6 +16,7 @@ import (
 )
 
 var (
+	projNewKind       string
 	projNewPkgManager string
 	projNewDocSystem  string
 	projNewAuthor     string
@@ -47,10 +48,11 @@ func projCommand() *cli.Command {
 func projNewCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "new",
-		Usage:       "Create a new Python project",
-		Description: "$ sci proj new\n$ sci proj new my-analysis --pkg-manager pixi",
+		Usage:       "Create a new Python or writing project",
+		Description: "$ sci proj new\n$ sci proj new my-analysis --pkg-manager pixi\n$ sci proj new my-paper --kind writing",
 		ArgsUsage:   "[name]",
 		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "kind", Usage: "project kind (python or writing)", Destination: &projNewKind, Local: true},
 			&cli.StringFlag{Name: "pkg-manager", Usage: "package manager (pixi or uv)", Destination: &projNewPkgManager, Local: true},
 			&cli.StringFlag{Name: "doc-system", Usage: "doc system (quarto, myst, or none)", Destination: &projNewDocSystem, Local: true},
 			&cli.StringFlag{Name: "author", Usage: "author name", Destination: &projNewAuthor, Local: true},
@@ -172,6 +174,7 @@ func projPreviewCommand() *cli.Command {
 func runProjNew(_ context.Context, cmd *cli.Command) error {
 	opts := projnew.CreateOptions{
 		Dir:         ".",
+		Kind:        projNewKind,
 		PkgManager:  projNewPkgManager,
 		DocSystem:   projNewDocSystem,
 		AuthorName:  projNewAuthor,
@@ -182,8 +185,11 @@ func runProjNew(_ context.Context, cmd *cli.Command) error {
 
 	if cmd.Args().Len() > 0 {
 		opts.Name = cmd.Args().First()
-		opts.PkgManager = cmp.Or(opts.PkgManager, "uv")
-		opts.DocSystem = cmp.Or(opts.DocSystem, "myst")
+		opts.Kind = cmp.Or(opts.Kind, "python")
+		if opts.Kind == "python" {
+			opts.PkgManager = cmp.Or(opts.PkgManager, "uv")
+			opts.DocSystem = cmp.Or(opts.DocSystem, "myst")
+		}
 	} else if cmdutil.IsJSON(cmd) {
 		return fmt.Errorf("project name argument is required in --json mode")
 	} else {
@@ -202,7 +208,12 @@ func runProjNew(_ context.Context, cmd *cli.Command) error {
 
 	cmdutil.Output(cmd, *result)
 	if !cmdutil.IsJSON(cmd) {
-		uikit.NextStep("cd "+opts.Name+" && sci py repl", "Jump into your new project")
+		switch opts.Kind {
+		case "writing":
+			uikit.NextStep("cd "+opts.Name+" && sci proj render", "Build your manuscript PDF")
+		default:
+			uikit.NextStep("cd "+opts.Name+" && sci py repl", "Jump into your new project")
+		}
 	}
 	return nil
 }

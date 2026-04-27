@@ -1,0 +1,11 @@
+# MyST build artifacts
+_build/
+.jupyter_cache/
+
+# Output PDFs (commit final versions explicitly with `git add -f` if needed)
+pdfs/
+*.pdf
+
+# OS
+.DS_Store
+Thumbs.db

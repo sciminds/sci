@@ -225,6 +225,42 @@ func TestIntegrationUvMyst(t *testing.T) {
 	})
 }
 
+// --- writing (no python env, MyST → Typst PDF) ---
+
+func TestIntegrationWriting(t *testing.T) {
+	skipUnlessSlow(t)
+	requireTool(t, "node")
+	requireTool(t, "npx")
+	requireTool(t, "typst")
+
+	dir := t.TempDir()
+	result, err := Create(CreateOptions{
+		Name:        "test-writing",
+		Dir:         dir,
+		Kind:        "writing",
+		AuthorName:  "Test Author",
+		AuthorEmail: "test@example.com",
+		Description: "Integration test manuscript",
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if len(result.Files) == 0 {
+		t.Fatal("no files created")
+	}
+
+	t.Run("scaffold has no pyproject.toml", func(t *testing.T) {
+		if _, err := os.Stat(filepath.Join(result.ProjectDir, "pyproject.toml")); err == nil {
+			t.Error("writing project should not have pyproject.toml")
+		}
+	})
+
+	t.Run("myst builds PDF via typst", func(t *testing.T) {
+		runIn(t, result.ProjectDir, "npx", "mystmd", "build", "--pdf")
+		assertFileExists(t, filepath.Join(result.ProjectDir, "pdfs", "main.pdf"))
+	})
+}
+
 // --- pixi × none and uv × none (install-only) ---
 
 func TestIntegrationPixiNone(t *testing.T) {

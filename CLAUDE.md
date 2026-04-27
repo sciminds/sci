@@ -12,8 +12,9 @@
 
 ```
 just ok              # gate: fmt + vet + lint + test + build
+just ok-slow         # gate + test-slow (proj/new integration); use before merging changes that touch sci proj new
 just test-pkg PKG    # single-package tests (fast TDD loop): just test-pkg ./internal/zot
-just test-slow       # proj/new integration (~4 min, SLOW=1, needs pixi/uv/quarto/marimo/typst/node)
+just test-slow       # proj/new integration (~2 min, SLOW=1, needs pixi/uv/quarto/marimo/typst/node)
 just test-canvas     # cass integration (needs CANVAS_TOKEN in .env + gh auth login)
 just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 ```

@@ -178,6 +178,129 @@ func TestPyprojectContent(t *testing.T) {
 	}
 }
 
+func TestRenderAllWriting(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+
+	dest := t.TempDir()
+	created, err := RenderAll(vars, dest)
+	if err != nil {
+		t.Fatalf("RenderAll failed: %v", err)
+	}
+
+	createdSet := make(map[string]bool)
+	for _, f := range created {
+		createdSet[f] = true
+	}
+
+	wantFiles := []string{
+		"README.md",
+		"myst.yml",
+		"main.md",
+		"references.bib",
+		".gitignore",
+		"sections/abstract.md",
+		"sections/keypoints.md",
+		"sections/acknowledgements.md",
+		"sections/opendata.md",
+		"sci-preprint/template.typ",
+		"sci-preprint/template.yml",
+		"sci-preprint/orcid.svg",
+		"sci-preprint/LICENSE",
+	}
+	for _, want := range wantFiles {
+		if !createdSet[want] {
+			t.Errorf("expected file %q to be created, got files: %v", want, created)
+		}
+		if _, err := os.Stat(filepath.Join(dest, want)); err != nil {
+			t.Errorf("file %q not found on disk: %v", want, err)
+		}
+	}
+
+	noFiles := []string{
+		"pyproject.toml",
+		"_quarto.yml",
+		"code/report.md",
+		"code/report.qmd",
+		"code/notebooks/analysis.py",
+		"data/raw/penguins.csv",
+	}
+	for _, noWant := range noFiles {
+		if createdSet[noWant] {
+			t.Errorf("file %q should NOT be created for writing kind", noWant)
+		}
+	}
+}
+
+func TestWritingMystYmlContent(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+
+	content, err := RenderFile("myst.yml.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	for _, want := range []string{
+		"template: ./sci-preprint",
+		"test-project",
+		"Test Author",
+		"test@example.com",
+		"abstract: sections/abstract.md",
+		"keypoints: sections/keypoints.md",
+		"acknowledgements: sections/acknowledgements.md",
+		"data_availability: sections/opendata.md",
+		"file: main.md",
+		"output: pdfs/main.pdf",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("myst.yml missing %q\n--- content ---\n%s", want, content)
+		}
+	}
+}
+
+func TestWritingMainMdContent(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+
+	content, err := RenderFile("main.md.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	if !strings.HasPrefix(content, "---\n") {
+		t.Errorf("main.md must start with frontmatter, got:\n%s", content)
+	}
+	for _, want := range []string{
+		"title: test-project",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("main.md missing %q", want)
+		}
+	}
+}
+
+func TestWritingReadmeContent(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+
+	content, err := RenderFile("README.md.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	for _, want := range []string{
+		"test-project",
+		"mystmd build --pdf",
+		"sci-preprint/template.typ",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("README.md missing %q", want)
+		}
+	}
+}
+
 func TestConditionalFileSkipping(t *testing.T) {
 	t.Parallel()
 	// _quarto.yml should render empty (and be skipped) when docSystem != "quarto"

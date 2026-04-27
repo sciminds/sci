@@ -18,6 +18,7 @@ func TestBuildRunTaskArgs(t *testing.T) {
 		{"uv no args", UV, "setup", nil, []string{"uv", "run", "poe", "setup"}},
 		{"uv with args", UV, "render", []string{"--pdf"}, []string{"uv", "run", "poe", "render", "--pdf"}},
 		{"unknown returns nil", "poetry", "test", nil, nil},
+		{"empty pkg manager returns nil", "", "setup", nil, nil},
 	}
 
 	for _, tt := range tests {
@@ -33,19 +34,21 @@ func TestBuildRunTaskArgs(t *testing.T) {
 func TestBuildRenderArgs(t *testing.T) {
 	tests := []struct {
 		name   string
+		kind   Kind
 		ds     DocSystem
 		target string
 		want   []string
 	}{
-		{"quarto no target", Quarto, "", []string{"quarto", "render"}},
-		{"quarto with target", Quarto, "code/report.qmd", []string{"quarto", "render", "code/report.qmd"}},
-		{"myst", Myst, "", []string{"npx", "mystmd", "build", "--html"}},
-		{"none returns nil", NoDoc, "", nil},
+		{"python+quarto no target", Python, Quarto, "", []string{"quarto", "render"}},
+		{"python+quarto with target", Python, Quarto, "code/report.qmd", []string{"quarto", "render", "code/report.qmd"}},
+		{"python+myst → html", Python, Myst, "", []string{"npx", "mystmd", "build", "--html"}},
+		{"writing+myst → pdf", Writing, Myst, "", []string{"npx", "mystmd", "build", "--pdf"}},
+		{"python+none returns nil", Python, NoDoc, "", nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildRenderArgs(tt.ds, tt.target)
+			got := BuildRenderArgs(tt.kind, tt.ds, tt.target)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("got %v, want %v", got, tt.want)
 			}
@@ -56,17 +59,19 @@ func TestBuildRenderArgs(t *testing.T) {
 func TestBuildPreviewArgs(t *testing.T) {
 	tests := []struct {
 		name string
+		kind Kind
 		ds   DocSystem
 		want []string
 	}{
-		{"quarto", Quarto, []string{"quarto", "preview"}},
-		{"myst", Myst, []string{"npx", "mystmd", "start"}},
-		{"none returns nil", NoDoc, nil},
+		{"python+quarto", Python, Quarto, []string{"quarto", "preview"}},
+		{"python+myst", Python, Myst, []string{"npx", "mystmd", "start"}},
+		{"writing+myst", Writing, Myst, []string{"npx", "mystmd", "start"}},
+		{"python+none returns nil", Python, NoDoc, nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildPreviewArgs(tt.ds)
+			got := BuildPreviewArgs(tt.kind, tt.ds)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("got %v, want %v", got, tt.want)
 			}

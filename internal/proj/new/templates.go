@@ -14,17 +14,28 @@ import (
 	"text/template"
 )
 
-//go:embed all:templates/python
+//go:embed all:templates/python all:templates/writing
 var templateFS embed.FS
 
 // TemplateVars holds the variables available to all project templates.
 type TemplateVars struct {
 	ProjectName string
-	PkgManager  string // "pixi" or "uv"
-	DocSystem   string // "quarto", "myst", or "none"
+	Kind        string // "python" (default) or "writing"
+	PkgManager  string // "pixi" or "uv" (Python projects only)
+	DocSystem   string // "quarto", "myst", or "none" (Python projects only)
 	AuthorName  string
 	AuthorEmail string
 	Description string
+}
+
+// templateRoot returns the embedded path that holds the templates for the
+// kind set on vars. Empty/unknown kinds fall back to "python" so existing
+// callers without Kind set keep working.
+func templateRoot(kind string) string {
+	if kind == "writing" {
+		return "templates/writing"
+	}
+	return "templates/python"
 }
 
 // RenderAll walks the embedded template filesystem, renders .tmpl files with
@@ -33,7 +44,7 @@ type TemplateVars struct {
 // Returns the list of relative paths that were written.
 func RenderAll(vars TemplateVars, dest string) ([]string, error) {
 	var created []string
-	root := "templates/python"
+	root := templateRoot(vars.Kind)
 
 	err := fs.WalkDir(templateFS, root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -85,9 +96,10 @@ func RenderAll(vars TemplateVars, dest string) ([]string, error) {
 }
 
 // RenderFile renders a single template by name and returns the result.
-// The name is relative to templates/python/ (e.g. ".vscode/settings.json.tmpl").
+// The name is relative to the template root for vars.Kind
+// (e.g. ".vscode/settings.json.tmpl" for python, "myst.yml.tmpl" for writing).
 func RenderFile(name string, vars TemplateVars) (string, error) {
-	path := filepath.Join("templates/python", name)
+	path := filepath.Join(templateRoot(vars.Kind), name)
 	data, err := templateFS.ReadFile(path)
 	if err != nil {
 		return "", err

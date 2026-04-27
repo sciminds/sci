@@ -18,6 +18,7 @@ plan.md
 !internal/tui/dbtui/test.db
 !internal/proj/new/templates/python/code/bibliography.bib
 !internal/proj/new/templates/python/data/raw/penguins.csv
+!internal/proj/new/templates/writing/references.bib
 *.bak
 .env
 *.DS*

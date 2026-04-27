@@ -26,6 +26,17 @@ import (
 	"strings"
 )
 
+// Kind identifies the high-level type of project sci manages.
+type Kind string
+
+// Supported project kinds. Python projects have a package manager (pixi/uv)
+// and may include a doc system. Writing projects are pure MyST → Typst PDF
+// manuscripts with no Python environment.
+const (
+	Python  Kind = "python"
+	Writing Kind = "writing"
+)
+
 // PkgManager identifies the Python package manager used by a project.
 type PkgManager string
 
@@ -45,25 +56,35 @@ const (
 	NoDoc  DocSystem = "none"
 )
 
-// Project holds the detected configuration for a Python project directory.
+// Project holds the detected configuration for a project directory.
 type Project struct {
 	Dir        string
-	PkgManager PkgManager
+	Kind       Kind
+	PkgManager PkgManager // empty when Kind == Writing
 	DocSystem  DocSystem
 }
 
 // Detect inspects dir for project markers and returns a Project, or nil if
-// no Python project is detected.
+// no recognized project is detected. Python markers (pixi.toml, pyproject.toml
+// with [tool.pixi]/[tool.poe], or uv.lock) take precedence; otherwise a
+// standalone myst.yml indicates a writing-only project.
 func Detect(dir string) *Project {
-	pm := detectPkgManager(dir)
-	if pm == "" {
-		return nil
+	if pm := detectPkgManager(dir); pm != "" {
+		return &Project{
+			Dir:        dir,
+			Kind:       Python,
+			PkgManager: pm,
+			DocSystem:  detectDocSystem(dir),
+		}
 	}
-	return &Project{
-		Dir:        dir,
-		PkgManager: pm,
-		DocSystem:  detectDocSystem(dir),
+	if fileExists(filepath.Join(dir, "myst.yml")) {
+		return &Project{
+			Dir:       dir,
+			Kind:      Writing,
+			DocSystem: Myst,
+		}
 	}
+	return nil
 }
 
 func detectPkgManager(dir string) PkgManager {

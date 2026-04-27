@@ -33,8 +33,9 @@ import (
 type CreateOptions struct {
 	Name        string
 	Dir         string // parent directory (default ".")
-	PkgManager  string // "pixi" or "uv"
-	DocSystem   string // "quarto", "myst", or "none"
+	Kind        string // "python" (default) or "writing"
+	PkgManager  string // "pixi" or "uv" (Python projects only)
+	DocSystem   string // "quarto", "myst", or "none" (Python projects only)
 	AuthorName  string
 	AuthorEmail string
 	Description string
@@ -92,6 +93,7 @@ func Create(opts CreateOptions) (*CreateResult, error) {
 
 	vars := TemplateVars{
 		ProjectName: opts.Name,
+		Kind:        opts.Kind,
 		PkgManager:  opts.PkgManager,
 		DocSystem:   opts.DocSystem,
 		AuthorName:  opts.AuthorName,
@@ -117,21 +119,24 @@ func Create(opts CreateOptions) (*CreateResult, error) {
 		return nil, fmt.Errorf("rendering templates: %w", err)
 	}
 
-	// Create empty dirs with .gitkeep
-	emptyDirs := []string{"data/derivatives", "figs"}
-	for _, d := range emptyDirs {
-		dirPath := filepath.Join(dest, d)
-		if err := os.MkdirAll(dirPath, 0o755); err != nil {
-			return nil, err
-		}
-		gk := filepath.Join(dirPath, ".gitkeep")
-		if err := os.WriteFile(gk, nil, 0o644); err != nil {
-			return nil, err
+	// Create empty dirs with .gitkeep — python projects need data + figs
+	// scaffolding; writing projects already ship figures/.gitkeep verbatim.
+	if opts.Kind != "writing" {
+		emptyDirs := []string{"data/derivatives", "figs"}
+		for _, d := range emptyDirs {
+			dirPath := filepath.Join(dest, d)
+			if err := os.MkdirAll(dirPath, 0o755); err != nil {
+				return nil, err
+			}
+			gk := filepath.Join(dirPath, ".gitkeep")
+			if err := os.WriteFile(gk, nil, 0o644); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	// Run post-steps
-	steps := DefaultPostSteps(opts.PkgManager)
+	steps := DefaultPostSteps(opts.Kind, opts.PkgManager)
 	stepLabels := lo.Map(steps, func(s PostStep, _ int) string {
 		return s.Label
 	})
@@ -174,12 +179,17 @@ type PostStep struct {
 	ContinueOnError bool
 }
 
-// DefaultPostSteps returns the post-creation steps for a given package manager.
-// Every project gets git init; pixi projects get pixi install, uv projects get
-// uv sync.
-func DefaultPostSteps(pkgManager string) []PostStep {
+// DefaultPostSteps returns the post-creation steps for a given kind and
+// package manager. Every project gets git init; python projects additionally
+// get pixi install or uv sync. Writing projects have no Python environment
+// to set up.
+func DefaultPostSteps(kind, pkgManager string) []PostStep {
 	steps := []PostStep{
 		{Label: "git init", Cmd: []string{"git", "init"}, ContinueOnError: false},
+	}
+
+	if kind == "writing" {
+		return steps
 	}
 
 	switch pkgManager {

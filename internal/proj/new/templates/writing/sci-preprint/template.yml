@@ -1,0 +1,88 @@
+jtex: v1
+kind: typst
+title: sci-preprint
+description: Minimal modern preprint template for MyST + Typst (arkheion-inspired).
+template: template.typ
+files:
+  - template.typ
+  - orcid.svg
+  - LICENSE
+version: 0.2.0
+license: MIT
+tags:
+  - preprint
+  - paper
+  - article
+
+doc:
+  - id: title
+    required: true
+  - id: authors
+    required: true
+  - id: affiliations
+  - id: subtitle
+  - id: short_title
+  - id: keywords
+  - id: date
+
+options:
+  - id: heading_numbering
+    type: string
+    default: "1.1"
+    description: >
+      Heading numbering style (Typst numbering pattern, e.g. "1.1").
+      Set to "" to disable numbering.
+  - id: citation_style
+    type: string
+    default: nature
+    description: >
+      Typst bibliography style. Accepts built-in names
+      (e.g. "ieee", "chicago-author-date", "american-psychological-association")
+      or a path to a .csl file.
+  - id: line_numbers
+    type: boolean
+    default: true
+    description: >
+      Number every line of the body (and acknowledgements/data availability/
+      references). Most journals require this for initial submission.
+  - id: line_number_scope
+    type: choice
+    choices: [document, page]
+    default: document
+    description: >
+      "document" numbers lines continuously from the start of the body to
+      the end of the manuscript. "page" restarts at 1 on each new page.
+  - id: anonymize
+    type: boolean
+    default: false
+    description: >
+      Hide authors, affiliations, and corresponding-author info for
+      double-blind peer review. The body is not scrubbed — remove
+      self-identifying content from your markdown separately.
+  - id: title_page
+    type: boolean
+    default: false
+    description: >
+      Put the title block, authors, and key points on their own page;
+      the abstract and body start on page 2.
+  - id: abstract_page
+    type: boolean
+    default: false
+    description: >
+      Give the abstract its own page. Implies title_page — page 1 is
+      title+authors, page 2 is abstract, body starts on page 3.
+
+parts:
+  - id: abstract
+    description: Short summary printed under the title block.
+    max_words: 500
+    required: false
+  - id: keypoints
+    description: Bulleted key-points callout above the abstract.
+    required: false
+  - id: acknowledgements
+    description: Acknowledgements section, printed before references.
+    required: false
+  - id: data_availability
+    description: Data/code availability statement, printed before references.
+    required: false

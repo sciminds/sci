@@ -8,11 +8,12 @@ import (
 
 func TestDetect(t *testing.T) {
 	tests := []struct {
-		name    string
-		files   map[string]string // path → content
-		wantNil bool
-		wantPkg PkgManager
-		wantDoc DocSystem
+		name     string
+		files    map[string]string // path → content
+		wantNil  bool
+		wantKind Kind
+		wantPkg  PkgManager
+		wantDoc  DocSystem
 	}{
 		{
 			name:    "empty dir",
@@ -20,46 +21,65 @@ func TestDetect(t *testing.T) {
 			wantNil: true,
 		},
 		{
-			name:    "pixi.toml only",
-			files:   map[string]string{"pixi.toml": "[project]\nname = \"test\""},
-			wantPkg: Pixi,
-			wantDoc: NoDoc,
+			name:     "pixi.toml only",
+			files:    map[string]string{"pixi.toml": "[project]\nname = \"test\""},
+			wantKind: Python,
+			wantPkg:  Pixi,
+			wantDoc:  NoDoc,
 		},
 		{
-			name:    "pyproject with tool.pixi",
-			files:   map[string]string{"pyproject.toml": "[project]\nname = \"test\"\n\n[tool.pixi.project]\nplatforms = [\"osx-arm64\"]"},
-			wantPkg: Pixi,
-			wantDoc: NoDoc,
+			name:     "pyproject with tool.pixi",
+			files:    map[string]string{"pyproject.toml": "[project]\nname = \"test\"\n\n[tool.pixi.project]\nplatforms = [\"osx-arm64\"]"},
+			wantKind: Python,
+			wantPkg:  Pixi,
+			wantDoc:  NoDoc,
 		},
 		{
-			name:    "pyproject with tool.poe",
-			files:   map[string]string{"pyproject.toml": "[project]\nname = \"test\"\n\n[tool.poe.tasks]\nsetup = \"echo hi\""},
-			wantPkg: UV,
-			wantDoc: NoDoc,
+			name:     "pyproject with tool.poe",
+			files:    map[string]string{"pyproject.toml": "[project]\nname = \"test\"\n\n[tool.poe.tasks]\nsetup = \"echo hi\""},
+			wantKind: Python,
+			wantPkg:  UV,
+			wantDoc:  NoDoc,
 		},
 		{
-			name:    "uv.lock only",
-			files:   map[string]string{"uv.lock": "version = 1\n", "pyproject.toml": "[project]\nname = \"x\""},
-			wantPkg: UV,
-			wantDoc: NoDoc,
+			name:     "uv.lock only",
+			files:    map[string]string{"uv.lock": "version = 1\n", "pyproject.toml": "[project]\nname = \"x\""},
+			wantKind: Python,
+			wantPkg:  UV,
+			wantDoc:  NoDoc,
 		},
 		{
-			name:    "pixi + quarto",
-			files:   map[string]string{"pixi.toml": "", "_quarto.yml": "project:\n  type: manuscript"},
-			wantPkg: Pixi,
-			wantDoc: Quarto,
+			name:     "pixi + quarto",
+			files:    map[string]string{"pixi.toml": "", "_quarto.yml": "project:\n  type: manuscript"},
+			wantKind: Python,
+			wantPkg:  Pixi,
+			wantDoc:  Quarto,
 		},
 		{
-			name:    "uv + myst",
-			files:   map[string]string{"pyproject.toml": "[tool.poe.tasks]\nsetup = \"echo\"", "myst.yml": "version: 1"},
-			wantPkg: UV,
-			wantDoc: Myst,
+			name:     "uv + myst",
+			files:    map[string]string{"pyproject.toml": "[tool.poe.tasks]\nsetup = \"echo\"", "myst.yml": "version: 1"},
+			wantKind: Python,
+			wantPkg:  UV,
+			wantDoc:  Myst,
 		},
 		{
-			name:    "quarto takes precedence over myst",
-			files:   map[string]string{"pixi.toml": "", "_quarto.yml": "", "myst.yml": ""},
-			wantPkg: Pixi,
-			wantDoc: Quarto,
+			name:     "quarto takes precedence over myst",
+			files:    map[string]string{"pixi.toml": "", "_quarto.yml": "", "myst.yml": ""},
+			wantKind: Python,
+			wantPkg:  Pixi,
+			wantDoc:  Quarto,
+		},
+		{
+			name:     "myst.yml only → writing kind",
+			files:    map[string]string{"myst.yml": "version: 1\nproject:\n  title: Paper"},
+			wantKind: Writing,
+			wantPkg:  "",
+			wantDoc:  Myst,
+		},
+		{
+			name:    "_quarto.yml without python markers → nil",
+			files:   map[string]string{"_quarto.yml": "project:\n  type: manuscript"},
+			wantNil: true,
 		},
 		{
 			name:    "poetry project should not match as UV",
@@ -85,16 +105,18 @@ func TestDetect(t *testing.T) {
 			files: map[string]string{
 				"pyproject.toml": "[project]\nname = \"test\"\n\n[tool.pixi.project] # configure pixi\nplatforms = [\"osx-arm64\"]\n",
 			},
-			wantPkg: Pixi,
-			wantDoc: NoDoc,
+			wantKind: Python,
+			wantPkg:  Pixi,
+			wantDoc:  NoDoc,
 		},
 		{
 			name: "unreadable pyproject falls back to uv.lock",
 			files: map[string]string{
 				"uv.lock": "version = 1\n",
 			},
-			wantPkg: UV,
-			wantDoc: NoDoc,
+			wantKind: Python,
+			wantPkg:  UV,
+			wantDoc:  NoDoc,
 		},
 		{
 			name:    "pyproject exists but empty",
@@ -127,6 +149,9 @@ func TestDetect(t *testing.T) {
 			}
 			if proj == nil {
 				t.Fatal("expected non-nil project")
+			}
+			if proj.Kind != tt.wantKind {
+				t.Errorf("Kind = %q, want %q", proj.Kind, tt.wantKind)
 			}
 			if proj.PkgManager != tt.wantPkg {
 				t.Errorf("PkgManager = %q, want %q", proj.PkgManager, tt.wantPkg)

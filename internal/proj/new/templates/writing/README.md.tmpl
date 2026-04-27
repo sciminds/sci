@@ -1,0 +1,55 @@
+# {{.ProjectName}}
+
+{{if .Description}}{{.Description}}{{else}}A scientific manuscript authored in MyST Markdown and rendered to PDF via Typst.{{end}}
+
+## Getting Started
+
+Make sure you have `node` and `typst` installed (the `sci` CLI installs them via `sci doctor` if you haven't already).
+
+```bash
+cd {{.ProjectName}}/
+sci proj render        # build pdfs/main.pdf
+sci proj preview       # live-preview HTML server
+```
+
+Or, equivalently, call MyST directly:
+
+```bash
+npx mystmd build --pdf   # one-shot PDF build
+npx mystmd start         # live-preview server
+```
+
+## Project Structure
+
+```
+main.md                # the manuscript body (Intro / Methods / Results / Discussion)
+myst.yml               # MyST project config — authors, parts, exports
+references.bib         # BibTeX references — cite with {cite}`key`
+sections/
+    abstract.md        # short summary printed under the title block
+    keypoints.md       # bulleted highlights above the abstract
+    acknowledgements.md
+    opendata.md        # data/code availability statement
+figures/               # put figures here, reference with ![](figures/foo.png)
+sci-preprint/          # the local Typst template — fully editable
+    template.typ       # the actual layout — restyle freely
+    template.yml       # template metadata (jtex spec)
+    orcid.svg, LICENSE
+pdfs/                  # output PDFs (gitignored)
+```
+
+## Editing the layout
+
+This project ships a local copy of the `sci-preprint` Typst template at `sci-preprint/`. Edit `sci-preprint/template.typ` to change fonts, margins, the title block, etc. — your changes apply only to this manuscript.
+
+## Submission knobs
+
+`myst.yml` lists the toggles for line numbers, anonymization, and title pages. Add a second export entry to produce an anonymous PDF in parallel:
+
+```yaml
+- format: typst
+  template: ./sci-preprint
+  output: pdfs/main-anonymous.pdf
+  anonymize: true
+  title_page: true
+```

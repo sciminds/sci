@@ -25,6 +25,9 @@ func Add(dir string, pkgs []string) error {
 	if proj == nil {
 		return errNoProject(dir)
 	}
+	if proj.Kind == Writing {
+		return errWritingNoPkgManager
+	}
 
 	switch proj.PkgManager {
 	case Pixi:
@@ -42,6 +45,9 @@ func Remove(dir string, pkgs []string) error {
 	proj := Detect(dir)
 	if proj == nil {
 		return errNoProject(dir)
+	}
+	if proj.Kind == Writing {
+		return errWritingNoPkgManager
 	}
 
 	switch proj.PkgManager {
@@ -65,6 +71,9 @@ func RunTask(dir, task string, args []string) error {
 	if proj == nil {
 		return errNoProject(dir)
 	}
+	if proj.Kind == Writing {
+		return errWritingNoPkgManager
+	}
 
 	switch proj.PkgManager {
 	case Pixi:
@@ -81,27 +90,23 @@ func RunTask(dir, task string, args []string) error {
 // ---------------------------------------------------------------------------
 
 // Render runs the document renderer for the detected doc system.
-// It replaces the current process (syscall.Exec).
+// It replaces the current process (syscall.Exec). Writing projects render
+// the Typst PDF (`mystmd build --pdf`); python+myst projects render the
+// HTML site (`mystmd build --html`).
 func Render(dir, target string) error {
 	proj := Detect(dir)
 	if proj == nil {
 		return errNoProject(dir)
 	}
 
-	switch proj.DocSystem {
-	case Quarto:
-		args := []string{"render"}
-		if target != "" {
-			args = append(args, target)
+	args := BuildRenderArgs(proj.Kind, proj.DocSystem, target)
+	if args == nil {
+		if proj.DocSystem == NoDoc {
+			return fmt.Errorf("no doc system detected (no _quarto.yml or myst.yml found)")
 		}
-		return execCmd("quarto", args)
-	case Myst:
-		return execCmd("npx", []string{"mystmd", "build", "--html"})
-	case NoDoc:
-		return fmt.Errorf("no doc system detected (no _quarto.yml or myst.yml found)")
-	default:
 		return fmt.Errorf("unknown doc system: %s", proj.DocSystem)
 	}
+	return execCmd(args[0], args[1:])
 }
 
 // Preview starts a live preview server for the detected doc system.
@@ -112,16 +117,14 @@ func Preview(dir string) error {
 		return errNoProject(dir)
 	}
 
-	switch proj.DocSystem {
-	case Quarto:
-		return execCmd("quarto", []string{"preview"})
-	case Myst:
-		return execCmd("npx", []string{"mystmd", "start"})
-	case NoDoc:
-		return fmt.Errorf("no doc system detected (no _quarto.yml or myst.yml found)")
-	default:
+	args := BuildPreviewArgs(proj.Kind, proj.DocSystem)
+	if args == nil {
+		if proj.DocSystem == NoDoc {
+			return fmt.Errorf("no doc system detected (no _quarto.yml or myst.yml found)")
+		}
 		return fmt.Errorf("unknown doc system: %s", proj.DocSystem)
 	}
+	return execCmd(args[0], args[1:])
 }
 
 // ---------------------------------------------------------------------------
@@ -141,7 +144,8 @@ func BuildRunTaskArgs(pm PkgManager, task string, args []string) []string {
 }
 
 // BuildRenderArgs constructs the argv for a render command.
-func BuildRenderArgs(ds DocSystem, target string) []string {
+// Writing+Myst builds the Typst PDF; Python+Myst builds the HTML site.
+func BuildRenderArgs(kind Kind, ds DocSystem, target string) []string {
 	switch ds {
 	case Quarto:
 		args := []string{"quarto", "render"}
@@ -150,14 +154,19 @@ func BuildRenderArgs(ds DocSystem, target string) []string {
 		}
 		return args
 	case Myst:
+		if kind == Writing {
+			return []string{"npx", "mystmd", "build", "--pdf"}
+		}
 		return []string{"npx", "mystmd", "build", "--html"}
 	default:
 		return nil
 	}
 }
 
-// BuildPreviewArgs constructs the argv for a preview command.
-func BuildPreviewArgs(ds DocSystem) []string {
+// BuildPreviewArgs constructs the argv for a preview command. Writing and
+// python+myst projects share `mystmd start` (the live preview is HTML either
+// way; PDF output is rebuilt on save inside the preview).
+func BuildPreviewArgs(_ Kind, ds DocSystem) []string {
 	switch ds {
 	case Quarto:
 		return []string{"quarto", "preview"}
@@ -172,10 +181,15 @@ func BuildPreviewArgs(ds DocSystem) []string {
 // Helpers
 // ---------------------------------------------------------------------------
 
-// errNoProject returns a descriptive error when no Python project is found.
+// errNoProject returns a descriptive error when no project is found.
 func errNoProject(dir string) error {
-	return fmt.Errorf("no Python project detected in %s (expected pixi.toml, pyproject.toml with [tool.pixi] or [tool.poe], or uv.lock)", dir)
+	return fmt.Errorf("no project detected in %s (expected pixi.toml, pyproject.toml with [tool.pixi] or [tool.poe], uv.lock, or myst.yml)", dir)
 }
+
+// errWritingNoPkgManager is returned when package-manager commands run inside
+// a writing-only project. Writing projects have no Python environment to
+// install into.
+var errWritingNoPkgManager = fmt.Errorf("this is a writing project — no package manager to install into. Use `sci proj render` to build the PDF")
 
 // execCmd replaces the current process with the given command via syscall.Exec.
 func execCmd(name string, args []string) error {

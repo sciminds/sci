@@ -12,6 +12,7 @@ import (
 
 // RunWizard runs an interactive huh form to populate CreateOptions.
 // Fields already set (e.g. from flags) are shown as pre-filled defaults.
+// Selecting "writing" hides the package manager / doc system questions.
 func RunWizard(opts *CreateOptions) error {
 	// Pre-fill author from git config
 	if opts.AuthorName == "" {
@@ -22,12 +23,17 @@ func RunWizard(opts *CreateOptions) error {
 	}
 
 	// Default selects so they start on the right option
+	if opts.Kind == "" {
+		opts.Kind = "python"
+	}
 	if opts.PkgManager == "" {
 		opts.PkgManager = "uv"
 	}
 	if opts.DocSystem == "" {
 		opts.DocSystem = "myst"
 	}
+
+	pythonOnly := func() bool { return opts.Kind != "python" }
 
 	form := huh.NewForm(
 		huh.NewGroup(
@@ -38,6 +44,17 @@ func RunWizard(opts *CreateOptions) error {
 				Value(&opts.Name).
 				Validate(validateName),
 
+			huh.NewSelect[string]().
+				Title("Project kind").
+				Description("Python = data analysis (uv/pixi) with optional MyST/Quarto docs. Writing = pure manuscript (MyST → Typst → PDF).").
+				Options(
+					huh.NewOption("Python   (data analysis + writing)", "python"),
+					huh.NewOption("Writing  (MyST → Typst PDF only)", "writing"),
+				).
+				Value(&opts.Kind),
+		),
+
+		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Package manager").
 				Options(
@@ -55,7 +72,9 @@ func RunWizard(opts *CreateOptions) error {
 					huh.NewOption("None", "none"),
 				).
 				Value(&opts.DocSystem),
+		).WithHideFunc(pythonOnly),
 
+		huh.NewGroup(
 			huh.NewInput().
 				Title("Author name").
 				Placeholder("Your Name").
@@ -74,7 +93,17 @@ func RunWizard(opts *CreateOptions) error {
 		),
 	)
 
-	return uikit.RunForm(form)
+	if err := uikit.RunForm(form); err != nil {
+		return err
+	}
+
+	// Writing projects don't use these fields — clear so downstream logic
+	// (Create + post-steps) sees the canonical empty state.
+	if opts.Kind == "writing" {
+		opts.PkgManager = ""
+		opts.DocSystem = ""
+	}
+	return nil
 }
 
 func validateName(s string) error {

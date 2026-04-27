@@ -1,0 +1,41 @@
+# See docs at: https://mystmd.org/guide/frontmatter
+#
+# Article title + subtitle live in main.md's frontmatter (single source of
+# truth). Everything below is shared metadata for every export.
+version: 1
+project:
+  short_title: "{{.ProjectName}}"
+{{- if .Description}}
+  description: "{{.Description}}"
+{{- end}}
+  keywords: []
+  license: CC-BY-4.0
+  bibliography:
+    - references.bib
+  authors:
+    - name: {{.AuthorName}}
+{{- if .AuthorEmail}}
+      email: {{.AuthorEmail}}
+{{- end}}
+      affiliations: []
+  affiliations: []
+  # Document "parts" are template slots (abstract, keypoints, etc.) — the
+  # template decides where each lands on the page. The body is whatever is
+  # listed in `toc:` below.
+  parts:
+    abstract: sections/abstract.md
+    keypoints: sections/keypoints.md
+    acknowledgements: sections/acknowledgements.md
+    data_availability: sections/opendata.md
+  toc:
+    - file: main.md
+  exports:
+    - format: typst
+      template: ./sci-preprint
+      output: pdfs/main.pdf
+      # Submission knobs — flip as needed:
+      # line_numbers: true          # on by default
+      # line_number_scope: document # or "page" to restart per page
+      # anonymize: true             # double-blind: hide authors/affiliations
+      # title_page: true            # push abstract + body to page 2
+      # abstract_page: true         # abstract on page 2, body on page 3
