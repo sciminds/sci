@@ -204,10 +204,9 @@ func TestRenderAllWriting(t *testing.T) {
 		"sections/keypoints.md",
 		"sections/acknowledgements.md",
 		"sections/opendata.md",
-		"sci-preprint/template.typ",
-		"sci-preprint/template.yml",
-		"sci-preprint/orcid.svg",
-		"sci-preprint/LICENSE",
+		"_templates/paper/paper.typ",
+		"_templates/paper/template.yml",
+		"_templates/paper/orcid.svg",
 	}
 	for _, want := range wantFiles {
 		if !createdSet[want] {
@@ -243,7 +242,7 @@ func TestWritingMystYmlContent(t *testing.T) {
 		t.Fatalf("RenderFile failed: %v", err)
 	}
 	for _, want := range []string{
-		"template: ./sci-preprint",
+		"template: ./_templates/paper",
 		"test-project",
 		"Test Author",
 		"test@example.com",
@@ -293,7 +292,7 @@ func TestWritingReadmeContent(t *testing.T) {
 	for _, want := range []string{
 		"test-project",
 		"mystmd build --pdf",
-		"sci-preprint/template.typ",
+		"_templates/paper/paper.typ",
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("README.md missing %q", want)

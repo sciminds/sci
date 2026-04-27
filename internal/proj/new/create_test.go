@@ -73,7 +73,7 @@ func TestCreateWritingDryRun(t *testing.T) {
 	for _, f := range result.Files {
 		got[f] = true
 	}
-	for _, want := range []string{"main.md", "myst.yml", "sci-preprint/template.typ"} {
+	for _, want := range []string{"main.md", "myst.yml", "_templates/paper/paper.typ"} {
 		if !got[want] {
 			t.Errorf("missing expected file %q in %v", want, result.Files)
 		}

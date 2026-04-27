@@ -2,11 +2,10 @@ jtex: v1
 kind: typst
 title: sci-preprint
 description: Minimal modern preprint template for MyST + Typst (arkheion-inspired).
-template: template.typ
+template: paper.typ
 files:
-  - template.typ
+  - paper.typ
   - orcid.svg
-  - LICENSE
 version: 0.2.0
 license: MIT
 tags:

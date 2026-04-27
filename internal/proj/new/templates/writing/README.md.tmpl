@@ -31,16 +31,16 @@ sections/
     acknowledgements.md
     opendata.md        # data/code availability statement
 figures/               # put figures here, reference with ![](figures/foo.png)
-sci-preprint/          # the local Typst template — fully editable
-    template.typ       # the actual layout — restyle freely
+_templates/paper/      # the local Typst template — fully editable
+    paper.typ          # the actual layout — restyle freely
     template.yml       # template metadata (jtex spec)
-    orcid.svg, LICENSE
+    orcid.svg
 pdfs/                  # output PDFs (gitignored)
 ```
 
 ## Editing the layout
 
-This project ships a local copy of the `sci-preprint` Typst template at `sci-preprint/`. Edit `sci-preprint/template.typ` to change fonts, margins, the title block, etc. — your changes apply only to this manuscript.
+This project ships a local copy of the `sci-preprint` Typst template at `_templates/paper/`. Edit `_templates/paper/paper.typ` to change fonts, margins, the title block, etc. — your changes apply only to this manuscript. Drop sibling templates (e.g. `_templates/poster/`) in the same folder and reference them from `myst.yml`.
 
 ## Submission knobs
 
@@ -48,7 +48,7 @@ This project ships a local copy of the `sci-preprint` Typst template at `sci-pre
 
 ```yaml
 - format: typst
-  template: ./sci-preprint
+  template: ./_templates/paper
   output: pdfs/main-anonymous.pdf
   anonymize: true
   title_page: true
