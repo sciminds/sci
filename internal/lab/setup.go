@@ -54,7 +54,7 @@ func Setup(user string) (*SetupResult, error) {
 	}
 
 	// 2. Find or generate SSH key.
-	keyPath := findSSHKey(home)
+	keyPath := findSSHKey(home, Host)
 	if keyPath == "" {
 		keyPath = filepath.Join(sshDir, "id_ed25519")
 		uikit.Header("Generating SSH key")
@@ -149,8 +149,19 @@ func testFailureMessage(stderr string) string {
 	return "SSH key copied but test connection failed — check your SSH config"
 }
 
-// findSSHKey returns the path to the first existing SSH key, or "" if none found.
-func findSSHKey(home string) string {
+// findSSHKey returns the path to an existing SSH private key for host, or ""
+// if none found. It first scans ~/.ssh/config for a Host block whose patterns
+// or Hostname match host and uses its IdentityFile if the file exists. This
+// catches the common case (issue #2) where a user already set up the lab key
+// under a non-canonical name like ~/.ssh/ssrde_ed25519 — without this, sci
+// would silently miss it and offer to generate a new key.
+//
+// Falls back to the OpenSSH canonical names when nothing in the config
+// resolves to an existing file.
+func findSSHKey(home, host string) string {
+	if p := scanSSHConfigForKey(home, host); p != "" {
+		return p
+	}
 	sshDir := filepath.Join(home, ".ssh")
 	for _, name := range []string{"id_ed25519", "id_rsa", "id_ecdsa"} {
 		p := filepath.Join(sshDir, name)
@@ -159,6 +170,114 @@ func findSSHKey(home string) string {
 		}
 	}
 	return ""
+}
+
+// scanSSHConfigForKey parses ~/.ssh/config and returns the first IdentityFile
+// (resolved + existing) from a Host block matching host. Match rule: the
+// block's Hostname directive equals host, OR one of its Host patterns equals
+// host literally. Wildcard patterns (`*`, `*.ucsd.edu`) are intentionally
+// ignored — a `Host *` IdentityFile is a global default the user may not
+// actually associate with the lab, and treating it as canonical here would
+// misidentify keys.
+func scanSSHConfigForKey(home, host string) string {
+	data, err := os.ReadFile(filepath.Join(home, ".ssh", "config"))
+	if err != nil {
+		return ""
+	}
+	for _, b := range parseSSHConfig(string(data)) {
+		if !b.matchesHost(host) {
+			continue
+		}
+		for _, id := range b.identityFiles {
+			expanded := expandTilde(id, home)
+			if _, err := os.Stat(expanded); err == nil {
+				return expanded
+			}
+		}
+	}
+	return ""
+}
+
+// sshHostBlock is the minimal slice of an ~/.ssh/config Host block we need:
+// the patterns from the `Host` line, an optional Hostname override, and any
+// IdentityFile entries in declaration order.
+type sshHostBlock struct {
+	patterns      []string
+	hostname      string
+	identityFiles []string
+}
+
+func (b sshHostBlock) matchesHost(host string) bool {
+	if strings.EqualFold(b.hostname, host) {
+		return true
+	}
+	return slices.ContainsFunc(b.patterns, func(p string) bool {
+		return strings.EqualFold(p, host)
+	})
+}
+
+// parseSSHConfig is a small line-based parser. It does NOT implement the full
+// OpenSSH grammar — only what's needed to spot a literal-host IdentityFile.
+// Specifically: directives outside any Host block, Match blocks, Include
+// directives, and pattern globbing are all ignored.
+func parseSSHConfig(data string) []sshHostBlock {
+	var blocks []sshHostBlock
+	var cur *sshHostBlock
+	for _, raw := range strings.Split(data, "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val := splitConfigLine(line)
+		switch strings.ToLower(key) {
+		case "host":
+			if cur != nil {
+				blocks = append(blocks, *cur)
+			}
+			cur = &sshHostBlock{patterns: strings.Fields(val)}
+		case "hostname":
+			if cur != nil {
+				cur.hostname = val
+			}
+		case "identityfile":
+			if cur != nil && val != "" {
+				cur.identityFiles = append(cur.identityFiles, val)
+			}
+		}
+	}
+	if cur != nil {
+		blocks = append(blocks, *cur)
+	}
+	return blocks
+}
+
+// splitConfigLine splits a directive line on the first run of whitespace or
+// `=` separators. OpenSSH accepts both `Key Value` and `Key=Value`.
+func splitConfigLine(s string) (key, val string) {
+	i := strings.IndexAny(s, " \t=")
+	if i < 0 {
+		return s, ""
+	}
+	key = s[:i]
+	val = strings.TrimLeft(s[i:], " \t=")
+	val = strings.TrimSpace(val)
+	if len(val) >= 2 && val[0] == '"' && val[len(val)-1] == '"' {
+		val = val[1 : len(val)-1]
+	}
+	return key, val
+}
+
+// expandTilde resolves a leading `~` or `~/` against home. SSH config also
+// accepts `~user`, but that's rare in user configs and not worth the
+// /etc/passwd lookup here — we'd just fail the os.Stat and fall back.
+func expandTilde(p, home string) string {
+	if p == "~" {
+		return home
+	}
+	if strings.HasPrefix(p, "~/") {
+		return filepath.Join(home, p[2:])
+	}
+	return p
 }
 
 // configureSSH adds an SSH config Host block if the alias doesn't already exist.

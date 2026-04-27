@@ -1,6 +1,8 @@
 package lab
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -52,6 +54,119 @@ func TestTestFailureMessage_EmptyStderrFallback(t *testing.T) {
 	got := testFailureMessage("")
 	if got == "" {
 		t.Error("empty stderr should still produce a message")
+	}
+}
+
+// writeFile is a tiny test helper: write content to home/relPath, creating
+// any parent dirs and the private key target if asked.
+func writeFile(t *testing.T, home, relPath, content string) string {
+	t.Helper()
+	full := filepath.Join(home, relPath)
+	if err := os.MkdirAll(filepath.Dir(full), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return full
+}
+
+func TestFindSSHKey_PrefersIdentityFileFromConfig(t *testing.T) {
+	home := t.TempDir()
+	keyPath := writeFile(t, home, ".ssh/ssrde_ed25519", "PRIVATE KEY")
+	writeFile(t, home, ".ssh/config", `Host scilab
+    Hostname `+Host+`
+    User someone
+    IdentityFile ~/.ssh/ssrde_ed25519
+`)
+	got := findSSHKey(home, Host)
+	if got != keyPath {
+		t.Errorf("want IdentityFile from matching config block (%s); got %q", keyPath, got)
+	}
+}
+
+func TestFindSSHKey_MatchesHostPatternLiteral(t *testing.T) {
+	home := t.TempDir()
+	keyPath := writeFile(t, home, ".ssh/lab_key", "PRIVATE KEY")
+	writeFile(t, home, ".ssh/config", `Host `+Host+`
+    IdentityFile ~/.ssh/lab_key
+`)
+	got := findSSHKey(home, Host)
+	if got != keyPath {
+		t.Errorf("want IdentityFile when Host pattern matches; got %q", got)
+	}
+}
+
+func TestFindSSHKey_FallsBackWhenIdentityFileMissing(t *testing.T) {
+	home := t.TempDir()
+	canonical := writeFile(t, home, ".ssh/id_ed25519", "CANONICAL KEY")
+	writeFile(t, home, ".ssh/config", `Host scilab
+    Hostname `+Host+`
+    IdentityFile ~/.ssh/does_not_exist
+`)
+	got := findSSHKey(home, Host)
+	if got != canonical {
+		t.Errorf("config IdentityFile points at missing file → should fall back to canonical %s; got %q", canonical, got)
+	}
+}
+
+func TestFindSSHKey_FallsBackWhenNoMatchingBlock(t *testing.T) {
+	home := t.TempDir()
+	canonical := writeFile(t, home, ".ssh/id_ed25519", "CANONICAL KEY")
+	writeFile(t, home, ".ssh/lab_key", "UNRELATED LAB KEY")
+	writeFile(t, home, ".ssh/config", `Host github.com
+    IdentityFile ~/.ssh/lab_key
+`)
+	got := findSSHKey(home, Host)
+	if got != canonical {
+		t.Errorf("unrelated Host block should not match; got %q", got)
+	}
+}
+
+func TestFindSSHKey_NoConfigStillUsesCanonical(t *testing.T) {
+	home := t.TempDir()
+	canonical := writeFile(t, home, ".ssh/id_rsa", "RSA KEY")
+	got := findSSHKey(home, Host)
+	if got != canonical {
+		t.Errorf("no config → canonical fallback; got %q", got)
+	}
+}
+
+func TestFindSSHKey_HandlesEqualsSeparator(t *testing.T) {
+	home := t.TempDir()
+	keyPath := writeFile(t, home, ".ssh/ssrde_ed25519", "PRIVATE KEY")
+	writeFile(t, home, ".ssh/config", `Host scilab
+    Hostname=`+Host+`
+    IdentityFile=~/.ssh/ssrde_ed25519
+`)
+	got := findSSHKey(home, Host)
+	if got != keyPath {
+		t.Errorf("want '=' separator parsed; got %q", got)
+	}
+}
+
+func TestFindSSHKey_SkipsCommentsAndBlankLines(t *testing.T) {
+	home := t.TempDir()
+	keyPath := writeFile(t, home, ".ssh/ssrde_ed25519", "PRIVATE KEY")
+	writeFile(t, home, ".ssh/config", `# top comment
+
+Host scilab
+    # inner comment
+    Hostname `+Host+`
+
+    IdentityFile ~/.ssh/ssrde_ed25519
+`)
+	got := findSSHKey(home, Host)
+	if got != keyPath {
+		t.Errorf("comments/blank lines should be ignored; got %q", got)
+	}
+}
+
+func TestFindSSHKey_NothingFoundReturnsEmpty(t *testing.T) {
+	home := t.TempDir()
+	got := findSSHKey(home, Host)
+	if got != "" {
+		t.Errorf("no key anywhere → \"\"; got %q", got)
 	}
 }
 
