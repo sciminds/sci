@@ -193,8 +193,14 @@
     ]
   }
 
-  // ── Optional page break before abstract ───────────────────────────
-  if title-page or abstract-page {
+  // ── Page-break logic for title_page / abstract_page ────────────────
+  // abstract_page only makes sense if there's an abstract to isolate;
+  // when abstract is missing, fall back to title_page behaviour so we
+  // don't strand keywords on an otherwise-blank page.
+  let isolate-abstract = abstract-page and abstract != none
+  let isolate-title = title-page or isolate-abstract
+
+  if isolate-title {
     pagebreak(weak: true)
   }
 
@@ -226,7 +232,7 @@
   }
 
   // ── Optional page break before body ───────────────────────────────
-  if abstract-page {
+  if isolate-abstract {
     pagebreak(weak: true)
   }
 
