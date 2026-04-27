@@ -23,6 +23,14 @@ var (
 	setupUser string
 )
 
+// warmMaster is the SSH ControlMaster warmup hook. Indirecting through this
+// var lets unit tests stub the warm step without spinning up real ssh; it
+// also gives every lab subcommand that shells out to ssh/rsync a single
+// place to opt into the "auth on the real terminal first, then exec" flow.
+// Without this, a stale ControlMaster surprises the user with a mid-command
+// Duo prompt — found while triaging issue #2.
+var warmMaster = lab.WarmMaster
+
 func labCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "lab",
@@ -105,6 +113,10 @@ func labLsCommand() *cli.Command {
 				return err
 			}
 
+			if err := warmMaster(cfg); err != nil {
+				return err
+			}
+
 			argv := lab.BuildLsArgs(cfg, remotePath)
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
@@ -146,6 +158,10 @@ func labGetCommand() *cli.Command {
 			localPath := "."
 			if cmd.Args().Len() >= 2 {
 				localPath = cmd.Args().Get(1)
+			}
+
+			if err := warmMaster(cfg); err != nil {
+				return err
 			}
 
 			argv := lab.BuildGetArgs(cfg, remotePath, localPath)
@@ -192,6 +208,10 @@ func labPutCommand() *cli.Command {
 				return err
 			}
 
+			if err := warmMaster(cfg); err != nil {
+				return err
+			}
+
 			argv := lab.BuildPutArgs(cfg, localPath, remotePath, putDryRun)
 			bin, err := exec.LookPath(argv[0])
 			if err != nil {
@@ -215,7 +235,7 @@ func labBrowseCommand() *cli.Command {
 			// Warm the ControlMaster on the real terminal so the TUI inherits
 			// an authenticated connection — avoids Duo prompts hanging behind
 			// the alt-screen on every internal ssh/rsync call.
-			if err := lab.WarmMaster(cfg); err != nil {
+			if err := warmMaster(cfg); err != nil {
 				return err
 			}
 			if err := labtui.Run(cfg); err != nil {
@@ -242,7 +262,7 @@ func labConnectCommand() *cli.Command {
 
 			// Warm the ControlMaster so the exec'd SSH inherits an
 			// authenticated connection — avoids hanging on a stale master.
-			if err := lab.WarmMaster(cfg); err != nil {
+			if err := warmMaster(cfg); err != nil {
 				return err
 			}
 
