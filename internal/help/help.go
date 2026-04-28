@@ -288,7 +288,7 @@ func (m *model) renderOverlay() string {
 		Title: sub.Name,
 		Body:  m.player.View(),
 		Hints: []string{"space pause/play", "r restart", "esc close"},
-	}.Render(m.width)
+	}.Render(m.width, m.height)
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────

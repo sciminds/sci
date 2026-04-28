@@ -193,7 +193,7 @@ func TestActionMenuIgnoresNonKeyMsg(t *testing.T) {
 
 func TestActionMenuViewContainsTitle(t *testing.T) {
 	m := NewActionMenu("My Actions", threeActions())
-	out := m.View(80)
+	out := m.View(80, 24)
 	if !strings.Contains(out, "My Actions") {
 		t.Error("view should contain the title")
 	}
@@ -201,7 +201,7 @@ func TestActionMenuViewContainsTitle(t *testing.T) {
 
 func TestActionMenuViewContainsActionNames(t *testing.T) {
 	m := NewActionMenu("T", threeActions())
-	out := m.View(80)
+	out := m.View(80, 24)
 	for _, a := range threeActions() {
 		if !strings.Contains(out, a.Name) {
 			t.Errorf("view should contain action name %q", a.Name)
@@ -211,7 +211,7 @@ func TestActionMenuViewContainsActionNames(t *testing.T) {
 
 func TestActionMenuViewContainsHints(t *testing.T) {
 	m := NewActionMenu("T", threeActions())
-	out := m.View(80)
+	out := m.View(80, 24)
 	if !strings.Contains(out, "enter") {
 		t.Error("view should contain 'enter' hint")
 	}
@@ -226,7 +226,7 @@ func TestActionMenuViewShowsDisabledReason(t *testing.T) {
 		{Name: "B"},
 	}
 	m := NewActionMenu("T", actions)
-	out := m.View(80)
+	out := m.View(80, 24)
 	if !strings.Contains(out, "no attachment") {
 		t.Error("view should show disabled reason")
 	}
@@ -234,7 +234,7 @@ func TestActionMenuViewShowsDisabledReason(t *testing.T) {
 
 func TestActionMenuViewShowsHint(t *testing.T) {
 	m := NewActionMenu("T", threeActions())
-	out := m.View(80)
+	out := m.View(80, 24)
 	if !strings.Contains(out, "to clipboard") {
 		t.Error("view should show action hint")
 	}
@@ -242,7 +242,7 @@ func TestActionMenuViewShowsHint(t *testing.T) {
 
 func TestActionMenuViewCursorOnSelected(t *testing.T) {
 	m := NewActionMenu("T", threeActions())
-	out := m.View(80)
+	out := m.View(80, 24)
 	if !strings.Contains(out, IconCursor) {
 		t.Error("view should show cursor icon on active item")
 	}

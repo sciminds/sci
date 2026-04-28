@@ -33,7 +33,7 @@ type Action struct {
 //	// Update: menu, cmd = menu.Update(msg)
 //	// Query:  menu.Picked()    → index or -1
 //	//         menu.Dismissed() → true on esc
-//	// View:   uikit.Compose(menu.View(termW), bg)
+//	// View:   uikit.Compose(menu.View(termW, termH), bg)
 type ActionMenu struct {
 	title     string
 	actions   []Action
@@ -112,8 +112,9 @@ func (m ActionMenu) nextEnabled(start, dir int) int {
 // ── View ─────────────────────────────────────────────────────────────
 
 // View renders the menu as a styled [OverlayBox]. The parent composites
-// the result over the background via [Compose].
-func (m ActionMenu) View(termW int) string {
+// the result over the background via [Compose]. Long action lists are
+// truncated with a trailing ellipsis when they don't fit termH.
+func (m ActionMenu) View(termW, termH int) string {
 	var lines []string
 	for i, a := range m.actions {
 		lines = append(lines, m.renderAction(i, a))
@@ -122,7 +123,7 @@ func (m ActionMenu) View(termW int) string {
 		Title: m.title,
 		Body:  strings.Join(lines, "\n"),
 		Hints: []string{"enter select", "esc close"},
-	}.Render(termW)
+	}.Render(termW, termH)
 }
 
 func (m ActionMenu) renderAction(i int, a Action) string {

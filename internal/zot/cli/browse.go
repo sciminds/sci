@@ -395,7 +395,7 @@ func (m *browseModel) View() tea.View {
 	}
 
 	if m.level == browseL2 {
-		fg := m.actions.View(m.width)
+		fg := m.actions.View(m.width, m.height)
 		v := tea.NewView(uikit.Compose(fg, bg))
 		v.AltScreen = true
 		return v

@@ -27,6 +27,18 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// blankBlock returns a string that JoinVertical treats as exactly n blank
+// rows. JoinVertical inserts a "\n" between adjacent parts, so an n-row
+// block is encoded as n-1 newlines (n=1 → "" produces one blank row when
+// joined, n=2 → "\n" produces two, etc). Wrapping the off-by-one here
+// keeps the Render loop free of arithmetic gotchas.
+func blankBlock(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return strings.Repeat("\n", n-1)
+}
+
 // direction distinguishes vertical from horizontal stacks.
 type direction int
 
@@ -97,6 +109,9 @@ func HStack(width, height int) *Stack {
 //
 // For HStack: fn receives the available height and returns rendered content.
 // The content's width is measured and subtracted from the remaining budget.
+// In HStack mode the rendered content is wrapped in an unbordered style
+// with Height(stack.height) so adjacent panels align — content taller than
+// the stack height will be clipped, so callers should pre-fit it.
 func (s *Stack) Fixed(fn func(int) string) *Stack {
 	s.children = append(s.children, stackChild{kind: kindFixed, fixedFn: fn})
 	return s
@@ -109,7 +124,12 @@ func (s *Stack) Fixed(fn func(int) string) *Stack {
 // also work.
 //
 // The callback receives (width, height) for VStack, or (width, height) for
-// HStack — the allocated dimensions for this child.
+// HStack — the allocated dimensions for this child. The returned content
+// is force-fit to the allocation: VStack pads or truncates to the height
+// budget via FitHeight; HStack wraps the content in an unbordered style
+// with Width(w).Height(stack.height) so neighbouring panels align. Content
+// that overflows that allocation will be clipped, so callers should pre-fit
+// (truncate, ellipsize, or scroll) before returning.
 func (s *Stack) Flex(ratio float64, fn func(width, height int) string) *Stack {
 	if ratio <= 0 {
 		ratio = 1
@@ -237,7 +257,7 @@ func (s *Stack) renderVertical() string {
 			usedHeight += r.height
 		case kindGap:
 			if child.gapSize > 0 {
-				parts = append(parts, strings.Repeat("\n", child.gapSize-1))
+				parts = append(parts, blankBlock(child.gapSize))
 				usedHeight += child.gapSize
 			}
 		}

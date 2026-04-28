@@ -155,7 +155,7 @@ func (p *CastPlayer) Update(msg tea.Msg) (*CastPlayer, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "space":
+		case KeySpace:
 			p.paused = !p.paused
 			if !p.paused && !p.finished {
 				return p, p.scheduleNext()
@@ -267,7 +267,7 @@ func (p *CastPlayer) Footer(width int) string {
 func (p *CastPlayer) CapturesInput() bool { return false }
 
 // OwnsKey implements ScrollPanel: player claims space (pause/play) and r (restart).
-func (p *CastPlayer) OwnsKey(key string) bool { return key == "space" || key == "r" }
+func (p *CastPlayer) OwnsKey(key string) bool { return key == KeySpace || key == "r" }
 
 // PreferredWidth implements ScrollPanel: the recorded cast width.
 func (p *CastPlayer) PreferredWidth() int { return p.cast.Header.Width }

@@ -17,6 +17,17 @@ func mdFmtPct(pct int) string { return fmt.Sprintf("%d%%", pct) }
 // mdFmtMatches formats the match-count hint.
 func mdFmtMatches(n int) string { return fmt.Sprintf("n/N next/prev (%d matches)", n) }
 
+// mdViewerHorizontalSlack reserves a 1-column gutter on each side of the
+// rendered markdown so glamour prose doesn't hug the viewport border.
+// Glamour has no frame of its own, so the slack is a presentation choice
+// rather than a frame-size derivation.
+const mdViewerHorizontalSlack = 2
+
+// mdViewerMinContentW is the minimum width glamour will accept before
+// wrapping degrades. Below this we render at the floor and let the
+// viewport scroll horizontally if the parent allocates less.
+const mdViewerMinContentW = 20
+
 // MdViewer is a scrollable, searchable markdown viewer sub-model. Embed in
 // other bubbletea programs to show a rendered markdown document with live
 // `/` search, match navigation, and scroll percent.
@@ -41,9 +52,9 @@ func NewMdViewer(name, markdown string) *MdViewer {
 
 // SetSize configures the viewport dimensions and re-renders content.
 func (v *MdViewer) SetSize(w, h int) {
-	contentW := w - 2
-	if contentW < 20 {
-		contentW = 20
+	contentW := w - mdViewerHorizontalSlack
+	if contentW < mdViewerMinContentW {
+		contentW = mdViewerMinContentW
 	}
 
 	if v.rendered == "" || v.renderedWidth != contentW {
@@ -103,7 +114,7 @@ func (v *MdViewer) Update(msg tea.Msg) (*MdViewer, tea.Cmd) {
 		switch km.String() {
 		case "/", "f":
 			return v, v.search.focus()
-		case "n":
+		case KeyN:
 			v.search.nextMatch(&v.vp)
 			return v, nil
 		case "N":
@@ -120,10 +131,10 @@ func (v *MdViewer) Update(msg tea.Msg) (*MdViewer, tea.Cmd) {
 func (v *MdViewer) updateSearch(msg tea.Msg) (*MdViewer, tea.Cmd) {
 	if km, ok := msg.(tea.KeyPressMsg); ok {
 		switch km.String() {
-		case "enter":
+		case KeyEnter:
 			v.search.confirm(&v.vp, v.rendered)
 			return v, nil
-		case "esc":
+		case KeyEsc:
 			v.search.clear(&v.vp, v.rendered)
 			return v, nil
 		}

@@ -13,7 +13,7 @@ func TestOverlayBoxRenderContainsTitle(t *testing.T) {
 		Body:  "Hello world",
 		Hints: []string{"esc close", "space play"},
 	}
-	out := o.Render(80)
+	out := o.Render(80, 24)
 	if !strings.Contains(out, "My Modal") {
 		t.Error("output should contain the title")
 	}
@@ -25,7 +25,7 @@ func TestOverlayBoxRenderContainsBody(t *testing.T) {
 		Body:  "unique body content",
 		Hints: []string{"q quit"},
 	}
-	out := o.Render(80)
+	out := o.Render(80, 24)
 	if !strings.Contains(out, "unique body content") {
 		t.Error("output should contain the body")
 	}
@@ -37,7 +37,7 @@ func TestOverlayBoxRenderContainsHints(t *testing.T) {
 		Body:  "x",
 		Hints: []string{"esc close", "space play"},
 	}
-	out := o.Render(80)
+	out := o.Render(80, 24)
 	if !strings.Contains(out, "esc close") {
 		t.Error("output should contain hint 'esc close'")
 	}
@@ -51,7 +51,7 @@ func TestOverlayBoxNoHints(t *testing.T) {
 		Title: "Minimal",
 		Body:  "content",
 	}
-	out := o.Render(80)
+	out := o.Render(80, 24)
 	if out == "" {
 		t.Fatal("Render should not be empty")
 	}
@@ -67,7 +67,7 @@ func TestOverlayBoxNarrowTerminal(t *testing.T) {
 		Hints: []string{"esc close"},
 	}
 	// Should not panic on very narrow terminal.
-	out := o.Render(20)
+	out := o.Render(20, 20)
 	if out == "" {
 		t.Fatal("Render should not be empty even for narrow terminal")
 	}
@@ -78,7 +78,7 @@ func TestOverlayBoxNonEmpty(t *testing.T) {
 		Title: "T",
 		Body:  "B",
 	}
-	if out := o.Render(100); out == "" {
+	if out := o.Render(100, 30); out == "" {
 		t.Error("Render should not be empty")
 	}
 }

@@ -185,22 +185,25 @@ func (s *SplitView) viewSideBySide() string {
 		bodyH = splitMinBodyH
 	}
 
-	leftContent := s.left.View() + "\n" + s.left.Footer(leftW)
-	leftBox := TUI.Base().
-		Width(leftW).
-		Height(bodyH).
-		PaddingRight(1).
-		Render(leftContent)
+	// Both panels go through Box so frame size (border + padding) is
+	// derived automatically. leftW/rightW are content widths; Box adds the
+	// chrome on the outside so the panel's allocated content area matches
+	// the (leftW, panelH) / (rightW, panelH) values passed in SetSize.
+	leftStyle := TUI.Base().PaddingRight(1)
+	leftBox := Box(leftW+leftStyle.GetHorizontalFrameSize(), bodyH, leftStyle,
+		func(iw, _ int) string {
+			return s.left.View() + "\n" + s.left.Footer(iw)
+		})
 
-	rightContent := s.right.View() + "\n" + s.right.Footer(rightW)
-	rightBox := TUI.Base().
-		Width(rightW).
-		Height(bodyH).
+	rightStyle := TUI.Base().
 		BorderLeft(true).
 		BorderStyle(lipgloss.ThickBorder()).
 		BorderLeftForeground(TUI.Palette().Blue).
-		PaddingLeft(1).
-		Render(rightContent)
+		PaddingLeft(1)
+	rightBox := Box(rightW+rightStyle.GetHorizontalFrameSize(), bodyH, rightStyle,
+		func(iw, _ int) string {
+			return s.right.View() + "\n" + s.right.Footer(iw)
+		})
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftBox, rightBox)
 }

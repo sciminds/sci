@@ -373,7 +373,7 @@ func (m *model) renderOverlay() string {
 			Title: entry.Cmd,
 			Body:  m.player.View(),
 			Hints: []string{"space pause/play", "r restart", "esc close"},
-		}.Render(m.width)
+		}.Render(m.width, m.height)
 	}
 
 	// Viewer overlay has conditional hints (search mode, match count,
