@@ -11,7 +11,7 @@ project:
   keywords: []
   license: CC-BY-4.0
   bibliography:
-    - references.bib
+    - refs.bib
   authors:
     - name: {{.AuthorName}}
 {{- if .AuthorEmail}}
@@ -19,6 +19,7 @@ project:
 {{- end}}
       affiliations: []
   affiliations: []
+{{- if eq .MdLayout "composed"}}
   # Document "parts" are template slots (abstract, keypoints, etc.) — the
   # template decides where each lands on the page. The body is whatever is
   # listed in `toc:` below.
@@ -27,11 +28,16 @@ project:
     keypoints: sections/keypoints.md
     acknowledgements: sections/acknowledgements.md
     data_availability: sections/opendata.md
+{{- end}}
   toc:
     - file: main.md
   exports:
     - format: typst
+{{- if eq .Template "lab"}}
       template: ./_templates/paper
+{{- else if ne .Template "default"}}
+      template: {{.Template}}
+{{- end}}
       output: pdfs/main.pdf
       # Submission knobs — flip as needed:
       # line_numbers: true          # on by default
@@ -39,3 +45,11 @@ project:
       # anonymize: true             # double-blind: hide authors/affiliations
       # title_page: true            # push abstract + body to page 2
       # abstract_page: true         # abstract on page 2, body on page 3
+
+site:
+  template: book-theme
+  title: "{{.ProjectName}}"
+  options:
+    hide_toc: false
+    hide_search: false
+    hide_outline: false

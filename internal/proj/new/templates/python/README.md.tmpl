@@ -34,22 +34,25 @@ Then open in your editor and install the recommended extensions.
 ## Project Structure
 
 ```
+{{- if eq .DocSystem "myst"}}
+main.md                # MyST manuscript (Intro / Methods / Results / Discussion)
+myst.yml               # MyST project config — authors, parts, exports
+refs.bib               # BibTeX references — cite with {cite}`key`
+{{- end}}
 code/
 {{- if eq .DocSystem "quarto"}}
     report.qmd         # Quarto document → renders to PDF via Typst
-    bibliography.bib   # BibTeX references
+    refs.bib           # BibTeX references
     templates/         # Typst template partials for PDF layout
-{{- else if eq .DocSystem "myst"}}
-    report.md          # MyST Markdown document (executable)
-    bibliography.bib   # BibTeX references
 {{- end}}
     notebooks/         # Marimo analysis notebooks
 data/
     raw/               # raw data files
     derivatives/       # processed outputs
-figs/                  # generated figures (referenced by report)
+figs/                  # generated figures (referenced by manuscript)
 {{- if eq .DocSystem "myst"}}
-myst.yml               # MyST project configuration
+_templates/paper/      # local Typst template — fully editable
+pdfs/                  # output PDFs (gitignored)
 {{- end}}
 ```
 
@@ -57,12 +60,12 @@ myst.yml               # MyST project configuration
 {{if eq .DocSystem "quarto"}}
 1. **Analyze** — work in `code/notebooks/` with Marimo, save figures to `figs/`
 2. **Write** — reference figures in `code/report.qmd`, cite with `@key`
-3. **Render** — generate PDF with the render task
+3. **Render** — generate PDF with `sci proj render` or the render task
 {{- else if eq .DocSystem "myst"}}
 1. **Analyze** — work in `code/notebooks/` with Marimo, save figures to `figs/`
-2. **Write** — reference figures in `code/report.md`, cite with `` {cite}`key` ``
-3. **Preview** — live-preview with the docs-start task
-4. **Export** — generate PDF with the docs-pdf task
+2. **Write** — reference figures in `main.md`, cite with `` {cite}`key` ``
+3. **Preview** — `sci proj preview` for the live HTML server
+4. **Export** — `sci proj render` (or the docs-pdf task) builds `pdfs/main.pdf`
 {{- else}}
 1. **Analyze** — iterate on notebooks in `code/notebooks/`, save outputs to `figs/` and `data/derivatives/`
 {{- end}}

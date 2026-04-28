@@ -19,6 +19,8 @@ var (
 	projNewKind       string
 	projNewPkgManager string
 	projNewDocSystem  string
+	projNewMdLayout   string
+	projNewTemplate   string
 	projNewAuthor     string
 	projNewEmail      string
 	projNewDesc       string
@@ -49,12 +51,14 @@ func projNewCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "new",
 		Usage:       "Create a new Python or writing project",
-		Description: "$ sci proj new\n$ sci proj new my-analysis --pkg-manager pixi\n$ sci proj new my-paper --kind writing",
+		Description: "$ sci proj new\n$ sci proj new my-analysis --pkg-manager pixi\n$ sci proj new my-paper --kind writing --md-layout composed",
 		ArgsUsage:   "[name]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "kind", Usage: "project kind (python or writing)", Destination: &projNewKind, Local: true},
 			&cli.StringFlag{Name: "pkg-manager", Usage: "package manager (pixi or uv)", Destination: &projNewPkgManager, Local: true},
 			&cli.StringFlag{Name: "doc-system", Usage: "doc system (quarto, myst, or none)", Destination: &projNewDocSystem, Local: true},
+			&cli.StringFlag{Name: "md-layout", Usage: "manuscript layout (single-file or composed)", Destination: &projNewMdLayout, Local: true},
+			&cli.StringFlag{Name: "template", Usage: "Typst template (lab, default, or any MyST template name)", Destination: &projNewTemplate, Local: true},
 			&cli.StringFlag{Name: "author", Usage: "author name", Destination: &projNewAuthor, Local: true},
 			&cli.StringFlag{Name: "email", Usage: "author email", Destination: &projNewEmail, Local: true},
 			&cli.StringFlag{Name: "description", Usage: "project description", Destination: &projNewDesc, Local: true},
@@ -177,6 +181,8 @@ func runProjNew(_ context.Context, cmd *cli.Command) error {
 		Kind:        projNewKind,
 		PkgManager:  projNewPkgManager,
 		DocSystem:   projNewDocSystem,
+		MdLayout:    projNewMdLayout,
+		Template:    projNewTemplate,
 		AuthorName:  projNewAuthor,
 		AuthorEmail: projNewEmail,
 		Description: projNewDesc,

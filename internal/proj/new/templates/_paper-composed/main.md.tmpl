@@ -1,0 +1,46 @@
+---
+# Article title lives here, not in myst.yml — MyST's Typst export uses
+# this for the template's title block and demotes markdown `#` headings
+# accordingly. Everything else shareable sits in myst.yml.
+title: {{.ProjectName}}
+# subtitle: An optional subtitle
+---
+
+# Introduction
+
+Open with the big-picture motivation, then narrow to the specific gap your work addresses. Cite references with the `{cite}` role, e.g. {cite}`SomeKey2024` — any key in `refs.bib` works.
+
+## Theoretical background
+
+Use `##` for subsections. With `heading_numbering: "1.1"` (the template default) the template numbers them as 1.1, 1.2, 2.1, and so on.
+
+## The present study
+
+State the research question and hypotheses crisply.
+
+# Methods
+
+## Participants
+
+Describe the sample, recruitment, and exclusion criteria.
+
+## Materials and procedure
+
+Describe stimuli, apparatus, and task flow.
+
+## Analysis plan
+
+Pre-registered analyses, statistical models, and software versions. Use inline math like $y = \beta_0 + \beta_1 x$, and label displayed equations to reference them — see equation [](#eq-example) below.
+
+```{math}
+:label: eq-example
+e^{i\pi} + 1 = 0
+```
+
+# Results
+
+Lead with the headline finding. Cross-reference figures and tables by label: see [](#fig-overview) and [](#tab-samples).
+
+# Discussion
+
+Interpret findings, acknowledge limitations, and connect to broader literature.

@@ -77,31 +77,55 @@ commands:
       - id: doc-system
         type: huh.NewSelect
         nth: 3
-        line: 67
+        line: 89
         description: "Authoring system (quarto/myst/none)"
         bypass: "--doc-system"
         status: covered
 
-      - id: author-name
+      - id: md-layout
+        type: huh.NewSelect
+        nth: 4
+        line: 101
+        description: "Manuscript layout (single-file/composed)"
+        bypass: "--md-layout"
+        status: covered
+
+      - id: template
+        type: huh.NewSelect
+        nth: 5
+        line: 110
+        description: "Typst template (lab/default/custom)"
+        bypass: "--template"
+        status: covered
+
+      - id: template-name
         type: huh.NewInput
         nth: 2
-        line: 78
+        line: 122
+        description: "Custom Typst template name"
+        bypass: "--template <name>"
+        status: covered
+
+      - id: author-name
+        type: huh.NewInput
+        nth: 3
+        line: 133
         description: "Author name"
         bypass: "--author"
         status: covered
 
       - id: author-email
         type: huh.NewInput
-        nth: 3
-        line: 83
+        nth: 4
+        line: 138
         description: "Author email"
         bypass: "--email"
         status: covered
 
       - id: description
         type: huh.NewInput
-        nth: 4
-        line: 88
+        nth: 5
+        line: 143
         description: "Project description"
         bypass: "--description"
         status: covered

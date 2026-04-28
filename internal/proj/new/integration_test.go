@@ -146,6 +146,14 @@ func TestIntegrationPixiMyst(t *testing.T) {
 		assertFileExists(t, filepath.Join(dir, ".pixi"))
 	})
 
+	t.Run("manuscript lives at the project root", func(t *testing.T) {
+		assertFileExists(t, filepath.Join(dir, "main.md"))
+		assertFileExists(t, filepath.Join(dir, "refs.bib"))
+		if _, err := os.Stat(filepath.Join(dir, "code", "report.md")); err == nil {
+			t.Error("code/report.md should not exist (manuscript moved to root main.md)")
+		}
+	})
+
 	t.Run("setup registers jupyter kernel", func(t *testing.T) {
 		runIn(t, dir, "pixi", "run", "setup")
 	})
@@ -162,7 +170,7 @@ func TestIntegrationPixiMyst(t *testing.T) {
 
 	t.Run("myst exports PDF via typst", func(t *testing.T) {
 		runIn(t, dir, "pixi", "run", "docs-pdf")
-		assertFileExists(t, filepath.Join(dir, "pdfs", "report.pdf"))
+		assertFileExists(t, filepath.Join(dir, "pdfs", "main.pdf"))
 	})
 }
 
@@ -205,6 +213,14 @@ func TestIntegrationUvMyst(t *testing.T) {
 		assertFileExists(t, filepath.Join(dir, ".venv"))
 	})
 
+	t.Run("manuscript lives at the project root", func(t *testing.T) {
+		assertFileExists(t, filepath.Join(dir, "main.md"))
+		assertFileExists(t, filepath.Join(dir, "refs.bib"))
+		if _, err := os.Stat(filepath.Join(dir, "code", "report.md")); err == nil {
+			t.Error("code/report.md should not exist (manuscript moved to root main.md)")
+		}
+	})
+
 	t.Run("setup registers jupyter kernel", func(t *testing.T) {
 		runIn(t, dir, "uv", "run", "poe", "setup")
 	})
@@ -221,7 +237,7 @@ func TestIntegrationUvMyst(t *testing.T) {
 
 	t.Run("myst exports PDF via typst", func(t *testing.T) {
 		runIn(t, dir, "uv", "run", "poe", "docs-pdf")
-		assertFileExists(t, filepath.Join(dir, "pdfs", "report.pdf"))
+		assertFileExists(t, filepath.Join(dir, "pdfs", "main.pdf"))
 	})
 }
 
@@ -253,6 +269,43 @@ func TestIntegrationWriting(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(result.ProjectDir, "pyproject.toml")); err == nil {
 			t.Error("writing project should not have pyproject.toml")
 		}
+	})
+
+	t.Run("default layout is single-file", func(t *testing.T) {
+		if _, err := os.Stat(filepath.Join(result.ProjectDir, "sections")); err == nil {
+			t.Error("default writing project should not have sections/ (that's the composed layout)")
+		}
+	})
+
+	t.Run("myst builds PDF via typst", func(t *testing.T) {
+		runIn(t, result.ProjectDir, "npx", "mystmd", "build", "--pdf")
+		assertFileExists(t, filepath.Join(result.ProjectDir, "pdfs", "main.pdf"))
+	})
+}
+
+func TestIntegrationWritingComposed(t *testing.T) {
+	skipUnlessSlow(t)
+	requireTool(t, "node")
+	requireTool(t, "npx")
+	requireTool(t, "typst")
+
+	dir := t.TempDir()
+	result, err := Create(CreateOptions{
+		Name:        "test-writing-composed",
+		Dir:         dir,
+		Kind:        "writing",
+		MdLayout:    "composed",
+		AuthorName:  "Test Author",
+		AuthorEmail: "test@example.com",
+		Description: "Integration test composed manuscript",
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	t.Run("composed layout ships sections/", func(t *testing.T) {
+		assertFileExists(t, filepath.Join(result.ProjectDir, "sections", "abstract.md"))
+		assertFileExists(t, filepath.Join(result.ProjectDir, "sections", "keypoints.md"))
 	})
 
 	t.Run("myst builds PDF via typst", func(t *testing.T) {

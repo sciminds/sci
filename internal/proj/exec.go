@@ -143,9 +143,9 @@ func BuildRunTaskArgs(pm PkgManager, task string, args []string) []string {
 	}
 }
 
-// BuildRenderArgs constructs the argv for a render command.
-// Writing+Myst builds the Typst PDF; Python+Myst builds the HTML site.
-func BuildRenderArgs(kind Kind, ds DocSystem, target string) []string {
+// BuildRenderArgs constructs the argv for a render command. Both Writing+Myst
+// and Python+Myst build the Typst PDF; the HTML site is reachable via Preview.
+func BuildRenderArgs(_ Kind, ds DocSystem, target string) []string {
 	switch ds {
 	case Quarto:
 		args := []string{"quarto", "render"}
@@ -154,10 +154,7 @@ func BuildRenderArgs(kind Kind, ds DocSystem, target string) []string {
 		}
 		return args
 	case Myst:
-		if kind == Writing {
-			return []string{"npx", "mystmd", "build", "--pdf"}
-		}
-		return []string{"npx", "mystmd", "build", "--html"}
+		return []string{"npx", "mystmd", "build", "--pdf"}
 	default:
 		return nil
 	}

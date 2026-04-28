@@ -34,13 +34,13 @@ npx mystmd start         # live-preview server
 ```
 main.md                # the manuscript body (Intro / Methods / Results / Discussion)
 myst.yml               # MyST project config — authors, parts, exports
-references.bib         # BibTeX references — cite with {cite}`key`
+refs.bib               # BibTeX references — cite with {cite}`key`
 sections/
     abstract.md        # short summary printed under the title block
     keypoints.md       # bulleted highlights above the abstract
     acknowledgements.md
     opendata.md        # data/code availability statement
-figures/               # put figures here, reference with ![](figures/foo.png)
+figs/                  # put figures here, reference with ![](figs/foo.png)
 _templates/paper/      # the local Typst template — fully editable
     paper.typ          # the actual layout — restyle freely
     template.yml       # template metadata (jtex spec)

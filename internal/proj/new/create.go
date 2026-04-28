@@ -36,6 +36,8 @@ type CreateOptions struct {
 	Kind        string // "python" (default) or "writing"
 	PkgManager  string // "pixi" or "uv" (Python projects only)
 	DocSystem   string // "quarto", "myst", or "none" (Python projects only)
+	MdLayout    string // "single-file" (default) or "composed" — manuscript layout (writing or python+myst)
+	Template    string // "lab" (default), "default", or any MyST template name (writing or python+myst)
 	AuthorName  string
 	AuthorEmail string
 	Description string
@@ -96,6 +98,8 @@ func Create(opts CreateOptions) (*CreateResult, error) {
 		Kind:        opts.Kind,
 		PkgManager:  opts.PkgManager,
 		DocSystem:   opts.DocSystem,
+		MdLayout:    opts.MdLayout,
+		Template:    opts.Template,
 		AuthorName:  opts.AuthorName,
 		AuthorEmail: opts.AuthorEmail,
 		Description: opts.Description,
@@ -113,26 +117,11 @@ func Create(opts CreateOptions) (*CreateResult, error) {
 		}, nil
 	}
 
-	// Render templates
+	// Render templates — figs/ and data/derivatives/ scaffolding ship as
+	// embedded .gitkeep files in the python overlay; no post-step mkdir needed.
 	files, err := RenderAll(vars, dest)
 	if err != nil {
 		return nil, fmt.Errorf("rendering templates: %w", err)
-	}
-
-	// Create empty dirs with .gitkeep — python projects need data + figs
-	// scaffolding; writing projects already ship figures/.gitkeep verbatim.
-	if opts.Kind != "writing" {
-		emptyDirs := []string{"data/derivatives", "figs"}
-		for _, d := range emptyDirs {
-			dirPath := filepath.Join(dest, d)
-			if err := os.MkdirAll(dirPath, 0o755); err != nil {
-				return nil, err
-			}
-			gk := filepath.Join(dirPath, ".gitkeep")
-			if err := os.WriteFile(gk, nil, 0o644); err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	// Run post-steps

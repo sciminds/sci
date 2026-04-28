@@ -29,35 +29,35 @@ func TestRenderAllCombos(t *testing.T) {
 			name:       "pixi+quarto",
 			pkgManager: "pixi",
 			docSystem:  "quarto",
-			wantFiles:  []string{"pyproject.toml", "_quarto.yml", "code/report.qmd", "code/templates/typst-show.typ", "code/templates/typst-template.typ", "README.md", ".gitignore", ".vscode/extensions.json", ".vscode/settings.json", ".zed/settings.json", ".zed/tasks.json", "code/bibliography.bib", "code/notebooks/analysis.py", "data/raw/penguins.csv"},
-			noFiles:    []string{"myst.yml", "code/report.md"},
+			wantFiles:  []string{"pyproject.toml", "_quarto.yml", "code/report.qmd", "code/templates/typst-show.typ", "code/templates/typst-template.typ", "README.md", ".gitignore", ".vscode/extensions.json", ".vscode/settings.json", ".zed/settings.json", ".zed/tasks.json", "code/refs.bib", "code/notebooks/analysis.py", "data/raw/penguins.csv", "figs/.gitkeep", "data/derivatives/.gitkeep"},
+			noFiles:    []string{"myst.yml", "code/report.md", "code/bibliography.bib"},
 		},
 		{
 			name:       "pixi+myst",
 			pkgManager: "pixi",
 			docSystem:  "myst",
-			wantFiles:  []string{"pyproject.toml", "myst.yml", "code/report.md", "README.md", ".gitignore", "code/bibliography.bib"},
-			noFiles:    []string{"_quarto.yml", "code/report.qmd", "code/templates/typst-show.typ"},
+			wantFiles:  []string{"pyproject.toml", "myst.yml", "main.md", "refs.bib", "README.md", ".gitignore", "_templates/paper/paper.typ", "code/notebooks/analysis.py", "data/raw/penguins.csv", "figs/.gitkeep", "data/derivatives/.gitkeep"},
+			noFiles:    []string{"_quarto.yml", "code/report.qmd", "code/report.md", "code/bibliography.bib", "code/refs.bib", "code/templates/typst-show.typ"},
 		},
 		{
 			name:       "uv+quarto",
 			pkgManager: "uv",
 			docSystem:  "quarto",
-			wantFiles:  []string{"pyproject.toml", "_quarto.yml", "code/report.qmd", "README.md"},
-			noFiles:    []string{"myst.yml", "code/report.md"},
+			wantFiles:  []string{"pyproject.toml", "_quarto.yml", "code/report.qmd", "README.md", "code/refs.bib", "figs/.gitkeep", "data/derivatives/.gitkeep"},
+			noFiles:    []string{"myst.yml", "code/report.md", "code/bibliography.bib"},
 		},
 		{
 			name:       "uv+myst",
 			pkgManager: "uv",
 			docSystem:  "myst",
-			wantFiles:  []string{"pyproject.toml", "myst.yml", "code/report.md", "README.md"},
-			noFiles:    []string{"_quarto.yml", "code/report.qmd"},
+			wantFiles:  []string{"pyproject.toml", "myst.yml", "main.md", "refs.bib", "README.md", "_templates/paper/paper.typ", "figs/.gitkeep", "data/derivatives/.gitkeep"},
+			noFiles:    []string{"_quarto.yml", "code/report.qmd", "code/report.md", "code/bibliography.bib"},
 		},
 		{
 			name:       "pixi+none",
 			pkgManager: "pixi",
 			docSystem:  "none",
-			wantFiles:  []string{"pyproject.toml", "README.md", ".gitignore", ".vscode/settings.json", ".zed/settings.json", ".zed/tasks.json", "code/notebooks/analysis.py"},
+			wantFiles:  []string{"pyproject.toml", "README.md", ".gitignore", ".vscode/settings.json", ".zed/settings.json", ".zed/tasks.json", "code/notebooks/analysis.py", "figs/.gitkeep", "data/derivatives/.gitkeep"},
 			noFiles:    []string{"_quarto.yml", "myst.yml", "code/report.qmd", "code/report.md", "code/templates/typst-show.typ", "code/templates/typst-template.typ"},
 		},
 		{
@@ -178,6 +178,7 @@ func TestPyprojectContent(t *testing.T) {
 	}
 }
 
+// Default writing project = single-file layout + lab template.
 func TestRenderAllWriting(t *testing.T) {
 	t.Parallel()
 	vars := baseVars()
@@ -198,12 +199,9 @@ func TestRenderAllWriting(t *testing.T) {
 		"README.md",
 		"myst.yml",
 		"main.md",
-		"references.bib",
+		"refs.bib",
 		".gitignore",
-		"sections/abstract.md",
-		"sections/keypoints.md",
-		"sections/acknowledgements.md",
-		"sections/opendata.md",
+		"figs/.gitkeep",
 		"_templates/paper/paper.typ",
 		"_templates/paper/template.yml",
 		"_templates/paper/orcid.svg",
@@ -224,6 +222,9 @@ func TestRenderAllWriting(t *testing.T) {
 		"code/report.qmd",
 		"code/notebooks/analysis.py",
 		"data/raw/penguins.csv",
+		"references.bib",       // renamed → refs.bib
+		"figures/.gitkeep",     // renamed → figs/
+		"sections/abstract.md", // single-file: parts inline in main.md
 	}
 	for _, noWant := range noFiles {
 		if createdSet[noWant] {
@@ -232,6 +233,98 @@ func TestRenderAllWriting(t *testing.T) {
 	}
 }
 
+func TestRenderAllWritingComposed(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+	vars.MdLayout = "composed"
+
+	dest := t.TempDir()
+	created, err := RenderAll(vars, dest)
+	if err != nil {
+		t.Fatalf("RenderAll failed: %v", err)
+	}
+
+	createdSet := make(map[string]bool)
+	for _, f := range created {
+		createdSet[f] = true
+	}
+
+	wantFiles := []string{
+		"main.md",
+		"myst.yml",
+		"sections/abstract.md",
+		"sections/keypoints.md",
+		"sections/acknowledgements.md",
+		"sections/opendata.md",
+		"_templates/paper/paper.typ",
+	}
+	for _, want := range wantFiles {
+		if !createdSet[want] {
+			t.Errorf("expected file %q to be created, got files: %v", want, created)
+		}
+	}
+}
+
+func TestRenderAllWritingTemplateDefault(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+	vars.Template = "default"
+
+	dest := t.TempDir()
+	if _, err := RenderAll(vars, dest); err != nil {
+		t.Fatalf("RenderAll failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dest, "_templates/paper/paper.typ")); err == nil {
+		t.Errorf("_templates/paper/paper.typ should NOT be created when Template=default")
+	}
+
+	mystYml, err := os.ReadFile(filepath.Join(dest, "myst.yml"))
+	if err != nil {
+		t.Fatalf("read myst.yml: %v", err)
+	}
+	// Export block should not pin a template name (the site: block has its
+	// own template: book-theme — that's HTML site theming, not the typst
+	// export template, so we only check the `format: typst` block.)
+	exportIdx := strings.Index(string(mystYml), "- format: typst")
+	siteIdx := strings.Index(string(mystYml), "\nsite:")
+	if exportIdx == -1 || siteIdx == -1 {
+		t.Fatalf("could not find export/site block in myst.yml:\n%s", mystYml)
+	}
+	exportBlock := string(mystYml)[exportIdx:siteIdx]
+	if strings.Contains(exportBlock, "template:") {
+		t.Errorf("typst export block should not contain template: for default template, got:\n%s", exportBlock)
+	}
+}
+
+func TestRenderAllWritingTemplateNamed(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+	vars.Template = "lapreprint-typst"
+
+	dest := t.TempDir()
+	if _, err := RenderAll(vars, dest); err != nil {
+		t.Fatalf("RenderAll failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dest, "_templates/paper/paper.typ")); err == nil {
+		t.Errorf("_templates/paper/paper.typ should NOT be created when Template=lapreprint-typst")
+	}
+
+	mystYml, err := os.ReadFile(filepath.Join(dest, "myst.yml"))
+	if err != nil {
+		t.Fatalf("read myst.yml: %v", err)
+	}
+	if !strings.Contains(string(mystYml), "template: lapreprint-typst") {
+		t.Errorf("myst.yml should contain 'template: lapreprint-typst', got:\n%s", mystYml)
+	}
+}
+
+// Single-file layout (default): myst.yml has no parts: block; main.md
+// frontmatter carries the parts inline.
 func TestWritingMystYmlContent(t *testing.T) {
 	t.Parallel()
 	vars := baseVars()
@@ -246,19 +339,48 @@ func TestWritingMystYmlContent(t *testing.T) {
 		"test-project",
 		"Test Author",
 		"test@example.com",
-		"abstract: sections/abstract.md",
-		"keypoints: sections/keypoints.md",
-		"acknowledgements: sections/acknowledgements.md",
-		"data_availability: sections/opendata.md",
 		"file: main.md",
 		"output: pdfs/main.pdf",
+		"refs.bib",
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("myst.yml missing %q\n--- content ---\n%s", want, content)
 		}
 	}
+	for _, notWant := range []string{
+		"sections/abstract.md",
+		"sections/keypoints.md",
+	} {
+		if strings.Contains(content, notWant) {
+			t.Errorf("single-file myst.yml should not reference %q\n--- content ---\n%s", notWant, content)
+		}
+	}
 }
 
+// Composed layout: myst.yml has parts: pointing at sections/*.md.
+func TestWritingMystYmlComposedContent(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+	vars.MdLayout = "composed"
+
+	content, err := RenderFile("myst.yml.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	for _, want := range []string{
+		"abstract: sections/abstract.md",
+		"keypoints: sections/keypoints.md",
+		"acknowledgements: sections/acknowledgements.md",
+		"data_availability: sections/opendata.md",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("composed myst.yml missing %q\n--- content ---\n%s", want, content)
+		}
+	}
+}
+
+// Single-file main.md: frontmatter contains all parts inline.
 func TestWritingMainMdContent(t *testing.T) {
 	t.Parallel()
 	vars := baseVars()
@@ -273,10 +395,33 @@ func TestWritingMainMdContent(t *testing.T) {
 	}
 	for _, want := range []string{
 		"title: test-project",
+		"abstract:",
+		"keypoints:",
+		"acknowledgements:",
+		"data_availability:",
 	} {
 		if !strings.Contains(content, want) {
-			t.Errorf("main.md missing %q", want)
+			t.Errorf("single-file main.md missing %q", want)
 		}
+	}
+}
+
+// Composed main.md: frontmatter only carries title (no parts inline).
+func TestWritingMainMdComposedContent(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+	vars.MdLayout = "composed"
+
+	content, err := RenderFile("main.md.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	if !strings.Contains(content, "title: test-project") {
+		t.Errorf("composed main.md missing title")
+	}
+	if strings.Contains(content, "abstract:") {
+		t.Errorf("composed main.md should not contain abstract: in frontmatter (lives in sections/abstract.md)")
 	}
 }
 
@@ -315,13 +460,12 @@ func TestConditionalFileSkipping(t *testing.T) {
 		t.Errorf("_quarto.yml should render empty for myst, got: %q", content)
 	}
 
-	// myst.yml should render empty when docSystem != "myst"
+	// myst.yml lives in the _paper overlay, which is only included when the
+	// project actually has a manuscript (writing or python+myst). For
+	// python+quarto, no overlay ships myst.yml.tmpl — RenderFile must return
+	// fs.ErrNotExist rather than rendering anything.
 	vars.DocSystem = "quarto"
-	content, err = RenderFile("myst.yml.tmpl", vars)
-	if err != nil {
-		t.Fatalf("RenderFile failed: %v", err)
-	}
-	if strings.TrimSpace(content) != "" {
-		t.Errorf("myst.yml should render empty for quarto, got: %q", content)
+	if _, err := RenderFile("myst.yml.tmpl", vars); err == nil {
+		t.Error("expected myst.yml.tmpl to be unresolvable for python+quarto")
 	}
 }

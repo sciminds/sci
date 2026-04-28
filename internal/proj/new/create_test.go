@@ -65,8 +65,8 @@ func TestCreateWritingDryRun(t *testing.T) {
 	if !result.DryRun {
 		t.Error("expected DryRun to be true")
 	}
-	if len(result.Files) < 13 {
-		t.Errorf("expected at least 13 files, got %d: %v", len(result.Files), result.Files)
+	if len(result.Files) < 9 {
+		t.Errorf("expected at least 9 files, got %d: %v", len(result.Files), result.Files)
 	}
 
 	got := make(map[string]bool)
@@ -120,6 +120,33 @@ func TestDefaultPostStepsPython(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCreateForwardsMdLayoutAndTemplate(t *testing.T) {
+	t.Parallel()
+	opts := CreateOptions{
+		Name:       "paper",
+		Dir:        t.TempDir(),
+		Kind:       "writing",
+		MdLayout:   "composed",
+		Template:   "lapreprint-typst",
+		AuthorName: "Test",
+		DryRun:     true,
+	}
+	result, err := Create(opts)
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	got := make(map[string]bool)
+	for _, f := range result.Files {
+		got[f] = true
+	}
+	if !got["sections/abstract.md"] {
+		t.Errorf("composed layout should produce sections/abstract.md, got: %v", result.Files)
+	}
+	if got["_templates/paper/paper.typ"] {
+		t.Errorf("named template should not ship the local _templates/paper/ bundle")
 	}
 }
 

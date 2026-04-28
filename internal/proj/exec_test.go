@@ -41,7 +41,7 @@ func TestBuildRenderArgs(t *testing.T) {
 	}{
 		{"python+quarto no target", Python, Quarto, "", []string{"quarto", "render"}},
 		{"python+quarto with target", Python, Quarto, "code/report.qmd", []string{"quarto", "render", "code/report.qmd"}},
-		{"python+myst → html", Python, Myst, "", []string{"npx", "mystmd", "build", "--html"}},
+		{"python+myst → pdf", Python, Myst, "", []string{"npx", "mystmd", "build", "--pdf"}},
 		{"writing+myst → pdf", Writing, Myst, "", []string{"npx", "mystmd", "build", "--pdf"}},
 		{"python+none returns nil", Python, NoDoc, "", nil},
 	}
