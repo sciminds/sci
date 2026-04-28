@@ -149,28 +149,41 @@ Clicking panels doesn't change focus or trigger actions.
 
 **Possible Causes:**
 
-1. **Mouse not enabled in program**
+1. **Mouse not enabled.** v2 declares this on the returned `View()` value (declarative); v1 used program options.
    ```go
-   // In main()
+   // v2 — set on the View struct
+   func (m model) View() tea.View {
+       return tea.View{
+           Layer: tea.NewLayer(m.render()),
+           AltScreen: true,
+           MouseMode: tea.MouseModeCellMotion,
+       }
+   }
+
+   // v1 — program option (legacy)
    p := tea.NewProgram(
        initialModel(),
        tea.WithAltScreen(),
-       tea.WithMouseCellMotion(),  // Enable mouse
+       tea.WithMouseCellMotion(),
    )
    ```
 
-2. **Not handling MouseMsg**
+2. **Not handling mouse messages.** In v2, `tea.MouseMsg` is an interface; switch on the concrete subtypes.
    ```go
+   // v2
    func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
        switch msg := msg.(type) {
-       case tea.MouseMsg:
-           return m.handleMouse(msg)
+       case tea.MouseClickMsg:
+           return m.handleClick(msg)
+       case tea.MouseWheelMsg:
+           return m.handleWheel(msg)
+       case tea.MouseMotionMsg:
+           // hover, drag
        }
    }
    ```
 
-3. **Wrong coordinate system**
-   See [Mouse Detection Not Matching Layout](#mouse-detection-not-matching-layout).
+3. **Wrong coordinate system.** See [Mouse Detection Not Matching Layout](#mouse-detection-not-matching-layout).
 
 ### Mouse Detection Not Matching Layout
 
@@ -184,17 +197,17 @@ Using X coordinates when layout is vertical, or Y coordinates when horizontal.
 Check layout mode before processing mouse events. See [Golden Rules #3](golden-rules.md#rule-3-match-mouse-detection-to-layout).
 
 ```go
-func (m model) handleLeftClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+// v2 — coords come via .Mouse() on the click message
+func (m model) handleLeftClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
+    p := msg.Mouse()
     if m.shouldUseVerticalStack() {
-        // Vertical: use Y coordinates
-        if msg.Y < topPanelHeight {
+        if p.Y < topPanelHeight {
             m.focusedPanel = "top"
         } else {
             m.focusedPanel = "bottom"
         }
     } else {
-        // Horizontal: use X coordinates
-        if msg.X < leftPanelWidth {
+        if p.X < leftPanelWidth {
             m.focusedPanel = "left"
         } else {
             m.focusedPanel = "right"
@@ -209,21 +222,15 @@ func (m model) handleLeftClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 **Symptom:**
 Mouse wheel doesn't scroll content.
 
-**Solution:**
+**Solution (v2):** wheel events are their own message type, with a signed `Delta()`.
 ```go
-case tea.MouseMsg:
-    switch msg.Type {
-    case tea.MouseWheelUp:
-        m.scroll -= 3
-        if m.scroll < 0 {
-            m.scroll = 0
-        }
-    case tea.MouseWheelDown:
-        m.scroll += 3
-        maxScroll := len(m.content) - m.visibleLines
-        if m.scroll > maxScroll {
-            m.scroll = maxScroll
-        }
+case tea.MouseWheelMsg:
+    m.scroll += msg.Delta() * 3
+    if m.scroll < 0 {
+        m.scroll = 0
+    }
+    if max := len(m.content) - m.visibleLines; m.scroll > max {
+        m.scroll = max
     }
 ```
 
@@ -265,13 +272,14 @@ Screen flickers or elements jump around during updates.
    }
    ```
 
-3. **Using alt screen incorrectly**
+3. **Using alt screen incorrectly** — v2 declares this on the returned `View`:
    ```go
-   // Always use alt screen for full-screen TUIs
-   p := tea.NewProgram(
-       initialModel(),
-       tea.WithAltScreen(),  // Essential!
-   )
+   func (m model) View() tea.View {
+       return tea.View{
+           Layer:     tea.NewLayer(m.render()),
+           AltScreen: true, // essential for full-screen TUIs
+       }
+   }
    ```
 
 ### Colors Not Showing
@@ -346,15 +354,15 @@ Key presses don't trigger expected actions.
 
 **Debugging Steps:**
 
-1. **Log the key events**
+1. **Log the key events** (v2)
    ```go
-   case tea.KeyMsg:
-       log.Printf("Key: %s, Type: %s", msg.String(), msg.Type)
+   case tea.KeyPressMsg:
+       log.Printf("Key: %s", msg.String())
    ```
 
-2. **Check key matching**
+2. **Check key matching** with `bubbles/v2/key`:
    ```go
-   import "github.com/charmbracelet/bubbles/key"
+   import "charm.land/bubbles/v2/key"
 
    type keyMap struct {
        Quit key.Binding
@@ -367,17 +375,15 @@ Key presses don't trigger expected actions.
        ),
    }
 
-   // In Update
-   case tea.KeyMsg:
+   case tea.KeyPressMsg:
        if key.Matches(msg, keys.Quit) {
            return m, tea.Quit
        }
    ```
 
-3. **Check focus state**
+3. **Check focus state** — route only to the focused component:
    ```go
-   // Make sure the right component has focus
-   case tea.KeyMsg:
+   case tea.KeyPressMsg:
        switch m.focused {
        case "input":
            // Route to input
@@ -391,30 +397,23 @@ Key presses don't trigger expected actions.
 **Symptom:**
 Function keys, Ctrl combinations, or other special keys don't work.
 
-**Solution:**
-Use tea.KeyType constants:
+**Solution (v2):** match on the message's `String()` form (what `key.Binding` does internally), or compare to the `tea.Key*` rune-name constants.
 
 ```go
-case tea.KeyMsg:
-    switch msg.Type {
-    case tea.KeyCtrlC:
+case tea.KeyPressMsg:
+    switch msg.String() {
+    case "ctrl+c":
         return m, tea.Quit
-    case tea.KeyTab:
+    case "tab":
         m.nextPanel()
-    case tea.KeyF1:
+    case "f1":
         m.showHelp()
-    case tea.KeyEnter:
+    case "enter":
         m.confirm()
     }
 ```
 
-Common keys:
-- `tea.KeyTab`
-- `tea.KeyEnter`
-- `tea.KeyEsc`
-- `tea.KeyCtrlC`
-- `tea.KeyUp/Down/Left/Right`
-- `tea.KeyF1` through `tea.KeyF12`
+`msg.String()` covers the common identifiers (`"enter"`, `"esc"`, `"tab"`, `"up"`/`"down"`/`"left"`/`"right"`, `"f1"`–`"f12"`, modifier prefixes like `"ctrl+"`, `"alt+"`, `"shift+"`). For programmatic matching, prefer `key.Binding` over hand-written switches.
 
 ## Performance Issues
 
@@ -675,14 +674,16 @@ Try your app in multiple terminals:
 
 ### 5. Use Alt Screen
 
-Always use alt screen for full-screen TUIs:
+Always use alt screen for full-screen TUIs — set it on the `tea.View` you return:
 
 ```go
-p := tea.NewProgram(
-    initialModel(),
-    tea.WithAltScreen(),  // Essential!
-    tea.WithMouseCellMotion(),
-)
+func (m model) View() tea.View {
+    return tea.View{
+        Layer:     tea.NewLayer(m.render()),
+        AltScreen: true,
+        MouseMode: tea.MouseModeCellMotion,
+    }
+}
 ```
 
 This prevents messing up the user's terminal when your app exits.

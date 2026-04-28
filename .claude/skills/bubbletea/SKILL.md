@@ -6,133 +6,95 @@ license: MIT
 
 # Bubbletea TUI Development
 
-Production-ready skill for building beautiful terminal user interfaces with Go, Bubbletea, and Lipgloss.
+Skill for building beautiful terminal user interfaces with Go, Bubble Tea, and Lip Gloss. Pairs with the project's `lipgloss` skill (styling fundamentals) and `lo` skill (slice/map transforms).
 
 ## When to Use This Skill
 
-Use this skill when:
-- Creating new TUI applications with Go
-- Adding Bubbletea components to existing apps
+- Creating new TUI applications or screens
+- Adding Bubble Tea components to existing apps
 - Fixing layout/rendering issues (borders, alignment, overflow)
 - Implementing mouse/keyboard interactions
 - Building dual-pane or multi-panel layouts
-- Adding visual effects (metaballs, waves, rainbow text)
+- Adding visual effects (metaballs, waves, rainbow, layered compositing)
 - Troubleshooting TUI rendering problems
-- Writing integration tests for Bubbletea models with `teatest`
+- Writing integration tests for Bubble Tea models with `teatest`
 
-## Core Principles
+## Project conventions (read first)
 
-**CRITICAL**: Before implementing ANY layout, consult `references/golden-rules.md` for the 4 Golden Rules. These rules prevent the most common and frustrating TUI layout bugs.
+This repo (`sci-go`) mandates **Bubble Tea v2 + Bubbles v2 + Lip Gloss v2**. No v1 imports — see `CLAUDE.md`. The major v2 deltas you'll hit:
 
-### The 4 Golden Rules (Summary)
+| v1 | v2 |
+|---|---|
+| `github.com/charmbracelet/bubbletea` | `charm.land/bubbletea/v2` |
+| `github.com/charmbracelet/lipgloss` | `charm.land/lipgloss/v2` |
+| `tea.KeyMsg` | `tea.KeyPressMsg` |
+| `tea.MouseMsg` (struct, `.Type`, `.X`, `.Y`) | `tea.MouseMsg` is an interface; switch on `tea.MouseClickMsg`, `tea.MouseReleaseMsg`, `tea.MouseWheelMsg`, `tea.MouseMotionMsg`; coords via `.Mouse()` |
+| `tea.WithAltScreen()`, `tea.WithMouseCellMotion()` (program options) | Declared on the returned `View()` value (declarative) |
+| `lipgloss.Color("#hex")` returns `lipgloss.Color` (string-ish) | Returns `image/color.Color`; types accept any `image/color.Color` |
+| `progress.WithGradient(...)` | `progress.WithColors(lipgloss.Color(...), lipgloss.Color(...))` |
+| `bubbles.NewModel(...)` aliases | Removed — call `New(...)` directly |
 
-1. **Always Account for Borders** - Subtract 2 from height calculations BEFORE rendering panels
-2. **Never Auto-Wrap in Bordered Panels** - Always truncate text explicitly
-3. **Match Mouse Detection to Layout** - Use X coords for horizontal, Y coords for vertical
-4. **Use Weights, Not Pixels** - Proportional layouts scale perfectly
+Other project rules that affect TUI work:
+
+- **`huh` forms must go through `uikit`.** Use `uikit.RunForm` / `uikit.Input` / `uikit.InputInto` / `uikit.Select`. Confirmations: `cmdutil.Confirm`/`ConfirmYes`. Never `.Run()` a `huh` form directly.
+- **No inline `lipgloss.NewStyle()`** outside `internal/uikit/` or `internal/tui/*/ui/`. Use the `uikit.TUI` singleton.
+- **New TUI apps** live under `internal/tui/<name>/` with the `dbtui` split (`app/`, `ui/`, root-pkg `Run` entry).
+- **Tests:** `teatest` for every Bubble Tea model — full `key → Update → View` loop. Protocol in `internal/tui/dbtui/app/TESTING.md`.
+- **`uikit` first.** Catalog in `internal/uikit/doc.go`. Extend uikit when a pattern appears in ≥ 2 TUIs.
+
+## The 4 Golden Rules (summary)
+
+**CRITICAL:** Before implementing ANY layout, consult `references/golden-rules.md`. These rules prevent the most common and frustrating TUI layout bugs.
+
+1. **Always account for borders** — subtract 2 from height calculations BEFORE rendering panels
+2. **Never auto-wrap in bordered panels** — always truncate text explicitly
+3. **Match mouse detection to layout** — X coords for horizontal, Y coords for vertical
+4. **Use weights, not pixels** — proportional layouts scale across terminal sizes
 
 Full details and examples in `references/golden-rules.md`.
 
-## Creating New Projects
+## Layout implementation pattern
 
-This project includes a production-ready template system. When this skill is bundled with a new project (via `new_project.sh`), use the existing template structure as the starting point.
+The standard v2 sequence for a screen with title, status, and bordered content:
 
-### Project Structure
+### 1. Calculate available space (account for borders!)
 
-All new projects follow this architecture:
-```
-your-app/
-├── main.go              # Entry point (minimal, ~21 lines)
-├── types.go             # Type definitions, structs, enums
-├── model.go             # Model initialization & layout calculation
-├── update.go            # Message dispatcher
-├── update_keyboard.go   # Keyboard handling
-├── update_mouse.go      # Mouse handling
-├── view.go              # View rendering & layouts
-├── styles.go            # Lipgloss style definitions
-├── config.go            # Configuration management
-└── .claude/skills/bubbletea/  # This skill (bundled)
-```
-
-### Architecture Guidelines
-
-- Keep `main.go` minimal (entry point only, ~21 lines)
-- All types in `types.go` (structs, enums, constants)
-- Separate keyboard and mouse handling into dedicated files
-- One file, one responsibility
-- Maximum file size: 800 lines (ideally <500)
-- Configuration via YAML with hot-reload support
-
-## Available Components
-
-See `references/components.md` for the complete catalog of reusable components:
-
-- **Panel System**: Single, dual-pane, multi-panel, tabbed layouts
-- **Lists**: Simple list, filtered list, tree view
-- **Input**: Text input, multiline, forms, autocomplete
-- **Dialogs**: Confirm, input, progress, modal
-- **Menus**: Context menu, command palette, menu bar
-- **Status**: Status bar, title bar, breadcrumbs
-- **Preview**: Text, markdown, syntax highlighting, images, hex
-- **Tables**: Simple and interactive tables
-
-## Effects Library
-
-Beautiful physics-based animations available in the template:
-
-- 🔮 **Metaballs** - Lava lamp-style floating blobs
-- 🌊 **Wave Effects** - Sine wave distortions
-- 🌈 **Rainbow Cycling** - Animated color gradients
-- 🎭 **Layer Compositor** - ANSI-aware multi-layer rendering
-
-See `references/effects.md` for usage examples and integration patterns.
-
-## Layout Implementation Pattern
-
-When implementing layouts, follow this sequence:
-
-### 1. Calculate Available Space
 ```go
 func (m model) calculateLayout() (int, int) {
     contentWidth := m.width
     contentHeight := m.height
 
-    // Subtract UI elements
     if m.config.UI.ShowTitle {
-        contentHeight -= 3  // title bar (3 lines)
+        contentHeight -= 3 // title bar (3 lines)
     }
     if m.config.UI.ShowStatus {
-        contentHeight -= 1  // status bar
+        contentHeight -= 1 // status bar
     }
-
-    // CRITICAL: Account for panel borders
-    contentHeight -= 2  // top + bottom borders
+    contentHeight -= 2 // CRITICAL: top + bottom borders
 
     return contentWidth, contentHeight
 }
 ```
 
-### 2. Use Weight-Based Panel Sizing
+### 2. Use weight-based panel sizing
+
 ```go
-// Calculate weights based on focus/accordion mode
 leftWeight, rightWeight := 1, 1
 if m.accordionMode && m.focusedPanel == "left" {
-    leftWeight = 2  // Focused panel gets 2x weight
+    leftWeight = 2 // focused panel gets 2x weight
 }
 
-// Calculate actual widths from weights
 totalWeight := leftWeight + rightWeight
 leftWidth := (availableWidth * leftWeight) / totalWeight
 rightWidth := availableWidth - leftWidth
 ```
 
-### 3. Truncate Text to Prevent Wrapping
-```go
-// Calculate max text width to prevent wrapping
-maxTextWidth := panelWidth - 4  // -2 borders, -2 padding
+### 3. Truncate text to prevent wrapping
 
-// Truncate ALL text before rendering
-title = truncateString(title, maxTextWidth)
+```go
+maxTextWidth := panelWidth - 4 // -2 borders, -2 padding
+
+title    = truncateString(title, maxTextWidth)
 subtitle = truncateString(subtitle, maxTextWidth)
 
 func truncateString(s string, maxLen int) string {
@@ -143,72 +105,116 @@ func truncateString(s string, maxLen int) string {
 }
 ```
 
-## Mouse Interaction Pattern
+> For multi-byte text, prefer `runewidth.Truncate` from `github.com/mattn/go-runewidth`. The byte-slice version above is safe for ASCII only.
 
-Always check layout mode before processing mouse events:
+## Keyboard pattern (v2)
 
 ```go
-func (m model) handleLeftClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-    if m.shouldUseVerticalStack() {
-        // Vertical stack mode: use Y coordinates
-        topHeight, _ := m.calculateVerticalStackLayout()
-        relY := msg.Y - contentStartY
+import tea "charm.land/bubbletea/v2"
 
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+    switch msg := msg.(type) {
+    case tea.KeyPressMsg:
+        switch msg.String() {
+        case "ctrl+c", "q":
+            return m, tea.Quit
+        case "tab":
+            m.focusNext()
+        }
+    }
+    return m, nil
+}
+```
+
+For binding-driven matching (preferred for anything beyond a handful of keys):
+
+```go
+import "charm.land/bubbles/v2/key"
+
+var keys = struct {
+    Quit, Tab key.Binding
+}{
+    Quit: key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+    Tab:  key.NewBinding(key.WithKeys("tab"),         key.WithHelp("tab", "switch panel")),
+}
+
+case tea.KeyPressMsg:
+    switch {
+    case key.Matches(msg, keys.Quit):
+        return m, tea.Quit
+    case key.Matches(msg, keys.Tab):
+        m.focusNext()
+    }
+```
+
+## Mouse pattern (v2)
+
+`tea.MouseMsg` is an interface in v2. Always check layout mode before processing mouse coordinates.
+
+```go
+case tea.MouseClickMsg:
+    pos := msg.Mouse()
+    return m.handleClick(pos.X, pos.Y), nil
+case tea.MouseWheelMsg:
+    pos := msg.Mouse()
+    return m.handleWheel(msg.Delta(), pos.X, pos.Y), nil
+}
+
+func (m model) handleClick(x, y int) tea.Model {
+    if m.shouldUseVerticalStack() {
+        topHeight, _ := m.calculateVerticalStackLayout()
+        relY := y - contentStartY
         if relY < topHeight {
-            m.focusedPanel = "left"  // Top panel
+            m.focusedPanel = "left"  // top
         } else {
-            m.focusedPanel = "right" // Bottom panel
+            m.focusedPanel = "right" // bottom
         }
     } else {
-        // Side-by-side mode: use X coordinates
         leftWidth, _ := m.calculateDualPaneLayout()
-
-        if msg.X < leftWidth {
+        if x < leftWidth {
             m.focusedPanel = "left"
         } else {
             m.focusedPanel = "right"
         }
     }
-
-    return m, nil
+    return m
 }
 ```
 
-## Common Pitfalls to Avoid
+## Common pitfalls
 
-See `references/troubleshooting.md` for detailed solutions to common issues:
+### ❌ Don't set explicit `Height()` on bordered panels
 
-### ❌ DON'T: Set explicit Height() on bordered panels
 ```go
-// BAD: Can cause misalignment
-panelStyle := lipgloss.NewStyle().
-    Border(border).
-    Height(height)  // Don't do this!
+// BAD: causes off-by-one alignment bugs
+panelStyle := lipgloss.NewStyle().Border(border).Height(height)
 ```
 
-### ✅ DO: Fill content to exact height
+### ✅ Fill content to exact height; let the border add naturally
+
 ```go
-// GOOD: Fill content lines to exact height
 for len(lines) < innerHeight {
     lines = append(lines, "")
 }
-panelStyle := lipgloss.NewStyle().Border(border)
+panelStyle := lipgloss.NewStyle().Border(border) // no Height()
 ```
 
-## Testing and Debugging
+See `references/troubleshooting.md` for the full debugging decision tree.
 
-When panels don't align or render incorrectly:
+## Reference files
 
-1. **Check height accounting** - Verify contentHeight calculation subtracts all UI elements + borders
-2. **Check text wrapping** - Ensure all strings are truncated to maxTextWidth
-3. **Check mouse detection** - Verify X/Y coordinate usage matches layout orientation
-4. **Check border consistency** - Use same border style for all panels
+Loaded progressively as needed:
 
-See `references/troubleshooting.md` for the complete debugging decision tree.
+- **`references/golden-rules.md`** — Critical layout patterns and anti-patterns. **Read before any new layout.**
+- **`references/components.md`** — Catalog of reusable components (panels, lists, dialogs, menus, tables, previews) and how they map to `bubbles` and `huh`.
+- **`references/effects.md`** — Animation primitives (`tea.Tick`/`tea.Every`), color cycling, Harmonica springs, layered compositing with `lipgloss.NewLayer`/`NewCompositor`, plus recipes for rainbow text, sine waves, metaballs, typewriter, and matrix rain. **Read for any animated UI.**
+- **`references/troubleshooting.md`** — Common issues and decision tree for layout, mouse, rendering, keyboard, performance, and config bugs.
+- **`references/emoji-width-fix.md`** — Battle-tested fix for emoji alignment across xterm, WezTerm, Termux, Windows Terminal. Apply when icons in a list/tree drift by 1 column.
+- **`references/teatest.md`** — Full reference for `github.com/charmbracelet/x/exp/teatest` — API, six patterns, eleven gotchas, v1 vs v2 differences.
 
-## Integration Testing with teatest
+## Integration testing with teatest
 
-For full message-loop tests (key → `Update` → state → `View`), use `github.com/charmbracelet/x/exp/teatest`. It's experimental (under `exp/`) but Charm uses it internally — reliable, poorly documented.
+Full message-loop tests (key → `Update` → state → `View`) use `github.com/charmbracelet/x/exp/teatest` (or `exp/teatest/v2` for the v2 message types). It's experimental but Charm uses it internally — reliable, poorly documented.
 
 Core pattern:
 
@@ -217,7 +223,7 @@ tm := teatest.NewTestModel(t, initialModel(), teatest.WithInitialTermSize(80, 24
 t.Cleanup(func() { _ = tm.Quit() })
 
 tm.Type("abc")
-tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter}) // v2
 
 teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
     return bytes.Contains(out, []byte("done"))
@@ -231,81 +237,67 @@ Key things to know (full details in `references/teatest.md`):
 - **Always** pass `WithInitialTermSize` in v1 — no default, and models using viewport/list render broken without a `WindowSizeMsg`.
 - **Never** `time.Sleep` — use `WaitFor` to block on an output condition, then fire the next input.
 - **`tm.Output()` drains** — every `WaitFor` consumes bytes, so `FinalOutput` afterward only sees the tail. Do all polling via `WaitFor`, or buffer reads yourself.
-- **v1 `Type()` iterates bytes** — non-ASCII breaks. Use `tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'ñ'}})`. v2 (`exp/teatest/v2`) fixes this.
+- **v1 `Type()` iterates bytes** — non-ASCII breaks. Use `tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'ñ'}})` (v1) or the corresponding v2 `KeyPressMsg`. v2 (`exp/teatest/v2`) fixes the byte-iteration bug.
 - **Golden files** live at `testdata/<tb.Name()>.golden` and bake in terminal size + color profile. Pin `lipgloss.SetColorProfile(termenv.Ascii)` and add `*.golden -text` to `.gitattributes`.
 - **Cast `FinalModel` to your concrete type** to assert on internal state — usually more robust than output-based assertions. Pin a pseudo-version ≥ `b6045cb4` (2025-10-02) for nil-safety.
-- Update goldens with `go test ./path -run TestName -update` (flag is registered by `exp/golden` transitively).
+- Update goldens with `go test ./path -run TestName -update`.
 
-See `references/teatest.md` for the full API reference, six patterns, eleven gotchas, and dual-pane examples.
+## Animations and effects
 
-## Configuration System
+Bubble Tea has no built-in frame loop — animation is a `tea.Tick` that re-arms itself on each tick. The full catalog lives in `references/effects.md`:
 
-All projects support YAML configuration with hot-reload:
+- Frame-loop fundamentals (`tea.Tick` vs `tea.Every`, stopping cleanly, dirty-frame skipping)
+- Color cycling (HSL rainbows, two-color pulses, Lip Gloss `BorderForegroundBlend`)
+- Spring physics with [`harmonica`](https://github.com/charmbracelet/harmonica) for smooth slide-ins and settling values
+- Layered compositing with `lipgloss.NewLayer` + `lipgloss.NewCompositor` (v2 only)
+- Recipes: scrolling sine wave, metaballs/lava-lamp, typewriter reveal, matrix rain, custom spinner
+- Performance: profiling, style caching, adaptive FPS
+- Testing animated frames with synthetic `frameMsg`s
 
-```yaml
-theme: "dark"
-keybindings: "default"
-
-layout:
-  type: "dual_pane"
-  split_ratio: 0.5
-  accordion_mode: true
-
-ui:
-  show_title: true
-  show_status: true
-  mouse_enabled: true
-  show_icons: true
-```
-
-Configuration files are loaded from:
-1. `~/.config/your-app/config.yaml` (user config)
-2. `./config.yaml` (local override)
-
-## Dependencies
+## Dependencies (v2)
 
 **Required:**
 ```
-github.com/charmbracelet/bubbletea
-github.com/charmbracelet/lipgloss
-github.com/charmbracelet/bubbles
-gopkg.in/yaml.v3
+charm.land/bubbletea/v2
+charm.land/bubbles/v2
+charm.land/lipgloss/v2
 ```
 
-**Optional** (uncomment in go.mod as needed):
+**Common additions:**
 ```
-github.com/charmbracelet/glamour       # Markdown rendering
-github.com/charmbracelet/huh           # Forms
-github.com/alecthomas/chroma/v2        # Syntax highlighting
-github.com/evertras/bubble-table       # Interactive tables
-github.com/koki-develop/go-fzf         # Fuzzy finder
+github.com/charmbracelet/harmonica          // spring physics
+github.com/charmbracelet/x/exp/teatest      // integration tests (or .../v2)
+github.com/mattn/go-runewidth               // unicode-safe width/truncation
 ```
 
-## Reference Documentation
+**Optional, common in this repo:**
+```
+github.com/charmbracelet/glamour            // markdown rendering
+github.com/charmbracelet/huh                // forms (must go through uikit.RunForm)
+github.com/alecthomas/chroma/v2             // syntax highlighting
+github.com/evertras/bubble-table            // interactive tables
+```
 
-All reference files are loaded progressively as needed:
+## External resources
 
-- **golden-rules.md** - Critical layout patterns and anti-patterns
-- **components.md** - Complete catalog of reusable components
-- **troubleshooting.md** - Common issues and debugging decision tree
-- **emoji-width-fix.md** - Battle-tested solution for emoji alignment across terminals (xterm, WezTerm, Termux, Windows Terminal)
-- **teatest.md** - Full reference for `github.com/charmbracelet/x/exp/teatest` — API, patterns, gotchas, v1 vs v2
+- [Bubble Tea v2 docs](https://pkg.go.dev/charm.land/bubbletea/v2)
+- [Lip Gloss v2 docs](https://pkg.go.dev/charm.land/lipgloss/v2)
+- [Bubbles v2 components](https://github.com/charmbracelet/bubbles/tree/v2.0.0)
+- [Bubble Tea v2 upgrade guide](https://github.com/charmbracelet/bubbletea/blob/main/UPGRADE_GUIDE_V2.md)
+- [Bubbles v2 upgrade guide](https://github.com/charmbracelet/bubbles/blob/v2.0.0/UPGRADE_GUIDE_V2.md)
+- [Lip Gloss v2 upgrade guide](https://github.com/charmbracelet/lipgloss/blob/main/UPGRADE_GUIDE_V2.md)
+- [Charm ecosystem](https://charm.sh/)
 
-## External Resources
+## Best practices summary
 
-- [Bubbletea Documentation](https://github.com/charmbracelet/bubbletea)
-- [Lipgloss Documentation](https://github.com/charmbracelet/lipgloss)
-- [Bubbles Components](https://github.com/charmbracelet/bubbles)
-- [Charm Ecosystem](https://charm.sh/)
+1. **Read `golden-rules.md` before any new layout** — saves hours of debugging.
+2. **Weight-based sizing** — never hardcode pixel widths.
+3. **Truncate text explicitly** — never rely on auto-wrap inside bordered panels.
+4. **Match mouse detection to layout orientation** — X for horizontal, Y for vertical.
+5. **Account for borders** — subtract 2 from height before rendering.
+6. **Never set explicit `Height()` on bordered Lip Gloss styles.**
+7. **Forms through `uikit.RunForm`**, never `huh.Form.Run()` directly.
+8. **Tests through `teatest`** — every `Update` path covered.
+9. **For animation, drive frames via `tea.Tick` + custom `frameMsg`** — re-arm in `Update`.
 
-## Best Practices Summary
-
-1. **Always** consult golden-rules.md before implementing layouts
-2. **Always** use weight-based sizing for flexible layouts
-3. **Always** truncate text explicitly (never rely on auto-wrap)
-4. **Always** match mouse detection to layout orientation
-5. **Always** account for borders in height calculations
-6. **Never** set explicit Height() on bordered Lipgloss styles
-7. **Never** assume layout orientation in mouse handlers
-
-Follow these patterns and you'll avoid 90% of TUI layout bugs.
+Follow these and you'll avoid 90% of TUI layout bugs.

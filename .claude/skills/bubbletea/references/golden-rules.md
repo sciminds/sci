@@ -145,16 +145,16 @@ If your layout orientation changes (side-by-side vs stacked), but your mouse det
 
 ### The Solution
 
-Check layout mode before processing mouse events:
+Check layout mode before processing mouse events. In v2, `tea.MouseMsg` is an interface — switch on the click subtype and pull coordinates via `.Mouse()`:
 
 ```go
-func (m model) handleLeftClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-    // ... boundary checks ...
+func (m model) handleLeftClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
+    p := msg.Mouse()
 
     if m.shouldUseVerticalStack() {
         // Vertical stack mode: use Y coordinates
         topHeight, _ := m.calculateVerticalStackLayout()
-        relY := msg.Y - contentStartY
+        relY := p.Y - contentStartY
 
         if relY < topHeight {
             m.focusedPanel = "left"  // Top panel
@@ -165,9 +165,9 @@ func (m model) handleLeftClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
         // Side-by-side mode: use X coordinates
         leftWidth, _ := m.calculateDualPaneLayout()
 
-        if msg.X < leftWidth {
+        if p.X < leftWidth {
             m.focusedPanel = "left"
-        } else if msg.X > leftWidth {
+        } else if p.X > leftWidth {
             m.focusedPanel = "right"
         }
     }

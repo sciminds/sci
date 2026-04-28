@@ -2,6 +2,10 @@
 
 Reusable components for building TUI applications. All components follow the Elm architecture pattern (Init, Update, View).
 
+> **v2 imports.** This project mandates Bubble Tea / Bubbles / Lip Gloss v2. Replace any `github.com/charmbracelet/bubbles` import below with `charm.land/bubbles/v2`, and `github.com/charmbracelet/lipgloss` with `charm.land/lipgloss/v2`. The component APIs are nearly identical — see the v2 upgrade guides for exact deltas.
+>
+> **`huh` forms must run through `uikit`.** This catalog shows raw `huh` for reference; in this project, drive forms via `uikit.RunForm` / `uikit.Input` / `uikit.InputInto` / `uikit.Select`. Confirmations use `cmdutil.Confirm` / `cmdutil.ConfirmYes`.
+
 ## Panel System
 
 Pre-built panel layouts for different UI arrangements.
@@ -559,7 +563,7 @@ type model struct {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
-    case tea.KeyMsg:
+    case tea.KeyPressMsg:           // v2
         // Route to focused component
         switch m.focused {
         case "list":
