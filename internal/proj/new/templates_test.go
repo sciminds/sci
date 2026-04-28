@@ -445,6 +445,141 @@ func TestWritingReadmeContent(t *testing.T) {
 	}
 }
 
+// Single-file writing README: parts live inline in main.md frontmatter, so
+// the structure block must not list sections/*.md files.
+func TestWritingReadmeSingleFileNoSections(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+
+	content, err := RenderFile("README.md.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	for _, notWant := range []string{
+		"sections/abstract.md",
+		"sections/keypoints.md",
+		"sections/acknowledgements.md",
+		"sections/opendata.md",
+	} {
+		if strings.Contains(content, notWant) {
+			t.Errorf("single-file README should not mention %q\n--- content ---\n%s", notWant, content)
+		}
+	}
+	if !strings.Contains(content, "inline in frontmatter") {
+		t.Errorf("single-file README should describe inline frontmatter parts\n--- content ---\n%s", content)
+	}
+}
+
+// Composed writing README: sections/*.md files exist on disk, so the
+// structure block must list them.
+func TestWritingReadmeComposedHasSections(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+	vars.MdLayout = "composed"
+
+	content, err := RenderFile("README.md.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	for _, want := range []string{
+		"sections/",
+		"abstract.md",
+		"keypoints.md",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("composed README missing %q\n--- content ---\n%s", want, content)
+		}
+	}
+}
+
+// Non-lab template writing README: _templates/paper/ doesn't ship, so the
+// README must not point at it.
+func TestWritingReadmeNonLabTemplate(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+	vars.Template = "default"
+
+	content, err := RenderFile("README.md.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	if strings.Contains(content, "_templates/paper") {
+		t.Errorf("non-lab README should not mention _templates/paper\n--- content ---\n%s", content)
+	}
+	if !strings.Contains(content, "default") {
+		t.Errorf("non-lab README should name the template (default)\n--- content ---\n%s", content)
+	}
+}
+
+// Non-lab template python README: _templates/paper/ doesn't ship, so the
+// project-structure block must not list it.
+func TestPythonReadmeNonLabTemplate(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "python"
+	vars.PkgManager = "uv"
+	vars.DocSystem = "myst"
+	vars.Template = "lapreprint-typst"
+
+	content, err := RenderFile("README.md.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	if strings.Contains(content, "_templates/paper") {
+		t.Errorf("non-lab python README should not mention _templates/paper\n--- content ---\n%s", content)
+	}
+}
+
+// python+myst myst.yml must carry the notebook-output cleanup settings so
+// rendered manuscripts don't leak `<Figure size 640x480>` repr strings.
+func TestPythonMystYmlNotebookSettings(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "python"
+	vars.PkgManager = "uv"
+	vars.DocSystem = "myst"
+
+	content, err := RenderFile("myst.yml.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	for _, want := range []string{
+		"output_matplotlib_strings: remove",
+		"output_stderr: remove-error",
+		"_build/**",
+		"**/.jupyter_cache/**",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("python+myst myst.yml missing %q\n--- content ---\n%s", want, content)
+		}
+	}
+}
+
+// Writing myst.yml must NOT carry the python notebook settings — they only
+// apply when there are notebooks to clean up.
+func TestWritingMystYmlNoNotebookSettings(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "writing"
+
+	content, err := RenderFile("myst.yml.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	for _, notWant := range []string{
+		"output_matplotlib_strings",
+		"output_stderr",
+		".jupyter_cache",
+	} {
+		if strings.Contains(content, notWant) {
+			t.Errorf("writing myst.yml should not contain %q\n--- content ---\n%s", notWant, content)
+		}
+	}
+}
+
 func TestConditionalFileSkipping(t *testing.T) {
 	t.Parallel()
 	// _quarto.yml should render empty (and be skipped) when docSystem != "quarto"

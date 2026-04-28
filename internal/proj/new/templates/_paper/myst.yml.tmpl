@@ -19,6 +19,16 @@ project:
 {{- end}}
       affiliations: []
   affiliations: []
+{{- if eq .Kind "python"}}
+  # Notebook output cleanup — strip matplotlib repr strings (`<Figure size
+  # 640x480 with 1 Axes>`) and stderr from rendered cells.
+  settings:
+    output_matplotlib_strings: remove
+    output_stderr: remove-error
+  exclude:
+    - _build/**
+    - "**/.jupyter_cache/**"
+{{- end}}
 {{- if eq .MdLayout "composed"}}
   # Document "parts" are template slots (abstract, keypoints, etc.) — the
   # template decides where each lands on the page. The body is whatever is

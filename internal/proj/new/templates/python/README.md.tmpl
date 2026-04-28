@@ -50,8 +50,10 @@ data/
     raw/               # raw data files
     derivatives/       # processed outputs
 figs/                  # generated figures (referenced by manuscript)
-{{- if eq .DocSystem "myst"}}
+{{- if and (eq .DocSystem "myst") (eq .Template "lab")}}
 _templates/paper/      # local Typst template — fully editable
+{{- end}}
+{{- if eq .DocSystem "myst"}}
 pdfs/                  # output PDFs (gitignored)
 {{- end}}
 ```

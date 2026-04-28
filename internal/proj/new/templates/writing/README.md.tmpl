@@ -32,25 +32,37 @@ npx mystmd start         # live-preview server
 ## Project Structure
 
 ```
+{{- if eq .MdLayout "composed" }}
 main.md                # the manuscript body (Intro / Methods / Results / Discussion)
-myst.yml               # MyST project config — authors, parts, exports
-refs.bib               # BibTeX references — cite with {cite}`key`
 sections/
     abstract.md        # short summary printed under the title block
     keypoints.md       # bulleted highlights above the abstract
     acknowledgements.md
     opendata.md        # data/code availability statement
+{{- else }}
+main.md                # the manuscript body + abstract/keypoints/etc. inline in frontmatter
+{{- end }}
+myst.yml               # MyST project config — authors, parts, exports
+refs.bib               # BibTeX references — cite with {cite}`key`
 figs/                  # put figures here, reference with ![](figs/foo.png)
+{{- if eq .Template "lab" }}
 _templates/paper/      # the local Typst template — fully editable
     paper.typ          # the actual layout — restyle freely
     template.yml       # template metadata (jtex spec)
     orcid.svg
+{{- end }}
 pdfs/                  # output PDFs (gitignored)
 ```
 
+{{- if eq .Template "lab" }}
 ## Editing the layout
 
 This project ships a local copy of the `sci-preprint` Typst template at `_templates/paper/`. Edit `_templates/paper/paper.typ` to change fonts, margins, the title block, etc. — your changes apply only to this manuscript. Drop sibling templates (e.g. `_templates/poster/`) in the same folder and reference them from `myst.yml`.
+{{- else }}
+## Layout
+
+This project uses the `{{.Template}}` MyST template, resolved from the MyST template registry. To switch templates, edit the `template:` field under the typst export in `myst.yml`. To customize layout in-place, run `sci proj new` with `--template lab` to ship an editable local copy.
+{{- end }}
 
 ## Submission knobs
 
@@ -58,7 +70,11 @@ This project ships a local copy of the `sci-preprint` Typst template at `_templa
 
 ```yaml
 - format: typst
+{{- if eq .Template "lab" }}
   template: ./_templates/paper
+{{- else if ne .Template "default" }}
+  template: {{.Template}}
+{{- end }}
   output: pdfs/main-anonymous.pdf
   anonymize: true
   title_page: true
