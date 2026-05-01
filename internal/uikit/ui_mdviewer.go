@@ -2,6 +2,7 @@ package uikit
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -39,6 +40,7 @@ type MdViewer struct {
 	name          string
 	ready         bool
 	search        mdSearchState
+	extraHints    []string // caller-supplied hints prepended to Footer
 }
 
 // NewMdViewer creates a viewer for a single markdown document.
@@ -79,6 +81,12 @@ func (v *MdViewer) SetSize(w, h int) {
 	}
 	v.vp.SetContent(v.rendered)
 }
+
+// SetExtraHints injects caller-owned hints (e.g. "q quit") that are prepended
+// to the standard scroll/search hints in Footer. Use this so wrapping programs
+// can surface their own keys through the shared footer instead of rendering a
+// custom one. Pass nil to clear.
+func (v *MdViewer) SetExtraHints(hints []string) { v.extraHints = hints }
 
 // Searching returns true when the search input is active.
 func (v *MdViewer) Searching() bool { return v.search.searching }
@@ -163,7 +171,7 @@ func (v *MdViewer) Footer(width int) string {
 	pctPart := TUI.Dim().Render(mdFmtPct(v.ScrollPercent()))
 	pctW := lipgloss.Width(pctPart)
 
-	hints := []string{"↑/↓ scroll", "/ search"}
+	hints := append(slices.Clone(v.extraHints), "↑/↓ scroll", "/ search")
 	if v.search.query != "" {
 		hints = append(hints, mdFmtMatches(v.search.matchCount))
 	}
