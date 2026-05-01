@@ -88,6 +88,22 @@ func (v *MdViewer) SetSize(w, h int) {
 // custom one. Pass nil to clear.
 func (v *MdViewer) SetExtraHints(hints []string) { v.extraHints = hints }
 
+// Reload swaps in new markdown content and invalidates the rendered cache so
+// the next SetSize/View pair re-renders. Scroll position is preserved; the
+// viewport clamps it to the new content's range automatically.
+func (v *MdViewer) Reload(markdown string) {
+	v.content = markdown
+	v.rendered = ""
+	v.renderedWidth = 0
+	if v.ready {
+		// Force re-render at the current viewport size.
+		v.SetSize(v.vp.Width(), v.vp.Height())
+	}
+	// Clear any active search state — match line numbers point into the old
+	// rendered text and would jump to the wrong place after re-render.
+	v.search.clear(&v.vp, v.rendered)
+}
+
 // Searching returns true when the search input is active.
 func (v *MdViewer) Searching() bool { return v.search.searching }
 

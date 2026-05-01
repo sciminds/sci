@@ -2,6 +2,8 @@ package uikit
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -103,6 +105,81 @@ func TestMdViewerExtraHintsAppearInFooter(t *testing.T) {
 	footer := v.Footer(80)
 	if !strings.Contains(footer, "q quit") {
 		t.Errorf("footer missing extra hint, got %q", footer)
+	}
+}
+
+func TestMdViewerReloadSwapsContent(t *testing.T) {
+	t.Parallel()
+	v := NewMdViewer("test", "# Original\n\nbefore body")
+	v.SetSize(80, 20)
+	if !strings.Contains(v.RawContent(), "Original") {
+		t.Fatal("setup: original content missing")
+	}
+
+	v.Reload("# Replaced\n\nafter body")
+
+	if got := v.RawContent(); !strings.Contains(got, "Replaced") || strings.Contains(got, "Original") {
+		t.Errorf("RawContent after Reload = %q, want new content with old content gone", got)
+	}
+	// Force a re-render via SetSize and confirm the rendered cache picked up
+	// the new content.
+	v.SetSize(80, 20)
+	if !strings.Contains(v.rendered, "Replaced") {
+		t.Errorf("rendered cache did not refresh after Reload: %q", v.rendered)
+	}
+}
+
+func TestRunMdViewerRRefreshRereadsFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "notes.md")
+	if err := os.WriteFile(path, []byte("# version one\n\nfirst draft"), 0o644); err != nil {
+		t.Fatalf("write v1: %v", err)
+	}
+
+	prog, err := newMdProgramFromFile(path)
+	if err != nil {
+		t.Fatalf("newMdProgramFromFile: %v", err)
+	}
+	tm := teatest.NewTestModel(t, prog, teatest.WithInitialTermSize(mdRunTermW, mdRunTermH))
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("first draft"))
+	}, teatest.WithDuration(mdRunWaitFor))
+
+	if err := os.WriteFile(path, []byte("# version two\n\nsecond draft"), 0o644); err != nil {
+		t.Fatalf("write v2: %v", err)
+	}
+
+	tm.Send(tea.KeyPressMsg{Code: 'r'})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("second draft"))
+	}, teatest.WithDuration(mdRunWaitFor))
+}
+
+func TestRunMdViewerRefreshHintShownWhenPathSet(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "notes.md")
+	if err := os.WriteFile(path, []byte("# h\n\nbody"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	prog, err := newMdProgramFromFile(path)
+	if err != nil {
+		t.Fatalf("newMdProgramFromFile: %v", err)
+	}
+	footer := prog.viewer.Footer(80)
+	if !strings.Contains(footer, "r refresh") {
+		t.Errorf("footer should advertise refresh, got %q", footer)
+	}
+}
+
+func TestRunMdViewerNoRefreshHintForInMemory(t *testing.T) {
+	t.Parallel()
+	prog := newMdProgram("scratch", "# h\n\nbody")
+	prog.viewer.SetSize(80, 20)
+	if got := prog.viewer.Footer(80); strings.Contains(got, "r refresh") {
+		t.Errorf("in-memory viewer should not advertise refresh, got %q", got)
 	}
 }
 

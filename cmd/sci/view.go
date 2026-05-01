@@ -34,11 +34,7 @@ func viewCommand() *cli.Command {
 			}
 
 			if isMarkdown(path) {
-				data, err := os.ReadFile(path)
-				if err != nil {
-					return cmdutil.UsageErrorf(cmd, "%s: %v", path, err)
-				}
-				return uikit.RunMdViewer(filepath.Base(path), string(data))
+				return uikit.RunMdViewer(path)
 			}
 
 			return db.RunTUI(path, "")
