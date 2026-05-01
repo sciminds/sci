@@ -27,16 +27,16 @@ Written in Go because:
 
 ![sci doctor](docs/casts/doctor.gif)
 
-### `sci view` - Browse data files
+### `sci view` - Browse data files & markdown
 
 <details>
 <summary><b>usage</b> — click to expand</summary>
 
 | Command | What it does |
 |---------|--------------|
-| `sci view <file>` | Interactively browse any tabular data file (CSV, JSON, SQLite) |
+| `sci view <file>` | Interactively browse a tabular data file (CSV, JSON, SQLite) or render a markdown document |
 
-The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/dbtui@latest`.
+Tabular files open in dbtui (`internal/tui/dbtui/`), also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/dbtui@latest`. Markdown files (`.md`, `.markdown`) render via the uikit markdown viewer — press `r` to reload from disk after external edits.
 
 </details>
 
@@ -124,7 +124,8 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci lab ls` | List remote directory contents |
 | `sci lab get` | Download a file or directory from lab storage |
 | `sci lab put` | Upload a file or directory to your lab space |
-| `sci lab browse` | Open an SSH shell in lab storage |
+| `sci lab browse` | Interactively browse lab storage and download folders |
+| `sci lab connect` | Open an SSH shell in lab storage |
 
 
 </details>
@@ -142,6 +143,7 @@ The interactive data viewer is powered by dbtui (`internal/tui/dbtui/`), also in
 | `sci tools install` | Install packages from the Brewfile, or add and install a new package |
 | `sci tools uninstall` | Remove a package from the Brewfile and uninstall it |
 | `sci tools update` | Update the Homebrew registry and upgrade outdated packages |
+| `sci tools outdated` | List outdated packages without upgrading |
 | `sci tools reccs` | Pick optional tools to install |
 
 </details>
@@ -271,7 +273,7 @@ Reads the local `zotero.sqlite` (immutable, no contention with the running Zoter
 Every push to `main` triggers the [Release workflow](.github/workflows/release.yml):
 
 1. **Check** — fmt, vet, lint, test
-2. **Build** — cross-compiles `sci`, `dbtui`, and `markdb` for darwin/linux × arm64/amd64
+2. **Build** — cross-compiles `sci` and `dbtui` for darwin/linux × arm64/amd64
 3. **Publish** — uploads all binaries to a rolling `latest` GitHub release
 
 Binaries are named `{tool}-{os}-{arch}` (e.g. `sci-darwin-arm64`, `dbtui-linux-amd64`).

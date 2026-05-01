@@ -93,7 +93,9 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	info                        library summary (alias: stats)
 //	view                        interactive read-only table viewer
 //	search  <query>             cross-field search (supports --export, --notes)
+//	find    <subcommand>        OpenAlex paper/author lookup (works/authors)
 //	export                      full-library BibTeX / CSL-JSON export
+//	import  <path>              drag-drop import via Zotero desktop (metadata recognition)
 //	item    <subcommand>        per-item ops (read/add/update/delete/list/open/export)
 //	collection <subcommand>     collections (list/create/delete/add/remove)
 //	saved-search <subcommand>   saved searches (list/show/create/update/delete)
@@ -103,6 +105,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	                            llm {catalog,read,query}
 //	doctor  [subcommand]        hygiene: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates}
+//	graph   <subcommand>        traverse citation relationships (library + OpenAlex)
 //	extract <parent-key>        [experimental] run docling PDF extraction pipeline
 //	extract-lib                 [experimental] bulk extract every PDF → child note (via docling)
 //
