@@ -142,6 +142,7 @@ func Refs(ctx context.Context, idx LibraryIndex, oa *openalex.Client, item *loca
 	if err != nil {
 		return nil, fmt.Errorf("hydrate referenced works: %w", err)
 	}
+	hydrated = excludeSelf(hydrated, work.ID)
 	in, out, missing := splitByLibrary(idx, hydrated)
 	stats := Stats{
 		Total:           len(hydrated),
@@ -157,6 +158,21 @@ func Refs(ctx context.Context, idx LibraryIndex, oa *openalex.Client, item *loca
 		OutsideLibrary: out,
 		Stats:          stats,
 	}, nil
+}
+
+// excludeSelf drops any neighbor whose OpenAlex id matches the source.
+// OpenAlex occasionally returns the source paper as one of its own
+// referenced or citing works (a self-citation in the data, or an edge
+// case in the cited_by index). Surfacing it confuses the agent UX —
+// "this paper cites itself" is never the answer the caller wanted.
+func excludeSelf(works []openalex.Work, sourceID string) []openalex.Work {
+	if sourceID == "" {
+		return works
+	}
+	src := shortID(sourceID)
+	return lo.Reject(works, func(w openalex.Work, _ int) bool {
+		return shortID(w.ID) == src
+	})
 }
 
 // truncateNeighbors caps in_library + outside_library to limit total
@@ -201,14 +217,15 @@ func Cites(ctx context.Context, idx LibraryIndex, oa *openalex.Client, item *loc
 	if err != nil {
 		return nil, fmt.Errorf("cited_by lookup: %w", err)
 	}
-	in, out, missing := splitByLibrary(idx, res.Results)
+	results := excludeSelf(res.Results, work.ID)
+	in, out, missing := splitByLibrary(idx, results)
 	return &Result{
 		Item:           src,
 		Direction:      "cites",
 		InLibrary:      in,
 		OutsideLibrary: out,
 		Stats: Stats{
-			Total:           len(res.Results),
+			Total:           len(results),
 			InLibrary:       len(in),
 			OutsideLibrary:  len(out),
 			MissingMetadata: missing,

@@ -14,9 +14,16 @@ import (
 // NotesListResult is returned by `zot notes list [parent-key]`.
 // When ParentKey is empty, Notes contains all docling notes across the
 // library; otherwise it's scoped to one parent.
+//
+// Total is the unpaginated count; Count is len(Notes) — i.e. how many
+// the page actually contains. Offset is the starting index of the slice
+// in the original list. When Total > Offset+Count the human renderer
+// emits a paginate footer so the agent (or human) knows there's more.
 type NotesListResult struct {
 	ParentKey string                     `json:"parent_key,omitempty"`
 	Count     int                        `json:"count"`
+	Total     int                        `json:"total"`
+	Offset    int                        `json:"offset,omitempty"`
 	Notes     []local.DoclingNoteSummary `json:"notes"`
 }
 
@@ -25,6 +32,10 @@ func (r NotesListResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
 func (r NotesListResult) Human() string {
+	total := r.Total
+	if total == 0 {
+		total = r.Count
+	}
 	if r.Count == 0 {
 		if r.ParentKey != "" {
 			return fmt.Sprintf("  %s no docling notes for %s\n", uikit.SymArrow, r.ParentKey)
@@ -54,7 +65,13 @@ func (r NotesListResult) Human() string {
 			fmt.Fprintf(&b, "    %s\n", uikit.TUI.Dim().Render(snippet))
 		}
 	}
-	fmt.Fprintf(&b, "\n  %s %d note(s)\n", uikit.SymArrow, r.Count)
+	if total > r.Offset+r.Count {
+		fmt.Fprintf(&b, "\n  %s showing %d-%d of %d  (pass --limit 0 for all, --offset %d for next page)\n",
+			uikit.SymArrow, r.Offset+1, r.Offset+r.Count, total, r.Offset+r.Count,
+		)
+	} else {
+		fmt.Fprintf(&b, "\n  %s %d note(s)\n", uikit.SymArrow, r.Count)
+	}
 	return b.String()
 }
 

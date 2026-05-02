@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -274,6 +275,69 @@ func TestCites_FiltersAndSplits(t *testing.T) {
 	}
 	if len(res.OutsideLibrary) != 1 || res.OutsideLibrary[0].OpenAlex != "W9000012" {
 		t.Errorf("outside_library = %+v", res.OutsideLibrary)
+	}
+}
+
+// TestRefs_ExcludesSelf — OpenAlex sometimes returns the source paper as
+// one of its own ReferencedWorks (self-citation in the data). graph
+// drops it so the agent doesn't see "this paper cites itself".
+func TestRefs_ExcludesSelf(t *testing.T) {
+	t.Parallel()
+	parent := &openalex.Work{
+		ID: "https://openalex.org/W4379279965",
+		ReferencedWorks: []string{
+			"https://openalex.org/W4379279965", // self
+			"https://openalex.org/W2",
+		},
+	}
+	hydrated := &openalex.Results[openalex.Work]{Results: []openalex.Work{
+		{ID: "https://openalex.org/W4379279965", Title: ptr("Self-cite")},
+		{ID: "https://openalex.org/W2", Title: ptr("Real reference"), DOI: ptr("10.1/real")},
+	}}
+	oa := newOpenAlex(t, parent, hydrated)
+	db := &stubReader{}
+
+	item := &local.Item{Key: "EV2PU9T8", Extra: "OpenAlex: W4379279965"}
+	res, err := Refs(context.Background(), LocalIndex(db), oa, item, RefsOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, n := range slices.Concat(res.InLibrary, res.OutsideLibrary) {
+		if n.OpenAlex == "W4379279965" {
+			t.Errorf("self-loop leaked: %+v", n)
+		}
+	}
+	if res.Stats.Total != 1 {
+		t.Errorf("stats.Total = %d, want 1 (post-self-exclusion)", res.Stats.Total)
+	}
+}
+
+// TestCites_ExcludesSelf — same self-loop edge case as Refs but on the
+// cites direction. OpenAlex's cited_by index can include the source.
+func TestCites_ExcludesSelf(t *testing.T) {
+	t.Parallel()
+	parent := &openalex.Work{ID: "https://openalex.org/W4379279965"}
+	citing := &openalex.Results[openalex.Work]{Results: []openalex.Work{
+		{ID: "https://openalex.org/W4379279965", Title: ptr("Self in cites")},
+		{ID: "https://openalex.org/WCITER", Title: ptr("Real citer"), DOI: ptr("10.1/citer")},
+	}}
+	oa := newOpenAlex(t, parent, citing)
+	db := &stubReader{}
+
+	item := &local.Item{Key: "EV2PU9T8", Extra: "OpenAlex: W4379279965"}
+	res, err := Cites(context.Background(), LocalIndex(db), oa, item, CitesOpts{Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, n := range slices.Concat(res.InLibrary, res.OutsideLibrary) {
+		if n.OpenAlex == "W4379279965" {
+			t.Errorf("self-loop leaked: %+v", n)
+		}
+	}
+	if res.Stats.Total != 1 {
+		t.Errorf("stats.Total = %d, want 1 (post-self-exclusion)", res.Stats.Total)
 	}
 }
 

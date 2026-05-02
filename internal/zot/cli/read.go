@@ -67,6 +67,44 @@ func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
 	return cfg, db, nil
 }
 
+// tryOpenLocalDB is the non-prompting flavor of openLocalDB. It opens
+// the local store only when the library scope is resolvable without
+// asking the user (i.e. --library was passed, or only one library is
+// configured). Returns ok=false when any prerequisite is missing — the
+// caller is expected to fall back gracefully (e.g. skip an
+// opportunistic enrichment) rather than error.
+//
+// Used by `find works` to mark in-library hits without forcing every
+// invocation through library scope resolution.
+func tryOpenLocalDB(ctx context.Context) (local.Reader, bool) {
+	holder := libraryHolderFromCtx(ctx)
+	if holder == nil {
+		return nil, false
+	}
+	cfg, err := zot.LoadConfig()
+	if err != nil || cfg == nil {
+		return nil, false
+	}
+	// If --library wasn't set and both libraries are configured, resolving
+	// would prompt (interactive) or error (--json / non-TTY). Bail.
+	if !holder.HasFlag && cfg.SharedGroupID != "" {
+		return nil, false
+	}
+	ref, err := ensureLibraryScope(ctx, cfg)
+	if err != nil {
+		return nil, false
+	}
+	sel, err := localSelectorFor(cfg, ref)
+	if err != nil {
+		return nil, false
+	}
+	db, err := local.Open(cfg.DataDir, sel)
+	if err != nil {
+		return nil, false
+	}
+	return db, true
+}
+
 // localSelectorFor picks a local.LibrarySelector for the resolved ref.
 // Shared scope resolves the group's SQLite libraryID via the groups table
 // (see local.ForGroupByAPIID).
@@ -273,7 +311,7 @@ func readCommand() *cli.Command {
 		ArgsUsage: "<key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (for items not yet synced)", Destination: &readRemote, Local: true},
-			&cli.StringFlag{Name: "doi", Usage: "look up the item by DOI instead of key (case-insensitive; local-only — try `find works <doi>` for OpenAlex)", Destination: &readDOI, Local: true},
+			&cli.StringFlag{Name: "doi", Usage: "look up the item by DOI instead of key (case-insensitive; accepts bare 10.x/y, https://doi.org/..., or doi:... forms; local-only — try `find works <doi>` for OpenAlex)", Destination: &readDOI, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			argKey := ""
@@ -295,18 +333,22 @@ func readCommand() *cli.Command {
 			// the DOI, give me the key + body" without a manual search step.
 			key := argKey
 			if readDOI != "" {
+				normDOI := normalizeDOI(readDOI)
+				if normDOI == "" {
+					return fmt.Errorf("--doi value %q is empty after stripping URL/`doi:` prefix", readDOI)
+				}
 				_, db, err := openLocalDB(ctx)
 				if err != nil {
 					return err
 				}
-				hits, derr := db.ItemKeysByDOI([]string{readDOI})
+				hits, derr := db.ItemKeysByDOI([]string{normDOI})
 				_ = db.Close()
 				if derr != nil {
 					return derr
 				}
-				resolved, ok := hits[strings.ToLower(readDOI)]
+				resolved, ok := hits[strings.ToLower(normDOI)]
 				if !ok {
-					return fmt.Errorf("no item with DOI %q in library — use `sci zot find works %q` to look it up on OpenAlex", readDOI, readDOI)
+					return fmt.Errorf("no item with DOI %q in library — use `sci zot find works %q` to look it up on OpenAlex", normDOI, normDOI)
 				}
 				key = resolved
 			}
@@ -340,6 +382,31 @@ func readCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// normalizeDOI strips the URL prefix (https://doi.org/...) and the
+// `doi:` scheme prefix from a DOI input, then trims whitespace. Agents
+// copy DOIs from many sources (browser bars, paper PDFs, citation
+// managers) and the URL form is overwhelmingly the most common —
+// failing the lookup just because the user pasted a URL instead of a
+// bare "10.x/y" is hostile UX.
+//
+// Case is preserved here; ItemKeysByDOI matches case-insensitively.
+func normalizeDOI(in string) string {
+	s := strings.TrimSpace(in)
+	for _, p := range []string{
+		"https://doi.org/",
+		"http://doi.org/",
+		"https://dx.doi.org/",
+		"http://dx.doi.org/",
+		"doi:",
+	} {
+		if strings.HasPrefix(strings.ToLower(s), p) {
+			s = s[len(p):]
+			break
+		}
+	}
+	return strings.TrimSpace(s)
 }
 
 func listCommand() *cli.Command {
@@ -644,6 +711,14 @@ func childrenCommand() *cli.Command {
 				return err
 			}
 			defer func() { _ = db.Close() }()
+
+			// Validate the parent exists before reporting "no children".
+			// Without this, a typo'd key returns a misleading "→ X has no
+			// children" response — caller assumes the parent is real and
+			// childless when actually it never existed.
+			if _, err := db.Read(parentKey); err != nil {
+				return fmt.Errorf("%w (pass --remote to bypass local sqlite if the item was just created)", err)
+			}
 
 			children, err := db.ListChildren(parentKey)
 			if err != nil {

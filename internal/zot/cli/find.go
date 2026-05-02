@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/openalex"
@@ -103,8 +104,49 @@ func runFindWorks(ctx context.Context, cmd *cli.Command) error {
 	if res.Meta.NextCursor != nil {
 		out.NextCursor = *res.Meta.NextCursor
 	}
+	out.LibraryHits = libraryHitsForWorks(ctx, res.Results)
 	cmdutil.Output(cmd, out)
 	return nil
+}
+
+// libraryHitsForWorks cross-references OpenAlex results against the
+// user's library by DOI so the agent-facing JSON can carry an
+// `in_library` marker. Returns nil whenever the library scope can't be
+// resolved without prompting (both libraries configured + no --library
+// flag) or anything along the path fails — `find works` must not error
+// just because we couldn't enrich.
+func libraryHitsForWorks(ctx context.Context, works []openalex.Work) map[string]string {
+	dois := lo.FilterMap(works, func(w openalex.Work, _ int) (string, bool) {
+		if w.DOI == nil || *w.DOI == "" {
+			return "", false
+		}
+		return strings.ToLower(stripDOIPrefix(*w.DOI)), true
+	})
+	if len(dois) == 0 {
+		return nil
+	}
+	db, ok := tryOpenLocalDB(ctx)
+	if !ok {
+		return nil
+	}
+	defer func() { _ = db.Close() }()
+	hits, err := db.ItemKeysByDOI(dois)
+	if err != nil {
+		return nil
+	}
+	return hits
+}
+
+// stripDOIPrefix is the cli-package mirror of zot.stripDOIPrefix —
+// duplicated to avoid a cli → zot import cycle inflating just to share
+// a string-trim helper.
+func stripDOIPrefix(doi string) string {
+	for _, p := range []string{"https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "http://dx.doi.org/"} {
+		if strings.HasPrefix(strings.ToLower(doi), p) {
+			return doi[len(p):]
+		}
+	}
+	return doi
 }
 
 func runFindAuthors(ctx context.Context, cmd *cli.Command) error {

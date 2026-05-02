@@ -81,6 +81,59 @@ func TestItemRead_ByDOI_ResolvesToKey(t *testing.T) {
 	}
 }
 
+// TestItemRead_ByDOI_NormalizesPrefixes — agents paste DOIs from browsers,
+// PDFs, citation tools. URL forms (https://doi.org/...) and the `doi:`
+// scheme prefix all map to the same record.
+func TestItemRead_ByDOI_NormalizesPrefixes(t *testing.T) {
+	withOrientConfig(t)
+
+	for _, in := range []string{
+		"https://doi.org/10.1038/nature12373",
+		"http://doi.org/10.1038/nature12373",
+		"https://dx.doi.org/10.1038/nature12373",
+		"doi:10.1038/nature12373",
+		"DOI:10.1038/nature12373",
+		"  10.1038/nature12373  ",
+	} {
+		out, err := runItemRead(t, "--json", "--library", "personal", "item", "read", "--doi", in)
+		if err != nil {
+			t.Fatalf("item read --doi %q: %v\n%s", in, err, string(out))
+		}
+		jsonStart := bytes.IndexByte(out, '{')
+		if jsonStart < 0 {
+			t.Fatalf("no JSON for %q: %q", in, string(out))
+		}
+		var result local.Item
+		if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
+			t.Fatalf("parse %q: %v", in, err)
+		}
+		if result.Key != "KEY1" {
+			t.Errorf("input %q resolved to %q, want KEY1", in, result.Key)
+		}
+	}
+}
+
+// TestNormalizeDOI is a focused unit test on the prefix-stripping rules
+// — quicker feedback than the end-to-end lookup test above.
+func TestNormalizeDOI(t *testing.T) {
+	cases := map[string]string{
+		"10.1/x":                 "10.1/x",
+		"https://doi.org/10.1/x": "10.1/x",
+		"http://doi.org/10.1/x":  "10.1/x",
+		"https://DOI.ORG/10.1/x": "10.1/x", // case-insensitive prefix match
+		"doi:10.1/x":             "10.1/x",
+		"DOI:10.1/x":             "10.1/x",
+		"  10.1/x  ":             "10.1/x",
+		"  doi:10.1/x  ":         "10.1/x",
+		"":                       "",
+	}
+	for in, want := range cases {
+		if got := normalizeDOI(in); got != want {
+			t.Errorf("normalizeDOI(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestItemRead_ByDOI_CaseInsensitive(t *testing.T) {
 	withOrientConfig(t)
 
@@ -140,6 +193,39 @@ func TestItemRead_NoArgsNoDOI_Errors(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "doi") {
 		t.Errorf("err should mention --doi as an option: %v", err)
+	}
+}
+
+// TestItemChildren_UnknownParentErrors — `item children KEY` previously
+// returned "→ KEY has no children" silently when KEY didn't exist,
+// matching the empty-children case. Agents then assumed the parent was
+// real and leafy. Now it errors with the same not-found message as
+// `item read`.
+func TestItemChildren_UnknownParentErrors(t *testing.T) {
+	withOrientConfig(t)
+
+	_, err := runItemRead(t, "--library", "personal", "item", "children", "DOESNOTEXIST")
+	if err == nil {
+		t.Fatal("expected error for nonexistent parent key")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "DOESNOTEXIST") || !strings.Contains(msg, "not found") {
+		t.Errorf("err should match item-read style: %v", err)
+	}
+}
+
+// TestItemChildren_ExistingParentNoChildren — leaf items with no
+// children still return the empty-children result cleanly (no false
+// positive on the parent-existence check).
+func TestItemChildren_ExistingParentNoChildren(t *testing.T) {
+	withOrientConfig(t)
+
+	out, err := runItemRead(t, "--json", "--library", "personal", "item", "children", "KEY3")
+	if err != nil {
+		t.Fatalf("item children KEY3: %v\n%s", err, string(out))
+	}
+	if !bytes.Contains(out, []byte(`"count": 0`)) {
+		t.Errorf("expected count:0 for childless real parent, got: %s", out)
 	}
 }
 

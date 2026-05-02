@@ -16,13 +16,22 @@ import (
 // year, OA status, and a few enough ranking signals. Set Verbose=true
 // (from the CLI via --verbose) to pass through the full openalex.Work
 // with every nested object, ~100+ lines per work.
+//
+// LibraryHits maps lowercased DOI → Zotero item key for works whose DOI
+// is already in the user's library. Populated by the CLI when a library
+// scope is resolvable without prompting (i.e. --library was passed or
+// only one library is configured). Nil when the lookup was skipped.
+// The compact JSON path and Human renderer both consult it to mark
+// "this paper is already in your library" so agents skipping the cross-
+// reference round-trip can pick `find works` results to add.
 type FindWorksResult struct {
-	Query      string          `json:"query"`
-	Total      int             `json:"total"` // server-reported match count
-	Count      int             `json:"count"` // len(Works) in this page
-	NextCursor string          `json:"next_cursor,omitempty"`
-	Works      []openalex.Work `json:"works"`
-	Verbose    bool            `json:"-"`
+	Query       string            `json:"query"`
+	Total       int               `json:"total"` // server-reported match count
+	Count       int               `json:"count"` // len(Works) in this page
+	NextCursor  string            `json:"next_cursor,omitempty"`
+	Works       []openalex.Work   `json:"works"`
+	Verbose     bool              `json:"-"`
+	LibraryHits map[string]string `json:"-"`
 }
 
 // findWorksCompact is the skim-friendly shape emitted by JSON() when Verbose
@@ -38,6 +47,12 @@ type findWorksCompactResult struct {
 
 // FindWorkCompact is one work in the compact JSON shape. Zero-value
 // optional fields are elided via omitempty.
+//
+// InLibrary / LibraryKey are populated when the CLI cross-referenced the
+// work's DOI against the local Zotero store (see FindWorksResult.LibraryHits).
+// Their absence in the JSON output means "not checked" rather than "not
+// in library" when LibraryScope is empty on the wrapping result; callers
+// that need certainty should consult LibraryScope.
 type FindWorkCompact struct {
 	OpenAlexID   string   `json:"openalex_id"`
 	DOI          string   `json:"doi,omitempty"`
@@ -50,6 +65,8 @@ type FindWorkCompact struct {
 	IsOA         bool     `json:"is_oa,omitempty"`
 	OAStatus     string   `json:"oa_status,omitempty"`
 	PDFURL       string   `json:"pdf_url,omitempty"`
+	InLibrary    bool     `json:"in_library,omitempty"`
+	LibraryKey   string   `json:"library_key,omitempty"`
 }
 
 func (r FindWorksResult) JSON() any {
@@ -61,15 +78,18 @@ func (r FindWorksResult) JSON() any {
 		Total:      r.Total,
 		Count:      r.Count,
 		NextCursor: r.NextCursor,
-		Works:      lo.Map(r.Works, func(w openalex.Work, _ int) FindWorkCompact { return workToCompact(w) }),
+		Works:      lo.Map(r.Works, func(w openalex.Work, _ int) FindWorkCompact { return workToCompact(w, r.LibraryHits) }),
 	}
 }
 
 func (r FindWorksResult) Human() string {
-	return renderFindPage(r.Query, r.Count, r.Total, r.NextCursor, r.Works, writeWorkLine)
+	hits := r.LibraryHits
+	return renderFindPage(r.Query, r.Count, r.Total, r.NextCursor, r.Works, func(b *strings.Builder, w openalex.Work) {
+		writeWorkLine(b, w, hits)
+	})
 }
 
-func workToCompact(w openalex.Work) FindWorkCompact {
+func workToCompact(w openalex.Work, hits map[string]string) FindWorkCompact {
 	out := FindWorkCompact{
 		OpenAlexID:   openalexShortID(w.ID),
 		CitedByCount: w.CitedByCount,
@@ -82,6 +102,12 @@ func workToCompact(w openalex.Work) FindWorkCompact {
 	}
 	if w.DOI != nil {
 		out.DOI = stripDOIPrefix(*w.DOI)
+		if hits != nil {
+			if k, ok := hits[strings.ToLower(out.DOI)]; ok {
+				out.InLibrary = true
+				out.LibraryKey = k
+			}
+		}
 	}
 	if w.PublicationYear != nil {
 		out.Year = *w.PublicationYear
@@ -191,7 +217,7 @@ func renderFindPage[T any](query string, count, total int, nextCursor string, it
 	return b.String()
 }
 
-func writeWorkLine(b *strings.Builder, w openalex.Work) {
+func writeWorkLine(b *strings.Builder, w openalex.Work, hits map[string]string) {
 	title := "(untitled)"
 	if w.Title != nil && *w.Title != "" {
 		title = *w.Title
@@ -202,8 +228,18 @@ func writeWorkLine(b *strings.Builder, w openalex.Work) {
 	if w.PublicationYear != nil {
 		year = " " + uikit.TUI.Dim().Render(fmt.Sprintf("(%d)", *w.PublicationYear))
 	}
-	fmt.Fprintf(b, "  %s  %s%s\n",
+	// In-library marker — green check + Zotero key — sits next to the
+	// OpenAlex id so an agent skimming the list sees both source and
+	// outcome in the same line.
+	libMarker := ""
+	if w.DOI != nil && hits != nil {
+		if k, ok := hits[strings.ToLower(stripDOIPrefix(*w.DOI))]; ok {
+			libMarker = " " + uikit.TUI.TextGreen().Render("✓ "+k)
+		}
+	}
+	fmt.Fprintf(b, "  %s%s  %s%s\n",
 		uikit.TUI.TextBlue().Render(openalexShortID(w.ID)),
+		libMarker,
 		title,
 		year,
 	)

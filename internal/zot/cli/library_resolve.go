@@ -27,6 +27,7 @@ import (
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/urfave/cli/v3"
+	"golang.org/x/term"
 )
 
 // libraryScopePrompter is the interactive picker invoked when --library is
@@ -37,6 +38,14 @@ type libraryScopePrompter func(opts []zot.LibraryScope) (zot.LibraryScope, error
 // defaultLibraryPrompter is the prompter ensureLibraryScope uses by default.
 // Tests swap this for a deterministic stub.
 var defaultLibraryPrompter libraryScopePrompter = uikitLibraryPrompter
+
+// defaultIsInteractive reports whether the current process can prompt the
+// user — i.e. stdin is a real terminal. Agents, CI, and pipelines fail
+// this check, and we'd rather surface the same teaching error JSON mode
+// emits than crash inside huh trying to open /dev/tty. Tests override.
+var defaultIsInteractive = func() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
 
 func uikitLibraryPrompter(opts []zot.LibraryScope) (zot.LibraryScope, error) {
 	huhOpts := make([]huh.Option[zot.LibraryScope], 0, len(opts))
@@ -122,7 +131,10 @@ func autoOrPromptScope(ctx context.Context, cfg *zot.Config, jsonMode bool) (zot
 	}
 
 	if jsonMode {
-		return zot.LibraryRef{}, errLibraryRequiredJSON()
+		return zot.LibraryRef{}, errLibraryRequired("--json mode is non-interactive so we won't prompt")
+	}
+	if !defaultIsInteractive() {
+		return zot.LibraryRef{}, errLibraryRequired("stdin is not a terminal (agent / pipe / CI) — we won't prompt")
 	}
 
 	picked, err := defaultLibraryPrompter([]zot.LibraryScope{zot.LibPersonal, zot.LibShared})
@@ -132,24 +144,25 @@ func autoOrPromptScope(ctx context.Context, cfg *zot.Config, jsonMode bool) (zot
 	return resolveScopeWithProbe(ctx, cfg, picked)
 }
 
-// errLibraryRequiredJSON returns the canonical error for the
-// "--library missing in --json mode with both libraries configured"
-// case. The message teaches placement explicitly because agents (and
+// errLibraryRequired returns the canonical error for the "--library
+// missing with both libraries configured, can't prompt" case. The reason
+// argument explains *why* we can't prompt (--json mode, non-TTY stdin,
+// etc.); the message teaches placement explicitly because agents (and
 // humans skimming `--help`) often assume `--library` must come right
 // after `zot` — it doesn't; the persistent flag is parsed at any
 // position. Showing two placements (post-`zot` and post-leaf) breaks
 // the false constraint.
-func errLibraryRequiredJSON() error {
+func errLibraryRequired(reason string) error {
 	// Trailing newline is intentional — terminal renderers append a single
 	// "\n" after error messages, so the help block below stays attached.
 	// staticcheck ST1005 flags trailing newlines; suppressed at a function
 	// boundary (multi-line error string) where readability beats the rule.
 	//nolint:staticcheck // ST1005 — multi-line error strings need newlines.
-	return fmt.Errorf("--library is required (values: personal, shared) — both libraries are configured; --json mode is non-interactive so we won't prompt\n" +
-		"  Add --library anywhere in the command. Both forms work:\n" +
-		"    sci zot --library personal <subcommand> [args...]\n" +
-		"    sci zot <subcommand> [args...] --library personal\n" +
-		"  Use 'shared' to target the group library instead")
+	return fmt.Errorf("--library is required (values: personal, shared) — both libraries are configured; %s\n"+
+		"  Add --library anywhere in the command. Both forms work:\n"+
+		"    sci zot --library personal <subcommand> [args...]\n"+
+		"    sci zot <subcommand> [args...] --library personal\n"+
+		"  Use 'shared' to target the group library instead", reason)
 }
 
 // resolveScopeWithProbe wraps cfg.ResolveWithProbe with the standard

@@ -150,6 +150,12 @@ func TestEnsureLibraryScope_NoFlag_BothConfigured_Interactive_Prompts(t *testing
 	holder := &libraryHolder{} // JSONMode=false (interactive)
 	ctx := withLibraryHolder(context.Background(), holder)
 
+	// Force interactive — `go test` typically runs with a non-TTY stdin
+	// which would otherwise short-circuit to the non-TTY error path.
+	prevTTY := defaultIsInteractive
+	defaultIsInteractive = func() bool { return true }
+	defer func() { defaultIsInteractive = prevTTY }()
+
 	// Inject a deterministic prompter.
 	var promptedWith []zot.LibraryScope
 	prev := defaultLibraryPrompter
@@ -172,10 +178,52 @@ func TestEnsureLibraryScope_NoFlag_BothConfigured_Interactive_Prompts(t *testing
 	}
 }
 
+func TestEnsureLibraryScope_NoFlag_BothConfigured_NonTTY_Errors(t *testing.T) {
+	// Agents and CI hit this path: not in --json mode, but stdin is a pipe.
+	// The pre-fix behavior crashed inside huh trying to open /dev/tty;
+	// post-fix we surface the same teaching error JSON mode emits.
+	cfg := ensureScopeCfg("6506098")
+	holder := &libraryHolder{} // JSONMode=false
+	ctx := withLibraryHolder(context.Background(), holder)
+
+	prevTTY := defaultIsInteractive
+	defaultIsInteractive = func() bool { return false }
+	defer func() { defaultIsInteractive = prevTTY }()
+
+	// Defensive: if the fallback ever skips the TTY check and reaches the
+	// prompter, fail loudly rather than block on /dev/tty.
+	prevPrompt := defaultLibraryPrompter
+	defaultLibraryPrompter = func([]zot.LibraryScope) (zot.LibraryScope, error) {
+		t.Fatal("prompter must not be invoked in non-TTY mode")
+		return "", nil
+	}
+	defer func() { defaultLibraryPrompter = prevPrompt }()
+
+	_, err := ensureLibraryScope(ctx, cfg)
+	if err == nil {
+		t.Fatal("expected error in non-TTY mode with both libraries configured")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "--library is required") {
+		t.Errorf("err missing canonical --library text:\n%s", msg)
+	}
+	if !strings.Contains(strings.ToLower(msg), "stdin is not a terminal") {
+		t.Errorf("err should explain *why* we won't prompt:\n%s", msg)
+	}
+	// Same placement teaching as JSON mode.
+	if !strings.Contains(msg, "sci zot --library personal <subcommand>") {
+		t.Errorf("err missing pre-subcommand example:\n%s", msg)
+	}
+}
+
 func TestEnsureLibraryScope_NoFlag_BothConfigured_PromptCancel_Errors(t *testing.T) {
 	cfg := ensureScopeCfg("6506098")
 	holder := &libraryHolder{}
 	ctx := withLibraryHolder(context.Background(), holder)
+
+	prevTTY := defaultIsInteractive
+	defaultIsInteractive = func() bool { return true }
+	defer func() { defaultIsInteractive = prevTTY }()
 
 	prev := defaultLibraryPrompter
 	defaultLibraryPrompter = func([]zot.LibraryScope) (zot.LibraryScope, error) {

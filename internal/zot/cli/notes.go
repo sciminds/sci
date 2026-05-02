@@ -20,6 +20,9 @@ var (
 	notesDeleteAll bool
 	notesDeleteYes bool
 
+	notesListLimit  int
+	notesListOffset int
+
 	notesAddForce      bool
 	notesAddReextract  bool
 	notesAddHTML       bool
@@ -60,9 +63,18 @@ func notesListCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "list",
 		Usage: "List docling extraction notes",
-		Description: "$ sci zot notes list                   # all items with docling notes\n" +
-			"$ sci zot notes list AAAA1111           # docling notes for one item",
+		Description: "$ sci zot notes list                          # first 50 docling notes (default cap)\n" +
+			"$ sci zot notes list --limit 0                # all docling notes (warning: thousands on real libraries)\n" +
+			"$ sci zot notes list --limit 25 --offset 50   # paginate\n" +
+			"$ sci zot notes list AAAA1111                 # docling notes for one item",
 		ArgsUsage: "[parent-item-key]",
+		Flags: []cli.Flag{
+			// Default 50 because real libraries have thousands of notes
+			// and an unguarded list dumps ~6000 lines into the agent's
+			// context window. 0 = unlimited for power users.
+			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max notes to surface (0 = unlimited)", Destination: &notesListLimit, Local: true},
+			&cli.IntFlag{Name: "offset", Value: 0, Usage: "pagination offset", Destination: &notesListOffset, Local: true},
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			_, db, err := openLocalDB(ctx)
 			if err != nil {
@@ -78,6 +90,24 @@ func notesListCommand() *cli.Command {
 	}
 }
 
+// paginate slices xs[offset:offset+limit] safely. limit<=0 means
+// "everything from offset". An out-of-range offset returns an empty
+// slice rather than an error — the caller's footer/Total still tells
+// the user how many they could have seen.
+func paginate[T any](xs []T, offset, limit int) []T {
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= len(xs) {
+		return nil
+	}
+	end := len(xs)
+	if limit > 0 && offset+limit < end {
+		end = offset + limit
+	}
+	return xs[offset:end]
+}
+
 func notesListForParent(ctx context.Context, cmd *cli.Command, db local.Reader, parentKey string) error {
 	notes, err := db.ListDoclingNotes(parentKey)
 	if err != nil {
@@ -91,10 +121,13 @@ func notesListForParent(ctx context.Context, cmd *cli.Command, db local.Reader, 
 			Tags:      ch.Tags,
 		}
 	})
+	page := paginate(summaries, notesListOffset, notesListLimit)
 	outputScoped(ctx, cmd, zot.NotesListResult{
 		ParentKey: parentKey,
-		Count:     len(summaries),
-		Notes:     summaries,
+		Count:     len(page),
+		Total:     len(summaries),
+		Offset:    notesListOffset,
+		Notes:     page,
 	})
 	return nil
 }
@@ -104,9 +137,12 @@ func notesListAll(ctx context.Context, cmd *cli.Command, db local.Reader) error 
 	if err != nil {
 		return err
 	}
+	page := paginate(notes, notesListOffset, notesListLimit)
 	outputScoped(ctx, cmd, zot.NotesListResult{
-		Count: len(notes),
-		Notes: notes,
+		Count:  len(page),
+		Total:  len(notes),
+		Offset: notesListOffset,
+		Notes:  page,
 	})
 	return nil
 }

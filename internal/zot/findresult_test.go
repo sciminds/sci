@@ -142,6 +142,44 @@ func TestFindWorksResult_JSON_verbosePassesThroughRaw(t *testing.T) {
 	}
 }
 
+// TestFindWorksResult_LibraryHits — when the CLI passes a populated
+// LibraryHits map, both the compact JSON shape and the human renderer
+// surface in_library/library_key for matching DOIs. Other works stay
+// unmarked so an agent can pick "what to add" by filtering on
+// `in_library == false`.
+func TestFindWorksResult_LibraryHits(t *testing.T) {
+	t.Parallel()
+	r := FindWorksResult{
+		Query: "x",
+		Count: 2,
+		Works: []openalex.Work{
+			{ID: "https://openalex.org/W1", DOI: sp("https://doi.org/10.1000/inlib"), Title: sp("Already in library")},
+			{ID: "https://openalex.org/W2", DOI: sp("https://doi.org/10.1000/elsewhere"), Title: sp("Not yet")},
+		},
+		LibraryHits: map[string]string{
+			"10.1000/inlib": "ZKEY1234",
+		},
+	}
+	// Compact JSON: only the matching work carries in_library/library_key.
+	b, err := json.Marshal(r.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !strings.Contains(s, `"in_library":true`) || !strings.Contains(s, `"library_key":"ZKEY1234"`) {
+		t.Errorf("hit work missing in_library/library_key: %s", s)
+	}
+	// The non-hit work must NOT carry these fields (omitempty).
+	if strings.Count(s, `"in_library"`) != 1 {
+		t.Errorf("expected exactly one in_library marker, got: %s", s)
+	}
+	// Human output: green ✓ + key on the hit row.
+	human := r.Human()
+	if !strings.Contains(human, "ZKEY1234") {
+		t.Errorf("human output missing in-library key marker: %s", human)
+	}
+}
+
 func TestFindAuthorsResult_Human(t *testing.T) {
 	t.Parallel()
 	r := FindAuthorsResult{

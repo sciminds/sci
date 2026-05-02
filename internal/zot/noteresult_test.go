@@ -42,6 +42,33 @@ func TestNotesListResult_HumanWithNotes(t *testing.T) {
 	}
 }
 
+// TestNotesListResult_HumanPagination — when Total > Offset+Count the
+// renderer surfaces a "showing M-N of T" footer with the next --offset
+// hint, so an agent paginating sees how to advance without consulting
+// docs. Single-page lists keep the older "→ N note(s)" footer.
+func TestNotesListResult_HumanPagination(t *testing.T) {
+	t.Parallel()
+	r := NotesListResult{
+		Count:  2,
+		Total:  10,
+		Offset: 4,
+		Notes: []local.DoclingNoteSummary{
+			{NoteKey: "N1", ParentKey: "P1"},
+			{NoteKey: "N2", ParentKey: "P2"},
+		},
+	}
+	h := r.Human()
+	if !strings.Contains(h, "showing 5-6 of 10") {
+		t.Errorf("missing pagination header: %s", h)
+	}
+	if !strings.Contains(h, "--offset 6") {
+		t.Errorf("missing next-offset hint: %s", h)
+	}
+	if !strings.Contains(h, "--limit 0") {
+		t.Errorf("missing unlimited hint: %s", h)
+	}
+}
+
 func TestNoteReadResult_Human(t *testing.T) {
 	t.Parallel()
 	r := NoteReadResult{Note: local.NoteDetail{
