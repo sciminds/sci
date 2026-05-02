@@ -13,6 +13,7 @@ import (
 
 // graph-command flag destinations.
 var (
+	graphRefsLimit    int
 	graphCitesLimit   int
 	graphCitesYearMin int
 	graphRefsRemote   bool
@@ -42,11 +43,14 @@ func graphCommand() *cli.Command {
 
 func graphRefsCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "refs",
-		Usage:       "Show works this item cites, split into in-library vs outside",
-		Description: "$ sci zot graph refs ABC12345\n$ sci zot graph refs ABC12345 --remote   # bypass local sqlite, hit the Zotero Web API",
-		ArgsUsage:   "<key>",
+		Name:  "refs",
+		Usage: "Show works this item cites, split into in-library vs outside",
+		Description: "$ sci zot graph refs ABC12345\n" +
+			"$ sci zot graph refs ABC12345 --limit 50    # default 25; pass 0 for the full bibliography\n" +
+			"$ sci zot graph refs ABC12345 --remote      # bypass local sqlite, hit the Zotero Web API",
+		ArgsUsage: "<key>",
 		Flags: []cli.Flag{
+			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 25, Usage: "max neighbors to surface (in_library kept first, then outside_library; 0 = unlimited). Stats keeps the original totals so truncation is visible.", Destination: &graphRefsLimit, Local: true},
 			&cli.BoolFlag{Name: "remote", Usage: "fetch the source item from the Zotero Web API (use when the item was just created and isn't synced yet)", Destination: &graphRefsRemote, Local: true},
 			&cli.BoolFlag{Name: "verbose", Usage: "--json: emit full author lists (default caps each neighbor at 3 authors)", Destination: &graphRefsVerbose, Local: true},
 		},
@@ -64,7 +68,7 @@ func graphRefsCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			res, err := graph.Refs(ctx, idx, oa, item)
+			res, err := graph.Refs(ctx, idx, oa, item, graph.RefsOpts{Limit: graphRefsLimit})
 			if err != nil {
 				return err
 			}

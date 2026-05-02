@@ -55,9 +55,19 @@ func guideContent() zot.GuideResult {
 						Note: "Add --remote when the local DB may be stale (e.g. just-created items).",
 					},
 					{
+						Goal: "Lookup an item by DOI",
+						Cmd:  "sci zot item read --doi 10.1038/nature12373",
+						Note: "Local, case-insensitive. Errors point at `find works <doi>` when the DOI isn't in the library.",
+					},
+					{
 						Goal: "List all collections / tags",
 						Cmd:  "sci zot collection list",
 						Note: "Or `sci zot tags list`. Both fast/local.",
+					},
+					{
+						Goal: "Walk citation neighbors (incoming/outgoing)",
+						Cmd:  "sci zot graph refs ABC12345",
+						Note: "Splits into in_library (Zotero keys) vs outside_library (OpenAlex ids; pipe into `item add --openalex`). Default --limit 25; pass --limit 0 for the full bibliography.",
 					},
 				},
 			},

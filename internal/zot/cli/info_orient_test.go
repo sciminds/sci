@@ -66,7 +66,9 @@ func seedOrientDB(t *testing.T, dataDir string) {
 			(2, 'Paper Two'),
 			(3, 'Paper Three'),
 			(4, 'Paper Four'),
-			(5, '2024-01-15')`,
+			(5, '2024-01-15'),
+			(6, '10.1038/nature12373'),
+			(7, '10.1000/key2')`,
 
 		`INSERT INTO items (itemID, itemTypeID, libraryID, key, version, dateAdded, dateModified, clientDateModified) VALUES
 			(1, 1, 1, 'KEY1', 1, '2024-01-01 10:00:00', '2024-01-01 10:00:00', '2024-01-01 10:00:00'),
@@ -75,8 +77,8 @@ func seedOrientDB(t *testing.T, dataDir string) {
 			(4, 1, 1, 'KEY4', 1, '2024-04-01 10:00:00', '2024-04-01 10:00:00', '2024-04-01 10:00:00')`,
 
 		`INSERT INTO itemData VALUES
-			(1, 1, 1), (1, 2, 5),
-			(2, 1, 2),
+			(1, 1, 1), (1, 2, 5), (1, 3, 6),
+			(2, 1, 2), (2, 3, 7),
 			(3, 1, 3),
 			(4, 1, 4)`,
 

@@ -105,13 +105,29 @@ type CitesOpts struct {
 	Filter  map[string]string // additional OpenAlex filters
 }
 
+// RefsOpts narrows the Refs query. Refs always fetches the full bibliography
+// from OpenAlex (it's a single batched lookup); Limit then caps how many
+// neighbors are surfaced in the response. in_library entries are kept first
+// since they're the high-signal subset agents care about most; remaining
+// slots are filled with outside_library in OpenAlex order. Stats keeps the
+// pre-truncation totals so callers can detect truncation happened.
+//
+// Limit <= 0 disables truncation (full bibliography).
+type RefsOpts struct {
+	Limit int
+}
+
 // ErrNoOpenAlexAnchor is returned when an item lacks both an OpenAlex
 // id (in Extra) and a DOI we can use to look one up. The graph commands
 // surface this so the user knows enrichment is needed first.
 var ErrNoOpenAlexAnchor = errors.New("graph: item has no OpenAlex id or DOI to anchor traversal")
 
 // Refs returns the works that the given Zotero item cites.
-func Refs(ctx context.Context, idx LibraryIndex, oa *openalex.Client, item *local.Item) (*Result, error) {
+//
+// opts.Limit caps the number of neighbors emitted in the response (Stats
+// retains the pre-truncation totals). See RefsOpts for the truncation
+// policy. Pass RefsOpts{} for unlimited output.
+func Refs(ctx context.Context, idx LibraryIndex, oa *openalex.Client, item *local.Item, opts RefsOpts) (*Result, error) {
 	work, err := resolveWork(ctx, oa, item)
 	if err != nil {
 		return nil, err
@@ -127,18 +143,38 @@ func Refs(ctx context.Context, idx LibraryIndex, oa *openalex.Client, item *loca
 		return nil, fmt.Errorf("hydrate referenced works: %w", err)
 	}
 	in, out, missing := splitByLibrary(idx, hydrated)
+	stats := Stats{
+		Total:           len(hydrated),
+		InLibrary:       len(in),
+		OutsideLibrary:  len(out),
+		MissingMetadata: missing,
+	}
+	in, out = truncateNeighbors(in, out, opts.Limit)
 	return &Result{
 		Item:           src,
 		Direction:      "refs",
 		InLibrary:      in,
 		OutsideLibrary: out,
-		Stats: Stats{
-			Total:           len(hydrated),
-			InLibrary:       len(in),
-			OutsideLibrary:  len(out),
-			MissingMetadata: missing,
-		},
+		Stats:          stats,
 	}, nil
+}
+
+// truncateNeighbors caps in_library + outside_library to limit total
+// neighbors. in_library entries are preserved first; remaining slots are
+// filled with outside_library in input order. limit <= 0 returns the
+// inputs unchanged.
+func truncateNeighbors(in, out []Neighbor, limit int) ([]Neighbor, []Neighbor) {
+	if limit <= 0 {
+		return in, out
+	}
+	if len(in) >= limit {
+		return in[:limit], nil
+	}
+	remaining := limit - len(in)
+	if len(out) > remaining {
+		out = out[:remaining]
+	}
+	return in, out
 }
 
 // Cites returns the works that cite the given Zotero item.

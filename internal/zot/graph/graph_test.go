@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -94,7 +95,7 @@ func TestRefs_SplitsLibraryAndOutside(t *testing.T) {
 		Title: "Mastering Atari, Go, chess and shogi",
 		Extra: "OpenAlex: W3105657479",
 	}
-	res, err := Refs(context.Background(), LocalIndex(db), oa, item)
+	res, err := Refs(context.Background(), LocalIndex(db), oa, item, RefsOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +135,7 @@ func TestRefs_MissingDOIGoesToOutside(t *testing.T) {
 	db := &stubReader{dois: map[string]string{}}
 
 	item := &local.Item{Key: "X", Extra: "OpenAlex: W9000001"}
-	res, err := Refs(context.Background(), LocalIndex(db), oa, item)
+	res, err := Refs(context.Background(), LocalIndex(db), oa, item, RefsOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,9 +153,77 @@ func TestRefs_NoAnchorErrors(t *testing.T) {
 	db := &stubReader{}
 
 	item := &local.Item{Key: "X"} // no Extra, no DOI
-	_, err := Refs(context.Background(), LocalIndex(db), oa, item)
+	_, err := Refs(context.Background(), LocalIndex(db), oa, item, RefsOpts{})
 	if err != ErrNoOpenAlexAnchor {
 		t.Errorf("err = %v, want ErrNoOpenAlexAnchor", err)
+	}
+}
+
+// TestRefs_LimitTruncates_KeepsInLibraryFirst verifies that Limit caps
+// total neighbors emitted, with in_library entries preserved first
+// (they're the high-signal subset agents care about most). Stats keeps
+// the pre-truncation totals so callers know truncation happened.
+func TestRefs_LimitTruncates_KeepsInLibraryFirst(t *testing.T) {
+	t.Parallel()
+	// 5 referenced works: 2 in library, 3 outside.
+	refs := []string{}
+	results := []openalex.Work{}
+	for i := 1; i <= 5; i++ {
+		ref := fmt.Sprintf("https://openalex.org/W%d", 1000+i)
+		refs = append(refs, ref)
+		results = append(results, openalex.Work{
+			ID:    ref,
+			Title: ptr(fmt.Sprintf("Work %d", i)),
+			DOI:   ptr(fmt.Sprintf("10.1000/w%d", i)),
+		})
+	}
+	parent := &openalex.Work{ID: "https://openalex.org/W9000900", ReferencedWorks: refs}
+	hydrated := &openalex.Results[openalex.Work]{Results: results}
+	oa := newOpenAlex(t, parent, hydrated)
+
+	db := &stubReader{dois: map[string]string{
+		"10.1000/w1": "INLIB1",
+		"10.1000/w2": "INLIB2",
+	}}
+
+	item := &local.Item{Key: "X", Extra: "OpenAlex: W9000900"}
+	res, err := Refs(context.Background(), LocalIndex(db), oa, item, RefsOpts{Limit: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Stats should reflect originals.
+	if res.Stats.Total != 5 || res.Stats.InLibrary != 2 || res.Stats.OutsideLibrary != 3 {
+		t.Errorf("stats = %+v, want 5/2/3 (pre-truncation totals)", res.Stats)
+	}
+	// Output: 2 in_library + 1 outside_library (limit=3, in_library always wins).
+	if len(res.InLibrary) != 2 {
+		t.Errorf("InLibrary len = %d, want 2 (kept first)", len(res.InLibrary))
+	}
+	if len(res.OutsideLibrary) != 1 {
+		t.Errorf("OutsideLibrary len = %d, want 1 (filling remaining slot)", len(res.OutsideLibrary))
+	}
+}
+
+func TestRefs_LimitZero_Unlimited(t *testing.T) {
+	t.Parallel()
+	parent := &openalex.Work{
+		ID:              "https://openalex.org/W9000900",
+		ReferencedWorks: []string{"https://openalex.org/W1"},
+	}
+	hydrated := &openalex.Results[openalex.Work]{Results: []openalex.Work{
+		{ID: "https://openalex.org/W1", Title: ptr("Single")},
+	}}
+	oa := newOpenAlex(t, parent, hydrated)
+	db := &stubReader{}
+
+	item := &local.Item{Key: "X", Extra: "OpenAlex: W9000900"}
+	res, err := Refs(context.Background(), LocalIndex(db), oa, item, RefsOpts{Limit: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.OutsideLibrary) != 1 {
+		t.Errorf("Limit 0 should NOT truncate; got OutsideLibrary len = %d", len(res.OutsideLibrary))
 	}
 }
 
@@ -164,7 +233,7 @@ func TestRefs_DOIFallbackResolves(t *testing.T) {
 	oa := newOpenAlex(t, parent, &openalex.Results[openalex.Work]{})
 	db := &stubReader{}
 	item := &local.Item{Key: "X", DOI: "10.1000/anything"}
-	res, err := Refs(context.Background(), LocalIndex(db), oa, item)
+	res, err := Refs(context.Background(), LocalIndex(db), oa, item, RefsOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}

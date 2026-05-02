@@ -29,6 +29,7 @@ var (
 	listRemote     bool
 
 	readRemote bool
+	readDOI    string
 
 	searchLimit  int
 	searchRemote bool
@@ -264,18 +265,52 @@ func hydrateSearchHits(db local.Reader, hits []local.Item) ([]local.Item, error)
 
 func readCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "read",
-		Usage:       "Show full details of a single item",
-		Description: "$ sci zot item read ABC12345\n$ sci zot item read ABC12345 --remote   # bypass local SQLite, hit the Zotero Web API",
-		ArgsUsage:   "<key>",
+		Name:  "read",
+		Usage: "Show full details of a single item by key or DOI",
+		Description: "$ sci zot item read ABC12345\n" +
+			"$ sci zot item read --doi 10.1038/nature12373\n" +
+			"$ sci zot item read ABC12345 --remote   # bypass local SQLite, hit the Zotero Web API",
+		ArgsUsage: "<key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (for items not yet synced)", Destination: &readRemote, Local: true},
+			&cli.StringFlag{Name: "doi", Usage: "look up the item by DOI instead of key (case-insensitive; local-only — try `find works <doi>` for OpenAlex)", Destination: &readDOI, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected an item key")
+			argKey := ""
+			if cmd.Args().Len() > 0 {
+				argKey = cmd.Args().First()
 			}
-			key := cmd.Args().First()
+			switch {
+			case readDOI != "" && argKey != "":
+				return cmdutil.UsageErrorf(cmd, "pass either a key positional or --doi, not both")
+			case readDOI == "" && argKey == "":
+				return cmdutil.UsageErrorf(cmd, "expected an item key or --doi <doi>")
+			}
+
+			// DOI lookup is always local-first: ItemKeysByDOI hits SQLite,
+			// then we either render the local item or, if --remote was
+			// passed, re-fetch the resolved key over the Web API for fresh
+			// data. Resolving DOI → key remotely (search the API by DOI)
+			// would be a different feature; the agent UX win is "I have
+			// the DOI, give me the key + body" without a manual search step.
+			key := argKey
+			if readDOI != "" {
+				_, db, err := openLocalDB(ctx)
+				if err != nil {
+					return err
+				}
+				hits, derr := db.ItemKeysByDOI([]string{readDOI})
+				_ = db.Close()
+				if derr != nil {
+					return derr
+				}
+				resolved, ok := hits[strings.ToLower(readDOI)]
+				if !ok {
+					return fmt.Errorf("no item with DOI %q in library — use `sci zot find works %q` to look it up on OpenAlex", readDOI, readDOI)
+				}
+				key = resolved
+			}
+
 			if readRemote {
 				c, err := requireAPIClient(ctx)
 				if err != nil {
