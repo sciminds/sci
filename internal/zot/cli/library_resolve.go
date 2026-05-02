@@ -122,7 +122,7 @@ func autoOrPromptScope(ctx context.Context, cfg *zot.Config, jsonMode bool) (zot
 	}
 
 	if jsonMode {
-		return zot.LibraryRef{}, fmt.Errorf("--library is required (values: personal, shared) — both libraries are configured; pass --library explicitly in --json mode")
+		return zot.LibraryRef{}, errLibraryRequiredJSON()
 	}
 
 	picked, err := defaultLibraryPrompter([]zot.LibraryScope{zot.LibPersonal, zot.LibShared})
@@ -130,6 +130,26 @@ func autoOrPromptScope(ctx context.Context, cfg *zot.Config, jsonMode bool) (zot
 		return zot.LibraryRef{}, fmt.Errorf("library prompt: %w", err)
 	}
 	return resolveScopeWithProbe(ctx, cfg, picked)
+}
+
+// errLibraryRequiredJSON returns the canonical error for the
+// "--library missing in --json mode with both libraries configured"
+// case. The message teaches placement explicitly because agents (and
+// humans skimming `--help`) often assume `--library` must come right
+// after `zot` — it doesn't; the persistent flag is parsed at any
+// position. Showing two placements (post-`zot` and post-leaf) breaks
+// the false constraint.
+func errLibraryRequiredJSON() error {
+	// Trailing newline is intentional — terminal renderers append a single
+	// "\n" after error messages, so the help block below stays attached.
+	// staticcheck ST1005 flags trailing newlines; suppressed at a function
+	// boundary (multi-line error string) where readability beats the rule.
+	//nolint:staticcheck // ST1005 — multi-line error strings need newlines.
+	return fmt.Errorf("--library is required (values: personal, shared) — both libraries are configured; --json mode is non-interactive so we won't prompt\n" +
+		"  Add --library anywhere in the command. Both forms work:\n" +
+		"    sci zot --library personal <subcommand> [args...]\n" +
+		"    sci zot <subcommand> [args...] --library personal\n" +
+		"  Use 'shared' to target the group library instead")
 }
 
 // resolveScopeWithProbe wraps cfg.ResolveWithProbe with the standard

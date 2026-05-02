@@ -41,8 +41,8 @@ func guideContent() zot.GuideResult {
 				Entries: []zot.GuideEntry{
 					{
 						Goal: "Find papers in my library on a topic",
-						Cmd:  "sci zot search \"large language models\"",
-						Note: "Local title/DOI/publication/creators; add --remote for Zotero Web fulltext (matches abstract + notes + PDFs).",
+						Cmd:  "sci zot search \"large language models\" --library personal",
+						Note: "Local title/DOI/publication/creators; add --remote for Zotero Web fulltext (matches abstract + notes + PDFs). --library can go in any position — `sci zot --library personal search ...` works equivalently.",
 					},
 					{
 						Goal: "Find papers I don't have yet (OpenAlex)",
@@ -132,7 +132,7 @@ func guideContent() zot.GuideResult {
 				},
 			},
 		},
-		Tip: "All commands accept --json for machine-readable output. Pass --library personal|shared on multi-library accounts; otherwise it's auto-selected.",
+		Tip: "All commands accept --json for machine-readable output. On multi-library accounts pass --library personal|shared in any position (`sci zot --library personal item list` and `sci zot item list --library personal` are equivalent). On single-library accounts it's auto-selected.",
 	}
 }
 

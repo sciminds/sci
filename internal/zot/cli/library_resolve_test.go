@@ -125,9 +125,23 @@ func TestEnsureLibraryScope_NoFlag_BothConfigured_JSONMode_Errors(t *testing.T) 
 	if err == nil {
 		t.Fatal("expected error in --json mode with both libraries configured")
 	}
-	msg := strings.ToLower(err.Error())
-	if !strings.Contains(msg, "library") || !strings.Contains(msg, "json") {
+	msg := err.Error()
+
+	// Standard fields.
+	if !strings.Contains(strings.ToLower(msg), "library") || !strings.Contains(strings.ToLower(msg), "json") {
 		t.Errorf("err=%v, want mention of --library and --json", err)
+	}
+	// Placement teaching: both forms of --library should appear so an agent
+	// hitting this error learns the flag is positionally flexible. Without
+	// these the agent's natural mental model is "must go before subcommand"
+	// (the false constraint we're trying to break).
+	wantBefore := "sci zot --library personal <subcommand>"
+	wantAfter := "sci zot <subcommand> [args...] --library personal"
+	if !strings.Contains(msg, wantBefore) {
+		t.Errorf("err missing pre-subcommand example %q:\n%s", wantBefore, msg)
+	}
+	if !strings.Contains(msg, wantAfter) {
+		t.Errorf("err missing post-subcommand example %q:\n%s", wantAfter, msg)
 	}
 }
 
