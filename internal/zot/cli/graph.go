@@ -68,7 +68,7 @@ func graphRefsCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, graph.CmdResult{Result: res, Verbose: graphRefsVerbose})
+			outputScoped(ctx, cmd, graph.CmdResult{Result: res, Verbose: graphRefsVerbose})
 			return nil
 		},
 	}
@@ -107,7 +107,7 @@ func graphCitesCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, graph.CmdResult{Result: res, Verbose: graphCitesVerbose})
+			outputScoped(ctx, cmd, graph.CmdResult{Result: res, Verbose: graphCitesVerbose})
 			return nil
 		},
 	}

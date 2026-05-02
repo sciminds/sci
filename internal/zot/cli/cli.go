@@ -13,6 +13,7 @@ package cli
 import (
 	"context"
 
+	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/urfave/cli/v3"
@@ -42,43 +43,50 @@ func PersistentFlags() []cli.Flag {
 }
 
 // ValidateLibraryBefore is the Before hook that validates the --library
-// value (if supplied) and stashes the resolved scope in the context for
-// every subcommand action.
+// value (if supplied) and pins a *libraryHolder on ctx so leaves can
+// resolve scope via ensureLibraryScope.
 //
 // It deliberately does NOT enforce that --library is present — doing so at
 // this level would shadow help for sub-namespaces (`sci zot item` with no
-// further args would error instead of dumping help). Leaf commands that
-// actually need the scope call openLocalDB / requireAPIClient, which route
-// through localSelectorFor / resolveLibraryRef and error with "library
-// scope not found in context — did you pass --library?" when ctx is empty.
-// That surfaces the same required-ness guarantee exactly where it's needed,
-// and leaves namespace traversal free to show help.
+// further args would error instead of dumping help). Leaves call
+// ensureLibraryScope (via openLocalDB / requireAPIClient) which auto-
+// selects when only one library is configured, prompts when both are and
+// the session is interactive, or errors in --json mode.
 //
 // Commands that don't need --library at all (`setup`, `info` without a
-// flag, `find`, `import`) simply never read LibraryFromContext — `info`
-// branches on presence, the others ignore it.
+// flag, `find`, `import`, `guide`) simply never call ensureLibraryScope.
+// The holder is still installed on ctx — that's harmless and keeps the
+// hook uniform.
 //
 // Unknown subcommands are handled upstream by cmdutil.RejectUnknownSubcommand
 // (wired tree-wide by cmdutil.WireNamespaceDefaults in buildRoot), so they
 // never reach this hook.
 func ValidateLibraryBefore(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	val := cmd.String("library")
-	if val == "" {
-		return ctx, nil
+	holder := &libraryHolder{
+		JSONMode: cmdutil.IsJSON(cmd),
 	}
-	if err := zot.ValidateLibraryScope(val); err != nil {
-		return ctx, err
+	if val != "" {
+		if err := zot.ValidateLibraryScope(val); err != nil {
+			return ctx, err
+		}
+		holder.HasFlag = true
+		holder.Partial = zot.LibraryScope(val)
 	}
-	// Carry just the scope through ctx — full resolution (reading config,
-	// lazy-probing shared) happens inside requireAPIClient/openLocalDB so
-	// tests that don't care about the config can still exercise routing.
-	ref := zot.LibraryRef{Scope: zot.LibraryScope(val)}
-	return context.WithValue(ctx, libraryCtxKey{}, ref), nil
+	ctx = withLibraryHolder(ctx, holder)
+	if val != "" {
+		// Back-compat: the (Scope-only) ref on libraryCtxKey is still
+		// consulted by older callers. New code reads via libraryHolder.
+		ctx = context.WithValue(ctx, libraryCtxKey{}, zot.LibraryRef{Scope: zot.LibraryScope(val)})
+	}
+	return ctx, nil
 }
 
-// LibraryFromContext returns the library ref the Before hook stashed, if any.
-// Only the Scope field is guaranteed populated here — full resolution
-// (APIPath, LocalID, Name) is performed by callers that have a config.
+// LibraryFromContext returns the (partial) library ref the Before hook
+// stashed when --library was set. Returns false if --library was unset.
+// Most leaves now consult ensureLibraryScope via openLocalDB /
+// requireAPIClient instead — those drive the auto-select / prompt / error
+// flow and return a fully-resolved LibraryRef.
 func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 	ref, ok := ctx.Value(libraryCtxKey{}).(zot.LibraryRef)
 	return ref, ok
@@ -89,6 +97,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //
 // Top-level layout:
 //
+//	guide                       agent-friendly cheat sheet of common workflows
 //	setup                       configure API key + library
 //	info                        library summary (alias: stats)
 //	view                        interactive read-only table viewer
@@ -114,6 +123,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 // the right namespace.
 func Commands() []*cli.Command {
 	return []*cli.Command{
+		guideCommand(),
 		setupCommand(),
 		infoCommand(),
 		viewCommand(),

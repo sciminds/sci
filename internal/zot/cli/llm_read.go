@@ -56,7 +56,7 @@ func llmReadCommand() *cli.Command {
 				entries = append(entries, noteEntries...)
 			}
 
-			cmdutil.Output(cmd, zot.LLMReadResult{
+			outputScoped(ctx, cmd, zot.LLMReadResult{
 				Count:   len(entries),
 				Entries: entries,
 			})

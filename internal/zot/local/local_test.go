@@ -437,7 +437,7 @@ func TestRead_FullHydration(t *testing.T) {
 	if it.Creators[0].Last != "Smith" || it.Creators[1].Last != "Jones" {
 		t.Errorf("creator order: %+v", it.Creators)
 	}
-	if len(it.Tags) != 2 {
+	if len(it.Tags) != 3 {
 		t.Errorf("tags = %v", it.Tags)
 	}
 	if len(it.Collections) != 2 {
@@ -539,8 +539,8 @@ func TestStats(t *testing.T) {
 	if s.Collections != 3 {
 		t.Errorf("Collections = %d, want 3", s.Collections)
 	}
-	if s.Tags != 4 {
-		t.Errorf("Tags = %d, want 4", s.Tags)
+	if s.Tags != 5 {
+		t.Errorf("Tags = %d, want 5", s.Tags)
 	}
 }
 
@@ -640,11 +640,11 @@ func TestListTags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tags) != 4 {
+	if len(tags) != 5 {
 		t.Fatalf("len = %d", len(tags))
 	}
 	// Sorted by count desc — all have count 1, so then name asc.
-	// cats (1), deep-learning (1), docling (1), neuroimaging (1).
+	// cats (1), deep-learning (1), docling (1), has-markdown (1), neuroimaging (1).
 	if tags[0].Name != "cats" {
 		t.Errorf("first tag = %q, want cats", tags[0].Name)
 	}

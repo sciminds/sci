@@ -59,8 +59,9 @@ var (
 )
 
 // requireAPIClient builds an API client from the loaded config, short-circuiting
-// if the machine is offline or not configured. The library scope stashed on ctx
-// by ValidateLibraryBefore routes the client to personal or shared endpoints.
+// if the machine is offline or not configured. The library scope is resolved
+// via ensureLibraryScope (auto-select / prompt / error per the holder set up
+// by ValidateLibraryBefore).
 func requireAPIClient(ctx context.Context) (*api.Client, error) {
 	cfg, err := zot.RequireConfig()
 	if err != nil {
@@ -69,37 +70,11 @@ func requireAPIClient(ctx context.Context) (*api.Client, error) {
 	if !netutil.Online() {
 		return nil, fmt.Errorf("no internet connection — zot writes require network access")
 	}
-	ref, err := resolveLibraryRef(ctx, cfg)
+	ref, err := ensureLibraryScope(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	return api.New(cfg, api.WithLibrary(ref))
-}
-
-// resolveLibraryRef upgrades the scope ctx carries (from ValidateLibraryBefore)
-// into a full zot.LibraryRef by reading config. Shared-scope resolution uses
-// ResolveWithProbe so a first-time --library shared command lazily auto-detects
-// the group via the Web API and caches the result. Errors if the ctx was not
-// seeded — the Before hook deliberately doesn't enforce --library so
-// namespace-help still works; required-ness lands here at the leaf.
-func resolveLibraryRef(ctx context.Context, cfg *zot.Config) (zot.LibraryRef, error) {
-	partial, ok := LibraryFromContext(ctx)
-	if !ok {
-		return zot.LibraryRef{}, fmt.Errorf("--library is required (values: personal, shared)")
-	}
-	probe := func() ([]zot.GroupRef, error) {
-		// Build a throwaway client bound to the personal library just to
-		// call ListGroups. Only invoked when shared-scope config is blank.
-		tmp, err := api.New(cfg, api.WithLibrary(zot.LibraryRef{
-			Scope:   zot.LibPersonal,
-			APIPath: "users/" + cfg.UserID,
-		}))
-		if err != nil {
-			return nil, err
-		}
-		return tmp.ListGroups(ctx)
-	}
-	return cfg.ResolveWithProbe(partial.Scope, probe)
 }
 
 func strPtr(s string) *string {
@@ -149,7 +124,7 @@ func runAdd(ctx context.Context, cmd *cli.Command) error {
 	}
 	hydrated := api.ItemFromClient(it)
 	citekey.Enrich(&hydrated)
-	cmdutil.Output(cmd, zot.WriteResult{
+	outputScoped(ctx, cmd, zot.WriteResult{
 		Action: "created",
 		Kind:   "item",
 		Target: it.Key,
@@ -308,7 +283,7 @@ func updateCommand() *cli.Command {
 				if err := c.UpdateItem(ctx, keys[0], patch); err != nil {
 					return err
 				}
-				cmdutil.Output(cmd, zot.WriteResult{Action: "updated", Kind: "item", Target: keys[0]})
+				outputScoped(ctx, cmd, zot.WriteResult{Action: "updated", Kind: "item", Target: keys[0]})
 				return nil
 			}
 
@@ -328,7 +303,7 @@ func updateCommand() *cli.Command {
 					success = append(success, k)
 				}
 			}
-			cmdutil.Output(cmd, zot.BulkWriteResult{
+			outputScoped(ctx, cmd, zot.BulkWriteResult{
 				Action:  "updated",
 				Kind:    "item",
 				Total:   len(keys),
@@ -365,7 +340,7 @@ func deleteCommand() *cli.Command {
 			if err := c.TrashItem(ctx, key); err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.WriteResult{
+			outputScoped(ctx, cmd, zot.WriteResult{
 				Action: "trashed",
 				Kind:   "item",
 				Target: key,
@@ -402,7 +377,7 @@ func collectionCommand() *cli.Command {
 						colls := lo.Map(raw, func(c client.Collection, _ int) local.Collection {
 							return api.CollectionFromClient(&c)
 						})
-						cmdutil.Output(cmd, zot.CollectionListResult{Count: len(colls), Collections: colls})
+						outputScoped(ctx, cmd, zot.CollectionListResult{Count: len(colls), Collections: colls})
 						return nil
 					}
 					_, db, err := openLocalDB(ctx)
@@ -414,7 +389,7 @@ func collectionCommand() *cli.Command {
 					if err != nil {
 						return err
 					}
-					cmdutil.Output(cmd, zot.CollectionListResult{Count: len(colls), Collections: colls})
+					outputScoped(ctx, cmd, zot.CollectionListResult{Count: len(colls), Collections: colls})
 					return nil
 				},
 			},
@@ -439,7 +414,7 @@ func collectionCommand() *cli.Command {
 					if err != nil {
 						return err
 					}
-					cmdutil.Output(cmd, zot.WriteResult{
+					outputScoped(ctx, cmd, zot.WriteResult{
 						Action:  "created",
 						Kind:    "collection",
 						Target:  coll.Key,
@@ -472,7 +447,7 @@ func collectionCommand() *cli.Command {
 					if err := c.DeleteCollection(ctx, key); err != nil {
 						return err
 					}
-					cmdutil.Output(cmd, zot.WriteResult{Action: "deleted", Kind: "collection", Target: key})
+					outputScoped(ctx, cmd, zot.WriteResult{Action: "deleted", Kind: "collection", Target: key})
 					return nil
 				},
 			},
@@ -510,7 +485,7 @@ func collectionCommand() *cli.Command {
 					if err := c.RemoveItemFromCollection(ctx, args[0], args[1]); err != nil {
 						return err
 					}
-					cmdutil.Output(cmd, zot.WriteResult{
+					outputScoped(ctx, cmd, zot.WriteResult{
 						Action: "removed", Kind: "item", Target: args[0],
 						Message: fmt.Sprintf("removed item %s from collection %s", args[0], args[1]),
 					})
@@ -543,7 +518,7 @@ func tagsCommand() *cli.Command {
 					if err != nil {
 						return err
 					}
-					cmdutil.Output(cmd, zot.TagListResult{Count: len(tags), Tags: tags})
+					outputScoped(ctx, cmd, zot.TagListResult{Count: len(tags), Tags: tags})
 					return nil
 				},
 			},
@@ -564,7 +539,7 @@ func tagsCommand() *cli.Command {
 					if err := c.AddTagToItem(ctx, args[0], args[1]); err != nil {
 						return err
 					}
-					cmdutil.Output(cmd, zot.WriteResult{
+					outputScoped(ctx, cmd, zot.WriteResult{
 						Action: "added", Kind: "tag", Target: args[1],
 						Message: fmt.Sprintf("added tag %q to item %s", args[1], args[0]),
 					})
@@ -595,7 +570,7 @@ func tagsCommand() *cli.Command {
 					if err := c.RemoveTagFromItem(ctx, args[0], args[1]); err != nil {
 						return err
 					}
-					cmdutil.Output(cmd, zot.WriteResult{
+					outputScoped(ctx, cmd, zot.WriteResult{
 						Action: "removed", Kind: "tag", Target: args[1],
 						Message: fmt.Sprintf("removed tag %q from item %s", args[1], args[0]),
 					})
@@ -626,7 +601,7 @@ func tagsCommand() *cli.Command {
 					if err := c.DeleteTagsFromLibrary(ctx, []string{tag}); err != nil {
 						return err
 					}
-					cmdutil.Output(cmd, zot.WriteResult{
+					outputScoped(ctx, cmd, zot.WriteResult{
 						Action: "deleted", Kind: "tag", Target: tag,
 						Message: fmt.Sprintf("deleted tag %q from library", tag),
 					})
@@ -661,7 +636,7 @@ func runCollectionAdd(ctx context.Context, cmd *cli.Command) error {
 		if err := c.AddItemToCollection(ctx, keys[0], collKey); err != nil {
 			return err
 		}
-		cmdutil.Output(cmd, zot.WriteResult{
+		outputScoped(ctx, cmd, zot.WriteResult{
 			Action: "added", Kind: "item", Target: keys[0],
 			Message: fmt.Sprintf("added item %s to collection %s", keys[0], collKey),
 		})
@@ -720,7 +695,7 @@ func runCollectionAdd(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	cmdutil.Output(cmd, result)
+	outputScoped(ctx, cmd, result)
 	return nil
 }
 

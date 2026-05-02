@@ -194,7 +194,7 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 		attachable := lo.CountBy(out.Findings, func(f pdffind.Finding) bool { return f.DownloadedPath != "" })
 		if attachable == 0 {
 			// Render what we have; there's simply nothing to upload.
-			cmdutil.Output(cmd, out)
+			outputScoped(ctx, cmd, out)
 			return nil
 		}
 		prompt := fmt.Sprintf("Upload %d PDF(s) as Zotero child attachments?", attachable)
@@ -213,7 +213,7 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 		out.Attached = true
 	}
 
-	cmdutil.Output(cmd, out)
+	outputScoped(ctx, cmd, out)
 	return nil
 }
 

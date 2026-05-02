@@ -35,8 +35,8 @@ func TestScanFieldPresence(t *testing.T) {
 	if a.CreatorCount != 2 {
 		t.Errorf("AAAA1111 creator_count = %d, want 2", a.CreatorCount)
 	}
-	if a.TagCount != 2 {
-		t.Errorf("AAAA1111 tag_count = %d, want 2", a.TagCount)
+	if a.TagCount != 3 {
+		t.Errorf("AAAA1111 tag_count = %d, want 3 (deep-learning, has-markdown, neuroimaging)", a.TagCount)
 	}
 	if a.PDFCount != 1 {
 		t.Errorf("AAAA1111 pdf_count = %d, want 1", a.PDFCount)

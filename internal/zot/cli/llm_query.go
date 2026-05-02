@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
@@ -188,7 +187,7 @@ func llmQueryAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if len(candidates) == 0 {
-		cmdutil.Output(cmd, zot.LLMQueryResult{MqQuery: strings.Join(mqArgs, " ")})
+		outputScoped(ctx, cmd, zot.LLMQueryResult{MqQuery: strings.Join(mqArgs, " ")})
 		return nil
 	}
 
@@ -201,7 +200,7 @@ func llmQueryAction(ctx context.Context, cmd *cli.Command) error {
 				Output: noteBodyForMQ(nc.Body),
 			}
 		})
-		cmdutil.Output(cmd, zot.LLMQueryResult{
+		outputScoped(ctx, cmd, zot.LLMQueryResult{
 			Matched: len(entries),
 			Results: entries,
 		})
@@ -255,7 +254,7 @@ func llmQueryAction(ctx context.Context, cmd *cli.Command) error {
 		})
 	}
 
-	cmdutil.Output(cmd, zot.LLMQueryResult{
+	outputScoped(ctx, cmd, zot.LLMQueryResult{
 		MqQuery: strings.Join(mqArgs, " "),
 		Matched: len(results),
 		Skipped: skipped,

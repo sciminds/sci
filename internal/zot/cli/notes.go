@@ -71,14 +71,14 @@ func notesListCommand() *cli.Command {
 			defer func() { _ = db.Close() }()
 
 			if cmd.Args().Len() > 0 {
-				return notesListForParent(cmd, db, cmd.Args().First())
+				return notesListForParent(ctx, cmd, db, cmd.Args().First())
 			}
-			return notesListAll(cmd, db)
+			return notesListAll(ctx, cmd, db)
 		},
 	}
 }
 
-func notesListForParent(cmd *cli.Command, db local.Reader, parentKey string) error {
+func notesListForParent(ctx context.Context, cmd *cli.Command, db local.Reader, parentKey string) error {
 	notes, err := db.ListDoclingNotes(parentKey)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func notesListForParent(cmd *cli.Command, db local.Reader, parentKey string) err
 			Tags:      ch.Tags,
 		}
 	})
-	cmdutil.Output(cmd, zot.NotesListResult{
+	outputScoped(ctx, cmd, zot.NotesListResult{
 		ParentKey: parentKey,
 		Count:     len(summaries),
 		Notes:     summaries,
@@ -99,12 +99,12 @@ func notesListForParent(cmd *cli.Command, db local.Reader, parentKey string) err
 	return nil
 }
 
-func notesListAll(cmd *cli.Command, db local.Reader) error {
+func notesListAll(ctx context.Context, cmd *cli.Command, db local.Reader) error {
 	notes, err := db.ListAllDoclingNotes()
 	if err != nil {
 		return err
 	}
-	cmdutil.Output(cmd, zot.NotesListResult{
+	outputScoped(ctx, cmd, zot.NotesListResult{
 		Count: len(notes),
 		Notes: notes,
 	})
@@ -132,7 +132,7 @@ func notesReadCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.NoteReadResult{Note: *nd})
+			outputScoped(ctx, cmd, zot.NoteReadResult{Note: *nd})
 			return nil
 		},
 	}
@@ -200,7 +200,7 @@ func notesAddAction(ctx context.Context, cmd *cli.Command) error {
 	}, hasExisting[parentKey])
 
 	if plan.Action == extract.ActionSkip {
-		cmdutil.Output(cmd, zot.NoteAddResult{
+		outputScoped(ctx, cmd, zot.NoteAddResult{
 			ParentKey: parentKey,
 			PDFName:   att.Title,
 			Action:    zot.ActionLabel(plan.Action),
@@ -270,7 +270,7 @@ func notesAddAction(ctx context.Context, cmd *cli.Command) error {
 		out.ToolVersion = result.Extraction.ToolVersion
 		out.Duration = result.Extraction.Duration
 	}
-	cmdutil.Output(cmd, out)
+	outputScoped(ctx, cmd, out)
 	return nil
 }
 
@@ -400,7 +400,7 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 		out.ToolVersion = result.Extraction.ToolVersion
 		out.Duration = result.Extraction.Duration
 	}
-	cmdutil.Output(cmd, out)
+	outputScoped(ctx, cmd, out)
 	return nil
 }
 
@@ -448,7 +448,7 @@ func notesDeleteSingleAction(ctx context.Context, cmd *cli.Command, parentKey st
 	}
 
 	if len(noteKeys) == 0 {
-		cmdutil.Output(cmd, zot.NoteDeleteResult{ParentKey: parentKey})
+		outputScoped(ctx, cmd, zot.NoteDeleteResult{ParentKey: parentKey})
 		return nil
 	}
 
@@ -492,7 +492,7 @@ func notesDeleteSingleAction(ctx context.Context, cmd *cli.Command, parentKey st
 		}
 	}
 
-	cmdutil.Output(cmd, result)
+	outputScoped(ctx, cmd, result)
 	return nil
 }
 
@@ -509,7 +509,7 @@ func notesDeleteAllAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if len(notes) == 0 {
-		cmdutil.Output(cmd, zot.NoteDeleteResult{})
+		outputScoped(ctx, cmd, zot.NoteDeleteResult{})
 		return nil
 	}
 
@@ -566,6 +566,6 @@ func notesDeleteAllAction(ctx context.Context, cmd *cli.Command) error {
 		result.UntaggedParents = append(result.UntaggedParents, parent)
 	}
 
-	cmdutil.Output(cmd, result)
+	outputScoped(ctx, cmd, result)
 	return nil
 }

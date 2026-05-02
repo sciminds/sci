@@ -75,7 +75,7 @@ func attachFileToParent(ctx context.Context, cmd *cli.Command, parentKey, path s
 		return fmt.Errorf("attachment %s created but upload failed: %w", it.Key, err)
 	}
 
-	cmdutil.Output(cmd, zot.WriteResult{
+	outputScoped(ctx, cmd, zot.WriteResult{
 		Action:  "added",
 		Kind:    "item",
 		Target:  it.Key,

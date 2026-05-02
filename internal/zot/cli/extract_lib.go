@@ -240,7 +240,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 
 	// Check if there's anything to do.
 	if nCreate == 0 && nErr == 0 {
-		cmdutil.Output(cmd, zot.ExtractLibResult{
+		outputScoped(ctx, cmd, zot.ExtractLibResult{
 			Total:          len(items),
 			Skipped:        nSkip,
 			BackfilledTags: backfillTagged,
@@ -363,7 +363,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 	}
-	cmdutil.Output(cmd, result)
+	outputScoped(ctx, cmd, result)
 	return nil
 }
 

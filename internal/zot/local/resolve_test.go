@@ -108,9 +108,10 @@ func TestResolvePDFAttachment_TrashedParent(t *testing.T) {
 // tag on the parent itself (not on the child).
 //
 // AAAA1111 has docling note NOTECH10 + parent tags neuroimaging,
-// deep-learning. So:
-//   - MissingTag("has-markdown") includes AAAA1111 (lacks the tag).
-//   - MissingTag("neuroimaging") excludes AAAA1111 (already tagged).
+// deep-learning, has-markdown (auto-applied by extract). So:
+//   - MissingTag("has-markdown") returns [] (parent already carries it).
+//   - MissingTag("ToM") includes AAAA1111 (lacks an arbitrary tag).
+//   - MissingTag("neuroimaging") excludes AAAA1111.
 func TestParentsWithDoclingNotesMissingTag(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
@@ -119,8 +120,16 @@ func TestParentsWithDoclingNotesMissingTag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(missing) != 0 {
+		t.Errorf("MissingTag(has-markdown) = %v, want [] (extract auto-applies the tag)", missing)
+	}
+
+	missing, err = db.ParentsWithDoclingNotesMissingTag("ToM")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(missing) != 1 || missing[0] != "AAAA1111" {
-		t.Errorf("MissingTag(has-markdown) = %v, want [AAAA1111]", missing)
+		t.Errorf("MissingTag(ToM) = %v, want [AAAA1111]", missing)
 	}
 
 	excluded, err := db.ParentsWithDoclingNotesMissingTag("neuroimaging")

@@ -91,7 +91,7 @@ for that.`,
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, res)
+			outputScoped(ctx, cmd, res)
 			return nil
 		},
 	}

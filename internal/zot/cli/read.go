@@ -38,16 +38,20 @@ var (
 	exportOut    string
 )
 
-// openLocalDB loads config, opens the local zotero.sqlite scoped to the
-// library ctx carries (see ValidateLibraryBefore), and warns if the schema
-// version is outside the tested range. Errors if the ctx has no library
-// set — callers must go through ValidateLibraryBefore.
+// openLocalDB loads config, ensures the library scope is resolved (auto-
+// selecting / prompting / erroring per ensureLibraryScope), opens the local
+// zotero.sqlite scoped accordingly, and warns if the schema version is
+// outside the tested range.
 func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
 	cfg, err := zot.RequireConfig()
 	if err != nil {
 		return nil, nil, err
 	}
-	sel, err := localSelectorFor(ctx, cfg)
+	ref, err := ensureLibraryScope(ctx, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	sel, err := localSelectorFor(cfg, ref)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,16 +66,10 @@ func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
 	return cfg, db, nil
 }
 
-// localSelectorFor picks a local.LibrarySelector based on the scope stashed
-// in ctx by ValidateLibraryBefore. Shared scope resolves the group's SQLite
-// libraryID via the groups table (see local.ForGroupByAPIID). Errors if ctx
-// has no ref — the Before hook deliberately doesn't enforce --library so
-// namespace-help still works; required-ness lands here at the leaf.
-func localSelectorFor(ctx context.Context, cfg *zot.Config) (local.LibrarySelector, error) {
-	ref, ok := LibraryFromContext(ctx)
-	if !ok {
-		return local.LibrarySelector{}, fmt.Errorf("--library is required (values: personal, shared)")
-	}
+// localSelectorFor picks a local.LibrarySelector for the resolved ref.
+// Shared scope resolves the group's SQLite libraryID via the groups table
+// (see local.ForGroupByAPIID).
+func localSelectorFor(cfg *zot.Config, ref zot.LibraryRef) (local.LibrarySelector, error) {
 	switch ref.Scope {
 	case zot.LibPersonal:
 		return local.ForPersonal(), nil
@@ -160,7 +158,7 @@ func searchCommand() *cli.Command {
 					briefs := lo.Map(items, func(it local.Item, _ int) zot.ItemBrief {
 						return zot.ToBrief(&it)
 					})
-					cmdutil.Output(cmd, zot.ListBriefResult{
+					outputScoped(ctx, cmd, zot.ListBriefResult{
 						Query: query,
 						Count: len(briefs),
 						Items: briefs,
@@ -168,7 +166,7 @@ func searchCommand() *cli.Command {
 					})
 					return nil
 				}
-				cmdutil.Output(cmd, zot.ListResult{
+				outputScoped(ctx, cmd, zot.ListResult{
 					Query: query,
 					Count: len(items),
 					Items: items,
@@ -207,7 +205,7 @@ func searchCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				cmdutil.Output(cmd, res)
+				outputScoped(ctx, cmd, res)
 				return nil
 			}
 			if searchFull {
@@ -228,7 +226,7 @@ func searchCommand() *cli.Command {
 					bres.Scope = "title, DOI, publication, creators (local)"
 					bres.Hint = "try --remote to also match abstract, fulltext, and notes"
 				}
-				cmdutil.Output(cmd, bres)
+				outputScoped(ctx, cmd, bres)
 				return nil
 			}
 			res := zot.ListResult{
@@ -241,7 +239,7 @@ func searchCommand() *cli.Command {
 				res.Scope = "title, DOI, publication, creators (local)"
 				res.Hint = "try --remote to also match abstract, fulltext, and notes"
 			}
-			cmdutil.Output(cmd, res)
+			outputScoped(ctx, cmd, res)
 			return nil
 		},
 	}
@@ -289,7 +287,7 @@ func readCommand() *cli.Command {
 				}
 				it := api.ItemFromClient(raw)
 				citekey.Enrich(&it)
-				cmdutil.Output(cmd, zot.ItemResult{Item: it})
+				outputScoped(ctx, cmd, zot.ItemResult{Item: it})
 				return nil
 			}
 			_, db, err := openLocalDB(ctx)
@@ -303,7 +301,7 @@ func readCommand() *cli.Command {
 				return fmt.Errorf("%w (pass --remote to bypass local sqlite if the item was just created)", err)
 			}
 			citekey.Enrich(it)
-			cmdutil.Output(cmd, zot.ItemResult{Item: *it})
+			outputScoped(ctx, cmd, zot.ItemResult{Item: *it})
 			return nil
 		},
 	}
@@ -346,7 +344,7 @@ func listCommand() *cli.Command {
 					citekey.Enrich(&out)
 					return out
 				})
-				cmdutil.Output(cmd, zot.ListResult{
+				outputScoped(ctx, cmd, zot.ListResult{
 					Count: len(items),
 					Items: items,
 				})
@@ -396,19 +394,25 @@ func listCommand() *cli.Command {
 					result.Hint = "collection " + listCollection + " not found locally; pass --remote to fetch from the Zotero Web API (items just created may not be synced yet)"
 				}
 			}
-			cmdutil.Output(cmd, result)
+			outputScoped(ctx, cmd, result)
 			return nil
 		},
 	}
 }
 
+var infoOrient bool
+
 func infoCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "info",
 		Usage: "Show library summary statistics",
-		Description: "$ sci zot info                     # summarize both libraries\n" +
-			"$ sci zot info --library personal  # narrow to personal\n" +
-			"$ sci zot info --library shared    # narrow to shared",
+		Description: "$ sci zot info                       # summarize both libraries\n" +
+			"$ sci zot info --library personal    # narrow to personal\n" +
+			"$ sci zot info --library shared      # narrow to shared\n" +
+			"$ sci zot info --orient              # add agent-bootstrap signals (top tags/collections, recent items, has-markdown coverage)",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "orient", Usage: "include top tags + top collections + recent items + has-markdown extraction coverage", Destination: &infoOrient, Local: true},
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfg, err := zot.RequireConfig()
 			if err != nil {
@@ -420,7 +424,7 @@ func infoCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				cmdutil.Output(cmd, entry)
+				outputScoped(ctx, cmd, entry)
 				return nil
 			}
 			// No flag → summarize every library the account has access to.
@@ -430,9 +434,23 @@ func infoCommand() *cli.Command {
 }
 
 // statsForScope opens the local DB scoped to ctx's library ref and returns
-// a single StatsResult labeled with the scope.
+// a single StatsResult labeled with the scope. Used by `info --library …`
+// (single scope) and runInfoAllLibraries (loops once per library).
 func statsForScope(ctx context.Context, cfg *zot.Config) (zot.StatsResult, error) {
-	sel, err := localSelectorFor(ctx, cfg)
+	ref, err := ensureLibraryScope(ctx, cfg)
+	if err != nil {
+		return zot.StatsResult{}, err
+	}
+	return statsForRef(cfg, ref)
+}
+
+// statsForRef opens the local DB for an explicit ref. Lets the multi-library
+// path (runInfoAllLibraries) iterate without re-priming a holder per call.
+// Reads the package-level infoOrient flag to decide whether to populate
+// the agent-bootstrap signals — keeps the call sites uniform across the
+// flag-set / multi-library / orient combinations.
+func statsForRef(cfg *zot.Config, ref zot.LibraryRef) (zot.StatsResult, error) {
+	sel, err := localSelectorFor(cfg, ref)
 	if err != nil {
 		return zot.StatsResult{}, err
 	}
@@ -445,7 +463,6 @@ func statsForScope(ctx context.Context, cfg *zot.Config) (zot.StatsResult, error
 	if err != nil {
 		return zot.StatsResult{}, err
 	}
-	ref, _ := LibraryFromContext(ctx)
 	label := "personal"
 	scope := "personal"
 	apiID := cfg.UserID
@@ -457,14 +474,50 @@ func statsForScope(ctx context.Context, cfg *zot.Config) (zot.StatsResult, error
 			label = "shared (" + cfg.SharedGroupName + ")"
 		}
 	}
-	return zot.StatsResult{
+	out := zot.StatsResult{
 		Library:      label,
 		Scope:        scope,
 		LibraryAPIID: apiID,
 		Stats:        *s,
 		DataDir:      cfg.DataDir,
 		Schema:       db.SchemaVersion(),
-	}, nil
+	}
+	if infoOrient {
+		if err := populateOrient(db, &out); err != nil {
+			return zot.StatsResult{}, err
+		}
+	}
+	return out, nil
+}
+
+// populateOrient fills the agent-bootstrap fields. Defaults: top 10 tags,
+// top 10 collections, last 5 items added. Counts large enough to be
+// useful as a snapshot; small enough to stay in a few hundred tokens.
+func populateOrient(db local.Reader, out *zot.StatsResult) error {
+	cov, err := db.ExtractionCoverage()
+	if err != nil {
+		return err
+	}
+	out.ExtractionCoverage = cov
+
+	tags, err := db.TopTags(10)
+	if err != nil {
+		return err
+	}
+	out.TopTags = tags
+
+	colls, err := db.TopCollections(10)
+	if err != nil {
+		return err
+	}
+	out.TopCollections = colls
+
+	recent, err := db.RecentlyAdded(5)
+	if err != nil {
+		return err
+	}
+	out.RecentAdded = recent
+	return nil
 }
 
 // runInfoAllLibraries gathers stats for every library the account has
@@ -473,23 +526,25 @@ func statsForScope(ctx context.Context, cfg *zot.Config) (zot.StatsResult, error
 func runInfoAllLibraries(ctx context.Context, cmd *cli.Command, cfg *zot.Config) error {
 	out := zot.MultiStatsResult{}
 
-	personalCtx := context.WithValue(ctx, libraryCtxKey{}, zot.LibraryRef{Scope: zot.LibPersonal})
-	if entry, err := statsForScope(personalCtx, cfg); err != nil {
+	if ref, err := cfg.Resolve(zot.LibPersonal); err != nil {
+		out.Errors = append(out.Errors, "personal: "+err.Error())
+	} else if entry, err := statsForRef(cfg, ref); err != nil {
 		out.Errors = append(out.Errors, "personal: "+err.Error())
 	} else {
 		out.PerLibrary = append(out.PerLibrary, entry)
 	}
 
 	if cfg.SharedGroupID != "" {
-		sharedCtx := context.WithValue(ctx, libraryCtxKey{}, zot.LibraryRef{Scope: zot.LibShared})
-		if entry, err := statsForScope(sharedCtx, cfg); err != nil {
+		if ref, err := cfg.Resolve(zot.LibShared); err != nil {
+			out.Errors = append(out.Errors, "shared: "+err.Error())
+		} else if entry, err := statsForRef(cfg, ref); err != nil {
 			out.Errors = append(out.Errors, "shared: "+err.Error())
 		} else {
 			out.PerLibrary = append(out.PerLibrary, entry)
 		}
 	}
 
-	cmdutil.Output(cmd, out)
+	outputScoped(ctx, cmd, out)
 	return nil
 }
 
@@ -528,7 +583,7 @@ func exportCommand() *cli.Command {
 				}
 				body = fmt.Sprintf("wrote %s to %s", exportFormat, exportOut)
 			}
-			cmdutil.Output(cmd, zot.ExportResult{Key: key, Format: exportFormat, Body: body})
+			outputScoped(ctx, cmd, zot.ExportResult{Key: key, Format: exportFormat, Body: body})
 			return nil
 		},
 	}
@@ -562,7 +617,7 @@ func childrenCommand() *cli.Command {
 			views := lo.Map(children, func(ch local.ChildItem, _ int) zot.ChildItemView {
 				return toChildItemView(ch)
 			})
-			cmdutil.Output(cmd, zot.ChildrenListResult{
+			outputScoped(ctx, cmd, zot.ChildrenListResult{
 				ParentKey: parentKey,
 				Count:     len(views),
 				Children:  views,
@@ -617,10 +672,10 @@ func openCommand() *cli.Command {
 				return fmt.Errorf("attachment file missing: %s", path)
 			}
 			if err := zot.LaunchFile(path); err != nil {
-				cmdutil.Output(cmd, zot.OpenResult{Key: key, Path: path, Launched: false, Message: err.Error()})
+				outputScoped(ctx, cmd, zot.OpenResult{Key: key, Path: path, Launched: false, Message: err.Error()})
 				return err
 			}
-			cmdutil.Output(cmd, zot.OpenResult{Key: key, Path: path, Launched: true, Message: "opened " + att.Filename})
+			outputScoped(ctx, cmd, zot.OpenResult{Key: key, Path: path, Launched: true, Message: "opened " + att.Filename})
 			return nil
 		},
 	}

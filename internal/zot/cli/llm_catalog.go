@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
@@ -34,7 +33,7 @@ func llmCatalogCommand() *cli.Command {
 			}
 
 			if len(notes) == 0 {
-				cmdutil.Output(cmd, zot.LLMCatalogResult{})
+				outputScoped(ctx, cmd, zot.LLMCatalogResult{})
 				return nil
 			}
 
@@ -76,7 +75,7 @@ func llmCatalogCommand() *cli.Command {
 				return entry
 			})
 
-			cmdutil.Output(cmd, zot.LLMCatalogResult{
+			outputScoped(ctx, cmd, zot.LLMCatalogResult{
 				Count:   len(entries),
 				Entries: entries,
 			})

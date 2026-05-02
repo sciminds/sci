@@ -34,6 +34,12 @@ type Reader interface {
 	CollectionByKey(key string) (*Collection, error)
 	ListTags() ([]Tag, error)
 
+	// Orient (agent bootstrap signals; see orient.go)
+	TopTags(n int) ([]TagCount, error)
+	TopCollections(n int) ([]CollectionRef, error)
+	RecentlyAdded(n int) ([]RecentItem, error)
+	ExtractionCoverage() (*ExtractionCoverage, error)
+
 	// Children
 	ListChildren(parentKey string) ([]ChildItem, error)
 

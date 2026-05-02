@@ -143,7 +143,7 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 
 	// Dry-run: print the plan and stop.
 	if !extractApply {
-		cmdutil.Output(cmd, zot.ExtractPlanResult{
+		outputScoped(ctx, cmd, zot.ExtractPlanResult{
 			ParentKey: plan.Request.ParentKey,
 			PDFKey:    plan.Request.PDFKey,
 			PDFName:   plan.Request.PDFName,
@@ -224,7 +224,7 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		apply.Images = result.Extraction.ImagePaths
 		apply.Tables = result.Extraction.TablePaths
 	}
-	cmdutil.Output(cmd, apply)
+	outputScoped(ctx, cmd, apply)
 	return nil
 }
 
@@ -239,7 +239,7 @@ func runExtractOnly(
 	opts extract.ExtractOptions,
 ) error {
 	if !extractApply {
-		cmdutil.Output(cmd, zot.ExtractPlanResult{
+		outputScoped(ctx, cmd, zot.ExtractPlanResult{
 			ParentKey: parentKey,
 			PDFKey:    att.Key,
 			PDFName:   att.Title,
@@ -266,7 +266,7 @@ func runExtractOnly(
 	if err != nil {
 		return err
 	}
-	cmdutil.Output(cmd, zot.ExtractArtifactResult{
+	outputScoped(ctx, cmd, zot.ExtractArtifactResult{
 		ParentKey:   parentKey,
 		PDFKey:      att.Key,
 		PDFName:     att.Title,

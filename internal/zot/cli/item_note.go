@@ -125,7 +125,7 @@ func runItemNoteAdd(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	cmdutil.Output(cmd, zot.WriteResult{
+	outputScoped(ctx, cmd, zot.WriteResult{
 		Action: "created",
 		Kind:   "item",
 		Target: it.Key,
@@ -242,7 +242,7 @@ func runItemNoteRead(ctx context.Context, cmd *cli.Command) error {
 	if err := assertNoteType(string(it.Data.ItemType)); err != nil {
 		return err
 	}
-	cmdutil.Output(cmd, noteReadResultFromItem(it, noteReadHTML))
+	outputScoped(ctx, cmd, noteReadResultFromItem(it, noteReadHTML))
 	return nil
 }
 
@@ -333,7 +333,7 @@ func runItemNoteUpdate(ctx context.Context, cmd *cli.Command) error {
 	if err := c.UpdateItem(ctx, key, buildNoteUpdatePatch(html)); err != nil {
 		return err
 	}
-	cmdutil.Output(cmd, zot.WriteResult{
+	outputScoped(ctx, cmd, zot.WriteResult{
 		Action: "updated",
 		Kind:   "item",
 		Target: key,
@@ -384,7 +384,7 @@ func runItemNoteList(ctx context.Context, cmd *cli.Command) error {
 	entries := lo.Map(children, func(n api.NoteChild, _ int) zot.NoteItemListEntry {
 		return zot.NoteItemListEntry{Key: n.Key, Body: n.Body, Tags: n.Tags}
 	})
-	cmdutil.Output(cmd, zot.NoteItemListResult{
+	outputScoped(ctx, cmd, zot.NoteItemListResult{
 		ParentKey: parent,
 		Count:     len(entries),
 		Notes:     entries,

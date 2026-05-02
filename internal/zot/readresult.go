@@ -329,6 +329,14 @@ type StatsResult struct {
 	Stats        local.Stats `json:"stats"`
 	DataDir      string      `json:"data_dir"`
 	Schema       int         `json:"schema_version"`
+
+	// Orient fields — populated only when `info --orient` is set. Kept
+	// optional via omitempty so the default `info` shape stays unchanged.
+	// Source: internal/zot/local/orient.go.
+	ExtractionCoverage *local.ExtractionCoverage `json:"extraction_coverage,omitempty"`
+	TopTags            []local.TagCount          `json:"top_tags,omitempty"`
+	TopCollections     []local.CollectionRef     `json:"top_collections,omitempty"`
+	RecentAdded        []local.RecentItem        `json:"recent_added,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -372,7 +380,57 @@ func (r StatsResult) Human() string {
 		}
 		b.WriteString("\n")
 	}
+	r.writeOrientBlock(&b)
 	return b.String()
+}
+
+// writeOrientBlock renders the optional orient fields when present. Each
+// section is independent — partial population (e.g. only TopTags set)
+// still renders cleanly. Skipped entirely when no orient field is set.
+func (r StatsResult) writeOrientBlock(b *strings.Builder) {
+	if r.ExtractionCoverage == nil && len(r.TopTags) == 0 && len(r.TopCollections) == 0 && len(r.RecentAdded) == 0 {
+		return
+	}
+
+	if r.ExtractionCoverage != nil {
+		cov := r.ExtractionCoverage
+		fmt.Fprintf(b, "  %s\n", uikit.TUI.Dim().Render("full-text extractions (has-markdown):"))
+		fmt.Fprintf(b, "    %d / %d items (%.1f%%) — query via `sci zot llm read|query`\n\n",
+			cov.WithExtraction, cov.TotalItems, cov.Percent)
+	}
+
+	if len(r.TopTags) > 0 {
+		fmt.Fprintf(b, "  %s\n", uikit.TUI.Dim().Render("top tags:"))
+		for _, t := range r.TopTags {
+			fmt.Fprintf(b, "    %-24s %d\n", t.Name, t.Count)
+		}
+		b.WriteString("\n")
+	}
+
+	if len(r.TopCollections) > 0 {
+		fmt.Fprintf(b, "  %s\n", uikit.TUI.Dim().Render("top collections:"))
+		for _, c := range r.TopCollections {
+			fmt.Fprintf(b, "    %s  %-30s %d\n",
+				uikit.TUI.TextBlue().Render(c.Key),
+				c.Name, c.Count)
+		}
+		b.WriteString("\n")
+	}
+
+	if len(r.RecentAdded) > 0 {
+		fmt.Fprintf(b, "  %s\n", uikit.TUI.Dim().Render("recently added:"))
+		for _, ri := range r.RecentAdded {
+			year := ""
+			if ri.Year > 0 {
+				year = fmt.Sprintf(" (%d)", ri.Year)
+			}
+			fmt.Fprintf(b, "    %s  %s%s  %s\n",
+				uikit.TUI.TextBlue().Render(ri.Key),
+				ri.Title, year,
+				uikit.TUI.Dim().Render(ri.DateAdded))
+		}
+		b.WriteString("\n")
+	}
 }
 
 // ExportResult is returned for `zot item export` (single-item).

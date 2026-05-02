@@ -83,7 +83,7 @@ func savedSearchListCommand() *cli.Command {
 				}
 				return ss, true
 			})
-			cmdutil.Output(cmd, zot.SavedSearchListResult{Count: len(searches), Searches: searches})
+			outputScoped(ctx, cmd, zot.SavedSearchListResult{Count: len(searches), Searches: searches})
 			return nil
 		},
 	}
@@ -108,7 +108,7 @@ func savedSearchShowCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.SavedSearchResult{Search: savedSearchFromClient(s)})
+			outputScoped(ctx, cmd, zot.SavedSearchResult{Search: savedSearchFromClient(s)})
 			return nil
 		},
 	}
@@ -150,7 +150,7 @@ func savedSearchCreateCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.WriteResult{
+			outputScoped(ctx, cmd, zot.WriteResult{
 				Action:  "created",
 				Kind:    "saved-search",
 				Target:  s.Key,
@@ -212,7 +212,7 @@ func savedSearchUpdateCommand() *cli.Command {
 			if err := c.UpdateSavedSearch(ctx, key, name, conds); err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.WriteResult{
+			outputScoped(ctx, cmd, zot.WriteResult{
 				Action:  "updated",
 				Kind:    "saved-search",
 				Target:  key,
@@ -248,7 +248,7 @@ func savedSearchDeleteCommand() *cli.Command {
 			if err := c.DeleteSavedSearch(ctx, key); err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.WriteResult{Action: "deleted", Kind: "saved-search", Target: key})
+			outputScoped(ctx, cmd, zot.WriteResult{Action: "deleted", Kind: "saved-search", Target: key})
 			return nil
 		},
 	}

@@ -277,6 +277,14 @@ func seedFixture(dir string) error {
 		// DoclingNoteKeys).
 		`INSERT INTO itemTags VALUES (90,5,0)`,
 		`INSERT INTO tags VALUES (5,'docling',0)`,
+
+		// has-markdown is auto-applied by `sci zot extract` to the parent
+		// item when a docling extraction child note is created. The orient
+		// view uses it as the capability signal ("can I read full PDF text
+		// on this paper"). Item 10 has a docling note (item 90), so item
+		// 10 carries the tag in this fixture.
+		`INSERT INTO tags VALUES (6,'has-markdown',0)`,
+		`INSERT INTO itemTags VALUES (10,6,0)`,
 	}
 	for _, stmt := range seed {
 		if _, err := db.Exec(stmt); err != nil {

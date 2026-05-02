@@ -127,7 +127,7 @@ func runMissing(ctx context.Context, cmd *cli.Command) error {
 		if missingApply {
 			return cmdutil.UsageErrorf(cmd, "--apply requires --enrich")
 		}
-		cmdutil.Output(cmd, zot.MissingResult{Report: rep, Limit: missingLimit})
+		outputScoped(ctx, cmd, zot.MissingResult{Report: rep, Limit: missingLimit})
 		return nil
 	}
 
@@ -149,7 +149,7 @@ func runMissing(ctx context.Context, cmd *cli.Command) error {
 		Applied: missingApply,
 	}
 	if !missingApply || len(targets) == 0 {
-		cmdutil.Output(cmd, out)
+		outputScoped(ctx, cmd, out)
 		return nil
 	}
 
@@ -167,7 +167,7 @@ func runMissing(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	out.Apply = applied
-	cmdutil.Output(cmd, out)
+	outputScoped(ctx, cmd, out)
 	return nil
 }
 
@@ -243,7 +243,7 @@ DOI matches subsume title matches when both fire on the same items.`,
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.DuplicatesResult{Report: rep, Limit: dupLimit})
+			outputScoped(ctx, cmd, zot.DuplicatesResult{Report: rep, Limit: dupLimit})
 			return nil
 		},
 	}
@@ -291,7 +291,7 @@ All invalid findings are graded SevWarn (citation-affecting).`,
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.InvalidResult{Report: rep, Limit: invalidLimit})
+			outputScoped(ctx, cmd, zot.InvalidResult{Report: rep, Limit: invalidLimit})
 			return nil
 		},
 	}
@@ -355,7 +355,7 @@ Opt-in kinds (pass via --kind):
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.OrphansResult{Report: rep, Limit: orphansLimit})
+			outputScoped(ctx, cmd, zot.OrphansResult{Report: rep, Limit: orphansLimit})
 			return nil
 		},
 	}
@@ -449,7 +449,7 @@ to a specific Zotero key, useful for smoke-testing a single write.`,
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, zot.CitekeysResult{Report: rep, Limit: citekeysLimit})
+			outputScoped(ctx, cmd, zot.CitekeysResult{Report: rep, Limit: citekeysLimit})
 			return nil
 		},
 	}
@@ -484,7 +484,7 @@ func runCitekeysFix(ctx context.Context, cmd *cli.Command) error {
 
 	if !citekeysApply {
 		// Dry-run: render the plan and exit. No API client needed.
-		cmdutil.Output(cmd, fix.CitekeyFixResult{
+		outputScoped(ctx, cmd, fix.CitekeyFixResult{
 			Result: fix.DryRunCitekeys(targets),
 			Limit:  citekeysLimit,
 		})
@@ -494,7 +494,7 @@ func runCitekeysFix(ctx context.Context, cmd *cli.Command) error {
 	if len(targets) == 0 {
 		// Nothing to apply — still render so JSON callers see the empty
 		// totals and human callers get the "nothing to do" line.
-		cmdutil.Output(cmd, fix.CitekeyFixResult{
+		outputScoped(ctx, cmd, fix.CitekeyFixResult{
 			Result: fix.DryRunCitekeys(targets),
 			Limit:  citekeysLimit,
 		})
@@ -528,7 +528,7 @@ func runCitekeysFix(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	cmdutil.Output(cmd, fix.CitekeyFixResult{Result: res, Limit: citekeysLimit})
+	outputScoped(ctx, cmd, fix.CitekeyFixResult{Result: res, Limit: citekeysLimit})
 	return nil
 }
 
