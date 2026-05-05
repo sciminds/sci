@@ -17,21 +17,41 @@ import (
 	"github.com/sciminds/cli/internal/uikit"
 )
 
-func TestLabSetup_JSONRequiresUser(t *testing.T) {
-	uikit.SetQuiet(false)
-	t.Cleanup(func() { uikit.SetQuiet(false) })
-
+// startSSHBannerListener spins a single-accept TCP server that writes a fake
+// SSH identification banner — enough to pass lab.Preflight's banner-grab check
+// (RFC 4253 §4.2). The listener and its accept goroutine are torn down via
+// t.Cleanup, so callers only need to point lab.SetPreflightAddr at its addr.
+func startSSHBannerListener(t *testing.T) net.Listener {
+	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
 	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_, _ = conn.Write([]byte("SSH-2.0-fakeserver\r\n"))
+			_ = conn.Close()
+		}
+	}()
+	return ln
+}
+
+func TestLabSetup_JSONRequiresUser(t *testing.T) {
+	uikit.SetQuiet(false)
+	t.Cleanup(func() { uikit.SetQuiet(false) })
+
+	ln := startSSHBannerListener(t)
 	lab.SetPreflightAddr(ln.Addr().String())
 	t.Cleanup(lab.ResetPreflightAddr)
 
 	root := buildRoot()
 
-	err = root.Run(context.Background(), []string{"sci", "--json", "lab", "setup"})
+	err := root.Run(context.Background(), []string{"sci", "--json", "lab", "setup"})
 
 	if err == nil {
 		t.Fatal("expected error when --json is set without --user")
@@ -68,11 +88,7 @@ func TestLab_WarmsMasterBeforeSSH(t *testing.T) {
 	netutil.SetProbeURL(probe.URL)
 	t.Cleanup(netutil.ResetProbeURL)
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	t.Cleanup(func() { _ = ln.Close() })
+	ln := startSSHBannerListener(t)
 	lab.SetPreflightAddr(ln.Addr().String())
 	t.Cleanup(lab.ResetPreflightAddr)
 
