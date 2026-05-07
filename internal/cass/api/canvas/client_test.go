@@ -224,6 +224,54 @@ func TestClient_NonOKStatus(t *testing.T) {
 	}
 }
 
+func TestClient_MaintenanceHTML(t *testing.T) {
+	t.Parallel()
+	htmlBody := `<!DOCTYPE html><html><head><title>Down for Maintenance</title></head><body>...</body></html>`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(htmlBody))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "test-token")
+	var course Course
+	err := c.Get(context.Background(), "/courses/1", nil, &course)
+	if err == nil {
+		t.Fatal("expected error for 503")
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "<!DOCTYPE") || strings.Contains(msg, "<html") {
+		t.Errorf("error leaks HTML body: %q", msg)
+	}
+	if !strings.Contains(msg, "503") {
+		t.Errorf("error missing status code: %q", msg)
+	}
+	if !strings.Contains(strings.ToLower(msg), "maintenance") && !strings.Contains(strings.ToLower(msg), "unavailable") {
+		t.Errorf("error should mention maintenance/unavailable: %q", msg)
+	}
+}
+
+func TestClient_GetPaginated_MaintenanceHTML(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("<!DOCTYPE html><html><body>Down for Maintenance</body></html>"))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "test-token")
+	var users []User
+	err := c.GetPaginated(context.Background(), "/courses/1/users", nil, &users)
+	if err == nil {
+		t.Fatal("expected error for 503")
+	}
+	if strings.Contains(err.Error(), "<!DOCTYPE") {
+		t.Errorf("paginated error leaks HTML: %q", err)
+	}
+}
+
 func TestClient_GetPaginated_EmptyResponse(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

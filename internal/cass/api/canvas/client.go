@@ -97,9 +97,9 @@ func (c *Client) getPaginatedURL(ctx context.Context, rawURL string, dst any) er
 		c.checkRateLimit(resp)
 
 		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+			err := formatHTTPError("GET", rawURL, resp)
 			_ = resp.Body.Close()
-			return fmt.Errorf("canvas API %s: %d — %s", rawURL, resp.StatusCode, string(body))
+			return err
 		}
 
 		var page []json.RawMessage
@@ -164,8 +164,7 @@ func (c *Client) do(ctx context.Context, method, path string, params url.Values,
 	c.checkRateLimit(resp)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("canvas API %s %s: %d — %s", method, path, resp.StatusCode, string(respBody))
+		return formatHTTPError(method, path, resp)
 	}
 
 	if dst != nil {
@@ -201,8 +200,7 @@ func (c *Client) doForm(ctx context.Context, method, path string, form FormData,
 	c.checkRateLimit(resp)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("canvas API %s %s: %d — %s", method, path, resp.StatusCode, string(respBody))
+		return formatHTTPError(method, path, resp)
 	}
 
 	if dst != nil {
@@ -211,6 +209,28 @@ func (c *Client) doForm(ctx context.Context, method, path string, form FormData,
 		}
 	}
 	return nil
+}
+
+// formatHTTPError builds a clean error for non-2xx Canvas responses. Maintenance
+// pages and other server errors return HTML, which is unreadable when dumped
+// into a CLI error; for HTML responses we omit the body and surface the status.
+func formatHTTPError(method, target string, resp *http.Response) error {
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	contentType := resp.Header.Get("Content-Type")
+	isHTML := strings.HasPrefix(contentType, "text/html") ||
+		strings.HasPrefix(strings.TrimSpace(string(body)), "<!DOCTYPE") ||
+		strings.HasPrefix(strings.TrimSpace(string(body)), "<html")
+
+	if resp.StatusCode == http.StatusServiceUnavailable {
+		return fmt.Errorf("canvas API %s %s: 503 — Canvas is down for maintenance, try again later", method, target)
+	}
+	if resp.StatusCode >= 500 && isHTML {
+		return fmt.Errorf("canvas API %s %s: %d — Canvas server error (%s), try again later", method, target, resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+	if isHTML {
+		return fmt.Errorf("canvas API %s %s: %d — %s (HTML response suppressed)", method, target, resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+	return fmt.Errorf("canvas API %s %s: %d — %s", method, target, resp.StatusCode, strings.TrimSpace(string(body)))
 }
 
 func (c *Client) buildURL(path string, params url.Values) string {
