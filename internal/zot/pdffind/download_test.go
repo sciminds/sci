@@ -47,6 +47,37 @@ func TestDownload_SavesPDFToDir(t *testing.T) {
 	}
 }
 
+// TestDownload_SkipsExistingFile covers the rerun path where --download is
+// invoked again over a directory that already holds <itemKey>.pdf — the
+// downloader must reuse the existing file and never call the network.
+// Lets users re-attach without paying the HTTP cost.
+func TestDownload_SkipsExistingFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "ABC123.pdf")
+	if err := os.WriteFile(existing, []byte("%PDF-1.4\nold"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Server that fails — proves we never hit it.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(500)
+	}))
+	t.Cleanup(srv.Close)
+
+	findings := []Finding{{ItemKey: "ABC123", PDFURL: srv.URL + "/a.pdf"}}
+	out, err := Download(context.Background(), srv.Client(), findings, dir, DownloadOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out[0].DownloadedPath != existing {
+		t.Errorf("DownloadedPath = %q, want %q", out[0].DownloadedPath, existing)
+	}
+	if out[0].DownloadError != "" {
+		t.Errorf("must not record error when reusing existing file: %q", out[0].DownloadError)
+	}
+}
+
 func TestDownload_SkipsFindingsWithoutPDFURL(t *testing.T) {
 	t.Parallel()
 	findings := []Finding{{ItemKey: "ABC"}}

@@ -141,7 +141,15 @@ func Download(
 // one succeeds. Returns the filesystem path on the first success. On total
 // failure returns the primary URL's error with a "+N fallbacks also failed"
 // suffix so the user knows how many alternate URLs were tried.
+//
+// If dir/<itemKey>.pdf already exists and is non-empty, skip the network
+// entirely and return that path. Lets reruns (especially --attach after a
+// prior --download) avoid re-fetching files we already have.
 func downloadOne(ctx context.Context, httpClient *http.Client, f Finding, dir string) (string, error) {
+	existing := filepath.Join(dir, sanitizeFilename(f.ItemKey)+".pdf")
+	if info, err := os.Stat(existing); err == nil && info.Size() > 0 {
+		return existing, nil
+	}
 	urls := slices.Concat([]string{f.PDFURL}, f.FallbackURLs)
 	var firstErr error
 	for i, u := range urls {
