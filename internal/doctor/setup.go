@@ -95,7 +95,7 @@ func InstallOptionalTool(r brew.Runner, name, brewfilePath string) (OptionalSetu
 		return OptionalSetupResult{}, fmt.Errorf("tool %q is already installed", name)
 	}
 
-	if err := r.DirectInstall(entry.Name, brewfileTypeToPkgType(entry.Type)); err != nil {
+	if err := r.DirectInstall(entry.Spec, brewfileTypeToPkgType(entry.Type)); err != nil {
 		return OptionalSetupResult{}, fmt.Errorf("install %s: %w", name, err)
 	}
 
@@ -135,7 +135,7 @@ func RunOptionalSetup(r brew.Runner, brewfilePath string) (OptionalSetupResult, 
 
 	chosen := model.entries[model.chosen]
 
-	if err := r.DirectInstall(chosen.Name, brewfileTypeToPkgType(chosen.Type)); err != nil {
+	if err := r.DirectInstall(chosen.Spec, brewfileTypeToPkgType(chosen.Type)); err != nil {
 		return OptionalSetupResult{}, fmt.Errorf("install %s: %w", chosen.Name, err)
 	}
 

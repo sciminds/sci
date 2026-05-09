@@ -16,7 +16,8 @@ import (
 // BrewfileEntry is a parsed line from a Brewfile.
 type BrewfileEntry struct {
 	Type string // "brew", "cask", "tap", "uv", etc.
-	Name string // package name without quotes/extras (e.g. "git", "symbex")
+	Name string // package name without quotes/extras (e.g. "git", "symbex", "docling-slim")
+	Spec string // install spec preserving extras (e.g. "docling-slim[standard]"); equals Name when no extras
 	Line string // original Brewfile line for writing back
 }
 
@@ -38,13 +39,16 @@ func ParseBrewfileEntries(content string) []BrewfileEntry {
 			continue
 		}
 		typ := parts[0]
-		// Strip quotes and any trailing extras like [recommended] or , with: [...]
-		name := strings.Trim(parts[1], `",`)
-		// Strip bracket suffixes like "marimo[recommended]"
+		// Strip quotes and any trailing comma. Spec preserves bracket extras
+		// like "[standard]" so `uv tool install docling-slim[standard]` works;
+		// Name strips them so snapshot comparison against `uv tool list`
+		// (which reports the bare package name) still matches.
+		spec := strings.Trim(parts[1], `",`)
+		name := spec
 		if idx := strings.Index(name, "["); idx != -1 {
 			name = name[:idx]
 		}
-		entries = append(entries, BrewfileEntry{Type: typ, Name: name, Line: trimmed})
+		entries = append(entries, BrewfileEntry{Type: typ, Name: name, Spec: spec, Line: trimmed})
 	}
 	return entries
 }

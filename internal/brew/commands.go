@@ -77,6 +77,13 @@ func InstallEntries(r Runner, entries []BrewfileEntry) ([]string, error) {
 	names := func(typ string) []string {
 		return lo.Map(groups[typ], func(e BrewfileEntry, _ int) string { return e.Name })
 	}
+	// Spec falls back to Name for entries built outside the parser (tests,
+	// hand-constructed entries) where the bracket-preserving Spec wasn't set.
+	specs := func(typ string) []string {
+		return lo.Map(groups[typ], func(e BrewfileEntry, _ int) string {
+			return cmp.Or(e.Spec, e.Name)
+		})
+	}
 
 	// Taps first (individually — needed before tap-qualified formulae).
 	for _, name := range names("tap") {
@@ -90,7 +97,8 @@ func InstallEntries(r Runner, entries []BrewfileEntry) ([]string, error) {
 	if err := r.InstallCasks(names("cask")); err != nil {
 		return nil, fmt.Errorf("install casks: %w", err)
 	}
-	if err := r.InstallUVTools(names("uv")); err != nil {
+	// uv tools install via spec so bracket extras like "[standard]" reach uv.
+	if err := r.InstallUVTools(specs("uv")); err != nil {
 		return nil, fmt.Errorf("install uv tools: %w", err)
 	}
 

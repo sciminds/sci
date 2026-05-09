@@ -20,14 +20,14 @@ uv "huggingface-hub", with: ["pillow"]
 	entries := brew.ParseBrewfileEntries(content)
 
 	want := []struct {
-		typ, name string
+		typ, name, spec string
 	}{
-		{"brew", "helix"},
-		{"brew", "nvim"},
-		{"cask", "visual-studio-code"},
-		{"uv", "symbex"},
-		{"uv", "markitdown"},
-		{"uv", "huggingface-hub"},
+		{"brew", "helix", "helix"},
+		{"brew", "nvim", "nvim"},
+		{"cask", "visual-studio-code", "visual-studio-code"},
+		{"uv", "symbex", "symbex"},
+		{"uv", "markitdown", "markitdown[all]"},
+		{"uv", "huggingface-hub", "huggingface-hub"},
 	}
 
 	if len(entries) != len(want) {
@@ -39,6 +39,9 @@ uv "huggingface-hub", with: ["pillow"]
 		}
 		if entries[i].Name != w.name {
 			t.Errorf("entries[%d].Name = %q, want %q", i, entries[i].Name, w.name)
+		}
+		if entries[i].Spec != w.spec {
+			t.Errorf("entries[%d].Spec = %q, want %q", i, entries[i].Spec, w.spec)
 		}
 		if entries[i].Line == "" {
 			t.Errorf("entries[%d].Line is empty", i)

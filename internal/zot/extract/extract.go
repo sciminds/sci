@@ -165,11 +165,11 @@ type DoclingExtractor struct {
 // NewDoclingExtractor resolves `docling` on PATH and returns an
 // extractor wired to it. Returns a helpful error if the binary is
 // missing — the CLI layer should surface it verbatim so users know to
-// run `sci doctor` (which installs docling via `uv`).
+// install docling via `sci tools reccs` (it's an optional dependency).
 func NewDoclingExtractor() (*DoclingExtractor, error) {
 	path, err := exec.LookPath("docling")
 	if err != nil {
-		return nil, fmt.Errorf("docling binary not found on PATH: %w (install via `sci doctor` or `uv tool install docling`)", err)
+		return nil, fmt.Errorf("docling not installed — run `sci tools reccs` to install it (optional dependency for PDF extraction)")
 	}
 	return &DoclingExtractor{Binary: path}, nil
 }
