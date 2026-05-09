@@ -401,3 +401,46 @@ func TestScan_CallsOnItemCallback(t *testing.T) {
 		t.Errorf("index/total wrong: %+v", calls)
 	}
 }
+
+// TestTitleSearchSelect_ExcludesIsOA locks in the OpenAlex select-vocabulary
+// fix: is_oa is no longer accepted as a select field (returns 400). The OA
+// flag must come through the nested open_access object instead.
+func TestTitleSearchSelect_ExcludesIsOA(t *testing.T) {
+	t.Parallel()
+	for _, f := range titleSearchSelect {
+		if f == "is_oa" {
+			t.Errorf("titleSearchSelect must not include %q — OpenAlex rejects it (use open_access)", f)
+		}
+	}
+	// open_access is the canonical replacement; ensure we still request it.
+	hasOpenAccess := false
+	for _, f := range titleSearchSelect {
+		if f == "open_access" {
+			hasOpenAccess = true
+			break
+		}
+	}
+	if !hasOpenAccess {
+		t.Error("titleSearchSelect must include \"open_access\" so f.IsOA can be derived")
+	}
+}
+
+// TestPopulateFromWork_DerivesIsOAFromOpenAccess covers the case where
+// OpenAlex returned only the nested open_access (because is_oa is no longer
+// selectable): f.IsOA must still reflect the true OA state.
+func TestPopulateFromWork_DerivesIsOAFromOpenAccess(t *testing.T) {
+	t.Parallel()
+	w := &openalex.Work{
+		ID:         "https://openalex.org/W1",
+		IsOA:       false, // top-level absent/false (select-narrowed response)
+		OpenAccess: &openalex.OpenAccess{IsOA: true, OAStatus: "gold"},
+	}
+	var f Finding
+	populateFromWork(&f, w)
+	if !f.IsOA {
+		t.Error("f.IsOA must be true when open_access.is_oa is true (regardless of top-level)")
+	}
+	if f.OAStatus != "gold" {
+		t.Errorf("f.OAStatus = %q, want gold", f.OAStatus)
+	}
+}

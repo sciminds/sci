@@ -83,9 +83,13 @@ type Result struct {
 
 // titleSearchSelect trims the /works response to fields we actually consume,
 // mirroring the pattern in cli/find.go — saves ~80% of response bytes.
+//
+// Do NOT include "is_oa" here: OpenAlex removed it from the valid select
+// vocabulary; passing it returns 400. The OA flag now lives only inside
+// the nested "open_access" object (open_access.is_oa).
 var titleSearchSelect = []string{
 	"id", "doi", "title", "display_name",
-	"is_oa", "has_fulltext", "open_access",
+	"has_fulltext", "open_access",
 	"primary_location", "best_oa_location", "locations",
 }
 
@@ -253,11 +257,17 @@ func populateFromWork(f *Finding, w *openalex.Work) {
 	if w.DOI != nil {
 		f.OADOI = stripDOIPrefix(*w.DOI)
 	}
-	f.IsOA = w.IsOA
-	f.HasFulltext = w.HasFulltext
+	// Prefer open_access.is_oa over the top-level is_oa: OpenAlex no longer
+	// accepts is_oa in `select` (returns 400), so a select-narrowed response
+	// can carry only the nested form. Fall back to the top-level when
+	// open_access is absent.
 	if w.OpenAccess != nil {
+		f.IsOA = w.OpenAccess.IsOA
 		f.OAStatus = w.OpenAccess.OAStatus
+	} else {
+		f.IsOA = w.IsOA
 	}
+	f.HasFulltext = w.HasFulltext
 	if w.PrimaryLocation != nil && w.PrimaryLocation.LandingPageURL != nil {
 		f.LandingPageURL = *w.PrimaryLocation.LandingPageURL
 	}
