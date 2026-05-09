@@ -6,11 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"mime"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -360,58 +359,36 @@ func TestRegisterUpload_NonSuccessStatusIsError(t *testing.T) {
 	}
 }
 
-func TestUploadToS3_SendsMultipartWithParamsAndWrappedFile(t *testing.T) {
+// TestUploadToS3_SendsCanonicalBody locks in the canonical phase-3 body:
+// raw `Prefix + bytes + Suffix` with Content-Type echoed verbatim from the
+// auth response. The previous implementation built its own multipart from
+// auth.Params and wrapped Prefix+bytes+Suffix inside a "file" form field;
+// for upload-auth responses where Params was empty (Zotero bakes the form
+// fields entirely into Prefix instead), that produced a body with `key=""`
+// and S3 rejected with `400 InvalidArgument: Bucket POST must contain a
+// field named 'key'`. ~4% of real uploads went down that path.
+func TestUploadToS3_SendsCanonicalBody(t *testing.T) {
 	t.Parallel()
 
 	var (
-		gotParams   map[string]string
-		gotFilePart []byte
-		gotFileCT   string
+		gotBody []byte
+		gotCT   string
+		gotLen  int64
 	)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ct := r.Header.Get("Content-Type")
-		mediaType, params, err := mime.ParseMediaType(ct)
-		if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
-			t.Errorf("content-type = %q, want multipart/form-data", ct)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		mr := multipart.NewReader(r.Body, params["boundary"])
-		gotParams = map[string]string{}
-		for {
-			p, err := mr.NextPart()
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if err != nil {
-				t.Fatalf("next part: %v", err)
-			}
-			name := p.FormName()
-			if name == "file" {
-				gotFileCT = p.Header.Get("Content-Type")
-				b, _ := io.ReadAll(p)
-				gotFilePart = b
-				continue
-			}
-			b, _ := io.ReadAll(p)
-			gotParams[name] = string(b)
-		}
+		gotCT = r.Header.Get("Content-Type")
+		gotLen = r.ContentLength
+		gotBody, _ = io.ReadAll(r.Body)
 		w.WriteHeader(http.StatusCreated) // S3 answers 201 on POST success
 	}))
 	t.Cleanup(srv.Close)
 
 	auth := &UploadAuthorization{
 		URL:         srv.URL,
-		ContentType: "application/pdf",
+		ContentType: "multipart/form-data; boundary=----abc",
 		Prefix:      "--PRE--",
 		Suffix:      "--SUF--",
 		UploadKey:   "UPLD-KEY-1",
-		Params: map[string]string{
-			"key":            "uploads/abc",
-			"AWSAccessKeyId": "AKIA",
-			"policy":         "b64policy",
-			"signature":      "sig",
-		},
 	}
 	fileBytes := []byte("%PDF-1.4\nhello")
 
@@ -419,21 +396,44 @@ func TestUploadToS3_SendsMultipartWithParamsAndWrappedFile(t *testing.T) {
 		t.Fatalf("uploadToS3: %v", err)
 	}
 
-	// Form fields must echo every param verbatim — S3 rejects on any mismatch.
-	for k, v := range auth.Params {
-		if gotParams[k] != v {
-			t.Errorf("form param %q = %q, want %q", k, gotParams[k], v)
-		}
+	wantBody := slices.Concat([]byte(auth.Prefix), fileBytes, []byte(auth.Suffix))
+	if !bytes.Equal(gotBody, wantBody) {
+		t.Errorf("body bytes mismatch:\n got %q\nwant %q", gotBody, wantBody)
 	}
-	// The "file" field is the concatenation of prefix + bytes + suffix.
-	wantFile := append(append([]byte(auth.Prefix), fileBytes...), []byte(auth.Suffix)...)
-	if !bytes.Equal(gotFilePart, wantFile) {
-		t.Errorf("file part bytes mismatch:\n got %q\nwant %q", gotFilePart, wantFile)
+	if gotCT != auth.ContentType {
+		t.Errorf("Content-Type = %q, want %q (verbatim from auth.ContentType)", gotCT, auth.ContentType)
 	}
-	// The per-part Content-Type must be the MIME from the auth response, not
-	// application/octet-stream (S3's pre-signed policy pins it).
-	if !strings.HasPrefix(gotFileCT, "application/pdf") {
-		t.Errorf("file part Content-Type = %q, want application/pdf", gotFileCT)
+	// Content-Length must be set explicitly so the receiver doesn't see chunked
+	// transfer (some endpoints reject that, mirroring connector saveStandaloneAttachment).
+	if gotLen != int64(len(wantBody)) {
+		t.Errorf("Content-Length = %d, want %d", gotLen, len(wantBody))
+	}
+}
+
+// TestUploadToS3_EmptyParamsStillUploads is the regression for the 4% bug.
+// Even with no Params at all, the canonical body path delivers a complete
+// upload — Prefix carries the form structure.
+func TestUploadToS3_EmptyParamsStillUploads(t *testing.T) {
+	t.Parallel()
+	var saw bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		saw = true
+		w.WriteHeader(http.StatusCreated)
+	}))
+	t.Cleanup(srv.Close)
+
+	auth := &UploadAuthorization{
+		URL:         srv.URL,
+		ContentType: "multipart/form-data; boundary=----xyz",
+		Prefix:      "preamble-with-baked-key-policy-signature",
+		Suffix:      "epilogue",
+		Params:      map[string]string{}, // empty — the legacy/bug case
+	}
+	if err := uploadToS3(context.Background(), http.DefaultClient, auth, []byte("data")); err != nil {
+		t.Fatalf("uploadToS3 must succeed even when Params is empty: %v", err)
+	}
+	if !saw {
+		t.Error("server didn't see the request")
 	}
 }
 

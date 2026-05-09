@@ -25,10 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
-	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"net/url"
 	"slices"
 	"strconv"
@@ -223,55 +220,35 @@ func (c *Client) registerUpload(ctx context.Context, itemKey, uploadKey string) 
 	}
 }
 
-// uploadToS3 performs phase 3: a plain multipart/form-data POST to the
-// pre-signed S3 URL carried in auth.URL. The caller supplies the raw file
-// bytes; we wrap them with auth.Prefix/Suffix inside the "file" form field
-// (S3's policy pins the byte layout, so this wrapping is non-optional).
+// uploadToS3 performs phase 3: POST the file to the pre-signed S3 URL
+// carried in auth.URL. The body is exactly `auth.Prefix + fileBytes +
+// auth.Suffix` and the Content-Type is `auth.ContentType` — both verbatim
+// from Zotero's phase-2 response.
+//
+// Why not build our own multipart from auth.Params: Zotero's response
+// carries the multipart preamble (boundary, all required form fields
+// including `key`/`policy`/`signature`/`acl`, plus the file part's
+// Content-Disposition) baked into Prefix; Suffix is the closing boundary.
+// auth.Params is informational — a parallel listing of the fields embedded
+// in Prefix. For some upload-auth responses Params is empty (everything is
+// in Prefix); building our own form from Params alone yields a body with
+// `key=""`, which S3 rejects with `400 InvalidArgument: Bucket POST must
+// contain a field named 'key'`. The canonical path works for both
+// populated and empty Params.
 //
 // httpClient is explicit so the orchestrator can share a client with the
 // phase 2/4 path, and tests can substitute an httptest.Server's client.
 func uploadToS3(ctx context.Context, httpClient *http.Client, auth *UploadAuthorization, fileBytes []byte) error {
-	var buf bytes.Buffer
-	w := multipart.NewWriter(&buf)
+	body := slices.Concat([]byte(auth.Prefix), fileBytes, []byte(auth.Suffix))
 
-	// Deterministic field ordering: S3 doesn't care, but it keeps error
-	// bodies diff-friendly when debugging 403s.
-	for _, k := range slices.Sorted(maps.Keys(auth.Params)) {
-		if err := w.WriteField(k, auth.Params[k]); err != nil {
-			return fmt.Errorf("write form field %q: %w", k, err)
-		}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, auth.URL, bytes.NewReader(body))
+	if err != nil {
+		return err
 	}
-
-	// The "file" field's body is prefix + fileBytes + suffix. The part's
-	// Content-Type MUST match the contentType the auth response returned —
-	// S3's pre-signed policy is keyed on it.
-	header := make(textproto.MIMEHeader)
-	header.Set("Content-Disposition", `form-data; name="file"`)
 	if auth.ContentType != "" {
-		header.Set("Content-Type", auth.ContentType)
+		req.Header.Set("Content-Type", auth.ContentType)
 	}
-	part, err := w.CreatePart(header)
-	if err != nil {
-		return fmt.Errorf("create file part: %w", err)
-	}
-	if _, err := io.WriteString(part, auth.Prefix); err != nil {
-		return err
-	}
-	if _, err := part.Write(fileBytes); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(part, auth.Suffix); err != nil {
-		return err
-	}
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("close multipart: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, auth.URL, &buf)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.ContentLength = int64(len(body))
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
