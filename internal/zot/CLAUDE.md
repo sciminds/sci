@@ -71,13 +71,23 @@ Same reads-local / writes-cloud split. See `cli/extract.go`, `cli/notes.go`, `ex
 
 ## PDF discovery & attach (`internal/zot/pdffind/`)
 
-OpenAlex-led lookup for Zotero items missing their PDFs. Lives under `zot doctor pdfs` — scoped to a collection (default `missing-pdf`) rather than library-wide, because this is user-curated triage, not hygiene. Read-only by default; `--download` and `--attach` are opt-in writes.
+OpenAlex-led lookup for Zotero items missing their PDFs. Lives under `zot doctor pdfs`. Read-only by default; `--download` and `--attach` are opt-in writes.
+
+**Item source flags** (mutually exclusive):
+
+- **`--collection NAME|KEY`** — local SQLite, default `missing-pdf`. Fast but stale if Zotero desktop hasn't synced.
+- **`--saved-search NAME|KEY`** — live via the Zotero Web API. The `internal/zot/savedsearch` package translates supported conditions (`tag is/isNot`, `itemType is/isNot`, `collection is`, `noChildren=true`) into API filter params (`?tag=`, `?itemType=`, `/items/top`, etc.). Saved-search conditions outside that set error with the offending clauses listed — silently dropping them would produce results that don't match what desktop renders. Zotero's Web API ignores `?searchKey=` on item endpoints, so we project conditions ourselves; `joinMode` and `includeParentsAndChildren` modifiers at their default values are silently ignored (non-default `joinMode=any` would need per-condition fan-out).
+- **`--keys-from FILE|-`** — explicit 8-char keys, one per line (blanks and `#` comments skipped). Resolved via the API in batches of 50 (the `?itemKey=` cap).
+
+The saved-search and keys-from paths use `api.ListItems` with the new `Tag`, `Top`, and `ItemKeys` fields on `ListItemsOptions` (all 8 dispatch combinations of top × collection × user/group are handled in `api/dispatch.go`).
+
+**DOI normalization on 404**: `pdffind.lookupOne` retries against `doi.StripSubobject(item.DOI)` when the original DOI 404s and matches a known publisher subobject pattern (Frontiers `/abstract`+`/full`, PLOS `.tNNN`/`.gNNN`/`.sNNN`, PNAS `/-/DCSupplemental*`). Successful retries surface as `LookupMethod="doi-normalized"` with the parent DOI in `Finding.NormalizedDOI`. The patterns live in `internal/zot/doi/` and back the `zot doctor dois` repair surface (which rewrites the stored DOI through the Web API). See `internal/zot/doi/` for the regex catalog.
 
 - **Scan** (`pdffind.Scan`): one HTTP call per item — `ResolveWork` by DOI when present (deterministic), else `SearchWorks` by title (top hit; flagged `LookupMethod="title"` so the renderer can surface the lower confidence). Emits one `Finding` per input item with PDF URL, landing-page URL, OpenAlex DOI, OA status, and `FallbackURLs` (friendly-host-ranked alternates for when `best_oa_location` is a paywall but `locations[]` has an arxiv/PMC copy).
 - **Download** (`pdffind.Download`): parallel HTTP GETs with content-type guardrails that reject HTML paywalls masquerading as PDFs. UA is the honest `sci-zot (+…)` — commercial publishers block it, friendly hosts prefer it. See `download.go` header comment for the tradeoff.
 - **Attach** (`pdffind.Attach`): drives `api.CreateChildAttachment` + `api.UploadAttachmentFile` per downloaded finding. Serial (Zotero rate-limits aggressively; two API calls + external S3 per item). Per-item failures record `AttachError` and the batch continues. On upload failure after create succeeds, `AttachmentKey` stays populated so the "created but not uploaded" state is surfaceable.
 
-Cache: scan results at `os.UserCacheDir()/sci/zot/pdffind/`. Survives across runs; `--refresh` re-queries, `--no-cache` disables the current run entirely.
+Cache: scan results at `os.UserCacheDir()/sci/zot/pdffind/`. Survives across runs; `--refresh` re-queries, `--no-cache` disables the current run entirely. Cache key is `doi:<original-DOI>` (or `title:<title>`); after a `doctor dois --fix --apply` patches stored DOIs, stale `doi-normalized` entries should be invalidated so the rerun cache-hits land on the parent DOI under its new key.
 
 ## Desktop connector path (`internal/zot/connector/`) — `zot import`
 

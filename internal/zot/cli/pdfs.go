@@ -18,14 +18,16 @@ import (
 
 // pdfs flag destinations.
 var (
-	pdfsCollection string
-	pdfsDownload   string
-	pdfsLimit      int
-	pdfsNoCache    bool
-	pdfsRefresh    bool
-	pdfsParallel   int
-	pdfsAttach     bool
-	pdfsYes        bool
+	pdfsCollection  string
+	pdfsSavedSearch string
+	pdfsKeysFrom    string
+	pdfsDownload    string
+	pdfsLimit       int
+	pdfsNoCache     bool
+	pdfsRefresh     bool
+	pdfsParallel    int
+	pdfsAttach      bool
+	pdfsYes         bool
 )
 
 // defaultPDFParallel is the concurrency cap for --download. PDFs come from
@@ -41,17 +43,30 @@ func pdfsCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "pdfs",
 		Usage: "Find retrievable PDFs on OpenAlex for items in a collection",
-		Description: `$ sci zot --library personal doctor pdfs                          # scans default 'missing-pdf' collection
-$ sci zot --library personal doctor pdfs --collection ABCD1234    # by key
-$ sci zot --library personal doctor pdfs --collection missing-pdf # by name
-$ sci zot --library personal doctor pdfs --download ~/pdfs        # also retrieve each PDF (5-way parallel)
-$ sci zot --library personal doctor pdfs --download ~/pdfs -P 10  # bump download concurrency
-$ sci zot --library personal doctor pdfs --download ~/pdfs --attach       # upload downloaded PDFs as Zotero child attachments
+		Description: `$ sci zot --library personal doctor pdfs                              # scans default 'missing-pdf' collection
+$ sci zot --library personal doctor pdfs --collection ABCD1234        # by key
+$ sci zot --library personal doctor pdfs --collection missing-pdf     # by name
+$ sci zot --library personal doctor pdfs --saved-search missing-pdf   # via Zotero saved search (live, ignores stale local DB)
+$ sci zot --library personal doctor pdfs --saved-search KC7TX6FU      # by saved-search key
+$ sci zot --library personal doctor pdfs --keys-from keys.txt         # explicit item keys, one per line
+$ cat keys.txt | sci zot --library personal doctor pdfs --keys-from - # piped keys
+$ sci zot --library personal doctor pdfs --download ~/pdfs            # also retrieve each PDF (5-way parallel)
+$ sci zot --library personal doctor pdfs --download ~/pdfs -P 10      # bump download concurrency
+$ sci zot --library personal doctor pdfs --download ~/pdfs --attach   # upload downloaded PDFs as Zotero child attachments
 $ sci zot --library personal doctor pdfs --download ~/pdfs --attach --yes # skip confirmation
-$ sci zot --library personal doctor pdfs --refresh                # bypass cache, re-query all
+$ sci zot --library personal doctor pdfs --refresh                    # bypass cache, re-query all
 $ sci zot --library personal doctor pdfs --json > missing.json
 
-For each item in the target collection, queries OpenAlex:
+Item-source flags are mutually exclusive (--collection, --saved-search,
+--keys-from). --saved-search resolves via the Zotero Web API so it stays
+live when the local SQLite is stale (e.g. desktop has synced collection
+edits but the local file hasn't been re-read). The translator only handles
+saved-search conditions the API can express (tag is/isNot, itemType is/isNot,
+collection is, noChildren=true); other conditions error with the offending
+clause listed. --keys-from reads 8-char Zotero item keys, one per line,
+and resolves them via the API in 50-key batches.
+
+For each item in the target source, queries OpenAlex:
   - by DOI if present (deterministic),
   - else by title (top search hit, flagged as 'title-match').
 
@@ -72,8 +87,21 @@ uploads the file bytes via Zotero's 4-phase upload dance. Requires
 			&cli.StringFlag{
 				Name:        "collection",
 				Aliases:     []string{"c"},
-				Usage:       "collection name or key (default: missing-pdf)",
+				Usage:       "collection name or key (mutually exclusive with --saved-search/--keys-from)",
 				Destination: &pdfsCollection,
+				Local:       true,
+			},
+			&cli.StringFlag{
+				Name:        "saved-search",
+				Aliases:     []string{"s"},
+				Usage:       "saved-search name or key — runs the search live via the Zotero Web API",
+				Destination: &pdfsSavedSearch,
+				Local:       true,
+			},
+			&cli.StringFlag{
+				Name:        "keys-from",
+				Usage:       "read item keys from FILE (one per line); use - for stdin",
+				Destination: &pdfsKeysFrom,
 				Local:       true,
 			},
 			&cli.StringFlag{
@@ -133,25 +161,16 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 	if pdfsAttach && pdfsDownload == "" {
 		return cmdutil.UsageErrorf(cmd, "--attach requires --download")
 	}
-
-	_, db, err := openLocalDB(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = db.Close() }()
-
-	name := pdfsCollection
-	if name == "" {
-		name = defaultPDFCollection
-	}
-	collKey, resolvedName, err := resolveCollectionKey(db, name)
-	if err != nil {
+	if err := validatePDFSourceFlags(cmd); err != nil {
 		return err
 	}
 
-	items, err := db.ListAll(local.ListFilter{CollectionKey: collKey})
+	items, sourceLabel, closer, err := resolvePDFItemSource(ctx, cmd)
 	if err != nil {
-		return fmt.Errorf("list items in %q: %w", resolvedName, err)
+		return err
+	}
+	if closer != nil {
+		defer closer()
 	}
 
 	oa, err := openalexClient()
@@ -170,7 +189,7 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	out := pdffind.CLIResult{
-		Collection:  resolvedName,
+		Collection:  sourceLabel,
 		Scanned:     res.Scanned,
 		CacheHits:   res.CacheHits,
 		CacheMisses: res.CacheMisses,

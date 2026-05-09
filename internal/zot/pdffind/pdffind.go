@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/zot/doi"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/sciminds/cli/internal/zot/openalex"
 )
@@ -28,9 +29,15 @@ type Finding struct {
 	// Local state we used to drive the lookup.
 	LocalDOI string `json:"local_doi,omitempty"`
 
-	// How we reached OpenAlex: "doi" (deterministic), "title" (top search hit,
-	// not verified), or "" (didn't attempt — no DOI + no title).
+	// How we reached OpenAlex: "doi" (deterministic), "doi-normalized" (DOI
+	// retry after a publisher-specific subobject suffix was stripped),
+	// "title" (top search hit, not verified), or "" (didn't attempt —
+	// no DOI + no title).
 	LookupMethod string `json:"lookup_method,omitempty"`
+
+	// NormalizedDOI is the parent-paper DOI used after StripSubobject when
+	// the original DOI 404s. Set only when LookupMethod == "doi-normalized".
+	NormalizedDOI string `json:"normalized_doi,omitempty"`
 
 	// OpenAlex-side facts.
 	OpenAlexID     string `json:"openalex_id,omitempty"`
@@ -214,6 +221,19 @@ func lookupOne(ctx context.Context, it local.Item, oa Lookup) Finding {
 	switch {
 	case it.DOI != "":
 		w, err := oa.ResolveWork(ctx, it.DOI)
+		if err != nil && is404(err) && doi.IsSubobject(it.DOI) {
+			// Publisher-specific subobject DOI (Frontiers /abstract, PLOS
+			// .tNNN, PNAS /-/DCSupplemental). Strip the suffix and retry
+			// against the parent-paper DOI; the parent typically resolves
+			// and is open-access. See internal/zot/doi for patterns.
+			normalized := doi.StripSubobject(it.DOI)
+			if w2, err2 := oa.ResolveWork(ctx, normalized); err2 == nil {
+				f.LookupMethod = "doi-normalized"
+				f.NormalizedDOI = normalized
+				populateFromWork(&f, w2)
+				return f
+			}
+		}
 		if err != nil {
 			f.LookupError = "doi lookup: " + err.Error()
 			return f
@@ -316,6 +336,19 @@ func openalexShortID(id string) string {
 		return id[i+1:]
 	}
 	return id
+}
+
+// is404 reports whether err looks like an OpenAlex 404. The openalex
+// client wraps HTTP errors as `openalex /works/...: 404 — body` (see
+// internal/zot/openalex/client.go) without exporting a sentinel; a
+// substring check is the cheapest correct test for the one call site
+// that needs it. If the wrapping ever changes, the test
+// TestScan_NormalizedDOIRetryOn404 will catch the regression.
+func is404(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "404")
 }
 
 // stripDOIPrefix removes the "https://doi.org/" prefix OpenAlex returns on

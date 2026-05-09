@@ -402,6 +402,107 @@ func TestScan_CallsOnItemCallback(t *testing.T) {
 	}
 }
 
+// TestScan_NormalizedDOIRetryOn404 covers the missing-pdf recovery path:
+// a publisher-specific subobject DOI (Frontiers /abstract here) 404s on
+// the first ResolveWork call; lookupOne strips the suffix via doi.StripSubobject
+// and retries against the parent DOI. Both calls count toward oa.resolves.
+func TestScan_NormalizedDOIRetryOn404(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		{Key: "ABC", Title: "Frontiers paper", DOI: "10.3389/fnhum.2013.00015/abstract"},
+	}
+	oa := &fakeLookup{
+		resolveErrs: map[string]error{
+			"10.3389/fnhum.2013.00015/abstract": errors.New("openalex /works/...: 404 — not found"),
+		},
+		works: map[string]*openalex.Work{
+			"10.3389/fnhum.2013.00015": {
+				ID:  "https://openalex.org/W42",
+				DOI: strPtr("https://doi.org/10.3389/fnhum.2013.00015"),
+				BestOALocation: &openalex.Location{
+					PDFURL: strPtr("https://frontiersin.org/articles/15/pdf"),
+				},
+			},
+		},
+	}
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := res.Findings[0]
+	if f.LookupMethod != "doi-normalized" {
+		t.Errorf("LookupMethod = %q, want doi-normalized", f.LookupMethod)
+	}
+	if f.NormalizedDOI != "10.3389/fnhum.2013.00015" {
+		t.Errorf("NormalizedDOI = %q, want stripped form", f.NormalizedDOI)
+	}
+	if f.OpenAlexID != "W42" {
+		t.Errorf("OpenAlexID = %q, want W42 from retry", f.OpenAlexID)
+	}
+	if f.LookupError != "" {
+		t.Errorf("LookupError = %q, want empty after successful retry", f.LookupError)
+	}
+	if oa.resolves != 2 {
+		t.Errorf("expected 2 resolves (initial + retry), got %d", oa.resolves)
+	}
+}
+
+// TestScan_NoNormalizedRetryWhenNotSubobject confirms the 404 retry only
+// fires for known subobject patterns — random non-publisher 404s pass
+// through with the original error preserved and no extra HTTP call.
+func TestScan_NoNormalizedRetryWhenNotSubobject(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		{Key: "ABC", Title: "Random missing", DOI: "10.1234/missing"},
+	}
+	oa := &fakeLookup{
+		resolveErrs: map[string]error{
+			"10.1234/missing": errors.New("openalex /works/...: 404 — not found"),
+		},
+	}
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := res.Findings[0]
+	if f.LookupError == "" {
+		t.Error("LookupError must surface for non-subobject 404")
+	}
+	if f.NormalizedDOI != "" {
+		t.Errorf("NormalizedDOI = %q, want empty (no retry)", f.NormalizedDOI)
+	}
+	if oa.resolves != 1 {
+		t.Errorf("expected 1 resolve (no retry), got %d", oa.resolves)
+	}
+}
+
+// TestScan_NoNormalizedRetryWhenSubobjectStillFails ensures a subobject
+// DOI whose normalized form ALSO 404s preserves the retry error rather
+// than silently passing — the user needs to know nothing was found.
+func TestScan_NoNormalizedRetryWhenSubobjectStillFails(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		{Key: "ABC", Title: "Both miss", DOI: "10.3389/fnhum.2013.00015/abstract"},
+	}
+	oa := &fakeLookup{
+		resolveErrs: map[string]error{
+			"10.3389/fnhum.2013.00015/abstract": errors.New("openalex /works/...: 404 — not found"),
+			"10.3389/fnhum.2013.00015":          errors.New("openalex /works/...: 404 — not found"),
+		},
+	}
+	res, err := Scan(context.Background(), items, oa, ScanOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := res.Findings[0]
+	if f.LookupError == "" {
+		t.Error("LookupError must surface when retry also 404s")
+	}
+	if oa.resolves != 2 {
+		t.Errorf("expected 2 resolves (initial + retry), got %d", oa.resolves)
+	}
+}
+
 // TestTitleSearchSelect_ExcludesIsOA locks in the OpenAlex select-vocabulary
 // fix: is_oa is no longer accepted as a select field (returns 400). The OA
 // flag must come through the nested open_access object instead.

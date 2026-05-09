@@ -229,8 +229,10 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 | `sci zot --library personal item attach <key> <path>` | Upload a local file as a new child attachment of an existing item |
 | `sci zot import <path>` | Drag-drop equivalent via Zotero desktop: upload + auto-recognize metadata (CrossRef/arXiv) |
 | `sci zot --library shared collection` / `tags` | Manage collections and tags in the shared group library |
-| `sci zot --library personal doctor` | Run all hygiene checks (invalid → missing → orphans → duplicates) |
-| `sci zot --library personal doctor {invalid,missing,orphans,duplicates}` | Drill into individual hygiene reports |
+| `sci zot --library personal doctor` | Run all hygiene checks (invalid → missing → orphans → duplicates → citekeys) |
+| `sci zot --library personal doctor {invalid,missing,orphans,duplicates,citekeys,dois}` | Drill into individual hygiene reports |
+| `sci zot --library personal doctor pdfs` | Find missing-PDF candidates via OpenAlex; `--collection` (local), `--saved-search NAME\|KEY` (live API), or `--keys-from FILE\|-` |
+| `sci zot --library personal doctor dois --fix --apply` | Patch publisher-subobject DOIs (Frontiers `/abstract`, PLOS `.tNNN`, PNAS supplements) so OpenAlex resolves them |
 
 Reads the local `zotero.sqlite` (immutable, no contention with the running Zotero desktop app); writes go through the Zotero Web API. `sci zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` picks the group automatically when the account belongs to exactly one, or accepts `--shared-group-id` when multiple groups exist.
 

@@ -475,6 +475,65 @@ func (r CitekeysResult) Human() string {
 	return b.String()
 }
 
+// SubobjectDOIsResult wraps a hygiene.Report from the SubobjectDOIs check.
+// Limit caps the human-mode findings list; JSON always returns everything.
+type SubobjectDOIsResult struct {
+	Report *hygiene.Report `json:"report"`
+	Limit  int             `json:"-"`
+}
+
+// JSON implements cmdutil.Result.
+func (r SubobjectDOIsResult) JSON() any { return r.Report }
+
+// Human implements cmdutil.Result.
+func (r SubobjectDOIsResult) Human() string {
+	if r.Report == nil {
+		return ""
+	}
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render("DOI subobject scan"))
+	stats, _ := r.Report.Stats.(hygiene.SubobjectDOIStats)
+	fmt.Fprintf(&b, "  %s %d DOI value(s) scanned  %s %d subobject\n\n",
+		uikit.TUI.Dim().Render("·"), stats.Scanned,
+		uikit.TUI.Dim().Render("·"), stats.Subobject,
+	)
+
+	if len(r.Report.Findings) == 0 {
+		fmt.Fprintf(&b, "  %s no subobject DOIs found\n", uikit.SymOK)
+		return b.String()
+	}
+
+	show := r.Report.Findings
+	truncated := 0
+	if r.Limit > 0 && len(show) > r.Limit {
+		truncated = len(show) - r.Limit
+		show = show[:r.Limit]
+	}
+
+	fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("findings:"))
+	for _, f := range show {
+		title := f.Title
+		if title == "" {
+			title = uikit.TUI.Dim().Render("(untitled)")
+		}
+		fmt.Fprintf(&b, "    %s  %s\n",
+			uikit.TUI.TextBlue().Render(f.ItemKey),
+			title,
+		)
+		fmt.Fprintf(&b, "      %s\n", uikit.TUI.Dim().Render(f.Message))
+	}
+	if truncated > 0 {
+		fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
+			uikit.TUI.Dim().Render("…"), truncated)
+	}
+	fmt.Fprintf(&b, "\n  %s %d finding(s) — run with %s to repair\n",
+		uikit.SymArrow, len(r.Report.Findings),
+		uikit.TUI.TextBlue().Render("--fix"),
+	)
+	return b.String()
+}
+
 // matchTypeBadge colorizes the match-type label so DOI matches (strongest)
 // pop visually above title-fuzzy matches (weakest).
 func matchTypeBadge(kind string) string {

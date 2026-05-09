@@ -120,3 +120,93 @@ func (r CitekeyFixResult) Human() string {
 	}
 	return b.String()
 }
+
+// DOIFixResult is the cmdutil.Result shell around a *DOIResult. Same
+// shape as CitekeyFixResult — Limit truncates the human-mode target
+// list; JSON always emits the full result.
+type DOIFixResult struct {
+	Result *DOIResult `json:"result"`
+	Limit  int        `json:"-"`
+}
+
+// JSON satisfies cmdutil.Result.
+func (r DOIFixResult) JSON() any { return r.Result }
+
+// Human renders either a dry-run preview or an applied report. Mirrors
+// CitekeyFixResult so diffing a dry-run against its apply is trivial.
+func (r DOIFixResult) Human() string {
+	if r.Result == nil {
+		return ""
+	}
+	var b strings.Builder
+
+	header := "DOI subobject fix (dry-run)"
+	if r.Result.Applied {
+		header = "DOI subobject fix (applied)"
+	}
+	fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.TextBlueBold().Render(header))
+
+	total := len(r.Result.Targets)
+	if total == 0 {
+		fmt.Fprintf(&b, "  %s no subobject DOIs to fix\n", uikit.SymOK)
+		return b.String()
+	}
+
+	fmt.Fprintf(&b, "  %s %d target(s)\n\n",
+		uikit.TUI.Dim().Render("·"), total,
+	)
+
+	outcomeByKey := lo.KeyBy(r.Result.Outcomes, func(oc DOIOutcome) string {
+		return oc.ItemKey
+	})
+
+	show := r.Result.Targets
+	truncated := 0
+	if r.Limit > 0 && len(show) > r.Limit {
+		truncated = len(show) - r.Limit
+		show = show[:r.Limit]
+	}
+
+	fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("targets:"))
+	for _, tg := range show {
+		icon := uikit.TUI.Dim().Render("·")
+		if r.Result.Applied {
+			if oc, ok := outcomeByKey[tg.ItemKey]; ok {
+				if oc.Applied {
+					icon = uikit.SymOK
+				} else {
+					icon = uikit.SymFail
+				}
+			}
+		}
+		fmt.Fprintf(&b, "    %s  %s  %s %s %s\n",
+			icon,
+			uikit.TUI.TextBlue().Render(tg.ItemKey),
+			uikit.TUI.Dim().Render(tg.OldDOI),
+			uikit.TUI.Dim().Render("→"),
+			tg.NewDOI,
+		)
+		if r.Result.Applied {
+			if oc, ok := outcomeByKey[tg.ItemKey]; ok && !oc.Applied && oc.Error != "" {
+				fmt.Fprintf(&b, "      %s %s\n",
+					uikit.SymFail, uikit.TUI.Fail().Render(oc.Error))
+			}
+		}
+	}
+	if truncated > 0 {
+		fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
+			uikit.TUI.Dim().Render("…"), truncated)
+	}
+
+	if r.Result.Applied {
+		fmt.Fprintf(&b, "\n  %s %d succeeded  %s %d failed\n",
+			uikit.SymOK, r.Result.Totals.Succeeded,
+			uikit.SymFail, r.Result.Totals.Failed,
+		)
+	} else {
+		fmt.Fprintf(&b, "\n  %s dry-run only — pass %s to write through the Zotero Web API\n",
+			uikit.SymArrow, uikit.TUI.TextBlue().Render("--apply"),
+		)
+	}
+	return b.String()
+}

@@ -45,6 +45,7 @@ for that.`,
 			orphansCommand(),
 			duplicatesCommand(),
 			citekeysCommand(),
+			doisCommand(),
 			pdfsCommand(),
 		},
 		Flags: []cli.Flag{

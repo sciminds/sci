@@ -17,6 +17,18 @@ type ListItemsOptions struct {
 	// ItemType accepts Zotero's filter grammar: "journalArticle",
 	// "book || bookSection", "-attachment".
 	ItemType string
+	// Tag filters by tag. Same grammar as ItemType: bare value matches,
+	// `-X` excludes, `X || Y` ORs. The Zotero API also supports repeating
+	// `?tag=` to AND multiple tag filters; this single-string form covers
+	// the saved-search translator's needs (one positive + one negated, in
+	// separate requests if needed).
+	Tag string
+	// Top, when true, hits /items/top (or /collections/{key}/items/top)
+	// instead of /items. Top-level items only — no attachment / note rows.
+	Top bool
+	// ItemKeys requests a specific set of item keys (API: ?itemKey=K1,K2,...).
+	// Capped at 50 per Zotero. Callers wanting more should chunk.
+	ItemKeys []string
 	// Query is a free-text search term. Zotero's Web API scans title,
 	// creators, and year by default; set QMode = "everything" to also
 	// match abstract, fulltext, and notes.

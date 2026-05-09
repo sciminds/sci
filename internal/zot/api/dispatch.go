@@ -11,6 +11,7 @@ package api
 
 import (
 	"context"
+	"strings"
 
 	"github.com/sciminds/cli/internal/zot/client"
 )
@@ -128,93 +129,154 @@ func (c *Client) listCollections(ctx context.Context, start, limit int) (int, st
 	return r.StatusCode(), r.Status(), r.JSON200, nil
 }
 
-// listItems dispatches GET /items (top-level) or GET /collections/{key}/items
-// with pagination + filter params. Both endpoints accept the same filter set
-// on Zotero's side — itemType (`journalArticle`, `book || bookSection`,
-// `-attachment`), q/qmode full-text search, start/limit pagination.
+// listItems dispatches GET /items, /items/top, /collections/{k}/items, or
+// /collections/{k}/items/top with pagination + filter params. The Top and
+// CollectionKey fields on opts pick the endpoint; every endpoint accepts the
+// same filter set on Zotero's side — itemType, tag, itemKey, q/qmode,
+// start/limit.
 //
 //nolint:dupl // per-op dispatch is intrinsically symmetric across user/group generated types
 func (c *Client) listItems(ctx context.Context, opts ListItemsOptions) (int, string, *[]client.Item, error) {
 	s := client.Start(opts.Start)
 	l := client.Limit(opts.Limit)
-	if c.isShared() {
-		if opts.CollectionKey != "" {
-			params := &client.ListCollectionItemsGroupParams{Start: &s, Limit: &l}
-			if opts.ItemType != "" {
-				t := client.ItemType(opts.ItemType)
-				params.ItemType = &t
-			}
-			if opts.Query != "" {
-				q := client.Query(opts.Query)
-				params.Q = &q
-				if opts.QMode != "" {
-					m := client.ListCollectionItemsGroupParamsQmode(opts.QMode)
-					params.Qmode = &m
-				}
-			}
-			r, err := c.Gen.ListCollectionItemsGroupWithResponse(ctx, c.GroupID(), client.CollectionKeyPath(opts.CollectionKey), params)
-			if err != nil {
-				return 0, "", nil, err
-			}
-			return r.StatusCode(), r.Status(), r.JSON200, nil
+	itemType := optStr[client.ItemType](opts.ItemType)
+	tag := optStr[client.TagFilter](opts.Tag)
+	q := optStr[client.Query](opts.Query)
+	itemKey := optStr[client.ItemKey](joinItemKeys(opts.ItemKeys))
+
+	switch {
+	case c.isShared() && opts.CollectionKey != "" && opts.Top:
+		params := &client.ListCollectionTopItemsGroupParams{
+			Start: &s, Limit: &l, ItemType: itemType, Tag: tag, ItemKey: itemKey, Q: q,
 		}
-		params := &client.ListItemsGroupParams{Start: &s, Limit: &l}
-		if opts.ItemType != "" {
-			t := client.ItemType(opts.ItemType)
-			params.ItemType = &t
+		if q != nil && opts.QMode != "" {
+			m := client.ListCollectionTopItemsGroupParamsQmode(opts.QMode)
+			params.Qmode = &m
 		}
-		if opts.Query != "" {
-			q := client.Query(opts.Query)
-			params.Q = &q
-			if opts.QMode != "" {
-				m := client.ListItemsGroupParamsQmode(opts.QMode)
-				params.Qmode = &m
-			}
+		r, err := c.Gen.ListCollectionTopItemsGroupWithResponse(ctx, c.GroupID(), client.CollectionKeyPath(opts.CollectionKey), params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+
+	case c.isShared() && opts.CollectionKey != "":
+		params := &client.ListCollectionItemsGroupParams{
+			Start: &s, Limit: &l, ItemType: itemType, Tag: tag, ItemKey: itemKey, Q: q,
+		}
+		if q != nil && opts.QMode != "" {
+			m := client.ListCollectionItemsGroupParamsQmode(opts.QMode)
+			params.Qmode = &m
+		}
+		r, err := c.Gen.ListCollectionItemsGroupWithResponse(ctx, c.GroupID(), client.CollectionKeyPath(opts.CollectionKey), params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+
+	case c.isShared() && opts.Top:
+		params := &client.ListTopItemsGroupParams{
+			Start: &s, Limit: &l, ItemType: itemType, Tag: tag, ItemKey: itemKey, Q: q,
+		}
+		if q != nil && opts.QMode != "" {
+			m := client.ListTopItemsGroupParamsQmode(opts.QMode)
+			params.Qmode = &m
+		}
+		r, err := c.Gen.ListTopItemsGroupWithResponse(ctx, c.GroupID(), params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+
+	case c.isShared():
+		params := &client.ListItemsGroupParams{
+			Start: &s, Limit: &l, ItemType: itemType, Tag: tag, ItemKey: itemKey, Q: q,
+		}
+		if q != nil && opts.QMode != "" {
+			m := client.ListItemsGroupParamsQmode(opts.QMode)
+			params.Qmode = &m
 		}
 		r, err := c.Gen.ListItemsGroupWithResponse(ctx, c.GroupID(), params)
 		if err != nil {
 			return 0, "", nil, err
 		}
 		return r.StatusCode(), r.Status(), r.JSON200, nil
-	}
-	if opts.CollectionKey != "" {
-		params := &client.ListCollectionItemsParams{Start: &s, Limit: &l}
-		if opts.ItemType != "" {
-			t := client.ItemType(opts.ItemType)
-			params.ItemType = &t
+
+	case opts.CollectionKey != "" && opts.Top:
+		params := &client.ListCollectionTopItemsParams{
+			Start: &s, Limit: &l, ItemType: itemType, Tag: tag, ItemKey: itemKey, Q: q,
 		}
-		if opts.Query != "" {
-			q := client.Query(opts.Query)
-			params.Q = &q
-			if opts.QMode != "" {
-				m := client.ListCollectionItemsParamsQmode(opts.QMode)
-				params.Qmode = &m
-			}
+		if q != nil && opts.QMode != "" {
+			m := client.ListCollectionTopItemsParamsQmode(opts.QMode)
+			params.Qmode = &m
+		}
+		r, err := c.Gen.ListCollectionTopItemsWithResponse(ctx, c.UserID, client.CollectionKeyPath(opts.CollectionKey), params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+
+	case opts.CollectionKey != "":
+		params := &client.ListCollectionItemsParams{
+			Start: &s, Limit: &l, ItemType: itemType, Tag: tag, ItemKey: itemKey, Q: q,
+		}
+		if q != nil && opts.QMode != "" {
+			m := client.ListCollectionItemsParamsQmode(opts.QMode)
+			params.Qmode = &m
 		}
 		r, err := c.Gen.ListCollectionItemsWithResponse(ctx, c.UserID, client.CollectionKeyPath(opts.CollectionKey), params)
 		if err != nil {
 			return 0, "", nil, err
 		}
 		return r.StatusCode(), r.Status(), r.JSON200, nil
-	}
-	params := &client.ListItemsParams{Start: &s, Limit: &l}
-	if opts.ItemType != "" {
-		t := client.ItemType(opts.ItemType)
-		params.ItemType = &t
-	}
-	if opts.Query != "" {
-		q := client.Query(opts.Query)
-		params.Q = &q
-		if opts.QMode != "" {
+
+	case opts.Top:
+		params := &client.ListTopItemsParams{
+			Start: &s, Limit: &l, ItemType: itemType, Tag: tag, ItemKey: itemKey, Q: q,
+		}
+		if q != nil && opts.QMode != "" {
+			m := client.ListTopItemsParamsQmode(opts.QMode)
+			params.Qmode = &m
+		}
+		r, err := c.Gen.ListTopItemsWithResponse(ctx, c.UserID, params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
+
+	default:
+		params := &client.ListItemsParams{
+			Start: &s, Limit: &l, ItemType: itemType, Tag: tag, ItemKey: itemKey, Q: q,
+		}
+		if q != nil && opts.QMode != "" {
 			m := client.ListItemsParamsQmode(opts.QMode)
 			params.Qmode = &m
 		}
+		r, err := c.Gen.ListItemsWithResponse(ctx, c.UserID, params)
+		if err != nil {
+			return 0, "", nil, err
+		}
+		return r.StatusCode(), r.Status(), r.JSON200, nil
 	}
-	r, err := c.Gen.ListItemsWithResponse(ctx, c.UserID, params)
-	if err != nil {
-		return 0, "", nil, err
+}
+
+// optStr converts a possibly-empty string to a typed *T pointer, returning
+// nil when s == "". Saves the small repeated pointer-dance for each
+// optional query param.
+func optStr[T ~string](s string) *T {
+	if s == "" {
+		return nil
 	}
-	return r.StatusCode(), r.Status(), r.JSON200, nil
+	v := T(s)
+	return &v
+}
+
+// joinItemKeys collapses an item-key slice into the comma-separated form the
+// Zotero `?itemKey=` parameter expects. Returns "" when keys is empty.
+func joinItemKeys(keys []string) string {
+	if len(keys) == 0 {
+		return ""
+	}
+	return strings.Join(keys, ",")
 }
 
 // getCollection dispatches GET /collections/{key}.
