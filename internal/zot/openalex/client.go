@@ -18,7 +18,13 @@ const (
 	defaultTimeout        = 30 * time.Second
 	defaultMaxRetries     = 3
 	defaultRetryBaseDelay = time.Second
-	userAgent             = "sci-zot (+https://github.com/sciminds/cli)"
+	// defaultMaxRetryDelay caps any single retry sleep, including
+	// server-supplied Retry-After. OpenAlex very occasionally returns
+	// multi-thousand-second values which would otherwise wedge a long batch
+	// scan with no progress. 60s is generous enough for a real backoff
+	// without making the failure mode look like a hang.
+	defaultMaxRetryDelay = 60 * time.Second
+	userAgent            = "sci-zot (+https://github.com/sciminds/cli)"
 )
 
 // Client is a thin HTTP client for the OpenAlex API.
@@ -30,6 +36,10 @@ type Client struct {
 
 	MaxRetries     int
 	RetryBaseDelay time.Duration
+	// MaxRetryDelay caps the per-attempt sleep on retry, including any
+	// Retry-After value sent by the server. Zero falls back to
+	// defaultMaxRetryDelay; set explicitly in tests for fast paths.
+	MaxRetryDelay time.Duration
 }
 
 // NewClient creates an OpenAlex client. Both email and apiKey are optional —
@@ -42,6 +52,7 @@ func NewClient(email, apiKey string) *Client {
 		HTTPClient:     &http.Client{Timeout: defaultTimeout},
 		MaxRetries:     defaultMaxRetries,
 		RetryBaseDelay: defaultRetryBaseDelay,
+		MaxRetryDelay:  defaultMaxRetryDelay,
 	}
 }
 
@@ -117,10 +128,18 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 }
 
 func (c *Client) retryDelay(resp *http.Response, attempt int) time.Duration {
+	maxDelay := c.MaxRetryDelay
+	if maxDelay <= 0 {
+		maxDelay = defaultMaxRetryDelay
+	}
+	var d time.Duration
 	if ra := resp.Header.Get("Retry-After"); ra != "" {
 		if secs, err := strconv.Atoi(ra); err == nil {
-			return time.Duration(secs) * time.Second
+			d = time.Duration(secs) * time.Second
 		}
 	}
-	return c.RetryBaseDelay * time.Duration(1<<attempt)
+	if d == 0 {
+		d = c.RetryBaseDelay * time.Duration(1<<attempt)
+	}
+	return min(d, maxDelay)
 }

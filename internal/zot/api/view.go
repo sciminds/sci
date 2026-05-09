@@ -76,6 +76,9 @@ func ItemFromClient(it *client.Item) local.Item {
 	if d.DateModified != nil {
 		out.DateModified = d.DateModified.UTC().Format("2006-01-02T15:04:05Z")
 	}
+	if it.Meta != nil && it.Meta.NumChildren != nil {
+		out.NumChildren = *it.Meta.NumChildren
+	}
 	return out
 }
 

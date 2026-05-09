@@ -116,7 +116,26 @@ func loadFromSavedSearch(ctx context.Context, ref string) ([]local.Item, string,
 		return api.ItemFromClient(&it)
 	})
 	label := fmt.Sprintf("saved-search:%s", search.Data.Name)
+	if filters.NoChildren {
+		// Zotero Web API has no native "no children" filter — `/items/top`
+		// gets us top-level items, but those can still have child
+		// attachments/notes. Post-filter on meta.numChildren==0 to honor
+		// the saved search's `noChildren=true` modifier.
+		before := len(items)
+		items = filterChildless(items)
+		label = fmt.Sprintf("%s (%d childless of %d top-level)", label, len(items), before)
+	}
 	return items, label, nil
+}
+
+// filterChildless returns only items the Zotero API reports as having zero
+// children (`meta.numChildren == 0`). Items lacking meta come back with
+// NumChildren=0, which is the safe interpretation for absent data — they'd
+// be re-checked by any subsequent attach call anyway.
+func filterChildless(items []local.Item) []local.Item {
+	return lo.Filter(items, func(it local.Item, _ int) bool {
+		return it.NumChildren == 0
+	})
 }
 
 // itemTypeFilterFromSavedSearch combines the positive + negated itemType

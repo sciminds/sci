@@ -123,6 +123,37 @@ func TestItemFromClient_EmptyStringFieldsIgnored(t *testing.T) {
 	}
 }
 
+func TestItemFromClient_PopulatesNumChildren(t *testing.T) {
+	t.Parallel()
+	// meta.numChildren is what the saved-search childless post-filter relies
+	// on — Zotero's Web API has no native "no children" filter, so callers
+	// project /items/top + filter NumChildren==0 themselves.
+	title := "Has children"
+	it := &client.Item{
+		Key:     "WITHKIDS",
+		Version: 1,
+		Data:    client.ItemData{ItemType: "journalArticle", Title: &title},
+		Meta:    &client.Item_Meta{NumChildren: intPtr(2)},
+	}
+	got := ItemFromClient(it)
+	if got.NumChildren != 2 {
+		t.Errorf("NumChildren = %d, want 2", got.NumChildren)
+	}
+}
+
+func TestItemFromClient_NumChildrenAbsentIsZero(t *testing.T) {
+	t.Parallel()
+	// Items lacking meta (e.g. minimal test fixtures) must produce zero,
+	// not crash. Childless filtering would treat the item as childless,
+	// which is the safe interpretation for absent data.
+	title := "No meta"
+	it := &client.Item{Key: "NOMETA00", Data: client.ItemData{ItemType: "preprint", Title: &title}}
+	got := ItemFromClient(it)
+	if got.NumChildren != 0 {
+		t.Errorf("NumChildren = %d, want 0 when meta is nil", got.NumChildren)
+	}
+}
+
 func TestItemFromClient_HandlesNilSafely(t *testing.T) {
 	t.Parallel()
 	got := ItemFromClient(nil)

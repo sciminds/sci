@@ -102,6 +102,36 @@ func TestClient_Get_retryOn429(t *testing.T) {
 	}
 }
 
+func TestClient_Get_capsAbsurdRetryAfter(t *testing.T) {
+	t.Parallel()
+	// OpenAlex (or any upstream) sending a huge Retry-After must NOT park us
+	// for that long — production hang on 2026-05-09 traced to a server
+	// returning a multi-thousand-second Retry-After mid-batch, freezing the
+	// entire scan with no progress. Cap to MaxRetryDelay.
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) < 2 {
+			w.Header().Set("Retry-After", "7200") // 2 hours
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(Work{ID: "W1"})
+	}))
+	defer srv.Close()
+
+	c := NewClient("", "")
+	c.BaseURL = srv.URL
+	c.MaxRetryDelay = 50 * time.Millisecond
+
+	start := time.Now()
+	if err := c.Get(context.Background(), "/works/W1", nil, new(Work)); err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("retry slept %v, expected ≤ MaxRetryDelay (50ms) — Retry-After header not capped", elapsed)
+	}
+}
+
 func TestClient_Get_retryOn5xx(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32

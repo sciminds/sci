@@ -35,6 +35,10 @@ type Item struct {
 	Fields       map[string]string `json:"fields,omitempty"`
 	DateAdded    string            `json:"date_added,omitempty"`
 	DateModified string            `json:"date_modified,omitempty"`
+	// NumChildren is the count of attachments+notes for this item, populated
+	// when items come from the Zotero Web API (`meta.numChildren`). Local DB
+	// queries leave it zero — the local path doesn't filter on it.
+	NumChildren int `json:"num_children,omitempty"`
 }
 
 // Creator holds one author/editor/etc. fieldMode=1 indicates a single-name

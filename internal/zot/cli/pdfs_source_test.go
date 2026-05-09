@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/sciminds/cli/internal/zot/savedsearch"
 )
 
@@ -105,6 +106,23 @@ func TestItemTypeFilterFromSavedSearch(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
 		}
+	}
+}
+
+func TestFilterChildless(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		{Key: "AAAA0000", NumChildren: 0},
+		{Key: "BBBB0001", NumChildren: 1},
+		{Key: "CCCC0002", NumChildren: 0},
+		{Key: "DDDD0003", NumChildren: 5},
+	}
+	got := filterChildless(items)
+	if len(got) != 2 {
+		t.Fatalf("got %d items, want 2 (childless only)", len(got))
+	}
+	if got[0].Key != "AAAA0000" || got[1].Key != "CCCC0002" {
+		t.Errorf("filtered keys = %q, %q; want AAAA0000, CCCC0002", got[0].Key, got[1].Key)
 	}
 }
 
