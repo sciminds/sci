@@ -20,6 +20,25 @@ func withXDGConfigHome(t *testing.T) string {
 	return filepath.Join(dir, "sci", "credentials.json")
 }
 
+// TestConfigPath_EmptyXDGConfigHome guards against an empty XDG_CONFIG_HOME
+// (set to "" in the shell, not just unset) — without the defensive fallback
+// the xdg lib resolves to ~/Library/Application Support on darwin instead
+// of ~/.config.
+func TestConfigPath_EmptyXDGConfigHome(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+	want := filepath.Join(home, ".config", "sci", "credentials.json")
+	if got := ConfigPath(); got != want {
+		t.Errorf("ConfigPath with empty XDG_CONFIG_HOME = %q, want %q", got, want)
+	}
+}
+
 func writeConfig(t *testing.T, path, contents string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

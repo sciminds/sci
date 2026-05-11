@@ -17,33 +17,17 @@ var cacheFile = ""
 // defaultCacheFile returns the canonical update-check cache path under
 // $XDG_CACHE_HOME (e.g. ~/.cache/sci/update-check.json on Linux,
 // ~/Library/Caches/sci/update-check.json on macOS).
+//
+// An empty XDG_CACHE_HOME (set to "" in the shell, not just unset) is
+// treated as "use $HOME/.cache" rather than trusting xdg.CacheHome's
+// fallback — on darwin that fallback is ~/Library/Caches, which is not
+// where users with a blanked env var expect the cache to live.
 func defaultCacheFile() string {
+	if os.Getenv("XDG_CACHE_HOME") == "" {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, ".cache", "sci", "update-check.json")
+	}
 	return filepath.Join(xdg.CacheHome, "sci", "update-check.json")
-}
-
-// legacyCacheFile is where the cache used to live before it was relocated
-// from XDG_CONFIG_HOME to XDG_CACHE_HOME. Kept for one-shot migration.
-func legacyCacheFile() string {
-	return filepath.Join(xdg.ConfigHome, "sci", "update-check.json")
-}
-
-// migrateLegacyCache moves the cache file from the old XDG_CONFIG_HOME
-// location to the new XDG_CACHE_HOME location if (and only if) the new
-// file does not yet exist and the legacy file does. Failures are silent —
-// the next RefreshCache will simply rewrite the file at the new location.
-func migrateLegacyCache() {
-	newPath := defaultCacheFile()
-	if _, err := os.Stat(newPath); err == nil {
-		return // already migrated (or fresh-installed at new path)
-	}
-	legacy := legacyCacheFile()
-	if _, err := os.Stat(legacy); err != nil {
-		return // nothing to migrate
-	}
-	if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
-		return
-	}
-	_ = os.Rename(legacy, newPath)
 }
 
 // ReadCachedNotice reads the previous cached check result (instant) and
@@ -144,6 +128,5 @@ func cachePath() string {
 	if cacheFile != "" {
 		return cacheFile
 	}
-	migrateLegacyCache()
 	return defaultCacheFile()
 }

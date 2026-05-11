@@ -2,6 +2,7 @@ package lab
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/adrg/xdg"
@@ -13,6 +14,25 @@ func withXDGConfigHome(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	xdg.Reload()
 	t.Cleanup(xdg.Reload)
+}
+
+// TestConfigPath_EmptyXDGConfigHome guards against an empty XDG_CONFIG_HOME
+// (set to "" in the shell, not just unset) — without the defensive fallback
+// the xdg lib resolves to ~/Library/Application Support on darwin instead
+// of ~/.config.
+func TestConfigPath_EmptyXDGConfigHome(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+	want := filepath.Join(home, ".config", "sci", "lab.json")
+	if got := ConfigPath(); got != want {
+		t.Errorf("ConfigPath with empty XDG_CONFIG_HOME = %q, want %q", got, want)
+	}
 }
 
 func TestLoadConfig_Missing(t *testing.T) {

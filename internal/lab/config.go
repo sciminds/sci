@@ -53,7 +53,16 @@ func (c *Config) SSHAlias() string {
 
 // ConfigPath returns the config file path under the XDG config home
 // (typically $XDG_CONFIG_HOME/sci/lab.json or ~/.config/sci/lab.json).
+//
+// An empty XDG_CONFIG_HOME (set to "" in the shell, not just unset) is
+// treated as "use $HOME/.config" rather than trusting xdg.ConfigHome's
+// fallback — on darwin that fallback is ~/Library/Application Support,
+// which is not where our config files live.
 func ConfigPath() string {
+	if os.Getenv("XDG_CONFIG_HOME") == "" {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, ".config", "sci", "lab.json")
+	}
 	return filepath.Join(xdg.ConfigHome, "sci", "lab.json")
 }
 

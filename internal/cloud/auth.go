@@ -13,7 +13,16 @@ const defaultBucket = "sci-public"
 
 // ConfigPath returns the credentials file path under the XDG config home
 // (typically $XDG_CONFIG_HOME/sci/credentials.json or ~/.config/sci/credentials.json).
+//
+// An empty XDG_CONFIG_HOME (set to "" in the shell, not just unset) is
+// treated as "use $HOME/.config" rather than trusting xdg.ConfigHome's
+// fallback — on darwin that fallback is ~/Library/Application Support,
+// which is not where our config files live.
 func ConfigPath() string {
+	if os.Getenv("XDG_CONFIG_HOME") == "" {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, ".config", "sci", "credentials.json")
+	}
 	return filepath.Join(xdg.ConfigHome, "sci", "credentials.json")
 }
 

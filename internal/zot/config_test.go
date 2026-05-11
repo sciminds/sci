@@ -28,6 +28,26 @@ func TestConfigPath(t *testing.T) {
 	}
 }
 
+// TestConfigPath_EmptyXDGConfigHome guards against a regression where an
+// empty XDG_CONFIG_HOME (set in the shell, not just unset) caused the
+// xdg lib to fall back to the macOS-native ~/Library/Application Support
+// instead of the ~/.config path users expect. ConfigPath must treat the
+// empty case the same as "unset" and route to $HOME/.config.
+func TestConfigPath_EmptyXDGConfigHome(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+	want := filepath.Join(home, ".config", "sci", "zot.json")
+	if got := ConfigPath(); got != want {
+		t.Errorf("ConfigPath with empty XDG_CONFIG_HOME = %q, want %q", got, want)
+	}
+}
+
 func TestLoadConfig_Missing(t *testing.T) {
 	withXDGConfigHome(t)
 	cfg, err := LoadConfig()
