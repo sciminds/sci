@@ -52,7 +52,7 @@ func (r AuthResult) Human() string {
 	if r.Action == "login" || r.Action == "status" {
 		fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Dim().Render("Try these next:"))
 		fmt.Fprintf(&b, "    sci cloud put                 Upload a file\n")
-		fmt.Fprintf(&b, "    sci cloud list                List shared files\n")
+		fmt.Fprintf(&b, "    sci cloud ls                  List shared files\n")
 	}
 	return b.String()
 }

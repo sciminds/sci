@@ -162,29 +162,17 @@ commands:
         bypass: "--classroom-url"
         status: covered
 
-  # ── cloud put ──────────────────────────────────────────────────────────────
-  cloud-put:
-    file: cmd/sci/cloud.go
-    prompts:
-      - id: upload-name
-        type: huh.NewInput
-        nth: 1
-        line: 116
-        description: "Upload name"
-        bypass: "--name"
-        status: covered
-
-  # ── cloud list ─────────────────────────────────────────────────────────────
-  cloud-list:
+  # ── cloud browse (exempt) ──────────────────────────────────────────────────
+  cloud-browse:
     file: internal/share/listtui.go
     prompts:
-      - id: cloud-list-tui
+      - id: cloud-browse-tui
         type: uikit.Run
         nth: 1
-        line: 252
-        description: "Interactive cloud file browser"
-        bypass: "--plain or --json"
-        status: covered
+        line: 238
+        description: "Interactive cloud file browser (delete/copy-url/download)"
+        status: exempt
+        reason: "Interactive-only by design; `sci cloud ls` is the scriptable counterpart"
 
   # ── tools list ─────────────────────────────────────────────────────────────
   tools-list:

@@ -102,10 +102,11 @@ Tabular files open in dbtui (`internal/tui/dbtui/`), also installable as a stand
 
 | Command | What it does |
 |---------|--------------|
-| `sci cloud setup` | Authenticate with GitHub (requires sciminds org membership) |
+| `sci cloud setup` | Authenticate with Hugging Face (requires sciminds org membership) |
+| `sci cloud ls` | List shared files |
+| `sci cloud get <name> [local]` | Download a shared file |
 | `sci cloud put <file>` | Upload a file to cloud storage |
-| `sci cloud get <name>` | Download a shared file |
-| `sci cloud list` | List all shared files |
+| `sci cloud browse` | Interactively browse shared files |
 | `sci cloud remove <name>` | Remove a shared file |
 
 </details>

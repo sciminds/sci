@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/netutil"
@@ -17,15 +16,15 @@ import (
 )
 
 var (
-	putName     string
-	putPublic   bool
-	putForce    bool
-	getPublic   bool
-	removeYes   bool
-	removePub   bool
-	listPublic  bool
-	listPlain   bool
-	setupLogout bool
+	putName      string
+	putPublic    bool
+	putForce     bool
+	getPublic    bool
+	removeYes    bool
+	removePub    bool
+	lsPublic     bool
+	browsePublic bool
+	setupLogout  bool
 )
 
 func cloudCommand() *cli.Command {
@@ -37,8 +36,9 @@ func cloudCommand() *cli.Command {
 			"the world-readable bucket (sciminds/public).\n\n" +
 			"  $ sci cloud put results.csv               # private (default)\n" +
 			"  $ sci cloud put results.csv --public      # public, prints URL\n" +
-			"  $ sci cloud list                          # your private files\n" +
-			"  $ sci cloud list --public                 # everyone's public files\n" +
+			"  $ sci cloud ls                            # your private files\n" +
+			"  $ sci cloud ls --public                   # everyone's public files\n" +
+			"  $ sci cloud browse                        # interactive TUI\n" +
 			"  $ sci cloud get someone/data.csv --public",
 		Category: "Commands",
 		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
@@ -49,10 +49,11 @@ func cloudCommand() *cli.Command {
 		},
 		Commands: []*cli.Command{
 			cloudSetupCommand(),
-			cloudPutCommand(),
+			cloudLsCommand(),
 			cloudGetCommand(),
+			cloudPutCommand(),
+			cloudBrowseCommand(),
 			cloudRemoveCommand(),
-			cloudListCommand(),
 		},
 	}
 }
@@ -75,6 +76,73 @@ func cloudSetupCommand() *cli.Command {
 				return nil
 			}
 			result, err := share.Auth()
+			if err != nil {
+				return err
+			}
+			cmdutil.Output(cmd, result)
+			return nil
+		},
+	}
+}
+
+func cloudLsCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "ls",
+		Aliases:     []string{"list"},
+		Usage:       "List shared files (private bucket by default; --public to list public)",
+		Description: "$ sci cloud ls\n$ sci cloud ls --public",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "list the public bucket", Destination: &lsPublic, Local: true},
+		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			_, c, err := cloud.Setup(share.BucketFor(lsPublic))
+			if err != nil {
+				return err
+			}
+			result, err := share.SharedAll(c, true)
+			if err != nil {
+				return err
+			}
+			cmdutil.Output(cmd, result)
+			return nil
+		},
+	}
+}
+
+func cloudGetCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "get",
+		Usage: "Download a shared file (private bucket by default; --public for public bucket)",
+		Description: "$ sci cloud get results.csv                  # your private file\n" +
+			"$ sci cloud get results.csv ./local/         # download into ./local/\n" +
+			"$ sci cloud get alice/data.csv --public      # someone else's public file",
+		ArgsUsage: "<name> [local]",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "fetch from the public bucket", Destination: &getPublic, Local: true},
+		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			if cmd.Args().Len() < 1 {
+				return fmt.Errorf("get requires a file name\n\n" +
+					"  Download own private:    sci cloud get experiment.csv\n" +
+					"  Download someone else's: sci cloud get alice/data.csv --public\n\n" +
+					"  Run 'sci cloud get --help' for more options")
+			}
+			name := cmd.Args().Get(0)
+			local := ""
+			if cmd.Args().Len() >= 2 {
+				local = cmd.Args().Get(1)
+			}
+
+			// Cross-user "<owner>/<file>" only makes sense for the public bucket.
+			public := getPublic
+			if strings.Contains(name, "/") {
+				if !public {
+					fmt.Fprintf(os.Stderr, "  %s cross-user downloads require --public; assuming public bucket.\n", uikit.SymWarn)
+				}
+				public = true
+			}
+
+			result, err := share.Get(name, local, public)
 			if err != nil {
 				return err
 			}
@@ -112,29 +180,13 @@ func cloudPutCommand() *cli.Command {
 			}
 
 			name := putName
-			force := putForce
-
-			if cmdutil.IsJSON(cmd) {
-				if name == "" {
-					return fmt.Errorf("--name is required in --json mode")
-				}
-				force = true
+			if name == "" {
+				name = share.DefaultShareName(filePath)
 			}
 
-			if name == "" {
-				defaultName := share.DefaultShareName(filePath)
-				if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
-					huh.NewInput().
-						Title("Upload name").
-						Description("Name used to get/remove this file").
-						Placeholder(defaultName).
-						Value(&name),
-				))); err != nil {
-					return err
-				}
-				if name == "" {
-					name = defaultName
-				}
+			force := putForce
+			if cmdutil.IsJSON(cmd) {
+				force = true
 			}
 
 			if !force {
@@ -164,39 +216,29 @@ func cloudPutCommand() *cli.Command {
 	}
 }
 
-func cloudGetCommand() *cli.Command {
+func cloudBrowseCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "get",
-		Usage: "Download a file (from private bucket; --public for public bucket)",
-		Description: "$ sci cloud get results.csv             # your private file\n" +
-			"$ sci cloud get alice/data.csv --public # someone else's public file",
-		ArgsUsage: "<name>",
+		Name:        "browse",
+		Usage:       "Interactively browse shared files (delete, copy URL, download)",
+		Description: "$ sci cloud browse\n$ sci cloud browse --public",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "fetch from the public bucket", Destination: &getPublic, Local: true},
+			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "browse the public bucket", Destination: &browsePublic, Local: true},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			if cmd.Args().Len() != 1 {
-				return fmt.Errorf("get requires a file name\n\n" +
-					"  Download own private:    sci cloud get experiment.csv\n" +
-					"  Download someone else's: sci cloud get alice/data.csv --public\n\n" +
-					"  Run 'sci cloud get --help' for more options")
-			}
-			name := cmd.Args().First()
-
-			// Cross-user "<owner>/<file>" only makes sense for the public bucket.
-			public := getPublic
-			if strings.Contains(name, "/") {
-				if !public {
-					fmt.Fprintf(os.Stderr, "  %s cross-user downloads require --public; assuming public bucket.\n", uikit.SymWarn)
-				}
-				public = true
-			}
-
-			result, err := share.Get(name, public)
+		Action: func(_ context.Context, _ *cli.Command) error {
+			_, c, err := cloud.Setup(share.BucketFor(browsePublic))
 			if err != nil {
 				return err
 			}
-			cmdutil.Output(cmd, result)
+			result, err := share.SharedAll(c, false)
+			if err != nil {
+				return err
+			}
+			if err := share.RunCloudListTUI(result.Datasets, c); err != nil {
+				if errors.Is(err, share.ErrInterrupted) {
+					return cli.Exit("", 130)
+				}
+				return err
+			}
 			return nil
 		},
 	}
@@ -227,37 +269,6 @@ func cloudRemoveCommand() *cli.Command {
 			}
 			cmdutil.Output(cmd, result)
 			return nil
-		},
-	}
-}
-
-func cloudListCommand() *cli.Command {
-	return &cli.Command{
-		Name:        "list",
-		Aliases:     []string{"ls"},
-		Usage:       "List files (private bucket by default; --public to list public)",
-		Description: "$ sci cloud list\n$ sci cloud list --public\n$ sci cloud list --plain",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "list the public bucket", Destination: &listPublic, Local: true},
-			&cli.BoolFlag{Name: "plain", Usage: "plain table output instead of interactive TUI", Destination: &listPlain, Local: true},
-		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			_, c, err := cloud.Setup(share.BucketFor(listPublic))
-			if err != nil {
-				return err
-			}
-
-			plain := cmdutil.IsJSON(cmd) || listPlain
-			result, err := share.SharedAll(c, plain)
-			if err != nil {
-				return err
-			}
-
-			if plain {
-				cmdutil.Output(cmd, result)
-				return nil
-			}
-			return share.RunCloudListTUI(result.Datasets, c)
 		},
 	}
 }

@@ -1,6 +1,6 @@
 {"version": 2, "width": 80, "height": 24}
 [0.5, "o", "$ "]
-[0.8, "o", "sci cloud list"]
+[0.8, "o", "sci cloud ls"]
 [1.0, "o", "\r\n"]
 [1.3, "o", "  name              type   size     \r\n"]
 [1.4, "o", "  results.csv       csv    24 KB    \r\n"]

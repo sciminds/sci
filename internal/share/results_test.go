@@ -169,7 +169,7 @@ func TestAuthResult_Human(t *testing.T) {
 			if !strings.Contains(h, tt.wantSymbol) {
 				t.Errorf("Human() missing symbol %q:\n%s", tt.wantSymbol, h)
 			}
-			hasNextSteps := strings.Contains(h, "sci cloud put") && strings.Contains(h, "sci cloud list")
+			hasNextSteps := strings.Contains(h, "sci cloud put") && strings.Contains(h, "sci cloud ls")
 			if hasNextSteps != tt.wantNextSteps {
 				t.Errorf("Human() next-steps present=%v, want %v:\n%s", hasNextSteps, tt.wantNextSteps, h)
 			}

@@ -312,17 +312,18 @@ func buildSharedEntries(objects []cloud.ObjectInfo, username string, allUsers bo
 	})
 }
 
-// Get downloads a shared file to the current directory.
-// If name contains a "/", it's treated as "owner/filename" (cross-user
-// download). Cross-user downloads only work from the public bucket — the
-// private bucket has no owner field on the read path.
-func Get(name string, public bool) (*CloudResult, error) {
+// Get downloads a shared file. When localPath is empty or an existing
+// directory, the file is written inside it using the remote basename.
+// Otherwise localPath is treated as the destination filename. If name
+// contains a "/", it's parsed as "owner/filename" (cross-user download,
+// public bucket only).
+func Get(name, localPath string, public bool) (*CloudResult, error) {
 	_, c, err := cloud.Setup(BucketFor(public))
 	if err != nil {
 		return nil, err
 	}
 
-	outPath := filepath.Base(name)
+	outPath := resolveGetOutPath(name, localPath)
 	dl := downloadFunc(c, name)
 	if err := uikit.RunWithSpinner("Downloading "+filepath.Base(name), func() error {
 		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
@@ -340,9 +341,9 @@ func Get(name string, public bool) (*CloudResult, error) {
 		return nil, err
 	}
 
-	// Auto-extract zip files.
+	// Auto-extract zip files into the same parent directory.
 	if filepath.Ext(outPath) == ".zip" {
-		extractDir := nameFromFile(name)
+		extractDir := filepath.Join(filepath.Dir(outPath), nameFromFile(name))
 		if err := uikit.RunWithSpinner("Extracting "+filepath.Base(name), func() error {
 			return unzip(outPath, extractDir)
 		}); err != nil {
@@ -352,6 +353,20 @@ func Get(name string, public bool) (*CloudResult, error) {
 		return &CloudResult{OK: true, Action: "get", Message: fmt.Sprintf("downloaded and extracted %s/", extractDir)}, nil
 	}
 	return &CloudResult{OK: true, Action: "get", Message: fmt.Sprintf("downloaded %s", outPath)}, nil
+}
+
+// resolveGetOutPath mirrors `cp`/`rsync` semantics: an empty or
+// existing-directory localPath drops the file in there under its
+// basename; anything else is taken as the destination filename.
+func resolveGetOutPath(name, localPath string) string {
+	base := filepath.Base(name)
+	if localPath == "" {
+		return base
+	}
+	if info, err := os.Stat(localPath); err == nil && info.IsDir() {
+		return filepath.Join(localPath, base)
+	}
+	return localPath
 }
 
 // downloadFunc returns a download closure. If filename contains a "/"

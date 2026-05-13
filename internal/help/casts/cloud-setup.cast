@@ -2,6 +2,6 @@
 [0.5, "o", "$ "]
 [0.8, "o", "sci cloud setup"]
 [1.0, "o", "\r\n"]
-[1.5, "o", "  → Opening browser for GitHub login…\r\n"]
-[2.5, "o", "  ✓ authenticated as @ejolly\r\n"]
+[1.5, "o", "  Launching `hf auth login`…\r\n"]
+[2.5, "o", "  ✓ authenticated as @ejolly (sciminds)\r\n"]
 [3.0, "o", "$ "]
