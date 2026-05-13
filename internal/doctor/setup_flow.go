@@ -32,13 +32,22 @@ type SetupResult struct {
 	UpdateError     string
 }
 
+// SetupOpts controls optional behavior of [RunSetup].
+type SetupOpts struct {
+	// SkipUpgradeCheck disables the final brew/uv outdated check and
+	// upgrade prompt. Used by `sci update` to chain into doctor for
+	// required-tools checks without nagging the user about unrelated
+	// package upgrades.
+	SkipUpgradeCheck bool
+}
+
 // RunSetup performs Brewfile sync, required-package injection, tool checking,
 // and installation. Interactive prompts use the provided confirm function,
 // which should auto-confirm in quiet/JSON mode (e.g. cmdutil.ConfirmYes).
 //
 // brewfilePath must point to an existing file. created indicates whether the
 // file was newly created (dump path) vs. pre-existing (sync path).
-func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
+func RunSetup(r brew.Runner, brewfilePath string, created bool, opts SetupOpts) SetupResult {
 	result := SetupResult{
 		BrewfilePath:    brewfilePath,
 		BrewfileCreated: created,
@@ -133,6 +142,10 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool) SetupResult {
 	}
 
 	// ── Check for outdated packages ────────────────────────────────────
+	if opts.SkipUpgradeCheck {
+		return result
+	}
+
 	if !uikit.IsQuiet() {
 		fmt.Fprintf(os.Stderr, "\n  Checking for outdated packages…\n")
 	}

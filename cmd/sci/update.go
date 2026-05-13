@@ -3,11 +3,26 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"syscall"
 
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/selfupdate"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
+)
+
+// Overridable indirections for testing — the real implementations hit the
+// network and replace the process, neither of which we want in unit tests.
+var (
+	selfupdateCheck  = selfupdate.Check
+	selfupdateUpdate = selfupdate.Update
+
+	// execAfterUpdate replaces the running process with the freshly installed
+	// sci binary, running its doctor flow with the upgrade-check suppressed.
+	execAfterUpdate = func(execPath string) error {
+		return syscall.Exec(execPath, []string{execPath, "doctor", "--skip-upgrade-check"}, os.Environ())
+	}
 )
 
 func updateCommand() *cli.Command {
@@ -24,7 +39,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 	var result selfupdate.CheckResult
 
 	err := uikit.RunWithSpinner("Checking for updates…", func() error {
-		result = selfupdate.Check()
+		result = selfupdateCheck()
 		if result.Error != "" {
 			return fmt.Errorf("%s", result.Error)
 		}
@@ -53,8 +68,10 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 
 	fmt.Printf("  %s New version available: %s → %s\n", uikit.SymArrow, current, uikit.TUI.TextBlue().Render(latest))
 
+	var execPath string
 	err = uikit.RunWithSpinner("Downloading…", func() error {
-		_, uerr := selfupdate.Update(result.DownloadURL)
+		path, uerr := selfupdateUpdate(result.DownloadURL)
+		execPath = path
 		return uerr
 	})
 	if err != nil {
@@ -62,6 +79,23 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 	}
 
 	uikit.OK(fmt.Sprintf("Updated to %s", latest))
+
+	// Chain into the freshly installed binary's doctor so any new required
+	// tools (e.g. git-xet, hf for the HF cloud backend) get installed
+	// without the user having to know they exist. The new binary's
+	// embedded Brewfile is the authoritative source of "what sci needs"
+	// — that's why we re-exec rather than calling doctor in-process.
+	//
+	// The binary swap above is atomic and already complete. From here on,
+	// any failure in the post-update chain is a warning, never an error —
+	// returning non-zero would make scripts treat the update itself as
+	// failed when it actually succeeded.
+	fmt.Fprintf(os.Stderr, "\n  %s Checking required tools…\n", uikit.SymArrow)
+	if execErr := execAfterUpdate(execPath); execErr != nil {
+		fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymWarn,
+			uikit.TUI.Warn().Render("Post-update setup could not start: "+execErr.Error()))
+		fmt.Fprintf(os.Stderr, "  %s Run: sci doctor\n", uikit.SymArrow)
+	}
 	return nil
 }
 

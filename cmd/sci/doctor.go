@@ -19,9 +19,10 @@ import (
 )
 
 var (
-	doctorGitName  string
-	doctorGitEmail string
-	doctorYes      bool
+	doctorGitName          string
+	doctorGitEmail         string
+	doctorYes              bool
+	doctorSkipUpgradeCheck bool
 )
 
 func doctorCommand() *cli.Command {
@@ -47,6 +48,12 @@ func doctorCommand() *cli.Command {
 				Name:        "yes",
 				Usage:       "auto-confirm prerequisite installs (e.g. Homebrew) — required to drive a fresh-machine setup under --json",
 				Destination: &doctorYes,
+				Local:       true,
+			},
+			&cli.BoolFlag{
+				Name:        "skip-upgrade-check",
+				Usage:       "skip the brew/uv outdated check and upgrade prompt (used by `sci update`)",
+				Destination: &doctorSkipUpgradeCheck,
 				Local:       true,
 			},
 		},
@@ -153,7 +160,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	// ── Steps 3b–4: Sync, required packages, tool check & install ──────
 	if isJSON {
 		// Non-interactive: RunSetup handles everything, auto-confirms.
-		setup := doctor.RunSetup(runner, brewfilePath, created)
+		setup := doctor.RunSetup(runner, brewfilePath, created, doctor.SetupOpts{
+			SkipUpgradeCheck: doctorSkipUpgradeCheck,
+		})
 		result.BrewfilePath = setup.BrewfilePath
 		result.BrewfileCreated = setup.BrewfileCreated
 		result.PackagesAdded = setup.PackagesAdded
@@ -230,6 +239,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 			uikit.SymWarn, uikit.TUI.Warn().Render("Could not check tools: "+toolCheckErr.Error()))
 		// Can't install if we don't know what's missing — skip to update check.
+		if doctorSkipUpgradeCheck {
+			return nil
+		}
 		return runDoctorUpdateCheck(runner)
 	}
 
@@ -275,6 +287,10 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// ── Step 5: Check for outdated packages ─────────────────────────────
+	if doctorSkipUpgradeCheck {
+		printAllSet()
+		return nil
+	}
 	return runDoctorUpdateCheck(runner)
 }
 

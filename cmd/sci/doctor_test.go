@@ -11,6 +11,21 @@ import (
 	"github.com/sciminds/cli/internal/uikit"
 )
 
+// TestDoctor_SkipUpgradeCheckFlagDefined asserts that the doctor command
+// exposes --skip-upgrade-check — the flag `sci update` re-execs into after
+// replacing the binary.
+func TestDoctor_SkipUpgradeCheckFlagDefined(t *testing.T) {
+	cmd := doctorCommand()
+	for _, f := range cmd.Flags {
+		for _, n := range f.Names() {
+			if n == "skip-upgrade-check" {
+				return
+			}
+		}
+	}
+	t.Error("doctor command missing --skip-upgrade-check flag")
+}
+
 func TestToolsReccs_JSONSkipsForm(t *testing.T) {
 	uikit.SetQuiet(false)
 	t.Cleanup(func() { uikit.SetQuiet(false) })
