@@ -2,12 +2,23 @@ package doctor
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/sciminds/cli/internal/brew"
 )
+
+// TestMain neutralises the real `git xet install` shellout for every test
+// in the package. checkIdentity auto-runs xet install when the binary is
+// present but not registered — without this guard, running the test suite
+// on a developer machine with git-xet installed would mutate the user's
+// global git config.
+func TestMain(m *testing.M) {
+	gitXetInstallFn = func() error { return fmt.Errorf("test: gitXetInstallFn not stubbed") }
+	os.Exit(m.Run())
+}
 
 func TestBoolStatus(t *testing.T) {
 	if got := boolStatus(true); got != StatusPass {
@@ -107,6 +118,17 @@ func setGitXetRegistered(t *testing.T, fn func() bool) {
 	t.Cleanup(func() { gitXetRegisteredFn = orig })
 }
 
+// setGitXetInstall swaps the `git xet install` hook for a test and restores
+// it on cleanup. The default real function would shell out, so tests must
+// always replace it (otherwise checkIdentity could mutate the developer's
+// global git config on a machine where git-xet is installed).
+func setGitXetInstall(t *testing.T, fn func() error) {
+	t.Helper()
+	orig := gitXetInstallFn
+	gitXetInstallFn = fn
+	t.Cleanup(func() { gitXetInstallFn = orig })
+}
+
 func findIdentityCheck(label string) *CheckResult {
 	sec := checkIdentity()
 	for i := range sec.Checks {
@@ -129,8 +151,11 @@ func TestCheckIdentity_HuggingFace_NotAuthenticated(t *testing.T) {
 	if c == nil {
 		t.Fatal("Hugging Face auth check missing")
 	}
-	if c.Status != StatusFail {
-		t.Errorf("status = %q, want %q", c.Status, StatusFail)
+	// Warn (not fail): sci cloud needs HF auth, but the rest of sci works
+	// without it. Failing here would trip AllPassed for first-run users and
+	// CI machines that never opted into cloud features.
+	if c.Status != StatusWarn {
+		t.Errorf("status = %q, want %q", c.Status, StatusWarn)
 	}
 	if !strings.Contains(c.Message, "hf auth login") {
 		t.Errorf("message = %q, want hint containing 'hf auth login'", c.Message)
@@ -257,18 +282,57 @@ func TestCheckIdentity_HuggingFace_SuccessUpdatesCache(t *testing.T) {
 	}
 }
 
-func TestCheckIdentity_GitXet_NotRegistered(t *testing.T) {
-	setGitXetRegistered(t, func() bool { return false })
+func TestCheckIdentity_GitXet_NotRegistered_AutoInstallSucceeds(t *testing.T) {
+	// First registration probe says "not registered" → triggers install →
+	// second probe (called after install) says "registered". This models
+	// `git xet install` writing the config entry.
+	probe := 0
+	setGitXetRegistered(t, func() bool {
+		probe++
+		return probe > 1
+	})
+	installed := false
+	setGitXetInstall(t, func() error {
+		installed = true
+		return nil
+	})
 
 	c := findIdentityCheck("git-xet")
 	if c == nil {
 		t.Fatal("git-xet check missing")
 	}
-	// Status depends on whether git-xet binary is present on this machine;
-	// we only assert the registration branch when the binary is available.
-	if c.Status == StatusFail && !strings.Contains(c.Message, "git xet install") &&
-		!strings.Contains(c.Message, "brew install git-xet") {
-		t.Errorf("expected message to point to install/register fix, got %q", c.Message)
+	// If git-xet isn't installed locally, the binary-missing branch wins
+	// before we ever reach the install path — skip in that case.
+	if strings.Contains(c.Message, "git-xet not found") {
+		t.Skip("git-xet binary not present on this machine")
+	}
+	if !installed {
+		t.Error("expected gitXetInstallFn to be invoked when binary is present but not registered")
+	}
+	if c.Status != StatusPass {
+		t.Errorf("status = %q, want %q (auto-install should succeed)", c.Status, StatusPass)
+	}
+	if !strings.Contains(c.Message, "auto-installed") {
+		t.Errorf("message = %q, want mention of auto-install", c.Message)
+	}
+}
+
+func TestCheckIdentity_GitXet_NotRegistered_AutoInstallFails(t *testing.T) {
+	setGitXetRegistered(t, func() bool { return false })
+	setGitXetInstall(t, func() error { return fmt.Errorf("permission denied") })
+
+	c := findIdentityCheck("git-xet")
+	if c == nil {
+		t.Fatal("git-xet check missing")
+	}
+	if strings.Contains(c.Message, "git-xet not found") {
+		t.Skip("git-xet binary not present on this machine")
+	}
+	if c.Status != StatusFail {
+		t.Errorf("status = %q, want %q (install failed)", c.Status, StatusFail)
+	}
+	if !strings.Contains(c.Message, "git xet install") {
+		t.Errorf("message = %q, want hint pointing to git xet install", c.Message)
 	}
 }
 

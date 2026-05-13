@@ -72,6 +72,16 @@ var gitXetRegisteredFn = func() bool {
 	return err == nil && strings.TrimSpace(string(out)) != ""
 }
 
+// gitXetInstallFn runs `git xet install` to register the xet transfer agent
+// in the global git config. No auth required — it just writes git config —
+// so doctor self-heals by running it whenever the binary is present but the
+// agent isn't wired up. Overridable in tests.
+var gitXetInstallFn = func() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return exec.CommandContext(ctx, "git", "xet", "install").Run()
+}
+
 // parseHFWhoami parses the single-line output of `hf auth whoami`:
 //
 //	user=ejolly orgs=py-feat,nltools,sciminds
@@ -275,10 +285,14 @@ func checkIdentity() CheckSection {
 	// "logged in" (no network); `hf whoami` is opportunistic for org
 	// membership, with a last-good cache so transient network blips don't
 	// flip the check between Pass and Warn.
+	// HF auth is a warn (not fail) when missing: sci cloud needs it, but the
+	// rest of sci works fine without it, and we don't want first-run / CI
+	// machines to trip AllPassed on a credential that's an opt-in for one
+	// subcommand.
 	hfCheck := CheckResult{Label: "Hugging Face auth"}
 	switch {
 	case !hfTokenPresentFn():
-		hfCheck.Status = StatusFail
+		hfCheck.Status = StatusWarn
 		hfCheck.Message = "not authenticated — run: hf auth login"
 	default:
 		user, orgs, hfErr := hfWhoamiFn()
@@ -305,18 +319,27 @@ func checkIdentity() CheckSection {
 	}
 	checks = append(checks, hfCheck)
 
-	// git-xet — required for HF bucket transfers. Verifies `git xet install`
-	// has registered the xet transfer agent in the global git config.
+	// git-xet — required for HF bucket transfers. `git xet install` is just
+	// a git-config write (no auth, no network), so if the binary is present
+	// but the agent isn't wired up, self-heal by running it instead of
+	// nagging the user.
 	xetCheck := CheckResult{Label: "git-xet"}
-	if _, lookErr := exec.LookPath("git-xet"); lookErr != nil {
+	_, xetLookErr := exec.LookPath("git-xet")
+	switch {
+	case xetLookErr != nil:
 		xetCheck.Status = StatusFail
 		xetCheck.Message = "git-xet not found — run: brew install git-xet"
-	} else if !gitXetRegisteredFn() {
-		xetCheck.Status = StatusFail
-		xetCheck.Message = "not registered — run: git xet install"
-	} else {
+	case gitXetRegisteredFn():
 		xetCheck.Status = StatusPass
 		xetCheck.Message = "registered"
+	default:
+		if err := gitXetInstallFn(); err == nil && gitXetRegisteredFn() {
+			xetCheck.Status = StatusPass
+			xetCheck.Message = "registered (auto-installed)"
+		} else {
+			xetCheck.Status = StatusFail
+			xetCheck.Message = "could not register — run: git xet install"
+		}
 	}
 	checks = append(checks, xetCheck)
 
