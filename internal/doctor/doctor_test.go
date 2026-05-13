@@ -81,6 +81,14 @@ func setHFWhoami(t *testing.T, fn func() (string, []string, error)) {
 	t.Cleanup(func() { hfWhoamiFn = orig })
 }
 
+// setHFTokenPresent swaps the local-token-presence hook for a test.
+func setHFTokenPresent(t *testing.T, present bool) {
+	t.Helper()
+	orig := hfTokenPresentFn
+	hfTokenPresentFn = func() bool { return present }
+	t.Cleanup(func() { hfTokenPresentFn = orig })
+}
+
 // setGitXetRegistered swaps the git-xet hook for a test and restores on cleanup.
 func setGitXetRegistered(t *testing.T, fn func() bool) {
 	t.Helper()
@@ -100,7 +108,11 @@ func findIdentityCheck(label string) *CheckResult {
 }
 
 func TestCheckIdentity_HuggingFace_NotAuthenticated(t *testing.T) {
-	setHFWhoami(t, func() (string, []string, error) { return "", nil, fmt.Errorf("no token") })
+	setHFTokenPresent(t, false)
+	setHFWhoami(t, func() (string, []string, error) {
+		t.Error("whoami must not be called when no token is present locally")
+		return "", nil, nil
+	})
 
 	c := findIdentityCheck("Hugging Face auth")
 	if c == nil {
@@ -115,6 +127,7 @@ func TestCheckIdentity_HuggingFace_NotAuthenticated(t *testing.T) {
 }
 
 func TestCheckIdentity_HuggingFace_NotInOrg(t *testing.T) {
+	setHFTokenPresent(t, true)
 	setHFWhoami(t, func() (string, []string, error) { return "alice", []string{"other-org"}, nil })
 
 	c := findIdentityCheck("Hugging Face auth")
@@ -133,6 +146,7 @@ func TestCheckIdentity_HuggingFace_NotInOrg(t *testing.T) {
 }
 
 func TestCheckIdentity_HuggingFace_OK(t *testing.T) {
+	setHFTokenPresent(t, true)
 	setHFWhoami(t, func() (string, []string, error) {
 		return "alice", []string{"other", "sciminds"}, nil
 	})
@@ -146,6 +160,32 @@ func TestCheckIdentity_HuggingFace_OK(t *testing.T) {
 	}
 	if !strings.Contains(c.Message, "alice") {
 		t.Errorf("message = %q, want username", c.Message)
+	}
+}
+
+// TestCheckIdentity_HuggingFace_TokenPresentButWhoamiFails covers the
+// regression we hit in practice: user is logged in (token on disk) but
+// `hf auth whoami` times out hitting the HF API. Previously this surfaced
+// as "not authenticated", which is wrong — the user has clearly logged
+// in. Should now be a Warn (org membership unverified), not a Fail.
+func TestCheckIdentity_HuggingFace_TokenPresentButWhoamiFails(t *testing.T) {
+	setHFTokenPresent(t, true)
+	setHFWhoami(t, func() (string, []string, error) {
+		return "", nil, fmt.Errorf("context deadline exceeded")
+	})
+
+	c := findIdentityCheck("Hugging Face auth")
+	if c == nil {
+		t.Fatal("Hugging Face auth check missing")
+	}
+	if c.Status != StatusWarn {
+		t.Errorf("status = %q, want %q (token-present + whoami-failed must not be a hard fail)", c.Status, StatusWarn)
+	}
+	if strings.Contains(c.Message, "not authenticated") {
+		t.Errorf("message = %q, must not claim 'not authenticated' when token is present", c.Message)
+	}
+	if !strings.Contains(c.Message, "logged in") {
+		t.Errorf("message = %q, should communicate that the user IS logged in", c.Message)
 	}
 }
 

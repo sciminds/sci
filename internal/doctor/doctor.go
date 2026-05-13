@@ -28,18 +28,39 @@ import (
 const sciMindsOrg = "sciminds"
 
 // hfWhoamiFn returns the authenticated HF user and their org memberships.
-// Overridable in tests.
+// Hits the Hugging Face API, so it can fail on slow/spotty networks even
+// when the user is logged in — pair with [hfTokenPresentFn] for the
+// "logged in?" question. Overridable in tests.
 var hfWhoamiFn = func() (user string, orgs []string, err error) {
 	if _, lookErr := exec.LookPath("hf"); lookErr != nil {
 		return "", nil, lookErr
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	out, runErr := exec.CommandContext(ctx, "hf", "auth", "whoami").Output()
 	if runErr != nil {
 		return "", nil, runErr
 	}
 	return parseHFWhoami(string(out))
+}
+
+// hfTokenPresentFn reports whether a Hugging Face credential exists locally.
+// This is the "are you logged in?" source of truth — `hf auth login` writes
+// the token to disk, and the check itself doesn't hit the network. Pairs
+// with [hfWhoamiFn] which is needed for org membership but flakes on
+// slow connections. Overridable in tests.
+var hfTokenPresentFn = func() bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	// HF_HOME overrides the default ~/.cache/huggingface location.
+	hfHome := os.Getenv("HF_HOME")
+	if hfHome == "" {
+		hfHome = filepath.Join(home, ".cache", "huggingface")
+	}
+	info, statErr := os.Stat(filepath.Join(hfHome, "token"))
+	return statErr == nil && info.Size() > 0
 }
 
 // gitXetRegisteredFn reports whether `git xet install` has wired the xet
@@ -249,19 +270,31 @@ func checkIdentity() CheckSection {
 
 	checks := []CheckResult{nameCheck, emailCheck, ghCheck}
 
-	// Hugging Face auth — gates sci cloud. Always shown so first-time users see the nudge.
+	// Hugging Face auth — gates sci cloud. Always shown so first-time users
+	// see the nudge. The local token presence is the source of truth for
+	// "logged in" — `hf whoami` hits the network and was previously
+	// false-failing the check on slow connections.
 	hfCheck := CheckResult{Label: "Hugging Face auth"}
-	user, orgs, hfErr := hfWhoamiFn()
 	switch {
-	case hfErr != nil:
+	case !hfTokenPresentFn():
 		hfCheck.Status = StatusFail
 		hfCheck.Message = "not authenticated — run: hf auth login"
-	case !lo.Contains(orgs, sciMindsOrg):
-		hfCheck.Status = StatusWarn
-		hfCheck.Message = "@" + user + " — not in " + sciMindsOrg + " org"
 	default:
-		hfCheck.Status = StatusPass
-		hfCheck.Message = "@" + user + " (" + sciMindsOrg + ")"
+		user, orgs, hfErr := hfWhoamiFn()
+		switch {
+		case hfErr != nil:
+			// Token exists locally but whoami failed — almost always
+			// network. Don't claim "not authenticated" when the user
+			// clearly is; surface the org-verification gap as a warn.
+			hfCheck.Status = StatusWarn
+			hfCheck.Message = "logged in — could not verify " + sciMindsOrg + " org membership (network?)"
+		case !lo.Contains(orgs, sciMindsOrg):
+			hfCheck.Status = StatusWarn
+			hfCheck.Message = "@" + user + " — not in " + sciMindsOrg + " org"
+		default:
+			hfCheck.Status = StatusPass
+			hfCheck.Message = "@" + user + " (" + sciMindsOrg + ")"
+		}
 	}
 	checks = append(checks, hfCheck)
 
