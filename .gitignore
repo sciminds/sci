@@ -9,6 +9,7 @@
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.ts
 plan.md
 /tutorials/
 
@@ -31,7 +32,14 @@ test-pdfs/*
 /pdfs/
 scripts/*.py
 scripts/*.ipynb
+
+# zot-graph is a sibling project with its own git history; sci-go shells out to it.
+scripts/zot-graph/
+scripts/node_modules/
+scripts/bun.lock
+scripts/package.json
 todo.md
 rodney/
 # MyST typst templates under active iteration — commit once stable
 /templates/
+.claude/
