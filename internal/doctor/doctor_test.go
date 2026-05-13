@@ -2,6 +2,7 @@ package doctor
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -89,6 +90,15 @@ func setHFTokenPresent(t *testing.T, present bool) {
 	t.Cleanup(func() { hfTokenPresentFn = orig })
 }
 
+// isolateHFCache redirects the whoami cache to a temp file so tests don't
+// leak into the user's real cache and vice versa.
+func isolateHFCache(t *testing.T) {
+	t.Helper()
+	orig := hfCacheFile
+	hfCacheFile = filepath.Join(t.TempDir(), "hf-whoami.json")
+	t.Cleanup(func() { hfCacheFile = orig })
+}
+
 // setGitXetRegistered swaps the git-xet hook for a test and restores on cleanup.
 func setGitXetRegistered(t *testing.T, fn func() bool) {
 	t.Helper()
@@ -108,6 +118,7 @@ func findIdentityCheck(label string) *CheckResult {
 }
 
 func TestCheckIdentity_HuggingFace_NotAuthenticated(t *testing.T) {
+	isolateHFCache(t)
 	setHFTokenPresent(t, false)
 	setHFWhoami(t, func() (string, []string, error) {
 		t.Error("whoami must not be called when no token is present locally")
@@ -127,6 +138,7 @@ func TestCheckIdentity_HuggingFace_NotAuthenticated(t *testing.T) {
 }
 
 func TestCheckIdentity_HuggingFace_NotInOrg(t *testing.T) {
+	isolateHFCache(t)
 	setHFTokenPresent(t, true)
 	setHFWhoami(t, func() (string, []string, error) { return "alice", []string{"other-org"}, nil })
 
@@ -146,6 +158,7 @@ func TestCheckIdentity_HuggingFace_NotInOrg(t *testing.T) {
 }
 
 func TestCheckIdentity_HuggingFace_OK(t *testing.T) {
+	isolateHFCache(t)
 	setHFTokenPresent(t, true)
 	setHFWhoami(t, func() (string, []string, error) {
 		return "alice", []string{"other", "sciminds"}, nil
@@ -163,12 +176,12 @@ func TestCheckIdentity_HuggingFace_OK(t *testing.T) {
 	}
 }
 
-// TestCheckIdentity_HuggingFace_TokenPresentButWhoamiFails covers the
-// regression we hit in practice: user is logged in (token on disk) but
-// `hf auth whoami` times out hitting the HF API. Previously this surfaced
-// as "not authenticated", which is wrong — the user has clearly logged
-// in. Should now be a Warn (org membership unverified), not a Fail.
-func TestCheckIdentity_HuggingFace_TokenPresentButWhoamiFails(t *testing.T) {
+// TestCheckIdentity_HuggingFace_WhoamiFailsNoCache: user has a token but
+// whoami fails (network flake) and there's no cached result yet. Should
+// pass with a bare "logged in" — the token is hard evidence of a prior
+// login, and the cloud command does its own org check at use time.
+func TestCheckIdentity_HuggingFace_WhoamiFailsNoCache(t *testing.T) {
+	isolateHFCache(t)
 	setHFTokenPresent(t, true)
 	setHFWhoami(t, func() (string, []string, error) {
 		return "", nil, fmt.Errorf("context deadline exceeded")
@@ -178,14 +191,69 @@ func TestCheckIdentity_HuggingFace_TokenPresentButWhoamiFails(t *testing.T) {
 	if c == nil {
 		t.Fatal("Hugging Face auth check missing")
 	}
-	if c.Status != StatusWarn {
-		t.Errorf("status = %q, want %q (token-present + whoami-failed must not be a hard fail)", c.Status, StatusWarn)
+	if c.Status != StatusPass {
+		t.Errorf("status = %q, want %q (logged-in user with no cache must pass)", c.Status, StatusPass)
 	}
 	if strings.Contains(c.Message, "not authenticated") {
 		t.Errorf("message = %q, must not claim 'not authenticated' when token is present", c.Message)
 	}
 	if !strings.Contains(c.Message, "logged in") {
 		t.Errorf("message = %q, should communicate that the user IS logged in", c.Message)
+	}
+}
+
+// TestCheckIdentity_HuggingFace_WhoamiFailsUsesCache: after a previous
+// successful whoami, doctor caches the user + org list. A later network
+// blip falls back to that cache so the check stays stable instead of
+// flipping between Pass and Warn — the original regression.
+func TestCheckIdentity_HuggingFace_WhoamiFailsUsesCache(t *testing.T) {
+	isolateHFCache(t)
+	writeHFCache("alice", []string{"sciminds", "other"})
+
+	setHFTokenPresent(t, true)
+	setHFWhoami(t, func() (string, []string, error) {
+		return "", nil, fmt.Errorf("context deadline exceeded")
+	})
+
+	c := findIdentityCheck("Hugging Face auth")
+	if c == nil {
+		t.Fatal("Hugging Face auth check missing")
+	}
+	if c.Status != StatusPass {
+		t.Errorf("status = %q, want %q (cached membership should survive a network blip)", c.Status, StatusPass)
+	}
+	if !strings.Contains(c.Message, "alice") {
+		t.Errorf("message = %q, should include the cached username", c.Message)
+	}
+	if !strings.Contains(c.Message, sciMindsOrg) {
+		t.Errorf("message = %q, should mention the cached %s membership", c.Message, sciMindsOrg)
+	}
+}
+
+// TestCheckIdentity_HuggingFace_SuccessUpdatesCache asserts that a
+// successful whoami refreshes the cache, so the next run (with whoami
+// failing) sees the latest user + orgs.
+func TestCheckIdentity_HuggingFace_SuccessUpdatesCache(t *testing.T) {
+	isolateHFCache(t)
+	// Stale cache that doesn't match what whoami will return.
+	writeHFCache("stale-user", []string{"stale-org"})
+
+	setHFTokenPresent(t, true)
+	setHFWhoami(t, func() (string, []string, error) {
+		return "alice", []string{"sciminds"}, nil
+	})
+
+	_ = findIdentityCheck("Hugging Face auth")
+
+	gotUser, gotOrgs, ok := readHFCache()
+	if !ok {
+		t.Fatal("cache not written after successful whoami")
+	}
+	if gotUser != "alice" {
+		t.Errorf("cached user = %q, want %q (whoami result must replace stale cache)", gotUser, "alice")
+	}
+	if len(gotOrgs) != 1 || gotOrgs[0] != "sciminds" {
+		t.Errorf("cached orgs = %v, want [sciminds]", gotOrgs)
 	}
 }
 

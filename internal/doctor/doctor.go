@@ -272,8 +272,9 @@ func checkIdentity() CheckSection {
 
 	// Hugging Face auth — gates sci cloud. Always shown so first-time users
 	// see the nudge. The local token presence is the source of truth for
-	// "logged in" — `hf whoami` hits the network and was previously
-	// false-failing the check on slow connections.
+	// "logged in" (no network); `hf whoami` is opportunistic for org
+	// membership, with a last-good cache so transient network blips don't
+	// flip the check between Pass and Warn.
 	hfCheck := CheckResult{Label: "Hugging Face auth"}
 	switch {
 	case !hfTokenPresentFn():
@@ -281,13 +282,19 @@ func checkIdentity() CheckSection {
 		hfCheck.Message = "not authenticated — run: hf auth login"
 	default:
 		user, orgs, hfErr := hfWhoamiFn()
+		if hfErr == nil {
+			writeHFCache(user, orgs)
+		} else if cachedUser, cachedOrgs, ok := readHFCache(); ok {
+			user, orgs, hfErr = cachedUser, cachedOrgs, nil
+		}
 		switch {
 		case hfErr != nil:
-			// Token exists locally but whoami failed — almost always
-			// network. Don't claim "not authenticated" when the user
-			// clearly is; surface the org-verification gap as a warn.
-			hfCheck.Status = StatusWarn
-			hfCheck.Message = "logged in — could not verify " + sciMindsOrg + " org membership (network?)"
+			// Token present, whoami failed, no cache. Trust the token —
+			// it's hard evidence of a prior successful login. Org check
+			// is best-effort; the cloud command does its own verification
+			// at use time.
+			hfCheck.Status = StatusPass
+			hfCheck.Message = "logged in"
 		case !lo.Contains(orgs, sciMindsOrg):
 			hfCheck.Status = StatusWarn
 			hfCheck.Message = "@" + user + " — not in " + sciMindsOrg + " org"
