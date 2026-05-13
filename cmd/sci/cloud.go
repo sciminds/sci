@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/cmdutil"
@@ -87,10 +86,14 @@ func cloudSetupCommand() *cli.Command {
 
 func cloudLsCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "ls",
-		Aliases:     []string{"list"},
-		Usage:       "List shared files (private bucket by default; --public to list public)",
-		Description: "$ sci cloud ls\n$ sci cloud ls --public",
+		Name:    "ls",
+		Aliases: []string{"list"},
+		Usage:   "List shared files at a path (private bucket by default; --public to list public)",
+		Description: "$ sci cloud ls                       # bucket root — one folder per user\n" +
+			"$ sci cloud ls ejolly                 # one user's files/folders\n" +
+			"$ sci cloud ls ejolly/python-tutorials\n" +
+			"$ sci cloud ls --public",
+		ArgsUsage: "[path]",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "list the public bucket", Destination: &lsPublic, Local: true},
 		},
@@ -99,7 +102,8 @@ func cloudLsCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			result, err := share.SharedAll(c, true)
+			path := cmd.Args().First() // "" => root
+			result, err := share.ListAt(c, path, true)
 			if err != nil {
 				return err
 			}
@@ -133,16 +137,7 @@ func cloudGetCommand() *cli.Command {
 				local = cmd.Args().Get(1)
 			}
 
-			// Cross-user "<owner>/<file>" only makes sense for the public bucket.
-			public := getPublic
-			if strings.Contains(name, "/") {
-				if !public {
-					fmt.Fprintf(os.Stderr, "  %s cross-user downloads require --public; assuming public bucket.\n", uikit.SymWarn)
-				}
-				public = true
-			}
-
-			result, err := share.Get(name, local, public)
+			result, err := share.Get(name, local, getPublic)
 			if err != nil {
 				return err
 			}
@@ -218,8 +213,9 @@ func cloudPutCommand() *cli.Command {
 
 func cloudBrowseCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "browse",
-		Usage:       "Interactively browse shared files (delete, copy URL, download)",
+		Name: "browse",
+		Usage: "Interactively browse the bucket starting at root " +
+			"(navigate user folders, download, delete own files)",
 		Description: "$ sci cloud browse\n$ sci cloud browse --public",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "browse the public bucket", Destination: &browsePublic, Local: true},
@@ -229,11 +225,11 @@ func cloudBrowseCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			result, err := share.SharedAll(c, false)
+			objects, err := share.FetchObjects(c, false)
 			if err != nil {
 				return err
 			}
-			if err := share.RunCloudListTUI(result.Datasets, c); err != nil {
+			if err := share.RunCloudBrowseTUI(objects, c); err != nil {
 				if errors.Is(err, share.ErrInterrupted) {
 					return cli.Exit("", 130)
 				}

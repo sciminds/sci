@@ -182,6 +182,15 @@ func (c *Client) Delete(ctx context.Context, filename string) error {
 	return err
 }
 
+// Sync copies every object under the bucket prefix into localDir using
+// `hf buckets sync`. Used for whole-folder downloads; the per-file `cp`
+// path doesn't accept directories.
+func (c *Client) Sync(ctx context.Context, prefix, localDir string) error {
+	src := c.bucketHandle() + "/" + strings.TrimSuffix(prefix, "/")
+	_, err := c.run(ctx, "buckets", "sync", src, localDir)
+	return err
+}
+
 // ---------------------------------------------------------------------------
 // hf subprocess + parsing helpers
 // ---------------------------------------------------------------------------

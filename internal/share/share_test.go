@@ -105,77 +105,55 @@ func TestNameFromFile(t *testing.T) {
 	}
 }
 
-func TestBuildSharedEntries_OwnFiles(t *testing.T) {
-	objects := []cloud.ObjectInfo{
-		{Key: "alice/iris.csv", Size: 1024, LastModified: "2024-01-01T00:00:00Z", URL: "https://hf.co/alice/iris.csv"},
-		{Key: "alice/titanic.db", Size: 2048, LastModified: "2024-02-01T00:00:00Z", URL: "https://hf.co/alice/titanic.db"},
+func TestResolveDownloadKey(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		desc, name, username string
+		public               bool
+		want                 string
+	}{
+		// Private bucket: arg is always relative to the user's folder
+		// unless they typed their own prefix explicitly.
+		{"priv: bare filename auto-prefixes", "foo.csv", "ejolly", false, "ejolly/foo.csv"},
+		{"priv: nested path stays under user", "tutorials/data/credit.csv", "ejolly", false, "ejolly/tutorials/data/credit.csv"},
+		{"priv: explicit own prefix passes through", "ejolly/sub/x.csv", "ejolly", false, "ejolly/sub/x.csv"},
+		{"priv: foreign-looking prefix treated as own subfolder", "alice/x.csv", "ejolly", false, "ejolly/alice/x.csv"},
+		// Public bucket: bare still maps to your own folder; any other
+		// "/" path is taken as an absolute key (cross-user form).
+		{"pub: bare filename auto-prefixes", "foo.csv", "ejolly", true, "ejolly/foo.csv"},
+		{"pub: explicit own prefix passes through", "ejolly/x.csv", "ejolly", true, "ejolly/x.csv"},
+		{"pub: cross-user form preserved", "alice/x.csv", "ejolly", true, "alice/x.csv"},
+		{"pub: leading slash trimmed", "/foo.csv", "ejolly", true, "ejolly/foo.csv"},
 	}
-
-	entries := buildSharedEntries(objects, "alice", false)
-	if len(entries) != 2 {
-		t.Fatalf("got %d entries, want 2", len(entries))
-	}
-	for _, e := range entries {
-		if e.Owner != "" {
-			t.Errorf("Owner = %q, want empty for own-files mode", e.Owner)
-		}
-	}
-	if entries[0].Name != "iris.csv" {
-		t.Errorf("entries[0].Name = %q, want %q", entries[0].Name, "iris.csv")
-	}
-	if entries[1].Name != "titanic.db" {
-		t.Errorf("entries[1].Name = %q, want %q", entries[1].Name, "titanic.db")
-	}
-	if entries[0].Type != "csv" {
-		t.Errorf("entries[0].Type = %q, want %q", entries[0].Type, "csv")
-	}
-}
-
-func TestBuildSharedEntries_AllUsers(t *testing.T) {
-	objects := []cloud.ObjectInfo{
-		{Key: "alice/iris.csv", Size: 1024, LastModified: "2024-01-01T00:00:00Z"},
-		{Key: "bob/penguins.csv", Size: 4096, LastModified: "2024-03-01T00:00:00Z"},
-		{Key: "alice/results.db", Size: 2048, LastModified: "2024-02-01T00:00:00Z"},
-	}
-
-	entries := buildSharedEntries(objects, "alice", true)
-	if len(entries) != 3 {
-		t.Fatalf("got %d entries, want 3", len(entries))
-	}
-	if entries[0].Owner != "alice" {
-		t.Errorf("entries[0].Owner = %q, want %q", entries[0].Owner, "alice")
-	}
-	if entries[1].Owner != "bob" {
-		t.Errorf("entries[1].Owner = %q, want %q", entries[1].Owner, "bob")
-	}
-	if entries[0].Name != "iris.csv" {
-		t.Errorf("entries[0].Name = %q, want %q", entries[0].Name, "iris.csv")
-	}
-	if entries[1].Name != "penguins.csv" {
-		t.Errorf("entries[1].Name = %q, want %q", entries[1].Name, "penguins.csv")
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if got := resolveDownloadKey(tc.name, tc.username, tc.public); got != tc.want {
+				t.Errorf("resolveDownloadKey(%q, %q, public=%v) = %q, want %q",
+					tc.name, tc.username, tc.public, got, tc.want)
+			}
+		})
 	}
 }
 
-func TestBuildSharedEntries_AllUsers_PreservesFields(t *testing.T) {
-	objects := []cloud.ObjectInfo{
-		{Key: "bob/data.csv", Size: 999, LastModified: "2024-06-15T12:00:00Z", URL: "https://hf.co/bob/data.csv"},
+func TestTreeToShared_FoldersAndFiles(t *testing.T) {
+	entries := []TreeEntry{
+		{Name: "data", Key: "ejolly/data", IsDir: true},
+		{Name: "results.csv", Key: "ejolly/results.csv", Size: 1024, URL: "https://hf.co/ejolly/results.csv", LastModified: "2024-01-01"},
 	}
-
-	entries := buildSharedEntries(objects, "alice", true)
-	if len(entries) != 1 {
-		t.Fatalf("got %d entries, want 1", len(entries))
+	out := treeToShared(entries)
+	if len(out) != 2 {
+		t.Fatalf("got %d shared entries, want 2", len(out))
 	}
-	e := entries[0]
-	if e.Size != 999 {
-		t.Errorf("Size = %d, want 999", e.Size)
+	if !out[0].IsDir || out[0].Name != "data" || out[0].Owner != "ejolly" {
+		t.Errorf("folder row = %+v, want IsDir+name=data+owner=ejolly", out[0])
 	}
-	if e.Updated != "2024-06-15T12:00:00Z" {
-		t.Errorf("Updated = %q", e.Updated)
+	if out[0].Type != "" {
+		t.Errorf("folder rows should leave Type empty, got %q", out[0].Type)
 	}
-	if e.URL != "https://hf.co/bob/data.csv" {
-		t.Errorf("URL = %q", e.URL)
+	if out[1].IsDir || out[1].Type != "csv" || out[1].Size != 1024 {
+		t.Errorf("file row = %+v, want csv/1024", out[1])
 	}
-	if e.Type != "csv" {
-		t.Errorf("Type = %q, want csv", e.Type)
+	if out[1].Owner != "ejolly" || out[1].URL == "" {
+		t.Errorf("file row should preserve owner+url, got %+v", out[1])
 	}
 }

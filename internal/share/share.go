@@ -14,7 +14,9 @@
 //   - [Share] uploads a local file or directory (zipped); [ShareOpts.Public]
 //     selects the bucket.
 //   - [Unshare] removes a shared file.
-//   - [SharedAll] lists every user's files in a bucket.
+//   - [FetchObjects] returns the raw bucket listing; [ListAt] folds it into
+//     immediate children of a path (used by `sci cloud ls`); [ChildrenAt]
+//     drives the `sci cloud browse` TUI.
 //   - [Auth] / [AuthLogout] wrap `hf auth login` / `hf auth logout`.
 //   - [Get] downloads a file to the current directory.
 package share
@@ -23,7 +25,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,8 +40,9 @@ import (
 
 // Network timeouts for cloud operations.
 const (
-	metadataTimeout = 30 * time.Second // list, exists, delete
-	transferTimeout = 10 * time.Minute // upload, download
+	metadataTimeout   = 30 * time.Second // list, exists, delete
+	transferTimeout   = 10 * time.Minute // single-file upload/download
+	folderSyncTimeout = 30 * time.Minute // hf buckets sync of a whole prefix
 )
 
 // BucketFor returns the bucket name matching the public flag.
@@ -265,9 +267,10 @@ func Unshare(name string, public bool) (*CloudResult, error) {
 	}, nil
 }
 
-// SharedAll lists every user's files in the bucket the client is scoped to.
-// When plain is true the spinner is skipped.
-func SharedAll(c *cloud.Client, plain bool) (*SharedListResult, error) {
+// FetchObjects returns the entire bucket listing as raw ObjectInfo. When
+// plain is false a spinner is shown during the fetch. Used by both
+// [ListAt] (plain CLI) and the browse TUI (interactive).
+func FetchObjects(c *cloud.Client, plain bool) ([]cloud.ObjectInfo, error) {
 	listCtx, listCancel := context.WithTimeout(context.Background(), metadataTimeout)
 	defer listCancel()
 
@@ -281,51 +284,103 @@ func SharedAll(c *cloud.Client, plain bool) (*SharedListResult, error) {
 		if err := listFn(); err != nil {
 			return nil, netutil.Wrap("listing files", err)
 		}
-	} else if err := uikit.RunWithSpinner("Fetching files", listFn); err != nil {
+		return objects, nil
+	}
+	if err := uikit.RunWithSpinner("Fetching files", listFn); err != nil {
 		return nil, netutil.Wrap("listing files", err)
 	}
-
-	return &SharedListResult{Datasets: buildSharedEntries(objects, c.Username, true)}, nil
+	return objects, nil
 }
 
-// buildSharedEntries converts raw ObjectInfo into SharedEntry slices.
-// When allUsers is false, the username prefix is stripped from keys.
-// When allUsers is true, the owner is parsed from the key.
-func buildSharedEntries(objects []cloud.ObjectInfo, username string, allUsers bool) []SharedEntry {
-	return lo.Map(objects, func(obj cloud.ObjectInfo, _ int) SharedEntry {
-		if allUsers {
-			parts := strings.SplitN(obj.Key, "/", 2)
-			owner, name := "", obj.Key
-			if len(parts) == 2 {
-				owner, name = parts[0], parts[1]
-			}
-			return SharedEntry{
-				Name: name, Owner: owner, Type: detectFileType(name),
-				Updated: obj.LastModified, URL: obj.URL, Size: obj.Size,
-			}
+// ListAt returns the immediate folder/file children at the bucket path
+// (empty for root). Folders are synthesized client-side from "/" in keys.
+func ListAt(c *cloud.Client, path string, plain bool) (*SharedListResult, error) {
+	objects, err := FetchObjects(c, plain)
+	if err != nil {
+		return nil, err
+	}
+	entries := ChildrenAt(objects, strings.Trim(path, "/"))
+	return &SharedListResult{Datasets: treeToShared(entries)}, nil
+}
+
+// treeToShared converts navigation TreeEntry rows into the JSON-shaped
+// SharedEntry rendered by SharedListResult.
+func treeToShared(entries []TreeEntry) []SharedEntry {
+	return lo.Map(entries, func(e TreeEntry, _ int) SharedEntry {
+		s := SharedEntry{
+			Name:    e.Name,
+			Owner:   e.Owner(),
+			IsDir:   e.IsDir,
+			Updated: e.LastModified,
+			URL:     e.URL,
+			Size:    e.Size,
 		}
-		name := strings.TrimPrefix(obj.Key, username+"/")
-		return SharedEntry{
-			Name: name, Type: detectFileType(name),
-			Updated: obj.LastModified, URL: obj.URL, Size: obj.Size,
+		if !e.IsDir {
+			s.Type = detectFileType(e.Name)
 		}
+		return s
 	})
 }
 
-// Get downloads a shared file. When localPath is empty or an existing
-// directory, the file is written inside it using the remote basename.
-// Otherwise localPath is treated as the destination filename. If name
-// contains a "/", it's parsed as "owner/filename" (cross-user download,
-// public bucket only).
+// Get downloads a single file or syncs a whole folder from the chosen
+// bucket. The name argument is resolved relative to the current user's
+// folder by default; see [resolveDownloadKey] for the cross-user rules.
+//
+// File semantics: localPath empty or pointing at an existing directory
+// puts the file inside it under its basename; otherwise localPath is the
+// output filename. Folder semantics: localPath empty or pointing at an
+// existing directory creates a same-named subdirectory in there;
+// otherwise localPath is taken as the destination directory.
 func Get(name, localPath string, public bool) (*CloudResult, error) {
 	_, c, err := cloud.Setup(BucketFor(public))
 	if err != nil {
 		return nil, err
 	}
 
-	outPath := resolveGetOutPath(name, localPath)
-	dl := downloadFunc(c, name)
-	if err := uikit.RunWithSpinner("Downloading "+filepath.Base(name), func() error {
+	key := resolveDownloadKey(name, c.Username, public)
+
+	metaCtx, metaCancel := context.WithTimeout(context.Background(), metadataTimeout)
+	defer metaCancel()
+	objects, err := c.ListPrefix(metaCtx, key)
+	if err != nil {
+		return nil, netutil.Wrap("looking up "+key, err)
+	}
+	if len(objects) == 0 {
+		return nil, fmt.Errorf("not found: %s", key)
+	}
+
+	if lo.ContainsBy(objects, func(o cloud.ObjectInfo) bool { return o.Key == key }) {
+		return getFile(c, key, localPath)
+	}
+	return getFolder(c, key, localPath)
+}
+
+// resolveDownloadKey converts the user-supplied name into a full bucket key.
+//
+// Rules:
+//   - An explicit "<username>/..." prefix is always honored as-is.
+//   - On the public bucket, any other "<seg>/..." path is treated as an
+//     absolute key (the cross-user form, e.g. "alice/results.csv").
+//   - Otherwise the name is relative to the current user's folder and
+//     the username prefix is prepended. This fixes nested-private paths
+//     like "python-tutorials/data/credit.csv" that used to be misrouted
+//     to the public bucket by the legacy "any slash → cross-user" rule.
+func resolveDownloadKey(name, username string, public bool) string {
+	name = strings.TrimPrefix(name, "/")
+	if strings.HasPrefix(name, username+"/") {
+		return name
+	}
+	if public && strings.Contains(name, "/") {
+		return name
+	}
+	return username + "/" + name
+}
+
+// getFile streams a single file by full key into the path produced by
+// resolveGetOutPath. Zips auto-extract next to the download.
+func getFile(c *cloud.Client, key, localPath string) (*CloudResult, error) {
+	outPath := resolveGetOutPath(key, localPath)
+	if err := uikit.RunWithSpinner("Downloading "+filepath.Base(key), func() error {
 		dlCtx, dlCancel := context.WithTimeout(context.Background(), transferTimeout)
 		defer dlCancel()
 		f, createErr := os.Create(outPath)
@@ -333,7 +388,7 @@ func Get(name, localPath string, public bool) (*CloudResult, error) {
 			return createErr
 		}
 		defer func() { _ = f.Close() }()
-		if dlErr := dl(dlCtx, f); dlErr != nil {
+		if dlErr := c.DownloadByKey(dlCtx, key, f); dlErr != nil {
 			return netutil.Wrap("download", dlErr)
 		}
 		return nil
@@ -341,10 +396,9 @@ func Get(name, localPath string, public bool) (*CloudResult, error) {
 		return nil, err
 	}
 
-	// Auto-extract zip files into the same parent directory.
 	if filepath.Ext(outPath) == ".zip" {
-		extractDir := filepath.Join(filepath.Dir(outPath), nameFromFile(name))
-		if err := uikit.RunWithSpinner("Extracting "+filepath.Base(name), func() error {
+		extractDir := filepath.Join(filepath.Dir(outPath), nameFromFile(key))
+		if err := uikit.RunWithSpinner("Extracting "+filepath.Base(key), func() error {
 			return unzip(outPath, extractDir)
 		}); err != nil {
 			return nil, fmt.Errorf("extracting: %w", err)
@@ -353,6 +407,25 @@ func Get(name, localPath string, public bool) (*CloudResult, error) {
 		return &CloudResult{OK: true, Action: "get", Message: fmt.Sprintf("downloaded and extracted %s/", extractDir)}, nil
 	}
 	return &CloudResult{OK: true, Action: "get", Message: fmt.Sprintf("downloaded %s", outPath)}, nil
+}
+
+// getFolder syncs all objects under the bucket prefix into a local
+// directory using `hf buckets sync`. The destination is computed the
+// same way `cp -R` would: dropped inside localPath if it's an existing
+// directory, otherwise localPath is taken as the new dir.
+func getFolder(c *cloud.Client, key, localPath string) (*CloudResult, error) {
+	outDir := resolveGetOutDir(key, localPath)
+	if err := uikit.RunWithSpinner("Syncing "+filepath.Base(key)+"/", func() error {
+		dlCtx, dlCancel := context.WithTimeout(context.Background(), folderSyncTimeout)
+		defer dlCancel()
+		if err := c.Sync(dlCtx, key, outDir); err != nil {
+			return netutil.Wrap("sync", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return &CloudResult{OK: true, Action: "get", Message: fmt.Sprintf("synced %s/ to %s/", key, outDir)}, nil
 }
 
 // resolveGetOutPath mirrors `cp`/`rsync` semantics: an empty or
@@ -369,18 +442,16 @@ func resolveGetOutPath(name, localPath string) string {
 	return localPath
 }
 
-// downloadFunc returns a download closure. If filename contains a "/"
-// it is treated as a full key (owner/file) and downloaded via DownloadByKey;
-// otherwise it uses the current user's namespace via Download.
-func downloadFunc(c *cloud.Client, filename string) func(context.Context, io.Writer) error {
-	if strings.Contains(filename, "/") {
-		return func(ctx context.Context, dst io.Writer) error {
-			return c.DownloadByKey(ctx, filename, dst)
-		}
+// resolveGetOutDir is the folder analogue of resolveGetOutPath.
+func resolveGetOutDir(key, localPath string) string {
+	base := filepath.Base(key)
+	if localPath == "" {
+		return base
 	}
-	return func(ctx context.Context, dst io.Writer) error {
-		return c.Download(ctx, filename, dst)
+	if info, err := os.Stat(localPath); err == nil && info.IsDir() {
+		return filepath.Join(localPath, base)
 	}
+	return localPath
 }
 
 // nameFromFile derives a dataset name from a file path (stem without extension).

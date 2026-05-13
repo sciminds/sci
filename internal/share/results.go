@@ -62,11 +62,13 @@ type SharedListResult struct {
 	Datasets []SharedEntry `json:"datasets"`
 }
 
-// SharedEntry is a single file in SharedListResult.
+// SharedEntry is a single navigable child in SharedListResult — either a
+// file or a folder (IsDir=true) synthesized from "/" in the underlying key.
 type SharedEntry struct {
 	Name    string `json:"name"`
 	Owner   string `json:"owner,omitempty"`
 	Type    string `json:"type"`
+	IsDir   bool   `json:"is_dir,omitempty"`
 	Updated string `json:"updated"`
 	URL     string `json:"url"`
 	Size    int64  `json:"size"`
@@ -81,24 +83,38 @@ func (r SharedListResult) Human() string {
 		return fmt.Sprintf("  %s no files shared\n", uikit.TUI.Dim().Render("·"))
 	}
 
-	// Show owner column only when at least one entry has Owner set.
+	// Owner column only matters when at least one *file* row has Owner set.
+	// Folders synthesize their name from the user prefix, so showing owner
+	// for them would just duplicate the name column.
 	hasOwner := lo.SomeBy(r.Datasets, func(d SharedEntry) bool {
-		return d.Owner != ""
+		return !d.IsDir && d.Owner != ""
 	})
 
 	var b strings.Builder
 	if hasOwner {
 		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("owner             name                          type       size        url"))
 		for _, d := range r.Datasets {
-			fmt.Fprintf(&b, "  %-18s%-30s%-11s%-12s%s\n", d.Owner, d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL))
+			name, kind, size, url := sharedEntryColumns(d)
+			fmt.Fprintf(&b, "  %-18s%-30s%-11s%-12s%s\n", d.Owner, name, kind, size, url)
 		}
 	} else {
 		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("name                          type       size        url"))
 		for _, d := range r.Datasets {
-			fmt.Fprintf(&b, "  %-30s%-11s%-12s%s\n", d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL))
+			name, kind, size, url := sharedEntryColumns(d)
+			fmt.Fprintf(&b, "  %-30s%-11s%-12s%s\n", name, kind, size, url)
 		}
 	}
 	return b.String()
+}
+
+// sharedEntryColumns returns the (name, type, size, url) cells rendered for
+// one row. Folders get a trailing slash, the dim "<dir>" type marker, and
+// no size/url columns.
+func sharedEntryColumns(d SharedEntry) (name, kind, size, url string) {
+	if d.IsDir {
+		return d.Name + "/", uikit.TUI.Dim().Render("<dir>"), "", ""
+	}
+	return d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL)
 }
 
 // DatasetListResult holds the list of all shared files.
