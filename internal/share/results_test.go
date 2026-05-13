@@ -19,12 +19,12 @@ func TestCloudResult_JSON(t *testing.T) {
 }
 
 func TestCloudResult_JSON_WithURL(t *testing.T) {
-	r := CloudResult{OK: true, Action: "put", Message: "shared \"iris.csv\"", URL: "https://pub-xxx.r2.dev/user/iris.csv"}
+	r := CloudResult{OK: true, Action: "put", Message: "shared \"iris.csv\"", URL: "https://huggingface.co/buckets/sciminds/public/resolve/user/iris.csv"}
 	got, ok := r.JSON().(CloudResult)
 	if !ok {
 		t.Fatal("JSON() did not return CloudResult")
 	}
-	if got.URL != "https://pub-xxx.r2.dev/user/iris.csv" {
+	if got.URL != "https://huggingface.co/buckets/sciminds/public/resolve/user/iris.csv" {
 		t.Errorf("JSON() URL = %q", got.URL)
 	}
 }
@@ -55,9 +55,9 @@ func TestCloudResult_Human(t *testing.T) {
 }
 
 func TestCloudResult_Human_WithURL(t *testing.T) {
-	r := CloudResult{OK: true, Action: "put", Message: "shared \"iris.csv\"", URL: "https://pub-xxx.r2.dev/user/iris.csv"}
+	r := CloudResult{OK: true, Action: "put", Message: "shared \"iris.csv\"", URL: "https://huggingface.co/buckets/sciminds/public/resolve/user/iris.csv"}
 	h := r.Human()
-	if !strings.Contains(h, "https://pub-xxx.r2.dev/user/iris.csv") {
+	if !strings.Contains(h, "https://huggingface.co/buckets/sciminds/public/resolve/user/iris.csv") {
 		t.Errorf("Human() missing URL:\n%s", h)
 	}
 	if !strings.Contains(h, "sci cloud get <name>") {
@@ -77,7 +77,7 @@ func TestCloudResult_Human_WithoutURL(t *testing.T) {
 
 func TestDatasetListResult_JSON(t *testing.T) {
 	r := DatasetListResult{Datasets: []DatasetListEntry{
-		{Name: "iris.csv", Owner: "alice", Type: "csv", URL: "https://pub-xxx.r2.dev/alice/iris.csv"},
+		{Name: "iris.csv", Owner: "alice", Type: "csv", URL: "https://huggingface.co/buckets/sciminds/public/resolve/alice/iris.csv"},
 	}}
 	got, ok := r.JSON().(DatasetListResult)
 	if !ok {
@@ -218,8 +218,8 @@ func TestSharedListResult_Human_Empty(t *testing.T) {
 
 func TestSharedListResult_Human_ShowsOwner(t *testing.T) {
 	r := SharedListResult{Datasets: []SharedEntry{
-		{Name: "iris.csv", Owner: "alice", Type: "csv", Updated: "2024-01-01", URL: "https://pub.r2.dev/alice/iris.csv", Size: 1024},
-		{Name: "penguins.csv", Owner: "bob", Type: "csv", Updated: "2024-02-01", URL: "https://pub.r2.dev/bob/penguins.csv", Size: 2048},
+		{Name: "iris.csv", Owner: "alice", Type: "csv", Updated: "2024-01-01", URL: "https://huggingface.co/buckets/sciminds/public/resolve/alice/iris.csv", Size: 1024},
+		{Name: "penguins.csv", Owner: "bob", Type: "csv", Updated: "2024-02-01", URL: "https://huggingface.co/buckets/sciminds/public/resolve/bob/penguins.csv", Size: 2048},
 	}}
 	h := r.Human()
 	if !strings.Contains(h, "alice") {
@@ -236,7 +236,7 @@ func TestSharedListResult_Human_ShowsOwner(t *testing.T) {
 
 func TestSharedListResult_Human_NoOwnerColumn_WhenEmpty(t *testing.T) {
 	r := SharedListResult{Datasets: []SharedEntry{
-		{Name: "iris.csv", Type: "csv", Updated: "2024-01-01", URL: "https://pub.r2.dev/user/iris.csv", Size: 1024},
+		{Name: "iris.csv", Type: "csv", Updated: "2024-01-01", URL: "https://huggingface.co/buckets/sciminds/public/resolve/user/iris.csv", Size: 1024},
 	}}
 	h := r.Human()
 	// When Owner is empty on all entries, should NOT show owner column.
@@ -247,10 +247,10 @@ func TestSharedListResult_Human_NoOwnerColumn_WhenEmpty(t *testing.T) {
 
 func TestSharedListResult_Human_ShowsURL(t *testing.T) {
 	r := SharedListResult{Datasets: []SharedEntry{
-		{Name: "iris.csv", Type: "csv", Updated: "2024-01-01", URL: "https://pub-xxx.r2.dev/user/iris.csv", Size: 512},
+		{Name: "iris.csv", Type: "csv", Updated: "2024-01-01", URL: "https://huggingface.co/buckets/sciminds/public/resolve/user/iris.csv", Size: 512},
 	}}
 	h := r.Human()
-	if !strings.Contains(h, "https://pub-xxx.r2.dev/user/iris.csv") {
+	if !strings.Contains(h, "https://huggingface.co/buckets/sciminds/public/resolve/user/iris.csv") {
 		t.Errorf("Human() should show URL:\n%s", h)
 	}
 }

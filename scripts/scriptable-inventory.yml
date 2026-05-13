@@ -174,14 +174,6 @@ commands:
         bypass: "--name"
         status: covered
 
-      - id: upload-desc
-        type: huh.NewInput
-        nth: 2
-        line: 121
-        description: "File description"
-        bypass: "--desc"
-        status: covered
-
   # ── cloud list ─────────────────────────────────────────────────────────────
   cloud-list:
     file: internal/share/listtui.go

@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/adrg/xdg"
 	"gopkg.in/yaml.v3"
 )
 
@@ -153,10 +154,21 @@ func FindConfig(startDir string) (string, error) {
 }
 
 // --- Canvas token management ---
-// Stored in ~/.config/sci/credentials.json alongside cloud credentials.
+// Stored in ~/.config/sci/credentials.json.
+
+// CredentialsPath returns the path to the sci credentials file (currently
+// only the Canvas API token). Mirrors the same defensive empty-XDG behaviour
+// the rest of sci uses so darwin doesn't fall through to
+// ~/Library/Application Support.
+func CredentialsPath() string {
+	if os.Getenv("XDG_CONFIG_HOME") == "" {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, ".config", "sci", "credentials.json")
+	}
+	return filepath.Join(xdg.ConfigHome, "sci", "credentials.json")
+}
 
 // canvasTokenConfig is the JSON structure for Canvas token storage.
-// It lives alongside cloud.Config in credentials.json but uses a separate field.
 type canvasTokenConfig struct {
 	CanvasToken string `json:"canvas_token,omitempty"`
 }

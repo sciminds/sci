@@ -19,7 +19,7 @@ func TestCloudListModel_ViewWithItems(t *testing.T) {
 	t.Parallel()
 	entries := []SharedEntry{
 		{Name: "data.tar.gz", Type: "archive", Size: 1024},
-		{Name: "notes.md", Type: "file", Size: 256, Description: "lecture notes"},
+		{Name: "notes.md", Type: "file", Size: 256},
 	}
 	m := newCloudListModel(entries, nil)
 	v := m.View()
@@ -50,15 +50,6 @@ func TestFileItem_DescriptionWithSize(t *testing.T) {
 	desc := item.Description()
 	if !strings.Contains(desc, "archive") {
 		t.Errorf("description should contain type, got %q", desc)
-	}
-}
-
-func TestFileItem_DescriptionWithUserDesc(t *testing.T) {
-	t.Parallel()
-	item := fileItem{entry: SharedEntry{Type: "file", Size: 100, Description: "my notes"}}
-	desc := item.Description()
-	if !strings.Contains(desc, "my notes") {
-		t.Errorf("description should contain user description, got %q", desc)
 	}
 }
 
@@ -127,13 +118,12 @@ func TestModelHandlesDownloadResult(t *testing.T) {
 	_ = updated // should not panic
 }
 
-func TestFileItem_DescriptionNoDesc(t *testing.T) {
+func TestFileItem_DescriptionRendersTypeAndSize(t *testing.T) {
 	t.Parallel()
-	// Ensure dim style is used for the "no description" case
 	_ = uikit.TUI // ensure styles are initialized
 	item := fileItem{entry: SharedEntry{Type: "file", Size: 512}}
 	desc := item.Description()
 	if desc == "" {
-		t.Error("expected non-empty description even without user description")
+		t.Error("expected non-empty description")
 	}
 }

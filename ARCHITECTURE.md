@@ -122,7 +122,7 @@ Three layers, each with a different cost/coverage tradeoff:
 
 - **Unit tests** — pure logic, no I/O. Milliseconds. The bulk of the suite.
 - **Teatest** — full bubbletea message loop with no real terminal. Runs unconditionally on every `just ok`. This is how every TUI is tested.
-- **Integration tests** — shell out to real tools (`pixi`, `uv`, `quarto`, `marimo`, the Canvas API, real R2). Gated behind environment variables — `SLOW=1` for `proj/new`, `CANVAS_TOKEN` for `cass`, `ZOT_REAL_DB` for `zot`. They live in the same files as the unit tests but skip when the env var is missing.
+- **Integration tests** — shell out to real tools (`pixi`, `uv`, `quarto`, `marimo`, the Canvas API, the `hf` CLI against real buckets). Gated behind environment variables — `SLOW=1` for `proj/new`, `CANVAS_TOKEN` for `cass`, `ZOT_REAL_DB` for `zot`. They live in the same files as the unit tests but skip when the env var is missing.
 
 The gate is `just ok` — fmt, vet, lint, test, build. Run it after every change. It also runs as a pre-commit hook. If `just ok` is green, you're free to push.
 

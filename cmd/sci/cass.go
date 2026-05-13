@@ -12,7 +12,6 @@ import (
 	"charm.land/huh/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cass"
-	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
@@ -67,7 +66,7 @@ func cassSetupCommand() *cli.Command {
 			&cli.StringFlag{Name: "token", Usage: "Canvas API token (required with --json)", Destination: &tokenFlag, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			credPath := cloud.ConfigPath()
+			credPath := cass.CredentialsPath()
 
 			if cmdutil.IsJSON(cmd) {
 				if tokenFlag == "" {
@@ -139,7 +138,7 @@ func (r *setupResult) JSON() any {
 }
 
 func (r *setupResult) Human() string {
-	return fmt.Sprintf("  %s Canvas API token saved to %s\n", uikit.SymOK, cloud.ConfigPath())
+	return fmt.Sprintf("  %s Canvas API token saved to %s\n", uikit.SymOK, cass.CredentialsPath())
 }
 
 // --- init: per-project cass.yaml ---
@@ -288,7 +287,7 @@ func cassPullCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			credPath := cloud.ConfigPath()
+			credPath := cass.CredentialsPath()
 			token, err := cass.RequireCanvasToken(credPath)
 			if err != nil {
 				return err
@@ -441,7 +440,7 @@ func cassDiffCommand() *cli.Command {
 			defer func() { _ = db.Close() }()
 
 			if remote {
-				credPath := cloud.ConfigPath()
+				credPath := cass.CredentialsPath()
 				token, err := cass.RequireCanvasToken(credPath)
 				if err != nil {
 					return err
@@ -512,7 +511,7 @@ func cassPushCommand() *cli.Command {
 				}
 			}
 
-			credPath := cloud.ConfigPath()
+			credPath := cass.CredentialsPath()
 			token, err := cass.RequireCanvasToken(credPath)
 			if err != nil {
 				return err
@@ -897,7 +896,7 @@ func cassCanvasContext() (baseURL string, courseID int, token string, err error)
 		return "", 0, "", err
 	}
 
-	credPath := cloud.ConfigPath()
+	credPath := cass.CredentialsPath()
 	token, err = cass.RequireCanvasToken(credPath)
 	if err != nil {
 		return "", 0, "", err

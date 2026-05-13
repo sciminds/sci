@@ -64,13 +64,12 @@ type SharedListResult struct {
 
 // SharedEntry is a single file in SharedListResult.
 type SharedEntry struct {
-	Name        string `json:"name"`
-	Owner       string `json:"owner,omitempty"`
-	Type        string `json:"type"`
-	Updated     string `json:"updated"`
-	URL         string `json:"url"`
-	Size        int64  `json:"size"`
-	Description string `json:"description,omitempty"`
+	Name    string `json:"name"`
+	Owner   string `json:"owner,omitempty"`
+	Type    string `json:"type"`
+	Updated string `json:"updated"`
+	URL     string `json:"url"`
+	Size    int64  `json:"size"`
 }
 
 // JSON implements cmdutil.Result.
@@ -92,17 +91,11 @@ func (r SharedListResult) Human() string {
 		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("owner             name                          type       size        url"))
 		for _, d := range r.Datasets {
 			fmt.Fprintf(&b, "  %-18s%-30s%-11s%-12s%s\n", d.Owner, d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL))
-			if d.Description != "" {
-				fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render(d.Description))
-			}
 		}
 	} else {
 		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("name                          type       size        url"))
 		for _, d := range r.Datasets {
 			fmt.Fprintf(&b, "  %-30s%-11s%-12s%s\n", d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL))
-			if d.Description != "" {
-				fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render(d.Description))
-			}
 		}
 	}
 	return b.String()

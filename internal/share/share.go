@@ -1,31 +1,37 @@
-// Package share implements the public dataset sharing commands (sci share,
-// sci unshare, sci shared) and the authentication flow (sci auth).
+// Package share implements the cloud upload/download/list/remove commands
+// against the SciMinds Hugging Face org buckets.
 //
-// It bridges the local filesystem with Cloudflare R2 object storage
-// for uploading, downloading, and listing shared files.
+// Two buckets exist under the sciminds org:
+//
+//   - "public"  — world-readable; uploads produce a stable HTTPS resolve URL
+//   - "private" — org-only; the default for new uploads
+//
+// Authentication is delegated to the `hf` CLI: users run `hf auth login`
+// themselves, and [Auth] is a thin wrapper that triggers it for first-timers.
 //
 // Key functions:
 //
-//   - [SmartShare] uploads a local file or downloads a dataset by name
-//   - [Unshare] removes a shared file
-//   - [Ls] lists shared files
-//   - [Auth] / [AuthLogout] manage R2 credentials
-//   - [GetTo] downloads a shared file to a specific directory
+//   - [Share] uploads a local file or directory (zipped); [ShareOpts.Public]
+//     selects the bucket.
+//   - [Unshare] removes a shared file.
+//   - [SharedAll] lists every user's files in a bucket.
+//   - [Auth] / [AuthLogout] wrap `hf auth login` / `hf auth logout`.
+//   - [Get] downloads a file to the current directory.
 package share
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/uikit"
@@ -33,92 +39,71 @@ import (
 
 // Network timeouts for cloud operations.
 const (
-	metadataTimeout = 30 * time.Second // list, head, exists, delete
+	metadataTimeout = 30 * time.Second // list, exists, delete
 	transferTimeout = 10 * time.Minute // upload, download
 )
 
-// Auth checks if already configured; if so, shows status. Otherwise initiates
-// the GitHub OAuth device flow to authenticate and receive R2 credentials.
-func Auth() (*AuthResult, error) {
-	cfg, err := cloud.LoadConfig()
-	if err != nil {
-		return nil, err
+// BucketFor returns the bucket name matching the public flag.
+func BucketFor(public bool) string {
+	if public {
+		return cloud.BucketPublic
 	}
-	if cfg != nil && cfg.Public != nil && cfg.Public.AccessKey != "" {
+	return cloud.BucketPrivate
+}
+
+// Auth verifies HF auth + org membership; only when `hf` reports the user is
+// not logged in does it launch `hf auth login` interactively. Other errors
+// (network, parsing, missing `hf` binary) are surfaced directly.
+func Auth() (*AuthResult, error) {
+	cfg, err := cloud.Verify()
+	if err == nil {
 		return &AuthResult{
-			OK:       true,
-			Action:   "status",
-			Username: cfg.Username,
-			Message:  fmt.Sprintf("authenticated as @%s", cfg.Username),
+			OK: true, Action: "status", Username: cfg.Username,
+			Message: fmt.Sprintf("authenticated as @%s (%s)", cfg.Username, cfg.Org),
 		}, nil
 	}
-
-	// Initiate device flow.
-	ctx := context.Background()
-	dc, err := cloud.RequestDeviceCode(ctx, cloud.DefaultWorkerURL)
-	if err != nil {
-		return nil, fmt.Errorf("starting auth: %w", err)
-	}
-
-	// Show the user code and verification URL.
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "  Go to:  %s\n", dc.VerificationURI)
-	fmt.Fprintf(os.Stderr, "  Code:   %s\n", uikit.TUI.Bold().Render(dc.UserCode))
-	fmt.Fprintln(os.Stderr)
-
-	// Best-effort open browser.
-	if runtime.GOOS == "darwin" {
-		_ = exec.Command("open", dc.VerificationURI).Start()
-	}
-
-	// Poll for approval.
-	var resp *cloud.TokenResponse
-	if err := uikit.RunWithSpinner("Waiting for GitHub authorization", func() error {
-		var pollErr error
-		resp, pollErr = cloud.PollForToken(ctx, cloud.DefaultWorkerURL, dc.DeviceCode, time.Duration(dc.Interval)*time.Second)
-		return pollErr
-	}); err != nil {
+	if !errors.Is(err, cloud.ErrNotAuthenticated) {
 		return nil, err
 	}
 
-	// Save credentials.
-	newCfg := &cloud.Config{
-		Username:    resp.Username,
-		GitHubLogin: resp.GitHubLogin,
-		AccountID:   resp.AccountID,
-		Public:      resp.Public,
-	}
-	if err := cloud.SaveConfig(newCfg); err != nil {
-		return nil, fmt.Errorf("saving credentials: %w", err)
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, uikit.TUI.Dim().Render("Launching `hf auth login`…"))
+	cmd := exec.Command("hf", "auth", "login")
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stderr, os.Stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("hf auth login failed: %w", err)
 	}
 
+	cfg, err = cloud.Verify()
+	if err != nil {
+		return nil, err
+	}
 	return &AuthResult{
-		OK:       true,
-		Action:   "login",
-		Username: resp.Username,
-		Message:  fmt.Sprintf("authenticated as @%s", resp.Username),
+		OK: true, Action: "login", Username: cfg.Username,
+		Message: fmt.Sprintf("authenticated as @%s (%s)", cfg.Username, cfg.Org),
 	}, nil
 }
 
-// AuthLogout clears the saved credentials.
+// AuthLogout runs `hf auth logout`.
 func AuthLogout() (*AuthResult, error) {
-	if err := cloud.ClearConfig(); err != nil {
-		return nil, err
+	cmd := exec.Command("hf", "auth", "logout")
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stderr, os.Stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("hf auth logout failed: %w", err)
 	}
-	return &AuthResult{OK: true, Action: "logout", Message: "credentials removed"}, nil
+	return &AuthResult{OK: true, Action: "logout", Message: "logged out of Hugging Face"}, nil
 }
 
 // MaxUploadSize is the maximum file size allowed for upload (10 GB).
 const MaxUploadSize int64 = 10 * 1024 * 1024 * 1024
 
-// ShareOpts controls Share behavior.
+// ShareOpts controls Share behaviour.
 type ShareOpts struct { //nolint:revive // name is established in the API
-	// Name is the object name in R2 (e.g. "my-results.csv").
-	// If empty, defaults to the base filename.
+	// Name is the object name (e.g. "my-results.csv"). Defaults to base filename.
 	Name string
-	// Description is an optional human-readable description of the file.
-	Description string
-	// Force overwrites an existing file without error.
+	// Public selects the public bucket; default is the private bucket.
+	Public bool
+	// Force overwrites an existing file without erroring.
 	Force bool
 }
 
@@ -135,9 +120,10 @@ func DefaultShareName(filePath string) string {
 	return filepath.Base(filePath)
 }
 
-// CheckExists returns true if a file with the given name already exists in R2.
-func CheckExists(name string) (bool, error) {
-	_, c, err := cloud.Setup()
+// CheckExists returns true if a file with the given name already exists in
+// the bucket selected by public.
+func CheckExists(name string, public bool) (bool, error) {
+	_, c, err := cloud.Setup(BucketFor(public))
 	if err != nil {
 		return false, err
 	}
@@ -150,10 +136,10 @@ func CheckExists(name string) (bool, error) {
 	return ok, nil
 }
 
-// Share uploads a file or directory to R2 under the given name.
-// Directories are automatically zipped.
+// Share uploads a file or directory under the chosen name to the bucket
+// selected by opts.Public. Directories are automatically zipped.
 func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
-	_, c, err := cloud.Setup()
+	_, c, err := cloud.Setup(BucketFor(opts.Public))
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +159,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		name = filepath.Base(absPath)
 	}
 
-	// If it's a directory, zip it to a temp file.
+	// Zip directories to a temp file.
 	if info.IsDir() {
 		stem := nameFromFile(filePath)
 		tmpZip, err := os.CreateTemp("", stem+"-*.zip")
@@ -181,7 +167,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 			return nil, fmt.Errorf("creating temp file: %w", err)
 		}
 		tmpZipPath := tmpZip.Name()
-		_ = tmpZip.Close() // zipDir will create/overwrite the file
+		_ = tmpZip.Close()
 		if err := uikit.RunWithSpinner("Packing "+stem, func() error {
 			return zipDir(absPath, tmpZipPath)
 		}); err != nil {
@@ -195,7 +181,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		}
 	}
 
-	// Check if it already exists.
+	// Refuse to clobber unless --force.
 	if !opts.Force {
 		existsCtx, existsCancel := context.WithTimeout(context.Background(), metadataTimeout)
 		defer existsCancel()
@@ -208,7 +194,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		}
 	}
 
-	// Check file size before uploading.
+	// Size guard before opening the stream.
 	uploadInfo, err := os.Stat(absPath)
 	if err != nil {
 		return nil, err
@@ -216,12 +202,6 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 	if uploadInfo.Size() > MaxUploadSize {
 		return nil, fmt.Errorf("file size %s exceeds the 10 GB upload limit",
 			humanize.Bytes(uint64(uploadInfo.Size())))
-	}
-
-	// Build user metadata.
-	var metadata map[string]string
-	if opts.Description != "" {
-		metadata = map[string]string{"description": opts.Description}
 	}
 
 	var result *CloudResult
@@ -234,12 +214,10 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 
 		uploadCtx, uploadCancel := context.WithTimeout(context.Background(), transferTimeout)
 		defer uploadCancel()
-		contentType := detectContentType(absPath)
-		if uploadErr := c.Upload(uploadCtx, name, f, contentType, metadata); uploadErr != nil {
+		if uploadErr := c.Upload(uploadCtx, name, f); uploadErr != nil {
 			return netutil.Wrap("upload", uploadErr)
 		}
 
-		url := c.PublicObjectURL(name)
 		action := "shared"
 		if opts.Force {
 			action = "updated"
@@ -247,8 +225,8 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		result = &CloudResult{
 			OK:      true,
 			Action:  "put",
-			Message: fmt.Sprintf("%s %q", action, name),
-			URL:     url,
+			Message: fmt.Sprintf("%s %q to %s bucket", action, name, c.Bucket),
+			URL:     c.PublicObjectURL(name), // empty for private bucket
 		}
 		return nil
 	}); err != nil {
@@ -257,9 +235,9 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 	return result, nil
 }
 
-// Unshare removes a shared file from R2.
-func Unshare(name string) (*CloudResult, error) {
-	_, c, err := cloud.Setup()
+// Unshare removes a shared file from the bucket selected by public.
+func Unshare(name string, public bool) (*CloudResult, error) {
+	_, c, err := cloud.Setup(BucketFor(public))
 	if err != nil {
 		return nil, err
 	}
@@ -281,115 +259,65 @@ func Unshare(name string) (*CloudResult, error) {
 	}); err != nil {
 		return nil, err
 	}
-	return &CloudResult{OK: true, Action: "remove", Message: fmt.Sprintf("removed %q", name)}, nil
+	return &CloudResult{
+		OK: true, Action: "remove",
+		Message: fmt.Sprintf("removed %q from %s bucket", name, c.Bucket),
+	}, nil
 }
 
-// SharedAll lists all users' shared files in the bucket.
+// SharedAll lists every user's files in the bucket the client is scoped to.
 // When plain is true the spinner is skipped.
 func SharedAll(c *cloud.Client, plain bool) (*SharedListResult, error) {
-	return sharedWithOpts(c, plain, true)
-}
-
-func sharedWithOpts(c *cloud.Client, plain, allUsers bool) (*SharedListResult, error) {
-	listFn := c.List
-	spinnerMsg := "Fetching your files"
-	if allUsers {
-		listFn = func(ctx context.Context) ([]cloud.ObjectInfo, error) {
-			return c.ListPrefix(ctx, "")
-		}
-		spinnerMsg = "Fetching files"
-	}
-
 	listCtx, listCancel := context.WithTimeout(context.Background(), metadataTimeout)
 	defer listCancel()
 
 	var objects []cloud.ObjectInfo
+	listFn := func() error {
+		var listErr error
+		objects, listErr = c.ListPrefix(listCtx, "")
+		return listErr
+	}
 	if plain {
-		var err error
-		objects, err = listFn(listCtx)
-		if err != nil {
+		if err := listFn(); err != nil {
 			return nil, netutil.Wrap("listing files", err)
 		}
-	} else if err := uikit.RunWithSpinner(spinnerMsg, func() error {
-		var listErr error
-		objects, listErr = listFn(listCtx)
-		return listErr
-	}); err != nil {
+	} else if err := uikit.RunWithSpinner("Fetching files", listFn); err != nil {
 		return nil, netutil.Wrap("listing files", err)
 	}
 
-	entries := buildSharedEntries(objects, c.Username, allUsers)
-
-	// Fetch descriptions concurrently via HeadObject (max 10 in flight).
-	// Only fetch for the current user's files (HeadObject is scoped to username).
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 10)
-	for i := range entries {
-		if allUsers && entries[i].Owner != c.Username {
-			continue
-		}
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(idx int) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			headCtx, headCancel := context.WithTimeout(context.Background(), metadataTimeout)
-			defer headCancel()
-			meta, err := c.HeadObject(headCtx, entries[idx].Name)
-			if err != nil {
-				return
-			}
-			if desc, ok := meta["description"]; ok {
-				entries[idx].Description = desc
-			}
-		}(i)
-	}
-	wg.Wait()
-
-	return &SharedListResult{Datasets: entries}, nil
+	return &SharedListResult{Datasets: buildSharedEntries(objects, c.Username, true)}, nil
 }
 
 // buildSharedEntries converts raw ObjectInfo into SharedEntry slices.
-// When allUsers is false, it strips the username prefix from keys.
-// When allUsers is true, it parses the owner from the key and populates Owner.
+// When allUsers is false, the username prefix is stripped from keys.
+// When allUsers is true, the owner is parsed from the key.
 func buildSharedEntries(objects []cloud.ObjectInfo, username string, allUsers bool) []SharedEntry {
-	entries := make([]SharedEntry, len(objects))
-	for i, obj := range objects {
+	return lo.Map(objects, func(obj cloud.ObjectInfo, _ int) SharedEntry {
 		if allUsers {
 			parts := strings.SplitN(obj.Key, "/", 2)
-			owner := ""
-			name := obj.Key
+			owner, name := "", obj.Key
 			if len(parts) == 2 {
-				owner = parts[0]
-				name = parts[1]
+				owner, name = parts[0], parts[1]
 			}
-			entries[i] = SharedEntry{
-				Name:    name,
-				Owner:   owner,
-				Type:    detectFileType(name),
-				Updated: obj.LastModified,
-				URL:     obj.URL,
-				Size:    obj.Size,
-			}
-		} else {
-			name := strings.TrimPrefix(obj.Key, username+"/")
-			entries[i] = SharedEntry{
-				Name:    name,
-				Type:    detectFileType(name),
-				Updated: obj.LastModified,
-				URL:     obj.URL,
-				Size:    obj.Size,
+			return SharedEntry{
+				Name: name, Owner: owner, Type: detectFileType(name),
+				Updated: obj.LastModified, URL: obj.URL, Size: obj.Size,
 			}
 		}
-	}
-	return entries
+		name := strings.TrimPrefix(obj.Key, username+"/")
+		return SharedEntry{
+			Name: name, Type: detectFileType(name),
+			Updated: obj.LastModified, URL: obj.URL, Size: obj.Size,
+		}
+	})
 }
 
 // Get downloads a shared file to the current directory.
-// If name contains a "/" it is treated as "owner/filename" for cross-user
-// downloads; otherwise the current user's namespace is used.
-func Get(name string) (*CloudResult, error) {
-	_, c, err := cloud.Setup()
+// If name contains a "/", it's treated as "owner/filename" (cross-user
+// download). Cross-user downloads only work from the public bucket — the
+// private bucket has no owner field on the read path.
+func Get(name string, public bool) (*CloudResult, error) {
+	_, c, err := cloud.Setup(BucketFor(public))
 	if err != nil {
 		return nil, err
 	}
@@ -460,38 +388,5 @@ func detectFileType(path string) string {
 		return "zip"
 	default:
 		return "other"
-	}
-}
-
-// detectContentType maps file extensions to MIME types.
-func detectContentType(path string) string {
-	ext := strings.ToLower(filepath.Ext(path))
-	switch ext {
-	case ".csv":
-		return "text/csv"
-	case ".tsv":
-		return "text/tab-separated-values"
-	case ".json":
-		return "application/json"
-	case ".db":
-		return "application/x-sqlite3"
-	case ".png":
-		return "image/png"
-	case ".jpg", ".jpeg":
-		return "image/jpeg"
-	case ".gif":
-		return "image/gif"
-	case ".svg":
-		return "image/svg+xml"
-	case ".zip":
-		return "application/zip"
-	case ".gz", ".tgz":
-		return "application/gzip"
-	case ".tar":
-		return "application/x-tar"
-	case ".pdf":
-		return "application/pdf"
-	default:
-		return "application/octet-stream"
 	}
 }

@@ -310,40 +310,24 @@ just run proj new     # etc.
 
 ### Cloud auth infrastructure
 
-`sci cloud setup` uses a GitHub OAuth device flow brokered by a Cloudflare Worker. The worker verifies `sciminds` GitHub org membership and returns shared R2 credentials.
+`sci cloud` shells out to the `hf` CLI for all bucket operations against the SciMinds Hugging Face org. Auth is delegated entirely to `hf auth login` — sci stores no tokens.
 
 **Components:**
 
-1. **GitHub OAuth App** — [sciminds org settings → OAuth Apps](https://github.com/organizations/sciminds/settings/applications). Client ID is compiled into the CLI (`internal/cloud/device.go`). Must have **"Enable Device Flow"** checked.
-2. **Cloudflare Worker** (`worker/`) — two endpoints: `POST /auth/device` and `POST /auth/token`. Deployed at `sci-auth.sciminds.workers.dev`.
-3. **R2 bucket** — `sci-public` (public read, auth'd write).
+1. **`hf` CLI** — installed via `uv tool install hf` (wired through doctor's Brewfile). Auth state lives in `~/.cache/huggingface/`.
+2. **`git-xet`** — required for HF's Xet-protocol transfers. Installed via `brew install git-xet` and registered globally with `git xet install`. Both are gated by `sci doctor`.
+3. **Org buckets:**
+   - `sciminds/public` — world-readable; uploads return an HTTPS URL of the form `https://huggingface.co/buckets/sciminds/<bucket>/resolve/<username>/<filename>`.
+   - `sciminds/private` — org-members-only; default for `sci cloud put`.
 
-**Deploy / redeploy the worker:**
+Files are keyed as `<username>/<filename>` within each bucket so per-user listings stay scoped.
 
-```bash
-cd worker
-bun install
-bunx wrangler deploy
-```
-
-**Set or rotate worker secrets:**
+**Onboarding a new sciminds member:**
 
 ```bash
-cd worker
-bunx wrangler secret put GITHUB_CLIENT_SECRET
-bunx wrangler secret put R2_ACCOUNT_ID
-bunx wrangler secret put R2_ACCESS_KEY          # public bucket
-bunx wrangler secret put R2_SECRET_KEY          # public bucket
-bunx wrangler secret put R2_PUBLIC_URL           # e.g. https://pub-xxx.r2.dev
+hf auth login                              # paste an HF token with read+write on sciminds
+git xet install                            # one-time global LFS transfer agent setup
+sci doctor                                 # verify everything's green
 ```
 
-Each command prompts for the value interactively. Get these from the [Cloudflare R2 dashboard](https://dash.cloudflare.com/) → R2 → API Tokens.
-
-**List / delete secrets:**
-
-```bash
-bunx wrangler secret list
-bunx wrangler secret delete <NAME>
-```
-
-**Adding a new bucket:** Create the R2 bucket in Cloudflare, generate an API token scoped to it, set the corresponding `R2_*_ACCESS_KEY` / `R2_*_SECRET_KEY` worker secrets, and update `worker/wrangler.toml` vars if the bucket name differs.
+> A legacy Cloudflare R2 + worker auth flow was deprecated when this CLI moved to Hugging Face buckets. The old code (`internal/cloud/auth.go`, `device.go`, and `worker/`) is preserved on the `cloudflare-cloud` git branch; the deployed worker at `sci-auth.sciminds.workers.dev` can be decommissioned separately via `bunx wrangler delete` from a checkout of that branch.

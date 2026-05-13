@@ -21,9 +21,62 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/lab"
 )
+
+// sciMindsOrg is the Hugging Face organisation that gates sci cloud access.
+const sciMindsOrg = "sciminds"
+
+// hfWhoamiFn returns the authenticated HF user and their org memberships.
+// Overridable in tests.
+var hfWhoamiFn = func() (user string, orgs []string, err error) {
+	if _, lookErr := exec.LookPath("hf"); lookErr != nil {
+		return "", nil, lookErr
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	out, runErr := exec.CommandContext(ctx, "hf", "auth", "whoami").Output()
+	if runErr != nil {
+		return "", nil, runErr
+	}
+	return parseHFWhoami(string(out))
+}
+
+// gitXetRegisteredFn reports whether `git xet install` has wired the xet
+// transfer agent into the global git config. Overridable in tests.
+var gitXetRegisteredFn = func() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "config", "--global", "--get", "lfs.customtransfer.xet.path").Output()
+	return err == nil && strings.TrimSpace(string(out)) != ""
+}
+
+// parseHFWhoami parses the single-line output of `hf auth whoami`:
+//
+//	user=ejolly orgs=py-feat,nltools,sciminds
+//
+// orgs is empty when the user has no org memberships.
+func parseHFWhoami(s string) (string, []string, error) {
+	user, orgs := "", []string(nil)
+	for _, tok := range strings.Fields(strings.TrimSpace(s)) {
+		k, v, ok := strings.Cut(tok, "=")
+		if !ok {
+			continue
+		}
+		switch k {
+		case "user":
+			user = v
+		case "orgs":
+			if v != "" {
+				orgs = strings.Split(v, ",")
+			}
+		}
+	}
+	if user == "" {
+		return "", nil, fmt.Errorf("unexpected hf whoami output: %q", s)
+	}
+	return user, orgs, nil
+}
 
 //go:embed Brewfile
 var Brewfile string //nolint:revive // go:embed requires exported var
@@ -196,21 +249,36 @@ func checkIdentity() CheckSection {
 
 	checks := []CheckResult{nameCheck, emailCheck, ghCheck}
 
-	// SciMinds R2 credentials — always shown so first-time users see the nudge.
-	sciCheck := CheckResult{Label: "SciMinds Public Cloud"}
-	cfg, cfgErr := cloud.LoadConfig()
+	// Hugging Face auth — gates sci cloud. Always shown so first-time users see the nudge.
+	hfCheck := CheckResult{Label: "Hugging Face auth"}
+	user, orgs, hfErr := hfWhoamiFn()
 	switch {
-	case cfgErr != nil:
-		sciCheck.Status = StatusFail
-		sciCheck.Message = "credentials unreadable — run: sci cloud setup"
-	case cfg != nil && cfg.Public != nil && cfg.Public.AccessKey != "":
-		sciCheck.Status = StatusPass
-		sciCheck.Message = "configured as @" + cfg.Username
+	case hfErr != nil:
+		hfCheck.Status = StatusFail
+		hfCheck.Message = "not authenticated — run: hf auth login"
+	case !lo.Contains(orgs, sciMindsOrg):
+		hfCheck.Status = StatusWarn
+		hfCheck.Message = "@" + user + " — not in " + sciMindsOrg + " org"
 	default:
-		sciCheck.Status = StatusWarn
-		sciCheck.Message = "not authenticated — run: sci cloud setup"
+		hfCheck.Status = StatusPass
+		hfCheck.Message = "@" + user + " (" + sciMindsOrg + ")"
 	}
-	checks = append(checks, sciCheck)
+	checks = append(checks, hfCheck)
+
+	// git-xet — required for HF bucket transfers. Verifies `git xet install`
+	// has registered the xet transfer agent in the global git config.
+	xetCheck := CheckResult{Label: "git-xet"}
+	if _, lookErr := exec.LookPath("git-xet"); lookErr != nil {
+		xetCheck.Status = StatusFail
+		xetCheck.Message = "git-xet not found — run: brew install git-xet"
+	} else if !gitXetRegisteredFn() {
+		xetCheck.Status = StatusFail
+		xetCheck.Message = "not registered — run: git xet install"
+	} else {
+		xetCheck.Status = StatusPass
+		xetCheck.Message = "registered"
+	}
+	checks = append(checks, xetCheck)
 
 	// Lab SSH — only shown if configured. Checks local config + key, not connectivity.
 	if labCfg, _ := lab.LoadConfig(); labCfg != nil && labCfg.User != "" {

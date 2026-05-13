@@ -1,33 +1,30 @@
-// Package cloud provides an S3-compatible client for Cloudflare R2 object
-// storage. It replaces the previous PocketBase backend with direct R2 access.
+// Package cloud provides a thin wrapper around the `hf buckets` CLI for
+// reading and writing files in the SciMinds Hugging Face org buckets.
 //
-// Credentials (account ID, access key, secret, username) are stored locally
-// at [ConfigPath] and managed by [LoadConfig] / [SaveConfig].
+// There are two buckets under the org:
 //
-// Objects are keyed as "<username>/<filename>" within the configured bucket.
+//   - "public"  — world-readable; files get HTTPS resolve URLs
+//   - "private" — org-members-only; no public URL
+//
+// Objects are keyed as "<username>/<filename>" within each bucket so per-user
+// listings stay scoped.
+//
+// Authentication is delegated entirely to `hf auth login` — sci does not
+// store any tokens. [Setup] verifies the caller is logged in and a member of
+// the sciminds org.
 package cloud
 
-// BucketConfig holds credentials for a single R2 bucket.
-type BucketConfig struct {
-	AccessKey  string `json:"access_key"`
-	SecretKey  string `json:"secret_key"`
-	BucketName string `json:"bucket_name"`
-	PublicURL  string `json:"public_url,omitempty"`
-}
+// Bucket names within the sciminds Hugging Face org.
+const (
+	DefaultOrg    = "sciminds"
+	BucketPublic  = "public"
+	BucketPrivate = "private"
+)
 
-// Config holds R2 credentials and user identity.
+// Config identifies the authenticated user and target org.
 type Config struct {
-	Username    string        `json:"username"`
-	GitHubLogin string        `json:"github_login,omitempty"`
-	AccountID   string        `json:"account_id"`
-	Public      *BucketConfig `json:"public,omitempty"`
-
-	// Legacy flat fields — populated only when reading old-format files.
-	// Deprecated: run "sci cloud setup" to migrate to the new format.
-	LegacyAccessKey  string `json:"access_key,omitempty"`
-	LegacySecretKey  string `json:"secret_key,omitempty"`
-	LegacyPublicURL  string `json:"public_url,omitempty"`
-	LegacyBucketName string `json:"bucket_name,omitempty"`
+	Username string
+	Org      string
 }
 
 // ObjectInfo describes a stored object.
@@ -36,5 +33,4 @@ type ObjectInfo struct {
 	Size         int64  `json:"size"`
 	LastModified string `json:"last_modified"`
 	URL          string `json:"url"`
-	Description  string `json:"description,omitempty"`
 }

@@ -5,9 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/adrg/xdg"
 	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/cloud"
 )
 
 func TestBoolStatus(t *testing.T) {
@@ -75,56 +73,149 @@ func TestCheckIdentity_Structure(t *testing.T) {
 	}
 }
 
-func TestCheckIdentity_SciMindsCloud(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", dir)
-	xdg.Reload()
-	t.Cleanup(xdg.Reload)
+// setHFWhoami swaps the HF whoami hook for a test and restores it on cleanup.
+func setHFWhoami(t *testing.T, fn func() (string, []string, error)) {
+	t.Helper()
+	orig := hfWhoamiFn
+	hfWhoamiFn = fn
+	t.Cleanup(func() { hfWhoamiFn = orig })
+}
 
-	findCloud := func() *CheckResult {
-		sec := checkIdentity()
-		for i := range sec.Checks {
-			if sec.Checks[i].Label == "SciMinds Public Cloud" {
-				return &sec.Checks[i]
-			}
+// setGitXetRegistered swaps the git-xet hook for a test and restores on cleanup.
+func setGitXetRegistered(t *testing.T, fn func() bool) {
+	t.Helper()
+	orig := gitXetRegisteredFn
+	gitXetRegisteredFn = fn
+	t.Cleanup(func() { gitXetRegisteredFn = orig })
+}
+
+func findIdentityCheck(label string) *CheckResult {
+	sec := checkIdentity()
+	for i := range sec.Checks {
+		if sec.Checks[i].Label == label {
+			return &sec.Checks[i]
 		}
-		return nil
 	}
+	return nil
+}
 
-	c := findCloud()
+func TestCheckIdentity_HuggingFace_NotAuthenticated(t *testing.T) {
+	setHFWhoami(t, func() (string, []string, error) { return "", nil, fmt.Errorf("no token") })
+
+	c := findIdentityCheck("Hugging Face auth")
 	if c == nil {
-		t.Fatal("SciMinds Public Cloud check missing when creds absent")
+		t.Fatal("Hugging Face auth check missing")
+	}
+	if c.Status != StatusFail {
+		t.Errorf("status = %q, want %q", c.Status, StatusFail)
+	}
+	if !strings.Contains(c.Message, "hf auth login") {
+		t.Errorf("message = %q, want hint containing 'hf auth login'", c.Message)
+	}
+}
+
+func TestCheckIdentity_HuggingFace_NotInOrg(t *testing.T) {
+	setHFWhoami(t, func() (string, []string, error) { return "alice", []string{"other-org"}, nil })
+
+	c := findIdentityCheck("Hugging Face auth")
+	if c == nil {
+		t.Fatal("Hugging Face auth check missing")
 	}
 	if c.Status != StatusWarn {
-		t.Errorf("status (no creds) = %q, want %q", c.Status, StatusWarn)
+		t.Errorf("status = %q, want %q", c.Status, StatusWarn)
 	}
-	if !strings.Contains(c.Message, "sci cloud setup") {
-		t.Errorf("message = %q, want hint containing 'sci cloud setup'", c.Message)
-	}
-
-	cfg := &cloud.Config{
-		Username:  "alice",
-		AccountID: "acct",
-		Public: &cloud.BucketConfig{
-			AccessKey:  "AK",
-			SecretKey:  "SK",
-			BucketName: "sci-public",
-		},
-	}
-	if err := cloud.SaveConfig(cfg); err != nil {
-		t.Fatalf("SaveConfig: %v", err)
-	}
-
-	c = findCloud()
-	if c == nil {
-		t.Fatal("SciMinds Public Cloud check missing when configured")
-	}
-	if c.Status != StatusPass {
-		t.Errorf("status (configured) = %q, want %q", c.Status, StatusPass)
+	if !strings.Contains(c.Message, "sciminds") {
+		t.Errorf("message = %q, want mention of sciminds org", c.Message)
 	}
 	if !strings.Contains(c.Message, "alice") {
 		t.Errorf("message = %q, want username", c.Message)
 	}
+}
+
+func TestCheckIdentity_HuggingFace_OK(t *testing.T) {
+	setHFWhoami(t, func() (string, []string, error) {
+		return "alice", []string{"other", "sciminds"}, nil
+	})
+
+	c := findIdentityCheck("Hugging Face auth")
+	if c == nil {
+		t.Fatal("Hugging Face auth check missing")
+	}
+	if c.Status != StatusPass {
+		t.Errorf("status = %q, want %q", c.Status, StatusPass)
+	}
+	if !strings.Contains(c.Message, "alice") {
+		t.Errorf("message = %q, want username", c.Message)
+	}
+}
+
+func TestCheckIdentity_GitXet_NotRegistered(t *testing.T) {
+	setGitXetRegistered(t, func() bool { return false })
+
+	c := findIdentityCheck("git-xet")
+	if c == nil {
+		t.Fatal("git-xet check missing")
+	}
+	// Status depends on whether git-xet binary is present on this machine;
+	// we only assert the registration branch when the binary is available.
+	if c.Status == StatusFail && !strings.Contains(c.Message, "git xet install") &&
+		!strings.Contains(c.Message, "brew install git-xet") {
+		t.Errorf("expected message to point to install/register fix, got %q", c.Message)
+	}
+}
+
+func TestCheckIdentity_GitXet_Registered(t *testing.T) {
+	setGitXetRegistered(t, func() bool { return true })
+
+	c := findIdentityCheck("git-xet")
+	if c == nil {
+		t.Fatal("git-xet check missing")
+	}
+	// Only assert pass when the binary is actually present in PATH.
+	// Otherwise the LookPath branch (StatusFail with brew hint) is expected.
+	if c.Status == StatusPass && !strings.Contains(c.Message, "registered") {
+		t.Errorf("expected 'registered' message, got %q", c.Message)
+	}
+}
+
+func TestParseHFWhoami(t *testing.T) {
+	cases := []struct {
+		in       string
+		wantUser string
+		wantOrgs []string
+		wantErr  bool
+	}{
+		{"user=ejolly orgs=py-feat,nltools,sciminds\n", "ejolly", []string{"py-feat", "nltools", "sciminds"}, false},
+		{"user=alice orgs=", "alice", nil, false},
+		{"user=alice", "alice", nil, false},
+		{"orgs=foo", "", nil, true},
+		{"", "", nil, true},
+	}
+	for _, c := range cases {
+		gotUser, gotOrgs, gotErr := parseHFWhoami(c.in)
+		if (gotErr != nil) != c.wantErr {
+			t.Errorf("parseHFWhoami(%q) err = %v, wantErr=%v", c.in, gotErr, c.wantErr)
+			continue
+		}
+		if gotUser != c.wantUser {
+			t.Errorf("parseHFWhoami(%q) user = %q, want %q", c.in, gotUser, c.wantUser)
+		}
+		if !strSliceEq(gotOrgs, c.wantOrgs) {
+			t.Errorf("parseHFWhoami(%q) orgs = %v, want %v", c.in, gotOrgs, c.wantOrgs)
+		}
+	}
+}
+
+func strSliceEq(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestRunPreflightIdentity_ReturnsSections(t *testing.T) {

@@ -17,6 +17,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
 	"github.com/dustin/go-humanize"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/uikit"
 )
@@ -39,11 +40,7 @@ func (i fileItem) Title() string { return i.entry.Name }
 
 // Description implements list.DefaultItem.
 func (i fileItem) Description() string {
-	sizeType := uikit.TUI.Dim().Render(fmt.Sprintf("%s  %s", i.entry.Type, humanize.Bytes(uint64(i.entry.Size))))
-	if i.entry.Description != "" {
-		return i.entry.Description + "\n" + sizeType
-	}
-	return sizeType
+	return uikit.TUI.Dim().Render(fmt.Sprintf("%s  %s", i.entry.Type, humanize.Bytes(uint64(i.entry.Size))))
 }
 
 // FilterValue implements list.Item.
@@ -174,23 +171,13 @@ type cloudListModel struct {
 }
 
 func newCloudListModel(entries []SharedEntry, client *cloud.Client) cloudListModel {
-	items := make([]list.Item, len(entries))
-	hasDesc := false
-	for i, e := range entries {
-		items[i] = fileItem{entry: e}
-		if e.Description != "" {
-			hasDesc = true
-		}
-	}
+	items := lo.Map(entries, func(e SharedEntry, _ int) list.Item {
+		return fileItem{entry: e}
+	})
 
 	pending := new(string)
 	keys := newCloudDelegateKeyMap()
 	delegate := newCloudDelegate(keys, client, pending)
-
-	// Use taller items when any entry has a description (title + desc + size).
-	if hasDesc {
-		delegate.SetHeight(3)
-	}
 
 	title := fmt.Sprintf("Cloud Files — %d shared", len(entries))
 	l := list.New(items, delegate, 0, 0)
