@@ -61,6 +61,18 @@ func doctorCommand() *cli.Command {
 	}
 }
 
+// postUpdateEnvVar is the env-var equivalent of --skip-upgrade-check, set by
+// `sci update` when re-execing into the new binary. Env vars are silently
+// ignored by binaries that predate this hook, so they're version-skew-safe
+// across self-updates in a way that unknown CLI flags are not.
+const postUpdateEnvVar = "SCI_SKIP_UPGRADE_CHECK"
+
+// skipUpgradeCheck reports whether the upgrade-check step should be
+// suppressed — either via the flag or the env var set by `sci update`.
+func skipUpgradeCheck() bool {
+	return doctorSkipUpgradeCheck || os.Getenv(postUpdateEnvVar) == "1"
+}
+
 func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	runner := brew.BrewRunner{}
 	isJSON := cmdutil.IsJSON(cmd)
@@ -161,7 +173,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	if isJSON {
 		// Non-interactive: RunSetup handles everything, auto-confirms.
 		setup := doctor.RunSetup(runner, brewfilePath, created, doctor.SetupOpts{
-			SkipUpgradeCheck: doctorSkipUpgradeCheck,
+			SkipUpgradeCheck: skipUpgradeCheck(),
 		})
 		result.BrewfilePath = setup.BrewfilePath
 		result.BrewfileCreated = setup.BrewfileCreated
@@ -239,7 +251,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 			uikit.SymWarn, uikit.TUI.Warn().Render("Could not check tools: "+toolCheckErr.Error()))
 		// Can't install if we don't know what's missing — skip to update check.
-		if doctorSkipUpgradeCheck {
+		if skipUpgradeCheck() {
 			return nil
 		}
 		return runDoctorUpdateCheck(runner)
@@ -287,7 +299,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// ── Step 5: Check for outdated packages ─────────────────────────────
-	if doctorSkipUpgradeCheck {
+	if skipUpgradeCheck() {
 		printAllSet()
 		return nil
 	}

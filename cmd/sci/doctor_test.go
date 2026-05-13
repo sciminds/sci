@@ -12,8 +12,7 @@ import (
 )
 
 // TestDoctor_SkipUpgradeCheckFlagDefined asserts that the doctor command
-// exposes --skip-upgrade-check — the flag `sci update` re-execs into after
-// replacing the binary.
+// exposes --skip-upgrade-check for direct CLI use.
 func TestDoctor_SkipUpgradeCheckFlagDefined(t *testing.T) {
 	cmd := doctorCommand()
 	for _, f := range cmd.Flags {
@@ -24,6 +23,36 @@ func TestDoctor_SkipUpgradeCheckFlagDefined(t *testing.T) {
 		}
 	}
 	t.Error("doctor command missing --skip-upgrade-check flag")
+}
+
+// TestSkipUpgradeCheck_EnvVar asserts that SCI_SKIP_UPGRADE_CHECK=1 triggers
+// the same suppression as the --skip-upgrade-check flag. This is what
+// `sci update`'s re-exec sets so that a just-downloaded binary that
+// predates the flag still gracefully skips the upgrade prompt.
+func TestSkipUpgradeCheck_EnvVar(t *testing.T) {
+	prev := doctorSkipUpgradeCheck
+	t.Cleanup(func() { doctorSkipUpgradeCheck = prev })
+	doctorSkipUpgradeCheck = false
+
+	t.Setenv(postUpdateEnvVar, "1")
+	if !skipUpgradeCheck() {
+		t.Error("SCI_SKIP_UPGRADE_CHECK=1 must trigger skipUpgradeCheck()")
+	}
+
+	t.Setenv(postUpdateEnvVar, "")
+	if skipUpgradeCheck() {
+		t.Error("unset SCI_SKIP_UPGRADE_CHECK must not trigger skipUpgradeCheck()")
+	}
+
+	t.Setenv(postUpdateEnvVar, "0")
+	if skipUpgradeCheck() {
+		t.Error("SCI_SKIP_UPGRADE_CHECK=0 must not trigger skipUpgradeCheck()")
+	}
+
+	doctorSkipUpgradeCheck = true
+	if !skipUpgradeCheck() {
+		t.Error("the --skip-upgrade-check flag must trigger skipUpgradeCheck() even with the env var unset")
+	}
 }
 
 func TestToolsReccs_JSONSkipsForm(t *testing.T) {

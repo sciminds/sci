@@ -3,12 +3,43 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sciminds/cli/internal/selfupdate"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
+
+// TestPostUpdateArgs_NoUnknownFlags is the critical safety net: the args
+// passed to the just-downloaded binary must NOT include any flag that
+// older sci releases didn't recognize, or the chained doctor will fail
+// with "flag provided but not defined" and the user perceives a borked
+// update. Skip-upgrade-check is delivered via env var instead.
+func TestPostUpdateArgs_NoUnknownFlags(t *testing.T) {
+	args := postUpdateArgs("/usr/local/bin/sci")
+
+	if len(args) < 2 || args[1] != "doctor" {
+		t.Fatalf("expected post-update args to invoke `doctor`, got %v", args)
+	}
+
+	for _, a := range args[1:] {
+		if strings.HasPrefix(a, "-") {
+			t.Errorf("post-update argv must not include flags (would break against older binaries): %q", a)
+		}
+	}
+}
+
+// TestPostUpdateEnv_SetsSkipUpgradeCheck verifies the env-var pathway:
+// the chained doctor in a binary that knows about SCI_SKIP_UPGRADE_CHECK
+// will skip the brew prompt; older binaries silently ignore the var.
+func TestPostUpdateEnv_SetsSkipUpgradeCheck(t *testing.T) {
+	env := postUpdateEnv()
+	if !slices.Contains(env, "SCI_SKIP_UPGRADE_CHECK=1") {
+		t.Errorf("postUpdateEnv() must export SCI_SKIP_UPGRADE_CHECK=1; got %v", env)
+	}
+}
 
 // TestUpdate_ExecsIntoDoctorAfterSuccessfulUpdate verifies that runUpdate
 // chains into the freshly installed binary's `sci doctor --skip-upgrade-check`

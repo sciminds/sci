@@ -19,11 +19,29 @@ var (
 	selfupdateUpdate = selfupdate.Update
 
 	// execAfterUpdate replaces the running process with the freshly installed
-	// sci binary, running its doctor flow with the upgrade-check suppressed.
+	// sci binary, running its doctor flow.
 	execAfterUpdate = func(execPath string) error {
-		return syscall.Exec(execPath, []string{execPath, "doctor", "--skip-upgrade-check"}, os.Environ())
+		return syscall.Exec(execPath, postUpdateArgs(execPath), postUpdateEnv())
 	}
 )
+
+// postUpdateArgs is the argv passed to the freshly installed binary.
+//
+// Intentionally minimal — only argv that every released sci binary will
+// recognize. Newer CLI flags are unsafe here because the downloaded binary
+// may predate them, and an unknown flag would error out and "bork" the
+// update. The skip-upgrade-check signal is delivered via [postUpdateEnv]
+// instead, which is silently ignored by older binaries.
+func postUpdateArgs(execPath string) []string {
+	return []string{execPath, "doctor"}
+}
+
+// postUpdateEnv returns the environment for the chained doctor process,
+// with SCI_SKIP_UPGRADE_CHECK=1 appended so the new binary suppresses
+// the brew/uv outdated prompt.
+func postUpdateEnv() []string {
+	return append(os.Environ(), "SCI_SKIP_UPGRADE_CHECK=1")
+}
 
 func updateCommand() *cli.Command {
 	return &cli.Command{
