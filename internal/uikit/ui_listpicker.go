@@ -21,6 +21,25 @@ func NewListDelegate() list.DefaultDelegate {
 	return d
 }
 
+// HardenListKeyMap frees the vim half-page keys (d/u/b/f) from the list's
+// default paging bindings so they're available for custom delegate actions.
+//
+// Why: bubbles v2's [list.DefaultKeyMap] binds d/f to NextPage and u/b to
+// PrevPage. [list.Model.Update] processes paging *before* it calls the
+// delegate's UpdateFunc, so a delegate that binds `d` to (say) download
+// sees the cursor already advanced to the next page — and runs its action
+// on the wrong item. Right/l/pgdown and left/h/pgup still page.
+func HardenListKeyMap(l *list.Model) {
+	l.KeyMap.NextPage = key.NewBinding(
+		key.WithKeys("right", "l", "pgdown"),
+		key.WithHelp("→/l/pgdn", "next page"),
+	)
+	l.KeyMap.PrevPage = key.NewBinding(
+		key.WithKeys("left", "h", "pgup"),
+		key.WithHelp("←/h/pgup", "prev page"),
+	)
+}
+
 // ListPicker wraps [list.Model] with the standard project styling:
 // filtered search, status bar, accent-styled title, and custom hint
 // keys. It eliminates the repeated 10-line constructor + filtering
@@ -35,6 +54,7 @@ type ListPicker struct {
 func NewListPicker(title string, items []list.Item, hints ...key.Binding) ListPicker {
 	d := NewListDelegate()
 	l := list.New(items, d, 0, 0)
+	HardenListKeyMap(&l)
 	l.Title = title
 	l.Styles.Title = TUI.TextBlueBold()
 	l.SetFilteringEnabled(true)

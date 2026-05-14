@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
@@ -49,7 +48,7 @@ func (i reccsItem) FilterValue() string { return i.entry.Name + " " + i.desc }
 
 // reccsModel is the Bubble Tea model for the recommendations list.
 type reccsModel struct {
-	list     list.Model
+	list     uikit.ListPicker
 	entries  []brew.BrewfileEntry
 	chosen   int // index into entries; -1 = nothing selected
 	quitting bool
@@ -58,7 +57,7 @@ type reccsModel struct {
 func newReccsModel(entries []brew.BrewfileEntry, missing map[string]bool) reccsModel {
 	// Only show tools that are not yet installed.
 	var filtered []brew.BrewfileEntry
-	var items []list.Item
+	var items []reccsItem
 	for _, e := range entries {
 		if !missing[e.Name] {
 			continue // already installed — hide it
@@ -73,19 +72,15 @@ func newReccsModel(entries []brew.BrewfileEntry, missing map[string]bool) reccsM
 	}
 
 	title := fmt.Sprintf("Recommended tools — %d available", len(items))
-	delegate := uikit.NewListDelegate()
-	l := list.New(items, delegate, 0, 0)
-	l.Title = title
-	l.SetShowStatusBar(true)
-	l.SetFilteringEnabled(true)
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "install")),
-			key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
-		}
+	hints := []key.Binding{
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "install")),
+		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 	}
-
-	return reccsModel{list: l, entries: filtered, chosen: -1}
+	return reccsModel{
+		list:    uikit.NewListPicker(title, uikit.Items(items), hints...),
+		entries: filtered,
+		chosen:  -1,
+	}
 }
 
 // Init implements tea.Model.
@@ -97,7 +92,7 @@ func (m reccsModel) Init() tea.Cmd {
 func (m reccsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if m.list.FilterState() == list.Filtering {
+		if m.list.IsFiltering() {
 			break
 		}
 		switch msg.String() {

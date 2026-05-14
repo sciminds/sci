@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/uikit"
@@ -56,27 +55,17 @@ func makeListItem(p PackageInfo) listItem {
 
 // listModel is the Bubble Tea model for the interactive package list.
 type listModel struct {
-	list list.Model
+	list uikit.ListPicker
 }
 
 func newListModel(packages []PackageInfo) listModel {
-	items := lo.Map(packages, func(p PackageInfo, _ int) list.Item {
+	items := uikit.Items(lo.Map(packages, func(p PackageInfo, _ int) listItem {
 		return makeListItem(p)
-	})
+	}))
 
 	title := fmt.Sprintf("Brewfile — %d packages", len(packages))
-	delegate := uikit.NewListDelegate()
-	l := list.New(items, delegate, 0, 0)
-	l.Title = title
-	l.SetShowStatusBar(true)
-	l.SetFilteringEnabled(true)
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{
-			key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
-		}
-	}
-
-	return listModel{list: l}
+	qHint := key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit"))
+	return listModel{list: uikit.NewListPicker(title, items, qHint)}
 }
 
 // Init implements tea.Model.
@@ -89,7 +78,7 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		// Don't intercept keys while filtering.
-		if m.list.FilterState() == list.Filtering {
+		if m.list.IsFiltering() {
 			break
 		}
 		if msg.String() == "q" || msg.String() == "ctrl+c" {

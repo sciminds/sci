@@ -270,6 +270,7 @@ func newCloudBrowseModel(objects []cloud.ObjectInfo, client *cloud.Client) cloud
 	delegate := newBrowseDelegate(keys, client, pending)
 
 	l := list.New(nil, delegate, 0, 0)
+	uikit.HardenListKeyMap(&l)
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
 	l.AdditionalShortHelpKeys = func() []key.Binding {

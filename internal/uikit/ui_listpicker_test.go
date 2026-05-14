@@ -118,6 +118,43 @@ func TestListPickerView(t *testing.T) {
 	}
 }
 
+// ── HardenListKeyMap ──────────────────────────────────────────────────
+
+func TestHardenListKeyMap_FreesVimHalfPageKeys(t *testing.T) {
+	l := list.New(sampleItems(), list.NewDefaultDelegate(), 0, 0)
+
+	// Sanity: defaults bind d/f to NextPage and u/b to PrevPage.
+	if !key.Matches(tea.KeyPressMsg{Code: 'd'}, l.KeyMap.NextPage) {
+		t.Fatal("test premise broken: default keymap should bind d to NextPage")
+	}
+
+	HardenListKeyMap(&l)
+
+	for _, code := range []rune{'d', 'f'} {
+		if key.Matches(tea.KeyPressMsg{Code: code}, l.KeyMap.NextPage) {
+			t.Errorf("HardenListKeyMap left %c bound to NextPage", code)
+		}
+	}
+	for _, code := range []rune{'u', 'b'} {
+		if key.Matches(tea.KeyPressMsg{Code: code}, l.KeyMap.PrevPage) {
+			t.Errorf("HardenListKeyMap left %c bound to PrevPage", code)
+		}
+	}
+	// Arrow / vim nav / pg* keys must still page.
+	if !key.Matches(tea.KeyPressMsg{Code: tea.KeyRight}, l.KeyMap.NextPage) {
+		t.Error("right-arrow should still page forward after hardening")
+	}
+	if !key.Matches(tea.KeyPressMsg{Code: 'l'}, l.KeyMap.NextPage) {
+		t.Error("l should still page forward after hardening")
+	}
+	if !key.Matches(tea.KeyPressMsg{Code: tea.KeyLeft}, l.KeyMap.PrevPage) {
+		t.Error("left-arrow should still page backward after hardening")
+	}
+	if !key.Matches(tea.KeyPressMsg{Code: 'h'}, l.KeyMap.PrevPage) {
+		t.Error("h should still page backward after hardening")
+	}
+}
+
 // ── Items helper ──────────────────────────────────────────────────────
 
 func TestItemsConvertsSlice(t *testing.T) {

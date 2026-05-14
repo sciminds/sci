@@ -2,6 +2,7 @@ package share
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -142,6 +143,37 @@ func TestCloudBrowseModel_EnterOnFile_DoesNotChangeCwd(t *testing.T) {
 	mm := updated.(cloudBrowseModel)
 	if mm.cwd != "ejolly" {
 		t.Errorf("Enter on file changed cwd to %q, want unchanged", mm.cwd)
+	}
+}
+
+// ── Key-binding hygiene (regression) ────────────────────────────────────────
+
+// Regression: pressing `d` (download) used to advance the list's pagination
+// before the delegate ran, so the action fired on the *next* page's first
+// item. uikit.HardenListKeyMap should free d/u/b/f for delegate actions.
+func TestCloudBrowseModel_DownloadKey_DoesNotPage(t *testing.T) {
+	t.Parallel()
+	// 20 files in a single folder so the list spans multiple pages.
+	objs := make([]cloud.ObjectInfo, 20)
+	for i := range objs {
+		objs[i] = cloud.ObjectInfo{
+			Key:  fmt.Sprintf("ejolly/big/f%02d.csv", i),
+			Size: int64(100 + i),
+		}
+	}
+	m := newCloudBrowseModel(objs, fakeClient("ejolly"))
+	m.cwd = "ejolly/big"
+	m.rebuild()
+	m.list.SetSize(40, 12)
+
+	if got := m.list.Index(); got != 0 {
+		t.Fatalf("starting index = %d, want 0", got)
+	}
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'd'})
+	mm := updated.(cloudBrowseModel)
+	if got := mm.list.Index(); got != 0 {
+		t.Errorf("pressing 'd' advanced pagination: index = %d, want 0", got)
 	}
 }
 
