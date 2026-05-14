@@ -986,3 +986,92 @@ func TestSQLiteTableSummaries(t *testing.T) {
 		}
 	}
 }
+
+// TestSQLiteBlobColumnFormatting verifies that BLOB columns (e.g. F32 vector
+// embeddings stored in libsql vector tables) render as a compact placeholder
+// instead of dumping the raw byte slice via %v, which would produce ~58KB of
+// decimal-number-spam for a 16KB blob and break the table renderer.
+func TestSQLiteBlobColumnFormatting(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "blob.db")
+	store, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = store.Close() }()
+	if _, err := store.Exec(
+		`CREATE TABLE embeddings (key TEXT PRIMARY KEY, vec BLOB NOT NULL)`,
+	); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+	// 4096-float32 vector = 16384 bytes, matching real F32_BLOB(4096).
+	const blobLen = 16384
+	payload := make([]byte, blobLen)
+	for i := range payload {
+		payload[i] = byte(i)
+	}
+	if _, err := store.db.Exec(
+		`INSERT INTO embeddings (key, vec) VALUES (?, ?)`, "abc", payload,
+	); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	wantValue := fmt.Sprintf("<BLOB %d bytes>", blobLen)
+
+	t.Run("QueryTable", func(t *testing.T) {
+		_, rows, _, _, err := store.QueryTable("embeddings")
+		if err != nil {
+			t.Fatalf("QueryTable: %v", err)
+		}
+		if len(rows) != 1 || len(rows[0]) != 2 {
+			t.Fatalf("expected 1 row of 2 cols, got rows=%v", rows)
+		}
+		got := rows[0][1]
+		if got != wantValue {
+			t.Errorf("BLOB cell:\n  got:  %q (len=%d)\n  want: %q", trunc(got, 80), len(got), wantValue)
+		}
+	})
+
+	t.Run("ReadOnlyQuery", func(t *testing.T) {
+		_, rows, err := store.ReadOnlyQuery(`SELECT vec FROM embeddings`)
+		if err != nil {
+			t.Fatalf("ReadOnlyQuery: %v", err)
+		}
+		if len(rows) != 1 || len(rows[0]) != 1 {
+			t.Fatalf("expected 1×1, got %v", rows)
+		}
+		if rows[0][0] != wantValue {
+			t.Errorf("BLOB via ReadOnlyQuery:\n  got:  %q (len=%d)\n  want: %q",
+				trunc(rows[0][0], 80), len(rows[0][0]), wantValue)
+		}
+	})
+
+	t.Run("queryView", func(t *testing.T) {
+		// Views go through the queryView branch.
+		if _, err := store.Exec(
+			`CREATE VIEW embeddings_v AS SELECT vec FROM embeddings`,
+		); err != nil {
+			t.Fatalf("create view: %v", err)
+		}
+		if _, err := store.TableNames(); err != nil {
+			t.Fatalf("TableNames: %v", err)
+		}
+		_, rows, _, _, err := store.QueryTable("embeddings_v")
+		if err != nil {
+			t.Fatalf("QueryTable view: %v", err)
+		}
+		if len(rows) != 1 || len(rows[0]) != 1 {
+			t.Fatalf("expected 1×1 from view, got %v", rows)
+		}
+		if rows[0][0] != wantValue {
+			t.Errorf("BLOB via view:\n  got:  %q (len=%d)\n  want: %q",
+				trunc(rows[0][0], 80), len(rows[0][0]), wantValue)
+		}
+	})
+}
+
+func trunc(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
+}

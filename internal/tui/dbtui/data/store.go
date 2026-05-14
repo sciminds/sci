@@ -19,6 +19,19 @@ import (
 // DateLayout is the Go time layout for ISO date formatting.
 const DateLayout = "2006-01-02"
 
+// formatSQLValue stringifies a value returned by a database/sql Scan into
+// an `any`. BLOBs (returned as []byte by modernc.org/sqlite) are rendered
+// as a compact `<BLOB N bytes>` placeholder rather than the default `%v`
+// formatting, which prints []byte as a giant decimal-number spam string
+// (e.g. a 16KB vector embedding becomes ~58KB of `[155 57 30 …]` text)
+// that breaks table layout and looks like garbage.
+func formatSQLValue(v any) string {
+	if b, ok := v.([]byte); ok {
+		return fmt.Sprintf("<BLOB %d bytes>", len(b))
+	}
+	return fmt.Sprintf("%v", v)
+}
+
 // Store wraps a raw database/sql connection to any SQLite file.
 type Store struct {
 	db       *sql.DB
@@ -253,7 +266,7 @@ func (s *Store) QueryTable(table string) (colNames []string, rows [][]string, nu
 			if v == nil {
 				nf[i] = true
 			} else {
-				row[i] = fmt.Sprintf("%v", v)
+				row[i] = formatSQLValue(v)
 			}
 		}
 		rows = append(rows, row)
@@ -296,7 +309,7 @@ func (s *Store) queryView(view string) (colNames []string, rows [][]string, null
 			if v == nil {
 				nf[i] = true
 			} else {
-				row[i] = fmt.Sprintf("%v", v)
+				row[i] = formatSQLValue(v)
 			}
 		}
 		rows = append(rows, row)
@@ -345,7 +358,7 @@ func (s *Store) ReadOnlyQuery(query string) (columns []string, rows [][]string, 
 			if v == nil {
 				row[i] = ""
 			} else {
-				row[i] = fmt.Sprintf("%v", v)
+				row[i] = formatSQLValue(v)
 			}
 		}
 		rows = append(rows, row)
@@ -503,7 +516,7 @@ func (s *Store) ExportCSV(table, csvPath string) error {
 		row := make([]string, len(cols))
 		for i, v := range values {
 			if v != nil {
-				row[i] = fmt.Sprintf("%v", v)
+				row[i] = formatSQLValue(v)
 			}
 		}
 		if err := w.Write(row); err != nil {

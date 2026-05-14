@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pocketbase/dbx"
 	"github.com/samber/lo"
@@ -740,12 +741,18 @@ func scanDynamicRows(sqlRows *dbx.Rows) (colNames []string, rows [][]string, nul
 }
 
 // anyToString converts a driver.Value to its string representation.
+// BLOBs that aren't valid printable UTF-8 (e.g. F32 vector embeddings) are
+// rendered as a `<BLOB N bytes>` placeholder so the table grid stays
+// readable — dumping raw bytes as text produced terminal garbage.
 func anyToString(v any) string {
 	switch val := v.(type) {
 	case string:
 		return val
 	case []byte:
-		return string(val)
+		if isPrintableUTF8(val) {
+			return string(val)
+		}
+		return fmt.Sprintf("<BLOB %d bytes>", len(val))
 	case int64:
 		return fmt.Sprintf("%d", val)
 	case float64:
@@ -761,4 +768,19 @@ func anyToString(v any) string {
 	default:
 		return fmt.Sprintf("%v", val)
 	}
+}
+
+// isPrintableUTF8 reports whether b is valid UTF-8 with no control bytes
+// other than common whitespace (\t \n \r). Binary blobs almost always fail
+// this — F32 vectors are rejected on the first non-text byte.
+func isPrintableUTF8(b []byte) bool {
+	if !utf8.Valid(b) {
+		return false
+	}
+	for _, c := range b {
+		if c < 0x20 && c != '\t' && c != '\n' && c != '\r' {
+			return false
+		}
+	}
+	return true
 }

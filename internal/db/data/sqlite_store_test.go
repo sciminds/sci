@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/pocketbase/dbx"
 )
 
 // Compile-time interface assertions.
@@ -994,6 +996,56 @@ func BenchmarkScanDynamicRows(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+// TestSQLiteStoreBlobColumn ensures BLOB columns (e.g. F32 vector embeddings)
+// render as a `<BLOB N bytes>` placeholder instead of dumping raw bytes as
+// text — `sci view` previously had `case []byte: return string(val)` in
+// anyToString, which produced terminal garbage on binary blobs.
+func TestSQLiteStoreBlobColumn(t *testing.T) {
+	store, err := OpenMemoryStore()
+	if err != nil {
+		t.Fatalf("OpenMemoryStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	if _, err := store.db.NewQuery(
+		`CREATE TABLE vecs (key TEXT PRIMARY KEY, embedding BLOB NOT NULL, label BLOB)`,
+	).Execute(); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	const blobLen = 16384
+	binary := make([]byte, blobLen)
+	for i := range binary {
+		binary[i] = byte(i)
+	}
+	textBytes := []byte("hello world")
+	if _, err := store.db.NewQuery(
+		`INSERT INTO vecs (key, embedding, label) VALUES ({:k}, {:b}, {:t})`,
+	).Bind(dbx.Params{"k": "abc", "b": binary, "t": textBytes}).Execute(); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	_, rows, _, _, err := store.QueryTable("vecs")
+	if err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("rows: got %d, want 1", len(rows))
+	}
+	if got, want := rows[0][1], fmt.Sprintf("<BLOB %d bytes>", blobLen); got != want {
+		t.Errorf("binary blob:\n  got:  %q (len=%d)\n  want: %q", truncStr(got, 80), len(got), want)
+	}
+	if got, want := rows[0][2], "hello world"; got != want {
+		t.Errorf("text-as-blob: got %q, want %q (should pass UTF-8/printable check)", got, want)
+	}
+}
+
+func truncStr(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
 }
 
 func setupTestDB(t *testing.T) *SQLiteStore {
