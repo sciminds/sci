@@ -232,6 +232,91 @@ func TestWriteResult(t *testing.T) {
 	}
 }
 
+func TestConfig_Human_MasksAPIKey(t *testing.T) {
+	t.Parallel()
+	cfg := Config{
+		APIKey:         "sk-very-secret-key-AbCd1234",
+		UserID:         "12345",
+		DataDir:        "/Users/test/Zotero",
+		OpenAlexAPIKey: "oa-secret-XyZ789",
+	}
+	out := cfg.Human()
+	if strings.Contains(out, "sk-very-secret-key-AbCd1234") {
+		t.Errorf("raw API key leaked in Human() output:\n%s", out)
+	}
+	if strings.Contains(out, "oa-secret-XyZ789") {
+		t.Errorf("raw OpenAlex API key leaked in Human() output:\n%s", out)
+	}
+	if !strings.Contains(out, "1234") {
+		t.Errorf("expected last-4 hint (1234) so user can confirm which key is loaded:\n%s", out)
+	}
+	if !strings.Contains(out, "****") {
+		t.Errorf("expected mask marker (****) in Human() output:\n%s", out)
+	}
+}
+
+func TestConfig_Human_OmitsAPIKeyLineWhenUnset(t *testing.T) {
+	t.Parallel()
+	cfg := Config{UserID: "12345", DataDir: "/Z"}
+	out := cfg.Human()
+	if strings.Contains(out, "****") {
+		t.Errorf("mask should not appear when no key is set:\n%s", out)
+	}
+	if strings.Contains(out, "api key:") {
+		t.Errorf("api key line should be omitted when unset:\n%s", out)
+	}
+}
+
+func TestConfig_JSON_StripsSecrets(t *testing.T) {
+	t.Parallel()
+	cfg := Config{
+		APIKey:         "sk-very-secret-key-AbCd1234",
+		UserID:         "12345",
+		DataDir:        "/Users/test/Zotero",
+		OpenAlexAPIKey: "oa-secret-XyZ789",
+	}
+	b, err := json.Marshal(cfg.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if strings.Contains(s, "sk-very-secret-key-AbCd1234") {
+		t.Errorf("raw API key leaked in JSON output:\n%s", s)
+	}
+	if strings.Contains(s, "oa-secret-XyZ789") {
+		t.Errorf("raw OpenAlex API key leaked in JSON output:\n%s", s)
+	}
+	if strings.Contains(s, `"api_key"`) {
+		t.Errorf("api_key field name still present in JSON (must drop, not mask):\n%s", s)
+	}
+	if strings.Contains(s, `"openalex_api_key"`) {
+		t.Errorf("openalex_api_key field name still present in JSON:\n%s", s)
+	}
+	if !strings.Contains(s, `"has_api_key":true`) {
+		t.Errorf("expected has_api_key:true so agents can verify config is set:\n%s", s)
+	}
+	if !strings.Contains(s, `"has_openalex_api_key":true`) {
+		t.Errorf("expected has_openalex_api_key:true:\n%s", s)
+	}
+	// Non-secret fields must still round-trip.
+	if !strings.Contains(s, `"user_id":"12345"`) {
+		t.Errorf("user_id missing from JSON:\n%s", s)
+	}
+}
+
+func TestConfig_JSON_NoKeysSet(t *testing.T) {
+	t.Parallel()
+	cfg := Config{UserID: "12345", DataDir: "/Z"}
+	b, err := json.Marshal(cfg.JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !strings.Contains(s, `"has_api_key":false`) {
+		t.Errorf("has_api_key should be explicit false when no key set:\n%s", s)
+	}
+}
+
 func TestSetupResult(t *testing.T) {
 	t.Parallel()
 	r := SetupResult{OK: true, UserID: "42", DataDir: "/z", Message: "configured"}

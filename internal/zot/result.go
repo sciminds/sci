@@ -8,7 +8,33 @@ import (
 )
 
 // JSON implements cmdutil.Result.
-func (c Config) JSON() any { return c }
+//
+// Returns a sanitized view of Config: API keys are replaced with
+// has_* booleans so the rendered JSON cannot expose credentials in
+// logs, CI artifacts, or screen captures. SaveConfig keeps the full
+// shape on disk under 0600 — only this user-facing surface is masked.
+func (c Config) JSON() any {
+	return configView{
+		HasAPIKey:         c.APIKey != "",
+		UserID:            c.UserID,
+		SharedGroupID:     c.SharedGroupID,
+		SharedGroupName:   c.SharedGroupName,
+		DataDir:           c.DataDir,
+		OpenAlexEmail:     c.OpenAlexEmail,
+		HasOpenAlexAPIKey: c.OpenAlexAPIKey != "",
+	}
+}
+
+// configView is the secret-stripped shape emitted by Config.JSON.
+type configView struct {
+	HasAPIKey         bool   `json:"has_api_key"`
+	UserID            string `json:"user_id"`
+	SharedGroupID     string `json:"shared_group_id,omitempty"`
+	SharedGroupName   string `json:"shared_group_name,omitempty"`
+	DataDir           string `json:"data_dir"`
+	OpenAlexEmail     string `json:"openalex_email,omitempty"`
+	HasOpenAlexAPIKey bool   `json:"has_openalex_api_key,omitempty"`
+}
 
 // Human implements cmdutil.Result.
 func (c Config) Human() string {
@@ -19,8 +45,23 @@ func (c Config) Human() string {
 		fmt.Fprintf(&b, "    shared:   %s (groupID %s)\n", c.SharedGroupName, c.SharedGroupID)
 	}
 	fmt.Fprintf(&b, "    data dir: %s\n", c.DataDir)
-	fmt.Fprintf(&b, "    api key:  %s\n", c.APIKey)
+	if c.APIKey != "" {
+		fmt.Fprintf(&b, "    api key:  %s\n", maskKey(c.APIKey))
+	}
+	if c.OpenAlexAPIKey != "" {
+		fmt.Fprintf(&b, "    openalex: %s\n", maskKey(c.OpenAlexAPIKey))
+	}
 	return b.String()
+}
+
+// maskKey returns "****" plus the last four characters of key, so the
+// user can confirm which key is loaded without exposing material that
+// would let a shoulder-surfer reconstruct it. Short keys mask fully.
+func maskKey(key string) string {
+	if len(key) <= 4 {
+		return "****"
+	}
+	return "****" + key[len(key)-4:]
 }
 
 // SetupResult is returned by `zot setup` / `sci zot setup`.
