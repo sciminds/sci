@@ -30,9 +30,19 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sciminds/cli/internal/zot/client"
 )
+
+// s3Client uploads phase-3 file bytes to Zotero's pre-signed S3 URL.
+// Intentionally not the package's retryDoer: pre-signed S3 policies
+// collide with Zotero auth headers, so this path must stay vanilla.
+// The 10-minute Timeout is belt-and-braces against callers that forget
+// a ctx deadline — a stalled or hostile S3 endpoint cannot then hang
+// the process indefinitely. PDFs are a few MB in practice, so 10m is
+// comfortably above any legitimate upload time.
+var s3Client = &http.Client{Timeout: 10 * time.Minute}
 
 // AttachmentMeta describes a new `imported_file` attachment item before its
 // bytes have been uploaded. Title is optional; when empty Zotero derives one
@@ -193,10 +203,10 @@ func (c *Client) UploadAttachmentFile(ctx context.Context, itemKey string, r io.
 		return err
 	}
 
-	// Plain http client: the S3 URL is external and must NOT carry Zotero
-	// auth headers (the retryDoer would inject them). Default client is
-	// fine — tests use httptest.Server URLs that route through it.
-	if err := uploadToS3(ctx, http.DefaultClient, auth, body); err != nil {
+	// Use the package-level s3Client (not retryDoer): pre-signed S3 URLs
+	// must not carry Zotero auth headers. s3Client adds a Timeout so a
+	// stalled S3 endpoint cannot hang the caller forever.
+	if err := uploadToS3(ctx, s3Client, auth, body); err != nil {
 		return err
 	}
 	return c.registerUpload(ctx, itemKey, auth.UploadKey)
