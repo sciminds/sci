@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/db"
 	"github.com/sciminds/cli/internal/db/data"
+	"github.com/sciminds/cli/internal/duck"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
@@ -17,13 +20,18 @@ var (
 	dbDeleteYes    bool
 	dbResetYes     bool
 	dbRenameYes    bool
+	dbInspectTable string
+	dbHeadN        int
+	dbTailN        int
+	dbGlimpseN     int
+	dbConvertAs    string
 )
 
 func dbCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "db",
 		Usage:       "Manage SQLite databases and spreadsheets",
-		Description: "$ sci db add results.csv mydb.db\n$ sci db info mydb.db",
+		Description: "$ sci db add results.csv mydb.db\n$ sci db info mydb.db\n$ sci db head data.parquet",
 		Category:    "Commands",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &dbDryRun}, // lint:no-local — propagates to subcommands
@@ -35,8 +43,196 @@ func dbCommand() *cli.Command {
 			dbAddCommand(),
 			dbDeleteCommand(),
 			dbRenameCommand(),
+			dbColsCommand(),
+			dbHeadCommand(),
+			dbTailCommand(),
+			dbGlimpseCommand(),
+			dbShapeCommand(),
+			dbSummarizeCommand(),
+			dbConvertCommand(),
+			dbQueryCommand(),
 		},
 	}
+}
+
+// duckTableFlag is the shared --table flag used by inspect verbs to pick
+// a sqlite table, duckdb table, or xlsx sheet. The "sheet" alias makes
+// xlsx-shaped UX feel natural.
+func duckTableFlag() *cli.StringFlag {
+	return &cli.StringFlag{
+		Name:        "table",
+		Aliases:     []string{"t", "sheet"},
+		Usage:       "table name (sqlite/duckdb) or sheet name (xlsx); required when ambiguous",
+		Destination: &dbInspectTable,
+		Local:       true,
+	}
+}
+
+func dbColsCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "cols",
+		Usage:       "List column names and types of a tabular file",
+		Description: "$ sci db cols data.csv\n$ sci db cols workbook.xlsx --table extras",
+		ArgsUsage:   "<file>",
+		Flags:       []cli.Flag{duckTableFlag()},
+		Action:      duckInspectAction(func(path string) (any, error) { return duck.Cols(path, dbInspectTable) }),
+	}
+}
+
+func dbHeadCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "head",
+		Usage:       "Show the first N rows of a tabular file",
+		Description: "$ sci db head data.csv -n 20",
+		ArgsUsage:   "<file>",
+		Flags: []cli.Flag{
+			duckTableFlag(),
+			&cli.IntFlag{Name: "n", Usage: "number of rows", Value: 10, Destination: &dbHeadN, Local: true},
+		},
+		Action: duckInspectAction(func(path string) (any, error) { return duck.Head(path, dbInspectTable, dbHeadN) }),
+	}
+}
+
+func dbTailCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "tail",
+		Usage:       "Show the last N rows of a tabular file",
+		Description: "$ sci db tail data.csv -n 20",
+		ArgsUsage:   "<file>",
+		Flags: []cli.Flag{
+			duckTableFlag(),
+			&cli.IntFlag{Name: "n", Usage: "number of rows", Value: 10, Destination: &dbTailN, Local: true},
+		},
+		Action: duckInspectAction(func(path string) (any, error) { return duck.Tail(path, dbInspectTable, dbTailN) }),
+	}
+}
+
+func dbGlimpseCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "glimpse",
+		Usage:       "Transposed preview: one row per column with sample values",
+		Description: "$ sci db glimpse data.csv\n$ sci db glimpse data.parquet --samples 3",
+		ArgsUsage:   "<file>",
+		Flags: []cli.Flag{
+			duckTableFlag(),
+			&cli.IntFlag{Name: "samples", Usage: "values per column", Value: 5, Destination: &dbGlimpseN, Local: true},
+		},
+		Action: duckInspectAction(func(path string) (any, error) { return duck.Glimpse(path, dbInspectTable, dbGlimpseN) }),
+	}
+}
+
+func dbShapeCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "shape",
+		Usage:       "Report (rows, cols) of a tabular file",
+		Description: "$ sci db shape data.csv",
+		ArgsUsage:   "<file>",
+		Flags:       []cli.Flag{duckTableFlag()},
+		Action:      duckInspectAction(func(path string) (any, error) { return duck.Shape(path, dbInspectTable) }),
+	}
+}
+
+func dbSummarizeCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "summarize",
+		Usage:       "Per-column statistics (min/max/avg/std/quartiles/null %)",
+		Description: "$ sci db summarize data.csv",
+		ArgsUsage:   "<file>",
+		Flags:       []cli.Flag{duckTableFlag()},
+		Action:      duckInspectAction(func(path string) (any, error) { return duck.Summarize(path, dbInspectTable) }),
+	}
+}
+
+func dbConvertCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "convert",
+		Usage: "Convert between csv/tsv/json/jsonl/parquet/sqlite/duckdb via duckdb",
+		Description: "$ sci db convert data.csv data.parquet\n" +
+			"$ sci db convert results.json results.csv\n" +
+			"$ sci db convert data.csv archive.db --as observations\n" +
+			"$ sci db convert source.db -t researchers source.duckdb",
+		ArgsUsage: "<in> <out>",
+		Flags: []cli.Flag{
+			duckTableFlag(),
+			&cli.StringFlag{
+				Name:        "as",
+				Usage:       "destination table name (sqlite/duckdb output only; defaults to source basename)",
+				Destination: &dbConvertAs,
+				Local:       true,
+			},
+		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			args := cmd.Args().Slice()
+			if len(args) != 2 {
+				return cmdutil.UsageErrorf(cmd, "expected 2 arguments: <in> <out>, got %d", len(args))
+			}
+			in, out := args[0], args[1]
+			if dbDryRun {
+				uikit.Hint(fmt.Sprintf("would convert %s → %s", in, out))
+				return nil
+			}
+			if _, err := os.Stat(out); err == nil {
+				return fmt.Errorf("output file already exists: %s (delete it first)", out)
+			}
+			result, err := duck.Convert(in, dbInspectTable, out, dbConvertAs)
+			if err != nil {
+				return wrapDuckErr(err)
+			}
+			cmdutil.Output(cmd, result)
+			return nil
+		},
+	}
+}
+
+func dbQueryCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "query",
+		Usage:       "Run a read-only SELECT against a file (refer to it as `src`)",
+		Description: "$ sci db query data.csv 'SELECT name, score FROM src WHERE score > 2'",
+		ArgsUsage:   "<file> <sql>",
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			args := cmd.Args().Slice()
+			if len(args) != 2 {
+				return cmdutil.UsageErrorf(cmd, "expected 2 arguments: <file> <sql>, got %d", len(args))
+			}
+			result, err := duck.Query(args[0], args[1])
+			if err != nil {
+				return wrapDuckErr(err)
+			}
+			cmdutil.Output(cmd, result)
+			return nil
+		},
+	}
+}
+
+// duckInspectAction wraps the common shape of read-only inspect verbs:
+// require one positional file arg, call run, render the result.
+func duckInspectAction(run func(path string) (any, error)) cli.ActionFunc {
+	return func(_ context.Context, cmd *cli.Command) error {
+		if cmd.Args().Len() == 0 {
+			return cmdutil.UsageErrorf(cmd, "expected a file argument")
+		}
+		raw, err := run(cmd.Args().First())
+		if err != nil {
+			return wrapDuckErr(err)
+		}
+		// Each verb returns a *Result that satisfies cmdutil.Result; we
+		// type-assert here so the inspect verbs share one wrapper.
+		result, ok := raw.(cmdutil.Result)
+		if !ok {
+			return fmt.Errorf("internal: verb returned unexpected type %T", raw)
+		}
+		cmdutil.Output(cmd, result)
+		return nil
+	}
+}
+
+// wrapDuckErr surfaces the optional-dep miss with a doctor pointer.
+func wrapDuckErr(err error) error {
+	if errors.Is(err, duck.ErrNotInstalled) {
+		return err // its message already names `sci doctor`
+	}
+	return err
 }
 
 func dbCreateCommand() *cli.Command {

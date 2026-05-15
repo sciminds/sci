@@ -18,9 +18,13 @@ plan.md
 !internal/db/data/testdata/*.duckdb
 !internal/db/data/testdata/*.db
 !internal/tui/dbtui/test.db
+!internal/duck/testdata/tiny.csv
 !internal/proj/new/templates/python/code/bibliography.bib
 !internal/proj/new/templates/python/data/raw/penguins.csv
 !internal/proj/new/templates/writing/references.bib
+
+# internal/duck binary fixtures are regenerated at TestMain — never commit
+internal/duck/testdata/tiny.parquet
 *.bak
 .env
 *.DS*
