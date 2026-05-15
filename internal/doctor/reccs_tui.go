@@ -15,13 +15,13 @@ import (
 // toolDescs maps tool names to user-friendly descriptions.
 var toolDescs = map[string]string{
 	"helix":              "Terminal text editor with modal editing and built-in LSP",
-	"nvim":               "Highly extensible terminal text editor",
+	"neovim":             "Highly extensible terminal text editor",
 	"msedit":             "Quick file editing from the terminal via MS Edit",
 	"starship":           "Minimal, fast, customizable shell prompt",
 	"lsd":                "Modern ls replacement with colors and icons",
 	"jq":                 "Lightweight command-line JSON processor",
 	"mq":                 "jq for Markdown — query and transform .md files",
-	"rga":                "ripgrep-all — ripgrep across PDFs, archives, and more",
+	"ripgrep-all":        "ripgrep across PDFs, archives, and more",
 	"ast-grep":           "Structural code search and rewrite using AST patterns",
 	"visual-studio-code": "Popular graphical code editor by Microsoft",
 	"zed":                "High-performance graphical code editor",
