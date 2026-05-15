@@ -22,6 +22,8 @@ const (
 	tinyDB      = "testdata/tiny.db"         // generated; multi-table SQLite
 	singleDB    = "testdata/single_table.db" // generated; single-table SQLite
 	viewyDB     = "testdata/viewy.db"        // generated; SQLite w/ view that uses single-letter alias (regression)
+	mixedDB     = "testdata/mixed_types.db"  // generated; SQLite w/ INTEGER column holding "" (promotes cleanly with NULLIF)
+	dirtyDB     = "testdata/dirty_types.db"  // generated; SQLite w/ INTEGER column holding "abc" (must fall back to VARCHAR to preserve cell)
 	tinyDuck    = "testdata/tiny.duckdb"     // generated; multi-table DuckDB
 	singleDuck  = "testdata/single.duckdb"   // generated; single-table DuckDB
 )
@@ -49,7 +51,7 @@ func TestMain(m *testing.M) {
 
 func generateBinaryFixtures() error {
 	csvAbs, _ := filepath.Abs(tinyCSV)
-	for _, p := range []string{tinyParquet, tinyDB, singleDB, viewyDB, tinyDuck, singleDuck} {
+	for _, p := range []string{tinyParquet, tinyDB, singleDB, viewyDB, mixedDB, dirtyDB, tinyDuck, singleDuck} {
 		_ = os.Remove(p)
 	}
 
@@ -96,6 +98,35 @@ func generateBinaryFixtures() error {
 		cmd.Stdin = strings.NewReader(ddl)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("create viewy.db: %v\n%s", err, out)
+		}
+
+		// Mixed-type fixture: INTEGER column with one "" cell. NULLIF
+		// normalises "" → NULL during the probe, so all non-empty cells
+		// cast cleanly and the column promotes to BIGINT.
+		mixedAbs, _ := filepath.Abs(mixedDB)
+		mixedDDL := "CREATE TABLE demo (id INTEGER, name TEXT, age INTEGER);" +
+			"INSERT INTO demo VALUES (1, 'alice', 30);" +
+			"INSERT INTO demo VALUES (2, 'bob', '');" + // SQLite allows this
+			"INSERT INTO demo VALUES (3, 'carol', 42);"
+		mixedCmd := exec.Command("sqlite3", mixedAbs)
+		mixedCmd.Stdin = strings.NewReader(mixedDDL)
+		if out, err := mixedCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("create mixed_types.db: %v\n%s", err, out)
+		}
+
+		// Dirty-type fixture: INTEGER column with a genuinely non-castable
+		// value ("abc"). Promotion must fall back to VARCHAR for that
+		// column so the original cell is preserved — that's the no-
+		// data-loss promise.
+		dirtyAbs, _ := filepath.Abs(dirtyDB)
+		dirtyDDL := "CREATE TABLE demo (id INTEGER, name TEXT, age INTEGER);" +
+			"INSERT INTO demo VALUES (1, 'alice', 30);" +
+			"INSERT INTO demo VALUES (2, 'bob', 'abc');" + // non-castable
+			"INSERT INTO demo VALUES (3, 'carol', 42);"
+		dirtyCmd := exec.Command("sqlite3", dirtyAbs)
+		dirtyCmd.Stdin = strings.NewReader(dirtyDDL)
+		if out, err := dirtyCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("create dirty_types.db: %v\n%s", err, out)
 		}
 	}
 

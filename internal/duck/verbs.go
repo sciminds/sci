@@ -24,39 +24,61 @@ import (
 
 // Cols lists the column names + duckdb-inferred types of file at path.
 // table disambiguates sqlite/duckdb tables and xlsx sheets.
+//
+// For SQLite sources the columns include both the resolved type (used
+// to read the column) and the declared type, with a fallback note when
+// any non-empty cell prevented honoring the declared type.
 func Cols(path, table string) (*ColsResult, error) {
 	src, err := Resolve(path, table)
 	if err != nil {
 		return nil, err
 	}
-	sql := fmt.Sprintf("%s SELECT column_name, column_type FROM (DESCRIBE SELECT * FROM %s)", src.Preamble, src.Expr)
-
-	out, err := runJSON(sql)
+	_, cols, err := promote(src)
 	if err != nil {
 		return nil, err
 	}
-	var rows []struct {
-		ColumnName string `json:"column_name"`
-		ColumnType string `json:"column_type"`
-	}
-	if err := json.Unmarshal(out, &rows); err != nil {
-		return nil, fmt.Errorf("parse cols: %w", err)
-	}
-	box, err := runBox(sql)
+	box, err := renderColsBox(cols)
 	if err != nil {
 		return nil, err
 	}
 	return &ColsResult{
-		Path:  path,
-		Table: table,
-		Columns: lo.Map(rows, func(r struct {
-			ColumnName string `json:"column_name"`
-			ColumnType string `json:"column_type"`
-		}, _ int) ColumnInfo {
-			return ColumnInfo{Name: r.ColumnName, Type: r.ColumnType}
-		}),
+		Path:     path,
+		Table:    table,
+		Columns:  cols,
 		humanBox: box,
 	}, nil
+}
+
+// renderColsBox builds the duckdb -box rendering for the cols listing.
+// When any column carries a Declared type (SQLite sources) the box gets
+// four columns so the resolved/declared/note story is visible; otherwise
+// it stays a simple 2-column (column, type) table.
+func renderColsBox(cols []ColumnInfo) (string, error) {
+	if len(cols) == 0 {
+		return "", nil
+	}
+	showDeclared := lo.SomeBy(cols, func(c ColumnInfo) bool { return c.Declared != "" })
+	var parts []string
+	if showDeclared {
+		for _, c := range cols {
+			note := ""
+			if c.FailingCells > 0 {
+				note = fmt.Sprintf("fallback: %d cell(s) did not cast to %s", c.FailingCells, c.Declared)
+			}
+			parts = append(parts, fmt.Sprintf(
+				"SELECT '%s' AS column, '%s' AS type, '%s' AS declared, '%s' AS note",
+				sqlEscape(c.Name), sqlEscape(c.Type), sqlEscape(c.Declared), sqlEscape(note),
+			))
+		}
+	} else {
+		for _, c := range cols {
+			parts = append(parts, fmt.Sprintf(
+				"SELECT '%s' AS column, '%s' AS type",
+				sqlEscape(c.Name), sqlEscape(c.Type),
+			))
+		}
+	}
+	return runBox(strings.Join(parts, " UNION ALL "))
 }
 
 const defaultRowLimit = 10
@@ -71,7 +93,11 @@ func Head(path, table string, n int) (*RowsResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	sql := fmt.Sprintf("%s SELECT * FROM %s LIMIT %d", src.Preamble, src.Expr, n)
+	psrc, _, err := promote(src)
+	if err != nil {
+		return nil, err
+	}
+	sql := fmt.Sprintf("%s SELECT * FROM %s LIMIT %d", psrc.Preamble, psrc.Expr, n)
 	return runRowsQuery(path, table, sql)
 }
 
@@ -86,11 +112,15 @@ func Tail(path, table string, n int) (*RowsResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	psrc, _, err := promote(src)
+	if err != nil {
+		return nil, err
+	}
 	sql := fmt.Sprintf(
 		"%s WITH ranked AS (SELECT *, ROW_NUMBER() OVER () AS _rn FROM %s),"+
 			" bottom AS (SELECT * FROM ranked ORDER BY _rn DESC LIMIT %d)"+
 			" SELECT * EXCLUDE (_rn) FROM bottom ORDER BY _rn",
-		src.Preamble, src.Expr, n)
+		psrc.Preamble, psrc.Expr, n)
 	return runRowsQuery(path, table, sql)
 }
 
@@ -104,23 +134,13 @@ func Glimpse(path, table string, samples int) (*GlimpseResult, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// 1) Column names + types via DESCRIBE.
-	descSQL := fmt.Sprintf("%s SELECT column_name, column_type FROM (DESCRIBE SELECT * FROM %s)", src.Preamble, src.Expr)
-	descOut, err := runJSON(descSQL)
+	psrc, typed, err := promote(src)
 	if err != nil {
 		return nil, err
 	}
-	var desc []struct {
-		ColumnName string `json:"column_name"`
-		ColumnType string `json:"column_type"`
-	}
-	if err := json.Unmarshal(descOut, &desc); err != nil {
-		return nil, fmt.Errorf("parse describe: %w", err)
-	}
 
-	// 2) Sample rows.
-	sampleSQL := fmt.Sprintf("%s SELECT * FROM %s LIMIT %d", src.Preamble, src.Expr, samples)
+	// Sample rows from the typed projection.
+	sampleSQL := fmt.Sprintf("%s SELECT * FROM %s LIMIT %d", psrc.Preamble, psrc.Expr, samples)
 	sampleOut, err := runJSON(sampleSQL)
 	if err != nil {
 		return nil, err
@@ -130,15 +150,12 @@ func Glimpse(path, table string, samples int) (*GlimpseResult, error) {
 		return nil, fmt.Errorf("parse samples: %w", err)
 	}
 
-	// 3) Transpose.
-	cols := lo.Map(desc, func(d struct {
-		ColumnName string `json:"column_name"`
-		ColumnType string `json:"column_type"`
-	}, _ int) GlimpseColumn {
+	// Transpose: one GlimpseColumn per column, samples drawn from the rows.
+	cols := lo.Map(typed, func(d ColumnInfo, _ int) GlimpseColumn {
 		samples := lo.Map(sampleRows, func(r map[string]any, _ int) any {
-			return r[d.ColumnName]
+			return r[d.Name]
 		})
-		return GlimpseColumn{Name: d.ColumnName, Type: d.ColumnType, Samples: samples}
+		return GlimpseColumn{Name: d.Name, Type: d.Type, Samples: samples}
 	})
 
 	// 4) Render the transposed view as box for Human().
@@ -175,13 +192,17 @@ func Shape(path, table string) (*ShapeResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	psrc, _, err := promote(src)
+	if err != nil {
+		return nil, err
+	}
 	// Single query: SELECT (count, column_count). We use a CROSS JOIN
 	// of two subqueries since DESCRIBE itself isn't trivially countable
 	// inside another SELECT in older duckdb shells.
 	sql := fmt.Sprintf(
 		"%s SELECT (SELECT COUNT(*) FROM %s) AS rows,"+
 			" (SELECT COUNT(*) FROM (DESCRIBE SELECT * FROM %s)) AS cols",
-		src.Preamble, src.Expr, src.Expr)
+		psrc.Preamble, psrc.Expr, psrc.Expr)
 	out, err := runJSON(sql)
 	if err != nil {
 		return nil, err
@@ -209,7 +230,11 @@ func Summarize(path, table string) (*SummarizeResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	sql := fmt.Sprintf("%s SUMMARIZE SELECT * FROM %s", src.Preamble, src.Expr)
+	psrc, _, err := promote(src)
+	if err != nil {
+		return nil, err
+	}
+	sql := fmt.Sprintf("%s SUMMARIZE SELECT * FROM %s", psrc.Preamble, psrc.Expr)
 
 	out, err := runJSON(sql)
 	if err != nil {
@@ -274,7 +299,11 @@ func Query(path, sql string) (*RowsResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	wrapped := fmt.Sprintf("%s WITH src AS (SELECT * FROM %s) %s", src.Preamble, src.Expr, validated)
+	psrc, _, err := promote(src)
+	if err != nil {
+		return nil, err
+	}
+	wrapped := fmt.Sprintf("%s WITH src AS (SELECT * FROM %s) %s", psrc.Preamble, psrc.Expr, validated)
 	return runRowsQuery(path, "", wrapped)
 }
 
@@ -330,7 +359,11 @@ func Convert(in, srcTable, out, destTable string) (*ConvertResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	rowsWritten, err := countRows(src)
+	psrc, _, err := promote(src)
+	if err != nil {
+		return nil, err
+	}
+	rowsWritten, err := countRows(psrc)
 	if err != nil {
 		return nil, err
 	}
@@ -338,15 +371,15 @@ func Convert(in, srcTable, out, destTable string) (*ConvertResult, error) {
 	outExt := strings.ToLower(filepath.Ext(out))
 	switch outExt {
 	case ".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".parquet":
-		if err := copyToFlatFile(src, out, outExt); err != nil {
+		if err := copyToFlatFile(psrc, out, outExt); err != nil {
 			return nil, err
 		}
 	case ".db", ".sqlite", ".sqlite3":
-		if err := copyToAttached(src, out, destTable, in, srcTable, "s", "(TYPE SQLITE)"); err != nil {
+		if err := copyToAttached(psrc, out, destTable, in, srcTable, "s", "(TYPE SQLITE)"); err != nil {
 			return nil, err
 		}
 	case ".duckdb":
-		if err := copyToAttached(src, out, destTable, in, srcTable, "d", ""); err != nil {
+		if err := copyToAttached(psrc, out, destTable, in, srcTable, "d", ""); err != nil {
 			return nil, err
 		}
 	default:

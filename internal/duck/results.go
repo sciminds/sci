@@ -8,10 +8,16 @@ package duck
 // same moment the structured payload is read, so JSON and human output
 // stay consistent.
 
-// ColumnInfo is one row of DESCRIBE: a column name and its duckdb type.
+// ColumnInfo is one row of the resolved schema: column name, the duckdb
+// type used to read the column (post-promotion), and — for SQLite sources —
+// the column's declared type plus the count of non-empty cells that
+// failed to cast cleanly to it (non-zero means we fell back to VARCHAR
+// to preserve those cells verbatim).
 type ColumnInfo struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	Declared     string `json:"declared,omitempty"`
+	FailingCells int    `json:"failing_cells,omitempty"`
 }
 
 // ColsResult is the result of [Cols].

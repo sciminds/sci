@@ -70,6 +70,147 @@ func TestColsSQLite(t *testing.T) {
 	}
 }
 
+// TestHeadSQLiteMixedTypes pins the regression where duckdb's sqlite_scanner
+// errors on SQLite columns whose declared type doesn't match every stored
+// cell. The promotion layer wraps the read in TRY_CAST so "" → NULL and the
+// column comes through as its declared type.
+func TestHeadSQLiteMixedTypes(t *testing.T) {
+	requireDuck(t)
+	if _, err := os.Stat(mixedDB); err != nil {
+		t.Skipf("mixed_types.db fixture not generated (sqlite3 missing?): %v", err)
+	}
+	res, err := Head(mixedDB, "demo", 0)
+	if err != nil {
+		t.Fatalf("Head on mixed-typed sqlite: %v", err)
+	}
+	if len(res.Rows) != 3 {
+		t.Fatalf("got %d rows, want 3", len(res.Rows))
+	}
+	// Row 2's age was "" in SQLite; promotion normalises to NULL.
+	if v := res.Rows[1]["age"]; v != nil {
+		t.Errorf("row[1].age = %v (%T), want nil (promoted from empty string)", v, v)
+	}
+	// Row 0's age came through as a real number.
+	if v := res.Rows[0]["age"]; v == nil {
+		t.Errorf("row[0].age = nil, want a numeric value")
+	}
+}
+
+// TestColsSQLiteMixedTypesPromoted: declared-INTEGER column with "" cells
+// promotes to BIGINT (NULLIF eats the empty). Cols explain shows the
+// declared type alongside the resolved type, with no fallback note.
+func TestColsSQLiteMixedTypesPromoted(t *testing.T) {
+	requireDuck(t)
+	if _, err := os.Stat(mixedDB); err != nil {
+		t.Skipf("mixed_types.db fixture not generated (sqlite3 missing?): %v", err)
+	}
+	res, err := Cols(mixedDB, "demo")
+	if err != nil {
+		t.Fatalf("Cols: %v", err)
+	}
+	byName := map[string]ColumnInfo{}
+	for _, c := range res.Columns {
+		byName[c.Name] = c
+	}
+	age, ok := byName["age"]
+	if !ok {
+		t.Fatalf("no age column in %+v", res.Columns)
+	}
+	if age.Type != "BIGINT" {
+		t.Errorf("age.Type = %q, want BIGINT (promoted)", age.Type)
+	}
+	if age.Declared == "" {
+		t.Errorf("age.Declared is empty; want non-empty for sqlite source")
+	}
+	if age.FailingCells != 0 {
+		t.Errorf("age.FailingCells = %d, want 0 (clean promote)", age.FailingCells)
+	}
+}
+
+// TestColsSQLiteDirtyTypesFallback: declared-INTEGER column with "abc"
+// (a genuinely non-castable cell) must fall back to VARCHAR so the original
+// value is preserved. Cols explain reports the failing-cell count.
+func TestColsSQLiteDirtyTypesFallback(t *testing.T) {
+	requireDuck(t)
+	if _, err := os.Stat(dirtyDB); err != nil {
+		t.Skipf("dirty_types.db fixture not generated (sqlite3 missing?): %v", err)
+	}
+	res, err := Cols(dirtyDB, "demo")
+	if err != nil {
+		t.Fatalf("Cols: %v", err)
+	}
+	byName := map[string]ColumnInfo{}
+	for _, c := range res.Columns {
+		byName[c.Name] = c
+	}
+	age := byName["age"]
+	if age.Type != "VARCHAR" {
+		t.Errorf("age.Type = %q, want VARCHAR (fallback)", age.Type)
+	}
+	if age.Declared == "" {
+		t.Errorf("age.Declared is empty; want the original declared type")
+	}
+	if age.FailingCells == 0 {
+		t.Errorf("age.FailingCells = 0, want > 0 (one cell didn't cast)")
+	}
+}
+
+// TestHeadSQLiteDirtyTypesPreservesCell: the "abc" must come through
+// verbatim — that's the no-data-loss promise.
+func TestHeadSQLiteDirtyTypesPreservesCell(t *testing.T) {
+	requireDuck(t)
+	if _, err := os.Stat(dirtyDB); err != nil {
+		t.Skipf("dirty_types.db fixture not generated (sqlite3 missing?): %v", err)
+	}
+	res, err := Head(dirtyDB, "demo", 0)
+	if err != nil {
+		t.Fatalf("Head: %v", err)
+	}
+	if v, _ := res.Rows[1]["age"].(string); v != "abc" {
+		t.Errorf("row[1].age = %v, want \"abc\" preserved verbatim", res.Rows[1]["age"])
+	}
+}
+
+// TestSummarizeSQLitePromotedNumeric: after promotion, SUMMARIZE produces
+// real numeric stats (avg, std, quartiles) on the BIGINT column.
+func TestSummarizeSQLitePromotedNumeric(t *testing.T) {
+	requireDuck(t)
+	if _, err := os.Stat(mixedDB); err != nil {
+		t.Skipf("mixed_types.db fixture not generated (sqlite3 missing?): %v", err)
+	}
+	res, err := Summarize(mixedDB, "demo")
+	if err != nil {
+		t.Fatalf("Summarize: %v", err)
+	}
+	var age SummarizeColumn
+	for _, c := range res.Columns {
+		if c.Name == "age" {
+			age = c
+		}
+	}
+	if age.Avg == "" {
+		t.Errorf("age.Avg is empty; want a numeric average post-promotion")
+	}
+	if age.Type != "BIGINT" {
+		t.Errorf("age.Type = %q, want BIGINT", age.Type)
+	}
+}
+
+// TestColsCSVStillTwoColumnBox: non-sqlite sources continue to show the
+// simple 2-column box; declared/note fields are empty.
+func TestColsCSVStillTwoColumnBox(t *testing.T) {
+	requireDuck(t)
+	res, err := Cols(tinyCSV, "")
+	if err != nil {
+		t.Fatalf("Cols: %v", err)
+	}
+	for _, c := range res.Columns {
+		if c.Declared != "" {
+			t.Errorf("col %q: Declared = %q, want empty for csv source", c.Name, c.Declared)
+		}
+	}
+}
+
 func TestHeadDefault(t *testing.T) {
 	requireDuck(t)
 	res, err := Head(tinyCSV, "", 0) // 0 → default 10; tiny.csv only has 3 rows

@@ -75,6 +75,11 @@ func resolveXLSX(path, table string) (Source, error) {
 }
 
 func resolveSQLite(path, table string) (Source, error) {
+	// Note: no sqlite_all_varchar here. The SET is added by [promote]
+	// after it inspects the declared schema via DESCRIBE (which only sees
+	// declared types when sqlite_all_varchar is NOT set). promote then
+	// wraps src.Expr in TRY_CAST projections that honor the declared
+	// schema where data complies and fall back to VARCHAR otherwise.
 	preamble := fmt.Sprintf("ATTACH '%s' AS s (TYPE SQLITE, READ_ONLY);", sqlEscape(path))
 	// SQLite-specific listing query: query sqlite_master directly via
 	// USE alias instead of SHOW TABLES FROM alias. duckdb's sqlite_scanner
