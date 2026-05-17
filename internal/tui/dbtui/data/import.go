@@ -1,6 +1,7 @@
 package data
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -309,7 +310,52 @@ func (s *Store) importTabular(tableName string, header []string, rows [][]string
 		return fmt.Errorf("create table: %w", err)
 	}
 
-	// Insert rows in a transaction.
+	return s.insertRows(tableName, header, rows)
+}
+
+// AppendCSV appends the rows of csvPath into the existing tableName.
+// Returns an error if the table does not exist. Column matching is by
+// position via the CSV header; mismatched schemas surface as a SQLite
+// error from the INSERT.
+func (s *Store) AppendCSV(csvPath, tableName string) error {
+	if !IsSafeIdentifier(tableName) {
+		return fmt.Errorf("invalid table name: %q", tableName)
+	}
+	exists, err := s.tableExists(tableName)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("table %q does not exist", tableName)
+	}
+	header, rows, err := readCSV(csvPath, ',')
+	if err != nil {
+		return fmt.Errorf("read CSV: %w", err)
+	}
+	return s.insertRows(tableName, header, rows)
+}
+
+// tableExists reports whether a table (or view) of the given name lives
+// in sqlite_master.
+func (s *Store) tableExists(name string) (bool, error) {
+	var found string
+	err := s.db.QueryRow(
+		"SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name = ?",
+		name,
+	).Scan(&found)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check table existence: %w", err)
+	}
+	return true, nil
+}
+
+// insertRows runs INSERT statements for header+rows inside a single
+// transaction. Empty cells become NULL, matching importTabular's
+// historical behavior.
+func (s *Store) insertRows(tableName string, header []string, rows [][]string) error {
 	if len(rows) == 0 {
 		return nil
 	}

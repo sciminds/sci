@@ -126,6 +126,10 @@ type DataStore interface { //nolint:revive // name is established in the API
 	// ImportCSV imports a CSV file as a new table.
 	ImportCSV(csvPath, tableName string) error
 
+	// AppendCSV appends rows from a CSV file into an existing table.
+	// Returns an error if the table does not exist.
+	AppendCSV(csvPath, tableName string) error
+
 	// ImportFile imports a file as a new table, auto-detecting format by extension.
 	// Supported: .csv, .tsv, .json, .jsonl, .ndjson.
 	// Returns an error for unsupported formats.

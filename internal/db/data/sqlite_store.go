@@ -5,6 +5,7 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -600,6 +601,56 @@ func (s *SQLiteStore) ImportCSV(csvPath, tableName string) error {
 	}
 
 	return nil
+}
+
+// AppendCSV implements DataStore. Streams the CSV's rows into an
+// existing table. Errors if the target table does not exist; column
+// matching is by position via the CSV header.
+func (s *SQLiteStore) AppendCSV(csvPath, tableName string) error {
+	if !IsSafeIdentifier(tableName) {
+		return fmt.Errorf("invalid table name: %q", tableName)
+	}
+	exists, err := s.tableExists(tableName)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("table %q does not exist", tableName)
+	}
+
+	f, err := os.Open(csvPath)
+	if err != nil {
+		return fmt.Errorf("open csv: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	r := csv.NewReader(DecodeReader(f))
+	header, err := r.Read()
+	if err != nil {
+		return fmt.Errorf("csv file is empty or unreadable: %w", err)
+	}
+	header = SanitizeImportHeaders(header)
+
+	if err := s.streamInsert(r, tableName, header); err != nil {
+		return fmt.Errorf("append csv into %q: %w", tableName, err)
+	}
+	return nil
+}
+
+// tableExists reports whether a table or view of the given name lives
+// in sqlite_master.
+func (s *SQLiteStore) tableExists(name string) (bool, error) {
+	var found string
+	err := s.db.NewQuery(
+		"SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name = {:n}",
+	).Bind(dbx.Params{"n": name}).Row(&found)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check table existence: %w", err)
+	}
+	return true, nil
 }
 
 // streamInsert reads rows from a csv.Reader and inserts them in batched

@@ -260,6 +260,11 @@ func (s *Store) ImportCSV(csvPath, tableName string) error {
 	return data.ErrImportNotSupported
 }
 
+// AppendCSV implements data.DataStore (always returns ErrImportNotSupported).
+func (s *Store) AppendCSV(csvPath, tableName string) error {
+	return data.ErrImportNotSupported
+}
+
 // ImportFile implements data.DataStore (always returns ErrImportNotSupported).
 func (s *Store) ImportFile(filePath, tableName string) error {
 	return data.ErrImportNotSupported

@@ -8,6 +8,7 @@ VisiData-inspired SQLite viewer/editor. Also installable standalone via `cmd/dbt
 
 - Single backend: `data.Store` — raw `database/sql` + `modernc.org/sqlite`. **Must not import `pocketbase/dbx` or anything that pulls it in** — `cmd/dbtui` is a standalone binary and dragging in pocketbase would bloat it. This is the entire reason for the raw-`database/sql` exception.
 - SQLite uses implicit `rowid` for all edits.
+- **duckdb files** are not opened natively — `sci view foo.duckdb` materialises a tempfile SQLite mirror via `internal/duck` and opens that with `WithReadOnly()`. Mirror lives in `os.MkdirTemp`; cleaned up on exit. See `internal/db/CLAUDE.md` for the dual-backend dispatch.
 
 ## Conventions
 

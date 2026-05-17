@@ -275,6 +275,11 @@ func (s *FileViewStore) ImportCSV(_, _ string) error {
 	return fmt.Errorf("import not supported for file view")
 }
 
+// AppendCSV implements DataStore (not supported for file views).
+func (s *FileViewStore) AppendCSV(_, _ string) error {
+	return fmt.Errorf("append not supported for file view")
+}
+
 // ImportFile implements DataStore (not supported for file views).
 func (s *FileViewStore) ImportFile(_, _ string) error {
 	return fmt.Errorf("import not supported for file view")

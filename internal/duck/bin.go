@@ -22,7 +22,7 @@ import (
 // ErrNotInstalled signals that the duckdb CLI was not found on PATH.
 // Wrapped errors compare with errors.Is so callers can distinguish this
 // from query/syntax failures.
-var ErrNotInstalled = errors.New("duckdb not installed — run `sci doctor` to install (it is an optional dependency)")
+var ErrNotInstalled = errors.New("duckdb not installed — run `sci doctor` to install")
 
 // duckdbBinary is the executable name we look up. Hoisted to a var so
 // tests can override if we ever need to.

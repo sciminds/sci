@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -762,5 +763,57 @@ func TestImportCSV_EmptyFile(t *testing.T) {
 	}
 	if len(cols) != 3 {
 		t.Errorf("expected 3 columns, got %d", len(cols))
+	}
+}
+
+func TestAppendCSV(t *testing.T) {
+	dir := t.TempDir()
+	csvPath := filepath.Join(dir, "data.csv")
+	if err := os.WriteFile(csvPath, []byte("id,name\n1,a\n2,b\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(dir, "test.db")
+	store, err := Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = store.Close() }()
+
+	if err := store.ImportCSV(csvPath, "people"); err != nil {
+		t.Fatalf("seed ImportCSV: %v", err)
+	}
+
+	// Append the same CSV — doubles the row count.
+	if err := store.AppendCSV(csvPath, "people"); err != nil {
+		t.Fatalf("AppendCSV: %v", err)
+	}
+	count, err := store.TableRowCount("people")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Errorf("row count = %d, want 4 (2 seeded + 2 appended)", count)
+	}
+}
+
+func TestAppendCSVMissingTable(t *testing.T) {
+	dir := t.TempDir()
+	csvPath := filepath.Join(dir, "data.csv")
+	if err := os.WriteFile(csvPath, []byte("id,name\n1,a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(dir, "test.db")
+	store, err := Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = store.Close() }()
+
+	err = store.AppendCSV(csvPath, "ghost")
+	if err == nil {
+		t.Fatal("expected error appending to missing table")
+	}
+	if !strings.Contains(err.Error(), "does not exist") {
+		t.Errorf("error %q does not mention 'does not exist'", err)
 	}
 }

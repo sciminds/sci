@@ -30,8 +30,8 @@ var (
 func dbCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "db",
-		Usage:       "Manage SQLite databases and spreadsheets",
-		Description: "$ sci db add results.csv mydb.db\n$ sci db info mydb.db\n$ sci db head data.parquet",
+		Usage:       "Manage SQLite/DuckDB databases and tabular files",
+		Description: "$ sci db add results.csv mydb.db\n$ sci db info project.duckdb\n$ sci db head data.parquet",
 		Category:    "Commands",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &dbDryRun}, // lint:no-local — propagates to subcommands
@@ -41,6 +41,7 @@ func dbCommand() *cli.Command {
 			dbResetCommand(),
 			dbInfoCommand(),
 			dbAddCommand(),
+			dbAppendCommand(),
 			dbDeleteCommand(),
 			dbRenameCommand(),
 			dbColsCommand(),
@@ -238,8 +239,8 @@ func wrapDuckErr(err error) error {
 func dbCreateCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "create",
-		Usage:       "Create an empty database",
-		Description: "$ sci db create my-project.db",
+		Usage:       "Create an empty database (SQLite or DuckDB by extension)",
+		Description: "$ sci db create my-project.db\n$ sci db create lab.duckdb",
 		ArgsUsage:   "<file>",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -258,8 +259,8 @@ func dbCreateCommand() *cli.Command {
 func dbResetCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "reset",
-		Usage:       "Delete and recreate an empty database",
-		Description: "$ sci db reset mydb.db",
+		Usage:       "Delete and recreate an empty database (SQLite or DuckDB by extension)",
+		Description: "$ sci db reset mydb.db\n$ sci db reset lab.duckdb",
 		ArgsUsage:   "<file>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &dbResetYes, Local: true},
@@ -290,7 +291,7 @@ func dbInfoCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "info",
 		Usage:       "Show database metadata and tables",
-		Description: "$ sci db info mydb.db",
+		Description: "$ sci db info mydb.db\n$ sci db info lab.duckdb",
 		ArgsUsage:   "<file>",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -308,10 +309,11 @@ func dbInfoCommand() *cli.Command {
 
 func dbAddCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "add",
-		Usage:       "Import CSV files into a database",
-		Description: "$ sci db add results.csv mydb.db\n$ sci db add results.csv mydb.db -t experiment_1",
-		ArgsUsage:   "<csv>... <database>",
+		Name:  "add",
+		Usage: "Import CSV files as new tables (errors if a table already exists — use `sci db append` to add rows)",
+		Description: "$ sci db add results.csv mydb.db\n" +
+			"$ sci db add results.csv lab.duckdb -t experiment_1",
+		ArgsUsage: "<csv>... <database>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "table", Aliases: []string{"t"}, Usage: "override table name (single file only)", Destination: &dbAddTableName, Local: true},
 		},
@@ -340,6 +342,43 @@ func dbAddCommand() *cli.Command {
 			if !cmdutil.IsJSON(cmd) {
 				uikit.NextStep("sci view", "Explore your data interactively")
 			}
+			return nil
+		},
+	}
+}
+
+func dbAppendCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "append",
+		Usage: "Append CSV rows to existing tables (errors if the table is missing — use `sci db add` for new tables)",
+		Description: "$ sci db append more_rows.csv mydb.db -t experiment_1\n" +
+			"$ sci db append batch_*.csv lab.duckdb -t events",
+		ArgsUsage: "<csv>... <database>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "table", Aliases: []string{"t"}, Usage: "override table name (single file only)", Destination: &dbAddTableName, Local: true},
+		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			args := cmd.Args().Slice()
+			if len(args) < 2 {
+				return cmdutil.UsageErrorf(cmd, "expected at least 2 arguments: <csv>... <database>")
+			}
+			dbPath := args[len(args)-1]
+			csvFiles := args[:len(args)-1]
+			if dbDryRun {
+				for _, f := range csvFiles {
+					tbl := dbAddTableName
+					if tbl == "" {
+						tbl = data.TableNameFromFile(f)
+					}
+					uikit.Hint(fmt.Sprintf("would append %s → table %q in %s", f, tbl, dbPath))
+				}
+				return nil
+			}
+			result, err := db.AppendCSV(csvFiles, dbPath, dbAddTableName)
+			if err != nil {
+				return err
+			}
+			cmdutil.Output(cmd, result)
 			return nil
 		},
 	}
