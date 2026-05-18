@@ -151,7 +151,8 @@ func dbConvertCommand() *cli.Command {
 		Description: "$ sci db convert data.csv data.parquet\n" +
 			"$ sci db convert results.json results.csv\n" +
 			"$ sci db convert data.csv archive.db --as observations\n" +
-			"$ sci db convert source.db -t researchers source.duckdb",
+			"$ sci db convert source.db -t researchers source.duckdb\n" +
+			"$ sci db convert source.duckdb -t events events.parquet",
 		ArgsUsage: "<in> <out>",
 		Flags: []cli.Flag{
 			duckTableFlag(),
@@ -187,10 +188,11 @@ func dbConvertCommand() *cli.Command {
 
 func dbQueryCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "query",
-		Usage:       "Run a read-only SELECT against a file (refer to it as `src`)",
-		Description: "$ sci db query data.csv 'SELECT name, score FROM src WHERE score > 2'",
-		ArgsUsage:   "<file> <sql>",
+		Name:  "query",
+		Usage: "Run a read-only SELECT against a file (refer to it as `src`)",
+		Description: "$ sci db query data.csv 'SELECT name, score FROM src WHERE score > 2'\n" +
+			"$ sci db query lab.duckdb 'SELECT * FROM src LIMIT 5'",
+		ArgsUsage: "<file> <sql>",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			args := cmd.Args().Slice()
 			if len(args) != 2 {
@@ -387,8 +389,8 @@ func dbAppendCommand() *cli.Command {
 func dbDeleteCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "delete",
-		Usage:       "Delete a table from a database",
-		Description: "$ sci db delete old_experiments mydb.db",
+		Usage:       "Delete a table or view from a database",
+		Description: "$ sci db delete old_experiments mydb.db\n$ sci db delete vec_cache lab.duckdb",
 		ArgsUsage:   "<table> <database>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &dbDeleteYes, Local: true},
@@ -420,8 +422,8 @@ func dbDeleteCommand() *cli.Command {
 func dbRenameCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "rename",
-		Usage:       "Rename a table in a database",
-		Description: "$ sci db rename raw_data cleaned_data mydb.db",
+		Usage:       "Rename a table or view in a database",
+		Description: "$ sci db rename raw_data cleaned_data mydb.db\n$ sci db rename documents articles lab.duckdb",
 		ArgsUsage:   "<old> <new> <database>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &dbRenameYes, Local: true},

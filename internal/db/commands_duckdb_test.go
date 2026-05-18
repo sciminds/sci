@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,6 +44,31 @@ func TestCreateDuckDB(t *testing.T) {
 	}
 	if len(info.Tables) != 0 {
 		t.Errorf("expected empty db, got %+v", info.Tables)
+	}
+}
+
+// TestCreateDuckDBRefusesStrayWAL — if a .wal file is left over from a
+// crashed duckdb session but the main file is absent, Create should
+// surface the mismatch rather than silently producing a file whose
+// behaviour depends on the WAL.
+func TestCreateDuckDBRefusesStrayWAL(t *testing.T) {
+	requireDuck(t)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "stale.duckdb")
+	walPath := path + ".wal"
+	if err := os.WriteFile(walPath, []byte{0x00, 0x01}, 0o644); err != nil {
+		t.Fatalf("seed wal: %v", err)
+	}
+	res, err := Create(path)
+	if err == nil {
+		t.Fatalf("expected error; got %+v", res)
+	}
+	if !strings.Contains(err.Error(), ".wal") {
+		t.Errorf("error should mention the .wal: %q", err)
+	}
+	// Main file must not have been created.
+	if _, err := os.Stat(path); err == nil {
+		t.Error("Create should not produce the .duckdb file when a stray .wal blocks it")
 	}
 }
 
@@ -199,6 +225,40 @@ func TestAddCSVSQLiteCollisionMentionsAppend(t *testing.T) {
 	}
 	if !strings.Contains(msg, "sci db append") {
 		t.Errorf("error %q should suggest `sci db append`", msg)
+	}
+}
+
+func TestFormatLossyNoteInline(t *testing.T) {
+	cols := []duck.LossyColumn{
+		{Table: "events", Column: "payload", Type: "STRUCT(a INTEGER)"},
+		{Table: "events", Column: "tags", Type: "VARCHAR[]"},
+	}
+	got := formatLossyNote(cols)
+	if !strings.Contains(got, "2 column") {
+		t.Errorf("note %q should mention count", got)
+	}
+	if !strings.Contains(got, "events.payload") || !strings.Contains(got, "STRUCT") {
+		t.Errorf("inline note should name each column: %q", got)
+	}
+	if !strings.Contains(got, "sci db cols") {
+		t.Errorf("note should point at `sci db cols`: %q", got)
+	}
+}
+
+func TestFormatLossyNoteSummarisesWhenLarge(t *testing.T) {
+	cols := make([]duck.LossyColumn, 0, 10)
+	for i := 0; i < 4; i++ {
+		cols = append(cols, duck.LossyColumn{Table: "a", Column: fmt.Sprintf("c%d", i), Type: "STRUCT"})
+	}
+	for i := 0; i < 4; i++ {
+		cols = append(cols, duck.LossyColumn{Table: "b", Column: fmt.Sprintf("c%d", i), Type: "VARCHAR[]"})
+	}
+	got := formatLossyNote(cols)
+	if !strings.Contains(got, "8 column") {
+		t.Errorf("summary note should mention total count: %q", got)
+	}
+	if !strings.Contains(got, "a: 4") || !strings.Contains(got, "b: 4") {
+		t.Errorf("summary should show per-table counts: %q", got)
 	}
 }
 

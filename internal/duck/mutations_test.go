@@ -294,7 +294,107 @@ func TestAppendCSVMissingTable(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error appending to missing table")
 	}
-	if !strings.Contains(err.Error(), "does not exist") {
-		t.Errorf("error %q should mention 'does not exist'", err)
+	msg := err.Error()
+	if !strings.Contains(msg, "does not exist") {
+		t.Errorf("error %q should mention 'does not exist'", msg)
+	}
+	if !strings.Contains(msg, "sci db add") {
+		t.Errorf("error %q should suggest `sci db add`", msg)
+	}
+	if !strings.Contains(msg, "ghost") {
+		t.Errorf("error %q should name the table", msg)
+	}
+}
+
+// seedDuckDBWithView builds a duckdb containing a base table and a view
+// over it. Used by the drop-view / rename-view tests.
+func seedDuckDBWithView(t *testing.T, dir string) string {
+	t.Helper()
+	path := filepath.Join(dir, "viewy.duckdb")
+	if err := CreateEmpty(path); err != nil {
+		t.Fatalf("CreateEmpty: %v", err)
+	}
+	if _, err := ImportCSV(path, []string{tinyCSV}, "people"); err != nil {
+		t.Fatalf("seed table: %v", err)
+	}
+	sql := "ATTACH '" + path + "' AS d; CREATE VIEW d.people_view AS SELECT id, name FROM d.people; DETACH d;"
+	if _, err := runJSON(sql); err != nil {
+		t.Fatalf("seed view: %v", err)
+	}
+	return path
+}
+
+func TestDropTableHandlesView(t *testing.T) {
+	requireDuck(t)
+	dir := t.TempDir()
+	path := seedDuckDBWithView(t, dir)
+	if err := DropTable(path, "people_view"); err != nil {
+		t.Fatalf("DropTable on view: %v", err)
+	}
+	metas, err := Info(path)
+	if err != nil {
+		t.Fatalf("Info: %v", err)
+	}
+	if len(metas) != 1 || metas[0].Name != "people" {
+		t.Errorf("expected only `people` to remain, got %+v", metas)
+	}
+}
+
+func TestDropTableMissingErrorMentionsFile(t *testing.T) {
+	requireDuck(t)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "drop.duckdb")
+	if err := CreateEmpty(path); err != nil {
+		t.Fatalf("CreateEmpty: %v", err)
+	}
+	err := DropTable(path, "ghost")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "does not exist") {
+		t.Errorf("error %q should mention 'does not exist'", msg)
+	}
+	if !strings.Contains(msg, "ghost") {
+		t.Errorf("error %q should name the table", msg)
+	}
+	if !strings.Contains(msg, "drop.duckdb") {
+		t.Errorf("error %q should name the file", msg)
+	}
+}
+
+func TestRenameTableHandlesView(t *testing.T) {
+	requireDuck(t)
+	dir := t.TempDir()
+	path := seedDuckDBWithView(t, dir)
+	if err := RenameTable(path, "people_view", "humans_view"); err != nil {
+		t.Fatalf("RenameTable on view: %v", err)
+	}
+	metas, err := Info(path)
+	if err != nil {
+		t.Fatalf("Info: %v", err)
+	}
+	byName := map[string]bool{}
+	for _, m := range metas {
+		byName[m.Name] = true
+	}
+	if byName["people_view"] {
+		t.Error("old view name still present")
+	}
+	if !byName["humans_view"] {
+		t.Error("renamed view not found")
+	}
+}
+
+func TestAppendCSVOntoViewErrors(t *testing.T) {
+	requireDuck(t)
+	dir := t.TempDir()
+	path := seedDuckDBWithView(t, dir)
+	_, err := AppendCSV(path, []string{tinyCSV}, "people_view")
+	if err == nil {
+		t.Fatal("expected error appending to a view")
+	}
+	if !strings.Contains(err.Error(), "view") {
+		t.Errorf("error %q should mention the target is a view", err)
 	}
 }

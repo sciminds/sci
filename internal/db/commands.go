@@ -311,10 +311,21 @@ func collisionErr(name, dbPath string) error {
 // ---------------------------------------------------------------------------
 
 // Create creates an empty database at the given path. SQLite for any
-// non-.duckdb extension; duckdb otherwise.
+// non-.duckdb extension; duckdb otherwise. Surfaces (rather than
+// silently consumes) the case where a stray duckdb .wal file exists
+// without the matching main file — that pattern points at a crashed
+// session and the user should clean it up explicitly.
 func Create(dbPath string) (*MutationResult, error) {
 	if _, err := os.Stat(dbPath); err == nil {
 		return &MutationResult{OK: false, Message: fmt.Sprintf("%s already exists — use 'sci db reset' to clear it", dbPath)}, nil
+	}
+	if isDuckDB(dbPath) {
+		if _, err := os.Stat(dbPath + ".wal"); err == nil {
+			return nil, fmt.Errorf(
+				"%s.wal exists but %s does not — looks like a crashed duckdb session. Remove the .wal file or run `sci db reset %s` to start fresh",
+				dbPath, dbPath, dbPath,
+			)
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return nil, fmt.Errorf("create directory: %w", err)
@@ -406,6 +417,11 @@ func RunTUI(dbPath string, initialTab string) error {
 // and opens that mirror through dbtui with read-only forced on. The
 // title bar still shows the original .duckdb path so the user sees
 // what they actually opened. Tempfile is removed on exit.
+//
+// Any columns whose duckdb types collapsed to TEXT in the mirror
+// (STRUCT, LIST, MAP, INTERVAL, UNION) are summarised to stderr after
+// the TUI exits — placed *after* so the note is the last thing the
+// user sees when they leave the viewer.
 func runTUIDuckDB(dbPath, initialTab string) error {
 	dir, err := os.MkdirTemp("", "sci-duckdb-mirror-*")
 	if err != nil {
@@ -418,14 +434,49 @@ func runTUIDuckDB(dbPath, initialTab string) error {
 		return err
 	}
 
+	// Compute the lossy-column note up-front so the duckdb file is
+	// inspected exactly once even if dbtui returns an error.
+	lossy, lossyErr := duck.LossyColumns(dbPath)
+
 	store, err := data.OpenStore(mirror)
 	if err != nil {
 		return fmt.Errorf("open duckdb mirror: %w", err)
 	}
 	defer func() { _ = store.Close() }()
 
-	return dbtui.Run(store, dbPath,
+	runErr := dbtui.Run(store, dbPath,
 		dbtui.WithInitialTab(initialTab),
 		dbtui.WithReadOnly(),
+	)
+
+	if lossyErr == nil && len(lossy) > 0 {
+		fmt.Fprintln(os.Stderr, formatLossyNote(lossy))
+	}
+	return runErr
+}
+
+// formatLossyNote builds the post-exit warning summarising columns
+// that flattened to TEXT in the SQLite mirror. Inline list when the
+// set is small; otherwise a per-table count.
+func formatLossyNote(cols []duck.LossyColumn) string {
+	const inlineLimit = 6
+	if len(cols) <= inlineLimit {
+		parts := lo.Map(cols, func(c duck.LossyColumn, _ int) string {
+			return fmt.Sprintf("%s.%s (%s)", c.Table, c.Column, c.Type)
+		})
+		return fmt.Sprintf(
+			"note: %d column(s) flattened to TEXT in the read-only mirror: %s\n"+
+				"      full types via `sci db cols <file> --table <name>`",
+			len(cols), strings.Join(parts, ", "),
+		)
+	}
+	byTable := lo.GroupBy(cols, func(c duck.LossyColumn) string { return c.Table })
+	tableParts := lo.MapToSlice(byTable, func(table string, cs []duck.LossyColumn) string {
+		return fmt.Sprintf("%s: %d", table, len(cs))
+	})
+	return fmt.Sprintf(
+		"note: %d column(s) flattened to TEXT in the read-only mirror (%s)\n"+
+			"      full types via `sci db cols <file> --table <name>`",
+		len(cols), strings.Join(tableParts, ", "),
 	)
 }

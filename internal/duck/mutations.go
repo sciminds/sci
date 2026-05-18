@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/samber/lo"
@@ -53,22 +54,36 @@ func touchEmpty(path string) error {
 	return nil
 }
 
-// DropTable removes a table or view from a duckdb file. Returns an
-// error if the table does not exist.
+// DropTable removes a table or view from a duckdb file. Uses
+// DROP VIEW when the named object is a view. Returns a uniform
+// "does not exist" error if missing.
 func DropTable(path, table string) error {
 	if !dbtuidata.IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name %q", table)
 	}
-	sql := fmt.Sprintf(`ATTACH '%s' AS d; DROP TABLE d."%s"; DETACH d;`,
-		sqlEscape(path), table)
+	metas, err := Info(path)
+	if err != nil {
+		return err
+	}
+	meta, ok := findTable(metas, table)
+	if !ok {
+		return fmt.Errorf("table %q does not exist in %s", table, filepath.Base(path))
+	}
+	keyword := "TABLE"
+	if meta.IsView {
+		keyword = "VIEW"
+	}
+	sql := fmt.Sprintf(`ATTACH '%s' AS d; DROP %s d."%s"; DETACH d;`,
+		sqlEscape(path), keyword, table)
 	if _, err := runJSON(sql); err != nil {
 		return err
 	}
 	return nil
 }
 
-// RenameTable renames a table within a duckdb file. Returns an error on
-// missing source or destination-name collision (both surfaced by duckdb).
+// RenameTable renames a table or view. Surfaces uniform "does not
+// exist" / "already exists" errors instead of duckdb's CLI vocabulary.
+// Uses ALTER VIEW when the source is a view.
 func RenameTable(path, oldName, newName string) error {
 	if !dbtuidata.IsSafeIdentifier(oldName) {
 		return fmt.Errorf("invalid table name %q", oldName)
@@ -76,12 +91,34 @@ func RenameTable(path, oldName, newName string) error {
 	if !dbtuidata.IsSafeIdentifier(newName) {
 		return fmt.Errorf("invalid table name %q", newName)
 	}
-	sql := fmt.Sprintf(`ATTACH '%s' AS d; ALTER TABLE d."%s" RENAME TO "%s"; DETACH d;`,
-		sqlEscape(path), oldName, newName)
+	metas, err := Info(path)
+	if err != nil {
+		return err
+	}
+	meta, ok := findTable(metas, oldName)
+	if !ok {
+		return fmt.Errorf("table %q does not exist in %s", oldName, filepath.Base(path))
+	}
+	if _, taken := findTable(metas, newName); taken {
+		return fmt.Errorf("table %q already exists in %s", newName, filepath.Base(path))
+	}
+	keyword := "TABLE"
+	if meta.IsView {
+		keyword = "VIEW"
+	}
+	sql := fmt.Sprintf(`ATTACH '%s' AS d; ALTER %s d."%s" RENAME TO "%s"; DETACH d;`,
+		sqlEscape(path), keyword, oldName, newName)
 	if _, err := runJSON(sql); err != nil {
 		return err
 	}
 	return nil
+}
+
+// findTable returns the matching TableMeta entry or false. Linear
+// scan; mutation paths only call this against the small (~tens of
+// tables) catalog returned by Info.
+func findTable(metas []TableMeta, name string) (TableMeta, bool) {
+	return lo.Find(metas, func(m TableMeta) bool { return m.Name == name })
 }
 
 // ImportCSV creates one new table per csv via CREATE TABLE AS SELECT.
@@ -116,8 +153,9 @@ func ImportCSV(path string, csvPaths []string, tableOverride string) ([]ImportEn
 }
 
 // AppendCSV inserts the rows of each csv into an existing duckdb table.
-// Errors if the target table does not exist. The override / single-file
-// constraint matches ImportCSV.
+// Errors with a uniform "does not exist" message if the target table is
+// missing, or "cannot append to view" if the target is a view. The
+// override / single-file constraint matches ImportCSV.
 func AppendCSV(path string, csvPaths []string, tableOverride string) ([]ImportEntry, error) {
 	if tableOverride != "" && len(csvPaths) > 1 {
 		return nil, fmt.Errorf("--table can only be used with a single CSV file")
@@ -125,6 +163,20 @@ func AppendCSV(path string, csvPaths []string, tableOverride string) ([]ImportEn
 	plans, err := planImports(csvPaths, tableOverride)
 	if err != nil {
 		return nil, err
+	}
+
+	metas, err := Info(path)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range plans {
+		meta, ok := findTable(metas, p.table)
+		if !ok {
+			return nil, fmt.Errorf("table %q does not exist in %s — use `sci db add` to create it", p.table, filepath.Base(path))
+		}
+		if meta.IsView {
+			return nil, fmt.Errorf("cannot append to view %q in %s", p.table, filepath.Base(path))
+		}
 	}
 
 	// Capture pre-append counts so the returned ImportEntry reports the
