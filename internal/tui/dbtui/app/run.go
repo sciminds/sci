@@ -10,6 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ErrInterrupted signals that the user interrupted the TUI (e.g. Ctrl-C).
@@ -65,11 +66,13 @@ func Run(ds store.DataStore, label string, opts ...RunOption) error {
 	defer fmt.Fprint(os.Stderr, "\033[23;2t")
 
 	p := tea.NewProgram(model)
-	if _, err := p.Run(); err != nil {
-		if errors.Is(err, tea.ErrInterrupted) {
+	_, runErr := p.Run()
+	uikit.DrainStdin()
+	if runErr != nil {
+		if errors.Is(runErr, tea.ErrInterrupted) {
 			return ErrInterrupted
 		}
-		return err
+		return runErr
 	}
 	return nil
 }

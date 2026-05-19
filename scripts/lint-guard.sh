@@ -147,21 +147,20 @@ for f in $syscall_exec_files; do
 done
 
 # ── Rule 7: DrainStdin after every tea.Program.Run() ────────────────────────
-# Every bubbletea program that writes to a TTY should call ui.DrainStdin()
-# after p.Run() to flush stale DECRQM responses. Exemptions:
-#   - internal/uikit/ defines DrainStdin (ui_spinner.go calls it internally;
-#     other helpers run in-process and don't own a Run() return).
-#   - internal/tui/dbtui/ enters alt-screen via Bubble Tea v2's AltScreen
-#     output mode, which restores the cooked terminal on exit and absorbs
-#     stale DECRQM responses without a manual drain.
+# Every bubbletea program that writes to a TTY should call uikit.DrainStdin()
+# after p.Run() to flush stale DECRQM responses (charmbracelet/bubbletea#1590).
+# Only internal/uikit/ is exempt — it defines DrainStdin and its helpers call
+# it internally (ui_spinner.go, ui_form.go, run_program.go).
 
 drain_exempt=(
 	"internal/uikit/"
-	"internal/tui/dbtui/"
 )
 
-# Find Go files (non-test) that import bubbletea and call .Run()
-bt_files=$(rg -l 'charm\.land/bubbletea' --type go --glob '!*_test.go' \
+# Find Go files (non-test) that actually create a tea.Program — only those
+# can possibly need a drain. Filtering on `charm.land/bubbletea` alone would
+# catch files that merely import bubbletea types and would false-match on
+# unrelated `.Run()` calls (e.g. exec.Cmd.Run).
+bt_files=$(rg -l 'tea\.NewProgram\(' --type go --glob '!*_test.go' \
 	--glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
 
 for f in $bt_files; do
@@ -175,12 +174,10 @@ for f in $bt_files; do
 	done
 	$skip && continue
 
-	# Check if file calls p.Run() (tea.Program runner)
-	if rg -q '\.Run\(\)' "$f" 2>/dev/null; then
-		if ! rg -q 'DrainStdin' "$f" 2>/dev/null; then
-			echo "FAIL [drain-stdin-after-run] $f calls tea.Program.Run() but never calls DrainStdin()"
-			fail "drain-stdin-after-run"
-		fi
+	# Caller must drain after p.Run() returns.
+	if ! rg -q 'DrainStdin' "$f" 2>/dev/null; then
+		echo "FAIL [drain-stdin-after-run] $f calls tea.NewProgram but never calls DrainStdin()"
+		fail "drain-stdin-after-run"
 	fi
 done
 
