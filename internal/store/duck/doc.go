@@ -2,9 +2,11 @@
 // `duckdb` CLI subprocess.
 //
 // dbtui is interface-bound, so the same model can drive either backend.
-// Mutations are not yet supported — every write method returns
-// [store.ErrReadOnly]. The subprocess is started with -readonly and
-// -jsonlines, so even a buggy caller cannot corrupt the file.
+// The subprocess runs read-write; row-level mutations (UpdateCell,
+// DeleteRows) additionally require the target table to have a PRIMARY
+// KEY because DuckDB has no implicit rowid. Tables without a PK return
+// false from [Store.IsRowEditable] and surface as read-only tabs in
+// dbtui.
 //
 // Each query is framed by a unique sentinel SELECT that follows the
 // caller's SQL on stdin. The reader walks stdout lines (each a JSON

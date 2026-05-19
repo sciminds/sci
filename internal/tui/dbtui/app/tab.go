@@ -210,8 +210,7 @@ func (m *Model) handleTabLoaded(msg tabLoadedMsg) (tea.Model, tea.Cmd) {
 		m.setStatusError(fmt.Sprintf("Load %q: %v", m.tabs[msg.idx].Name, msg.err))
 		return m, nil
 	}
-	if m.forceRO || (m.viewLister != nil && m.viewLister.IsView(msg.tab.Name)) ||
-		(m.virtualLister != nil && m.virtualLister.IsVirtual(msg.tab.Name)) {
+	if m.shouldForceTabReadOnly(msg.tab.Name) {
 		msg.tab.ReadOnly = true
 	}
 	msg.tab.Table.SetHeight(m.tabs[m.active].Table.Height())

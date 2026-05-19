@@ -1,13 +1,15 @@
 package duck
 
 // store.go — DataStore implementation backed by a duckdb subprocess.
-// Every read goes through subproc.query(); every mutation method shorts
-// to [store.ErrReadOnly] until Phase 3 introduces edit support.
+// Every read goes through subproc.query(); row-level mutations resolve
+// synthetic row IDs back to PK values via the rowKeys cache before
+// emitting UPDATE/DELETE.
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -15,24 +17,34 @@ import (
 	"github.com/sciminds/cli/internal/store"
 )
 
-// Store is a read-only DataStore over a `.duckdb` file. The underlying
-// duckdb CLI subprocess is kept alive for the lifetime of the Store so
-// interactive workloads (per-keystroke filter queries) don't pay
-// per-call process-start latency.
+// Store is a DataStore over a `.duckdb` file. The underlying duckdb CLI
+// subprocess is kept alive for the lifetime of the Store so interactive
+// workloads (per-keystroke filter queries) don't pay per-call
+// process-start latency.
+//
+// Phase 3 makes the subprocess read-write. Row-level mutations
+// (UpdateCell, DeleteRows) require the target table to have a PRIMARY
+// KEY — DuckDB has no implicit rowid.
 type Store struct {
 	proc *subproc
 	path string
 
-	mu    sync.RWMutex
-	views map[string]bool // populated by TableNames
+	mu          sync.RWMutex
+	views       map[string]bool // populated by TableNames
+	rowEditable map[string]bool // populated by TableColumns: table → has-PK
 }
 
-// Open starts a `duckdb -readonly -jsonlines <path>` subprocess and
-// returns a Store backed by it. Returns the underlying ErrNotInstalled
+// Open starts a `duckdb -jsonlines <path>` subprocess and returns a
+// Store backed by it. The path must already exist — opening a missing
+// file is rejected so typos in `sci view foo.duckdb` don't silently
+// produce an empty database. Returns the underlying ErrNotInstalled
 // when duckdb is not on PATH. Probes the subprocess with a one-row
-// SELECT so missing/corrupt database files surface as an error here
-// rather than on the first real call.
+// SELECT so corrupt database files surface as an error here rather
+// than on the first real call.
 func Open(path string) (*Store, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, fmt.Errorf("open %s: %w", path, err)
+	}
 	p, err := startSubproc(path)
 	if err != nil {
 		return nil, err
@@ -188,12 +200,46 @@ func (s *Store) IsView(name string) bool {
 
 // TableColumns returns column metadata for table. Names and types come
 // from a DESCRIBE — null/key flags from duckdb's information_schema-
-// compatible output.
+// compatible output. The row-editability cache is updated as a side
+// effect so a subsequent IsRowEditable call is a synchronous lookup.
 func (s *Store) TableColumns(table string) ([]store.PragmaColumn, error) {
 	if !store.IsSafeIdentifier(table) {
 		return nil, fmt.Errorf("invalid table name: %q", table)
 	}
-	return s.describeColumns(fmt.Sprintf(`SELECT * FROM "%s"`, table))
+	cols, err := s.describeColumns(fmt.Sprintf(`SELECT * FROM "%s"`, table))
+	if err != nil {
+		return nil, err
+	}
+	hasPK := lo.SomeBy(cols, func(c store.PragmaColumn) bool { return c.PK > 0 })
+	s.mu.Lock()
+	if s.rowEditable == nil {
+		s.rowEditable = make(map[string]bool)
+	}
+	s.rowEditable[table] = hasPK
+	s.mu.Unlock()
+	return cols, nil
+}
+
+// IsRowEditable reports whether the named table supports row-level
+// mutations (UpdateCell, DeleteRows). True when the table has at least
+// one PRIMARY KEY column. Views and tables that have not been
+// introspected yet (via TableColumns) return false — call TableColumns
+// first to prime the cache. Implements [store.RowEditabilityChecker].
+func (s *Store) IsRowEditable(name string) bool {
+	s.mu.RLock()
+	if editable, ok := s.rowEditable[name]; ok {
+		s.mu.RUnlock()
+		return editable
+	}
+	s.mu.RUnlock()
+	// Prime the cache by introspecting once. Failures fall through to
+	// "not editable" — refusing edits is the safe default.
+	if _, err := s.TableColumns(name); err != nil {
+		return false
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.rowEditable[name]
 }
 
 // TableRowCount returns COUNT(*) for table.

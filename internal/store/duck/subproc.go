@@ -1,9 +1,14 @@
 package duck
 
-// subproc.go — long-running `duckdb -readonly -jsonlines <path>` wrapper.
-// The single goroutine that drains stderr keeps us in sync with the
+// subproc.go — long-running `duckdb -jsonlines <path>` wrapper. The
+// single goroutine that drains stderr keeps us in sync with the
 // process's view of errors; query/sentinel framing on stdin lets us
 // associate each result run with the SQL that produced it.
+//
+// Phase 3 opens the subprocess read-write. Row-level mutations are
+// still gated by the Store on PK availability; DDL/import mutations
+// flow straight through. duckdb's own constraint checking surfaces any
+// remaining violations on stderr.
 
 import (
 	"bufio"
@@ -42,13 +47,13 @@ type subproc struct {
 	closed atomic.Bool
 }
 
-// startSubproc spawns `duckdb -readonly -jsonlines <dbPath>`. Returns
-// [duckcli.ErrNotInstalled] when the binary is missing.
+// startSubproc spawns `duckdb -jsonlines <dbPath>` in read-write mode.
+// Returns [duckcli.ErrNotInstalled] when the binary is missing.
 func startSubproc(dbPath string) (*subproc, error) {
 	if !duckcli.Available() {
 		return nil, duckcli.ErrNotInstalled
 	}
-	cmd := exec.Command("duckdb", "-readonly", "-jsonlines", dbPath) //nolint:gosec // binary name is fixed, path validated by caller
+	cmd := exec.Command("duckdb", "-jsonlines", dbPath) //nolint:gosec // binary name is fixed, path validated by caller
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("stdin pipe: %w", err)

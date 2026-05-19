@@ -106,6 +106,17 @@ type VirtualLister interface {
 	IsVirtual(name string) bool
 }
 
+// RowEditabilityChecker is an optional interface that DataStore
+// implementations may provide to indicate whether a table supports
+// row-level mutations (UpdateCell, DeleteRows). DuckDB tables without a
+// primary key cannot be safely addressed for row-level mutations — there
+// is no implicit rowid. SQLite always has rowid, so its store does not
+// need to implement this interface. dbtui consults the checker during
+// tab build and marks non-editable tabs read-only.
+type RowEditabilityChecker interface {
+	IsRowEditable(name string) bool
+}
+
 // NoteBodyProvider is an optional interface that DataStore implementations
 // may provide to supply pre-lowercased note bodies for full-mode row search.
 // When present, unscoped queries in modeFull scan these bodies for

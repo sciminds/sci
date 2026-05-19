@@ -28,15 +28,15 @@ func requireDuck(t *testing.T) {
 }
 
 // makeFixture writes a `.duckdb` file with a couple of tables and a
-// view into a fresh temp dir, returning the path. The shape matches the
-// `internal/duck/testdata/tiny.duckdb` fixture: a `people(id, name,
-// score)` table, a small `extras(k, v)` table, and a `recent_scores`
-// view.
+// view into a fresh temp dir, returning the path. `people(id PK, name,
+// score)` has a primary key for row-level mutations; `extras(k, v)` is
+// deliberately PK-less to exercise the read-only-without-PK code path.
+// `recent_scores` is a view over people.
 func makeFixture(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fixture.duckdb")
-	script := `CREATE TABLE people (id BIGINT, name VARCHAR, score DOUBLE);
+	script := `CREATE TABLE people (id BIGINT PRIMARY KEY, name VARCHAR, score DOUBLE);
 INSERT INTO people VALUES (1, 'alice', 3.14), (2, 'bob', 2.72), (3, 'carol', NULL);
 CREATE TABLE extras (k VARCHAR, v INTEGER);
 INSERT INTO extras VALUES ('a', 1), ('b', 2);
@@ -169,6 +169,24 @@ func TestTableSummaries(t *testing.T) {
 	}
 	if got["recent_scores"].Rows != 2 || got["recent_scores"].Columns != 2 {
 		t.Errorf("recent_scores summary = %+v; want rows=2 cols=2", got["recent_scores"])
+	}
+}
+
+func TestIsRowEditable(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	// `people` has a PRIMARY KEY → editable.
+	if !s.IsRowEditable("people") {
+		t.Error("people should be row-editable (PK on id)")
+	}
+	// `extras` has no PK → not editable.
+	if s.IsRowEditable("extras") {
+		t.Error("extras has no PK; should not be row-editable")
 	}
 }
 

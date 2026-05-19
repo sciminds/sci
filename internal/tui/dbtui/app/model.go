@@ -42,11 +42,12 @@ type tabLoadedMsg struct {
 // See doc.go for the full architecture overview.
 type Model struct {
 	// ── Backend ──────────────────────────────────────────
-	store         store.DataStore
-	viewLister    store.ViewLister    // non-nil when store can distinguish views from tables
-	virtualLister store.VirtualLister // non-nil when store can distinguish virtual tables
-	dbPath        string              // display label (file path)
-	forceRO       bool                // when true, all tabs are read-only (file viewing mode)
+	store          store.DataStore
+	viewLister     store.ViewLister            // non-nil when store can distinguish views from tables
+	virtualLister  store.VirtualLister         // non-nil when store can distinguish virtual tables
+	rowEditChecker store.RowEditabilityChecker // non-nil when store gates row mutations on PK availability
+	dbPath         string                      // display label (file path)
+	forceRO        bool                        // when true, all tabs are read-only (file viewing mode)
 
 	// ── Tab State ────────────────────────────────────────
 	tabs   []Tab // one per database table; stubs until loaded
@@ -90,6 +91,7 @@ func NewModel(ds store.DataStore, dbPath string, readOnly bool) (*Model, error) 
 	// Detect which names are SQL views or virtual tables (read-only in the TUI).
 	viewLister, hasViews := ds.(store.ViewLister)
 	virtualLister, hasVirtuals := ds.(store.VirtualLister)
+	rowEditChecker, hasRowEditChecker := ds.(store.RowEditabilityChecker)
 
 	tabs := lo.Map(tableNames, func(name string, _ int) Tab {
 		return Tab{Name: name}
@@ -101,8 +103,11 @@ func NewModel(ds store.DataStore, dbPath string, readOnly bool) (*Model, error) 
 		if err != nil {
 			return nil, fmt.Errorf("build tab %q: %w", tableNames[0], err)
 		}
-		if readOnly || (hasViews && viewLister.IsView(tableNames[0])) ||
-			(hasVirtuals && virtualLister.IsVirtual(tableNames[0])) {
+		readOnlyFirst := readOnly ||
+			(hasViews && viewLister.IsView(tableNames[0])) ||
+			(hasVirtuals && virtualLister.IsVirtual(tableNames[0])) ||
+			(hasRowEditChecker && !rowEditChecker.IsRowEditable(tableNames[0]))
+		if readOnlyFirst {
 			tab.ReadOnly = true
 		}
 		tabs[0] = tab
@@ -121,20 +126,25 @@ func NewModel(ds store.DataStore, dbPath string, readOnly bool) (*Model, error) 
 	if hasVirtuals {
 		vtl = virtualLister
 	}
+	var rec store.RowEditabilityChecker
+	if hasRowEditChecker {
+		rec = rowEditChecker
+	}
 
 	return &Model{
-		zones:         zone.New(),
-		store:         ds,
-		viewLister:    vl,
-		virtualLister: vtl,
-		dbPath:        dbPath,
-		styles:        uikit.TUI,
-		help:          h,
-		spinner:       sp,
-		tabs:          tabs,
-		active:        0,
-		mode:          modeNormal,
-		forceRO:       readOnly,
+		zones:          zone.New(),
+		store:          ds,
+		viewLister:     vl,
+		virtualLister:  vtl,
+		rowEditChecker: rec,
+		dbPath:         dbPath,
+		styles:         uikit.TUI,
+		help:           h,
+		spinner:        sp,
+		tabs:           tabs,
+		active:         0,
+		mode:           modeNormal,
+		forceRO:        readOnly,
 	}, nil
 }
 
@@ -176,8 +186,7 @@ func (m *Model) SelectTab(name string) {
 			if !t.Loaded {
 				tab, err := buildTab(m.store, name)
 				if err == nil {
-					if m.forceRO || (m.viewLister != nil && m.viewLister.IsView(name)) ||
-						(m.virtualLister != nil && m.virtualLister.IsVirtual(name)) {
+					if m.shouldForceTabReadOnly(name) {
 						tab.ReadOnly = true
 					}
 					m.tabs[i] = tab
@@ -186,6 +195,25 @@ func (m *Model) SelectTab(name string) {
 			return
 		}
 	}
+}
+
+// shouldForceTabReadOnly returns true when a tab for the named table
+// should open read-only based on TUI-level settings or store-level
+// capabilities (views, virtual tables, or duckdb tables without a PK).
+func (m *Model) shouldForceTabReadOnly(name string) bool {
+	if m.forceRO {
+		return true
+	}
+	if m.viewLister != nil && m.viewLister.IsView(name) {
+		return true
+	}
+	if m.virtualLister != nil && m.virtualLister.IsVirtual(name) {
+		return true
+	}
+	if m.rowEditChecker != nil && !m.rowEditChecker.IsRowEditable(name) {
+		return true
+	}
+	return false
 }
 
 // Init implements tea.Model.
@@ -294,7 +322,10 @@ func (m *Model) readOnlyReason() string {
 	if m.forceRO {
 		return "Read-only (file)"
 	}
-	return "Read-only (no primary key)"
+	if m.rowEditChecker != nil && !m.rowEditChecker.IsRowEditable(tab.Name) {
+		return "Read-only (no primary key)"
+	}
+	return "Read-only"
 }
 
 // concreteStore returns the underlying *sqlite.Store, or nil if the store
