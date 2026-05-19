@@ -1,14 +1,14 @@
 # CLAUDE.md — dbtui (internal/tui/dbtui/)
 
-VisiData-inspired SQLite viewer/editor. Also installable standalone via `cmd/dbtui/`.
+VisiData-inspired SQLite + DuckDB viewer/editor. Mounted under `sci view <file>` and `sci db view <file>`.
 
 **Any new TUI work here must invoke the `bubbletea` skill** before designing layouts or adding mouse/keyboard handling. **Invoke the `lo` skill** before writing any slice/map/set transforms — see root `CLAUDE.md` § Modern Go style.
 
 ## Architecture
 
-- The data layer lives at `internal/store/` (interface) and `internal/store/sqlite/` (SQLite impl, raw `database/sql` + modernc.org/sqlite). DataStore is the interface dbtui programs against; `*sqlite.Store` is the concrete type for SQLite paths. A native DuckDB backend will land alongside as `internal/store/duck/`.
+- The data layer lives at `internal/store/` (interface) plus `internal/store/sqlite/` (SQLite impl, raw `database/sql` + modernc.org/sqlite) and `internal/store/duck/` (native DuckDB impl, backed by a long-running `duckdb -jsonlines` subprocess). DataStore is the interface dbtui programs against.
 - SQLite uses implicit `rowid` for all edits.
-- **duckdb files** open natively via `internal/store/duck/` — a `duckdb -jsonlines` subprocess speaks the same `store.DataStore` interface as the SQLite store. UpdateCell / DeleteRows / InsertRows work on tables with a PRIMARY KEY; PK-less tables surface as `tab.ReadOnly = true` via the optional `store.RowEditabilityChecker` interface. DDL/import methods (RenameTable, DropTable, CreateEmptyTable, ImportCSV, AppendCSV, ImportFile) still return `store.ErrReadOnly` (PR-C-3b). See `internal/db/CLAUDE.md` for the dual-backend dispatch.
+- **duckdb files** open natively via `internal/store/duck/` and speak the same `store.DataStore` interface as the SQLite store. UpdateCell / DeleteRows / InsertRows work on tables with a PRIMARY KEY; PK-less tables surface as `tab.ReadOnly = true` via the optional `store.RowEditabilityChecker` interface. DDL (RenameTable, DropTable, CreateEmptyTable) and import (ImportCSV, AppendCSV, ImportFile) all work against the native backend. See `internal/db/CLAUDE.md` for the dual-backend dispatch.
 
 ## Conventions
 

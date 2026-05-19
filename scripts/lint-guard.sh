@@ -76,12 +76,6 @@ if [[ -n "$sleep_hits" ]]; then
 	fi
 fi
 
-# ── Rule 3: (removed) standalone-package dbx ban ───────────────────────────
-# The dbtui standalone-binary constraint was relaxed when DuckDB became a
-# first-class peer of SQLite; dbtui freely imports internal/store now.
-# pocketbase/dbx is purged from the codebase, so a per-package guard would
-# be redundant.
-
 # ── Rule 4: CLI flags must have Local: true ──────────────────────────────────
 # urfave/cli v3 flags without Local: true leak to parent/child commands.
 # CLAUDE.md mandates Local: true on every flag.
@@ -154,10 +148,12 @@ done
 
 # ── Rule 7: DrainStdin after every tea.Program.Run() ────────────────────────
 # Every bubbletea program that writes to a TTY should call ui.DrainStdin()
-# after p.Run() to flush stale DECRQM responses. Standalone packages (dbtui)
-# are excluded — they use alt-screen which resets the terminal, and
-# must not import internal/uikit directly for DrainStdin.
-# internal/uikit/ui_spinner.go is excluded because it calls DrainStdin internally.
+# after p.Run() to flush stale DECRQM responses. Exemptions:
+#   - internal/uikit/ defines DrainStdin (ui_spinner.go calls it internally;
+#     other helpers run in-process and don't own a Run() return).
+#   - internal/tui/dbtui/ enters alt-screen via Bubble Tea v2's AltScreen
+#     output mode, which restores the cooked terminal on exit and absorbs
+#     stale DECRQM responses without a manual drain.
 
 drain_exempt=(
 	"internal/uikit/"
@@ -187,12 +183,6 @@ for f in $bt_files; do
 		fi
 	fi
 done
-
-# ── Rule 8: (removed) standalone-package import boundaries ──────────────────
-# The dbtui standalone-binary constraint was relaxed when DuckDB became a
-# first-class peer of SQLite. dbtui now imports internal/store and
-# internal/store/sqlite freely. If a future package needs hermetic isolation,
-# re-introduce a boundary rule scoped to that package.
 
 # ── Rule 9: No legacy sort package — use slices/maps ───────────────────────
 # Go 1.21+ provides slices.Sort, slices.SortFunc, slices.SortStableFunc,

@@ -52,6 +52,7 @@ func dbCommand() *cli.Command {
 			dbSummarizeCommand(),
 			dbConvertCommand(),
 			dbQueryCommand(),
+			dbViewCommand(),
 		},
 	}
 }
@@ -183,6 +184,19 @@ func dbConvertCommand() *cli.Command {
 			cmdutil.Output(cmd, result)
 			return nil
 		},
+	}
+}
+
+// dbViewCommand mirrors the top-level `sci view` so users who reach for the
+// `sci db` namespace can still find the interactive viewer. Both commands
+// dispatch through viewAction.
+func dbViewCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "view",
+		Usage:       "Interactively browse a database or tabular file (same as `sci view`)",
+		Description: "$ sci db view experiment.db\n$ sci db view data.csv\n$ sci db view lab.duckdb",
+		ArgsUsage:   "<file>",
+		Action:      viewAction,
 	}
 }
 

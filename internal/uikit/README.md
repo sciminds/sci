@@ -1,8 +1,8 @@
 # uikit — shared visual foundation
 
-The single import for styles, layout, and components across all three
-binaries (`sci`, `dbtui`, `zot`). Zero project-specific dependencies
-(no pocketbase, no urfave/cli) so standalone binaries stay lean.
+The single import for styles, layout, and components used everywhere
+inside `sci`. Zero coupling to urfave/cli so any new TUI surface can
+adopt it without reaching for CLI framework types.
 
 Files are organized by layer prefix: `color_`, `input_`, `layout_`,
 `ui_`, `run_`.
@@ -101,12 +101,11 @@ normally — existing teatest patterns work unchanged.
 ## Architecture
 
 ```
-sci (cmd/sci)          ──┐── all import ──▶  internal/uikit/
-dbtui (cmd/dbtui)      ──┘
+sci (cmd/sci)          ── imports ──▶  internal/uikit/
 
 internal/cmdutil/      ── CLI-framework glue (help renderer, huh theme)
                           imports uikit for styles/palette
 
-internal/tui/dbtui/ui/ ── dbtui-specific styles (own TUI singleton)
+internal/tui/<name>/ui/── per-TUI styles (own TUI singleton)
                           imports uikit for shared palette + layout
 ```

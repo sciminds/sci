@@ -19,27 +19,32 @@ func viewCommand() *cli.Command {
 		Description: "$ sci view data.csv\n$ sci view results.json\n$ sci view experiment.db\n$ sci view notes.md",
 		ArgsUsage:   "<file>",
 		Category:    "Commands",
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected a file argument")
-			}
-			path := cmd.Args().First()
-
-			info, err := os.Stat(path)
-			if err != nil {
-				return cmdutil.UsageErrorf(cmd, "%s: %v", path, err)
-			}
-			if info.IsDir() {
-				return cmdutil.UsageErrorf(cmd, "%s is a directory — sci view expects a file. For multi-page collections, see `sci learn`.", path)
-			}
-
-			if isMarkdown(path) {
-				return uikit.RunMdViewer(path)
-			}
-
-			return db.RunTUI(path, "")
-		},
+		Action:      viewAction,
 	}
+}
+
+// viewAction is the shared action behind both `sci view` and `sci db view`.
+// Markdown files render through the uikit viewer; everything else opens in
+// dbtui via db.RunTUI.
+func viewAction(_ context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() == 0 {
+		return cmdutil.UsageErrorf(cmd, "expected a file argument")
+	}
+	path := cmd.Args().First()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return cmdutil.UsageErrorf(cmd, "%s: %v", path, err)
+	}
+	if info.IsDir() {
+		return cmdutil.UsageErrorf(cmd, "%s is a directory — sci view expects a file. For multi-page collections, see `sci learn`.", path)
+	}
+
+	if isMarkdown(path) {
+		return uikit.RunMdViewer(path)
+	}
+
+	return db.RunTUI(path, "")
 }
 
 // isMarkdown returns true for paths whose extension matches a markdown

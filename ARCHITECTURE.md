@@ -6,11 +6,7 @@ This is a tour of how `sci` is built, written for someone who's comfortable with
 
 `sci` is a CLI toolkit for academic computing on macOS. It ships as a single static binary — no Python install, no Node, no `brew install` chain. Drop the binary on a machine and it works.
 
-The repo currently produces three binaries:
-
-- **`sci`** — the umbrella CLI (`sci db …`, `sci proj …`, `sci cass …`, etc.)
-- **`dbtui`** — a standalone SQLite browser (also reachable as `sci view`)
-- **`zot`** — experimental Zotero CLI (also reachable as `sci zot`)
+Everything lives behind one binary: `sci db …`, `sci proj …`, `sci zot …`, `sci view …`, etc. The interactive database browser (dbtui) is reachable as either `sci view <file>` or `sci db view <file>`; zot is reachable as `sci zot`. There are no separate `dbtui` or `zot` distributions.
 
 We picked Go for three reasons. First, it's typed and compiled, which means TDD with an LLM is reliable — the compiler catches the dumb stuff before tests even run. Second, single static binaries cross-compile from anything to anything; distribution is "upload to a GitHub release". Third, Eshin wanted to learn Go. All three reasons are still load-bearing.
 
@@ -34,16 +30,17 @@ That's it. Every command in the codebase follows this shape. If you're lost, the
 
 The CLI framework is **urfave/cli v3**, not Cobra. All flags are declared `Local: true` so they don't leak between subcommands.
 
-## Two SQLite worlds
+## Storage backends
 
-Almost everything in `sci` that persists state uses SQLite, via `modernc.org/sqlite` — a pure-Go port. **No CGO ever.** This is what lets us cross-compile to any OS/arch combination from anyone's laptop without a C toolchain.
+Almost everything in `sci` that persists state uses SQLite, via `modernc.org/sqlite` — a pure-Go port. **No CGO ever.** This is what lets us cross-compile to any OS/arch combination from anyone's laptop without a C toolchain. The DuckDB backend is the one exception: we shell out to the `duckdb` CLI rather than link any library, so the constraint still holds end-to-end.
 
-There are two ways we talk to SQLite, and the split matters:
+The data layer lives at `internal/store/`:
 
-- **`pocketbase/dbx`** in `internal/db/data/`. A typed query builder, ergonomic for the database-manager commands (create, import, rename, etc.).
-- **Raw `database/sql`** in `internal/tui/dbtui/data/` and `internal/zot/local/`.
+- **`internal/store/`** — the `DataStore` interface dbtui programs against (tables, columns, queries, row mutations).
+- **`internal/store/sqlite/`** — SQLite implementation, raw `database/sql`. The canonical store; also powers `sci db`, `sci view`, and dbtui.
+- **`internal/store/duck/`** — DuckDB implementation, backed by a long-running `duckdb -jsonlines` subprocess. Full parity with SQLite on reads, row edits (on PK-bearing tables), DDL, and CSV/JSON import.
 
-The raw-SQL packages exist for two reasons. Either they need dynamic SQL the query builder can't express cleanly (FTS5, virtual tables, user-supplied queries), or the layer is intentionally narrow and read-only (e.g. `zot/local/` opens `zotero.sqlite` in immutable mode — dbx's write-oriented ergonomics would be dead weight). `dbtui` additionally ships as a standalone binary and keeps dbx out to stay lean. Pick the right one when you add a new package.
+A few packages keep their own raw `database/sql` connection outside `internal/store/` for good reasons: `internal/zot/local/` opens `zotero.sqlite` in read-only immutable mode (a narrow, write-free surface), and the duckdb subprocess wrapper at `internal/store/duck/subproc.go` is its own thing. When you add a new package, prefer programming against `store.DataStore` unless you have a similar boundary justification.
 
 ## Bubbletea, gently
 
@@ -104,8 +101,6 @@ The catch: once you `syscall.Exec`, your test can't observe what happened. So ev
 Small subcommands (proj, db, py, vid, etc.) are declared directly in `cmd/sci/<pkg>.go` — one file, maybe a few handlers. The business logic sits in `internal/<pkg>/`; the cmd file is just CLI glue.
 
 Large subcommand trees like `zot` keep their CLI glue in their own package under `internal/<pkg>/cli/` because the glue is substantial enough to warrant a package boundary and its own test suite. `cmd/sci/zot.go` is then a thin mount point that imports and installs `internal/zot/cli.Commands()`.
-
-`dbtui` is the one remaining exception with a standalone binary (`cmd/dbtui/`) in addition to its `sci view` mount — it's small enough to ship as a dedicated TUI tool.
 
 ## Finding your way around
 

@@ -3,7 +3,6 @@ ldflags := "-s -w -X github.com/sciminds/cli/internal/version.Commit=" + commit
 
 build:
     go build -ldflags="{{ldflags}}" -o sci ./cmd/sci
-    go build -ldflags="-s -w" -o dbtui ./cmd/dbtui
 
 tidy:
     go mod tidy
@@ -75,7 +74,7 @@ ok-slow: tidy fmt vet lint lint-style lint-guard test test-slow build
     @echo "All checks (incl. slow) passed."
 
 clean:
-    rm -f sci dbtui
+    rm -f sci
 
 # Regenerate internal/uikit/REFERENCE.md from godoc comments.
 docs-uikit:

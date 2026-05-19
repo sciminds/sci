@@ -35,8 +35,9 @@ Written in Go because:
 | Command | What it does |
 |---------|--------------|
 | `sci view <file>` | Interactively browse a tabular data file (CSV, JSON, SQLite) or render a markdown document |
+| `sci db view <file>` | Same viewer, mounted under the `sci db` namespace for discoverability |
 
-Tabular files open in dbtui (`internal/tui/dbtui/`), also installable as a standalone binary: `go install github.com/sciminds/cli/cmd/dbtui@latest`. Markdown files (`.md`, `.markdown`) render via the uikit markdown viewer — press `r` to reload from disk after external edits.
+Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.markdown`) render via the uikit markdown viewer — press `r` to reload from disk after external edits.
 
 </details>
 
@@ -276,10 +277,10 @@ Reads the local `zotero.sqlite` (immutable, no contention with the running Zoter
 Every push to `main` triggers the [Release workflow](.github/workflows/release.yml):
 
 1. **Check** — fmt, vet, lint, test
-2. **Build** — cross-compiles `sci` and `dbtui` for darwin/linux × arm64/amd64
+2. **Build** — cross-compiles `sci` for darwin/linux × arm64/amd64
 3. **Publish** — uploads all binaries to a rolling `latest` GitHub release
 
-Binaries are named `{tool}-{os}-{arch}` (e.g. `sci-darwin-arm64`, `dbtui-linux-amd64`).
+Binaries are named `sci-{os}-{arch}` (e.g. `sci-darwin-arm64`, `sci-linux-amd64`).
 
 **Updating:** Users run `sci update`, which compares the compiled-in commit SHA against the latest release and atomically replaces the binary if a newer build is available.
 

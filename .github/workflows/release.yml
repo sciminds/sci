@@ -84,7 +84,6 @@ jobs:
         run: |
           COMMIT="${TESTED_SHA}"
           LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
-          LDFLAGS_PLAIN="-s -w"
 
           mkdir -p dist
 
@@ -95,10 +94,6 @@ jobs:
 
             echo "==> Building sci-${SUFFIX}"
             GOOS="${OS}" GOARCH="${ARCH}" go build -ldflags="${LDFLAGS}" -o "dist/sci-${SUFFIX}" ./cmd/sci
-
-            echo "==> Building dbtui-${SUFFIX}"
-            GOOS="${OS}" GOARCH="${ARCH}" go build -ldflags="${LDFLAGS_PLAIN}" -o "dist/dbtui-${SUFFIX}" ./cmd/dbtui
-
           done
 
           echo "==> Verify native build"

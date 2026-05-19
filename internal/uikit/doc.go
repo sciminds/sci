@@ -1,7 +1,8 @@
 // Package uikit provides the shared visual foundation for all TUI and CLI
-// output in the project. It is dependency-free of project-specific packages
-// (no pocketbase, no urfave/cli, no internal/db) so standalone binaries
-// (dbtui, zot) can import it without pulling in the full CLI dependency tree.
+// output in the project. It avoids depending on the CLI framework
+// (urfave/cli) and on higher-level domain packages (internal/db, internal/zot)
+// so any package — including new TUI surfaces — can adopt it without
+// circular-import headaches.
 //
 // The package is organized into logical layers, reflected by file prefixes:
 //

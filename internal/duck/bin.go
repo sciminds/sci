@@ -2,8 +2,8 @@
 // verbs (cols/head/tail/glimpse/shape/summarize/convert/query) over csv,
 // tsv, json, jsonl, parquet, xlsx, sqlite, and duckdb files.
 //
-// We shell out to the binary rather than linking go-duckdb to keep
-// cmd/dbtui CGO-free. Each verb runs duckdb at most twice — once with
+// We shell out to the binary rather than linking go-duckdb to keep the
+// `sci` build CGO-free. Each verb runs duckdb at most twice — once with
 // -json for the structured Result payload and once with -box for
 // human-friendly output. Snapshot verbs only; no hot loops.
 //
