@@ -615,24 +615,76 @@ func (s *Store) InsertRows(table string, columns []string, rows [][]string) erro
 	return nil
 }
 
-// RenameTable — Phase 1 returns store.ErrReadOnly.
-func (s *Store) RenameTable(string, string) error { return store.ErrReadOnly }
+// ---------- DDL ----------
 
-// DropTable — Phase 1 returns store.ErrReadOnly.
-func (s *Store) DropTable(string) error { return store.ErrReadOnly }
+// RenameTable issues `ALTER TABLE … RENAME TO …`. Both names are
+// IsSafeIdentifier-validated; the rowKeys and rowEditable cache entries
+// for the old name are invalidated so subsequent calls re-introspect.
+func (s *Store) RenameTable(oldName, newName string) error {
+	if !store.IsSafeIdentifier(oldName) {
+		return fmt.Errorf("invalid table name: %q", oldName)
+	}
+	if !store.IsSafeIdentifier(newName) {
+		return fmt.Errorf("invalid table name: %q", newName)
+	}
+	if _, err := s.proc.query(fmt.Sprintf(`ALTER TABLE "%s" RENAME TO "%s"`, oldName, newName)); err != nil {
+		return fmt.Errorf("rename %q to %q: %w", oldName, newName, err)
+	}
+	s.invalidateTableCaches(oldName)
+	return nil
+}
 
-// ImportCSV — Phase 1 returns store.ErrReadOnly. Use `sci db add` on
-// the .duckdb file from outside dbtui instead.
+// DropTable issues `DROP TABLE …` and clears any cached state for the
+// table.
+func (s *Store) DropTable(table string) error {
+	if !store.IsSafeIdentifier(table) {
+		return fmt.Errorf("invalid table name: %q", table)
+	}
+	if _, err := s.proc.query(fmt.Sprintf(`DROP TABLE "%s"`, table)); err != nil {
+		return fmt.Errorf("drop %q: %w", table, err)
+	}
+	s.invalidateTableCaches(table)
+	return nil
+}
+
+// CreateEmptyTable creates a three-column scratch table using the same
+// default schema as the SQLite backend so cross-backend behaviour stays
+// consistent. The `id` PK makes the new table immediately row-editable
+// in dbtui.
+func (s *Store) CreateEmptyTable(tableName string) error {
+	if !store.IsSafeIdentifier(tableName) {
+		return fmt.Errorf("invalid table name: %q", tableName)
+	}
+	sql := fmt.Sprintf(
+		`CREATE TABLE "%s" (id INTEGER PRIMARY KEY, name VARCHAR, value VARCHAR)`,
+		tableName)
+	if _, err := s.proc.query(sql); err != nil {
+		return fmt.Errorf("create table %q: %w", tableName, err)
+	}
+	return nil
+}
+
+// invalidateTableCaches drops any rowKeys / rowEditable / views entries
+// for the named table. Called after DDL so subsequent introspection
+// re-fetches from the database instead of returning stale state.
+func (s *Store) invalidateTableCaches(name string) {
+	s.mu.Lock()
+	delete(s.rowKeys, name)
+	delete(s.rowEditable, name)
+	delete(s.views, name)
+	s.mu.Unlock()
+}
+
+// ---------- import (PR-C-3b — not yet bodied out) ----------
+
+// ImportCSV — PR-C-3b will body this out.
 func (s *Store) ImportCSV(string, string) error { return store.ErrReadOnly }
 
-// AppendCSV — Phase 1 returns store.ErrReadOnly.
+// AppendCSV — PR-C-3b will body this out.
 func (s *Store) AppendCSV(string, string) error { return store.ErrReadOnly }
 
-// ImportFile — Phase 1 returns store.ErrReadOnly.
+// ImportFile — PR-C-3b will body this out.
 func (s *Store) ImportFile(string, string) error { return store.ErrReadOnly }
-
-// CreateEmptyTable — Phase 1 returns store.ErrReadOnly.
-func (s *Store) CreateEmptyTable(string) error { return store.ErrReadOnly }
 
 // ExportCSV writes table to csvPath using duckdb's COPY ... TO, since
 // export is a read operation against the database. csvPath must be an

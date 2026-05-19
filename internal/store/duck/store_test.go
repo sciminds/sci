@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/store/duck"
 )
@@ -273,9 +274,9 @@ func TestReadOnlyQueryRejectsWrites(t *testing.T) {
 	}
 }
 
-// TestMutationsStillStubbed asserts the Phase 3 mutations that have not
+// TestMutationsStillStubbed asserts the PR-C-3b mutations that have not
 // yet been bodied out still return store.ErrReadOnly. Each commit in
-// PR-C-3a peels off another entry here as the method is implemented.
+// PR-C-3a/3b peels off another entry here as the method is implemented.
 func TestMutationsStillStubbed(t *testing.T) {
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
@@ -288,9 +289,6 @@ func TestMutationsStillStubbed(t *testing.T) {
 		name string
 		fn   func() error
 	}{
-		{"RenameTable", func() error { return s.RenameTable("people", "humans") }},
-		{"DropTable", func() error { return s.DropTable("people") }},
-		{"CreateEmptyTable", func() error { return s.CreateEmptyTable("new_table") }},
 		{"ImportCSV", func() error { return s.ImportCSV("/tmp/none.csv", "x") }},
 		{"AppendCSV", func() error { return s.AppendCSV("/tmp/none.csv", "x") }},
 		{"ImportFile", func() error { return s.ImportFile("/tmp/none.csv", "x") }},
@@ -301,6 +299,109 @@ func TestMutationsStillStubbed(t *testing.T) {
 				t.Errorf("%s err = %v, want store.ErrReadOnly", tc.name, err)
 			}
 		})
+	}
+}
+
+func TestRenameTable(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if err := s.RenameTable("people", "humans"); err != nil {
+		t.Fatalf("RenameTable: %v", err)
+	}
+	names, err := s.TableNames()
+	if err != nil {
+		t.Fatalf("TableNames: %v", err)
+	}
+	if slices.Contains(names, "people") {
+		t.Errorf("people still present after rename: %v", names)
+	}
+	if !slices.Contains(names, "humans") {
+		t.Errorf("humans not present after rename: %v", names)
+	}
+	// Cache for the old name should be cleared.
+	if s.IsRowEditable("people") {
+		t.Error("IsRowEditable(old name) = true; want false after rename")
+	}
+	n, err := s.TableRowCount("humans")
+	if err != nil {
+		t.Fatalf("TableRowCount: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("humans rowcount = %d; want 3", n)
+	}
+}
+
+func TestRenameTableRejectsUnsafeNames(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if err := s.RenameTable("people", `evil"; DROP TABLE people; --`); err == nil {
+		t.Error("expected unsafe new name to be rejected")
+	}
+	if err := s.RenameTable(`evil"; DROP TABLE people; --`, "x"); err == nil {
+		t.Error("expected unsafe old name to be rejected")
+	}
+}
+
+func TestDropTable(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if err := s.DropTable("extras"); err != nil {
+		t.Fatalf("DropTable: %v", err)
+	}
+	names, err := s.TableNames()
+	if err != nil {
+		t.Fatalf("TableNames: %v", err)
+	}
+	if slices.Contains(names, "extras") {
+		t.Errorf("extras still present after drop: %v", names)
+	}
+}
+
+func TestCreateEmptyTable(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if err := s.CreateEmptyTable("new_table"); err != nil {
+		t.Fatalf("CreateEmptyTable: %v", err)
+	}
+	names, err := s.TableNames()
+	if err != nil {
+		t.Fatalf("TableNames: %v", err)
+	}
+	if !slices.Contains(names, "new_table") {
+		t.Errorf("new_table missing after create: %v", names)
+	}
+	// Has a PK → should be row-editable.
+	if !s.IsRowEditable("new_table") {
+		t.Error("new_table should be row-editable (id INTEGER PRIMARY KEY)")
+	}
+	// Schema columns match the SQLite default.
+	cols, err := s.TableColumns("new_table")
+	if err != nil {
+		t.Fatalf("TableColumns: %v", err)
+	}
+	gotNames := lo.Map(cols, func(c store.PragmaColumn, _ int) string { return c.Name })
+	if !reflect.DeepEqual(gotNames, []string{"id", "name", "value"}) {
+		t.Errorf("columns = %v; want [id name value]", gotNames)
 	}
 }
 
