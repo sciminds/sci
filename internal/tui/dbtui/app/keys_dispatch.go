@@ -132,7 +132,7 @@ func (m *Model) handleNormalModeKey(k string, tab *Tab) bool {
 				}
 			}
 			if overlay == nil {
-				overlay = uikit.NewOverlay(title, c.Value, m.width, m.height, overlayOpts...)
+				overlay = uikit.NewOverlay(title, prettyPrintJSON(c.Value), m.width, m.height, overlayOpts...)
 			}
 			m.notePreview = &notePreviewState{
 				Text:    c.Value,

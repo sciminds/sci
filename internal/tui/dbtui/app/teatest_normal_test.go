@@ -286,6 +286,42 @@ func TestTeatestCellPreview(t *testing.T) {
 	}
 }
 
+// TestTeatestCellPreviewPrettyJSON verifies that pressing Enter on a cell
+// containing compact JSON opens the preview overlay with an indented form
+// while leaving notePreviewState.Text as the original raw value. This is
+// Phase 2 of the duckdb-native work — STRUCT/LIST/MAP/INTERVAL arrive from
+// the duckstore as compact JSON; the preview indents them on focus.
+func TestTeatestCellPreviewPrettyJSON(t *testing.T) {
+	t.Parallel()
+
+	raw := `{"name":"Alice","tags":[1,2,3]}`
+	m, _ := newTeatestModelWithSchema(t, []string{
+		`CREATE TABLE rich (id INTEGER PRIMARY KEY, payload TEXT)`,
+		`INSERT INTO rich VALUES (1, '` + raw + `')`,
+	})
+
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
+	waitForOutput(t, tm, "rich")
+
+	// Default cursor lands on col 1 (payload), row 0.
+	sendSpecial(tm, tea.KeyEnter)
+
+	// The pretty form contains `"name": "Alice"` — note the space after the
+	// colon, which the compact form lacks. Use it as the substring marker.
+	waitForOutput(t, tm, `"name": "Alice"`)
+
+	fm := finalModel(t, tm)
+
+	if fm.notePreview == nil {
+		t.Fatal("expected note preview to be open after Enter")
+	}
+	// Raw cell value is preserved on the state for any future callers that
+	// want the un-indented original (dirty detection, copy-to-clipboard, …).
+	if fm.notePreview.Text != raw {
+		t.Errorf("notePreview.Text = %q, want %q", fm.notePreview.Text, raw)
+	}
+}
+
 // ── Navigation Jumps ────────────────────────────────────────────────────
 
 // TestTeatestGoToBottom verifies G moves cursor to last row.
