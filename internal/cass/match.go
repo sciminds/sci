@@ -230,11 +230,7 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 
 	// Get GitHub names from submissions or gh_slug data.
 	// For now, look at submissions with source=github for distinct usernames not yet matched.
-	var ghNames []string
-	err = db.db.NewQuery(`
-		SELECT DISTINCT s.repo_name FROM submissions s
-		WHERE s.source = 'github' AND s.repo_name IS NOT NULL AND s.repo_name != ''
-	`).Column(&ghNames)
+	ghNames, err := loadGitHubRepoNames(db)
 	if err != nil || len(ghNames) == 0 {
 		// No GitHub data to match against — just report unmatched Canvas students.
 		return &MatchResult{Unmatched: len(unmatched)}, nil
@@ -328,4 +324,26 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 	}
 
 	return result, nil
+}
+
+// loadGitHubRepoNames returns distinct non-empty repo_name values from
+// github-source submissions.
+func loadGitHubRepoNames(db *DB) ([]string, error) {
+	rows, err := db.db.Query(`
+		SELECT DISTINCT s.repo_name FROM submissions s
+		WHERE s.source = 'github' AND s.repo_name IS NOT NULL AND s.repo_name != ''
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
 }

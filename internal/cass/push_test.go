@@ -180,8 +180,8 @@ func TestSyncGrades(t *testing.T) {
 	now := time.Now().Format(time.RFC3339)
 
 	// Insert grades that were "pushed."
-	_, err := db.db.NewQuery(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
-		VALUES (1, 'lab-1', 1, 101, '18', {:now})`).Bind(map[string]any{"now": now}).Execute()
+	_, err := db.db.Exec(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
+		VALUES (1, 'lab-1', 1, 101, '18', ?)`, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestSyncGrades(t *testing.T) {
 
 	// Verify shadow table has the grade.
 	var grade string
-	err = db.db.NewQuery("SELECT posted_grade FROM _grades_synced WHERE student_id=1").Row(&grade)
+	err = db.db.QueryRow("SELECT posted_grade FROM _grades_synced WHERE student_id=1").Scan(&grade)
 	if err != nil {
 		t.Fatal(err)
 	}

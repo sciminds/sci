@@ -4,16 +4,21 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/pocketbase/dbx"
 	"github.com/samber/lo"
 	_ "modernc.org/sqlite"
 )
 
 const schemaVersion = "1"
 
+// execer is satisfied by both *sql.DB and *sql.Tx, letting the submission
+// insert/upsert helpers run either standalone or inside a transaction.
+type execer interface {
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
 // DB wraps a SQLite connection for cass data.
 type DB struct {
-	db   *dbx.DB
+	db   *sql.DB
 	Path string
 }
 
@@ -23,7 +28,7 @@ func OpenDB(path string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
-	d := &DB{db: dbx.NewFromDB(sqlDB, "sqlite"), Path: path}
+	d := &DB{db: sqlDB, Path: path}
 	if err := d.ensureSchema(); err != nil {
 		_ = d.Close()
 		return nil, err
@@ -38,9 +43,8 @@ func (d *DB) Close() error {
 
 // ensureSchema creates tables if missing or recreates on version mismatch.
 func (d *DB) ensureSchema() error {
-	// Check if meta table exists.
 	var count int
-	err := d.db.NewQuery("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='meta'").Row(&count)
+	err := d.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='meta'").Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -65,7 +69,7 @@ func (d *DB) ensureSchema() error {
 func (d *DB) dropAll() error {
 	tables := []string{"students", "assignments", "submissions", "grades", "_grades_synced", "log", "meta"}
 	for _, t := range tables {
-		if _, err := d.db.NewQuery(fmt.Sprintf("DROP TABLE IF EXISTS %q", t)).Execute(); err != nil {
+		if _, err := d.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %q", t)); err != nil {
 			return err
 		}
 	}
@@ -148,7 +152,7 @@ func (d *DB) createSchema() error {
 	}
 
 	for _, stmt := range ddl {
-		if _, err := d.db.NewQuery(stmt).Execute(); err != nil {
+		if _, err := d.db.Exec(stmt); err != nil {
 			return fmt.Errorf("create schema: %w", err)
 		}
 	}
@@ -161,12 +165,11 @@ func (d *DB) createSchema() error {
 // GetMeta returns the value for a meta key, or "" if not found.
 func (d *DB) GetMeta(key string) (string, error) {
 	var value string
-	err := d.db.NewQuery("SELECT value FROM meta WHERE key={:key}").
-		Bind(map[string]any{"key": key}).Row(&value)
+	err := d.db.QueryRow("SELECT value FROM meta WHERE key = ?", key).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", nil
-		}
 		return "", err
 	}
 	return value, nil
@@ -174,9 +177,10 @@ func (d *DB) GetMeta(key string) (string, error) {
 
 // SetMeta upserts a meta key-value pair.
 func (d *DB) SetMeta(key, value string) error {
-	_, err := d.db.NewQuery(
-		"INSERT INTO meta (key, value) VALUES ({:key}, {:value}) ON CONFLICT(key) DO UPDATE SET value={:value}",
-	).Bind(map[string]any{"key": key, "value": value}).Execute()
+	_, err := d.db.Exec(
+		"INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+		key, value,
+	)
 	return err
 }
 
@@ -193,7 +197,7 @@ type Student struct {
 	Excluded       bool   `db:"excluded"`
 }
 
-// NullableStudent is used for scanning rows that may have NULL columns.
+// nullableStudent is used for scanning rows that may have NULL columns.
 // Use Student for API/logic code; this is an internal scan target.
 type nullableStudent struct {
 	CanvasID       int            `db:"canvas_id"`
@@ -279,24 +283,17 @@ func (d *DB) UpsertStudents(students []Student) error {
 	if len(students) == 0 {
 		return nil
 	}
-	return d.inTx(func(tx *dbx.Tx) error {
+	return d.inTx(func(tx *sql.Tx) error {
+		const q = `
+			INSERT INTO students (canvas_id, name, sortable_name, email, login_id)
+			VALUES (?, ?, ?, ?, ?)
+			ON CONFLICT(canvas_id) DO UPDATE SET
+				name            = excluded.name,
+				sortable_name   = excluded.sortable_name,
+				email           = excluded.email,
+				login_id        = excluded.login_id`
 		for _, s := range students {
-			_, err := tx.NewQuery(`
-				INSERT INTO students (canvas_id, name, sortable_name, email, login_id)
-				VALUES ({:canvas_id}, {:name}, {:sortable_name}, {:email}, {:login_id})
-				ON CONFLICT(canvas_id) DO UPDATE SET
-					name            = {:name},
-					sortable_name   = {:sortable_name},
-					email           = {:email},
-					login_id        = {:login_id}
-			`).Bind(map[string]any{
-				"canvas_id":     s.CanvasID,
-				"name":          s.Name,
-				"sortable_name": s.SortableName,
-				"email":         s.Email,
-				"login_id":      s.LoginID,
-			}).Execute()
-			if err != nil {
+			if _, err := tx.Exec(q, s.CanvasID, s.Name, s.SortableName, s.Email, s.LoginID); err != nil {
 				return fmt.Errorf("upsert student %d: %w", s.CanvasID, err)
 			}
 		}
@@ -306,9 +303,23 @@ func (d *DB) UpsertStudents(students []Student) error {
 
 // AllStudents returns all students ordered by name.
 func (d *DB) AllStudents() ([]Student, error) {
-	var raw []nullableStudent
-	err := d.db.NewQuery("SELECT * FROM students ORDER BY name").All(&raw)
+	rows, err := d.db.Query(`
+		SELECT canvas_id, name, sortable_name, email, login_id, github_username, excluded
+		FROM students ORDER BY name`)
 	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var raw []nullableStudent
+	for rows.Next() {
+		var n nullableStudent
+		if err := rows.Scan(&n.CanvasID, &n.Name, &n.SortableName, &n.Email, &n.LoginID, &n.GitHubUsername, &n.Excluded); err != nil {
+			return nil, err
+		}
+		raw = append(raw, n)
+	}
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return lo.Map(raw, func(r nullableStudent, _ int) Student {
@@ -321,36 +332,35 @@ func (d *DB) UpsertAssignments(assignments []AssignmentRow) error {
 	if len(assignments) == 0 {
 		return nil
 	}
-	return d.inTx(func(tx *dbx.Tx) error {
+	return d.inTx(func(tx *sql.Tx) error {
+		const q = `
+			INSERT INTO assignments (slug, title, canvas_id, gh_slug, points_possible, gh_points, deadline, gh_deadline, published, assignment_group, post_manually)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(slug) DO UPDATE SET
+				title            = excluded.title,
+				canvas_id        = excluded.canvas_id,
+				gh_slug          = excluded.gh_slug,
+				points_possible  = excluded.points_possible,
+				gh_points        = excluded.gh_points,
+				deadline         = excluded.deadline,
+				gh_deadline      = excluded.gh_deadline,
+				published        = excluded.published,
+				assignment_group = excluded.assignment_group,
+				post_manually    = excluded.post_manually`
 		for _, a := range assignments {
-			_, err := tx.NewQuery(`
-				INSERT INTO assignments (slug, title, canvas_id, gh_slug, points_possible, gh_points, deadline, gh_deadline, published, assignment_group, post_manually)
-				VALUES ({:slug}, {:title}, {:canvas_id}, {:gh_slug}, {:points_possible}, {:gh_points}, {:deadline}, {:gh_deadline}, {:published}, {:assignment_group}, {:post_manually})
-				ON CONFLICT(slug) DO UPDATE SET
-					title            = {:title},
-					canvas_id        = {:canvas_id},
-					gh_slug          = {:gh_slug},
-					points_possible  = {:points_possible},
-					gh_points        = {:gh_points},
-					deadline         = {:deadline},
-					gh_deadline      = {:gh_deadline},
-					published        = {:published},
-					assignment_group = {:assignment_group},
-					post_manually    = {:post_manually}
-			`).Bind(map[string]any{
-				"slug":             a.Slug,
-				"title":            a.Title,
-				"canvas_id":        a.CanvasID,
-				"gh_slug":          nullStr(a.GHSlug),
-				"points_possible":  a.PointsPossible,
-				"gh_points":        a.GHPoints,
-				"deadline":         nullStr(a.Deadline),
-				"gh_deadline":      nullStr(a.GHDeadline),
-				"published":        a.Published,
-				"assignment_group": a.AssignmentGroup,
-				"post_manually":    a.PostManually,
-			}).Execute()
-			if err != nil {
+			if _, err := tx.Exec(q,
+				a.Slug,
+				a.Title,
+				a.CanvasID,
+				nullStr(a.GHSlug),
+				a.PointsPossible,
+				a.GHPoints,
+				nullStr(a.Deadline),
+				nullStr(a.GHDeadline),
+				a.Published,
+				a.AssignmentGroup,
+				a.PostManually,
+			); err != nil {
 				return fmt.Errorf("upsert assignment %q: %w", a.Slug, err)
 			}
 		}
@@ -360,9 +370,48 @@ func (d *DB) UpsertAssignments(assignments []AssignmentRow) error {
 
 // AllAssignments returns all assignments ordered by title.
 func (d *DB) AllAssignments() ([]AssignmentRow, error) {
+	sqlRows, err := d.db.Query(`
+		SELECT slug, title, canvas_id, gh_slug, points_possible, gh_points,
+			deadline, gh_deadline, published, assignment_group, post_manually
+		FROM assignments ORDER BY title`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = sqlRows.Close() }()
+
 	var rows []AssignmentRow
-	err := d.db.NewQuery("SELECT * FROM assignments ORDER BY title").All(&rows)
-	return rows, err
+	for sqlRows.Next() {
+		var (
+			a        AssignmentRow
+			canvasID sql.NullInt64
+			ghPoints sql.NullFloat64
+		)
+		if err := sqlRows.Scan(
+			&a.Slug,
+			&a.Title,
+			&canvasID,
+			&a.GHSlug,
+			&a.PointsPossible,
+			&ghPoints,
+			&a.Deadline,
+			&a.GHDeadline,
+			&a.Published,
+			&a.AssignmentGroup,
+			&a.PostManually,
+		); err != nil {
+			return nil, err
+		}
+		if canvasID.Valid {
+			v := int(canvasID.Int64)
+			a.CanvasID = &v
+		}
+		if ghPoints.Valid {
+			v := ghPoints.Float64
+			a.GHPoints = &v
+		}
+		rows = append(rows, a)
+	}
+	return rows, sqlRows.Err()
 }
 
 // UpdateAssignmentGHFields updates GitHub-specific fields on an existing assignment.
@@ -371,10 +420,10 @@ func (d *DB) UpdateAssignmentGHFields(ghSlug string, ghPoints *float64, ghDeadli
 	if ghDeadline != nil {
 		dl = *ghDeadline
 	}
-	_, err := d.db.NewQuery(`
-		UPDATE assignments SET gh_points={:gh_points}, gh_deadline={:gh_deadline}
-		WHERE gh_slug={:gh_slug}
-	`).Bind(map[string]any{"gh_slug": ghSlug, "gh_points": ghPoints, "gh_deadline": dl}).Execute()
+	_, err := d.db.Exec(
+		`UPDATE assignments SET gh_points = ?, gh_deadline = ? WHERE gh_slug = ?`,
+		ghPoints, dl, ghSlug,
+	)
 	return err
 }
 
@@ -385,8 +434,8 @@ func (d *DB) UpsertSubmission(s SubmissionRow) error {
 
 // ReplaceSubmissions deletes all existing submissions and inserts new ones.
 func (d *DB) ReplaceSubmissions(subs []SubmissionRow) error {
-	return d.inTx(func(tx *dbx.Tx) error {
-		if _, err := tx.NewQuery("DELETE FROM submissions").Execute(); err != nil {
+	return d.inTx(func(tx *sql.Tx) error {
+		if _, err := tx.Exec("DELETE FROM submissions"); err != nil {
 			return err
 		}
 		for _, s := range subs {
@@ -403,7 +452,7 @@ func (d *DB) UpsertSubmissions(subs []SubmissionRow) error {
 	if len(subs) == 0 {
 		return nil
 	}
-	return d.inTx(func(tx *dbx.Tx) error {
+	return d.inTx(func(tx *sql.Tx) error {
 		for _, s := range subs {
 			if err := upsertSubmission(tx, s); err != nil {
 				return err
@@ -415,9 +464,10 @@ func (d *DB) UpsertSubmissions(subs []SubmissionRow) error {
 
 // SetStudentGitHubUsername sets the github_username for a student by canvas_id.
 func (d *DB) SetStudentGitHubUsername(canvasID int, username string) error {
-	_, err := d.db.NewQuery(
-		"UPDATE students SET github_username={:username} WHERE canvas_id={:id}",
-	).Bind(map[string]any{"username": username, "id": canvasID}).Execute()
+	_, err := d.db.Exec(
+		"UPDATE students SET github_username = ? WHERE canvas_id = ?",
+		username, canvasID,
+	)
 	return err
 }
 
@@ -425,22 +475,37 @@ func (d *DB) SetStudentGitHubUsername(canvasID int, username string) error {
 
 // WriteLog records an operation in the log table.
 func (d *DB) WriteLog(op, summary, detail string) error {
-	_, err := d.db.NewQuery(
-		"INSERT INTO log (op, summary, detail) VALUES ({:op}, {:summary}, {:detail})",
-	).Bind(map[string]any{"op": op, "summary": summary, "detail": nilIfEmpty(detail)}).Execute()
+	_, err := d.db.Exec(
+		"INSERT INTO log (op, summary, detail) VALUES (?, ?, ?)",
+		op, summary, nilIfEmpty(detail),
+	)
 	return err
 }
 
 // ReadLog returns the most recent log entries (newest first).
 func (d *DB) ReadLog(limit int) ([]LogEntry, error) {
+	sqlRows, err := d.db.Query(
+		"SELECT id, op, summary, detail, created_at FROM log ORDER BY id DESC LIMIT ?",
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = sqlRows.Close() }()
+
 	var rows []LogEntry
-	err := d.db.NewQuery("SELECT * FROM log ORDER BY id DESC LIMIT {:limit}").
-		Bind(map[string]any{"limit": limit}).All(&rows)
-	return rows, err
+	for sqlRows.Next() {
+		var e LogEntry
+		if err := sqlRows.Scan(&e.ID, &e.Op, &e.Summary, &e.Detail, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		rows = append(rows, e)
+	}
+	return rows, sqlRows.Err()
 }
 
 // inTx runs fn inside a transaction, committing on success or rolling back on error.
-func (d *DB) inTx(fn func(tx *dbx.Tx) error) error {
+func (d *DB) inTx(fn func(tx *sql.Tx) error) error {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -452,46 +517,52 @@ func (d *DB) inTx(fn func(tx *dbx.Tx) error) error {
 	return tx.Commit()
 }
 
-func submissionBinds(s SubmissionRow) map[string]any {
-	return map[string]any{
-		"student_id":          s.StudentID,
-		"assignment_slug":     s.AssignmentSlug,
-		"source":              s.Source,
-		"submitted":           s.Submitted,
-		"submitted_at":        nullStr(s.SubmittedAt),
-		"late":                s.Late,
-		"lateness_seconds":    s.LatenessSeconds,
-		"score":               s.Score,
-		"workflow_state":      nullStr(s.WorkflowState),
-		"repo_name":           nullStr(s.RepoName),
-		"commit_count":        s.CommitCount,
-		"passing":             s.Passing,
-		"gh_autograder_score": nullStr(s.GHAutograderScore),
-		"last_commit_at":      nullStr(s.LastCommitAt),
-		"last_commit_sha":     nullStr(s.LastCommitSHA),
-		"fetched_at":          s.FetchedAt,
+// submissionArgs returns the positional argument list for inserting or
+// upserting a submission row.
+func submissionArgs(s SubmissionRow) []any {
+	return []any{
+		s.StudentID,
+		s.AssignmentSlug,
+		s.Source,
+		s.Submitted,
+		nullStr(s.SubmittedAt),
+		s.Late,
+		s.LatenessSeconds,
+		s.Score,
+		nullStr(s.WorkflowState),
+		nullStr(s.RepoName),
+		s.CommitCount,
+		s.Passing,
+		nullStr(s.GHAutograderScore),
+		nullStr(s.LastCommitAt),
+		nullStr(s.LastCommitSHA),
+		s.FetchedAt,
 	}
 }
 
 const submissionCols = `student_id, assignment_slug, source, submitted, submitted_at, late, lateness_seconds, score, workflow_state, repo_name, commit_count, passing, gh_autograder_score, last_commit_at, last_commit_sha, fetched_at`
 
-const submissionVals = `{:student_id}, {:assignment_slug}, {:source}, {:submitted}, {:submitted_at}, {:late}, {:lateness_seconds}, {:score}, {:workflow_state}, {:repo_name}, {:commit_count}, {:passing}, {:gh_autograder_score}, {:last_commit_at}, {:last_commit_sha}, {:fetched_at}`
+const submissionPlaceholders = `?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?`
 
-const submissionUpdateSet = `submitted={:submitted}, submitted_at={:submitted_at}, late={:late}, lateness_seconds={:lateness_seconds}, score={:score}, workflow_state={:workflow_state}, repo_name={:repo_name}, commit_count={:commit_count}, passing={:passing}, gh_autograder_score={:gh_autograder_score}, last_commit_at={:last_commit_at}, last_commit_sha={:last_commit_sha}, fetched_at={:fetched_at}`
+const submissionUpdateSet = `submitted=excluded.submitted, submitted_at=excluded.submitted_at, late=excluded.late, lateness_seconds=excluded.lateness_seconds, score=excluded.score, workflow_state=excluded.workflow_state, repo_name=excluded.repo_name, commit_count=excluded.commit_count, passing=excluded.passing, gh_autograder_score=excluded.gh_autograder_score, last_commit_at=excluded.last_commit_at, last_commit_sha=excluded.last_commit_sha, fetched_at=excluded.fetched_at`
 
-func insertSubmission(b dbx.Builder, s SubmissionRow) error {
-	_, err := b.NewQuery(`INSERT INTO submissions (` + submissionCols + `) VALUES (` + submissionVals + `)`).
-		Bind(submissionBinds(s)).Execute()
+func insertSubmission(e execer, s SubmissionRow) error {
+	_, err := e.Exec(
+		`INSERT INTO submissions (`+submissionCols+`) VALUES (`+submissionPlaceholders+`)`,
+		submissionArgs(s)...,
+	)
 	if err != nil {
 		return fmt.Errorf("insert submission: %w", err)
 	}
 	return nil
 }
 
-func upsertSubmission(b dbx.Builder, s SubmissionRow) error {
-	_, err := b.NewQuery(`INSERT INTO submissions (` + submissionCols + `) VALUES (` + submissionVals + `)
-		ON CONFLICT(student_id, assignment_slug, source) DO UPDATE SET ` + submissionUpdateSet).
-		Bind(submissionBinds(s)).Execute()
+func upsertSubmission(e execer, s SubmissionRow) error {
+	_, err := e.Exec(
+		`INSERT INTO submissions (`+submissionCols+`) VALUES (`+submissionPlaceholders+`)
+			ON CONFLICT(student_id, assignment_slug, source) DO UPDATE SET `+submissionUpdateSet,
+		submissionArgs(s)...,
+	)
 	return err
 }
 

@@ -21,7 +21,7 @@ func Status(db *DB, cfg *Config) (*StatusResult, error) {
 	unmatchedCount := 0
 	if cfg.HasClassroom() {
 		var cnt int
-		if err := db.db.NewQuery("SELECT count(*) FROM students WHERE github_username IS NULL OR github_username = ''").Row(&cnt); err == nil {
+		if err := db.db.QueryRow("SELECT count(*) FROM students WHERE github_username IS NULL OR github_username = ''").Scan(&cnt); err == nil {
 			unmatchedCount = cnt
 		}
 	}
@@ -29,11 +29,11 @@ func Status(db *DB, cfg *Config) (*StatusResult, error) {
 	// Count pending grade changes.
 	pendingGrades := 0
 	var count int
-	err = db.db.NewQuery(`
+	err = db.db.QueryRow(`
 		SELECT count(*) FROM grades g
 		LEFT JOIN _grades_synced s ON g.student_id = s.student_id AND g.assignment_slug = s.assignment_slug
 		WHERE g.posted_grade != '' AND (s.posted_grade IS NULL OR g.posted_grade != s.posted_grade)
-	`).Row(&count)
+	`).Scan(&count)
 	if err == nil {
 		pendingGrades = count
 	}

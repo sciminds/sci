@@ -360,7 +360,7 @@ func TestIntegration_PullGHSubmissions(t *testing.T) {
 
 	// Verify submissions in DB.
 	var count int
-	if err := db.db.NewQuery("SELECT count(*) FROM submissions WHERE source='github'").Row(&count); err != nil {
+	if err := db.db.QueryRow("SELECT count(*) FROM submissions WHERE source='github'").Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("GitHub submissions in DB: %d", count)

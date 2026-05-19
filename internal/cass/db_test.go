@@ -19,8 +19,7 @@ func TestCreateSchema(t *testing.T) {
 	want := []string{"students", "assignments", "submissions", "grades", "_grades_synced", "log", "meta"}
 	for _, table := range want {
 		var count int
-		err := db.db.NewQuery("SELECT count(*) FROM sqlite_master WHERE type='table' AND name={:name}").
-			Bind(map[string]any{"name": table}).Row(&count)
+		err := db.db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name = ?", table).Scan(&count)
 		if err != nil {
 			t.Fatalf("query %s: %v", table, err)
 		}
@@ -135,7 +134,7 @@ func TestUpsertStudents(t *testing.T) {
 	}
 
 	// Set a local field (github_username) manually.
-	_, err = db.db.NewQuery("UPDATE students SET github_username='alice-gh' WHERE canvas_id=1").Execute()
+	_, err = db.db.Exec("UPDATE students SET github_username='alice-gh' WHERE canvas_id=1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +225,7 @@ func TestReplaceSubmissions(t *testing.T) {
 
 	// Should have 1 row now (old data replaced).
 	var count int
-	if err := db.db.NewQuery("SELECT count(*) FROM submissions").Row(&count); err != nil {
+	if err := db.db.QueryRow("SELECT count(*) FROM submissions").Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 1 {
@@ -240,7 +239,7 @@ func TestUpsertStudents_PreservesExcluded(t *testing.T) {
 
 	// Insert a student and mark as excluded.
 	_ = db.UpsertStudents([]Student{{CanvasID: 1, Name: "Alice", Email: "a@test.com"}})
-	_, _ = db.db.NewQuery("UPDATE students SET excluded=1 WHERE canvas_id=1").Execute()
+	_, _ = db.db.Exec("UPDATE students SET excluded=1 WHERE canvas_id=1")
 
 	// Re-upsert with updated name.
 	_ = db.UpsertStudents([]Student{{CanvasID: 1, Name: "Alice Updated", Email: "a2@test.com"}})
@@ -270,7 +269,7 @@ func TestUpsertSubmissions_Batch(t *testing.T) {
 	}
 
 	var count int
-	_ = db.db.NewQuery("SELECT count(*) FROM submissions").Row(&count)
+	_ = db.db.QueryRow("SELECT count(*) FROM submissions").Scan(&count)
 	if count != 2 {
 		t.Errorf("count = %d, want 2", count)
 	}
@@ -281,7 +280,7 @@ func TestUpsertSubmissions_Batch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_ = db.db.NewQuery("SELECT count(*) FROM submissions").Row(&count)
+	_ = db.db.QueryRow("SELECT count(*) FROM submissions").Scan(&count)
 	if count != 2 {
 		t.Errorf("count after upsert = %d, want 2", count)
 	}
@@ -363,7 +362,7 @@ func TestReplaceSubmissions_Empty(t *testing.T) {
 	}
 
 	var count int
-	_ = db.db.NewQuery("SELECT count(*) FROM submissions").Row(&count)
+	_ = db.db.QueryRow("SELECT count(*) FROM submissions").Scan(&count)
 	if count != 0 {
 		t.Errorf("count = %d, want 0", count)
 	}

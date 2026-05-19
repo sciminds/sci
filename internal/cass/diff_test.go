@@ -28,20 +28,20 @@ func TestDiffLocal_DetectsChanges(t *testing.T) {
 	now := time.Now().Format(time.RFC3339)
 
 	// Insert a grade and its synced baseline.
-	_, err := db.db.NewQuery(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
-		VALUES (1, 'lab-1', 1, 101, '18', {:now})`).Bind(map[string]any{"now": now}).Execute()
+	_, err := db.db.Exec(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
+		VALUES (1, 'lab-1', 1, 101, '18', ?)`, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.db.NewQuery(`INSERT INTO _grades_synced (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, synced_at)
-		VALUES (1, 'lab-1', 1, 101, '', {:now})`).Bind(map[string]any{"now": now}).Execute()
+	_, err = db.db.Exec(`INSERT INTO _grades_synced (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, synced_at)
+		VALUES (1, 'lab-1', 1, 101, '', ?)`, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Add a second grade with no baseline (new entry).
-	_, err = db.db.NewQuery(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
-		VALUES (2, 'lab-1', 2, 101, '15', {:now})`).Bind(map[string]any{"now": now}).Execute()
+	_, err = db.db.Exec(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
+		VALUES (2, 'lab-1', 2, 101, '15', ?)`, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,15 +76,15 @@ func TestDiffRemote_DetectsConflicts(t *testing.T) {
 	// Insert grades and synced baseline so DiffLocal finds changes.
 	for _, q := range []string{
 		`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
-			VALUES (1, 'lab-1', 101, 201, '90', {:now})`,
+			VALUES (1, 'lab-1', 101, 201, '90', ?)`,
 		`INSERT INTO _grades_synced (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, synced_at)
-			VALUES (1, 'lab-1', 101, 201, '80', {:now})`,
+			VALUES (1, 'lab-1', 101, 201, '80', ?)`,
 		`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
-			VALUES (2, 'lab-1', 102, 201, '85', {:now})`,
+			VALUES (2, 'lab-1', 102, 201, '85', ?)`,
 		`INSERT INTO _grades_synced (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, synced_at)
-			VALUES (2, 'lab-1', 102, 201, '80', {:now})`,
+			VALUES (2, 'lab-1', 102, 201, '80', ?)`,
 	} {
-		if _, err := db.db.NewQuery(q).Bind(map[string]any{"now": now}).Execute(); err != nil {
+		if _, err := db.db.Exec(q, now); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -152,8 +152,8 @@ func TestDiffLocal_NullBaseline(t *testing.T) {
 	_ = db.UpsertStudents([]Student{{CanvasID: 1, Name: "Alice"}})
 
 	// Grade with no synced baseline (new grade).
-	_, _ = db.db.NewQuery(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
-		VALUES (1, 'lab-1', 1, 101, '95', {:now})`).Bind(map[string]any{"now": now}).Execute()
+	_, _ = db.db.Exec(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
+		VALUES (1, 'lab-1', 1, 101, '95', ?)`, now)
 
 	result, err := DiffLocal(db)
 	if err != nil {
@@ -187,15 +187,15 @@ func TestRevert(t *testing.T) {
 	now := time.Now().Format(time.RFC3339)
 
 	// Insert synced baseline.
-	_, err := db.db.NewQuery(`INSERT INTO _grades_synced (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, synced_at)
-		VALUES (1, 'lab-1', 1, 101, '10', {:now})`).Bind(map[string]any{"now": now}).Execute()
+	_, err := db.db.Exec(`INSERT INTO _grades_synced (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, synced_at)
+		VALUES (1, 'lab-1', 1, 101, '10', ?)`, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Insert modified grade.
-	_, err = db.db.NewQuery(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
-		VALUES (1, 'lab-1', 1, 101, '20', {:now})`).Bind(map[string]any{"now": now}).Execute()
+	_, err = db.db.Exec(`INSERT INTO grades (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, updated_at)
+		VALUES (1, 'lab-1', 1, 101, '20', ?)`, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestRevert(t *testing.T) {
 
 	// Verify grade was reverted to baseline.
 	var grade string
-	err = db.db.NewQuery("SELECT posted_grade FROM grades WHERE student_id=1 AND assignment_slug='lab-1'").Row(&grade)
+	err = db.db.QueryRow("SELECT posted_grade FROM grades WHERE student_id=1 AND assignment_slug='lab-1'").Scan(&grade)
 	if err != nil {
 		t.Fatal(err)
 	}

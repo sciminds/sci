@@ -82,40 +82,41 @@ func DiffLocal(db *DB) (*DiffResult, error) {
 		return s.CanvasID, s.Name
 	})
 
-	type gradeRow struct {
-		StudentID          int            `db:"student_id"`
-		AssignmentSlug     string         `db:"assignment_slug"`
-		CanvasUserID       int            `db:"canvas_user_id"`
-		CanvasAssignmentID int            `db:"canvas_assignment_id"`
-		PostedGrade        string         `db:"posted_grade"`
-		Baseline           sql.NullString `db:"baseline"`
-	}
-
-	var rows []gradeRow
-	err = db.db.NewQuery(`
+	sqlRows, err := db.db.Query(`
 		SELECT g.student_id, g.assignment_slug, g.canvas_user_id, g.canvas_assignment_id, g.posted_grade,
 			   s.posted_grade AS baseline
 		FROM grades g
 		LEFT JOIN _grades_synced s ON g.student_id = s.student_id AND g.assignment_slug = s.assignment_slug
 		WHERE g.posted_grade != '' AND (s.posted_grade IS NULL OR g.posted_grade != s.posted_grade)
 		ORDER BY g.assignment_slug, g.student_id
-	`).All(&rows)
+	`)
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = sqlRows.Close() }()
 
-	changes := make([]GradeChange, len(rows))
-	for i, r := range rows {
-		baseline := lo.Ternary(r.Baseline.Valid, r.Baseline.String, "")
-		changes[i] = GradeChange{
-			StudentID:          r.StudentID,
-			StudentName:        nameMap[r.StudentID],
-			AssignmentSlug:     r.AssignmentSlug,
-			CanvasUserID:       r.CanvasUserID,
-			CanvasAssignmentID: r.CanvasAssignmentID,
-			Baseline:           baseline,
-			Current:            r.PostedGrade,
+	var changes []GradeChange
+	for sqlRows.Next() {
+		var (
+			studentID, canvasUserID, canvasAssignmentID int
+			slug, posted                                string
+			baseline                                    sql.NullString
+		)
+		if err := sqlRows.Scan(&studentID, &slug, &canvasUserID, &canvasAssignmentID, &posted, &baseline); err != nil {
+			return nil, err
 		}
+		changes = append(changes, GradeChange{
+			StudentID:          studentID,
+			StudentName:        nameMap[studentID],
+			AssignmentSlug:     slug,
+			CanvasUserID:       canvasUserID,
+			CanvasAssignmentID: canvasAssignmentID,
+			Baseline:           lo.Ternary(baseline.Valid, baseline.String, ""),
+			Current:            posted,
+		})
+	}
+	if err := sqlRows.Err(); err != nil {
+		return nil, err
 	}
 
 	return &DiffResult{Changes: changes}, nil
@@ -232,18 +233,17 @@ func DiffRemote(ctx context.Context, db *DB, canvasBaseURL, token string, course
 // Returns the number of grades reverted.
 func Revert(db *DB) (int, error) {
 	// Delete grades that have no synced baseline.
-	_, err := db.db.NewQuery(`
+	if _, err := db.db.Exec(`
 		DELETE FROM grades WHERE NOT EXISTS (
 			SELECT 1 FROM _grades_synced s
 			WHERE s.student_id = grades.student_id AND s.assignment_slug = grades.assignment_slug
 		)
-	`).Execute()
-	if err != nil {
+	`); err != nil {
 		return 0, err
 	}
 
 	// Restore from baseline.
-	res, err := db.db.NewQuery(`
+	res, err := db.db.Exec(`
 		UPDATE grades SET posted_grade = (
 			SELECT s.posted_grade FROM _grades_synced s
 			WHERE s.student_id = grades.student_id AND s.assignment_slug = grades.assignment_slug
@@ -253,7 +253,7 @@ func Revert(db *DB) (int, error) {
 			WHERE s.student_id = grades.student_id AND s.assignment_slug = grades.assignment_slug
 			AND s.posted_grade != grades.posted_grade
 		)
-	`).Execute()
+	`)
 	if err != nil {
 		return 0, err
 	}

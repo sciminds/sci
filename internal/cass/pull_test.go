@@ -63,7 +63,7 @@ func TestPullStudents_PreservesLocalFields(t *testing.T) {
 	}
 
 	// Set local field.
-	_, err := db.db.NewQuery("UPDATE students SET github_username='alice-gh' WHERE canvas_id=1").Execute()
+	_, err := db.db.Exec("UPDATE students SET github_username='alice-gh' WHERE canvas_id=1")
 	if err != nil {
 		t.Fatal(err)
 	}

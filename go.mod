@@ -18,7 +18,6 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/muesli/termenv v0.16.0
 	github.com/oapi-codegen/runtime v1.4.0
-	github.com/pocketbase/dbx v1.12.0
 	github.com/samber/lo v1.53.0
 	github.com/urfave/cli/v3 v3.7.0
 	github.com/yuin/goldmark v1.8.2
@@ -53,7 +52,6 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
-	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect

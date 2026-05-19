@@ -102,15 +102,14 @@ func pollProgress(ctx context.Context, client *canvas.Client, progressID int) er
 // SyncGrades copies current grades to the shadow table (_grades_synced).
 // Call this after a successful push.
 func SyncGrades(db *DB) error {
-	_, err := db.db.NewQuery("DELETE FROM _grades_synced").Execute()
-	if err != nil {
+	if _, err := db.db.Exec("DELETE FROM _grades_synced"); err != nil {
 		return err
 	}
-	_, err = db.db.NewQuery(`
+	_, err := db.db.Exec(`
 		INSERT INTO _grades_synced (student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, synced_at)
 		SELECT student_id, assignment_slug, canvas_user_id, canvas_assignment_id, posted_grade, datetime('now')
 		FROM grades
 		WHERE posted_grade != ''
-	`).Execute()
+	`)
 	return err
 }
