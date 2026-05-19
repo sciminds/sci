@@ -528,9 +528,43 @@ func buildPKWhere(keys map[string]string) (string, error) {
 	return strings.Join(parts, " AND "), nil
 }
 
-// DeleteRows — Phase 1 returns store.ErrReadOnly.
-func (s *Store) DeleteRows(string, []store.RowIdentifier) (int64, error) {
-	return 0, store.ErrReadOnly
+// DeleteRows deletes rows identified by ids. Each RowIdentifier is
+// resolved the same way UpdateCell resolves its arguments: explicit
+// PKValues win, otherwise RowID is looked up in the per-table cache
+// populated by the most recent QueryTable. Returns the number of rows
+// actually removed (counted via `DELETE … RETURNING 1`). An empty ids
+// slice succeeds with count 0.
+func (s *Store) DeleteRows(table string, ids []store.RowIdentifier) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	if !store.IsSafeIdentifier(table) {
+		return 0, fmt.Errorf("invalid table name: %q", table)
+	}
+	clauses := make([]string, 0, len(ids))
+	for _, id := range ids {
+		keys, err := s.resolvePKValues(table, id.RowID, id.PKValues)
+		if err != nil {
+			return 0, fmt.Errorf("row %d: %w", id.RowID, err)
+		}
+		clause, err := buildPKWhere(keys)
+		if err != nil {
+			return 0, err
+		}
+		clauses = append(clauses, "("+clause+")")
+	}
+	sql := fmt.Sprintf(`DELETE FROM "%s" WHERE %s RETURNING 1 AS __sci_deleted__`,
+		table, strings.Join(clauses, " OR "))
+	lines, err := s.proc.query(sql)
+	if err != nil {
+		return 0, fmt.Errorf("delete from %q: %w", table, err)
+	}
+	// Invalidate the row-key cache — the synth IDs the caller knew about
+	// no longer match the next QueryTable's row ordering.
+	s.mu.Lock()
+	delete(s.rowKeys, table)
+	s.mu.Unlock()
+	return int64(len(lines)), nil
 }
 
 // InsertRows — Phase 1 returns store.ErrReadOnly.

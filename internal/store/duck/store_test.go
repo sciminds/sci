@@ -288,7 +288,6 @@ func TestMutationsStillStubbed(t *testing.T) {
 		name string
 		fn   func() error
 	}{
-		{"DeleteRows", func() error { _, err := s.DeleteRows("people", []store.RowIdentifier{{RowID: 1}}); return err }},
 		{"InsertRows", func() error { return s.InsertRows("people", []string{"id"}, [][]string{{"99"}}) }},
 		{"RenameTable", func() error { return s.RenameTable("people", "humans") }},
 		{"DropTable", func() error { return s.DropTable("people") }},
@@ -369,6 +368,67 @@ func TestUpdateCellEscapesSingleQuote(t *testing.T) {
 	}
 	if rows[0][1] != "O'Brien" {
 		t.Errorf("name = %q; want O'Brien", rows[0][1])
+	}
+}
+
+func TestDeleteRows(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if _, _, _, _, err := s.QueryTable("people"); err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+	// Delete alice (rowID 1) and bob (rowID 2); leave carol.
+	n, err := s.DeleteRows("people", []store.RowIdentifier{{RowID: 1}, {RowID: 2}})
+	if err != nil {
+		t.Fatalf("DeleteRows: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("deleted = %d; want 2", n)
+	}
+	_, rows, _, _, err := s.QueryTable("people")
+	if err != nil {
+		t.Fatalf("re-query: %v", err)
+	}
+	if len(rows) != 1 || rows[0][1] != "carol" {
+		t.Errorf("remaining rows = %v; want [[3 carol …]]", rows)
+	}
+}
+
+func TestDeleteRowsEmpty(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	n, err := s.DeleteRows("people", nil)
+	if err != nil {
+		t.Fatalf("DeleteRows(nil): %v", err)
+	}
+	if n != 0 {
+		t.Errorf("deleted = %d; want 0", n)
+	}
+}
+
+func TestDeleteRowsRejectsNoPKTable(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if _, _, _, _, err := s.QueryTable("extras"); err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+	if _, err := s.DeleteRows("extras", []store.RowIdentifier{{RowID: 1}}); err == nil {
+		t.Errorf("expected error deleting from no-PK table")
 	}
 }
 
