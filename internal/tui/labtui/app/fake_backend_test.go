@@ -26,6 +26,14 @@ type fakeBackend struct {
 	progressFrames []lab.Progress
 	transferErr    error
 	transferCalls  []string
+
+	// holdUntilCancel, when true, makes Transfer block on ctx.Done() after
+	// pushing all progressFrames. Lets tests observe the in-flight transfer
+	// state (screen=screenTransfer, activeCancel set) reliably; without this
+	// the fake races to completion between polling ticks and tests can see
+	// screenDone before they ever observe screenTransfer. Default false
+	// preserves existing tests that expect natural completion.
+	holdUntilCancel bool
 }
 
 func newFakeBackend() *fakeBackend {
@@ -85,6 +93,7 @@ func (f *fakeBackend) Transfer(ctx context.Context, remotePath, _ string, progre
 	f.transferCalls = append(f.transferCalls, remotePath)
 	frames := append([]lab.Progress(nil), f.progressFrames...)
 	err := f.transferErr
+	hold := f.holdUntilCancel
 	f.mu.Unlock()
 	for _, p := range frames {
 		select {
@@ -92,6 +101,10 @@ func (f *fakeBackend) Transfer(ctx context.Context, remotePath, _ string, progre
 			return ctx.Err()
 		case progress <- p:
 		}
+	}
+	if hold {
+		<-ctx.Done()
+		return ctx.Err()
 	}
 	return err
 }

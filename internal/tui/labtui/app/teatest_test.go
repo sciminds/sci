@@ -359,10 +359,13 @@ func TestTeatest_PressShiftR_RefreshesListing(t *testing.T) {
 func TestTeatest_TransferQuitWithQ_LeavesPending(t *testing.T) {
 	hermeticTransferLog(t)
 	b := sampleBackend()
-	// Many frames so the transfer doesn't auto-complete before we send `q`.
 	for i := 0; i < 50; i++ {
 		b.progressFrames = append(b.progressFrames, lab.Progress{Bytes: int64(i), Percent: i, Rate: "1MB/s", ETA: "0:01:00"})
 	}
+	// Hold the transfer in-flight until ctx cancellation so `q` reliably
+	// hits while screen=screenTransfer. Frame-count alone is unreliable: the
+	// buffered progress channel lets the producer race to completion.
+	b.holdUntilCancel = true
 	m := NewModel(&lab.Config{User: "alice"}, b)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	t.Cleanup(func() { _ = tm.Quit() })
@@ -399,6 +402,12 @@ func TestTeatest_TransferQuitWithCtrlC_DropsPending(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		b.progressFrames = append(b.progressFrames, lab.Progress{Bytes: int64(i), Percent: i, Rate: "1MB/s", ETA: "0:01:00"})
 	}
+	// Hold the transfer in-flight until ctx cancellation so the test can
+	// reliably observe screen=screenTransfer before sending ctrl+c. Without
+	// this, the fake races through frames → completion between polling ticks
+	// and the test would "pass" via natural completion rather than verifying
+	// that ctrl+c actually drops the partial.
+	b.holdUntilCancel = true
 	m := NewModel(&lab.Config{User: "alice"}, b)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	t.Cleanup(func() { _ = tm.Quit() })
