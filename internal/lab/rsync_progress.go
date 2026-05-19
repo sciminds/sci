@@ -47,13 +47,14 @@ func ParseProgressLine(line string) (Progress, bool) {
 // --append-verify resumes by appending new bytes and checksumming the existing
 // prefix. Note: rsync 3.4+ rejects --append* combined with --partial-dir, so we
 // keep partials in place rather than in a sidecar directory.
+// remotePath is shell-quoted (see BuildGetArgs for the openrsync rationale).
 func BuildResumableGetArgs(cfg *Config, remotePath, localPath string) []string {
 	return []string{
-		"rsync", "-az", "-s",
+		"rsync", "-az",
 		"--partial",
 		"--append-verify",
 		"--info=progress2",
-		cfg.SSHAlias() + ":" + remotePath,
+		cfg.SSHAlias() + ":" + ShellQuote(remotePath),
 		localPath,
 	}
 }

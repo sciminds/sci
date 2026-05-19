@@ -49,21 +49,21 @@ func BuildLsArgs(cfg *Config, remotePath string) []string {
 }
 
 // BuildGetArgs constructs the argv for downloading via rsync.
-// `-s` (secluded-args) sends paths through the rsync protocol instead of the
-// remote shell, so spaces or shell metacharacters in remotePath are safe.
+// remotePath is shell-quoted because rsync's `-s` flag (secluded-args) isn't
+// supported by openrsync, which ships as /usr/bin/rsync on recent macOS.
 func BuildGetArgs(cfg *Config, remotePath, localPath string) []string {
-	return []string{"rsync", "-avz", "-s", "--progress", cfg.SSHAlias() + ":" + remotePath, localPath}
+	return []string{"rsync", "-avz", "--progress", cfg.SSHAlias() + ":" + ShellQuote(remotePath), localPath}
 }
 
 // BuildPutArgs constructs the argv for uploading via rsync.
 // If dryRun is true, --dry-run is appended so rsync only shows what would transfer.
-// `-s` protects remotePath from remote-shell reinterpretation.
+// remotePath is shell-quoted (see BuildGetArgs for the openrsync rationale).
 func BuildPutArgs(cfg *Config, localPath, remotePath string, dryRun bool) []string {
-	args := []string{"rsync", "-avz", "-s", "--progress"}
+	args := []string{"rsync", "-avz", "--progress"}
 	if dryRun {
 		args = append(args, "--dry-run")
 	}
-	args = append(args, localPath, cfg.SSHAlias()+":"+remotePath)
+	args = append(args, localPath, cfg.SSHAlias()+":"+ShellQuote(remotePath))
 	return args
 }
 
