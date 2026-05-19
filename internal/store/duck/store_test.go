@@ -274,6 +274,28 @@ func TestReadOnlyQueryRejectsWrites(t *testing.T) {
 	}
 }
 
+// User queries that already terminate in LIMIT or ORDER BY must not be
+// corrupted by the row-cap LIMIT we append. Naive `query + " LIMIT 200"`
+// concatenation produces `SELECT … LIMIT 1 LIMIT 200`, which duckdb
+// rejects as a parse error — masquerading as a "query failed" message
+// the user can't act on.
+func TestReadOnlyQueryWithUserLimit(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	_, rows, err := s.ReadOnlyQuery("SELECT name FROM people ORDER BY score DESC LIMIT 1")
+	if err != nil {
+		t.Fatalf("ReadOnlyQuery with user LIMIT: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Errorf("got %d rows, want 1 (user LIMIT 1 should be honored)", len(rows))
+	}
+}
+
 func TestRenameTable(t *testing.T) {
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))

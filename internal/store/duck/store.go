@@ -441,7 +441,11 @@ func (s *Store) ReadOnlyQuery(query string) (columns []string, rows [][]string, 
 	columns = lo.Map(cols, func(c store.PragmaColumn, _ int) string { return c.Name })
 
 	const maxRows = 200
-	lines, err := s.proc.query(fmt.Sprintf("%s LIMIT %d", trimmed, maxRows))
+	// Wrap as a subquery so a user-supplied LIMIT/ORDER BY at the end of
+	// `trimmed` doesn't collide with the cap. Naive concatenation would
+	// produce `SELECT … LIMIT 1 LIMIT 200`, which duckdb rejects as a
+	// parse error.
+	lines, err := s.proc.query(fmt.Sprintf("SELECT * FROM (%s) AS __sci_q LIMIT %d", trimmed, maxRows))
 	if err != nil {
 		return nil, nil, fmt.Errorf("execute query: %w", err)
 	}

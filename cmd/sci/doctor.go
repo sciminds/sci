@@ -124,7 +124,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 			// Homebrew is a side effect we don't take silently.
 			cmdutil.Output(cmd, result)
 			if !result.AllPassed() {
-				os.Exit(1)
+				return cli.Exit("", 1)
 			}
 			return nil
 		}
@@ -141,7 +141,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		if !installed {
 			if isJSON {
 				cmdutil.Output(cmd, result)
-				os.Exit(1)
+				return cli.Exit("", 1)
 			}
 			return nil
 		}
@@ -149,7 +149,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		if !hasHomebrew(result) {
 			if isJSON {
 				cmdutil.Output(cmd, result)
-				os.Exit(1)
+				return cli.Exit("", 1)
 			}
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymWarn,
 				uikit.TUI.Warn().Render(`brew not on PATH yet — run: eval "$(/opt/homebrew/bin/brew shellenv)"`))
@@ -195,7 +195,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 		cmdutil.Output(cmd, result)
 		if !result.AllPassed() || result.InstallError != "" {
-			os.Exit(1)
+			return cli.Exit("", 1)
 		}
 		return nil
 	}

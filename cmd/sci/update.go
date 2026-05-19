@@ -68,6 +68,10 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 	}
 
 	if cmdutil.IsJSON(cmd) {
+		// JSON mode is "report state, take no action". The Updated flag
+		// stays false because we don't run the download/swap side-effect
+		// in JSON mode — scripts that want to apply the update re-invoke
+		// `sci update` interactively.
 		cmdutil.Output(cmd, updateResult{inner: result})
 		return nil
 	}
@@ -76,7 +80,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 	latest := selfupdate.ShortSHA(result.LatestSHA)
 
 	if !result.Available {
-		uikit.OK(fmt.Sprintf("sci is up to date (%s)", current))
+		cmdutil.Output(cmd, updateResult{inner: result})
 		return nil
 	}
 
@@ -84,7 +88,9 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("update available but no download URL found")
 	}
 
-	fmt.Printf("  %s New version available: %s → %s\n", uikit.SymArrow, current, uikit.TUI.TextBlue().Render(latest))
+	// Transient progress narration goes to stderr so it never pollutes a
+	// caller piping stdout (e.g. `sci update | tee log`).
+	fmt.Fprintf(os.Stderr, "  %s New version available: %s → %s\n", uikit.SymArrow, current, uikit.TUI.TextBlue().Render(latest))
 
 	var execPath string
 	err = uikit.RunWithSpinner("Downloading…", func() error {
@@ -96,7 +102,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	uikit.OK(fmt.Sprintf("Updated to %s", latest))
+	cmdutil.Output(cmd, updateResult{inner: result, Updated: true})
 
 	// Chain into the freshly installed binary's doctor so any new required
 	// tools (e.g. git-xet, hf for the HF cloud backend) get installed
@@ -118,9 +124,26 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 }
 
 // updateResult wraps CheckResult to satisfy cmdutil.Result.
+//
+// Updated disambiguates the two human-mode terminal states: the human
+// flow applies the update when Available is true, so Updated tracks
+// "we actually performed the swap" vs "we only checked" (the latter
+// covers both --json mode and the up-to-date path).
 type updateResult struct {
-	inner selfupdate.CheckResult
+	inner   selfupdate.CheckResult
+	Updated bool
 }
 
-func (r updateResult) JSON() any     { return r.inner }
-func (r updateResult) Human() string { return "" }
+func (r updateResult) JSON() any { return r.inner }
+
+func (r updateResult) Human() string {
+	current := selfupdate.ShortSHA(r.inner.CurrentSHA)
+	if !r.inner.Available {
+		return fmt.Sprintf("  %s sci is up to date (%s)\n", uikit.SymOK, current)
+	}
+	latest := selfupdate.ShortSHA(r.inner.LatestSHA)
+	if r.Updated {
+		return fmt.Sprintf("  %s Updated to %s\n", uikit.SymOK, uikit.TUI.TextBlue().Render(latest))
+	}
+	return fmt.Sprintf("  %s Update available: %s → %s\n", uikit.SymArrow, current, uikit.TUI.TextBlue().Render(latest))
+}

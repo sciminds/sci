@@ -239,6 +239,46 @@ func TestUpdate_CheckFailurePropagates(t *testing.T) {
 	}
 }
 
+// TestUpdateResult_HumanRendersSummary asserts that the human path's Result
+// emits a non-empty one-line summary so the cmdutil.Result contract holds
+// (every command's JSON() + Human() must reflect the same underlying state).
+// Historically Human() returned "" and the human flow narrated via direct
+// fmt.Printf to stdout, which both bypassed the contract and put progress
+// narration on the wrong stream.
+func TestUpdateResult_HumanRendersSummary(t *testing.T) {
+	tests := []struct {
+		name    string
+		inner   selfupdate.CheckResult
+		updated bool
+		want    string
+	}{
+		{
+			name:    "up_to_date",
+			inner:   selfupdate.CheckResult{Available: false, CurrentSHA: "aaaaaaa"},
+			updated: false,
+			want:    "up to date",
+		},
+		{
+			name:    "updated",
+			inner:   selfupdate.CheckResult{Available: true, CurrentSHA: "aaaaaaa", LatestSHA: "bbbbbbb"},
+			updated: true,
+			want:    "Updated to",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := updateResult{inner: tc.inner, Updated: tc.updated}
+			got := r.Human()
+			if got == "" {
+				t.Fatalf("Human() returned empty string; expected non-empty summary")
+			}
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("Human() = %q; expected to contain %q", got, tc.want)
+			}
+		})
+	}
+}
+
 // TestUpdate_JSONSkipsExec verifies that --json mode short-circuits before
 // the doctor chain — scripts consuming `sci update --json` must not be
 // hijacked by an interactive doctor flow.

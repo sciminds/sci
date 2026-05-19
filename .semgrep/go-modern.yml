@@ -470,3 +470,52 @@ rules:
       of manual field-spread loop. See CLAUDE.md "Modern Go style".
     severity: WARNING
     languages: [go]
+
+  # ── no-os-exit-in-action ───────────────────────────────────────────────────
+  # `os.Exit(N)` bypasses urfave/cli's After hooks, deferred cleanup, and
+  # makes the surrounding Action func untestable through `root.Run`. The
+  # idiomatic CLI pattern is `return cli.Exit(msg, N)` — the framework
+  # surfaces the right exit code and still runs cleanup.
+  #
+  # Allowed in main.go files (the binary entry point's catch-all after
+  # cli.App.Run returns) and in cmd/sci/root.go (sci's main lives here).
+  # Excluded from test files.
+  - id: no-os-exit-in-action
+    pattern: os.Exit($N)
+    paths:
+      exclude:
+        - "*_test.go"
+        - "**/main.go"
+        - "cmd/sci/root.go"
+    message: >-
+      Use `return cli.Exit("", N)` instead of `os.Exit(N)` inside a urfave/cli
+      Action. os.Exit skips After hooks and deferred cleanup, and prevents
+      tests from running the command through root.Run. See CLAUDE.md
+      "Cross-cutting design rules" — every command returns through the
+      cmdutil.Result + cli.Exit path.
+    severity: ERROR
+    languages: [go]
+
+  # ── result-human-not-empty ─────────────────────────────────────────────────
+  # Catches `Human() string { return "" }` — usually a forgotten render
+  # path. The cmdutil.Result contract requires Human() to mirror the same
+  # state JSON() exposes; an empty Human() means the non-JSON code path
+  # bypasses cmdutil.Output and prints directly via fmt.Printf (which
+  # also tends to land on the wrong stream).
+  #
+  # See cmd/sci/update.go (post-fix) for the pattern: Human() reads the
+  # underlying state and returns the appropriate one-line summary.
+  - id: result-human-not-empty
+    pattern: |
+      func ($_ $_) Human() string { return "" }
+    paths:
+      exclude:
+        - "*_test.go"
+    message: >-
+      cmdutil.Result.Human() must not return "". If the human path is
+      narrative-only (e.g. progress-driven), route the final summary through
+      cmdutil.Output(cmd, result) and have Human() return that summary —
+      not an empty string. Empty Human() breaks the JSON/human parity rule
+      from CLAUDE.md.
+    severity: ERROR
+    languages: [go]
