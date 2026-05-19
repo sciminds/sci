@@ -109,5 +109,23 @@ func (f *fakeBackend) Transfer(ctx context.Context, remotePath, _ string, progre
 	return err
 }
 
+// ListCallsCount returns how many times List has been invoked. Safe to call
+// from the test goroutine while the bubbletea event loop runs.
+func (f *fakeBackend) ListCallsCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.listCalls)
+}
+
+// TransferCalls returns a copy of the remote paths passed to Transfer. Safe
+// to call from the test goroutine while the bubbletea event loop runs.
+func (f *fakeBackend) TransferCalls() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]string, len(f.transferCalls))
+	copy(out, f.transferCalls)
+	return out
+}
+
 // errFake is a sentinel for transfer-failure tests.
 var errFake = errors.New("fake transfer error")

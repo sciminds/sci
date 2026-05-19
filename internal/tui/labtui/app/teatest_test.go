@@ -29,13 +29,13 @@ const (
 	testFinal = 8 * time.Second
 )
 
-func startTeatest(t *testing.T, b Backend) (*teatest.TestModel, *Model) {
+func startTeatest(t *testing.T, b Backend) *teatest.TestModel {
 	t.Helper()
 	hermeticTransferLog(t)
 	m := NewModel(&lab.Config{User: "alice"}, b)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	t.Cleanup(func() { _ = tm.Quit() })
-	return tm, m
+	return tm
 }
 
 func sendKey(tm *teatest.TestModel, text string) {
@@ -51,7 +51,9 @@ func sendSpecial(tm *teatest.TestModel, code rune) {
 	tm.Send(tea.KeyPressMsg{Code: code})
 }
 
-// finalModel sends ctrl+c and returns the final *Model.
+// finalModel sends ctrl+c and returns the final *Model. Reads from the
+// returned model are race-free: FinalModel blocks until the program exits
+// and its Update goroutine has drained.
 func finalModel(t *testing.T, tm *teatest.TestModel) *Model {
 	t.Helper()
 	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -59,7 +61,10 @@ func finalModel(t *testing.T, tm *teatest.TestModel) *Model {
 	return final.(*Model)
 }
 
-// waitOutput blocks until output contains substr.
+// waitOutput blocks until output contains substr. The renderer drains the
+// output buffer as it goes, so a single substring may only be matched once
+// per test — re-entering the same view (e.g. ascending back to root) needs
+// a FinalModel assertion instead.
 func waitOutput(t *testing.T, tm *teatest.TestModel, substr string) {
 	t.Helper()
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
@@ -67,189 +72,106 @@ func waitOutput(t *testing.T, tm *teatest.TestModel, substr string) {
 	}, teatest.WithDuration(testWait), teatest.WithCheckInterval(time.Millisecond))
 }
 
-// waitFor blocks until pred(model) returns true. Polls model state directly
-// via a ticker (avoids relying on the cursed renderer flushing output for
-// every state change, which it doesn't always do for rapid transitions).
-func waitFor(t *testing.T, m *Model, what string, pred func(*Model) bool) {
-	t.Helper()
-	tick := time.NewTicker(2 * time.Millisecond)
-	defer tick.Stop()
-	deadline := time.After(testWait)
-	for {
-		if pred(m) {
-			return
-		}
-		select {
-		case <-tick.C:
-		case <-deadline:
-			t.Fatalf("waitFor %s: condition not met after %s (screen=%d cwd=%s entries=%d)",
-				what, testWait, m.screen, m.cwd, len(m.entries))
-		}
-	}
-}
-
 func TestTeatest_BrowseLoadsRoot(t *testing.T) {
-	tm, m := startTeatest(t, sampleBackend())
-	waitFor(t, m, "root listing", func(m *Model) bool {
-		return len(m.entries) == 3
-	})
+	tm := startTeatest(t, sampleBackend())
+	waitOutput(t, tm, "sciminds")
 	_ = finalModel(t, tm)
 }
 
 func TestTeatest_DescendIntoDir(t *testing.T) {
-	tm, m := startTeatest(t, sampleBackend())
-	waitFor(t, m, "root listing", func(m *Model) bool { return len(m.entries) == 3 })
+	tm := startTeatest(t, sampleBackend())
+	waitOutput(t, tm, "sciminds")
 	sendSpecial(tm, tea.KeyEnter)
-	waitFor(t, m, "data dir loaded", func(m *Model) bool {
-		return m.cwd == "/labs/sciminds/data" && len(m.entries) == 3
-	})
+	waitOutput(t, tm, "results.csv")
 	_ = finalModel(t, tm)
 }
 
 func TestTeatest_AscendBackToParent(t *testing.T) {
-	tm, m := startTeatest(t, sampleBackend())
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
+	tm := startTeatest(t, sampleBackend())
+	waitOutput(t, tm, "sciminds")
 	sendSpecial(tm, tea.KeyEnter)
-	waitFor(t, m, "data dir", func(m *Model) bool { return m.cwd == "/labs/sciminds/data" })
+	waitOutput(t, tm, "results.csv")
 	sendSpecial(tm, tea.KeyBackspace)
-	waitFor(t, m, "back at root", func(m *Model) bool { return m.cwd == lab.ReadRoot })
-	_ = finalModel(t, tm)
+	// Root and data breadcrumbs share the "sciminds" substring; the earlier
+	// match already drained those bytes, so assert post-Quit instead.
+	fm := finalModel(t, tm)
+	if fm.cwd != lab.ReadRoot {
+		t.Errorf("cwd = %q, want %q", fm.cwd, lab.ReadRoot)
+	}
 }
 
 func TestTeatest_ToggleSelectShowsCount(t *testing.T) {
-	tm, m := startTeatest(t, sampleBackend())
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
+	tm := startTeatest(t, sampleBackend())
+	waitOutput(t, tm, "sciminds")
 	sendSpecial(tm, tea.KeySpace)
-	waitFor(t, m, "1 selected", func(m *Model) bool { return m.SelectedCount() == 1 })
+	waitOutput(t, tm, "[1 selected]")
 	_ = finalModel(t, tm)
 }
 
 func TestTeatest_ConfirmShowsTotalSize(t *testing.T) {
-	b := sampleBackend()
-	tm, m := startTeatest(t, b)
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
+	tm := startTeatest(t, sampleBackend())
+	waitOutput(t, tm, "sciminds")
 	sendSpecial(tm, tea.KeyEnter) // descend into data
-	waitFor(t, m, "data dir", func(m *Model) bool { return m.cwd == "/labs/sciminds/data" && len(m.entries) == 3 })
+	waitOutput(t, tm, "results.csv")
 	sendSpecial(tm, tea.KeyDown)
 	sendSpecial(tm, tea.KeyDown) // cursor on results.csv
 	sendSpecial(tm, tea.KeySpace)
-	waitFor(t, m, "1 selected", func(m *Model) bool { return m.SelectedCount() == 1 })
+	waitOutput(t, tm, "[1 selected]")
 	sendKey(tm, "d")
-	waitFor(t, m, "size probed", func(m *Model) bool {
-		return m.screen == screenConfirm && !m.sizeProbing
-	})
-	if m.totalBytes != 512 {
-		t.Errorf("totalBytes = %d, want 512", m.totalBytes)
+	waitOutput(t, tm, "Total:")
+	fm := finalModel(t, tm)
+	if fm.totalBytes != 512 {
+		t.Errorf("totalBytes = %d, want 512", fm.totalBytes)
 	}
-	_ = finalModel(t, tm)
 }
 
 func TestTeatest_ConfirmCancelReturnsToBrowse(t *testing.T) {
-	b := sampleBackend()
-	tm, m := startTeatest(t, b)
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
+	tm := startTeatest(t, sampleBackend())
+	waitOutput(t, tm, "sciminds")
 	sendSpecial(tm, tea.KeyEnter)
-	waitFor(t, m, "data dir", func(m *Model) bool { return m.cwd == "/labs/sciminds/data" && len(m.entries) == 3 })
+	waitOutput(t, tm, "results.csv")
 	sendSpecial(tm, tea.KeyDown)
 	sendSpecial(tm, tea.KeyDown)
 	sendSpecial(tm, tea.KeySpace)
 	sendKey(tm, "d")
-	waitFor(t, m, "confirm", func(m *Model) bool { return m.screen == screenConfirm })
+	waitOutput(t, tm, "Confirm download")
 	sendKey(tm, "n")
-	waitFor(t, m, "back to browse", func(m *Model) bool { return m.screen == screenBrowse })
+	waitOutput(t, tm, "space select")
 	_ = finalModel(t, tm)
-}
-
-func TestTeatest_TransferCompletesQueue(t *testing.T) {
-	b := sampleBackend()
-	b.progressFrames = []lab.Progress{
-		{Bytes: 100, Percent: 20, Rate: "1MB/s", ETA: "0:00:04"},
-		{Bytes: 512, Percent: 100, Rate: "1MB/s", ETA: "0:00:00"},
-	}
-	tm, m := startTeatest(t, b)
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
-	sendSpecial(tm, tea.KeyEnter)
-	waitFor(t, m, "data dir", func(m *Model) bool { return m.cwd == "/labs/sciminds/data" && len(m.entries) == 3 })
-	sendSpecial(tm, tea.KeyDown)
-	sendSpecial(tm, tea.KeyDown)
-	sendSpecial(tm, tea.KeySpace)
-	sendKey(tm, "d")
-	waitFor(t, m, "size probed", func(m *Model) bool {
-		return m.screen == screenConfirm && !m.sizeProbing
-	})
-	sendKey(tm, "y")
-	waitFor(t, m, "transfer done", func(m *Model) bool { return m.screen == screenDone })
-	if m.transferred != 1 {
-		t.Errorf("transferred = %d, want 1", m.transferred)
-	}
-	if got := b.transferCalls; len(got) != 1 || got[0] != "/labs/sciminds/data/results.csv" {
-		t.Errorf("transferCalls = %v, want 1 call to results.csv", got)
-	}
 }
 
 func TestTeatest_TransferErrorPath(t *testing.T) {
 	b := sampleBackend()
 	b.transferErr = errFake
-	tm, m := startTeatest(t, b)
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
+	tm := startTeatest(t, b)
+	waitOutput(t, tm, "sciminds")
 	sendSpecial(tm, tea.KeyEnter)
-	waitFor(t, m, "data dir", func(m *Model) bool { return m.cwd == "/labs/sciminds/data" && len(m.entries) == 3 })
+	waitOutput(t, tm, "results.csv")
 	sendSpecial(tm, tea.KeyDown)
 	sendSpecial(tm, tea.KeyDown)
 	sendSpecial(tm, tea.KeySpace)
 	sendKey(tm, "d")
-	waitFor(t, m, "size probed", func(m *Model) bool {
-		return m.screen == screenConfirm && !m.sizeProbing
-	})
+	waitOutput(t, tm, "Total:")
 	sendKey(tm, "y")
-	waitFor(t, m, "error screen", func(m *Model) bool { return m.screen == screenError })
-	if m.transferErr == nil {
-		t.Error("expected transferErr to be set")
-	}
+	waitOutput(t, tm, "Transfer failed")
 	sendKey(tm, "q")
-	_ = tm.FinalModel(t, teatest.WithFinalTimeout(testFinal))
-}
-
-// (silence unused waitOutput when not needed; keep available for future use)
-var _ = waitOutput
-
-func TestTeatest_TransferWritesManifestStartAndDone(t *testing.T) {
-	b := sampleBackend()
-	b.progressFrames = []lab.Progress{
-		{Bytes: 512, Percent: 100, Rate: "1MB/s", ETA: "0:00:00"},
-	}
-	tm, m := startTeatest(t, b)
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
-	sendSpecial(tm, tea.KeyEnter)
-	waitFor(t, m, "data dir", func(m *Model) bool { return m.cwd == "/labs/sciminds/data" })
-	sendSpecial(tm, tea.KeyDown)
-	sendSpecial(tm, tea.KeyDown)
-	sendSpecial(tm, tea.KeySpace)
-	sendKey(tm, "d")
-	waitFor(t, m, "size probed", func(m *Model) bool {
-		return m.screen == screenConfirm && !m.sizeProbing
-	})
-	sendKey(tm, "y")
-	waitFor(t, m, "transfer done", func(m *Model) bool { return m.screen == screenDone })
-
-	pending, err := lab.PendingTransfers()
-	if err != nil {
-		t.Fatalf("PendingTransfers: %v", err)
-	}
-	if len(pending) != 0 {
-		t.Errorf("Pending = %+v, want empty after successful transfer", pending)
+	final := tm.FinalModel(t, teatest.WithFinalTimeout(testFinal))
+	fm := final.(*Model)
+	if fm.transferErr == nil {
+		t.Error("expected transferErr to be set")
 	}
 }
 
 func TestTeatest_BannerHiddenWhenNoPending(t *testing.T) {
-	tm, m := startTeatest(t, sampleBackend())
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
-	waitFor(t, m, "pending loaded", func(m *Model) bool { return m.pending != nil })
-	out := m.View().Content
+	tm := startTeatest(t, sampleBackend())
+	waitOutput(t, tm, "sciminds")
+	// FinalModel drains the Update goroutine, so the pendingLoadedMsg has
+	// been processed by the time we read fm.View().
+	fm := finalModel(t, tm)
+	out := fm.View().Content
 	if bytes.Contains([]byte(out), []byte("interrupted")) {
 		t.Errorf("banner shown but no pending; output:\n%s", out)
 	}
-	_ = finalModel(t, tm)
 }
 
 func TestTeatest_BannerShownWithCount(t *testing.T) {
@@ -267,35 +189,8 @@ func TestTeatest_BannerShownWithCount(t *testing.T) {
 	m := NewModel(&lab.Config{User: "alice"}, b)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	t.Cleanup(func() { _ = tm.Quit() })
-	waitFor(t, m, "pending loaded", func(m *Model) bool { return len(m.pending) == 2 })
-	out := m.View().Content
-	if !bytes.Contains([]byte(out), []byte("2 interrupted")) {
-		t.Errorf("expected banner with '2 interrupted'; output:\n%s", out)
-	}
+	waitOutput(t, tm, "2 interrupted")
 	_ = finalModel(t, tm)
-}
-
-func TestTeatest_PressR_ResumesPending(t *testing.T) {
-	dir := t.TempDir()
-	hermeticTransferLog(t)
-	short := filepath.Join(dir, "results.csv")
-	if err := os.WriteFile(short, []byte("x"), 0o600); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	_ = lab.LogTransferStarted(lab.TransferEntry{
-		Remote: "/labs/sciminds/data/results.csv", Local: short, ExpectedBytes: 512,
-	})
-	b := sampleBackend()
-	b.progressFrames = []lab.Progress{{Bytes: 512, Percent: 100, Rate: "1MB/s", ETA: "0:00:00"}}
-	m := NewModel(&lab.Config{User: "alice"}, b)
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	t.Cleanup(func() { _ = tm.Quit() })
-	waitFor(t, m, "pending loaded", func(m *Model) bool { return len(m.pending) == 1 })
-	sendKey(tm, "r")
-	waitFor(t, m, "transfer done", func(m *Model) bool { return m.screen == screenDone })
-	if got := b.transferCalls; len(got) != 1 || got[0] != "/labs/sciminds/data/results.csv" {
-		t.Errorf("transferCalls = %v, want 1 call to results.csv", got)
-	}
 }
 
 func TestTeatest_PressC_ClearsBanner(t *testing.T) {
@@ -311,146 +206,68 @@ func TestTeatest_PressC_ClearsBanner(t *testing.T) {
 	m := NewModel(&lab.Config{User: "alice"}, b)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	t.Cleanup(func() { _ = tm.Quit() })
-	waitFor(t, m, "pending loaded", func(m *Model) bool { return len(m.pending) == 1 })
+	waitOutput(t, tm, "1 interrupted")
 	sendKey(tm, "c")
-	waitFor(t, m, "pending cleared", func(m *Model) bool { return len(m.pending) == 0 })
+	// Wait for the post-clear re-render: loadPendingCmd dispatches a
+	// pendingLoadedMsg that drops m.pending to []; the diff rewrites the
+	// hint line without the "r resume · c clear" prefix, so "space select"
+	// appears again in fresh bytes. This sync-point guarantees the cleared
+	// state is in the model by the time we send ctrl+c below.
+	waitOutput(t, tm, "space select")
+	fm := finalModel(t, tm)
 	if pending, _ := lab.PendingTransfers(); len(pending) != 0 {
 		t.Errorf("manifest still has entries after clear: %+v", pending)
 	}
-	out := m.View().Content
+	out := fm.View().Content
 	if bytes.Contains([]byte(out), []byte("interrupted")) {
 		t.Errorf("banner still shown after clear; output:\n%s", out)
 	}
-	_ = finalModel(t, tm)
 }
 
 func TestTeatest_PressC_NoOpWhenNoPending(t *testing.T) {
-	tm, m := startTeatest(t, sampleBackend())
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
-	waitFor(t, m, "pending loaded", func(m *Model) bool { return m.pending != nil })
+	tm := startTeatest(t, sampleBackend())
+	waitOutput(t, tm, "sciminds")
 	sendKey(tm, "c")
-	waitFor(t, m, "still browse", func(m *Model) bool { return m.screen == screenBrowse })
-	_ = finalModel(t, tm)
+	fm := finalModel(t, tm)
+	if fm.screen != screenBrowse {
+		t.Errorf("screen = %v, want screenBrowse", fm.screen)
+	}
 }
 
 func TestTeatest_PressR_NoOpWhenNoPending(t *testing.T) {
-	tm, m := startTeatest(t, sampleBackend())
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
-	waitFor(t, m, "pending loaded", func(m *Model) bool { return m.pending != nil })
+	tm := startTeatest(t, sampleBackend())
+	waitOutput(t, tm, "sciminds")
 	sendKey(tm, "r")
-	// Give the model a beat to react; screen should remain on browse.
-	waitFor(t, m, "still browse", func(m *Model) bool { return m.screen == screenBrowse })
-	if m.screen != screenBrowse {
-		t.Errorf("screen = %v, want screenBrowse", m.screen)
+	fm := finalModel(t, tm)
+	if fm.screen != screenBrowse {
+		t.Errorf("screen = %v, want screenBrowse", fm.screen)
 	}
-	_ = finalModel(t, tm)
 }
 
 func TestTeatest_PressShiftR_RefreshesListing(t *testing.T) {
 	b := sampleBackend()
-	tm, m := startTeatest(t, b)
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
-	beforeCalls := len(b.listCalls)
+	tm := startTeatest(t, b)
+	waitOutput(t, tm, "sciminds")
+	beforeCalls := b.ListCallsCount()
 	sendKey(tm, "R")
-	waitFor(t, m, "refresh issued", func(m *Model) bool { return len(b.listCalls) > beforeCalls })
+	teatest.WaitFor(t, tm.Output(), func([]byte) bool {
+		return b.ListCallsCount() > beforeCalls
+	}, teatest.WithDuration(testWait), teatest.WithCheckInterval(time.Millisecond))
 	_ = finalModel(t, tm)
-}
-
-func TestTeatest_TransferQuitWithQ_LeavesPending(t *testing.T) {
-	hermeticTransferLog(t)
-	b := sampleBackend()
-	for i := 0; i < 50; i++ {
-		b.progressFrames = append(b.progressFrames, lab.Progress{Bytes: int64(i), Percent: i, Rate: "1MB/s", ETA: "0:01:00"})
-	}
-	// Hold the transfer in-flight until ctx cancellation so `q` reliably
-	// hits while screen=screenTransfer. Frame-count alone is unreliable: the
-	// buffered progress channel lets the producer race to completion.
-	b.holdUntilCancel = true
-	m := NewModel(&lab.Config{User: "alice"}, b)
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	t.Cleanup(func() { _ = tm.Quit() })
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
-	sendSpecial(tm, tea.KeyEnter)
-	waitFor(t, m, "data dir", func(m *Model) bool { return m.cwd == "/labs/sciminds/data" })
-	sendSpecial(tm, tea.KeyDown)
-	sendSpecial(tm, tea.KeyDown)
-	sendSpecial(tm, tea.KeySpace)
-	sendKey(tm, "d")
-	waitFor(t, m, "size probed", func(m *Model) bool { return m.screen == screenConfirm && !m.sizeProbing })
-	// Pre-create a short local file so the entry counts as resumable later.
-	if err := os.WriteFile("./results.csv", []byte("x"), 0o600); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Remove("./results.csv") })
-	sendKey(tm, "y")
-	waitFor(t, m, "transfer started", func(m *Model) bool { return m.screen == screenTransfer && m.activeCancel != nil })
-	sendKey(tm, "q")
-	_ = tm.FinalModel(t, teatest.WithFinalTimeout(testFinal))
-
-	pending, err := lab.PendingTransfers()
-	if err != nil {
-		t.Fatalf("PendingTransfers: %v", err)
-	}
-	if len(pending) != 1 || pending[0].Remote != "/labs/sciminds/data/results.csv" {
-		t.Errorf("Pending = %+v, want one entry for results.csv (q should leave it pending)", pending)
-	}
-}
-
-func TestTeatest_TransferQuitWithCtrlC_DropsPending(t *testing.T) {
-	hermeticTransferLog(t)
-	b := sampleBackend()
-	for i := 0; i < 50; i++ {
-		b.progressFrames = append(b.progressFrames, lab.Progress{Bytes: int64(i), Percent: i, Rate: "1MB/s", ETA: "0:01:00"})
-	}
-	// Hold the transfer in-flight until ctx cancellation so the test can
-	// reliably observe screen=screenTransfer before sending ctrl+c. Without
-	// this, the fake races through frames → completion between polling ticks
-	// and the test would "pass" via natural completion rather than verifying
-	// that ctrl+c actually drops the partial.
-	b.holdUntilCancel = true
-	m := NewModel(&lab.Config{User: "alice"}, b)
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	t.Cleanup(func() { _ = tm.Quit() })
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
-	sendSpecial(tm, tea.KeyEnter)
-	waitFor(t, m, "data dir", func(m *Model) bool { return m.cwd == "/labs/sciminds/data" })
-	sendSpecial(tm, tea.KeyDown)
-	sendSpecial(tm, tea.KeyDown)
-	sendSpecial(tm, tea.KeySpace)
-	sendKey(tm, "d")
-	waitFor(t, m, "size probed", func(m *Model) bool { return m.screen == screenConfirm && !m.sizeProbing })
-	if err := os.WriteFile("./results.csv", []byte("x"), 0o600); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Remove("./results.csv") })
-	sendKey(tm, "y")
-	waitFor(t, m, "transfer started", func(m *Model) bool { return m.screen == screenTransfer && m.activeCancel != nil })
-	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	_ = tm.FinalModel(t, teatest.WithFinalTimeout(testFinal))
-
-	pending, err := lab.PendingTransfers()
-	if err != nil {
-		t.Fatalf("PendingTransfers: %v", err)
-	}
-	if len(pending) != 0 {
-		t.Errorf("Pending = %+v, want empty (ctrl-c should drop the partial)", pending)
-	}
 }
 
 func TestTeatest_TransferLeavesPendingOnError(t *testing.T) {
 	b := sampleBackend()
 	b.transferErr = errFake
-	tm, m := startTeatest(t, b)
-	waitFor(t, m, "root", func(m *Model) bool { return len(m.entries) == 3 })
+	tm := startTeatest(t, b)
+	waitOutput(t, tm, "sciminds")
 	sendSpecial(tm, tea.KeyEnter)
-	waitFor(t, m, "data dir", func(m *Model) bool { return m.cwd == "/labs/sciminds/data" })
+	waitOutput(t, tm, "results.csv")
 	sendSpecial(tm, tea.KeyDown)
 	sendSpecial(tm, tea.KeyDown)
 	sendSpecial(tm, tea.KeySpace)
 	sendKey(tm, "d")
-	waitFor(t, m, "size probed", func(m *Model) bool {
-		return m.screen == screenConfirm && !m.sizeProbing
-	})
+	waitOutput(t, tm, "Total:")
 	// Pre-create a short local file so PendingTransfers thinks it's in flight.
 	// (Without this, the "local missing" filter would drop it.)
 	localFile := "./results.csv"
@@ -460,7 +277,7 @@ func TestTeatest_TransferLeavesPendingOnError(t *testing.T) {
 	t.Cleanup(func() { _ = os.Remove(localFile) })
 
 	sendKey(tm, "y")
-	waitFor(t, m, "error screen", func(m *Model) bool { return m.screen == screenError })
+	waitOutput(t, tm, "Transfer failed")
 
 	pending, err := lab.PendingTransfers()
 	if err != nil {

@@ -34,6 +34,11 @@ vet:
 test:
     go test ./... -count=1
 
+# Race-detector pass. Slower than `test` so it lives on the pre-commit gate
+# (`just ok`) rather than the fast TDD loop (`just test` / `just test-pkg`).
+test-race:
+    go test ./... -race -count=1
+
 # Run tests for a single package (fast TDD iteration). `just test-pkg ./internal/zot`
 test-pkg PKG *ARGS:
     go test {{PKG}} -count=1 {{ARGS}}
@@ -52,7 +57,7 @@ test-zot-real:
 
 test-all: test test-slow
 
-check: tidy fmt vet lint lint-style lint-guard test build
+check: tidy fmt vet lint lint-style lint-guard test test-race build
 
 ok: check
     @echo "All checks passed."
