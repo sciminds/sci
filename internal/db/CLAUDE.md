@@ -28,7 +28,14 @@ user sees what they opened. Tempfile is removed on exit.
 
 **Type fidelity caveat:** duckdb's STRUCT/LIST/MAP/INTERVAL columns
 flatten to TEXT in the mirror. Numeric and string columns round-trip
-cleanly. Acceptable for v1 — if users hit this we'll add a banner.
+cleanly. After the TUI exits, `runTUIDuckDB` prints a one-line note
+naming any columns that were stringified.
+
+**Size cap:** `sci view` refuses .duckdb files larger than 1 GB (default)
+since we'd allocate a tempfile of the same order. Override with
+`SCI_DUCKDB_MIRROR_MAX_MB=<n>`. This is a guard against runaway tempfile
+allocation, not a configuration system — the long-term answer is a
+duckdb-native dbtui backend.
 
 ## Collision semantics
 

@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/db/data"
 	"github.com/sciminds/cli/internal/duck"
@@ -413,6 +415,43 @@ func RunTUI(dbPath string, initialTab string) error {
 	return dbtui.Run(store, dbPath, dbtui.WithInitialTab(initialTab))
 }
 
+// defaultMirrorMaxMB caps the duckdb-file size that `sci view` is
+// willing to mirror into a tempfile SQLite. Above this, we refuse and
+// point users at sci db head/cols/glimpse/query for inspection. The
+// limit is overridable via SCI_DUCKDB_MIRROR_MAX_MB; this is a guard,
+// not a configuration system.
+const defaultMirrorMaxMB = 1024
+
+// mirrorMaxBytes resolves the active cap, falling back to the default
+// when the env var is unset or malformed.
+func mirrorMaxBytes() int64 {
+	if s := os.Getenv("SCI_DUCKDB_MIRROR_MAX_MB"); s != "" {
+		if n, err := strconv.ParseInt(s, 10, 64); err == nil && n > 0 {
+			return n * 1024 * 1024
+		}
+	}
+	return defaultMirrorMaxMB * 1024 * 1024
+}
+
+// mirrorBlocked returns a non-nil error when size exceeds the mirror
+// cap. The error names the file, the actual size, the cap, and points
+// at the read-only inspect verbs plus the env override.
+func mirrorBlocked(path string, size int64) error {
+	cap := mirrorMaxBytes()
+	if size <= cap {
+		return nil
+	}
+	return fmt.Errorf(
+		"%s is %s — above the mirror limit (%s). `sci view` materialises a SQLite copy for browsing, which would be impractical at this size.\n"+
+			"  for large files: sci db head/cols/glimpse/query %s\n"+
+			"  to raise the cap: SCI_DUCKDB_MIRROR_MAX_MB=<n>",
+		path,
+		humanize.Bytes(uint64(size)),
+		humanize.Bytes(uint64(cap)),
+		path,
+	)
+}
+
 // runTUIDuckDB mirrors a .duckdb file into a tempfile SQLite database
 // and opens that mirror through dbtui with read-only forced on. The
 // title bar still shows the original .duckdb path so the user sees
@@ -423,6 +462,14 @@ func RunTUI(dbPath string, initialTab string) error {
 // the TUI exits — placed *after* so the note is the last thing the
 // user sees when they leave the viewer.
 func runTUIDuckDB(dbPath, initialTab string) error {
+	fi, err := os.Stat(dbPath)
+	if err != nil {
+		return err
+	}
+	if err := mirrorBlocked(dbPath, fi.Size()); err != nil {
+		return err
+	}
+
 	dir, err := os.MkdirTemp("", "sci-duckdb-mirror-*")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
