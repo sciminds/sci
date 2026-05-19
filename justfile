@@ -58,6 +58,28 @@ test-all: test test-slow
 
 check: tidy fmt vet lint lint-style lint-guard test test-race build
 
+# CI gate — verify-only (no file writes), no multi-arch build, no lint-style.
+# Mirrors `check` so the local and CI gates can't drift: add a step here and
+# .github/workflows/release.yml picks it up. Skips lint-style (semgrep +
+# ast-grep) to avoid the runner install; keeps lint-guard (pure bash + rg).
+check-ci:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "==> tidy (verify go.mod / go.sum committed)"
+    go mod tidy
+    git diff --exit-code go.mod go.sum
+    echo "==> fmt (verify gofmt + goimports clean)"
+    out=$(gofmt -l .); if [ -n "$out" ]; then echo "gofmt drift:"; echo "$out"; exit 1; fi
+    out=$(goimports -l .); if [ -n "$out" ]; then echo "goimports drift:"; echo "$out"; exit 1; fi
+    echo "==> vet"
+    go vet ./internal/... ./cmd/...
+    echo "==> lint"
+    golangci-lint run ./internal/... ./cmd/...
+    echo "==> lint-guard"
+    ./scripts/lint-guard.sh
+    echo "==> test -race"
+    go test ./... -race -count=1
+
 ok: check
     @echo "All checks passed."
 
