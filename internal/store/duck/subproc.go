@@ -136,8 +136,14 @@ func (s *subproc) query(sql string) ([][]byte, error) {
 			if bytes.Contains(line, sentinelBytes) {
 				break
 			}
-			// Copy so callers cannot be invalidated by the bufio reuse.
-			rows = append(rows, bytes.Clone(line))
+			// duckdb -jsonlines emits a bare `\n` separator before
+			// subsequent statements when the prior SELECT returned no
+			// rows; ignore those blank lines so empty-result queries
+			// don't surface a phantom row to the caller.
+			if len(line) > 0 {
+				// Copy so callers cannot be invalidated by the bufio reuse.
+				rows = append(rows, bytes.Clone(line))
+			}
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) {
