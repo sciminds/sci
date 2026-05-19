@@ -132,7 +132,14 @@ func (m *Model) handleNormalModeKey(k string, tab *Tab) bool {
 				}
 			}
 			if overlay == nil {
-				overlay = uikit.NewOverlay(title, prettyPrintJSON(c.Value), m.width, m.height, overlayOpts...)
+				if pretty, isJSON := prettyPrintJSON(c.Value); isJSON {
+					// Wrap in a json code fence so glamour's chroma highlighter
+					// colors keys/strings/numbers/booleans/null in the overlay.
+					fenced := "```json\n" + pretty + "\n```"
+					overlay = uikit.NewMarkdownOverlay(title, fenced, m.width, m.height, overlayOpts...)
+				} else {
+					overlay = uikit.NewOverlay(title, c.Value, m.width, m.height, overlayOpts...)
+				}
 			}
 			m.notePreview = &notePreviewState{
 				Text:    c.Value,

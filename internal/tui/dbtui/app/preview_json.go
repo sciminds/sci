@@ -12,22 +12,26 @@ import (
 )
 
 // prettyPrintJSON returns an indented form of s if it parses as a JSON
-// object or array. Anything else (plain text, bare numbers, malformed
-// JSON) is returned unchanged. json.Indent reformats the original bytes,
-// so key order in STRUCT values matches the duckdb output rather than
-// alphabetical (which is what json.Marshal of a map[string]any would do).
-func prettyPrintJSON(s string) string {
+// object or array, along with ok=true. For anything else (plain text,
+// bare numbers, malformed JSON) it returns (s, false) — callers can use
+// the bool to switch the overlay path (plain text vs. fenced-code with
+// glamour syntax highlighting).
+//
+// json.Indent reformats the original bytes, so key order in STRUCT
+// values matches the duckdb output rather than alphabetical (which is
+// what json.Marshal of a map[string]any would do).
+func prettyPrintJSON(s string) (string, bool) {
 	trimmed := strings.TrimSpace(s)
 	if len(trimmed) < 2 {
-		return s
+		return s, false
 	}
 	first := trimmed[0]
 	if first != '{' && first != '[' {
-		return s
+		return s, false
 	}
 	var buf bytes.Buffer
 	if err := json.Indent(&buf, []byte(trimmed), "", "  "); err != nil {
-		return s
+		return s, false
 	}
-	return buf.String()
+	return buf.String(), true
 }

@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ── Sort ────────────────────────────────────────────────────────────────
@@ -287,10 +288,16 @@ func TestTeatestCellPreview(t *testing.T) {
 }
 
 // TestTeatestCellPreviewPrettyJSON verifies that pressing Enter on a cell
-// containing compact JSON opens the preview overlay with an indented form
-// while leaving notePreviewState.Text as the original raw value. This is
-// Phase 2 of the duckdb-native work — STRUCT/LIST/MAP/INTERVAL arrive from
-// the duckstore as compact JSON; the preview indents them on focus.
+// containing compact JSON opens the preview overlay with an indented form,
+// routes through the markdown overlay (so glamour applies chroma syntax
+// highlighting), and leaves notePreviewState.Text as the original raw
+// value. This is Phase 2 of the duckdb-native work — STRUCT/LIST/MAP/
+// INTERVAL arrive from the duckstore as compact JSON; the preview indents
+// and colors them on focus.
+//
+// In test environments termenv reports no color profile (stdout is not a
+// TTY) so chroma emits no ANSI — the indented substring still matches.
+// In a real terminal the same path produces colored output.
 func TestTeatestCellPreviewPrettyJSON(t *testing.T) {
 	t.Parallel()
 
@@ -315,10 +322,34 @@ func TestTeatestCellPreviewPrettyJSON(t *testing.T) {
 	if fm.notePreview == nil {
 		t.Fatal("expected note preview to be open after Enter")
 	}
+	// JSON cells go through MarkdownOverlay (json code-fence) so glamour
+	// can apply chroma syntax highlighting. Non-JSON cells use plain Overlay.
+	if _, ok := fm.notePreview.Overlay.(uikit.MarkdownOverlay); !ok {
+		t.Errorf("expected uikit.MarkdownOverlay for JSON cell, got %T", fm.notePreview.Overlay)
+	}
 	// Raw cell value is preserved on the state for any future callers that
 	// want the un-indented original (dirty detection, copy-to-clipboard, …).
 	if fm.notePreview.Text != raw {
 		t.Errorf("notePreview.Text = %q, want %q", fm.notePreview.Text, raw)
+	}
+}
+
+// TestTeatestCellPreviewPlainText verifies that pressing Enter on a non-JSON
+// cell still uses the plain Overlay (not MarkdownOverlay) so the value is
+// shown verbatim without glamour's wrapping/styling.
+func TestTeatestCellPreviewPlainText(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	// Default cursor on products.title row 0 → "Widget" (plain text).
+	sendSpecial(tm, tea.KeyEnter)
+
+	fm := finalModel(t, tm)
+	if fm.notePreview == nil {
+		t.Fatal("expected note preview to be open after Enter")
+	}
+	if _, ok := fm.notePreview.Overlay.(uikit.Overlay); !ok {
+		t.Errorf("expected plain uikit.Overlay for non-JSON cell, got %T", fm.notePreview.Overlay)
 	}
 }
 
