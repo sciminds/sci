@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -24,14 +25,18 @@ import (
 //
 // Phase 3 makes the subprocess read-write. Row-level mutations
 // (UpdateCell, DeleteRows) require the target table to have a PRIMARY
-// KEY — DuckDB has no implicit rowid.
+// KEY — DuckDB has no implicit rowid. rowKeys caches each visible row's
+// PK values so mutations can resolve a synthetic row ID back to a
+// `WHERE pk1=? …` clause; the cache for a table is rebuilt on every
+// QueryTable.
 type Store struct {
 	proc *subproc
 	path string
 
 	mu          sync.RWMutex
-	views       map[string]bool // populated by TableNames
-	rowEditable map[string]bool // populated by TableColumns: table → has-PK
+	views       map[string]bool                        // populated by TableNames
+	rowEditable map[string]bool                        // populated by TableColumns: table → has-PK
+	rowKeys     map[string]map[int64]map[string]string // populated by QueryTable: table → synthID → pkCol → value
 }
 
 // Open starts a `duckdb -jsonlines <path>` subprocess and returns a
@@ -332,8 +337,10 @@ func (s *Store) TableSummaries() ([]store.TableSummary, error) {
 }
 
 // QueryTable returns rows from table, capped at [store.MaxTableRows].
-// RowIDs are synthetic 1-based counters; mutations are not supported in
-// Phase 1 so callers can treat them as opaque positional indices.
+// RowIDs are synthetic 1-based counters; mutations resolve them back to
+// PK values via the rowKeys cache populated here. The cache for table
+// is replaced wholesale on every call so it stays consistent with the
+// rows the caller now sees.
 func (s *Store) QueryTable(table string) (colNames []string, rows [][]string, nullFlags [][]bool, rowIDs []int64, err error) {
 	if !store.IsSafeIdentifier(table) {
 		return nil, nil, nil, nil, fmt.Errorf("invalid table name: %q", table)
@@ -356,7 +363,66 @@ func (s *Store) QueryTable(table string) (colNames []string, rows [][]string, nu
 	for i := range rowIDs {
 		rowIDs[i] = int64(i + 1)
 	}
+	s.refreshRowKeys(table, cols, rows, rowIDs)
 	return colNames, rows, nullFlags, rowIDs, nil
+}
+
+// refreshRowKeys replaces the rowKeys cache for table with the PK
+// values from the rows we just fetched. PK-less tables clear any prior
+// cache entry. Each row's PK values come from the row strings at the
+// indices where cols[i].PK > 0.
+func (s *Store) refreshRowKeys(table string, cols []store.PragmaColumn, rows [][]string, rowIDs []int64) {
+	pkIdx := []int{}
+	for i, c := range cols {
+		if c.PK > 0 {
+			pkIdx = append(pkIdx, i)
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.rowKeys == nil {
+		s.rowKeys = make(map[string]map[int64]map[string]string)
+	}
+	if len(pkIdx) == 0 {
+		delete(s.rowKeys, table)
+		return
+	}
+	keys := make(map[int64]map[string]string, len(rows))
+	for r, row := range rows {
+		if r >= len(rowIDs) {
+			break
+		}
+		kv := make(map[string]string, len(pkIdx))
+		for _, ci := range pkIdx {
+			if ci < len(row) {
+				kv[cols[ci].Name] = row[ci]
+			}
+		}
+		keys[rowIDs[r]] = kv
+	}
+	s.rowKeys[table] = keys
+}
+
+// lookupRowKey returns the cached PK values for a synthetic row ID. The
+// caller must have called QueryTable on table since opening the store —
+// returns ok=false otherwise.
+func (s *Store) lookupRowKey(table string, rowID int64) (map[string]string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if perTable, ok := s.rowKeys[table]; ok {
+		if kv, ok := perTable[rowID]; ok {
+			return kv, true
+		}
+	}
+	return nil, false
+}
+
+// sqlQuote escapes s for use as a single-quoted SQL literal. Embedded
+// quotes are doubled; the duckdb CLI subprocess does not support
+// parameterised statements over stdin, so callers building UPDATE /
+// DELETE / INSERT SQL must funnel string values through this helper.
+func sqlQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
 // ReadOnlyQuery executes a validated SELECT and returns columns + rows.
@@ -385,11 +451,81 @@ func (s *Store) ReadOnlyQuery(query string) (columns []string, rows [][]string, 
 	return columns, rows, nil
 }
 
-// ---------- mutations (all return store.ErrReadOnly in Phase 1) ----------
+// ---------- mutations ----------
 
-// UpdateCell — Phase 1 returns store.ErrReadOnly.
-func (s *Store) UpdateCell(string, string, int64, map[string]string, *string) error {
-	return store.ErrReadOnly
+// UpdateCell updates one cell of a single row. The row is addressed by
+// the synthetic int64 rowID returned from the most recent QueryTable on
+// the same table — UpdateCell resolves it back to a WHERE clause built
+// from the row's PRIMARY KEY values via the rowKeys cache. Callers may
+// alternatively pass pkValues explicitly; when non-nil it bypasses the
+// cache. A nil value writes SQL NULL.
+//
+// Returns an error if the table has no PRIMARY KEY (DuckDB has no
+// implicit rowid), if QueryTable has not been called yet (cache empty),
+// or if duckdb rejects the resulting UPDATE.
+func (s *Store) UpdateCell(table, column string, rowID int64, pkValues map[string]string, value *string) error {
+	if !store.IsSafeIdentifier(table) {
+		return fmt.Errorf("invalid table name: %q", table)
+	}
+	if !store.IsSafeColumnName(column) {
+		return fmt.Errorf("invalid column name: %q", column)
+	}
+	keys, err := s.resolvePKValues(table, rowID, pkValues)
+	if err != nil {
+		return err
+	}
+	whereSQL, err := buildPKWhere(keys)
+	if err != nil {
+		return err
+	}
+	var setSQL string
+	if value == nil {
+		setSQL = "NULL"
+	} else {
+		setSQL = sqlQuote(*value)
+	}
+	sql := fmt.Sprintf(`UPDATE "%s" SET "%s" = %s WHERE %s`, table, column, setSQL, whereSQL)
+	if _, err := s.proc.query(sql); err != nil {
+		return fmt.Errorf("update %q.%q: %w", table, column, err)
+	}
+	return nil
+}
+
+// resolvePKValues returns the PK values to use for a row mutation.
+// Prefers an explicit pkValues argument; falls back to the cache
+// populated by QueryTable. Errors when neither is available — meaning
+// the table has no PK, or QueryTable hasn't been called yet for it.
+func (s *Store) resolvePKValues(table string, rowID int64, pkValues map[string]string) (map[string]string, error) {
+	if len(pkValues) > 0 {
+		return pkValues, nil
+	}
+	if !s.IsRowEditable(table) {
+		return nil, fmt.Errorf("table %q has no PRIMARY KEY; row-level edits are not supported", table)
+	}
+	cached, ok := s.lookupRowKey(table, rowID)
+	if !ok {
+		return nil, fmt.Errorf("no cached PK values for %q row %d (call QueryTable first)", table, rowID)
+	}
+	return cached, nil
+}
+
+// buildPKWhere builds a `col1 = 'v1' AND col2 = 'v2'` fragment from a
+// PK column → value map. Column names are validated; values are quoted.
+// Returns an error for unsafe column names or an empty map.
+func buildPKWhere(keys map[string]string) (string, error) {
+	if len(keys) == 0 {
+		return "", errors.New("empty PK values")
+	}
+	parts := make([]string, 0, len(keys))
+	for col, val := range keys {
+		if !store.IsSafeColumnName(col) {
+			return "", fmt.Errorf("invalid PK column name: %q", col)
+		}
+		parts = append(parts, fmt.Sprintf(`"%s" = %s`, col, sqlQuote(val)))
+	}
+	// Deterministic order so error/debug output is stable.
+	slices.Sort(parts)
+	return strings.Join(parts, " AND "), nil
 }
 
 // DeleteRows — Phase 1 returns store.ErrReadOnly.

@@ -273,7 +273,10 @@ func TestReadOnlyQueryRejectsWrites(t *testing.T) {
 	}
 }
 
-func TestMutationsAreReadOnly(t *testing.T) {
+// TestMutationsStillStubbed asserts the Phase 3 mutations that have not
+// yet been bodied out still return store.ErrReadOnly. Each commit in
+// PR-C-3a peels off another entry here as the method is implemented.
+func TestMutationsStillStubbed(t *testing.T) {
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -285,7 +288,6 @@ func TestMutationsAreReadOnly(t *testing.T) {
 		name string
 		fn   func() error
 	}{
-		{"UpdateCell", func() error { return s.UpdateCell("people", "name", 1, nil, ptr("zoe")) }},
 		{"DeleteRows", func() error { _, err := s.DeleteRows("people", []store.RowIdentifier{{RowID: 1}}); return err }},
 		{"InsertRows", func() error { return s.InsertRows("people", []string{"id"}, [][]string{{"99"}}) }},
 		{"RenameTable", func() error { return s.RenameTable("people", "humans") }},
@@ -301,6 +303,95 @@ func TestMutationsAreReadOnly(t *testing.T) {
 				t.Errorf("%s err = %v, want store.ErrReadOnly", tc.name, err)
 			}
 		})
+	}
+}
+
+func TestUpdateCell(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	// Prime the PK cache.
+	if _, _, _, _, err := s.QueryTable("people"); err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+
+	// Alice → "ALICE".
+	if err := s.UpdateCell("people", "name", 1, nil, ptr("ALICE")); err != nil {
+		t.Fatalf("UpdateCell name: %v", err)
+	}
+	// Carol's score (currently NULL) → 9.9.
+	if err := s.UpdateCell("people", "score", 3, nil, ptr("9.9")); err != nil {
+		t.Fatalf("UpdateCell score: %v", err)
+	}
+	// Bob's score → NULL.
+	if err := s.UpdateCell("people", "score", 2, nil, nil); err != nil {
+		t.Fatalf("UpdateCell null: %v", err)
+	}
+
+	// Verify by re-querying.
+	_, rows, nulls, _, err := s.QueryTable("people")
+	if err != nil {
+		t.Fatalf("re-query: %v", err)
+	}
+	if rows[0][1] != "ALICE" {
+		t.Errorf("alice name = %q; want ALICE", rows[0][1])
+	}
+	if rows[2][2] != "9.9" {
+		t.Errorf("carol score = %q; want 9.9", rows[2][2])
+	}
+	if !nulls[1][2] {
+		t.Errorf("bob score not NULL after update")
+	}
+}
+
+func TestUpdateCellEscapesSingleQuote(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if _, _, _, _, err := s.QueryTable("people"); err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+	// "O'Brien" needs the embedded quote to round-trip safely.
+	if err := s.UpdateCell("people", "name", 1, nil, ptr("O'Brien")); err != nil {
+		t.Fatalf("UpdateCell with quote: %v", err)
+	}
+	_, rows, _, _, err := s.QueryTable("people")
+	if err != nil {
+		t.Fatalf("re-query: %v", err)
+	}
+	if rows[0][1] != "O'Brien" {
+		t.Errorf("name = %q; want O'Brien", rows[0][1])
+	}
+}
+
+func TestUpdateCellRejectsNoPKTable(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if _, _, _, _, err := s.QueryTable("extras"); err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+	// extras has no PK → UpdateCell should refuse.
+	err = s.UpdateCell("extras", "v", 1, nil, ptr("42"))
+	if err == nil {
+		t.Fatalf("expected error for no-PK table")
+	}
+	if errors.Is(err, store.ErrReadOnly) {
+		// Acceptable but not the most informative; we don't strictly
+		// require ErrReadOnly here.
+		return
 	}
 }
 
