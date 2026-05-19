@@ -37,10 +37,20 @@ strings in cells (their jsonlines on-wire form); the preview overlay
 pretty-prints, syntax-highlights, and type-annotates them (Phase 2,
 landed).
 
-**DDL + import** (RenameTable / DropTable / CreateEmptyTable /
-ImportCSV / AppendCSV / ImportFile) still return `store.ErrReadOnly` —
-PR-C-3b will body these out. dbtui table-list affordances that hit
-those methods surface the error via the status line until then.
+**DDL** (RenameTable / DropTable / CreateEmptyTable) issues
+`ALTER`/`DROP`/`CREATE` directly through the subprocess.
+CreateEmptyTable uses the same `(id INTEGER PRIMARY KEY, name, value)`
+default schema as the SQLite backend so new tables are immediately
+row-editable.
+
+**Import** (ImportCSV / AppendCSV / ImportFile) routes through
+duckdb's native readers — `read_csv_auto` for csv/tsv (TSV passes
+`delim='\t'`), `read_json_auto` for json/jsonl/ndjson (line-delimited
+variants pass `format='newline_delimited'`). AppendCSV errors when the
+target table is missing, matching the SQLite backend's contract;
+ImportFile returns `store.ErrImportNotSupported` for unknown
+extensions. File paths are funneled through `sqlQuote` so quoted
+basenames import safely.
 
 ## Collision semantics
 
