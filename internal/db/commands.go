@@ -414,13 +414,5 @@ func RunTUI(dbPath string, initialTab string) error {
 	defer func() { _ = ds.Close() }()
 
 	opts := []dbtui.RunOption{dbtui.WithInitialTab(initialTab)}
-	if isDuckDB(dbPath) {
-		// Phase 1 of the native backend is read-only — mutation methods
-		// short to store.ErrReadOnly. Force the viewer into RO so tabs
-		// don't offer Edit/Insert/Delete affordances the store would
-		// reject anyway.
-		opts = append(opts, dbtui.WithReadOnly())
-	}
-
 	return dbtui.Run(ds, dbPath, opts...)
 }

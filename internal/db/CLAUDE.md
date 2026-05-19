@@ -22,19 +22,25 @@ lifecycle is one-shot and the dispatch is ~5 lines.
 
 `.duckdb` files open through a native subprocess-backed store at
 `internal/store/duck/` — `duckstore.Open(path)` spawns
-`duckdb -readonly -jsonlines <path>` and serves dbtui's reads off that
-long-running process. dbtui runs with `WithReadOnly()` because the
-backend is read-only in Phase 1: every mutation method returns
-`store.ErrReadOnly`. No tempfile mirror, no size cap.
+`duckdb -jsonlines <path>` and serves dbtui's reads off that
+long-running process. No tempfile mirror, no size cap.
+
+**Row-level mutations** (UpdateCell / DeleteRows / InsertRows) are
+backed by a per-table cache of synthetic-row-ID → PK values populated
+by `QueryTable`. Update and delete additionally require the target
+table to have a PRIMARY KEY (DuckDB has no implicit rowid); tables
+without a PK surface in dbtui as `ReadOnly = true` via the optional
+`store.RowEditabilityChecker` interface. Insert works regardless.
 
 **Type fidelity:** STRUCT/LIST/MAP currently render as compact JSON
-strings in cells (their jsonlines on-wire form). Phase 2 will add
-pretty-print rendering in the preview overlay.
+strings in cells (their jsonlines on-wire form); the preview overlay
+pretty-prints, syntax-highlights, and type-annotates them (Phase 2,
+landed).
 
-**Phase 3** (editable native backend) is deliberately deferred. The
-hooks (`RowIdentifier.PKValues`, mutation methods returning
-`ErrReadOnly`) are in place so a follow-up PR can light them up without
-churning callers.
+**DDL + import** (RenameTable / DropTable / CreateEmptyTable /
+ImportCSV / AppendCSV / ImportFile) still return `store.ErrReadOnly` —
+PR-C-3b will body these out. dbtui table-list affordances that hit
+those methods surface the error via the status line until then.
 
 ## Collision semantics
 
