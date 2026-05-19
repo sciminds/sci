@@ -4,30 +4,74 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
 
-// TestHashPDF_Format verifies the fingerprint is "<size>-<mtime>".
+// TestHashPDF_Format verifies the fingerprint shape: "<size>-<mtime>-<sha>".
+// The trailing component is a hex digest over the file's leading bytes so
+// that mtime-preserving copies (cp -p, rsync -t, touch -r) still produce a
+// different fingerprint when the content changed.
 func TestHashPDF_Format(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	p := filepath.Join(dir, "sample.pdf")
-	content := []byte("hello world")
-	if err := os.WriteFile(p, content, 0o644); err != nil {
+	if err := os.WriteFile(p, []byte("hello world"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	fi, err := os.Stat(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := fmt.Sprintf("%d-%d", fi.Size(), fi.ModTime().Unix())
 	got, err := HashPDF(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != want {
-		t.Errorf("HashPDF = %q, want %q", got, want)
+	wantPrefix := fmt.Sprintf("%d-%d-", fi.Size(), fi.ModTime().Unix())
+	if !strings.HasPrefix(got, wantPrefix) {
+		t.Errorf("HashPDF = %q, want prefix %q", got, wantPrefix)
+	}
+	suffix := strings.TrimPrefix(got, wantPrefix)
+	if !regexp.MustCompile(`^[0-9a-f]+$`).MatchString(suffix) {
+		t.Errorf("content fingerprint suffix = %q, want lowercase hex", suffix)
+	}
+}
+
+// TestHashPDF_SameSizeAndMtimeDifferentContent guards the mtime-preserving
+// copy case: tools like `cp -p`, `rsync -t`, and `touch -r reference target`
+// produce a file with someone else's mtime, so the stat-only fingerprint
+// would silently serve a stale cache hit for changed content.
+func TestHashPDF_SameSizeAndMtimeDifferentContent(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a.pdf")
+	b := filepath.Join(dir, "b.pdf")
+	if err := os.WriteFile(a, []byte("AAAAAAAAAAAA"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(b, []byte("BBBBBBBBBBBB"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Pin both files to the exact same mtime — simulates a copy-preserving tool.
+	when := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(a, when, when); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(b, when, when); err != nil {
+		t.Fatal(err)
+	}
+	ha, err := HashPDF(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hb, err := HashPDF(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ha == hb {
+		t.Errorf("files with same size+mtime but different content produced same fingerprint %q", ha)
 	}
 }
 

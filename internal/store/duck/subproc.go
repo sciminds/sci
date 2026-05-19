@@ -20,9 +20,19 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
+	"time"
 
 	duckcli "github.com/sciminds/cli/internal/duck"
 )
+
+// defaultCloseTimeout bounds how long [subproc.close] waits for the child
+// to exit after .exit + stdin close before SIGKILLing the process group. A
+// stuck query or a locked WAL otherwise hangs dbtui's shutdown.
+//
+// 3 s is generous: .exit should be near-instant; if duckdb hasn't returned
+// by then it is not going to.
+const defaultCloseTimeout = 3 * time.Second
 
 // sentinelKey is the column name we attach to the framing SELECT. It is
 // long and non-ASCII-free to keep it from appearing inside legitimate
@@ -45,6 +55,11 @@ type subproc struct {
 	stderrDie chan struct{} // closed when the stderr drain goroutine exits
 
 	closed atomic.Bool
+
+	// closeTimeout overrides defaultCloseTimeout per-instance. Tests set this
+	// to a short duration to drive the SIGKILL fallback without making the
+	// suite slow. Set in startSubprocFromCmd, immutable thereafter.
+	closeTimeout time.Duration
 }
 
 // startSubproc spawns `duckdb -jsonlines <dbPath>` in read-write mode.
@@ -54,6 +69,20 @@ func startSubproc(dbPath string) (*subproc, error) {
 		return nil, duckcli.ErrNotInstalled
 	}
 	cmd := exec.Command("duckdb", "-jsonlines", dbPath) //nolint:gosec // binary name is fixed, path validated by caller
+	return startSubprocFromCmd(cmd)
+}
+
+// startSubprocFromCmd is the shared entry point used by [startSubproc] and
+// by tests that need to drive subproc semantics against a non-duckdb child
+// (typically a hung `sleep` or a no-op `cat`) to exercise the close timeout
+// without faking the duckdb binary.
+//
+// [Setpgid] puts the child in its own process group so [subproc.close] can
+// SIGKILL the whole group as a fallback when .exit times out. Unix-only
+// (darwin + linux); the project doesn't build on Windows.
+func startSubprocFromCmd(cmd *exec.Cmd) (*subproc, error) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("stdin pipe: %w", err)
@@ -71,10 +100,11 @@ func startSubproc(dbPath string) (*subproc, error) {
 	}
 
 	s := &subproc{
-		cmd:       cmd,
-		stdin:     stdin,
-		stdout:    bufio.NewReaderSize(stdoutPipe, 1<<20), // 1 MB initial buffer; grows on demand
-		stderrDie: make(chan struct{}),
+		cmd:          cmd,
+		stdin:        stdin,
+		stdout:       bufio.NewReaderSize(stdoutPipe, 1<<20), // 1 MB initial buffer; grows on demand
+		stderrDie:    make(chan struct{}),
+		closeTimeout: defaultCloseTimeout,
 	}
 	go s.drainStderr(stderrPipe)
 	return s, nil
@@ -170,13 +200,32 @@ func (s *subproc) stderrSnapshot() string {
 }
 
 // close shuts the subprocess down. Idempotent.
+//
+// Polite path: write .exit, close stdin, wait for stderr drain, Wait().
+// Hard path: if the child has not exited within [closeTimeout], SIGKILL the
+// entire process group and continue waiting. A stuck query or a locked WAL
+// would otherwise hang dbtui's shutdown indefinitely.
 func (s *subproc) close() error {
 	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
-	// Best-effort polite shutdown: .exit cleanly closes the REPL.
 	_, _ = io.WriteString(s.stdin, ".exit\n")
 	_ = s.stdin.Close()
-	<-s.stderrDie
-	return s.cmd.Wait()
+
+	waitErr := make(chan error, 1)
+	go func() {
+		<-s.stderrDie
+		waitErr <- s.cmd.Wait()
+	}()
+	select {
+	case err := <-waitErr:
+		return err
+	case <-time.After(s.closeTimeout):
+		// SIGKILL the whole group — a stuck duckdb may have ignored .exit,
+		// and any descendants reparented to init would otherwise leak.
+		if s.cmd.Process != nil {
+			_ = syscall.Kill(-s.cmd.Process.Pid, syscall.SIGKILL)
+		}
+		return <-waitErr
+	}
 }

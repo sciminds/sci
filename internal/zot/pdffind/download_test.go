@@ -116,6 +116,39 @@ func TestDownload_RecordsHTTPErrors(t *testing.T) {
 	}
 }
 
+// TestDownload_RejectsOversizedResponse verifies the per-response size cap:
+// a misbehaving or hostile host that streams unbounded bytes must be cut
+// off and the partial file removed so the rerun-cache doesn't pick it up.
+//
+// The shrunken cap (1 KiB vs the production 500 MB) lets us blow through it
+// in milliseconds rather than streaming half a gigabyte through httptest.
+func TestDownload_RejectsOversizedResponse(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/pdf")
+		_, _ = w.Write([]byte("%PDF-1.4\n"))
+		_, _ = w.Write(make([]byte, 4096))
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+	findings := []Finding{{ItemKey: "BIG1", PDFURL: srv.URL + "/big.pdf"}}
+	out, err := Download(context.Background(), srv.Client(), findings, dir, DownloadOptions{MaxPDFBytes: 1024})
+	if err != nil {
+		t.Fatal(err) // per-item errors must not abort the batch
+	}
+	if out[0].DownloadError == "" {
+		t.Error("want download_error set when response exceeds MaxPDFBytes")
+	}
+	if out[0].DownloadedPath != "" {
+		t.Errorf("downloaded_path must stay empty on cap trip, got %q", out[0].DownloadedPath)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Errorf("partial file must be cleaned up, got %d entries", len(entries))
+	}
+}
+
 func TestDownload_RejectsNonPDFContentType(t *testing.T) {
 	t.Parallel()
 	// Publisher landing-page redirects that return HTML are the common trap

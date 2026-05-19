@@ -14,6 +14,18 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// defaultMaxPDFBytes caps how many bytes we will write to disk for a single
+// PDF. A misbehaving or hostile host can otherwise stream unbounded bytes —
+// the 5-minute HTTP client timeout still allows multiple GB at sustained
+// speed, which would fill the user's disk.
+//
+// 500 MB is sized to cover essentially every real academic PDF (including
+// thesis scans and supplementary-data-heavy preprints) while still being
+// small enough to fail fast on a runaway response. Override per-call via
+// [DownloadOptions.MaxPDFBytes] (tests do this to shrink the cap without
+// having to stream half a gigabyte through an httptest server).
+const defaultMaxPDFBytes int64 = 500 * 1024 * 1024
+
 // downloadUserAgent identifies this tool to PDF hosts.
 //
 // Sticking with a descriptive "sci-zot" UA is intentional even though it costs
@@ -54,6 +66,12 @@ type DownloadOptions struct {
 	// SetLimit(N). PDFs come from independent hosts in practice, so 5-8
 	// is a polite default that gives most of the speedup.
 	Parallel int
+
+	// MaxPDFBytes overrides the per-response size cap. Zero or negative
+	// falls back to [defaultMaxPDFBytes] (500 MB). Tests shrink this to
+	// drive the overflow branch without streaming hundreds of MB; production
+	// callers should leave it at zero.
+	MaxPDFBytes int64
 }
 
 // Download fetches every finding's PDFURL to dir, mutating each Finding's
@@ -91,11 +109,16 @@ func Download(
 		fetchIdx++
 	}
 
+	maxBytes := opts.MaxPDFBytes
+	if maxBytes <= 0 {
+		maxBytes = defaultMaxPDFBytes
+	}
+
 	runJob := func(j job) {
 		if opts.OnStart != nil {
 			opts.OnStart(j.fetchIdx, total, findings[j.findingIdx])
 		}
-		path, derr := downloadOne(ctx, httpClient, findings[j.findingIdx], dir)
+		path, derr := downloadOne(ctx, httpClient, findings[j.findingIdx], dir, maxBytes)
 		if derr != nil {
 			findings[j.findingIdx].DownloadError = derr.Error()
 		} else {
@@ -145,7 +168,7 @@ func Download(
 // If dir/<itemKey>.pdf already exists and is non-empty, skip the network
 // entirely and return that path. Lets reruns (especially --attach after a
 // prior --download) avoid re-fetching files we already have.
-func downloadOne(ctx context.Context, httpClient *http.Client, f Finding, dir string) (string, error) {
+func downloadOne(ctx context.Context, httpClient *http.Client, f Finding, dir string, maxBytes int64) (string, error) {
 	existing := filepath.Join(dir, sanitizeFilename(f.ItemKey)+".pdf")
 	if info, err := os.Stat(existing); err == nil && info.Size() > 0 {
 		return existing, nil
@@ -153,7 +176,7 @@ func downloadOne(ctx context.Context, httpClient *http.Client, f Finding, dir st
 	urls := slices.Concat([]string{f.PDFURL}, f.FallbackURLs)
 	var firstErr error
 	for i, u := range urls {
-		path, err := fetchURL(ctx, httpClient, u, f.ItemKey, dir)
+		path, err := fetchURL(ctx, httpClient, u, f.ItemKey, dir, maxBytes)
 		if err == nil {
 			return path, nil
 		}
@@ -170,7 +193,7 @@ func downloadOne(ctx context.Context, httpClient *http.Client, f Finding, dir st
 // fetchURL does one HTTP GET + content-type validation + file write.
 // Kept separate from downloadOne so the fallback loop can call it on
 // multiple URLs without duplicating the request setup.
-func fetchURL(ctx context.Context, httpClient *http.Client, url, itemKey, dir string) (string, error) {
+func fetchURL(ctx context.Context, httpClient *http.Client, url, itemKey, dir string, maxBytes int64) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", err
@@ -204,9 +227,18 @@ func fetchURL(ctx context.Context, httpClient *http.Client, url, itemKey, dir st
 		return "", err
 	}
 	defer func() { _ = out.Close() }()
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	// Cap the response body at maxBytes. We read one byte beyond the cap so
+	// we can detect overshoot — a response exactly at the cap is still
+	// legal, anything larger is rejected and the partial file is removed so
+	// the rerun-cache doesn't pick it up.
+	written, err := io.Copy(out, io.LimitReader(resp.Body, maxBytes+1))
+	if err != nil {
 		_ = os.Remove(name) // don't leave a half-written file masquerading as a PDF
 		return "", err
+	}
+	if written > maxBytes {
+		_ = os.Remove(name)
+		return "", fmt.Errorf("response exceeds %d-byte cap (got >%d bytes)", maxBytes, maxBytes)
 	}
 	return name, nil
 }

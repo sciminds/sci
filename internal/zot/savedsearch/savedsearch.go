@@ -163,13 +163,28 @@ func Translate(conds []client.SearchCondition) (APIFilters, []Unsupported) {
 				out.NoChildren = true
 			}
 
-		case "joinMode", "includeParentsAndChildren":
-			// Modifiers we can't honor faithfully via the API.
-			// joinMode=any (OR across conditions) would need per-condition
-			// requests; includeParentsAndChildren controls result-tree
-			// expansion which our flat list doesn't model. Both default
-			// to AND/flat — silently ignore so the common case where the
-			// modifier is at its default value just works.
+		case "joinMode":
+			// joinMode=all is the default (AND across conditions) and matches
+			// how we project filters onto the API. joinMode=any (OR) would
+			// need per-condition fan-out + union — flagging as Unsupported
+			// rather than silently running as AND, which would return a
+			// narrower result set than the saved search promises.
+			if c.Operator != "all" {
+				bad = append(bad, Unsupported{
+					Condition: c.Condition, Operator: c.Operator, Value: c.Value,
+					Reason: "joinMode=any (OR semantics) requires per-condition fan-out — not implemented",
+				})
+			}
+
+		case "includeParentsAndChildren":
+			// Default (false) matches our flat list semantics. Non-default
+			// (true) changes result-tree expansion, which we don't model.
+			if c.Operator != "false" {
+				bad = append(bad, Unsupported{
+					Condition: c.Condition, Operator: c.Operator, Value: c.Value,
+					Reason: "includeParentsAndChildren=true requires result-tree expansion — not implemented",
+				})
+			}
 
 		default:
 			bad = append(bad, Unsupported{

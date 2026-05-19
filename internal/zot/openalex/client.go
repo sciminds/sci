@@ -64,6 +64,14 @@ func (c *Client) Get(ctx context.Context, path string, params url.Values, dst an
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", userAgent)
+	// The API key travels in the Authorization header rather than as an
+	// ?api_key= query param. Reason: a query param ends up in *url.Error
+	// strings on transport failures (DNS, TLS) and gets propagated via
+	// fmt.Errorf below — and from there into any caller's log, --json error
+	// output, or TUI surface. The header stays out of those paths.
+	if c.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	}
 
 	resp, err := c.doWithRetry(req)
 	if err != nil {
@@ -87,11 +95,10 @@ func (c *Client) buildURL(path string, params url.Values) string {
 	if params == nil {
 		params = url.Values{}
 	}
+	// mailto stays in the URL — it's OpenAlex's polite-pool convention with no
+	// header equivalent, and the email is intentionally public-ish.
 	if c.Email != "" && params.Get("mailto") == "" {
 		params.Set("mailto", c.Email)
-	}
-	if c.APIKey != "" && params.Get("api_key") == "" {
-		params.Set("api_key", c.APIKey)
 	}
 	u := strings.TrimRight(c.BaseURL, "/") + path
 	if len(params) > 0 {

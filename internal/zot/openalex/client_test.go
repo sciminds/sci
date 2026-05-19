@@ -36,20 +36,52 @@ func TestClient_Get(t *testing.T) {
 	}
 }
 
-func TestClient_Get_injectsAuthQueryParams(t *testing.T) {
+// TestClient_Get_apiKeyTravelsInHeaderNotURL guards the credential leak fix.
+// `api_key=` in the query string ends up in `*url.Error` strings on
+// transport-level failures (DNS, TLS) and gets propagated to callers via
+// fmt.Errorf("openalex: %w", err) — and from there into any TUI surface,
+// --json error output, or agent telemetry that logs the error. Moving the
+// key to an Authorization header keeps it out of those paths.
+//
+// `mailto=` stays in the URL: it's OpenAlex's polite-pool convention with no
+// header equivalent, and the email is by-design public-ish.
+func TestClient_Get_apiKeyTravelsInHeaderNotURL(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if got := r.URL.Query().Get("mailto"); got != "me@example.com" {
-			t.Errorf("mailto = %q", got)
+		if got := r.URL.Query().Get("api_key"); got != "" {
+			t.Errorf("api_key leaked into URL query: %q", got)
 		}
-		if got := r.URL.Query().Get("api_key"); got != "secret" {
-			t.Errorf("api_key = %q", got)
+		if got := r.Header.Get("Authorization"); got != "Bearer secret" {
+			t.Errorf("Authorization = %q, want %q", got, "Bearer secret")
+		}
+		if got := r.URL.Query().Get("mailto"); got != "me@example.com" {
+			t.Errorf("mailto = %q, want me@example.com (polite-pool param stays in URL)", got)
 		}
 		_ = json.NewEncoder(w).Encode(Work{ID: "W1"})
 	}))
 	defer srv.Close()
 
 	c := NewClient("me@example.com", "secret")
+	c.BaseURL = srv.URL
+	if err := c.Get(context.Background(), "/works/W1", nil, new(Work)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestClient_Get_noAuthHeaderWithoutKey verifies that when the user hasn't
+// configured an API key (the common case — OpenAlex works anonymously), we
+// don't send an empty Authorization header.
+func TestClient_Get_noAuthHeaderWithoutKey(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, present := r.Header["Authorization"]; present {
+			t.Errorf("Authorization header sent without a configured key: %q", r.Header.Get("Authorization"))
+		}
+		_ = json.NewEncoder(w).Encode(Work{ID: "W1"})
+	}))
+	defer srv.Close()
+
+	c := NewClient("me@example.com", "")
 	c.BaseURL = srv.URL
 	if err := c.Get(context.Background(), "/works/W1", nil, new(Work)); err != nil {
 		t.Fatal(err)

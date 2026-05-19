@@ -17,6 +17,25 @@ func setupLog(t *testing.T) {
 	t.Cleanup(xdg.Reload)
 }
 
+// TestTransferLogPath_EmptyXDGStateHome guards against an empty XDG_STATE_HOME
+// (set to "" in the shell, not just unset) — without the defensive fallback
+// the xdg lib resolves to ~/Library/Application Support on darwin, which puts
+// transfer logs in a different bucket from the rest of sci's state.
+func TestTransferLogPath_EmptyXDGStateHome(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", "")
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+	want := filepath.Join(home, ".local", "state", "sci", "lab-transfers.jsonl")
+	if got := TransferLogPath(); got != want {
+		t.Errorf("TransferLogPath with empty XDG_STATE_HOME = %q, want %q", got, want)
+	}
+}
+
 func TestTransferLog_StartAppendsEntry(t *testing.T) {
 	setupLog(t)
 	if err := LogTransferStarted(TransferEntry{Remote: "/labs/sciminds/a", Local: "./a", ExpectedBytes: 100}); err != nil {

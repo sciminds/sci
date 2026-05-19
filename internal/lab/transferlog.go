@@ -29,7 +29,16 @@ type TransferEntry struct {
 // (typically $XDG_STATE_HOME/sci/lab-transfers.jsonl). The transfer log is
 // per-machine, append-only, and regenerated on demand — XDG_STATE_HOME is
 // the right semantic bucket (run history), not config or cache.
+//
+// An empty XDG_STATE_HOME (set to "" in the shell, not just unset) is
+// handled defensively — without this, xdg's darwin fallback resolves to
+// ~/Library/Application Support, which puts the log in a different bucket
+// from the rest of sci's state. Same pattern as ConfigPath / hfCachePath.
 func TransferLogPath() string {
+	if os.Getenv("XDG_STATE_HOME") == "" {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, ".local", "state", "sci", "lab-transfers.jsonl")
+	}
 	return filepath.Join(xdg.StateHome, "sci", "lab-transfers.jsonl")
 }
 

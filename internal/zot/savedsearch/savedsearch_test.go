@@ -146,6 +146,45 @@ func TestTranslate_DuplicateTagFlagsAsUnsupported(t *testing.T) {
 	}
 }
 
+func TestTranslate_JoinModeAnyIsUnsupported(t *testing.T) {
+	t.Parallel()
+	// joinMode=any means OR semantics across conditions. The API can only AND
+	// its filter params together; silently treating an OR search as AND would
+	// return a much narrower result set than the saved search promises. Flag
+	// the user so they pick a different approach instead of getting wrong data.
+	conds := []client.SearchCondition{
+		cond("tag", "is", "ml"),
+		cond("joinMode", "any", ""),
+	}
+	got, unsupported := Translate(conds)
+	if got.Tag != "ml" {
+		t.Errorf("supported clauses should still translate; Tag = %q", got.Tag)
+	}
+	if len(unsupported) != 1 {
+		t.Fatalf("unsupported = %+v, want 1 (joinMode=any)", unsupported)
+	}
+	if unsupported[0].Condition != "joinMode" || unsupported[0].Operator != "any" {
+		t.Errorf("unsupported = %+v, want joinMode/any", unsupported[0])
+	}
+}
+
+func TestTranslate_IncludeParentsAndChildrenTrueIsUnsupported(t *testing.T) {
+	t.Parallel()
+	// Non-default value (true) changes result-tree expansion in a way our flat
+	// list path doesn't model. The default (false) is silently ignored — see
+	// TestTranslate_AllSupportedConditions.
+	conds := []client.SearchCondition{
+		cond("includeParentsAndChildren", "true", ""),
+	}
+	_, unsupported := Translate(conds)
+	if len(unsupported) != 1 {
+		t.Fatalf("unsupported = %+v, want 1 (includeParentsAndChildren=true)", unsupported)
+	}
+	if unsupported[0].Condition != "includeParentsAndChildren" || unsupported[0].Operator != "true" {
+		t.Errorf("unsupported = %+v, want includeParentsAndChildren/true", unsupported[0])
+	}
+}
+
 func TestTranslate_NoChildrenFalseIsIgnored(t *testing.T) {
 	t.Parallel()
 	// noChildren=false means "include children in results" — for our API
