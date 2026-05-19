@@ -31,6 +31,7 @@ func buildTab(ds store.DataStore, tableName string) (Tab, error) {
 		spec := columnSpec{
 			Title:  pc.Name,
 			DBName: pc.Name,
+			DBType: pc.Type,
 			Min:    8,
 			Flex:   true,
 			Align:  alignLeft,

@@ -140,6 +140,7 @@ type Cell struct {
 type ColumnSpec struct {
 	Title     string    // display name
 	DBName    string    // original column name from PRAGMA table_info (for SQL)
+	DBType    string    // original SQL type string (e.g. "VARCHAR", "STRUCT(...)")
 	Min       int       // minimum display width
 	Max       int       // maximum display width (0 = uncapped)
 	Flex      bool      // true = column grows to fill available space

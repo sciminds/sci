@@ -135,8 +135,14 @@ func (m *Model) handleNormalModeKey(k string, tab *Tab) bool {
 				if pretty, isJSON := prettyPrintJSON(c.Value); isJSON {
 					// Wrap in a json code fence so glamour's chroma highlighter
 					// colors keys/strings/numbers/booleans/null in the overlay.
-					fenced := "```json\n" + pretty + "\n```"
-					overlay = uikit.NewMarkdownOverlay(title, fenced, m.width, m.height, overlayOpts...)
+					// For compound duckdb types (STRUCT/LIST/MAP/INTERVAL/…)
+					// prepend the SQL signature as small italic context.
+					var dbType string
+					if tab.ColCursor < len(tab.Specs) {
+						dbType = tab.Specs[tab.ColCursor].DBType
+					}
+					md := compoundTypeHeader(dbType) + "```json\n" + pretty + "\n```"
+					overlay = uikit.NewMarkdownOverlay(title, md, m.width, m.height, overlayOpts...)
 				} else {
 					overlay = uikit.NewOverlay(title, c.Value, m.width, m.height, overlayOpts...)
 				}

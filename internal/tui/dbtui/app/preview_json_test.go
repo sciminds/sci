@@ -107,3 +107,38 @@ func TestPrettyPrintJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestCompoundTypeHeader(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"whitespace", "   ", ""},
+		{"plain VARCHAR", "VARCHAR", ""},
+		{"plain TEXT", "TEXT", ""},
+		{"plain INTEGER", "INTEGER", ""},
+		{"plain BIGINT", "BIGINT", ""},
+		{"plain BOOLEAN", "BOOLEAN", ""},
+		{"STRUCT with parens", "STRUCT(name VARCHAR, tags INTEGER[])", "*STRUCT(name VARCHAR, tags INTEGER[])*\n\n"},
+		{"LIST with brackets", "INTEGER[]", "*INTEGER[]*\n\n"},
+		{"MAP with parens", "MAP(VARCHAR, INTEGER)", "*MAP(VARCHAR, INTEGER)*\n\n"},
+		{"bare STRUCT", "STRUCT", "*STRUCT*\n\n"},
+		{"bare LIST", "LIST", "*LIST*\n\n"},
+		{"bare MAP", "MAP", "*MAP*\n\n"},
+		{"bare JSON", "JSON", "*JSON*\n\n"},
+		{"bare INTERVAL", "INTERVAL", "*INTERVAL*\n\n"},
+		{"lowercase struct", "struct(a int)", "*struct(a int)*\n\n"},
+		{"trimmed", "  STRUCT(a INT)  ", "*STRUCT(a INT)*\n\n"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := compoundTypeHeader(tc.in)
+			if got != tc.want {
+				t.Errorf("compoundTypeHeader(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}

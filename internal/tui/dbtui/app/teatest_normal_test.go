@@ -334,6 +334,40 @@ func TestTeatestCellPreviewPrettyJSON(t *testing.T) {
 	}
 }
 
+// TestTeatestCellPreviewCompoundTypeHeader verifies that a JSON cell in a
+// column whose declared SQL type is "compound" (STRUCT/LIST/MAP/…) shows
+// the type signature above the JSON in the preview overlay. We piggy-back
+// on SQLite's permissive type system: a column declared
+// `STRUCT(name VARCHAR, tags INTEGER[])` preserves that string in PRAGMA
+// table_info, which the duckstore-equivalent code path would also produce.
+func TestTeatestCellPreviewCompoundTypeHeader(t *testing.T) {
+	t.Parallel()
+
+	raw := `{"name":"Alice","tags":[1,2,3]}`
+	m, _ := newTeatestModelWithSchema(t, []string{
+		"CREATE TABLE rich (id INTEGER PRIMARY KEY, payload `STRUCT(name VARCHAR, tags INTEGER[])`)",
+		`INSERT INTO rich VALUES (1, '` + raw + `')`,
+	})
+
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
+	waitForOutput(t, tm, "rich")
+
+	sendSpecial(tm, tea.KeyEnter)
+
+	// Type signature appears as italic markdown above the json fence.
+	// glamour renders italics with ANSI in real terminals; in teatest the
+	// substring lands verbatim because no color profile is active.
+	waitForOutput(t, tm, "STRUCT(name VARCHAR, tags INTEGER[])")
+
+	fm := finalModel(t, tm)
+	if fm.notePreview == nil {
+		t.Fatal("expected note preview to be open after Enter")
+	}
+	if _, ok := fm.notePreview.Overlay.(uikit.MarkdownOverlay); !ok {
+		t.Errorf("expected uikit.MarkdownOverlay for JSON cell, got %T", fm.notePreview.Overlay)
+	}
+}
+
 // TestTeatestCellPreviewPlainText verifies that pressing Enter on a non-JSON
 // cell still uses the plain Overlay (not MarkdownOverlay) so the value is
 // shown verbatim without glamour's wrapping/styling.
