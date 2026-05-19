@@ -1,4 +1,4 @@
-package data
+package sqlite
 
 import (
 	"encoding/json"
@@ -7,7 +7,16 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sciminds/cli/internal/store"
 )
+
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
 
 func createFixtureFiles(t *testing.T) string {
 	t.Helper()
@@ -36,35 +45,35 @@ func createFixtureFiles(t *testing.T) string {
 	return dir
 }
 
-func TestFileViewStoreCSV(t *testing.T) {
+func TestFileViewCSV(t *testing.T) {
 	t.Parallel()
-	testFileStore(t, filepath.Join(createFixtureFiles(t), "sample.csv"))
+	testFileView(t, filepath.Join(createFixtureFiles(t), "sample.csv"))
 }
 
-func TestFileViewStoreTSV(t *testing.T) {
+func TestFileViewTSV(t *testing.T) {
 	t.Parallel()
-	testFileStore(t, filepath.Join(createFixtureFiles(t), "sample.tsv"))
+	testFileView(t, filepath.Join(createFixtureFiles(t), "sample.tsv"))
 }
 
-func TestFileViewStoreJSON(t *testing.T) {
+func TestFileViewJSON(t *testing.T) {
 	t.Parallel()
-	testFileStore(t, filepath.Join(createFixtureFiles(t), "sample.json"))
+	testFileView(t, filepath.Join(createFixtureFiles(t), "sample.json"))
 }
 
-func TestFileViewStoreJSONL(t *testing.T) {
+func TestFileViewJSONL(t *testing.T) {
 	t.Parallel()
-	testFileStore(t, filepath.Join(createFixtureFiles(t), "sample.jsonl"))
+	testFileView(t, filepath.Join(createFixtureFiles(t), "sample.jsonl"))
 }
 
-func testFileStore(t *testing.T, path string) {
+func testFileView(t *testing.T, path string) {
 	t.Helper()
-	store, err := OpenFileStore(path)
+	s, err := OpenFileView(path)
 	if err != nil {
-		t.Fatalf("OpenFileStore(%s): %v", filepath.Base(path), err)
+		t.Fatalf("OpenFileView(%s): %v", filepath.Base(path), err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	names, err := store.TableNames()
+	names, err := s.TableNames()
 	if err != nil {
 		t.Fatalf("TableNames: %v", err)
 	}
@@ -72,7 +81,7 @@ func testFileStore(t *testing.T, path string) {
 		t.Fatalf("TableNames = %v, want [sample]", names)
 	}
 
-	cols, err := store.TableColumns("sample")
+	cols, err := s.TableColumns("sample")
 	if err != nil {
 		t.Fatalf("TableColumns: %v", err)
 	}
@@ -80,7 +89,7 @@ func testFileStore(t *testing.T, path string) {
 		t.Fatalf("expected 4 columns, got %d", len(cols))
 	}
 
-	count, err := store.TableRowCount("sample")
+	count, err := s.TableRowCount("sample")
 	if err != nil {
 		t.Fatalf("TableRowCount: %v", err)
 	}
@@ -88,7 +97,7 @@ func testFileStore(t *testing.T, path string) {
 		t.Errorf("expected 3 rows, got %d", count)
 	}
 
-	qCols, rows, nullFlags, rowIDs, err := store.QueryTable("sample")
+	qCols, rows, nullFlags, rowIDs, err := s.QueryTable("sample")
 	if err != nil {
 		t.Fatalf("QueryTable: %v", err)
 	}
@@ -107,7 +116,7 @@ func testFileStore(t *testing.T, path string) {
 		t.Errorf("first row name = %q, want Alice", rows[0][nameIdx])
 	}
 
-	summaries, err := store.TableSummaries()
+	summaries, err := s.TableSummaries()
 	if err != nil {
 		t.Fatalf("TableSummaries: %v", err)
 	}
@@ -116,40 +125,40 @@ func testFileStore(t *testing.T, path string) {
 	}
 }
 
-func TestFileViewStoreUnsupportedOps(t *testing.T) {
+func TestFileViewUnsupportedOps(t *testing.T) {
 	t.Parallel()
-	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
+	s, err := OpenFileView(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	if err := store.RenameTable("sample", "new"); err == nil {
+	if err := s.RenameTable("sample", "new"); err == nil {
 		t.Error("RenameTable should return error")
 	}
-	if err := store.DropTable("sample"); err == nil {
+	if err := s.DropTable("sample"); err == nil {
 		t.Error("DropTable should return error")
 	}
-	if err := store.ImportCSV("x.csv", "t"); err == nil {
+	if err := s.ImportCSV("x.csv", "t"); err == nil {
 		t.Error("ImportCSV should return error")
 	}
 }
 
-func TestFileViewStoreUpdateCell(t *testing.T) {
+func TestFileViewUpdateCell(t *testing.T) {
 	t.Parallel()
-	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
+	s, err := OpenFileView(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	_, _, _, rowIDs, _ := store.QueryTable("sample")
+	_, _, _, rowIDs, _ := s.QueryTable("sample")
 	newVal := "Alicia"
-	if err := store.UpdateCell("sample", "name", rowIDs[0], nil, &newVal); err != nil {
+	if err := s.UpdateCell("sample", "name", rowIDs[0], nil, &newVal); err != nil {
 		t.Fatalf("UpdateCell: %v", err)
 	}
 
-	colNames, rows, _, _, _ := store.QueryTable("sample")
+	colNames, rows, _, _, _ := s.QueryTable("sample")
 	nameIdx := -1
 	for i, c := range colNames {
 		if strings.EqualFold(c, "name") {
@@ -162,62 +171,62 @@ func TestFileViewStoreUpdateCell(t *testing.T) {
 	}
 }
 
-func TestFileViewStoreDeleteRows(t *testing.T) {
+func TestFileViewDeleteRows(t *testing.T) {
 	t.Parallel()
-	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
+	s, err := OpenFileView(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	_, _, _, rowIDs, _ := store.QueryTable("sample")
-	n, err := store.DeleteRows("sample", []RowIdentifier{{RowID: rowIDs[0]}})
+	_, _, _, rowIDs, _ := s.QueryTable("sample")
+	n, err := s.DeleteRows("sample", []store.RowIdentifier{{RowID: rowIDs[0]}})
 	if err != nil {
 		t.Fatalf("DeleteRows: %v", err)
 	}
 	if n != 1 {
 		t.Errorf("DeleteRows returned %d, want 1", n)
 	}
-	count, _ := store.TableRowCount("sample")
+	count, _ := s.TableRowCount("sample")
 	if count != 2 {
 		t.Errorf("row count = %d, want 2", count)
 	}
 }
 
-func TestFileViewStoreInsertRows(t *testing.T) {
+func TestFileViewInsertRows(t *testing.T) {
 	t.Parallel()
-	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
+	s, err := OpenFileView(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	err = store.InsertRows("sample", []string{"id", "name", "age", "height"},
+	err = s.InsertRows("sample", []string{"id", "name", "age", "height"},
 		[][]string{{"4", "Dave", "28", "1.70"}})
 	if err != nil {
 		t.Fatalf("InsertRows: %v", err)
 	}
-	count, _ := store.TableRowCount("sample")
+	count, _ := s.TableRowCount("sample")
 	if count != 4 {
 		t.Errorf("row count = %d, want 4", count)
 	}
 }
 
-func TestFileViewStoreWriteBack(t *testing.T) {
+func TestFileViewWriteBack(t *testing.T) {
 	t.Parallel()
 	dir := createFixtureFiles(t)
 	csvPath := filepath.Join(dir, "sample.csv")
-	store, err := OpenFileStore(csvPath)
+	s, err := OpenFileView(csvPath)
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
 
-	_, _, _, rowIDs, _ := store.QueryTable("sample")
+	_, _, _, rowIDs, _ := s.QueryTable("sample")
 	newVal := "Alicia"
-	if err := store.UpdateCell("sample", "name", rowIDs[0], nil, &newVal); err != nil {
+	if err := s.UpdateCell("sample", "name", rowIDs[0], nil, &newVal); err != nil {
 		t.Fatalf("UpdateCell: %v", err)
 	}
-	if err := store.Close(); err != nil {
+	if err := s.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 
@@ -227,17 +236,17 @@ func TestFileViewStoreWriteBack(t *testing.T) {
 	}
 }
 
-func TestFileViewStoreNoWriteBackWhenClean(t *testing.T) {
+func TestFileViewNoWriteBackWhenClean(t *testing.T) {
 	t.Parallel()
 	dir := createFixtureFiles(t)
 	csvPath := filepath.Join(dir, "sample.csv")
 	original, _ := os.ReadFile(csvPath)
 
-	store, err := OpenFileStore(csvPath)
+	s, err := OpenFileView(csvPath)
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	_ = store.Close()
+	_ = s.Close()
 
 	after, _ := os.ReadFile(csvPath)
 	if string(original) != string(after) {
@@ -245,15 +254,15 @@ func TestFileViewStoreNoWriteBackWhenClean(t *testing.T) {
 	}
 }
 
-func TestFileViewStoreReadOnlyQuery(t *testing.T) {
+func TestFileViewReadOnlyQuery(t *testing.T) {
 	t.Parallel()
-	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
+	s, err := OpenFileView(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	cols, rows, err := store.ReadOnlyQuery("SELECT name FROM sample WHERE id = 1")
+	cols, rows, err := s.ReadOnlyQuery("SELECT name FROM sample WHERE id = 1")
 	if err != nil {
 		t.Fatalf("ReadOnlyQuery: %v", err)
 	}
@@ -262,16 +271,16 @@ func TestFileViewStoreReadOnlyQuery(t *testing.T) {
 	}
 }
 
-func TestFileViewStoreExportCSV(t *testing.T) {
+func TestFileViewExportCSV(t *testing.T) {
 	t.Parallel()
-	store, err := OpenFileStore(filepath.Join(createFixtureFiles(t), "sample.csv"))
+	s, err := OpenFileView(filepath.Join(createFixtureFiles(t), "sample.csv"))
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
 	outPath := filepath.Join(t.TempDir(), "exported.csv")
-	if err := store.ExportCSV("sample", outPath); err != nil {
+	if err := s.ExportCSV("sample", outPath); err != nil {
 		t.Fatalf("ExportCSV: %v", err)
 	}
 	data, _ := os.ReadFile(outPath)
@@ -280,20 +289,19 @@ func TestFileViewStoreExportCSV(t *testing.T) {
 	}
 }
 
-func TestFileViewStoreCSV_FilenameWithDashes(t *testing.T) {
+func TestFileViewCSV_FilenameWithDashes(t *testing.T) {
 	t.Parallel()
-	// Filenames with dashes/punctuation must produce a valid table name.
 	dir := t.TempDir()
 	csvPath := filepath.Join(dir, "pairs-bom.csv")
 	writeFile(t, csvPath, "Bad,Good\n1,2\n")
 
-	store, err := OpenFileStore(csvPath)
+	s, err := OpenFileView(csvPath)
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	names, err := store.TableNames()
+	names, err := s.TableNames()
 	if err != nil {
 		t.Fatalf("TableNames: %v", err)
 	}
@@ -302,20 +310,19 @@ func TestFileViewStoreCSV_FilenameWithDashes(t *testing.T) {
 	}
 }
 
-func TestFileViewStoreCSV_BOMHeader(t *testing.T) {
+func TestFileViewCSV_BOMHeader(t *testing.T) {
 	t.Parallel()
-	// UTF-8 BOM-prefixed CSV — the exact shape from issue #1.
 	dir := t.TempDir()
 	csvPath := filepath.Join(dir, "bom.csv")
 	writeFile(t, csvPath, "\ufeffBad,Good\n1,2\n")
 
-	store, err := OpenFileStore(csvPath)
+	s, err := OpenFileView(csvPath)
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	cols, err := store.TableColumns("bom")
+	cols, err := s.TableColumns("bom")
 	if err != nil {
 		t.Fatalf("TableColumns: %v", err)
 	}
@@ -327,7 +334,7 @@ func TestFileViewStoreCSV_BOMHeader(t *testing.T) {
 		t.Errorf("columns = %q, want [Bad Good]", names)
 	}
 
-	count, err := store.TableRowCount("bom")
+	count, err := s.TableRowCount("bom")
 	if err != nil {
 		t.Fatalf("TableRowCount: %v", err)
 	}
@@ -336,20 +343,19 @@ func TestFileViewStoreCSV_BOMHeader(t *testing.T) {
 	}
 }
 
-func TestFileViewStoreCSV_HeaderSanitation(t *testing.T) {
+func TestFileViewCSV_HeaderSanitation(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	csvPath := filepath.Join(dir, "messy.csv")
-	// Padded header, empty header, duplicate header, punctuation, Unicode.
 	writeFile(t, csvPath, "  Name  ,,Date (UTC),temp_°C,Name\nAlice,x,2024-01-01,21,A\n")
 
-	store, err := OpenFileStore(csvPath)
+	s, err := OpenFileView(csvPath)
 	if err != nil {
-		t.Fatalf("OpenFileStore: %v", err)
+		t.Fatalf("OpenFileView: %v", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	cols, err := store.TableColumns("messy")
+	cols, err := s.TableColumns("messy")
 	if err != nil {
 		t.Fatalf("TableColumns: %v", err)
 	}
@@ -368,19 +374,19 @@ func TestFileViewStoreCSV_HeaderSanitation(t *testing.T) {
 	}
 }
 
-func TestFileViewStoreUnsupportedExt(t *testing.T) {
+func TestFileViewUnsupportedExt(t *testing.T) {
 	t.Parallel()
 	tmp := filepath.Join(t.TempDir(), "data.xlsx")
 	_ = os.WriteFile(tmp, []byte("fake"), 0o644)
-	_, err := OpenFileStore(tmp)
+	_, err := OpenFileView(tmp)
 	if err == nil || !strings.Contains(err.Error(), "unsupported") {
 		t.Errorf("expected unsupported error, got %v", err)
 	}
 }
 
-func TestFileViewStoreNonexistentFile(t *testing.T) {
+func TestFileViewNonexistentFile(t *testing.T) {
 	t.Parallel()
-	_, err := OpenFileStore("/tmp/does-not-exist-ever.csv")
+	_, err := OpenFileView("/tmp/does-not-exist-ever.csv")
 	if err == nil {
 		t.Fatal("expected error for nonexistent file")
 	}
@@ -405,8 +411,8 @@ func TestIsViewableFile(t *testing.T) {
 	}
 }
 
-// BenchmarkImportCSV measures CSV file import into an in-memory SQLite store.
-func BenchmarkImportCSV(b *testing.B) {
+// BenchmarkImportCSVFileView measures CSV file import into an in-memory SQLite store.
+func BenchmarkImportCSVFileView(b *testing.B) {
 	dir := b.TempDir()
 	csvPath := filepath.Join(dir, "bench.csv")
 	var sb strings.Builder
@@ -420,16 +426,16 @@ func BenchmarkImportCSV(b *testing.B) {
 
 	b.ResetTimer()
 	for range b.N {
-		store, err := OpenFileStore(csvPath)
+		s, err := OpenFileView(csvPath)
 		if err != nil {
 			b.Fatal(err)
 		}
-		_ = store.Close()
+		_ = s.Close()
 	}
 }
 
-// BenchmarkImportJSONL measures JSONL file import into an in-memory SQLite store.
-func BenchmarkImportJSONL(b *testing.B) {
+// BenchmarkImportJSONLFileView measures JSONL file import into an in-memory SQLite store.
+func BenchmarkImportJSONLFileView(b *testing.B) {
 	dir := b.TempDir()
 	jsonlPath := filepath.Join(dir, "bench.jsonl")
 	var sb strings.Builder
@@ -442,10 +448,10 @@ func BenchmarkImportJSONL(b *testing.B) {
 
 	b.ResetTimer()
 	for range b.N {
-		store, err := OpenFileStore(jsonlPath)
+		s, err := OpenFileView(jsonlPath)
 		if err != nil {
 			b.Fatal(err)
 		}
-		_ = store.Close()
+		_ = s.Close()
 	}
 }

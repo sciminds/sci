@@ -8,8 +8,8 @@ import (
 
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/db"
-	"github.com/sciminds/cli/internal/db/data"
 	"github.com/sciminds/cli/internal/duck"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
@@ -330,7 +330,7 @@ func dbAddCommand() *cli.Command {
 				for _, f := range csvFiles {
 					tbl := dbAddTableName
 					if tbl == "" {
-						tbl = data.TableNameFromFile(f)
+						tbl = store.TableNameFromFile(f)
 					}
 					uikit.Hint(fmt.Sprintf("would import %s → table %q in %s", f, tbl, dbPath))
 				}
@@ -370,7 +370,7 @@ func dbAppendCommand() *cli.Command {
 				for _, f := range csvFiles {
 					tbl := dbAddTableName
 					if tbl == "" {
-						tbl = data.TableNameFromFile(f)
+						tbl = store.TableNameFromFile(f)
 					}
 					uikit.Hint(fmt.Sprintf("would append %s → table %q in %s", f, tbl, dbPath))
 				}

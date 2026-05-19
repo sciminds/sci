@@ -16,7 +16,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 )
 
 // toggleTableList opens or closes the table list overlay.
@@ -226,7 +226,7 @@ func (m *Model) tableListCommitRename() {
 	}
 
 	// Validate new name.
-	if !data.IsSafeIdentifier(newName) {
+	if !store.IsSafeIdentifier(newName) {
 		tl.Status = fmt.Sprintf("Invalid name: %q (alphanumerics, underscores, and spaces only)", newName)
 		return
 	}

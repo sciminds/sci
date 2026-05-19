@@ -7,7 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/uikit"
@@ -1104,9 +1104,9 @@ func TestApplySearchFilterNegatePlain(t *testing.T) {
 // Only SearchFulltext is functional; all other methods panic if called.
 // Every call is recorded in calls for assertion on exact/prefix semantics.
 type mockFTSStore struct {
-	data.DataStore // embedded to satisfy interface; nil — unused methods panic
-	hits           []int64
-	calls          []mockFTSCall
+	store.DataStore // embedded to satisfy interface; nil — unused methods panic
+	hits            []int64
+	calls           []mockFTSCall
 }
 
 type mockFTSCall struct {

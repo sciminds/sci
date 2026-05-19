@@ -15,8 +15,9 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/db/data"
 	"github.com/sciminds/cli/internal/duck"
+	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/cli/internal/store/sqlite"
 	dbtui "github.com/sciminds/cli/internal/tui/dbtui/app"
 )
 
@@ -42,7 +43,7 @@ func Info(dbPath string) (*InfoResult, error) {
 func infoSQLite(dbPath string) (*InfoResult, error) {
 	var result InfoResult
 
-	err := withStore(dbPath, func(store data.DataStore) error {
+	err := withStore(dbPath, func(s store.DataStore) error {
 		fi, err := os.Stat(dbPath)
 		if err != nil {
 			return err
@@ -50,14 +51,14 @@ func infoSQLite(dbPath string) (*InfoResult, error) {
 		result.DBPath = dbPath
 		result.SizeMB = float64(fi.Size()) / (1024 * 1024)
 
-		summaries, err := store.TableSummaries()
+		summaries, err := s.TableSummaries()
 		if err != nil {
 			return err
 		}
 		type viewLister interface{ IsView(string) bool }
 		type virtualLister interface{ IsVirtual(string) bool }
-		vl, hasViews := store.(viewLister)
-		vtl, hasVirtuals := store.(virtualLister)
+		vl, hasViews := s.(viewLister)
+		vtl, hasVirtuals := s.(virtualLister)
 		result.Tables = make([]TableEntry, len(summaries))
 		for i, s := range summaries {
 			result.Tables[i] = TableEntry{Name: s.Name, Rows: s.Rows, Columns: s.Columns}
@@ -109,8 +110,8 @@ func DeleteTable(table, dbPath string) (*MutationResult, error) {
 		}
 		return &MutationResult{OK: true, Message: fmt.Sprintf("dropped %q", table)}, nil
 	}
-	err := withStore(dbPath, func(store data.DataStore) error {
-		return store.DropTable(table)
+	err := withStore(dbPath, func(s store.DataStore) error {
+		return s.DropTable(table)
 	})
 	if err != nil {
 		return nil, err
@@ -132,8 +133,8 @@ func RenameTable(oldName, newName, dbPath string) (*MutationResult, error) {
 		}
 		return &MutationResult{OK: true, Message: fmt.Sprintf("renamed %q → %q", oldName, newName)}, nil
 	}
-	err := withStore(dbPath, func(store data.DataStore) error {
-		return store.RenameTable(oldName, newName)
+	err := withStore(dbPath, func(s store.DataStore) error {
+		return s.RenameTable(oldName, newName)
 	})
 	if err != nil {
 		return nil, err
@@ -172,10 +173,10 @@ func AppendCSV(csvFiles []string, dbPath string, tableName string) (*MutationRes
 
 func addCSVSQLite(csvFiles []string, dbPath, tableName string) (*MutationResult, error) {
 	var imported []string
-	err := withStore(dbPath, func(store data.DataStore) error {
+	err := withStore(dbPath, func(s store.DataStore) error {
 		// Resolve names + pre-check collisions so we emit a friendly
 		// "use sci db append" error instead of SQLite's raw collision message.
-		names, err := store.TableNames()
+		names, err := s.TableNames()
 		if err != nil {
 			return err
 		}
@@ -193,10 +194,10 @@ func addCSVSQLite(csvFiles []string, dbPath, tableName string) (*MutationResult,
 			if _, err := os.Stat(absCSV); err != nil {
 				return err
 			}
-			if err := store.ImportCSV(absCSV, name); err != nil {
+			if err := s.ImportCSV(absCSV, name); err != nil {
 				return fmt.Errorf("import %q: %w", csvPath, err)
 			}
-			count, err := store.TableRowCount(name)
+			count, err := s.TableRowCount(name)
 			if err != nil {
 				return err
 			}
@@ -243,7 +244,7 @@ func addCSVDuckDB(csvFiles []string, dbPath, tableName string) (*MutationResult,
 
 func appendCSVSQLite(csvFiles []string, dbPath, tableName string) (*MutationResult, error) {
 	var appended []string
-	err := withStore(dbPath, func(store data.DataStore) error {
+	err := withStore(dbPath, func(s store.DataStore) error {
 		for _, csvPath := range csvFiles {
 			name := nameForCSV(csvPath, tableName)
 			absCSV, err := filepath.Abs(csvPath)
@@ -253,14 +254,14 @@ func appendCSVSQLite(csvFiles []string, dbPath, tableName string) (*MutationResu
 			if _, err := os.Stat(absCSV); err != nil {
 				return err
 			}
-			before, err := store.TableRowCount(name)
+			before, err := s.TableRowCount(name)
 			if err != nil {
 				return err
 			}
-			if err := store.AppendCSV(absCSV, name); err != nil {
+			if err := s.AppendCSV(absCSV, name); err != nil {
 				return fmt.Errorf("append %q: %w", csvPath, err)
 			}
-			after, err := store.TableRowCount(name)
+			after, err := s.TableRowCount(name)
 			if err != nil {
 				return err
 			}
@@ -296,7 +297,7 @@ func nameForCSV(csvPath, override string) string {
 	if override != "" {
 		return override
 	}
-	return data.TableNameFromFile(csvPath)
+	return store.TableNameFromFile(csvPath)
 }
 
 // collisionErr produces the standard "table already exists, use append"
@@ -338,7 +339,7 @@ func Create(dbPath string) (*MutationResult, error) {
 		}
 		return &MutationResult{OK: true, Message: fmt.Sprintf("created %s", dbPath)}, nil
 	}
-	store, err := data.OpenStore(dbPath)
+	store, err := sqlite.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("create database: %w", err)
 	}
@@ -367,7 +368,7 @@ func Reset(dbPath string) (*MutationResult, error) {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return nil, fmt.Errorf("create directory: %w", err)
 	}
-	store, err := data.OpenStore(dbPath)
+	store, err := sqlite.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("create database: %w", err)
 	}
@@ -395,24 +396,24 @@ func RunTUI(dbPath string, initialTab string) error {
 		return runTUIDuckDB(dbPath, initialTab)
 	}
 
-	var store data.DataStore
+	var ds store.DataStore
 	switch {
-	case data.IsViewableFile(dbPath):
-		s, err := data.OpenFileStore(dbPath)
+	case sqlite.IsViewableFile(dbPath):
+		s, err := sqlite.OpenFileView(dbPath)
 		if err != nil {
 			return err
 		}
-		store = s
+		ds = s
 	default:
-		s, err := data.OpenStore(dbPath)
+		s, err := sqlite.Open(dbPath)
 		if err != nil {
 			return err
 		}
-		store = s
+		ds = s
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = ds.Close() }()
 
-	return dbtui.Run(store, dbPath, dbtui.WithInitialTab(initialTab))
+	return dbtui.Run(ds, dbPath, dbtui.WithInitialTab(initialTab))
 }
 
 // defaultMirrorMaxMB caps the duckdb-file size that `sci view` is
@@ -485,13 +486,13 @@ func runTUIDuckDB(dbPath, initialTab string) error {
 	// inspected exactly once even if dbtui returns an error.
 	lossy, lossyErr := duck.LossyColumns(dbPath)
 
-	store, err := data.OpenStore(mirror)
+	mirrorStore, err := sqlite.Open(mirror)
 	if err != nil {
 		return fmt.Errorf("open duckdb mirror: %w", err)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = mirrorStore.Close() }()
 
-	runErr := dbtui.Run(store, dbPath,
+	runErr := dbtui.Run(mirrorStore, dbPath,
 		dbtui.WithInitialTab(initialTab),
 		dbtui.WithReadOnly(),
 	)

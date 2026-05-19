@@ -12,7 +12,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/cli/internal/store/sqlite"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 )
 
@@ -228,13 +229,13 @@ func (m *Model) visualDelete() tea.Cmd {
 	}
 
 	// Build identifiers.
-	ids := make([]data.RowIdentifier, 0, len(sel))
+	ids := make([]store.RowIdentifier, 0, len(sel))
 	for _, idx := range sel {
 		if idx >= len(tab.Rows) {
 			continue
 		}
 		rm := tab.Rows[idx]
-		ids = append(ids, data.RowIdentifier{
+		ids = append(ids, store.RowIdentifier{
 			RowID: rm.RowID,
 		})
 	}
@@ -336,7 +337,7 @@ func (m *Model) visualExportCSV() {
 	}
 
 	csvPath := fmt.Sprintf("%s_selection.csv", tab.Name)
-	if err := data.WriteRowsCSV(csvPath, header, rows); err != nil {
+	if err := sqlite.WriteRowsCSV(csvPath, header, rows); err != nil {
 		m.setStatusError(fmt.Sprintf("Export failed: %v", err))
 		return
 	}

@@ -11,7 +11,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/cli/internal/store/sqlite"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -41,11 +42,11 @@ type tabLoadedMsg struct {
 // See doc.go for the full architecture overview.
 type Model struct {
 	// ── Backend ──────────────────────────────────────────
-	store         data.DataStore
-	viewLister    data.ViewLister    // non-nil when store can distinguish views from tables
-	virtualLister data.VirtualLister // non-nil when store can distinguish virtual tables
-	dbPath        string             // display label (file path)
-	forceRO       bool               // when true, all tabs are read-only (file viewing mode)
+	store         store.DataStore
+	viewLister    store.ViewLister    // non-nil when store can distinguish views from tables
+	virtualLister store.VirtualLister // non-nil when store can distinguish virtual tables
+	dbPath        string              // display label (file path)
+	forceRO       bool                // when true, all tabs are read-only (file viewing mode)
 
 	// ── Tab State ────────────────────────────────────────
 	tabs   []Tab // one per database table; stubs until loaded
@@ -80,15 +81,15 @@ type Model struct {
 // NewModel creates the TUI model by introspecting the database schema.
 // Only the first table is fully loaded; other tabs are stubs loaded on demand.
 // When readOnly is true, all tabs are forced read-only (used for file viewing).
-func NewModel(store data.DataStore, dbPath string, readOnly bool) (*Model, error) {
-	tableNames, err := store.TableNames()
+func NewModel(ds store.DataStore, dbPath string, readOnly bool) (*Model, error) {
+	tableNames, err := ds.TableNames()
 	if err != nil {
 		return nil, fmt.Errorf("list tables: %w", err)
 	}
 
 	// Detect which names are SQL views or virtual tables (read-only in the TUI).
-	viewLister, hasViews := store.(data.ViewLister)
-	virtualLister, hasVirtuals := store.(data.VirtualLister)
+	viewLister, hasViews := ds.(store.ViewLister)
+	virtualLister, hasVirtuals := ds.(store.VirtualLister)
 
 	tabs := lo.Map(tableNames, func(name string, _ int) Tab {
 		return Tab{Name: name}
@@ -96,7 +97,7 @@ func NewModel(store data.DataStore, dbPath string, readOnly bool) (*Model, error
 
 	// Fully load only the first tab.
 	if len(tabs) > 0 {
-		tab, err := buildTab(store, tableNames[0])
+		tab, err := buildTab(ds, tableNames[0])
 		if err != nil {
 			return nil, fmt.Errorf("build tab %q: %w", tableNames[0], err)
 		}
@@ -110,26 +111,26 @@ func NewModel(store data.DataStore, dbPath string, readOnly bool) (*Model, error
 	h := uikit.NewHelp()
 	h.ShowAll = true // help overlay always shows full bindings
 
-	s := spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(uikit.TUI.TextBlue()))
+	sp := spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(uikit.TUI.TextBlue()))
 
-	var vl data.ViewLister
+	var vl store.ViewLister
 	if hasViews {
 		vl = viewLister
 	}
-	var vtl data.VirtualLister
+	var vtl store.VirtualLister
 	if hasVirtuals {
 		vtl = virtualLister
 	}
 
 	return &Model{
 		zones:         zone.New(),
-		store:         store,
+		store:         ds,
 		viewLister:    vl,
 		virtualLister: vtl,
 		dbPath:        dbPath,
 		styles:        uikit.TUI,
 		help:          h,
-		spinner:       s,
+		spinner:       sp,
 		tabs:          tabs,
 		active:        0,
 		mode:          modeNormal,
@@ -296,10 +297,10 @@ func (m *Model) readOnlyReason() string {
 	return "Read-only (no primary key)"
 }
 
-// concreteStore returns the underlying *data.Store, or nil if the store
+// concreteStore returns the underlying *sqlite.Store, or nil if the store
 // is a different DataStore implementation (e.g. in tests).
-func (m *Model) concreteStore() *data.Store {
-	s, _ := m.store.(*data.Store)
+func (m *Model) concreteStore() *sqlite.Store {
+	s, _ := m.store.(*sqlite.Store)
 	return s
 }
 

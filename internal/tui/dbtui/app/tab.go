@@ -10,14 +10,14 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
 // buildTab creates a Tab from a database table by introspecting its schema and data.
-func buildTab(store data.DataStore, tableName string) (Tab, error) {
-	pragmaCols, err := store.TableColumns(tableName)
+func buildTab(ds store.DataStore, tableName string) (Tab, error) {
+	pragmaCols, err := ds.TableColumns(tableName)
 	if err != nil {
 		return Tab{}, fmt.Errorf("columns for %q: %w", tableName, err)
 	}
@@ -46,7 +46,7 @@ func buildTab(store data.DataStore, tableName string) (Tab, error) {
 	columns := specsToColumns(specs)
 	tbl := newTable(columns)
 
-	_, rowData, nullFlags, rowIDs, err := store.QueryTable(tableName)
+	_, rowData, nullFlags, rowIDs, err := ds.QueryTable(tableName)
 	if err != nil {
 		return Tab{}, fmt.Errorf("query %q: %w", tableName, err)
 	}
@@ -55,7 +55,7 @@ func buildTab(store data.DataStore, tableName string) (Tab, error) {
 	// lexicographically ordered, e.g. human dates). Nil if unsupported or
 	// if the provider returns an error — sort falls back to Value.
 	var sortKeys [][]string
-	if p, ok := store.(data.SortKeyProvider); ok {
+	if p, ok := ds.(store.SortKeyProvider); ok {
 		if keys, err := p.CellSortKeys(tableName); err == nil {
 			sortKeys = keys
 		}
@@ -191,10 +191,10 @@ func (m *Model) triggerTabLoad(idx int) tea.Cmd {
 		return nil
 	}
 	tab.Loading = true
-	store := m.store
+	ds := m.store
 	name := tab.Name
 	return func() tea.Msg {
-		t, err := buildTab(store, name)
+		t, err := buildTab(ds, name)
 		return tabLoadedMsg{idx: idx, tab: t, err: err}
 	}
 }

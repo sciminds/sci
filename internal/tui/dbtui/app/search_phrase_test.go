@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 )
@@ -52,7 +52,7 @@ func TestApplySearchFilter_UnquotedMultiTokenStillANDs(t *testing.T) {
 // mockNoteProvider implements data.NoteBodyProvider with a fixed map of
 // pre-lowered bodies keyed by rowID.
 type mockNoteProvider struct {
-	data.DataStore
+	store.DataStore
 	bodies map[int64]string
 }
 

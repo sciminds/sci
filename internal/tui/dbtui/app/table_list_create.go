@@ -11,7 +11,7 @@ import (
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -75,7 +75,7 @@ func (m *Model) tableListCommitCreate() {
 		return
 	}
 
-	if !data.IsSafeIdentifier(name) {
+	if !store.IsSafeIdentifier(name) {
 		tl.Status = fmt.Sprintf("Invalid name: %q (alphanumerics and underscores only)", name)
 		return
 	}
@@ -234,13 +234,13 @@ func (m *Model) commitDerive(asView bool) tea.Cmd {
 	query := tl.DeriveSQL.Value()
 	name := tl.DeriveName.Value()
 
-	if !data.IsSafeIdentifier(name) {
+	if !store.IsSafeIdentifier(name) {
 		tl.Status = fmt.Sprintf("Invalid name: %q", name)
 		return nil
 	}
 
-	store := m.concreteStore()
-	if store == nil {
+	cs := m.concreteStore()
+	if cs == nil {
 		tl.Status = "Derive not supported for this backend"
 		return nil
 	}
@@ -248,10 +248,10 @@ func (m *Model) commitDerive(asView bool) tea.Cmd {
 	var err error
 	var kind string
 	if asView {
-		err = store.CreateViewAs(name, query)
+		err = cs.CreateViewAs(name, query)
 		kind = "view"
 	} else {
-		err = store.CreateTableAs(name, query)
+		err = cs.CreateTableAs(name, query)
 		kind = "table"
 	}
 	if err != nil {
@@ -275,11 +275,11 @@ func (m *Model) commitDerive(asView bool) tea.Cmd {
 		tl.Tables = tl.Tables[:0]
 		for _, s := range summaries {
 			isView := false
-			if vl, ok := m.store.(data.ViewLister); ok {
+			if vl, ok := m.store.(store.ViewLister); ok {
 				isView = vl.IsView(s.Name)
 			}
 			isVirtual := false
-			if vtl, ok := m.store.(data.VirtualLister); ok {
+			if vtl, ok := m.store.(store.VirtualLister); ok {
 				isVirtual = vtl.IsVirtual(s.Name)
 			}
 			tl.Tables = append(tl.Tables, tableListEntry{

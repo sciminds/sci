@@ -15,7 +15,7 @@ import (
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/uikit"
@@ -313,11 +313,11 @@ func rowHasNote(row []cell, notesCol int) bool {
 //     expansion on every token produces far too many false positives
 //     (e.g. "drives" prefix also matches "drove/driver/driven" in unrelated
 //     PDFs that happen to contain the other token).
-func buildFTSHitSet(groups [][]match.Clause, store data.DataStore, table string) map[int64]bool {
-	if store == nil {
+func buildFTSHitSet(groups [][]match.Clause, ds store.DataStore, table string) map[int64]bool {
+	if ds == nil {
 		return nil
 	}
-	fts, ok := store.(data.FulltextSearcher)
+	fts, ok := ds.(store.FulltextSearcher)
 	if !ok {
 		return nil
 	}
@@ -517,7 +517,7 @@ func (m *Model) rerunSearch() tea.Cmd {
 	if m.searchMode != modeFull {
 		return nil
 	}
-	if _, ok := m.store.(data.FulltextSearcher); !ok {
+	if _, ok := m.store.(store.FulltextSearcher); !ok {
 		return nil
 	}
 	m.search.ftsSeq++
@@ -550,7 +550,7 @@ func (m *Model) reapplySearchFilter(tab *Tab) {
 // usable terms. Runs synchronously: the pre-lowered cache keeps this to
 // O(rows × tokens) cheap substring scans per keystroke.
 func (m *Model) buildNoteHits(tab *Tab) map[int64]bool {
-	provider, ok := m.store.(data.NoteBodyProvider)
+	provider, ok := m.store.(store.NoteBodyProvider)
 	if !ok {
 		return nil
 	}
@@ -611,12 +611,12 @@ func (m *Model) handleFTSTick(msg ftsTickMsg) tea.Cmd {
 
 	m.search.ftsLoading = true
 	query := m.search.Query
-	store := m.store
+	ds := m.store
 	name := tab.Name
 	seq := msg.Seq
 	return func() tea.Msg {
 		groups := match.ParseClauses(query)
-		hits := buildFTSHitSet(groups, store, name)
+		hits := buildFTSHitSet(groups, ds, name)
 		return ftsResultMsg{Seq: seq, Hits: hits}
 	}
 }

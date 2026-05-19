@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	dbtuidata "github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 )
 
 // Source is the SQL preamble + FROM-clause expression for a file.
@@ -118,7 +118,7 @@ func resolveAttached(path, table, preamble, alias, listSQL string) (Source, erro
 	} else if !slices.Contains(tables, table) {
 		return Source{}, fmt.Errorf("table %q not found; available: %s", table, strings.Join(tables, ", "))
 	}
-	if !dbtuidata.IsSafeIdentifier(table) {
+	if !store.IsSafeIdentifier(table) {
 		return Source{}, fmt.Errorf("invalid table name %q (allowed: alphanumerics, underscore, space)", table)
 	}
 	return Source{

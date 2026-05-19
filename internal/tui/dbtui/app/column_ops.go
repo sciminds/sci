@@ -8,7 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -75,7 +75,7 @@ func (m *Model) commitColumnRename() tea.Cmd {
 		return nil
 	}
 
-	if !data.IsSafeIdentifier(newName) {
+	if !store.IsSafeIdentifier(newName) {
 		m.setStatusError(fmt.Sprintf("Invalid column name: %q", newName))
 		return nil
 	}

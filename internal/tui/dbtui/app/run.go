@@ -9,7 +9,7 @@ import (
 	"os"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 )
 
 // ErrInterrupted signals that the user interrupted the TUI (e.g. Ctrl-C).
@@ -44,13 +44,13 @@ func WithReadOnly() RunOption {
 
 // Run launches the interactive database viewer with a pre-opened store.
 // The caller is responsible for closing the store.
-func Run(store data.DataStore, label string, opts ...RunOption) error {
+func Run(ds store.DataStore, label string, opts ...RunOption) error {
 	var cfg runConfig
 	for _, o := range opts {
 		o(&cfg)
 	}
 
-	model, err := NewModel(store, label, cfg.readOnly)
+	model, err := NewModel(ds, label, cfg.readOnly)
 	if err != nil {
 		return err
 	}

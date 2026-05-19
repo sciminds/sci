@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	dbtuidata "github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 )
 
 // Cols lists the column names + duckdb-inferred types of file at path.
@@ -291,7 +291,7 @@ func Summarize(path, table string) (*SummarizeResult, error) {
 // CTE that exposes the file under that name. ValidateReadOnlySQL rejects
 // multi-statement strings and any write keyword (INSERT/UPDATE/DELETE/...).
 func Query(path, sql string) (*RowsResult, error) {
-	validated, err := dbtuidata.ValidateReadOnlySQL(sql)
+	validated, err := store.ValidateReadOnlySQL(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -431,9 +431,9 @@ func copyToAttached(src Source, out, destTable, in, srcTable, alias, attachOpts 
 		destTable = srcTable
 	}
 	if destTable == "" {
-		destTable = dbtuidata.TableNameFromFile(in)
+		destTable = store.TableNameFromFile(in)
 	}
-	if !dbtuidata.IsSafeIdentifier(destTable) {
+	if !store.IsSafeIdentifier(destTable) {
 		return fmt.Errorf("invalid destination table name %q (allowed: alphanumerics, underscore, space; pass --as <name> to override)", destTable)
 	}
 	attach := fmt.Sprintf("ATTACH '%s' AS %s %s;", sqlEscape(out), alias, attachOpts)

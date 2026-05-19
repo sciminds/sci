@@ -6,21 +6,21 @@ VisiData-inspired SQLite viewer/editor. Also installable standalone via `cmd/dbt
 
 ## Architecture
 
-- Single backend: `data.Store` — raw `database/sql` + `modernc.org/sqlite`. **Must not import `pocketbase/dbx` or anything that pulls it in** — `cmd/dbtui` is a standalone binary and dragging in pocketbase would bloat it. This is the entire reason for the raw-`database/sql` exception.
+- The data layer lives at `internal/store/` (interface) and `internal/store/sqlite/` (SQLite impl, raw `database/sql` + modernc.org/sqlite). DataStore is the interface dbtui programs against; `*sqlite.Store` is the concrete type for SQLite paths. A native DuckDB backend will land alongside as `internal/store/duck/`.
 - SQLite uses implicit `rowid` for all edits.
-- **duckdb files** are not opened natively — `sci view foo.duckdb` materialises a tempfile SQLite mirror via `internal/duck` and opens that with `WithReadOnly()`. Mirror lives in `os.MkdirTemp`; cleaned up on exit. See `internal/db/CLAUDE.md` for the dual-backend dispatch.
+- **duckdb files** are still opened via a tempfile SQLite mirror today — `sci view foo.duckdb` calls `duck.BuildSQLiteMirror` and opens that with `WithReadOnly()`. Native DuckDB dispatch will replace this when `internal/store/duck/` lands. See `internal/db/CLAUDE.md` for the current dual-backend dispatch.
 
 ## Conventions
 
 - **Styles**: mode-specific cursor/header styles via `modeTUI` singleton in `app/mode_styles.go` (`CursorBlue`, `CursorOrange`, `CursorPink`, `SelectPink`, `HeaderGreenBg`, `CursorRaised`). Shared styles via `uikit.TUI`.
 - **Zones**: all clickable elements must be zone-marked. IDs: `tab-N`, `col-N`, `row-N`, `hint-ID`.
-- **SQL safety**: always validate identifiers with `IsSafeIdentifier` before interpolation. Cache invalidation goes through `tab.invalidateVP()`, not direct `cachedVP = nil`.
+- **SQL safety**: always validate identifiers with `store.IsSafeIdentifier` before interpolation. Cache invalidation goes through `tab.invalidateVP()`, not direct `cachedVP = nil`.
 
 ## Testing
 
 See `app/TESTING.md` for the full teatest protocol, checklist, and file placement guide.
 
 - DB mutations verified by querying the store directly, not just inspecting model state.
-- `test.db` is a committed fixture — tests depend on exact row counts. Don't modify without updating tests.
+- The canonical `test.db` fixture lives in `internal/store/sqlite/testdata/test.db`; SQLite store tests reference it from there. dbtui's own teatest models spin up their own per-test SQLite files via `sqlite.Open(t.TempDir() + …)`.
 - Mutation tests use `copyFixture` to copy fixtures to temp dirs.
 - `ReadOnlyQuery` caps at 200 rows with 10s timeout.

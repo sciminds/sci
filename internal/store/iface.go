@@ -1,61 +1,9 @@
-package data
+package store
 
-import (
-	"fmt"
-	"path/filepath"
-	"slices"
-	"strings"
-	"unicode"
-)
+import "fmt"
 
 // MaxTableRows is the maximum number of rows loaded from a single table into the TUI.
 const MaxTableRows = 50_000
-
-// ValidateReadOnlySQL checks that query is a safe, single-statement SELECT
-// (or a read-only WITH/CTE). Returns the trimmed query on success.
-func ValidateReadOnlySQL(query string) (string, error) {
-	trimmed := strings.TrimSpace(query)
-	if trimmed == "" {
-		return "", fmt.Errorf("empty query")
-	}
-	upper := strings.ToUpper(trimmed)
-	if !strings.HasPrefix(upper, "SELECT") && !strings.HasPrefix(upper, "WITH") {
-		return "", fmt.Errorf("only SELECT queries are allowed")
-	}
-	if strings.Contains(trimmed, ";") {
-		return "", fmt.Errorf("multiple statements are not allowed")
-	}
-	if strings.HasPrefix(upper, "WITH") {
-		if ContainsWriteKeyword(upper) {
-			return "", fmt.Errorf("only SELECT queries are allowed")
-		}
-	}
-	return trimmed, nil
-}
-
-// ContainsWriteKeyword checks if an uppercased query contains SQL write
-// keywords that would allow a writable CTE to slip through the prefix check.
-// Matches keywords at word boundaries (space, paren, or start/end of string),
-// so "WITH x AS (...)INSERT INTO" is caught even without a space before INSERT.
-func ContainsWriteKeyword(upper string) bool {
-	for _, kw := range []string{"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE"} {
-		idx := 0
-		for idx <= len(upper)-len(kw) {
-			pos := strings.Index(upper[idx:], kw)
-			if pos < 0 {
-				break
-			}
-			abs := idx + pos
-			before := abs == 0 || !unicode.IsLetter(rune(upper[abs-1]))
-			after := abs+len(kw) >= len(upper) || !unicode.IsLetter(rune(upper[abs+len(kw)]))
-			if before && after {
-				return true
-			}
-			idx = abs + len(kw)
-		}
-	}
-	return false
-}
 
 // RowIdentifier addresses a row by its SQLite rowid or primary key values.
 type RowIdentifier struct {
@@ -63,7 +11,8 @@ type RowIdentifier struct {
 	PKValues map[string]string
 }
 
-// PragmaColumn mirrors the output of PRAGMA table_info.
+// PragmaColumn mirrors the output of SQLite's PRAGMA table_info. The same
+// shape is used by the DuckDB backend (populated from information_schema).
 type PragmaColumn struct {
 	CID       int
 	Name      string
@@ -80,7 +29,7 @@ type TableSummary struct {
 	Columns int
 }
 
-// DataStore abstracts database access for the SQLite backend.
+// DataStore abstracts database access for both SQLite and DuckDB backends.
 type DataStore interface { //nolint:revive // name is established in the API
 	// TableNames returns all user table names, alphabetically.
 	TableNames() ([]string, error)
@@ -200,41 +149,3 @@ type FulltextSearcher interface {
 
 // ErrImportNotSupported is returned by backends that do not support import.
 var ErrImportNotSupported = fmt.Errorf("import is not supported for this database type")
-
-// importableExts lists file extensions that can be imported.
-var importableExts = []string{".csv", ".tsv", ".json", ".jsonl", ".ndjson"}
-
-// ImportableExtensions returns the list of file extensions that ImportFile supports.
-func ImportableExtensions() []string {
-	out := make([]string, len(importableExts))
-	copy(out, importableExts)
-	return out
-}
-
-// IsImportableExt returns true if ext (including the dot) is importable.
-func IsImportableExt(ext string) bool {
-	return slices.Contains(importableExts, strings.ToLower(ext))
-}
-
-// TableNameFromFile derives a SQL-safe table name from a filename.
-// Dashes and spaces become underscores; leading digits get a _ prefix.
-func TableNameFromFile(path string) string {
-	base := filepath.Base(path)
-	name := strings.TrimSuffix(base, filepath.Ext(base))
-	name = strings.ReplaceAll(name, "-", "_")
-	name = strings.ReplaceAll(name, " ", "_")
-	var clean strings.Builder
-	for _, r := range name {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
-			clean.WriteRune(r)
-		}
-	}
-	name = clean.String()
-	if name == "" {
-		name = "imported"
-	}
-	if unicode.IsDigit(rune(name[0])) {
-		name = "_" + name
-	}
-	return name
-}

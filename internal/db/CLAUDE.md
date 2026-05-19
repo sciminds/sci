@@ -8,8 +8,8 @@ Every public verb in `commands.go` (`Info`, `Create`, `Reset`, `AddCSV`,
 `AppendCSV`, `DeleteTable`, `RenameTable`, `RunTUI`) checks `isDuckDB(path)`
 at the top and routes to either:
 
-- The SQLite path — opens via `data.OpenStore` (pocketbase/dbx over
-  modernc.org/sqlite). Existing behavior.
+- The SQLite path — opens via `sqlite.Open` from `internal/store/sqlite/`
+  (raw `database/sql` over modernc.org/sqlite). Implements `store.DataStore`.
 - The duckdb path — calls into `internal/duck`, which shells out to the
   `duckdb` CLI. duckdb is a **required** dependency (in
   `internal/doctor/Brewfile`).

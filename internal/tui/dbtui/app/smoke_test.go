@@ -8,7 +8,8 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	zone "github.com/lrstanley/bubblezone/v2"
 
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/cli/internal/store/sqlite"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -156,12 +157,12 @@ func TestViewAtZeroSizeWithViewTab(t *testing.T) {
 	_ = m.View() // must not panic
 }
 
-func setupViewTestDB(t *testing.T) *data.Store {
+func setupViewTestDB(t *testing.T) *sqlite.Store {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 
 	// Set up schema using a temporary connection.
-	store, err := data.Open(dbPath)
+	s, err := sqlite.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -179,24 +180,24 @@ func setupViewTestDB(t *testing.T) *data.Store {
 	}
 
 	for _, stmt := range schema {
-		if _, err := store.Exec(stmt); err != nil {
+		if _, err := s.Exec(stmt); err != nil {
 			t.Fatalf("setup schema: %v", err)
 		}
 	}
 
 	// Force TableNames to populate the views map.
-	if _, err := store.TableNames(); err != nil {
+	if _, err := s.TableNames(); err != nil {
 		t.Fatalf("TableNames: %v", err)
 	}
 
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 
 	// Verify it implements ViewLister.
-	if _, ok := data.DataStore(store).(data.ViewLister); !ok {
+	if _, ok := store.DataStore(s).(store.ViewLister); !ok {
 		t.Fatal("Store does not implement ViewLister")
 	}
 
-	return store
+	return s
 }
 
 // minimalModel returns a *Model with the minimum non-nil fields required by View().
@@ -204,15 +205,15 @@ func minimalModel() *Model {
 	h := uikit.NewHelp()
 	h.ShowAll = true
 
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = uikit.TUI.TextBlue()
+	sp := spinner.New()
+	sp.Spinner = spinner.Dot
+	sp.Style = uikit.TUI.TextBlue()
 
 	return &Model{
 		zones:   zone.New(),
 		styles:  uikit.TUI,
 		help:    help.New(),
-		spinner: s,
+		spinner: sp,
 		mode:    modeNormal,
 	}
 }

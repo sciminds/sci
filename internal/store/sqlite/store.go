@@ -1,4 +1,4 @@
-package data
+package sqlite
 
 import (
 	"context"
@@ -6,18 +6,20 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
-
+	"sync/atomic"
 	"time"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/store"
 
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // registers "sqlite" driver
 )
 
-// DateLayout is the Go time layout for ISO date formatting.
-const DateLayout = "2006-01-02"
+// memDBCounter gives each OpenMemory call a unique shared-cache name so
+// multiple connections from the pool see the same in-memory database
+// (plain ":memory:" gives each connection its own DB).
+var memDBCounter atomic.Uint64
 
 // formatSQLValue stringifies a value returned by a database/sql Scan into
 // an `any`. BLOBs (returned as []byte by modernc.org/sqlite) are rendered
@@ -32,7 +34,7 @@ func formatSQLValue(v any) string {
 	return fmt.Sprintf("%v", v)
 }
 
-// Store wraps a raw database/sql connection to any SQLite file.
+// Store wraps a raw database/sql connection to a SQLite file.
 type Store struct {
 	db       *sql.DB
 	views    map[string]bool // populated by TableNames
@@ -40,25 +42,55 @@ type Store struct {
 	shadows  map[string]bool // populated by TableNames (FTS5 internal tables)
 }
 
-// Open opens a SQLite database at the given path with WAL mode.
+// Open opens a SQLite database at the given path with WAL mode, foreign
+// keys, a 5-second busy timeout, and a 256 MB mmap window. The connection
+// pool is sized for concurrent introspection reads (COUNT, PRAGMA …).
 func Open(path string) (*Store, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open %q: %w", path, err)
 	}
-	pragmas := []string{
-		"PRAGMA journal_mode = WAL",
-		"PRAGMA synchronous = NORMAL",
-		"PRAGMA busy_timeout = 5000",
-		"PRAGMA foreign_keys = ON",
-	}
-	for _, p := range pragmas {
-		if _, err := db.Exec(p); err != nil {
-			_ = db.Close()
-			return nil, fmt.Errorf("exec %q: %w", p, err)
-		}
+	if err := configure(db); err != nil {
+		_ = db.Close()
+		return nil, err
 	}
 	return &Store{db: db}, nil
+}
+
+// OpenMemory opens an in-memory SQLite database. Useful for tests and
+// for the [FileView] flat-file viewer.
+func OpenMemory() (*Store, error) {
+	id := memDBCounter.Add(1)
+	dsn := fmt.Sprintf("file:memdb%d?mode=memory&cache=shared", id)
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open in-memory sqlite: %w", err)
+	}
+	if err := configure(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	return &Store{db: db}, nil
+}
+
+// configure sets pragmas and connection limits for a freshly-opened
+// SQLite connection pool.
+func configure(db *sql.DB) error {
+	// WAL mode supports concurrent readers; allow up to 4 so introspection
+	// queries (COUNT, PRAGMA table_info) can run in parallel.
+	db.SetMaxOpenConns(4)
+	for _, pragma := range []string{
+		"PRAGMA journal_mode = WAL",
+		"PRAGMA synchronous = NORMAL",
+		"PRAGMA foreign_keys = ON",
+		"PRAGMA busy_timeout = 5000",
+		"PRAGMA mmap_size = 268435456", // 256 MB — lets SQLite memory-map large files
+	} {
+		if _, err := db.Exec(pragma); err != nil {
+			return fmt.Errorf("%s: %w", pragma, err)
+		}
+	}
+	return nil
 }
 
 // Close closes the database connection.
@@ -71,56 +103,7 @@ func (s *Store) Exec(query string) (sql.Result, error) {
 	return s.db.Exec(query)
 }
 
-// TableSummaries returns all table names with row counts and column counts.
-// Row counts are fetched in a single UNION ALL query to minimize round trips.
-func (s *Store) TableSummaries() ([]TableSummary, error) {
-	names, err := s.TableNames()
-	if err != nil {
-		return nil, err
-	}
-	if len(names) == 0 {
-		return nil, nil
-	}
-
-	// Build a single query for all row counts.
-	var b strings.Builder
-	for i, name := range names {
-		if i > 0 {
-			b.WriteString(" UNION ALL ")
-		}
-		fmt.Fprintf(&b, "SELECT %q AS name, COUNT(*) AS cnt FROM %q", name, name)
-	}
-	rows, err := s.db.Query(b.String())
-	if err != nil {
-		return nil, fmt.Errorf("table summaries: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	countMap := make(map[string]int, len(names))
-	for rows.Next() {
-		var name string
-		var cnt int
-		if err := rows.Scan(&name, &cnt); err != nil {
-			return nil, err
-		}
-		countMap[name] = cnt
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	// Column counts still require one PRAGMA per table (unavoidable in SQLite).
-	summaries := make([]TableSummary, 0, len(names))
-	for _, name := range names {
-		cols, _ := s.TableColumns(name)
-		summaries = append(summaries, TableSummary{
-			Name:    name,
-			Rows:    countMap[name],
-			Columns: len(cols),
-		})
-	}
-	return summaries, nil
-}
+// ---------- introspection ----------
 
 // TableNames returns the names of all non-internal tables and views in the database.
 func (s *Store) TableNames() ([]string, error) {
@@ -187,8 +170,8 @@ func (s *Store) IsVirtual(name string) bool {
 }
 
 // TableColumns returns column metadata for the named table via PRAGMA.
-func (s *Store) TableColumns(table string) ([]PragmaColumn, error) {
-	if !IsSafeIdentifier(table) {
+func (s *Store) TableColumns(table string) ([]store.PragmaColumn, error) {
+	if !store.IsSafeIdentifier(table) {
 		return nil, fmt.Errorf("invalid table name: %q", table)
 	}
 	rows, err := s.db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
@@ -196,9 +179,9 @@ func (s *Store) TableColumns(table string) ([]PragmaColumn, error) {
 		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
-	var cols []PragmaColumn
+	var cols []store.PragmaColumn
 	for rows.Next() {
-		var c PragmaColumn
+		var c store.PragmaColumn
 		if err := rows.Scan(&c.CID, &c.Name, &c.Type, &c.NotNull, &c.DfltValue, &c.PK); err != nil {
 			return nil, err
 		}
@@ -209,7 +192,7 @@ func (s *Store) TableColumns(table string) ([]PragmaColumn, error) {
 
 // TableRowCount returns the number of rows in the named table.
 func (s *Store) TableRowCount(table string) (int, error) {
-	if !IsSafeIdentifier(table) {
+	if !store.IsSafeIdentifier(table) {
 		return 0, fmt.Errorf("invalid table name: %q", table)
 	}
 	var count int
@@ -217,12 +200,63 @@ func (s *Store) TableRowCount(table string) (int, error) {
 	return count, err
 }
 
+// TableSummaries returns all table names with row counts and column counts.
+// Row counts are fetched in a single UNION ALL query to minimize round trips;
+// column counts still require one PRAGMA per table (unavoidable in SQLite).
+func (s *Store) TableSummaries() ([]store.TableSummary, error) {
+	names, err := s.TableNames()
+	if err != nil {
+		return nil, err
+	}
+	if len(names) == 0 {
+		return nil, nil
+	}
+
+	var b strings.Builder
+	for i, name := range names {
+		if i > 0 {
+			b.WriteString(" UNION ALL ")
+		}
+		fmt.Fprintf(&b, "SELECT %q AS name, COUNT(*) AS cnt FROM %q", name, name)
+	}
+	rows, err := s.db.Query(b.String())
+	if err != nil {
+		return nil, fmt.Errorf("table summaries: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	countMap := make(map[string]int, len(names))
+	for rows.Next() {
+		var name string
+		var cnt int
+		if err := rows.Scan(&name, &cnt); err != nil {
+			return nil, err
+		}
+		countMap[name] = cnt
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	summaries := make([]store.TableSummary, 0, len(names))
+	for _, name := range names {
+		cols, _ := s.TableColumns(name)
+		summaries = append(summaries, store.TableSummary{
+			Name:    name,
+			Rows:    countMap[name],
+			Columns: len(cols),
+		})
+	}
+	return summaries, nil
+}
+
+// ---------- queries ----------
+
 // QueryTable returns all rows from the named table as string slices.
-// Columns are returned in PRAGMA table_info order. NULL values are
-// represented by the null sentinel. Each row's SQLite rowid is returned
-// in the rowIDs slice for use in UPDATE/DELETE.
+// Columns are returned in PRAGMA table_info order. Each row's SQLite
+// rowid is returned for use in UPDATE/DELETE.
 func (s *Store) QueryTable(table string) (colNames []string, rows [][]string, nullFlags [][]bool, rowIDs []int64, err error) {
-	if !IsSafeIdentifier(table) {
+	if !store.IsSafeIdentifier(table) {
 		return nil, nil, nil, nil, fmt.Errorf("invalid table name: %q", table)
 	}
 
@@ -233,7 +267,7 @@ func (s *Store) QueryTable(table string) (colNames []string, rows [][]string, nu
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	sqlRows, err := s.db.QueryContext(ctx, fmt.Sprintf("SELECT rowid, * FROM %q LIMIT %d", table, MaxTableRows))
+	sqlRows, err := s.db.QueryContext(ctx, fmt.Sprintf("SELECT rowid, * FROM %q LIMIT %d", table, store.MaxTableRows))
 	if err != nil {
 		// Virtual tables (FTS shadow tables, WITHOUT ROWID tables, etc.)
 		// lack a rowid column. Fall back to the view path with synthetic IDs.
@@ -281,7 +315,7 @@ func (s *Store) queryView(view string) (colNames []string, rows [][]string, null
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	sqlRows, err := s.db.QueryContext(ctx, fmt.Sprintf("SELECT * FROM %q LIMIT %d", view, MaxTableRows))
+	sqlRows, err := s.db.QueryContext(ctx, fmt.Sprintf("SELECT * FROM %q LIMIT %d", view, store.MaxTableRows))
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("query view %q: %w", view, err)
 	}
@@ -321,7 +355,7 @@ func (s *Store) queryView(view string) (colNames []string, rows [][]string, null
 
 // ReadOnlyQuery executes a validated SELECT query and returns results.
 func (s *Store) ReadOnlyQuery(query string) (columns []string, rows [][]string, err error) {
-	trimmed, err := ValidateReadOnlySQL(query)
+	trimmed, err := store.ValidateReadOnlySQL(query)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -366,12 +400,14 @@ func (s *Store) ReadOnlyQuery(query string) (columns []string, rows [][]string, 
 	return columns, rows, sqlRows.Err()
 }
 
+// ---------- mutations ----------
+
 // UpdateCell updates a single cell value by rowid.
-func (s *Store) UpdateCell(table, column string, rowID int64, pkValues map[string]string, value *string) error {
-	if !IsSafeIdentifier(table) {
+func (s *Store) UpdateCell(table, column string, rowID int64, _ map[string]string, value *string) error {
+	if !store.IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
-	if !IsSafeColumnName(column) {
+	if !store.IsSafeColumnName(column) {
 		return fmt.Errorf("invalid column name: %q", column)
 	}
 	query := fmt.Sprintf("UPDATE %q SET %q = ? WHERE rowid = ?", table, column)
@@ -396,11 +432,11 @@ func (s *Store) UpdateCell(table, column string, rowID int64, pkValues map[strin
 }
 
 // DeleteRows removes rows by rowid and returns the count of deleted rows.
-func (s *Store) DeleteRows(table string, ids []RowIdentifier) (int64, error) {
+func (s *Store) DeleteRows(table string, ids []store.RowIdentifier) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	if !IsSafeIdentifier(table) {
+	if !store.IsSafeIdentifier(table) {
 		return 0, fmt.Errorf("invalid table name: %q", table)
 	}
 	placeholders := make([]string, len(ids))
@@ -422,56 +458,144 @@ func (s *Store) InsertRows(table string, columns []string, rows [][]string) erro
 	if len(rows) == 0 {
 		return nil
 	}
-	if !IsSafeIdentifier(table) {
+	if !store.IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
 	for _, col := range columns {
-		if !IsSafeColumnName(col) {
+		if !store.IsSafeColumnName(col) {
 			return fmt.Errorf("invalid column name: %q", col)
 		}
 	}
-
-	quotedCols := lo.Map(columns, func(c string, _ int) string {
-		return fmt.Sprintf("%q", c)
-	})
-	placeholders := make([]string, len(columns))
-	for i := range columns {
-		placeholders[i] = "?"
-	}
-	query := fmt.Sprintf("INSERT INTO %q (%s) VALUES (%s)",
-		table, strings.Join(quotedCols, ", "), strings.Join(placeholders, ", "))
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	stmt, err := tx.Prepare(query)
-	if err != nil {
-		return fmt.Errorf("prepare insert: %w", err)
-	}
-	defer func() { _ = stmt.Close() }()
-
-	for _, row := range rows {
-		args := make([]any, len(columns))
-		for i := range columns {
-			if i < len(row) && row[i] != "" {
-				args[i] = row[i]
-			} else {
-				args[i] = nil
-			}
-		}
-		if _, err := stmt.Exec(args...); err != nil {
-			return fmt.Errorf("insert row: %w", err)
-		}
-	}
-	return tx.Commit()
+	return s.insertRows(table, columns, rows)
 }
+
+// ---------- DDL ----------
+
+// RenameTable renames a table in the SQLite database.
+func (s *Store) RenameTable(oldName, newName string) error {
+	if !store.IsSafeIdentifier(oldName) {
+		return fmt.Errorf("invalid table name: %q", oldName)
+	}
+	if !store.IsSafeIdentifier(newName) {
+		return fmt.Errorf("invalid table name: %q", newName)
+	}
+	_, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %q RENAME TO %q", oldName, newName))
+	return err
+}
+
+// DropTable drops the named table from the SQLite database.
+func (s *Store) DropTable(table string) error {
+	if !store.IsSafeIdentifier(table) {
+		return fmt.Errorf("invalid table name: %q", table)
+	}
+	_, err := s.db.Exec(fmt.Sprintf("DROP TABLE %q", table))
+	return err
+}
+
+// CreateEmptyTable creates a new empty table with a default schema.
+func (s *Store) CreateEmptyTable(tableName string) error {
+	if !store.IsSafeIdentifier(tableName) {
+		return fmt.Errorf("invalid table name: %q", tableName)
+	}
+	_, err := s.db.Exec(fmt.Sprintf(
+		"CREATE TABLE %q (id INTEGER PRIMARY KEY, name TEXT, value TEXT)", tableName))
+	return err
+}
+
+// RenameColumn renames a column in a SQLite table.
+func (s *Store) RenameColumn(table, oldName, newName string) error {
+	if !store.IsSafeIdentifier(table) {
+		return fmt.Errorf("invalid table name: %q", table)
+	}
+	if !store.IsSafeColumnName(oldName) {
+		return fmt.Errorf("invalid column name: %q", oldName)
+	}
+	if !store.IsSafeColumnName(newName) {
+		return fmt.Errorf("invalid column name: %q", newName)
+	}
+	_, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", table, oldName, newName))
+	return err
+}
+
+// DropColumn drops a column from a SQLite table.
+// Returns an error if it would remove the last column.
+func (s *Store) DropColumn(table, column string) error {
+	if !store.IsSafeIdentifier(table) {
+		return fmt.Errorf("invalid table name: %q", table)
+	}
+	if !store.IsSafeColumnName(column) {
+		return fmt.Errorf("invalid column name: %q", column)
+	}
+	cols, err := s.TableColumns(table)
+	if err != nil {
+		return err
+	}
+	if len(cols) <= 1 {
+		return fmt.Errorf("cannot drop the last column of %q", table)
+	}
+	_, err = s.db.Exec(fmt.Sprintf("ALTER TABLE %q DROP COLUMN %q", table, column))
+	return err
+}
+
+// DeduplicateTable removes duplicate rows from a table, keeping the row
+// with the lowest rowid. Returns the number of rows removed.
+func (s *Store) DeduplicateTable(table string) (int64, error) {
+	if !store.IsSafeIdentifier(table) {
+		return 0, fmt.Errorf("invalid table name: %q", table)
+	}
+
+	cols, err := s.TableColumns(table)
+	if err != nil {
+		return 0, err
+	}
+
+	colNames := lo.Map(cols, func(c store.PragmaColumn, _ int) string {
+		return fmt.Sprintf("%q", c.Name)
+	})
+	colList := strings.Join(colNames, ", ")
+
+	query := fmt.Sprintf(
+		"DELETE FROM %q WHERE rowid NOT IN (SELECT MIN(rowid) FROM %q GROUP BY %s)",
+		table, table, colList)
+
+	result, err := s.db.Exec(query)
+	if err != nil {
+		return 0, fmt.Errorf("dedup %q: %w", table, err)
+	}
+	return result.RowsAffected()
+}
+
+// CreateTableAs creates a new table from a SELECT query.
+func (s *Store) CreateTableAs(tableName, query string) error {
+	if !store.IsSafeIdentifier(tableName) {
+		return fmt.Errorf("invalid table name: %q", tableName)
+	}
+	validated, err := store.ValidateReadOnlySQL(query)
+	if err != nil {
+		return fmt.Errorf("invalid query: %w", err)
+	}
+	_, err = s.db.Exec(fmt.Sprintf("CREATE TABLE %q AS %s", tableName, validated))
+	return err
+}
+
+// CreateViewAs creates a new view from a SELECT query.
+func (s *Store) CreateViewAs(viewName, query string) error {
+	if !store.IsSafeIdentifier(viewName) {
+		return fmt.Errorf("invalid view name: %q", viewName)
+	}
+	validated, err := store.ValidateReadOnlySQL(query)
+	if err != nil {
+		return fmt.Errorf("invalid query: %w", err)
+	}
+	_, err = s.db.Exec(fmt.Sprintf("CREATE VIEW %q AS %s", viewName, validated))
+	return err
+}
+
+// ---------- export ----------
 
 // ExportCSV exports a table to a CSV file.
 func (s *Store) ExportCSV(table, csvPath string) error {
-	if !IsSafeIdentifier(table) {
+	if !store.IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
 
@@ -495,15 +619,13 @@ func (s *Store) ExportCSV(table, csvPath string) error {
 	w := csv.NewWriter(f)
 	defer w.Flush()
 
-	// Write header.
-	header := lo.Map(cols, func(c PragmaColumn, _ int) string {
+	header := lo.Map(cols, func(c store.PragmaColumn, _ int) string {
 		return c.Name
 	})
 	if err := w.Write(header); err != nil {
 		return err
 	}
 
-	// Write rows.
 	for sqlRows.Next() {
 		values := make([]any, len(cols))
 		ptrs := make([]any, len(cols))
@@ -526,86 +648,89 @@ func (s *Store) ExportCSV(table, csvPath string) error {
 	return sqlRows.Err()
 }
 
-// RenameTable renames a table in the SQLite database.
-func (s *Store) RenameTable(oldName, newName string) error {
-	if !IsSafeIdentifier(oldName) {
-		return fmt.Errorf("invalid table name: %q", oldName)
-	}
-	if !IsSafeIdentifier(newName) {
-		return fmt.Errorf("invalid table name: %q", newName)
-	}
-	_, err := s.db.Exec(fmt.Sprintf("ALTER TABLE %q RENAME TO %q", oldName, newName))
-	return err
-}
-
-// DropTable drops the named table from the SQLite database.
-func (s *Store) DropTable(table string) error {
-	if !IsSafeIdentifier(table) {
-		return fmt.Errorf("invalid table name: %q", table)
-	}
-	_, err := s.db.Exec(fmt.Sprintf("DROP TABLE %q", table))
-	return err
-}
-
-// ImportCSV imports a CSV file as a new typed SQLite table.
-func (s *Store) ImportCSV(csvPath, tableName string) error {
-	header, rows, err := readCSV(csvPath, ',')
+// WriteRowsCSV writes a header and rows to a CSV file.
+func WriteRowsCSV(path string, header []string, rows [][]string) error {
+	f, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("read CSV: %w", err)
+		return fmt.Errorf("create %q: %w", path, err)
 	}
-	return s.importTabular(tableName, header, rows)
+	defer func() { _ = f.Close() }()
+
+	w := csv.NewWriter(f)
+	defer w.Flush()
+
+	if err := w.Write(header); err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if err := w.Write(row); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// ImportFile imports a file as a new typed SQLite table, auto-detecting format.
-func (s *Store) ImportFile(filePath, tableName string) error {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	case ".csv":
-		return s.ImportCSV(filePath, tableName)
-	case ".tsv":
-		header, rows, err := readCSV(filePath, '\t')
-		if err != nil {
-			return fmt.Errorf("read TSV: %w", err)
-		}
-		return s.importTabular(tableName, header, rows)
-	case ".json":
-		header, rows, err := readJSON(filePath)
-		if err != nil {
-			return fmt.Errorf("read JSON: %w", err)
-		}
-		return s.importTabular(tableName, header, rows)
-	case ".jsonl", ".ndjson":
-		header, rows, err := readJSONL(filePath)
-		if err != nil {
-			return fmt.Errorf("read JSONL: %w", err)
-		}
-		return s.importTabular(tableName, header, rows)
-	default:
-		return fmt.Errorf("unsupported file format: %s", ext)
+// ---------- shared helpers ----------
+
+// tableExists reports whether a table (or view) of the given name lives
+// in sqlite_master.
+func (s *Store) tableExists(name string) (bool, error) {
+	var found string
+	err := s.db.QueryRow(
+		"SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name = ?",
+		name,
+	).Scan(&found)
+	if err == sql.ErrNoRows {
+		return false, nil
 	}
+	if err != nil {
+		return false, fmt.Errorf("check table existence: %w", err)
+	}
+	return true, nil
 }
 
-// CreateEmptyTable is not supported for SQLite.
-func (s *Store) CreateEmptyTable(tableName string) error {
-	if !IsSafeIdentifier(tableName) {
-		return fmt.Errorf("invalid table name: %q", tableName)
+// insertRows runs INSERT statements for header+rows inside a single
+// transaction. Empty cells become NULL.
+func (s *Store) insertRows(tableName string, header []string, rows [][]string) error {
+	if len(rows) == 0 {
+		return nil
 	}
-	_, err := s.db.Exec(fmt.Sprintf(
-		"CREATE TABLE %q (id INTEGER PRIMARY KEY, name TEXT, value TEXT)", tableName))
-	return err
-}
 
-// IsSafeIdentifier allows alphanumerics, underscores, and spaces
-// (some backends like DuckDB allow spaces in table/column names).
-func IsSafeIdentifier(s string) bool {
-	if s == "" {
-		return false
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
 	}
-	for _, r := range s {
-		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') &&
-			(r < '0' || r > '9') && r != '_' && r != ' ' {
-			return false
+	defer func() { _ = tx.Rollback() }()
+
+	placeholders := make([]string, len(header))
+	for i := range header {
+		placeholders[i] = "?"
+	}
+	quotedCols := lo.Map(header, func(name string, _ int) string {
+		return fmt.Sprintf("%q", name)
+	})
+	insertSQL := fmt.Sprintf("INSERT INTO %q (%s) VALUES (%s)",
+		tableName, strings.Join(quotedCols, ", "), strings.Join(placeholders, ", "))
+
+	stmt, err := tx.Prepare(insertSQL)
+	if err != nil {
+		return fmt.Errorf("prepare insert: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+
+	for _, row := range rows {
+		args := make([]any, len(header))
+		for i := range header {
+			if i < len(row) && row[i] != "" {
+				args[i] = row[i]
+			} else {
+				args[i] = nil
+			}
+		}
+		if _, err := stmt.Exec(args...); err != nil {
+			return fmt.Errorf("insert row: %w", err)
 		}
 	}
-	return true
+
+	return tx.Commit()
 }

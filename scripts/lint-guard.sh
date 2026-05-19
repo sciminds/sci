@@ -76,21 +76,11 @@ if [[ -n "$sleep_hits" ]]; then
 	fi
 fi
 
-# ── Rule 3: No pocketbase/dbx in standalone packages ────────────────────────
-# dbtui compiles into a standalone binary; importing dbx would bloat it and
-# violate the documented exception (raw database/sql for lean reuse).
-
-standalone_pkgs=(
-	"internal/tui/dbtui"
-)
-for pkg in "${standalone_pkgs[@]}"; do
-	dbx_hits=$(rg -n '"github\.com/pocketbase/dbx"' --type go "$pkg/" 2>/dev/null || true)
-	if [[ -n "$dbx_hits" ]]; then
-		echo "FAIL [no-dbx-standalone] pocketbase/dbx import in standalone package $pkg:"
-		echo "$dbx_hits"
-		fail "no-dbx-standalone"
-	fi
-done
+# ── Rule 3: (removed) standalone-package dbx ban ───────────────────────────
+# The dbtui standalone-binary constraint was relaxed when DuckDB became a
+# first-class peer of SQLite; dbtui freely imports internal/store now.
+# pocketbase/dbx is purged from the codebase, so a per-package guard would
+# be redundant.
 
 # ── Rule 4: CLI flags must have Local: true ──────────────────────────────────
 # urfave/cli v3 flags without Local: true leak to parent/child commands.
@@ -198,33 +188,11 @@ for f in $bt_files; do
 	fi
 done
 
-# ── Rule 8: Standalone package import boundaries ────────────────────────────
-# dbtui and markdb must not import any sciminds/cli/internal/* packages outside
-# their own subtree. zot may import shared infra and dbtui, but not markdb.
-#
-# Shared leaf packages (pure-lipgloss utilities with no project-specific deps)
-# are allowed — they exist specifically to be importable by standalone binaries.
-
-standalone_allowed=(
-	"github.com/sciminds/cli/internal/uikit"
-)
-
-isolated_pkgs=("internal/tui/dbtui")
-for pkg in "${isolated_pkgs[@]}"; do
-	# Find imports of internal/* that are NOT within the package's own subtree.
-	own_import="github.com/sciminds/cli/${pkg}"
-	infra_hits=$(rg -n '"github\.com/sciminds/cli/internal/' --type go "$pkg/" 2>/dev/null |
-		rg -v "\"${own_import}" || true)
-	# Filter out allowed shared leaf packages.
-	for allowed in "${standalone_allowed[@]}"; do
-		infra_hits=$(echo "$infra_hits" | rg -v "\"${allowed}\"" || true)
-	done
-	if [[ -n "$infra_hits" ]]; then
-		echo "FAIL [standalone-boundary] standalone package $pkg imports outside its subtree:"
-		echo "$infra_hits"
-		fail "standalone-boundary"
-	fi
-done
+# ── Rule 8: (removed) standalone-package import boundaries ──────────────────
+# The dbtui standalone-binary constraint was relaxed when DuckDB became a
+# first-class peer of SQLite. dbtui now imports internal/store and
+# internal/store/sqlite freely. If a future package needs hermetic isolation,
+# re-introduce a boundary rule scoped to that package.
 
 # ── Rule 9: No legacy sort package — use slices/maps ───────────────────────
 # Go 1.21+ provides slices.Sort, slices.SortFunc, slices.SortStableFunc,

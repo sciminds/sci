@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sciminds/cli/internal/db/data"
+	"github.com/sciminds/cli/internal/store/sqlite"
 )
 
 // TestBuildSQLiteMirrorMulti materialises a multi-table .duckdb file as
@@ -17,7 +17,7 @@ func TestBuildSQLiteMirrorMulti(t *testing.T) {
 	if err := BuildSQLiteMirror(tinyDuck, dest); err != nil {
 		t.Fatalf("BuildSQLiteMirror: %v", err)
 	}
-	store, err := data.OpenStore(dest)
+	store, err := sqlite.Open(dest)
 	if err != nil {
 		t.Fatalf("open mirror as sqlite: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestBuildSQLiteMirrorEmpty(t *testing.T) {
 	if err := BuildSQLiteMirror(src, dest); err != nil {
 		t.Fatalf("BuildSQLiteMirror: %v", err)
 	}
-	store, err := data.OpenStore(dest)
+	store, err := sqlite.Open(dest)
 	if err != nil {
 		t.Fatalf("open empty mirror: %v", err)
 	}

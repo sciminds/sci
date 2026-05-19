@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sciminds/cli/internal/store/sqlite"
 	"github.com/sciminds/cli/internal/tui/dbtui/app"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
 )
 
 func main() {
@@ -23,14 +23,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	store, err := data.Open(dbPath)
+	s, err := sqlite.Open(dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-	defer func() { _ = store.Close() }()
+	defer func() { _ = s.Close() }()
 
-	if err := app.Run(store, dbPath); err != nil {
+	if err := app.Run(s, dbPath); err != nil {
 		if errors.Is(err, app.ErrInterrupted) {
 			os.Exit(130)
 		}

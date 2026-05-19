@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -66,7 +66,7 @@ const humanDateAddedFormat = "01/02/06, 3:04pm"
 // ErrReadOnly is returned by every mutating DataStore method.
 var ErrReadOnly = errors.New("zot view: read-only store")
 
-// Store implements data.DataStore and data.ViewLister over a local.DB.
+// Store implements [store.DataStore] and [store.ViewLister] over a local.DB.
 // Store takes ownership of the passed local.DB — calling Close on the
 // store closes the underlying connection.
 type Store struct {
@@ -82,7 +82,7 @@ type Store struct {
 	sortKeys [][]string
 }
 
-// New wraps a local.DB as a read-only DataStore. loc controls the timezone
+// New wraps a local.DB as a read-only store.DataStore. loc controls the timezone
 // used to format the Date Added column; pass time.Local in production and
 // time.UTC from tests for deterministic output.
 func New(db local.Reader, loc *time.Location) *Store {
@@ -100,12 +100,12 @@ func (s *Store) TableNames() ([]string, error) {
 }
 
 // TableColumns implements data.DataStore.
-func (s *Store) TableColumns(table string) ([]data.PragmaColumn, error) {
+func (s *Store) TableColumns(table string) ([]store.PragmaColumn, error) {
 	if table != TableName {
 		return nil, fmt.Errorf("unknown table %q", table)
 	}
-	cols := lo.Map(columnTitles, func(t string, i int) data.PragmaColumn {
-		return data.PragmaColumn{CID: i, Name: t, Type: "TEXT"}
+	cols := lo.Map(columnTitles, func(t string, i int) store.PragmaColumn {
+		return store.PragmaColumn{CID: i, Name: t, Type: "TEXT"}
 	})
 	return cols, nil
 }
@@ -201,12 +201,12 @@ func (s *Store) ReadOnlyQuery(query string) ([]string, [][]string, error) {
 }
 
 // TableSummaries implements data.DataStore.
-func (s *Store) TableSummaries() ([]data.TableSummary, error) {
+func (s *Store) TableSummaries() ([]store.TableSummary, error) {
 	n, err := s.db.CountViewRows()
 	if err != nil {
 		return nil, err
 	}
-	return []data.TableSummary{{Name: TableName, Rows: n, Columns: len(columnTitles)}}, nil
+	return []store.TableSummary{{Name: TableName, Rows: n, Columns: len(columnTitles)}}, nil
 }
 
 // NoteContent returns the unwrapped markdown body for a docling note
@@ -237,7 +237,7 @@ func (s *Store) UpdateCell(table, column string, rowID int64, pkValues map[strin
 }
 
 // DeleteRows implements data.DataStore (always returns ErrReadOnly).
-func (s *Store) DeleteRows(table string, ids []data.RowIdentifier) (int64, error) {
+func (s *Store) DeleteRows(table string, ids []store.RowIdentifier) (int64, error) {
 	return 0, ErrReadOnly
 }
 
@@ -257,17 +257,17 @@ func (s *Store) ExportCSV(table, csvPath string) error { return ErrReadOnly }
 
 // ImportCSV implements data.DataStore (always returns ErrImportNotSupported).
 func (s *Store) ImportCSV(csvPath, tableName string) error {
-	return data.ErrImportNotSupported
+	return store.ErrImportNotSupported
 }
 
 // AppendCSV implements data.DataStore (always returns ErrImportNotSupported).
 func (s *Store) AppendCSV(csvPath, tableName string) error {
-	return data.ErrImportNotSupported
+	return store.ErrImportNotSupported
 }
 
 // ImportFile implements data.DataStore (always returns ErrImportNotSupported).
 func (s *Store) ImportFile(filePath, tableName string) error {
-	return data.ErrImportNotSupported
+	return store.ErrImportNotSupported
 }
 
 // CreateEmptyTable implements data.DataStore (always returns ErrReadOnly).

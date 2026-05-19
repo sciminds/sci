@@ -7,7 +7,7 @@ package app
 import (
 	"strings"
 
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/uikit"
 )
@@ -126,7 +126,7 @@ func (m *Model) handleNormalModeKey(k string, tab *Tab) bool {
 				overlayOpts = append(overlayOpts, uikit.WithInitialQuery(m.search.Query))
 			}
 			var overlay uikit.ScrollableOverlay
-			if ncp, ok := m.store.(data.NoteContentProvider); ok && cursor >= 0 && cursor < len(tab.Rows) {
+			if ncp, ok := m.store.(store.NoteContentProvider); ok && cursor >= 0 && cursor < len(tab.Rows) {
 				if md := ncp.NoteContent(tab.Rows[cursor].RowID); md != "" {
 					overlay = uikit.NewMarkdownOverlay(title, md, m.width, m.height, overlayOpts...)
 				}

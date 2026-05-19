@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	dbtuidata "github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 )
 
 // ImportEntry reports how many rows landed in a given table during an
@@ -58,7 +58,7 @@ func touchEmpty(path string) error {
 // DROP VIEW when the named object is a view. Returns a uniform
 // "does not exist" error if missing.
 func DropTable(path, table string) error {
-	if !dbtuidata.IsSafeIdentifier(table) {
+	if !store.IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name %q", table)
 	}
 	metas, err := Info(path)
@@ -85,10 +85,10 @@ func DropTable(path, table string) error {
 // exist" / "already exists" errors instead of duckdb's CLI vocabulary.
 // Uses ALTER VIEW when the source is a view.
 func RenameTable(path, oldName, newName string) error {
-	if !dbtuidata.IsSafeIdentifier(oldName) {
+	if !store.IsSafeIdentifier(oldName) {
 		return fmt.Errorf("invalid table name %q", oldName)
 	}
-	if !dbtuidata.IsSafeIdentifier(newName) {
+	if !store.IsSafeIdentifier(newName) {
 		return fmt.Errorf("invalid table name %q", newName)
 	}
 	metas, err := Info(path)
@@ -224,9 +224,9 @@ func planImports(csvPaths []string, tableOverride string) ([]importPlan, error) 
 	for _, csv := range csvPaths {
 		name := tableOverride
 		if name == "" {
-			name = dbtuidata.TableNameFromFile(csv)
+			name = store.TableNameFromFile(csv)
 		}
-		if !dbtuidata.IsSafeIdentifier(name) {
+		if !store.IsSafeIdentifier(name) {
 			return nil, fmt.Errorf("invalid table name %q", name)
 		}
 		plans = append(plans, importPlan{csv: csv, table: name})

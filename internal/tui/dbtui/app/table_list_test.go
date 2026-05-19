@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store/sqlite"
 )
 
 func keyMsg(key string) tea.KeyPressMsg {
@@ -33,10 +33,10 @@ func specialKeyMsg(key string) tea.KeyPressMsg {
 	}
 }
 
-func makeTestStore(t *testing.T) *data.Store {
+func makeTestStore(t *testing.T) *sqlite.Store {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	store, err := data.Open(dbPath)
+	store, err := sqlite.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}

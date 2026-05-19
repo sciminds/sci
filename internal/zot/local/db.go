@@ -12,8 +12,8 @@
 // Open requires an explicit selector — there is no implicit default. Callers
 // that want the personal library pass ForPersonal().
 //
-// This package uses raw database/sql (not pocketbase/dbx) — a documented
-// exception alongside internal/tui/dbtui/data and internal/markdb.
+// This package uses raw database/sql (not pocketbase/dbx) — read-only
+// immutable-mode SQLite doesn't need dbx ergonomics.
 package local
 
 import (

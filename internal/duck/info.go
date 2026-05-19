@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	dbtuidata "github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 )
 
 // TableMeta is one entry in the Info() result: a base table or view in
@@ -55,7 +55,7 @@ func Info(path string) ([]TableMeta, error) {
 	// done via double-quoted identifiers — defensively validate so a
 	// pathological name can't break the SQL.
 	for _, r := range listed {
-		if !dbtuidata.IsSafeIdentifier(r.Name) {
+		if !store.IsSafeIdentifier(r.Name) {
 			return nil, fmt.Errorf("unsupported table name %q in %s", r.Name, filepath.Base(path))
 		}
 	}

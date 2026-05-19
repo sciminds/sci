@@ -1,7 +1,4 @@
-package data
-
-// file_store.go — [FileViewStore] wraps [SQLiteStore] to view flat files
-// (CSV, TSV, JSON, JSONL) as read-only virtual tables in the TUI.
+package sqlite
 
 import (
 	"bufio"
@@ -15,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/store"
 )
 
 // viewableExtensions lists file extensions that can be viewed directly.
@@ -32,18 +30,18 @@ func IsViewableFile(path string) bool {
 	return viewableExtensions[ext]
 }
 
-// FileViewStore implements DataStore for viewing and editing flat files
+// FileView implements [store.DataStore] for viewing and editing flat files
 // (CSV, TSV, JSON, JSONL) by importing them into an in-memory SQLite
 // database. Mutations are written back to the original file on Close.
-type FileViewStore struct {
-	filePath  string       // absolute path to the original data file
-	tableName string       // derived from filename
-	inner     *SQLiteStore // backed by in-memory SQLite
-	dirty     bool         // true if any mutation has been performed
+type FileView struct {
+	filePath  string // absolute path to the original data file
+	tableName string // derived from filename
+	inner     *Store // backed by in-memory SQLite
+	dirty     bool   // true if any mutation has been performed
 }
 
-// OpenFileStore opens a flat file for viewing and editing through SQLite.
-func OpenFileStore(path string) (*FileViewStore, error) {
+// OpenFileView opens a flat file for viewing and editing through SQLite.
+func OpenFileView(path string) (*FileView, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if !viewableExtensions[ext] {
 		return nil, fmt.Errorf("unsupported file type: %s", ext)
@@ -54,9 +52,9 @@ func OpenFileStore(path string) (*FileViewStore, error) {
 		return nil, fmt.Errorf("resolve path: %w", err)
 	}
 
-	name := TableNameFromFile(path)
+	name := store.TableNameFromFile(path)
 
-	inner, err := OpenMemoryStore()
+	inner, err := OpenMemory()
 	if err != nil {
 		return nil, fmt.Errorf("open in-memory db: %w", err)
 	}
@@ -77,17 +75,17 @@ func OpenFileStore(path string) (*FileViewStore, error) {
 		return nil, fmt.Errorf("import %s: %w", filepath.Base(path), importErr)
 	}
 
-	return &FileViewStore{filePath: absPath, tableName: name, inner: inner}, nil
+	return &FileView{filePath: absPath, tableName: name, inner: inner}, nil
 }
 
-func importCSVFile(store *SQLiteStore, path, tableName string, delimiter rune) error {
+func importCSVFile(s *Store, path, tableName string, delimiter rune) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = f.Close() }()
 
-	r := csv.NewReader(DecodeReader(f))
+	r := csv.NewReader(store.DecodeReader(f))
 	r.Comma = delimiter
 	r.LazyQuotes = true
 
@@ -99,22 +97,22 @@ func importCSVFile(store *SQLiteStore, path, tableName string, delimiter rune) e
 		return fmt.Errorf("file is empty")
 	}
 
-	header := SanitizeImportHeaders(records[0])
+	header := store.SanitizeImportHeaders(records[0])
 	quotedCols := lo.Map(header, func(col string, _ int) string {
 		return fmt.Sprintf(`"%s" TEXT`, col)
 	})
 	createSQL := fmt.Sprintf(`CREATE TABLE "%s" (%s)`, tableName, strings.Join(quotedCols, ", "))
-	if _, err := store.db.NewQuery(createSQL).Execute(); err != nil {
+	if _, err := s.db.Exec(createSQL); err != nil {
 		return fmt.Errorf("create table: %w", err)
 	}
 
 	if len(records) > 1 {
-		return store.InsertRows(tableName, header, records[1:])
+		return s.InsertRows(tableName, header, records[1:])
 	}
 	return nil
 }
 
-func importJSONFile(store *SQLiteStore, path, tableName string) error {
+func importJSONFile(s *Store, path, tableName string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -122,16 +120,16 @@ func importJSONFile(store *SQLiteStore, path, tableName string) error {
 	defer func() { _ = f.Close() }()
 
 	var records []map[string]any
-	if err := json.NewDecoder(DecodeReader(f)).Decode(&records); err != nil {
+	if err := json.NewDecoder(store.DecodeReader(f)).Decode(&records); err != nil {
 		return fmt.Errorf("parse json: %w", err)
 	}
 	if len(records) == 0 {
 		return fmt.Errorf("json array is empty")
 	}
-	return importJSONRecords(store, records, tableName)
+	return importJSONRecords(s, records, tableName)
 }
 
-func importJSONLFile(store *SQLiteStore, path, tableName string) error {
+func importJSONLFile(s *Store, path, tableName string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -139,7 +137,7 @@ func importJSONLFile(store *SQLiteStore, path, tableName string) error {
 	defer func() { _ = f.Close() }()
 
 	var records []map[string]any
-	scanner := bufio.NewScanner(DecodeReader(f))
+	scanner := bufio.NewScanner(store.DecodeReader(f))
 	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024) // up to 10 MB per line
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -158,10 +156,10 @@ func importJSONLFile(store *SQLiteStore, path, tableName string) error {
 	if len(records) == 0 {
 		return fmt.Errorf("jsonl file is empty")
 	}
-	return importJSONRecords(store, records, tableName)
+	return importJSONRecords(s, records, tableName)
 }
 
-func importJSONRecords(store *SQLiteStore, records []map[string]any, tableName string) error {
+func importJSONRecords(s *Store, records []map[string]any, tableName string) error {
 	keySet := make(map[string]bool)
 	for _, rec := range records {
 		for k := range rec {
@@ -169,13 +167,13 @@ func importJSONRecords(store *SQLiteStore, records []map[string]any, tableName s
 		}
 	}
 	rawKeys := slices.Sorted(maps.Keys(keySet))
-	cols := SanitizeImportHeaders(rawKeys)
+	cols := store.SanitizeImportHeaders(rawKeys)
 
 	quotedCols := lo.Map(cols, func(col string, _ int) string {
 		return fmt.Sprintf(`"%s" TEXT`, col)
 	})
 	createSQL := fmt.Sprintf(`CREATE TABLE "%s" (%s)`, tableName, strings.Join(quotedCols, ", "))
-	if _, err := store.db.NewQuery(createSQL).Execute(); err != nil {
+	if _, err := s.db.Exec(createSQL); err != nil {
 		return fmt.Errorf("create table: %w", err)
 	}
 
@@ -189,11 +187,12 @@ func importJSONRecords(store *SQLiteStore, records []map[string]any, tableName s
 		}
 		rows[i] = row
 	}
-	return store.InsertRows(tableName, cols, rows)
+	return s.InsertRows(tableName, cols, rows)
 }
 
-// Close implements DataStore.
-func (s *FileViewStore) Close() error {
+// Close implements DataStore. Flushes the in-memory table back to the
+// original file if any mutation occurred.
+func (s *FileView) Close() error {
 	if s.dirty {
 		if err := s.inner.ExportCSV(s.tableName, s.filePath); err != nil {
 			_ = s.inner.Close()
@@ -204,34 +203,36 @@ func (s *FileViewStore) Close() error {
 }
 
 // TableNames implements DataStore.
-func (s *FileViewStore) TableNames() ([]string, error) { return s.inner.TableNames() }
+func (s *FileView) TableNames() ([]string, error) { return s.inner.TableNames() }
 
 // TableColumns implements DataStore.
-func (s *FileViewStore) TableColumns(t string) ([]PragmaColumn, error) {
+func (s *FileView) TableColumns(t string) ([]store.PragmaColumn, error) {
 	return s.inner.TableColumns(t)
 }
 
 // TableRowCount implements DataStore.
-func (s *FileViewStore) TableRowCount(t string) (int, error) { return s.inner.TableRowCount(t) }
+func (s *FileView) TableRowCount(t string) (int, error) { return s.inner.TableRowCount(t) }
 
 // QueryTable implements DataStore.
-func (s *FileViewStore) QueryTable(t string) ([]string, [][]string, [][]bool, []int64, error) {
+func (s *FileView) QueryTable(t string) ([]string, [][]string, [][]bool, []int64, error) {
 	return s.inner.QueryTable(t)
 }
 
 // ReadOnlyQuery implements DataStore.
-func (s *FileViewStore) ReadOnlyQuery(q string) ([]string, [][]string, error) {
+func (s *FileView) ReadOnlyQuery(q string) ([]string, [][]string, error) {
 	return s.inner.ReadOnlyQuery(q)
 }
 
 // TableSummaries implements DataStore.
-func (s *FileViewStore) TableSummaries() ([]TableSummary, error) { return s.inner.TableSummaries() }
+func (s *FileView) TableSummaries() ([]store.TableSummary, error) {
+	return s.inner.TableSummaries()
+}
 
 // ExportCSV implements DataStore.
-func (s *FileViewStore) ExportCSV(t, p string) error { return s.inner.ExportCSV(t, p) }
+func (s *FileView) ExportCSV(t, p string) error { return s.inner.ExportCSV(t, p) }
 
 // UpdateCell implements DataStore.
-func (s *FileViewStore) UpdateCell(table, column string, rowID int64, pkValues map[string]string, value *string) error {
+func (s *FileView) UpdateCell(table, column string, rowID int64, pkValues map[string]string, value *string) error {
 	if err := s.inner.UpdateCell(table, column, rowID, pkValues, value); err != nil {
 		return err
 	}
@@ -240,7 +241,7 @@ func (s *FileViewStore) UpdateCell(table, column string, rowID int64, pkValues m
 }
 
 // DeleteRows implements DataStore.
-func (s *FileViewStore) DeleteRows(table string, ids []RowIdentifier) (int64, error) {
+func (s *FileView) DeleteRows(table string, ids []store.RowIdentifier) (int64, error) {
 	n, err := s.inner.DeleteRows(table, ids)
 	if err != nil {
 		return 0, err
@@ -252,7 +253,7 @@ func (s *FileViewStore) DeleteRows(table string, ids []RowIdentifier) (int64, er
 }
 
 // InsertRows implements DataStore.
-func (s *FileViewStore) InsertRows(table string, columns []string, rows [][]string) error {
+func (s *FileView) InsertRows(table string, columns []string, rows [][]string) error {
 	if err := s.inner.InsertRows(table, columns, rows); err != nil {
 		return err
 	}
@@ -261,31 +262,31 @@ func (s *FileViewStore) InsertRows(table string, columns []string, rows [][]stri
 }
 
 // RenameTable implements DataStore (not supported for file views).
-func (s *FileViewStore) RenameTable(_, _ string) error {
+func (s *FileView) RenameTable(_, _ string) error {
 	return fmt.Errorf("rename not supported for file view")
 }
 
 // DropTable implements DataStore (not supported for file views).
-func (s *FileViewStore) DropTable(_ string) error {
+func (s *FileView) DropTable(_ string) error {
 	return fmt.Errorf("drop not supported for file view")
 }
 
 // ImportCSV implements DataStore (not supported for file views).
-func (s *FileViewStore) ImportCSV(_, _ string) error {
+func (s *FileView) ImportCSV(_, _ string) error {
 	return fmt.Errorf("import not supported for file view")
 }
 
 // AppendCSV implements DataStore (not supported for file views).
-func (s *FileViewStore) AppendCSV(_, _ string) error {
+func (s *FileView) AppendCSV(_, _ string) error {
 	return fmt.Errorf("append not supported for file view")
 }
 
 // ImportFile implements DataStore (not supported for file views).
-func (s *FileViewStore) ImportFile(_, _ string) error {
+func (s *FileView) ImportFile(_, _ string) error {
 	return fmt.Errorf("import not supported for file view")
 }
 
 // CreateEmptyTable implements DataStore (not supported for file views).
-func (s *FileViewStore) CreateEmptyTable(_ string) error {
+func (s *FileView) CreateEmptyTable(_ string) error {
 	return fmt.Errorf("create table not supported for file view")
 }

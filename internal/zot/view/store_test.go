@@ -10,7 +10,7 @@ import (
 	"charm.land/bubbles/v2/table"
 	_ "modernc.org/sqlite"
 
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
 	"github.com/sciminds/cli/internal/zot/local"
 )
@@ -151,9 +151,9 @@ func TestStoreTableSummaries(t *testing.T) {
 }
 
 func TestStoreIsView(t *testing.T) {
-	store := newTestStore(t)
-	defer func() { _ = store.Close() }()
-	var vl data.ViewLister = store // compile-time: Store must implement ViewLister
+	s := newTestStore(t)
+	defer func() { _ = s.Close() }()
+	var vl store.ViewLister = s // compile-time: Store must implement ViewLister
 	if !vl.IsView(TableName) {
 		t.Errorf("IsView(%q) = false, want true — dbtui uses this to force read-only", TableName)
 	}
@@ -381,11 +381,11 @@ func TestStoreNoteContent(t *testing.T) {
 }
 
 // Compile-time assertion: Store must implement FulltextSearcher.
-var _ data.FulltextSearcher = (*Store)(nil)
+var _ store.FulltextSearcher = (*Store)(nil)
 
 // Compile-time assertion: Store must implement SortKeyProvider so dbtui can
 // sort the Date Added column chronologically rather than by display string.
-var _ data.SortKeyProvider = (*Store)(nil)
+var _ store.SortKeyProvider = (*Store)(nil)
 
 // dateAddedCol is the column index of the "Date Added" column in items.
 const dateAddedCol = 4

@@ -1,13 +1,10 @@
-package data
-
-// csv_helpers.go — input-cleaning helpers for tabular file imports
-// (CSV, TSV, JSON). Centralized here because both [internal/db/data] and
-// [internal/tui/dbtui/data] need the same handling for real-world files
-// produced by Excel, instruments, and ad-hoc data pipelines.
+package store
 
 import (
 	"fmt"
 	"io"
+	"path/filepath"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -16,6 +13,67 @@ import (
 	xunicode "golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
 )
+
+// ValidateReadOnlySQL checks that query is a safe, single-statement SELECT
+// (or a read-only WITH/CTE). Returns the trimmed query on success.
+func ValidateReadOnlySQL(query string) (string, error) {
+	trimmed := strings.TrimSpace(query)
+	if trimmed == "" {
+		return "", fmt.Errorf("empty query")
+	}
+	upper := strings.ToUpper(trimmed)
+	if !strings.HasPrefix(upper, "SELECT") && !strings.HasPrefix(upper, "WITH") {
+		return "", fmt.Errorf("only SELECT queries are allowed")
+	}
+	if strings.Contains(trimmed, ";") {
+		return "", fmt.Errorf("multiple statements are not allowed")
+	}
+	if strings.HasPrefix(upper, "WITH") {
+		if ContainsWriteKeyword(upper) {
+			return "", fmt.Errorf("only SELECT queries are allowed")
+		}
+	}
+	return trimmed, nil
+}
+
+// ContainsWriteKeyword checks if an uppercased query contains SQL write
+// keywords that would allow a writable CTE to slip through the prefix check.
+// Matches keywords at word boundaries (space, paren, or start/end of string),
+// so "WITH x AS (...)INSERT INTO" is caught even without a space before INSERT.
+func ContainsWriteKeyword(upper string) bool {
+	for _, kw := range []string{"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE"} {
+		idx := 0
+		for idx <= len(upper)-len(kw) {
+			pos := strings.Index(upper[idx:], kw)
+			if pos < 0 {
+				break
+			}
+			abs := idx + pos
+			before := abs == 0 || !unicode.IsLetter(rune(upper[abs-1]))
+			after := abs+len(kw) >= len(upper) || !unicode.IsLetter(rune(upper[abs+len(kw)]))
+			if before && after {
+				return true
+			}
+			idx = abs + len(kw)
+		}
+	}
+	return false
+}
+
+// IsSafeIdentifier allows alphanumerics, underscores, and spaces
+// (some backends like DuckDB allow spaces in table/column names).
+func IsSafeIdentifier(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') &&
+			(r < '0' || r > '9') && r != '_' && r != ' ' {
+			return false
+		}
+	}
+	return true
+}
 
 // DecodeReader returns a reader that strips a leading byte-order mark if
 // present. UTF-8 BOMs are dropped; UTF-16 LE/BE BOMs are decoded to UTF-8.
@@ -90,7 +148,6 @@ func SanitizeImportHeaders(raw []string) []string {
 			seen[h] = 0
 			continue
 		}
-		// Find the next free "h_N" suffix.
 		for {
 			seen[h]++
 			candidate := fmt.Sprintf("%s_%d", h, seen[h])
@@ -120,4 +177,42 @@ func replaceUnsafe(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// importableExts lists file extensions that can be imported.
+var importableExts = []string{".csv", ".tsv", ".json", ".jsonl", ".ndjson"}
+
+// ImportableExtensions returns the list of file extensions that ImportFile supports.
+func ImportableExtensions() []string {
+	out := make([]string, len(importableExts))
+	copy(out, importableExts)
+	return out
+}
+
+// IsImportableExt returns true if ext (including the dot) is importable.
+func IsImportableExt(ext string) bool {
+	return slices.Contains(importableExts, strings.ToLower(ext))
+}
+
+// TableNameFromFile derives a SQL-safe table name from a filename.
+// Dashes and spaces become underscores; leading digits get a _ prefix.
+func TableNameFromFile(path string) string {
+	base := filepath.Base(path)
+	name := strings.TrimSuffix(base, filepath.Ext(base))
+	name = strings.ReplaceAll(name, "-", "_")
+	name = strings.ReplaceAll(name, " ", "_")
+	var clean strings.Builder
+	for _, r := range name {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
+			clean.WriteRune(r)
+		}
+	}
+	name = clean.String()
+	if name == "" {
+		name = "imported"
+	}
+	if unicode.IsDigit(rune(name[0])) {
+		name = "_" + name
+	}
+	return name
 }

@@ -9,7 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
-	"github.com/sciminds/cli/internal/tui/dbtui/data"
+	"github.com/sciminds/cli/internal/store/sqlite"
 )
 
 const (
@@ -22,10 +22,10 @@ const (
 // ── Shared helpers ──────────────────────────────────────────────────────
 
 // setupTeatestDB creates a test database with a few tables and returns a store.
-func setupTeatestDB(t *testing.T) *data.Store {
+func setupTeatestDB(t *testing.T) *sqlite.Store {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "teatest.db")
-	store, err := data.Open(dbPath)
+	store, err := sqlite.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func newReadOnlyTeatestModel(t *testing.T) *Model {
 func newEmptyTeatestModel(t *testing.T) *Model {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "empty.db")
-	store, err := data.Open(dbPath)
+	store, err := sqlite.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,10 +96,10 @@ func newEmptyTeatestModel(t *testing.T) *Model {
 }
 
 // newTeatestModelWithSchema creates a model with custom SQL statements.
-func newTeatestModelWithSchema(t *testing.T, stmts []string) (*Model, *data.Store) {
+func newTeatestModelWithSchema(t *testing.T, stmts []string) (*Model, *sqlite.Store) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "custom.db")
-	store, err := data.Open(dbPath)
+	store, err := sqlite.Open(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func waitForOutput(t *testing.T, tm *teatest.TestModel, substr string) {
 }
 
 // startTeatest is a convenience that creates a model + test model + waits for render.
-func startTeatest(t *testing.T) (*teatest.TestModel, *data.Store) {
+func startTeatest(t *testing.T) (*teatest.TestModel, *sqlite.Store) {
 	t.Helper()
 	store := setupTeatestDB(t)
 	m, err := NewModel(store, "teatest.db", false)
