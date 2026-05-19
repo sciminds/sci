@@ -31,6 +31,16 @@ type Palette struct {
 	// Intentionally dimmer than Green so per-rune bold highlights still read
 	// clearly when layered on top.
 	MatchTintGreen color.Color
+
+	// Mode-specific tints: cell backgrounds for cursor and selection states
+	// in modal editors (dbtui's normal/edit/visual paradigm). Subtler than
+	// the corresponding Blue/Orange/Pink/Green so they read as "tint over
+	// content" rather than "block of color".
+	CursorBlueTint   color.Color // normal-mode cursor cell
+	CursorOrangeTint color.Color // edit-mode cursor cell
+	CursorPinkTint   color.Color // visual-mode cursor cell
+	SelectPinkTint   color.Color // visual-mode selected range
+	HeaderGreenTint  color.Color // highlighted column header
 }
 
 // NewPalette builds the Wong colorblind-safe palette for the given mode.
@@ -52,6 +62,12 @@ func NewPalette(isDark bool) Palette {
 		Border:        ld(lipgloss.Color("#D1D5DB"), lipgloss.Color("#374151")),
 
 		MatchTintGreen: ld(lipgloss.Color("#BBF7D0"), lipgloss.Color("#064E2F")),
+
+		CursorBlueTint:   ld(lipgloss.Color("#BFDBFE"), lipgloss.Color("#1E3A5F")),
+		CursorOrangeTint: ld(lipgloss.Color("#FFF3E0"), lipgloss.Color("#2D1F0E")),
+		CursorPinkTint:   ld(lipgloss.Color("#C4A8E0"), lipgloss.Color("#553970")),
+		SelectPinkTint:   ld(lipgloss.Color("#D8C8E8"), lipgloss.Color("#3D2B4D")),
+		HeaderGreenTint:  ld(lipgloss.Color("#E6F4EA"), lipgloss.Color("#1A3329")),
 	}
 }
 

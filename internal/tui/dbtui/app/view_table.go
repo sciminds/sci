@@ -89,7 +89,7 @@ func renderHeaderRow(
 		text := formatHeaderCell(title, indicator, width)
 		var rendered string
 		if i == colCursor {
-			rendered = modeTUI.HeaderGreenBg().Render(text)
+			rendered = uikit.TUI.HeaderGreenBg().Render(text)
 		} else {
 			rendered = uikit.TUI.TableHeader().Render(text)
 		}
@@ -461,9 +461,9 @@ func renderCell(
 	if hl == highlightNormalCursor || hl == highlightEditCursor {
 		var cursorStyle lipgloss.Style
 		if hl == highlightEditCursor {
-			cursorStyle = modeTUI.CursorOrange().Inherit(style)
+			cursorStyle = uikit.TUI.CursorOrange().Inherit(style)
 		} else {
-			cursorStyle = modeTUI.CursorBlue().Inherit(style)
+			cursorStyle = uikit.TUI.CursorBlue().Inherit(style)
 		}
 		truncated := ansi.Truncate(value, width, symEllipsis)
 		styled := cursorStyle.Render(truncated)
@@ -482,9 +482,9 @@ func renderCell(
 	case highlightRow:
 		style = style.Background(uikit.TUI.Palette().Surface).Bold(true)
 	case highlightVisual:
-		style = modeTUI.SelectPink()
+		style = uikit.TUI.SelectPink()
 	case highlightVisualCursor:
-		style = modeTUI.CursorPink()
+		style = uikit.TUI.CursorPink()
 	}
 
 	// Search highlighting: render matched positions with accent style.

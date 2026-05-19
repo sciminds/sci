@@ -68,6 +68,16 @@ type Styles struct {
 	// Match-origin tint (cell background marking which cells drove a row match)
 	matchTint lipgloss.Style
 
+	// Mode-specific cell styles for modal editors (dbtui's normal/edit/visual
+	// paradigm). Color-suffixed names (CursorBlue/SelectPink/...) match the
+	// Tailwind-inspired naming convention used elsewhere in this file.
+	cursorRaised  lipgloss.Style
+	cursorBlue    lipgloss.Style
+	cursorOrange  lipgloss.Style
+	cursorPink    lipgloss.Style
+	selectPink    lipgloss.Style
+	headerGreenBg lipgloss.Style
+
 	// Spinner / progress
 	spinnerDot lipgloss.Style
 
@@ -179,6 +189,31 @@ func NewStyles(isDark bool) *Styles {
 
 		// Match-origin tint
 		matchTint: lipgloss.NewStyle().Background(p.MatchTintGreen),
+
+		// Mode-specific cell styles (modal editors)
+		cursorRaised: lipgloss.NewStyle().
+			Background(p.SurfaceRaised).
+			Bold(true),
+		cursorBlue: lipgloss.NewStyle().
+			Background(p.CursorBlueTint).
+			Foreground(p.Green).
+			Bold(true),
+		cursorOrange: lipgloss.NewStyle().
+			Background(p.CursorOrangeTint).
+			Foreground(p.TextBright).
+			Bold(true).
+			Underline(true),
+		cursorPink: lipgloss.NewStyle().
+			Background(p.CursorPinkTint).
+			Foreground(p.TextBright).
+			Bold(true),
+		selectPink: lipgloss.NewStyle().
+			Background(p.SelectPinkTint).
+			Foreground(p.TextBright),
+		headerGreenBg: lipgloss.NewStyle().
+			Foreground(p.Green).
+			Background(p.HeaderGreenTint).
+			Bold(true),
 
 		// Spinner / progress
 		spinnerDot: lipgloss.NewStyle().Foreground(p.Blue),
@@ -374,6 +409,30 @@ func (s *Styles) OverlayBox() lipgloss.Style { return s.overlayBox }
 // contributed to a search-row's match (match-origin tint). Intended to
 // layer under per-rune highlight styles.
 func (s *Styles) MatchTint() lipgloss.Style { return s.matchTint }
+
+// ── Accessors — modal-editor cell styles ────────────────────────────────────
+// Mode-specific cursor and selection styles for modal editors (dbtui's
+// normal/edit/visual paradigm). Names follow the Tailwind-inspired
+// convention (CursorBlue, SelectPink) rather than mode names so they read
+// consistently alongside the rest of the palette.
+
+// CursorRaised returns the raised-surface cursor style.
+func (s *Styles) CursorRaised() lipgloss.Style { return s.cursorRaised }
+
+// CursorBlue returns the blue-tinted cursor style (normal mode).
+func (s *Styles) CursorBlue() lipgloss.Style { return s.cursorBlue }
+
+// CursorOrange returns the orange-tinted cursor style (edit mode).
+func (s *Styles) CursorOrange() lipgloss.Style { return s.cursorOrange }
+
+// CursorPink returns the pink-tinted cursor style (visual mode).
+func (s *Styles) CursorPink() lipgloss.Style { return s.cursorPink }
+
+// SelectPink returns the pink-tinted selection range style (visual mode).
+func (s *Styles) SelectPink() lipgloss.Style { return s.selectPink }
+
+// HeaderGreenBg returns the green-background column header style.
+func (s *Styles) HeaderGreenBg() lipgloss.Style { return s.headerGreenBg }
 
 // ── Accessors — help rendering ───────────────────────────────────────────────
 
