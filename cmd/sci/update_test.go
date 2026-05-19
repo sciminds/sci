@@ -67,7 +67,7 @@ func TestUpdate_ExecsIntoDoctorAfterSuccessfulUpdate(t *testing.T) {
 			DownloadURL: "https://example.invalid/sci",
 		}
 	}
-	selfupdateUpdate = func(_ string) (string, error) {
+	selfupdateUpdate = func(_, _ string) (string, error) {
 		return "/tmp/sci-new", nil
 	}
 
@@ -106,7 +106,7 @@ func TestUpdate_NoExecWhenAlreadyUpToDate(t *testing.T) {
 			LatestSHA:  "aaaaaaa",
 		}
 	}
-	selfupdateUpdate = func(_ string) (string, error) {
+	selfupdateUpdate = func(_, _ string) (string, error) {
 		return "", fmt.Errorf("Update() must not be called when sci is up to date")
 	}
 
@@ -151,7 +151,7 @@ func TestUpdate_ExecFailureIsNonFatal(t *testing.T) {
 			DownloadURL: "https://example.invalid/sci",
 		}
 	}
-	selfupdateUpdate = func(_ string) (string, error) {
+	selfupdateUpdate = func(_, _ string) (string, error) {
 		return "/tmp/sci-new", nil
 	}
 
@@ -190,7 +190,7 @@ func TestUpdate_DownloadFailurePropagates(t *testing.T) {
 			DownloadURL: "https://example.invalid/sci",
 		}
 	}
-	selfupdateUpdate = func(_ string) (string, error) {
+	selfupdateUpdate = func(_, _ string) (string, error) {
 		return "", fmt.Errorf("download: connection refused")
 	}
 
@@ -226,7 +226,7 @@ func TestUpdate_CheckFailurePropagates(t *testing.T) {
 	selfupdateCheck = func() selfupdate.CheckResult {
 		return selfupdate.CheckResult{Error: "GitHub API returned 502"}
 	}
-	selfupdateUpdate = func(_ string) (string, error) {
+	selfupdateUpdate = func(_, _ string) (string, error) {
 		return "", fmt.Errorf("Update() must not be called when Check failed")
 	}
 	execAfterUpdate = func(_ string) error {
@@ -301,7 +301,7 @@ func TestUpdate_JSONSkipsExec(t *testing.T) {
 			DownloadURL: "https://example.invalid/sci",
 		}
 	}
-	selfupdateUpdate = func(_ string) (string, error) {
+	selfupdateUpdate = func(_, _ string) (string, error) {
 		return "", fmt.Errorf("Update() must not be called in --json mode")
 	}
 

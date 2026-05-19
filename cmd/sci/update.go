@@ -94,7 +94,7 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 
 	var execPath string
 	err = uikit.RunWithSpinner("Downloading…", func() error {
-		path, uerr := selfupdateUpdate(result.DownloadURL)
+		path, uerr := selfupdateUpdate(result.DownloadURL, result.ExpectedSHA256)
 		execPath = path
 		return uerr
 	})

@@ -10,6 +10,8 @@
 package selfupdate
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,15 +35,21 @@ const (
 	// commitPattern extracts a commit SHA from the release body.
 	// Matches "**Commit:** <sha>" from the release notes.
 	commitPattern = `\*\*Commit:\*\*\s+([0-9a-f]{7,40})`
+
+	// sha256PatternFmt matches "**SHA256(sci-<os>-<arch>):** <64-hex>" in the
+	// release body. The release workflow emits one line per platform asset;
+	// Check() picks the one that matches runtime.GOOS/GOARCH.
+	sha256PatternFmt = `\*\*SHA256\(%s\):\*\*\s+([0-9a-f]{64})`
 )
 
 // CheckResult holds the outcome of checking for updates.
 type CheckResult struct {
-	Available   bool   `json:"available"`
-	CurrentSHA  string `json:"currentCommit"`
-	LatestSHA   string `json:"latestCommit,omitempty"`
-	DownloadURL string `json:"downloadUrl,omitempty"`
-	Error       string `json:"error,omitempty"`
+	Available      bool   `json:"available"`
+	CurrentSHA     string `json:"currentCommit"`
+	LatestSHA      string `json:"latestCommit,omitempty"`
+	DownloadURL    string `json:"downloadUrl,omitempty"`
+	ExpectedSHA256 string `json:"expectedSha256,omitempty"`
+	Error          string `json:"error,omitempty"`
 }
 
 // releaseResponse is the subset of the GitHub release API we need.
@@ -118,6 +126,14 @@ func Check() CheckResult {
 		}
 	}
 
+	// Extract the matching per-platform SHA256 from the release body. Missing
+	// is non-fatal here — Update() is the one that refuses to proceed without
+	// it, so callers can still surface "available" with an explanation.
+	sha256Re := regexp.MustCompile(fmt.Sprintf(sha256PatternFmt, regexp.QuoteMeta(assetName)))
+	if m := sha256Re.FindStringSubmatch(release.Body); len(m) == 2 {
+		result.ExpectedSHA256 = m[1]
+	}
+
 	// Compare: if the current commit is a prefix of the latest (or vice versa), we're up-to-date.
 	result.Available = commitsDiffer(version.Commit, result.LatestSHA)
 
@@ -163,9 +179,19 @@ func Download(downloadURL string, dest *os.File, progressFn func(int64)) error {
 	return nil
 }
 
-// Update downloads the latest binary and replaces the running executable.
-// Returns the path of the replaced binary.
-func Update(downloadURL string) (string, error) {
+// Update downloads the latest binary, verifies its SHA256 against expectedSHA256,
+// and atomically replaces the running executable. Returns the path of the
+// replaced binary.
+//
+// expectedSHA256 must be the 64-char hex digest emitted in the release body
+// alongside the binary (see CheckResult.ExpectedSHA256). An empty value is
+// refused — Update will not write an unverified binary over the running
+// executable.
+func Update(downloadURL, expectedSHA256 string) (string, error) {
+	if expectedSHA256 == "" {
+		return "", fmt.Errorf("refusing to update: release notes did not include a SHA256 for this platform")
+	}
+
 	execPath, err := os.Executable()
 	if err != nil {
 		return "", fmt.Errorf("find executable: %w", err)
@@ -186,6 +212,14 @@ func Update(downloadURL string) (string, error) {
 	}
 	_ = tmp.Close()
 
+	gotSHA, err := fileSHA256(tmpPath)
+	if err != nil {
+		return "", fmt.Errorf("hash downloaded binary: %w", err)
+	}
+	if !strings.EqualFold(gotSHA, expectedSHA256) {
+		return "", fmt.Errorf("checksum mismatch: expected %s, got %s — release asset may be corrupted or tampered with", expectedSHA256, gotSHA)
+	}
+
 	// Make executable.
 	if err := os.Chmod(tmpPath, 0o755); err != nil {
 		return "", fmt.Errorf("chmod: %w", err)
@@ -197,6 +231,20 @@ func Update(downloadURL string) (string, error) {
 	}
 
 	return execPath, nil
+}
+
+// fileSHA256 returns the hex-encoded SHA-256 digest of the file at path.
+func fileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = f.Close() }()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // ghToken returns a GitHub token, checking environment variables first then

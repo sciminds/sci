@@ -21,10 +21,25 @@ package duck
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/samber/lo"
 )
+
+// validDuckType matches the shape DuckDB's DESCRIBE emits: a bare type name
+// (BIGINT, VARCHAR, DATE…) plus optional digit/comma-separated parameters
+// (DECIMAL(18,3), VARCHAR(100)). This guards the unquoted interpolation of
+// the declared type into TRY_CAST(... AS <type>) expressions further down —
+// SQLite stores raw CREATE TABLE text and a malicious .sqlite could in
+// principle surface odd type strings via DuckDB's sqlite_scanner. Columns
+// whose declared type fails this check fall back to VARCHAR, same as a
+// column whose values fail to cast.
+//
+// Nested types (STRUCT/LIST/MAP) are intentionally rejected; if a future
+// source emits them the column lands in VARCHAR-fallback, which is the
+// correct default for an unrecognized declared type.
+var validDuckType = regexp.MustCompile(`^[A-Z][A-Z0-9_]*(\([0-9 ,]*\))?$`)
 
 // promote inspects src's columns and returns a typed Source plus per-
 // column metadata. For SQLite, the returned Source has a preamble that
@@ -87,6 +102,11 @@ func promoteSQLite(src Source) (Source, []ColumnInfo, error) {
 		if !needsPromotion(c.Type) {
 			return promoteCandidate{}, false
 		}
+		if !validDuckType.MatchString(c.Type) {
+			// Type string didn't pass the allowlist — skip probing and let
+			// the projection loop below force VARCHAR for this column.
+			return promoteCandidate{}, false
+		}
 		return promoteCandidate{Name: c.Name, Declared: c.Type}, true
 	})
 
@@ -115,7 +135,7 @@ func promoteSQLite(src Source) (Source, []ColumnInfo, error) {
 	projParts := make([]string, len(declared))
 	for i, c := range declared {
 		resolved := c.Type
-		if needsPromotion(c.Type) && failures[c.Name] > 0 {
+		if needsPromotion(c.Type) && (!validDuckType.MatchString(c.Type) || failures[c.Name] > 0) {
 			resolved = "VARCHAR"
 		}
 		typed[i] = ColumnInfo{

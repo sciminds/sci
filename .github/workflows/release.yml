@@ -104,6 +104,26 @@ jobs:
           echo "==> Verify native build"
           ./dist/sci-darwin-arm64 --help || ./dist/sci-darwin-amd64 --help
 
+      - name: Compute SHA256 checksums
+        id: checksums
+        # Emit one **SHA256(<asset>):** line per sci-* binary into the release
+        # body. `sci update` parses these and refuses to install a binary
+        # whose hash doesn't match.
+        run: |
+          {
+            for f in dist/sci-*; do
+              base="$(basename "$f")"
+              sum="$(shasum -a 256 "$f" | awk '{print $1}')"
+              echo "sha_${base}=${sum}" >> "$GITHUB_OUTPUT"
+              echo "**SHA256(${base}):** ${sum}"
+            done
+          } | tee /tmp/sha256-lines.txt
+          {
+            echo 'sha_lines<<SHALINES_EOF'
+            cat /tmp/sha256-lines.txt
+            echo 'SHALINES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Delete existing release
         if: (github.event_name == 'workflow_dispatch' && inputs.publish) || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE')
         run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
@@ -123,6 +143,8 @@ jobs:
             Latest build from `main` branch.
 
             **Commit:** ${{ env.TESTED_SHA }}
+
+            ${{ steps.checksums.outputs.sha_lines }}
 
             **Install:** `curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh`
 
