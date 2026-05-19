@@ -675,16 +675,63 @@ func (s *Store) invalidateTableCaches(name string) {
 	s.mu.Unlock()
 }
 
-// ---------- import (PR-C-3b — not yet bodied out) ----------
+// ---------- import ----------
 
-// ImportCSV — PR-C-3b will body this out.
-func (s *Store) ImportCSV(string, string) error { return store.ErrReadOnly }
+// ImportCSV creates a new table from a CSV file via duckdb's native
+// read_csv_auto reader, letting duckdb infer types. The file path is
+// sqlQuote-escaped so embedded quotes are safe.
+func (s *Store) ImportCSV(csvPath, tableName string) error {
+	if !store.IsSafeIdentifier(tableName) {
+		return fmt.Errorf("invalid table name: %q", tableName)
+	}
+	sql := fmt.Sprintf(`CREATE TABLE "%s" AS SELECT * FROM read_csv_auto(%s)`,
+		tableName, sqlQuote(csvPath))
+	if _, err := s.proc.query(sql); err != nil {
+		return fmt.Errorf("import csv into %q: %w", tableName, err)
+	}
+	return nil
+}
 
-// AppendCSV — PR-C-3b will body this out.
-func (s *Store) AppendCSV(string, string) error { return store.ErrReadOnly }
+// AppendCSV inserts the rows of csvPath into an existing table.
+// Mirrors the SQLite store's contract: returns an error if tableName
+// does not exist. Column matching is positional via read_csv_auto's
+// inferred schema; mismatched schemas surface as a duckdb error.
+func (s *Store) AppendCSV(csvPath, tableName string) error {
+	if !store.IsSafeIdentifier(tableName) {
+		return fmt.Errorf("invalid table name: %q", tableName)
+	}
+	exists, err := s.tableExists(tableName)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("table %q does not exist", tableName)
+	}
+	sql := fmt.Sprintf(`INSERT INTO "%s" SELECT * FROM read_csv_auto(%s)`,
+		tableName, sqlQuote(csvPath))
+	if _, err := s.proc.query(sql); err != nil {
+		return fmt.Errorf("append csv into %q: %w", tableName, err)
+	}
+	s.mu.Lock()
+	delete(s.rowKeys, tableName)
+	s.mu.Unlock()
+	return nil
+}
 
 // ImportFile — PR-C-3b will body this out.
 func (s *Store) ImportFile(string, string) error { return store.ErrReadOnly }
+
+// tableExists reports whether a base table or view named name lives in
+// the default `main` schema.
+func (s *Store) tableExists(name string) (bool, error) {
+	lines, err := s.proc.query(fmt.Sprintf(
+		`SELECT 1 AS ok FROM information_schema.tables WHERE table_schema='main' AND table_name=%s`,
+		sqlQuote(name)))
+	if err != nil {
+		return false, fmt.Errorf("check existence of %q: %w", name, err)
+	}
+	return len(lines) > 0, nil
+}
 
 // ExportCSV writes table to csvPath using duckdb's COPY ... TO, since
 // export is a read operation against the database. csvPath must be an

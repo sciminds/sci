@@ -289,8 +289,6 @@ func TestMutationsStillStubbed(t *testing.T) {
 		name string
 		fn   func() error
 	}{
-		{"ImportCSV", func() error { return s.ImportCSV("/tmp/none.csv", "x") }},
-		{"AppendCSV", func() error { return s.AppendCSV("/tmp/none.csv", "x") }},
 		{"ImportFile", func() error { return s.ImportFile("/tmp/none.csv", "x") }},
 	}
 	for _, tc := range tests {
@@ -669,3 +667,103 @@ func TestExportCSV(t *testing.T) {
 // ptr is a one-line generic pointer helper used by the table-driven
 // mutation tests above.
 func ptr[T any](v T) *T { return &v }
+
+// writeTempFile writes contents to a fresh file under t.TempDir() with
+// the given extension and returns the absolute path.
+func writeTempFile(t *testing.T, ext, contents string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "data"+ext)
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+	return path
+}
+
+func TestImportCSV(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	csv := writeTempFile(t, ".csv", "k,v\nx,1\ny,2\nz,3\n")
+	if err := s.ImportCSV(csv, "imported"); err != nil {
+		t.Fatalf("ImportCSV: %v", err)
+	}
+	n, err := s.TableRowCount("imported")
+	if err != nil {
+		t.Fatalf("TableRowCount: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("rowcount = %d; want 3", n)
+	}
+	cols, err := s.TableColumns("imported")
+	if err != nil {
+		t.Fatalf("TableColumns: %v", err)
+	}
+	if len(cols) != 2 || cols[0].Name != "k" || cols[1].Name != "v" {
+		t.Errorf("cols = %+v; want [k v]", cols)
+	}
+}
+
+func TestImportCSVQuotedPath(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	// Filename with a single quote — exercises sqlQuote on the path.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "o'data.csv")
+	if err := os.WriteFile(path, []byte("a\n1\n2\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := s.ImportCSV(path, "quoted"); err != nil {
+		t.Fatalf("ImportCSV with quoted path: %v", err)
+	}
+	n, err := s.TableRowCount("quoted")
+	if err != nil {
+		t.Fatalf("TableRowCount: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("rowcount = %d; want 2", n)
+	}
+}
+
+func TestAppendCSV(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	csv := writeTempFile(t, ".csv", "k,v\nc,3\nd,4\n")
+	if err := s.AppendCSV(csv, "extras"); err != nil {
+		t.Fatalf("AppendCSV: %v", err)
+	}
+	n, err := s.TableRowCount("extras")
+	if err != nil {
+		t.Fatalf("TableRowCount: %v", err)
+	}
+	if n != 4 {
+		t.Errorf("rowcount = %d; want 4 (2 original + 2 appended)", n)
+	}
+}
+
+func TestAppendCSVMissingTable(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	csv := writeTempFile(t, ".csv", "k,v\nc,3\n")
+	if err := s.AppendCSV(csv, "no_such_table"); err == nil {
+		t.Error("expected AppendCSV to error when target table is missing")
+	}
+}
