@@ -242,8 +242,8 @@ func tallyRows(path string, plans []importPlan) ([]ImportEntry, error) {
 		return nil, nil
 	}
 	parts := lo.Map(plans, func(p importPlan, _ int) string {
-		return fmt.Sprintf(`SELECT '%s' AS name, COUNT(*) AS n FROM d."%s"`,
-			sqlEscape(p.table), p.table)
+		return fmt.Sprintf(`SELECT '%s' AS name, COUNT(*) AS n FROM d.%s`,
+			sqlEscape(p.table), quoteIdent(p.table))
 	})
 	sql := fmt.Sprintf("ATTACH '%s' AS d (READ_ONLY); %s",
 		sqlEscape(path), strings.Join(parts, " UNION ALL "))

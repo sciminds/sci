@@ -109,6 +109,12 @@ func Probe(file string) (*ProbeInfo, error) {
 
 // ProbeJSON runs ffprobe and returns the raw JSON output.
 func ProbeJSON(file string) (any, error) {
+	// Reject paths beginning with `-` — ffprobe has no `--` separator, so a
+	// path like `-i /etc/passwd` would be parsed as a flag. Callers typically
+	// own these paths, but defense-in-depth is cheap.
+	if strings.HasPrefix(file, "-") {
+		return nil, fmt.Errorf("refusing file path starting with %q: %s", "-", file)
+	}
 	cmd := exec.Command("ffprobe",
 		"-v", "quiet",
 		"-print_format", "json",

@@ -152,3 +152,10 @@ func listTablesByQuery(sql string) ([]string, error) {
 func sqlEscape(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
+
+// quoteIdent wraps s in double quotes and doubles any embedded double quotes,
+// producing a DuckDB-safe identifier. Use for table/column names, NEVER for
+// type names or SQL keywords. Pairs with [sqlEscape] for string literals.
+func quoteIdent(s string) string {
+	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
+}

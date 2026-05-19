@@ -133,6 +133,23 @@ func TestResolveXLSXEscapesQuotes(t *testing.T) {
 	}
 }
 
+func TestQuoteIdent(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		in, want string
+	}{
+		{"users", `"users"`},
+		{"my table", `"my table"`},
+		{`weird"name`, `"weird""name"`},
+		{"", `""`},
+	}
+	for _, tt := range tests {
+		if got := quoteIdent(tt.in); got != tt.want {
+			t.Errorf("quoteIdent(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
 // TestResolveSQLite covers the sqlite branch which needs the duckdb binary
 // to enumerate tables via ATTACH + SHOW TABLES.
 func TestResolveSQLite(t *testing.T) {

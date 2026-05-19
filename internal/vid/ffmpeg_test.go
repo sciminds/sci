@@ -2,8 +2,23 @@ package vid
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
+
+// TestProbeJSONRejectsDashPath confirms a file path starting with `-` is
+// rejected before ffprobe is invoked. Without this guard ffprobe would
+// parse `-i foo` as the -i flag.
+func TestProbeJSONRejectsDashPath(t *testing.T) {
+	t.Parallel()
+	_, err := ProbeJSON("-i /etc/passwd")
+	if err == nil {
+		t.Fatal("ProbeJSON(-i …) succeeded, want error")
+	}
+	if !strings.Contains(err.Error(), "refusing") {
+		t.Errorf("error %q does not mention refusal", err)
+	}
+}
 
 func TestParseFraction(t *testing.T) {
 	t.Parallel()

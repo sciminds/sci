@@ -8,10 +8,25 @@ package duck
 import (
 	"errors"
 	"os/exec"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
 )
+
+// TestStartSubprocRejectsDashPath confirms a path starting with `-` is
+// rejected before any subprocess is spawned. Without this guard, a path
+// like `-c "ATTACH '/etc/passwd'"` would be parsed by duckdb as a flag.
+func TestStartSubprocRejectsDashPath(t *testing.T) {
+	t.Parallel()
+	_, err := startSubproc("-malicious.duckdb")
+	if err == nil {
+		t.Fatal("startSubproc(-malicious.duckdb) succeeded, want error")
+	}
+	if !strings.Contains(err.Error(), "refusing") {
+		t.Errorf("error %q does not mention refusal", err)
+	}
+}
 
 // TestClose_SigkillsHungChild verifies that close() returns within
 // closeTimeout + a small margin even when the child ignores .exit. The

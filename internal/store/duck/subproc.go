@@ -65,10 +65,17 @@ type subproc struct {
 // startSubproc spawns `duckdb -jsonlines <dbPath>` in read-write mode.
 // Returns [duckcli.ErrNotInstalled] when the binary is missing.
 func startSubproc(dbPath string) (*subproc, error) {
+	// Reject paths beginning with `-` — duckdb has no `--` separator, so a
+	// path like `-c "ATTACH '/etc/passwd'"` would be parsed as a flag.
+	// Defense in depth; callers typically pass paths they own, but a foreign
+	// .duckdb file dropped into the cwd shouldn't be openable as `sci view -x.duckdb`.
+	if strings.HasPrefix(dbPath, "-") {
+		return nil, fmt.Errorf("refusing duckdb path starting with %q: %s", "-", dbPath)
+	}
 	if !duckcli.Available() {
 		return nil, duckcli.ErrNotInstalled
 	}
-	cmd := exec.Command("duckdb", "-jsonlines", dbPath) //nolint:gosec // binary name is fixed, path validated by caller
+	cmd := exec.Command("duckdb", "-jsonlines", dbPath) //nolint:gosec // binary name is fixed, path validated above
 	return startSubprocFromCmd(cmd)
 }
 

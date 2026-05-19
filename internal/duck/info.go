@@ -88,8 +88,8 @@ func Info(path string) ([]TableMeta, error) {
 		Name string `json:"name"`
 		Type string `json:"type"`
 	}, _ int) string {
-		return fmt.Sprintf(`SELECT '%s' AS name, COUNT(*) AS n FROM d."%s"`,
-			sqlEscape(r.Name), r.Name)
+		return fmt.Sprintf(`SELECT '%s' AS name, COUNT(*) AS n FROM d.%s`,
+			sqlEscape(r.Name), quoteIdent(r.Name))
 	})
 	rowSQL := preamble + " " + strings.Join(parts, " UNION ALL ")
 	rowOut, err := runJSON(rowSQL)

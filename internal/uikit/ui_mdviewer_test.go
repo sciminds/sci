@@ -18,6 +18,26 @@ func TestMdViewerScrollPercent(t *testing.T) {
 	}
 }
 
+// TestMdViewerReloadBeforeSize confirms Reload is safe before the first
+// WindowSizeMsg: it must not crash and the next SetSize must render the
+// new content into the (then-initialised) viewport.
+func TestMdViewerReloadBeforeSize(t *testing.T) {
+	t.Parallel()
+	v := NewMdViewer("test", "# Original")
+	// Reload BEFORE any SetSize — would previously SetContent("") on an
+	// uninitialised viewport, leaving a blank screen until the next event.
+	v.Reload("# Replaced\n\nFresh content.")
+
+	// Now drive the first sizing message; the new content should appear.
+	v.SetSize(80, 20)
+	if !strings.Contains(v.View(), "Replaced") {
+		t.Errorf("View after Reload+SetSize missing new content; got %q", v.View())
+	}
+	if v.Searching() {
+		t.Error("search state should be cleared after Reload")
+	}
+}
+
 func TestMdViewerSearchEnterAndExit(t *testing.T) {
 	t.Parallel()
 	v := NewMdViewer("test", "# Hello\n\nHello world.")

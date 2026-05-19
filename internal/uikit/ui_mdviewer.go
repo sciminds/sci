@@ -91,16 +91,23 @@ func (v *MdViewer) SetExtraHints(hints []string) { v.extraHints = hints }
 // Reload swaps in new markdown content and invalidates the rendered cache so
 // the next SetSize/View pair re-renders. Scroll position is preserved; the
 // viewport clamps it to the new content's range automatically.
+//
+// Safe to call before the first WindowSizeMsg — in that case the viewport
+// isn't touched and the new content renders on the next SetSize.
 func (v *MdViewer) Reload(markdown string) {
 	v.content = markdown
 	v.rendered = ""
 	v.renderedWidth = 0
-	if v.ready {
-		// Force re-render at the current viewport size.
-		v.SetSize(v.vp.Width(), v.vp.Height())
+	if !v.ready {
+		// Pre-sizing: reset search state but leave the (uninitialised)
+		// viewport alone. The first SetSize after WindowSizeMsg renders into it.
+		v.search.clearState()
+		return
 	}
-	// Clear any active search state — match line numbers point into the old
-	// rendered text and would jump to the wrong place after re-render.
+	// Force re-render at the current viewport size, then clear search against
+	// the freshly-rendered content — match line numbers point into the old
+	// text and would jump to the wrong place after re-render.
+	v.SetSize(v.vp.Width(), v.vp.Height())
 	v.search.clear(&v.vp, v.rendered)
 }
 
@@ -247,12 +254,18 @@ func newMdSearchState() mdSearchState {
 	return mdSearchState{input: ti}
 }
 
-func (s *mdSearchState) clear(vp *viewport.Model, rendered string) {
+// clearState resets search bookkeeping without touching the viewport. Use
+// when the viewport hasn't been initialised yet (pre-WindowSizeMsg).
+func (s *mdSearchState) clearState() {
 	s.searching = false
 	s.query = ""
 	s.matchCount = 0
 	s.matchLines = nil
 	s.matchIdx = 0
+}
+
+func (s *mdSearchState) clear(vp *viewport.Model, rendered string) {
+	s.clearState()
 	vp.SetContent(rendered)
 }
 
