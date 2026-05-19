@@ -274,32 +274,6 @@ func TestReadOnlyQueryRejectsWrites(t *testing.T) {
 	}
 }
 
-// TestMutationsStillStubbed asserts the PR-C-3b mutations that have not
-// yet been bodied out still return store.ErrReadOnly. Each commit in
-// PR-C-3a/3b peels off another entry here as the method is implemented.
-func TestMutationsStillStubbed(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	tests := []struct {
-		name string
-		fn   func() error
-	}{
-		{"ImportFile", func() error { return s.ImportFile("/tmp/none.csv", "x") }},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if err := tc.fn(); !errors.Is(err, store.ErrReadOnly) {
-				t.Errorf("%s err = %v, want store.ErrReadOnly", tc.name, err)
-			}
-		})
-	}
-}
-
 func TestRenameTable(t *testing.T) {
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
@@ -307,6 +281,11 @@ func TestRenameTable(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	defer func() { _ = s.Close() }()
+
+	// Prime caches against the old name so we can verify invalidation.
+	if !s.IsRowEditable("people") {
+		t.Fatal("precondition: people should be row-editable before rename")
+	}
 
 	if err := s.RenameTable("people", "humans"); err != nil {
 		t.Fatalf("RenameTable: %v", err)
@@ -321,16 +300,17 @@ func TestRenameTable(t *testing.T) {
 	if !slices.Contains(names, "humans") {
 		t.Errorf("humans not present after rename: %v", names)
 	}
-	// Cache for the old name should be cleared.
-	if s.IsRowEditable("people") {
-		t.Error("IsRowEditable(old name) = true; want false after rename")
-	}
 	n, err := s.TableRowCount("humans")
 	if err != nil {
 		t.Fatalf("TableRowCount: %v", err)
 	}
 	if n != 3 {
 		t.Errorf("humans rowcount = %d; want 3", n)
+	}
+	// The renamed-away cache entry should be gone: IsRowEditable for the
+	// new name primes fresh, while the old-name entry was wiped.
+	if !s.IsRowEditable("humans") {
+		t.Error("IsRowEditable(humans) = false; want true after rename")
 	}
 }
 
@@ -751,6 +731,89 @@ func TestAppendCSV(t *testing.T) {
 	}
 	if n != 4 {
 		t.Errorf("rowcount = %d; want 4 (2 original + 2 appended)", n)
+	}
+}
+
+func TestImportFile(t *testing.T) {
+	requireDuck(t)
+	cases := []struct {
+		name     string
+		ext      string
+		contents string
+		table    string
+		wantRows int
+	}{
+		{
+			name:     "csv",
+			ext:      ".csv",
+			contents: "k,v\na,1\nb,2\n",
+			table:    "from_csv",
+			wantRows: 2,
+		},
+		{
+			name:     "tsv",
+			ext:      ".tsv",
+			contents: "k\tv\na\t1\nb\t2\nc\t3\n",
+			table:    "from_tsv",
+			wantRows: 3,
+		},
+		{
+			name:     "json",
+			ext:      ".json",
+			contents: `[{"k":"a","v":1},{"k":"b","v":2}]`,
+			table:    "from_json",
+			wantRows: 2,
+		},
+		{
+			name:     "jsonl",
+			ext:      ".jsonl",
+			contents: "{\"k\":\"a\",\"v\":1}\n{\"k\":\"b\",\"v\":2}\n{\"k\":\"c\",\"v\":3}\n",
+			table:    "from_jsonl",
+			wantRows: 3,
+		},
+		{
+			name:     "ndjson",
+			ext:      ".ndjson",
+			contents: "{\"k\":\"a\",\"v\":1}\n{\"k\":\"b\",\"v\":2}\n",
+			table:    "from_ndjson",
+			wantRows: 2,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := duck.Open(makeFixture(t))
+			if err != nil {
+				t.Fatalf("Open: %v", err)
+			}
+			defer func() { _ = s.Close() }()
+
+			path := writeTempFile(t, tc.ext, tc.contents)
+			if err := s.ImportFile(path, tc.table); err != nil {
+				t.Fatalf("ImportFile(%s): %v", tc.ext, err)
+			}
+			n, err := s.TableRowCount(tc.table)
+			if err != nil {
+				t.Fatalf("TableRowCount(%s): %v", tc.table, err)
+			}
+			if n != tc.wantRows {
+				t.Errorf("rowcount = %d; want %d", n, tc.wantRows)
+			}
+		})
+	}
+}
+
+func TestImportFileUnsupportedExtension(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	path := writeTempFile(t, ".xyz", "anything")
+	err = s.ImportFile(path, "boom")
+	if !errors.Is(err, store.ErrImportNotSupported) {
+		t.Errorf("err = %v; want store.ErrImportNotSupported", err)
 	}
 }
 

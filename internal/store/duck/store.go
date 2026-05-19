@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -718,8 +719,41 @@ func (s *Store) AppendCSV(csvPath, tableName string) error {
 	return nil
 }
 
-// ImportFile — PR-C-3b will body this out.
-func (s *Store) ImportFile(string, string) error { return store.ErrReadOnly }
+// ImportFile creates a new table from filePath, dispatching on the
+// file extension to duckdb's native reader: csv/tsv → read_csv_auto,
+// json/jsonl/ndjson → read_json_auto. Returns store.ErrImportNotSupported
+// for any other extension.
+func (s *Store) ImportFile(filePath, tableName string) error {
+	if !store.IsSafeIdentifier(tableName) {
+		return fmt.Errorf("invalid table name: %q", tableName)
+	}
+	readerExpr, err := duckReaderExpr(filePath)
+	if err != nil {
+		return err
+	}
+	sql := fmt.Sprintf(`CREATE TABLE "%s" AS SELECT * FROM %s`, tableName, readerExpr)
+	if _, err := s.proc.query(sql); err != nil {
+		return fmt.Errorf("import %q: %w", filePath, err)
+	}
+	return nil
+}
+
+// duckReaderExpr returns the duckdb table function expression that
+// reads filePath, picked by extension. The path is sqlQuote-escaped.
+func duckReaderExpr(filePath string) (string, error) {
+	switch strings.ToLower(filepath.Ext(filePath)) {
+	case ".csv":
+		return fmt.Sprintf("read_csv_auto(%s)", sqlQuote(filePath)), nil
+	case ".tsv":
+		return fmt.Sprintf(`read_csv_auto(%s, delim='\t')`, sqlQuote(filePath)), nil
+	case ".json":
+		return fmt.Sprintf("read_json_auto(%s)", sqlQuote(filePath)), nil
+	case ".jsonl", ".ndjson":
+		return fmt.Sprintf(`read_json_auto(%s, format='newline_delimited')`, sqlQuote(filePath)), nil
+	default:
+		return "", store.ErrImportNotSupported
+	}
+}
 
 // tableExists reports whether a base table or view named name lives in
 // the default `main` schema.
