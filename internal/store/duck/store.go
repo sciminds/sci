@@ -567,9 +567,52 @@ func (s *Store) DeleteRows(table string, ids []store.RowIdentifier) (int64, erro
 	return int64(len(lines)), nil
 }
 
-// InsertRows — Phase 1 returns store.ErrReadOnly.
-func (s *Store) InsertRows(string, []string, [][]string) error {
-	return store.ErrReadOnly
+// InsertRows inserts one or more rows into table. Empty-string cells
+// become SQL NULL (matching the SQLite store contract); shorter rows
+// are right-padded with NULL so the columns/row-length mismatch is
+// permissive. All values are funneled through sqlQuote — duckdb's
+// stdin subprocess doesn't accept parameterised statements. Works on
+// tables without a PRIMARY KEY since INSERT doesn't address existing
+// rows. Invalidates the rowKeys cache for table so subsequent calls
+// re-resolve synthetic IDs against the new row set.
+func (s *Store) InsertRows(table string, columns []string, rows [][]string) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	if !store.IsSafeIdentifier(table) {
+		return fmt.Errorf("invalid table name: %q", table)
+	}
+	for _, c := range columns {
+		if !store.IsSafeColumnName(c) {
+			return fmt.Errorf("invalid column name: %q", c)
+		}
+	}
+	quotedCols := lo.Map(columns, func(c string, _ int) string {
+		return fmt.Sprintf(`"%s"`, c)
+	})
+	tuples := lo.Map(rows, func(row []string, _ int) string {
+		vals := make([]string, len(columns))
+		for i := range columns {
+			switch {
+			case i >= len(row):
+				vals[i] = "NULL"
+			case row[i] == "":
+				vals[i] = "NULL"
+			default:
+				vals[i] = sqlQuote(row[i])
+			}
+		}
+		return "(" + strings.Join(vals, ", ") + ")"
+	})
+	sql := fmt.Sprintf(`INSERT INTO "%s" (%s) VALUES %s`,
+		table, strings.Join(quotedCols, ", "), strings.Join(tuples, ", "))
+	if _, err := s.proc.query(sql); err != nil {
+		return fmt.Errorf("insert into %q: %w", table, err)
+	}
+	s.mu.Lock()
+	delete(s.rowKeys, table)
+	s.mu.Unlock()
+	return nil
 }
 
 // RenameTable — Phase 1 returns store.ErrReadOnly.

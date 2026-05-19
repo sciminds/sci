@@ -288,7 +288,6 @@ func TestMutationsStillStubbed(t *testing.T) {
 		name string
 		fn   func() error
 	}{
-		{"InsertRows", func() error { return s.InsertRows("people", []string{"id"}, [][]string{{"99"}}) }},
 		{"RenameTable", func() error { return s.RenameTable("people", "humans") }},
 		{"DropTable", func() error { return s.DropTable("people") }},
 		{"CreateEmptyTable", func() error { return s.CreateEmptyTable("new_table") }},
@@ -413,6 +412,83 @@ func TestDeleteRowsEmpty(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("deleted = %d; want 0", n)
+	}
+}
+
+func TestInsertRows(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	// Single-row insert with a value that contains a single quote so we
+	// exercise sqlQuote round-tripping.
+	err = s.InsertRows("people", []string{"id", "name", "score"}, [][]string{
+		{"10", "O'Hara", "5.5"},
+	})
+	if err != nil {
+		t.Fatalf("InsertRows: %v", err)
+	}
+	// Multi-row insert with one column omitted (empty string → NULL).
+	err = s.InsertRows("people", []string{"id", "name", "score"}, [][]string{
+		{"20", "ed", "1.0"},
+		{"21", "fran", ""},
+	})
+	if err != nil {
+		t.Fatalf("InsertRows multi: %v", err)
+	}
+	_, rows, nulls, _, err := s.QueryTable("people")
+	if err != nil {
+		t.Fatalf("re-query: %v", err)
+	}
+	if len(rows) != 6 {
+		t.Fatalf("row count = %d; want 6", len(rows))
+	}
+	// fran's score should be NULL (empty input → NULL per spec).
+	for i, row := range rows {
+		if row[0] == "21" && !nulls[i][2] {
+			t.Errorf("fran's score not NULL after empty-string insert")
+		}
+		if row[0] == "10" && row[1] != "O'Hara" {
+			t.Errorf("quoted name round-trip: got %q want O'Hara", row[1])
+		}
+	}
+}
+
+func TestInsertRowsEmpty(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if err := s.InsertRows("people", []string{"id"}, nil); err != nil {
+		t.Fatalf("empty rows: %v", err)
+	}
+}
+
+func TestInsertRowsIntoNoPKTable(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	// No-PK tables still accept INSERT — only row-level addressing
+	// requires a PK.
+	if err := s.InsertRows("extras", []string{"k", "v"}, [][]string{{"c", "3"}}); err != nil {
+		t.Fatalf("InsertRows into no-PK table: %v", err)
+	}
+	n, err := s.TableRowCount("extras")
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("row count = %d; want 3", n)
 	}
 }
 
