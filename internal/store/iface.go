@@ -149,3 +149,8 @@ type FulltextSearcher interface {
 
 // ErrImportNotSupported is returned by backends that do not support import.
 var ErrImportNotSupported = fmt.Errorf("import is not supported for this database type")
+
+// ErrReadOnly is returned by mutation methods of stores that have been
+// opened in read-only mode. dbtui surfaces the error via the normal
+// status-line plumbing.
+var ErrReadOnly = fmt.Errorf("database is read-only")

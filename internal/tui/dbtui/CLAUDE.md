@@ -8,7 +8,7 @@ VisiData-inspired SQLite viewer/editor. Also installable standalone via `cmd/dbt
 
 - The data layer lives at `internal/store/` (interface) and `internal/store/sqlite/` (SQLite impl, raw `database/sql` + modernc.org/sqlite). DataStore is the interface dbtui programs against; `*sqlite.Store` is the concrete type for SQLite paths. A native DuckDB backend will land alongside as `internal/store/duck/`.
 - SQLite uses implicit `rowid` for all edits.
-- **duckdb files** are still opened via a tempfile SQLite mirror today — `sci view foo.duckdb` calls `duck.BuildSQLiteMirror` and opens that with `WithReadOnly()`. Native DuckDB dispatch will replace this when `internal/store/duck/` lands. See `internal/db/CLAUDE.md` for the current dual-backend dispatch.
+- **duckdb files** open natively via `internal/store/duck/` — a `duckdb -readonly -jsonlines` subprocess speaks the same `store.DataStore` interface as the SQLite store. Phase 1 is read-only (mutations return `store.ErrReadOnly`); dbtui runs with `WithReadOnly()` so the TUI hides edit affordances accordingly. See `internal/db/CLAUDE.md` for the dual-backend dispatch.
 
 ## Conventions
 

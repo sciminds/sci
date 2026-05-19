@@ -20,22 +20,21 @@ lifecycle is one-shot and the dispatch is ~5 lines.
 
 ## RunTUI on .duckdb
 
-dbtui is SQLite-only by contract (see `internal/tui/dbtui/CLAUDE.md`).
-`.duckdb` files open by **mirroring** every table into a tempfile SQLite
-database via `duck.BuildSQLiteMirror`, then launching dbtui with
-`WithReadOnly()`. The title bar shows the original `.duckdb` path so the
-user sees what they opened. Tempfile is removed on exit.
+`.duckdb` files open through a native subprocess-backed store at
+`internal/store/duck/` — `duckstore.Open(path)` spawns
+`duckdb -readonly -jsonlines <path>` and serves dbtui's reads off that
+long-running process. dbtui runs with `WithReadOnly()` because the
+backend is read-only in Phase 1: every mutation method returns
+`store.ErrReadOnly`. No tempfile mirror, no size cap.
 
-**Type fidelity caveat:** duckdb's STRUCT/LIST/MAP/INTERVAL columns
-flatten to TEXT in the mirror. Numeric and string columns round-trip
-cleanly. After the TUI exits, `runTUIDuckDB` prints a one-line note
-naming any columns that were stringified.
+**Type fidelity:** STRUCT/LIST/MAP currently render as compact JSON
+strings in cells (their jsonlines on-wire form). Phase 2 will add
+pretty-print rendering in the preview overlay.
 
-**Size cap:** `sci view` refuses .duckdb files larger than 1 GB (default)
-since we'd allocate a tempfile of the same order. Override with
-`SCI_DUCKDB_MIRROR_MAX_MB=<n>`. This is a guard against runaway tempfile
-allocation, not a configuration system — the long-term answer is a
-duckdb-native dbtui backend.
+**Phase 3** (editable native backend) is deliberately deferred. The
+hooks (`RowIdentifier.PKValues`, mutation methods returning
+`ErrReadOnly`) are in place so a follow-up PR can light them up without
+churning callers.
 
 ## Collision semantics
 

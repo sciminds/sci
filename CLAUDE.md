@@ -40,7 +40,7 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 - **`cmdutil.Result`:** every command returns `JSON() any` + `Human() string`; emit via `cmdutil.Output(cmd, result)`.
 - **CLI framework:** urfave/cli v3. All flags use `Local: true`.
 - **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. The canonical store lives at `internal/store/sqlite/` (raw `database/sql`, used by `sci db`, `sci view`, and dbtui). `internal/zot/local/` keeps its own raw `database/sql` connection because it opens `zotero.sqlite` in read-only immutable mode.
-- **DuckDB:** shell out to the `duckdb` CLI via `internal/duck/` (required dep in `internal/doctor/Brewfile`). Every `sci db` verb dispatches on `.duckdb` extension; `sci view foo.duckdb` materialises a tempfile SQLite mirror and opens dbtui read-only — a native `internal/store/duck/` backend is the long-term plan. See `internal/db/CLAUDE.md` for details.
+- **DuckDB:** shell out to the `duckdb` CLI via `internal/duck/` (required dep in `internal/doctor/Brewfile`). Every `sci db` verb dispatches on `.duckdb` extension; `sci view foo.duckdb` opens through the native subprocess-backed store at `internal/store/duck/` (read-only in Phase 1; mutations return `store.ErrReadOnly`). See `internal/db/CLAUDE.md` for details.
 - **Bubbletea v2 + bubbles v2** everywhere. No v1 imports.
 - **No inline `lipgloss.NewStyle()`** outside `internal/uikit/` or `internal/tui/*/ui/`. Access via the `uikit.TUI` singleton.
 - **`huh` forms go through `uikit`:** use `uikit.RunForm` / `uikit.Input` / `uikit.InputInto` / `uikit.Select`. Never call `.Run()` on a huh form directly — `RunForm` handles theme, keymap, and stdin drain. Confirmations use `cmdutil.Confirm`/`cmdutil.ConfirmYes`. Enforced by lint-guard rule 14.

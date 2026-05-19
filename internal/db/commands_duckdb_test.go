@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -225,82 +224,6 @@ func TestAddCSVSQLiteCollisionMentionsAppend(t *testing.T) {
 	}
 	if !strings.Contains(msg, "sci db append") {
 		t.Errorf("error %q should suggest `sci db append`", msg)
-	}
-}
-
-func TestMirrorBlockedUnderLimit(t *testing.T) {
-	// 50 MB under the default 1 GB cap.
-	if err := mirrorBlocked("/tmp/x.duckdb", 50*1024*1024); err != nil {
-		t.Errorf("expected no block under cap, got %v", err)
-	}
-}
-
-func TestMirrorBlockedOverLimit(t *testing.T) {
-	// 2 GB over the default 1 GB cap.
-	err := mirrorBlocked("/tmp/x.duckdb", 2*1024*1024*1024)
-	if err == nil {
-		t.Fatal("expected block over cap")
-	}
-	msg := err.Error()
-	for _, want := range []string{"sci db", "SCI_DUCKDB_MIRROR_MAX_MB", "2.1 GB", "1.1 GB"} {
-		if !strings.Contains(msg, want) {
-			t.Errorf("error %q should contain %q", msg, want)
-		}
-	}
-}
-
-func TestMirrorBlockedEnvOverride(t *testing.T) {
-	// Lower the cap to 10 MB via env; a 50 MB file should now block.
-	t.Setenv("SCI_DUCKDB_MIRROR_MAX_MB", "10")
-	if err := mirrorBlocked("/tmp/x.duckdb", 50*1024*1024); err == nil {
-		t.Error("expected block when env-overridden cap is exceeded")
-	}
-	// Raise the cap above the default; a 2 GB file should now pass.
-	t.Setenv("SCI_DUCKDB_MIRROR_MAX_MB", "5120") // 5 GB
-	if err := mirrorBlocked("/tmp/x.duckdb", 2*1024*1024*1024); err != nil {
-		t.Errorf("expected pass under raised cap, got %v", err)
-	}
-}
-
-func TestMirrorBlockedEnvInvalidFallsBack(t *testing.T) {
-	t.Setenv("SCI_DUCKDB_MIRROR_MAX_MB", "not-a-number")
-	// A 2 GB file should still block under the default 1 GB cap.
-	if err := mirrorBlocked("/tmp/x.duckdb", 2*1024*1024*1024); err == nil {
-		t.Error("expected block to use default when env is malformed")
-	}
-}
-
-func TestFormatLossyNoteInline(t *testing.T) {
-	cols := []duck.LossyColumn{
-		{Table: "events", Column: "payload", Type: "STRUCT(a INTEGER)"},
-		{Table: "events", Column: "tags", Type: "VARCHAR[]"},
-	}
-	got := formatLossyNote(cols)
-	if !strings.Contains(got, "2 column") {
-		t.Errorf("note %q should mention count", got)
-	}
-	if !strings.Contains(got, "events.payload") || !strings.Contains(got, "STRUCT") {
-		t.Errorf("inline note should name each column: %q", got)
-	}
-	if !strings.Contains(got, "sci db cols") {
-		t.Errorf("note should point at `sci db cols`: %q", got)
-	}
-}
-
-func TestFormatLossyNoteSummarisesWhenLarge(t *testing.T) {
-	cols := make([]duck.LossyColumn, 0, 10)
-	for i := 0; i < 4; i++ {
-		cols = append(cols, duck.LossyColumn{Table: "a", Column: fmt.Sprintf("c%d", i), Type: "STRUCT"})
-	}
-	for i := 0; i < 4; i++ {
-		cols = append(cols, duck.LossyColumn{Table: "b", Column: fmt.Sprintf("c%d", i), Type: "VARCHAR[]"})
-	}
-	got := formatLossyNote(cols)
-	if !strings.Contains(got, "8 column") {
-		t.Errorf("summary note should mention total count: %q", got)
-	}
-	if !strings.Contains(got, "a: 4") || !strings.Contains(got, "b: 4") {
-		t.Errorf("summary should show per-table counts: %q", got)
 	}
 }
 

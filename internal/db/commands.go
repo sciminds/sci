@@ -10,13 +10,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
-	"github.com/dustin/go-humanize"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/duck"
 	"github.com/sciminds/cli/internal/store"
+	duckstore "github.com/sciminds/cli/internal/store/duck"
 	"github.com/sciminds/cli/internal/store/sqlite"
 	dbtui "github.com/sciminds/cli/internal/tui/dbtui/app"
 )
@@ -382,9 +381,8 @@ func Reset(dbPath string) (*MutationResult, error) {
 
 // RunTUI launches the interactive database viewer.
 // Flat files (CSV, JSON, etc.) are opened read-only via a file-aware store;
-// SQLite databases are opened directly. .duckdb files are mirrored into
-// a tempfile SQLite database and opened read-only — duckdb's richer
-// types (STRUCT/LIST/INTERVAL) flatten to TEXT in the mirror. If
+// SQLite databases are opened directly. .duckdb files open through a
+// native subprocess-backed [duckstore.Store] in read-only mode. If
 // initialTab is non-empty the viewer opens on that tab instead of the
 // first one.
 func RunTUI(dbPath string, initialTab string) error {
@@ -392,12 +390,14 @@ func RunTUI(dbPath string, initialTab string) error {
 		return err
 	}
 
-	if isDuckDB(dbPath) {
-		return runTUIDuckDB(dbPath, initialTab)
-	}
-
 	var ds store.DataStore
 	switch {
+	case isDuckDB(dbPath):
+		s, err := duckstore.Open(dbPath)
+		if err != nil {
+			return err
+		}
+		ds = s
 	case sqlite.IsViewableFile(dbPath):
 		s, err := sqlite.OpenFileView(dbPath)
 		if err != nil {
@@ -413,118 +413,14 @@ func RunTUI(dbPath string, initialTab string) error {
 	}
 	defer func() { _ = ds.Close() }()
 
-	return dbtui.Run(ds, dbPath, dbtui.WithInitialTab(initialTab))
-}
-
-// defaultMirrorMaxMB caps the duckdb-file size that `sci view` is
-// willing to mirror into a tempfile SQLite. Above this, we refuse and
-// point users at sci db head/cols/glimpse/query for inspection. The
-// limit is overridable via SCI_DUCKDB_MIRROR_MAX_MB; this is a guard,
-// not a configuration system.
-const defaultMirrorMaxMB = 1024
-
-// mirrorMaxBytes resolves the active cap, falling back to the default
-// when the env var is unset or malformed.
-func mirrorMaxBytes() int64 {
-	if s := os.Getenv("SCI_DUCKDB_MIRROR_MAX_MB"); s != "" {
-		if n, err := strconv.ParseInt(s, 10, 64); err == nil && n > 0 {
-			return n * 1024 * 1024
-		}
-	}
-	return defaultMirrorMaxMB * 1024 * 1024
-}
-
-// mirrorBlocked returns a non-nil error when size exceeds the mirror
-// cap. The error names the file, the actual size, the cap, and points
-// at the read-only inspect verbs plus the env override.
-func mirrorBlocked(path string, size int64) error {
-	cap := mirrorMaxBytes()
-	if size <= cap {
-		return nil
-	}
-	return fmt.Errorf(
-		"%s is %s — above the mirror limit (%s). `sci view` materialises a SQLite copy for browsing, which would be impractical at this size.\n"+
-			"  for large files: sci db head/cols/glimpse/query %s\n"+
-			"  to raise the cap: SCI_DUCKDB_MIRROR_MAX_MB=<n>",
-		path,
-		humanize.Bytes(uint64(size)),
-		humanize.Bytes(uint64(cap)),
-		path,
-	)
-}
-
-// runTUIDuckDB mirrors a .duckdb file into a tempfile SQLite database
-// and opens that mirror through dbtui with read-only forced on. The
-// title bar still shows the original .duckdb path so the user sees
-// what they actually opened. Tempfile is removed on exit.
-//
-// Any columns whose duckdb types collapsed to TEXT in the mirror
-// (STRUCT, LIST, MAP, INTERVAL, UNION) are summarised to stderr after
-// the TUI exits — placed *after* so the note is the last thing the
-// user sees when they leave the viewer.
-func runTUIDuckDB(dbPath, initialTab string) error {
-	fi, err := os.Stat(dbPath)
-	if err != nil {
-		return err
-	}
-	if err := mirrorBlocked(dbPath, fi.Size()); err != nil {
-		return err
+	opts := []dbtui.RunOption{dbtui.WithInitialTab(initialTab)}
+	if isDuckDB(dbPath) {
+		// Phase 1 of the native backend is read-only — mutation methods
+		// short to store.ErrReadOnly. Force the viewer into RO so tabs
+		// don't offer Edit/Insert/Delete affordances the store would
+		// reject anyway.
+		opts = append(opts, dbtui.WithReadOnly())
 	}
 
-	dir, err := os.MkdirTemp("", "sci-duckdb-mirror-*")
-	if err != nil {
-		return fmt.Errorf("create temp dir: %w", err)
-	}
-	defer func() { _ = os.RemoveAll(dir) }()
-
-	mirror := filepath.Join(dir, "mirror.db")
-	if err := duck.BuildSQLiteMirror(dbPath, mirror); err != nil {
-		return err
-	}
-
-	// Compute the lossy-column note up-front so the duckdb file is
-	// inspected exactly once even if dbtui returns an error.
-	lossy, lossyErr := duck.LossyColumns(dbPath)
-
-	mirrorStore, err := sqlite.Open(mirror)
-	if err != nil {
-		return fmt.Errorf("open duckdb mirror: %w", err)
-	}
-	defer func() { _ = mirrorStore.Close() }()
-
-	runErr := dbtui.Run(mirrorStore, dbPath,
-		dbtui.WithInitialTab(initialTab),
-		dbtui.WithReadOnly(),
-	)
-
-	if lossyErr == nil && len(lossy) > 0 {
-		fmt.Fprintln(os.Stderr, formatLossyNote(lossy))
-	}
-	return runErr
-}
-
-// formatLossyNote builds the post-exit warning summarising columns
-// that flattened to TEXT in the SQLite mirror. Inline list when the
-// set is small; otherwise a per-table count.
-func formatLossyNote(cols []duck.LossyColumn) string {
-	const inlineLimit = 6
-	if len(cols) <= inlineLimit {
-		parts := lo.Map(cols, func(c duck.LossyColumn, _ int) string {
-			return fmt.Sprintf("%s.%s (%s)", c.Table, c.Column, c.Type)
-		})
-		return fmt.Sprintf(
-			"note: %d column(s) flattened to TEXT in the read-only mirror: %s\n"+
-				"      full types via `sci db cols <file> --table <name>`",
-			len(cols), strings.Join(parts, ", "),
-		)
-	}
-	byTable := lo.GroupBy(cols, func(c duck.LossyColumn) string { return c.Table })
-	tableParts := lo.MapToSlice(byTable, func(table string, cs []duck.LossyColumn) string {
-		return fmt.Sprintf("%s: %d", table, len(cs))
-	})
-	return fmt.Sprintf(
-		"note: %d column(s) flattened to TEXT in the read-only mirror (%s)\n"+
-			"      full types via `sci db cols <file> --table <name>`",
-		len(cols), strings.Join(tableParts, ", "),
-	)
+	return dbtui.Run(ds, dbPath, opts...)
 }
