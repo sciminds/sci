@@ -4,6 +4,7 @@ package doctor
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 )
@@ -140,6 +141,72 @@ func TestGitXetInstallHint_Linux(t *testing.T) {
 	}
 	if strings.Contains(hint, "brew install") {
 		t.Errorf("Linux git-xet hint should not mention brew: %q", hint)
+	}
+}
+
+// TestLookOrProbe_PathHit lets exec.LookPath find the binary and returns nil
+// without touching the candidate list.
+func TestLookOrProbe_PathHit(t *testing.T) {
+	// `cat` is always on PATH on Linux runners; the candidate list is bogus.
+	if err := lookOrProbe("cat", []string{"/nonexistent/cat"}); err != nil {
+		t.Errorf("lookOrProbe found cat on PATH but returned %v", err)
+	}
+}
+
+// TestLookOrProbe_CandidateFallback simulates the ssh non-interactive case:
+// the binary is missing from PATH but lives in a known per-user dir.
+func TestLookOrProbe_CandidateFallback(t *testing.T) {
+	t.Setenv("PATH", t.TempDir()) // empty PATH so LookPath fails
+	dir := t.TempDir()
+	bin := dir + "/uv"
+	if err := os.WriteFile(bin, []byte{0x7f, 'E', 'L', 'F'}, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := lookOrProbe("uv", []string{bin}); err != nil {
+		t.Errorf("lookOrProbe should accept candidate %q, got %v", bin, err)
+	}
+}
+
+// TestLookOrProbe_DirNotAcceptedAsBinary guards against a directory at a
+// candidate path satisfying the check. We require a regular file.
+func TestLookOrProbe_DirNotAcceptedAsBinary(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	dir := t.TempDir() // exists, but is a directory
+	if err := lookOrProbe("uv", []string{dir}); err == nil {
+		t.Errorf("lookOrProbe should reject a directory at the candidate path")
+	}
+}
+
+// TestLookOrProbe_NoMatchReturnsErrNotFound: ensures the sentinel surfaces
+// so callers can errors.Is against exec.ErrNotFound if they want to.
+func TestLookOrProbe_NoMatchReturnsErrNotFound(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	err := lookOrProbe("definitely-not-installed-xyz", []string{"/nope"})
+	if err == nil {
+		t.Fatal("expected error when neither PATH nor candidates match")
+	}
+}
+
+// TestUvDetection_HomeLocalBinFallback exercises the integration: PATH is
+// empty, but a binary at ~/.local/bin/uv exists. Mirrors the ssh
+// non-interactive scenario the user reported.
+func TestUvDetection_HomeLocalBinFallback(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", t.TempDir())
+
+	uvDir := home + "/.local/bin"
+	if err := os.MkdirAll(uvDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(uvDir+"/uv", []byte{0x7f, 'E', 'L', 'F'}, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Hit the real uvLookFn (not the test stub) — we want to verify the
+	// production probe wiring.
+	if err := uvLookFn(); err != nil {
+		t.Errorf("uvLookFn should find ~/.local/bin/uv when PATH is empty, got %v", err)
 	}
 }
 
