@@ -6,7 +6,6 @@ package app
 import (
 	"fmt"
 	"maps"
-	"os/exec"
 	"slices"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/store/sqlite"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // restoreTabState carries over sorts, filters, cursor, and column position
@@ -199,7 +199,8 @@ func formatRowsTSV(tab *Tab, selection []int) string {
 	return b.String()
 }
 
-// visualYankSystem copies selected rows to the system clipboard as TSV via pbcopy.
+// visualYankSystem copies selected rows to the system clipboard as TSV.
+// Platform dispatch (pbcopy / wl-copy / xclip / xsel) lives in uikit.Copy.
 func (m *Model) visualYankSystem() {
 	tab := m.effectiveTab()
 	if tab == nil {
@@ -208,9 +209,7 @@ func (m *Model) visualYankSystem() {
 	sel := m.effectiveVisualSelection()
 	tsv := formatRowsTSV(tab, sel)
 
-	cmd := exec.Command("pbcopy")
-	cmd.Stdin = strings.NewReader(tsv)
-	if err := cmd.Run(); err != nil {
+	if err := uikit.Copy(tsv); err != nil {
 		m.setStatusError(fmt.Sprintf("Copy to clipboard failed: %v", err))
 		return
 	}

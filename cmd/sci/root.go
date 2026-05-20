@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/selfupdate"
 	dbtui "github.com/sciminds/cli/internal/tui/dbtui/app"
@@ -52,7 +53,10 @@ func buildRoot() *cli.Command {
 		Suggest:         true,
 		HideHelpCommand: true,
 		HideVersion:     true,
-		Commands: []*cli.Command{
+		// lo.Compact filters out any nil entries — used on Linux where
+		// platform-specific commands (e.g. `sci tools`) return nil from
+		// their stubbed constructor.
+		Commands: lo.Compact([]*cli.Command{
 			// What Can I Do?
 			helpCommand(),
 			// Getting Started
@@ -72,7 +76,7 @@ func buildRoot() *cli.Command {
 			// Experimental
 			cassCommand(),
 			zotCommand(),
-		},
+		}),
 	}
 	cmdutil.SetupHelp(root)
 	cmdutil.WireNamespaceDefaults(root)

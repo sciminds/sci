@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -72,6 +73,9 @@ func TestToolsReccs_JSONSkipsForm(t *testing.T) {
 }
 
 func TestDoctor_JSONIncludesBrewfileFields(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("doctor brewfile fields are macOS-only")
+	}
 	if os.Getenv("SLOW") == "" {
 		t.Skip("skipping integration test (set SLOW=1 to run)")
 	}

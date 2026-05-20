@@ -208,6 +208,52 @@ func TestVisualYankCursorRow(t *testing.T) {
 }
 
 // ────────────────────────────────────────────────────
+// Visual mode: yank to system clipboard (uikit.Copy)
+// ────────────────────────────────────────────────────
+
+// 11b. visualYankSystem hands the TSV payload through uikit.Copy on success
+// and reports failure via setStatusError otherwise.
+func TestVisualYankSystem_SuccessPipesTSV(t *testing.T) {
+	m := makeVisualModel([][]string{{"1", "a"}, {"2", "b"}})
+	m.visual.Selected[0] = true
+	m.visual.Selected[1] = true
+
+	var got string
+	restore := uikit.SetClipboardRunnerForTest(func(_ string, _ []string, payload string) error {
+		got = payload
+		return nil
+	})
+	defer restore()
+
+	m.visualYankSystem()
+
+	want := "id\tname\n1\ta\n2\tb\n"
+	if got != want {
+		t.Errorf("payload: got %q, want %q", got, want)
+	}
+}
+
+func TestVisualYankSystem_RunnerErrorSetsStatus(t *testing.T) {
+	m := makeVisualModel([][]string{{"1", "a"}})
+	m.tabs[0].Table.SetCursor(0)
+
+	restore := uikit.SetClipboardRunnerForTest(func(string, []string, string) error {
+		return stubErr("clipboard failure")
+	})
+	defer restore()
+
+	m.visualYankSystem()
+
+	if m.status.Kind != statusError {
+		t.Errorf("expected statusError, got kind %v with text %q", m.status.Kind, m.status.Text)
+	}
+}
+
+type stubErr string
+
+func (e stubErr) Error() string { return string(e) }
+
+// ────────────────────────────────────────────────────
 // Visual mode: TSV formatting for system clipboard
 // ────────────────────────────────────────────────────
 

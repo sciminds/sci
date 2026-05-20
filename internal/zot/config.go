@@ -143,12 +143,20 @@ func ClearConfig() error {
 // DefaultDataDir probes common Zotero data directory locations in order and
 // returns the first that contains a zotero.sqlite file. Returns "" if none
 // found — callers should prompt the user.
+//
+// The candidate list covers macOS (~/Zotero, ~/Desktop variants) and Linux
+// (~/.zotero/zotero for native, ~/snap/zotero-snap/... for the snap package,
+// ~/.var/app/org.zotero.Zotero/... for Flatpak). The list is probed on every
+// platform; entries that don't exist are simply skipped.
 func DefaultDataDir() string {
 	home, _ := os.UserHomeDir()
 	candidates := []string{
 		filepath.Join(home, "Zotero"),
 		filepath.Join(home, "Desktop", "zotero"),
 		filepath.Join(home, "Desktop", "Zotero"),
+		filepath.Join(home, ".zotero", "zotero"),
+		filepath.Join(home, "snap", "zotero-snap", "common", "Zotero"),
+		filepath.Join(home, ".var", "app", "org.zotero.Zotero", "data", "Zotero"),
 	}
 	for _, dir := range candidates {
 		if _, err := os.Stat(filepath.Join(dir, "zotero.sqlite")); err == nil {

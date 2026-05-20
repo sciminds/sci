@@ -3,6 +3,7 @@ package zot
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -197,6 +198,51 @@ func TestValidateUserID(t *testing.T) {
 		if (err != nil) != tt.wantErr {
 			t.Errorf("ValidateUserID(%q) err = %v, wantErr %v", tt.id, err, tt.wantErr)
 		}
+	}
+}
+
+// TestDefaultDataDir_FindsCandidatePaths verifies that DefaultDataDir probes
+// every supported location (macOS-style ~/Zotero plus Linux native, snap,
+// and Flatpak paths). Each sub-test seeds exactly one candidate and asserts
+// DefaultDataDir resolves to it.
+func TestDefaultDataDir_FindsCandidatePaths(t *testing.T) {
+	tests := []struct {
+		name string
+		rel  []string // path components relative to $HOME
+	}{
+		{"macOS ~/Zotero", []string{"Zotero"}},
+		{"Linux native ~/.zotero/zotero", []string{".zotero", "zotero"}},
+		{"Linux snap zotero-snap", []string{"snap", "zotero-snap", "common", "Zotero"}},
+		{"Linux Flatpak org.zotero.Zotero", []string{".var", "app", "org.zotero.Zotero", "data", "Zotero"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+
+			parts := slices.Concat([]string{home}, tt.rel)
+			dir := filepath.Join(parts...)
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "zotero.sqlite"), []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			got := DefaultDataDir()
+			if got != dir {
+				t.Errorf("DefaultDataDir = %q, want %q", got, dir)
+			}
+		})
+	}
+}
+
+// TestDefaultDataDir_Empty confirms the empty-string sentinel when no
+// candidate path exists — callers rely on this to know they should prompt.
+func TestDefaultDataDir_Empty(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if got := DefaultDataDir(); got != "" {
+		t.Errorf("DefaultDataDir = %q, want empty", got)
 	}
 }
 
