@@ -224,6 +224,45 @@ jobs:
           sci tools list --json | grep -q '"ripgrep-all"'
           sci tools uninstall --formula ripgrep-all --json
 
+          # ---- reccs bulk modes (--dry-run / --include / --exclude) ------
+          # Exercises doctor.ResolveOptionalSet + doctor.InstallOptionalTools.
+          # Bulk paths use continue-on-error semantics and a single end-of-run
+          # Brewfile sync, distinct from the single-install path above.
+
+          # 1. --dry-run installs nothing.
+          BEFORE_DRYRUN=$(brew list --formula --full-name | wc -l | tr -d ' ')
+          sci tools reccs --all --dry-run --json | jq -e '.dry_run == true' >/dev/null
+          AFTER_DRYRUN=$(brew list --formula --full-name | wc -l | tr -d ' ')
+          [ "$BEFORE_DRYRUN" = "$AFTER_DRYRUN" ]
+
+          # 2. --include round trip on two cheap formulae.
+          sci tools reccs --include bat,fd --json
+          sci tools list --json | grep -q '"bat"'
+          sci tools list --json | grep -q '"fd"'
+          sci tools uninstall --formula bat --json
+          sci tools uninstall --formula fd --json
+
+          # 3. Error paths return non-zero.
+          ! sci tools reccs --include not-a-real-tool --json
+          ! sci tools reccs --all --include bat --json
+
+          # 4. --exclude quarto (the only cask) installs the rest of
+          #    BrewfileOptional in one shot. JSON return drives the cleanup
+          #    so the runner is left in the same state we found it.
+          BULK_JSON=$(sci tools reccs --exclude quarto --json)
+          echo "$BULK_JSON" | jq -e '.installed | type == "array"' >/dev/null
+          INSTALLED=$(echo "$BULK_JSON" | jq -r '.installed[]?')
+          if [ -n "$INSTALLED" ]; then
+            for name in $INSTALLED; do
+              # Best-effort uninstall — type may be brew/uv. Try formula first,
+              # fall back to uv. `|| true` keeps the loop going if either
+              # already removed it as a dependency.
+              sci tools uninstall --formula "$name" --json >/dev/null 2>&1 \
+                || sci tools uninstall --uv "$name" --json >/dev/null 2>&1 \
+                || true
+            done
+          fi
+
           # ---- Outdated → upgrade branch ---------------------------------
           # macOS runners ship many preinstalled brew formulae, so
           # `brew outdated` usually returns something. Human mode +
