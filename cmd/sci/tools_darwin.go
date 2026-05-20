@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"charm.land/huh/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/doctor"
@@ -135,16 +137,31 @@ func toolsOutdatedCommand() *cli.Command {
 }
 
 func toolsReccsCommand() *cli.Command {
-	var installName string
+	var (
+		installName string
+		all         bool
+		includeCSV  string
+		excludeCSV  string
+		dryRun      bool
+	)
 	return &cli.Command{
-		Name:        "reccs",
-		Usage:       "Pick optional tools to install",
-		Description: "$ sci tools reccs\n$ sci tools reccs --install pandoc   # non-interactive",
+		Name:  "reccs",
+		Usage: "Pick optional tools to install",
+		Description: "$ sci tools reccs                              # interactive picker\n" +
+			"$ sci tools reccs --install pandoc             # single, non-interactive\n" +
+			"$ sci tools reccs --all                        # install everything missing\n" +
+			"$ sci tools reccs --include bat,fd             # install just these\n" +
+			"$ sci tools reccs --exclude quarto             # skip these, install the rest\n" +
+			"$ sci tools reccs --all --dry-run              # preview without installing",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "install", Usage: "install a named tool without TUI (use --json to list available)", Destination: &installName, Local: true},
+			&cli.StringFlag{Name: "install", Usage: "install a named tool without TUI", Destination: &installName, Local: true},
+			&cli.BoolFlag{Name: "all", Usage: "install every missing optional tool", Destination: &all, Local: true},
+			&cli.StringFlag{Name: "include", Usage: "comma-separated tools to install (skips already-installed)", Destination: &includeCSV, Local: true},
+			&cli.StringFlag{Name: "exclude", Usage: "comma-separated tools to skip; install the rest", Destination: &excludeCSV, Local: true},
+			&cli.BoolFlag{Name: "dry-run", Usage: "preview the resolved set without installing", Destination: &dryRun, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runToolsReccs(ctx, cmd, installName)
+			return runToolsReccs(ctx, cmd, installName, all, includeCSV, excludeCSV, dryRun)
 		},
 	}
 }
@@ -452,12 +469,20 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func runToolsReccs(_ context.Context, cmd *cli.Command, installName string) error {
+func runToolsReccs(_ context.Context, cmd *cli.Command, installName string, all bool, includeCSV, excludeCSV string, dryRun bool) error {
 	runner := brew.BrewRunner{}
 
-	// JSON without --install lists the catalog; with --install it must
-	// still perform the install (otherwise the flag is silently ignored).
-	if cmdutil.IsJSON(cmd) && installName == "" {
+	include := splitCSV(includeCSV)
+	exclude := splitCSV(excludeCSV)
+
+	// Mutex: at most one of --install / --all / --include / --exclude.
+	bulkModes := lo.Count([]bool{installName != "", all, len(include) > 0, len(exclude) > 0}, true)
+	if bulkModes > 1 {
+		return errors.New("--install, --all, --include, and --exclude are mutually exclusive")
+	}
+
+	// JSON catalog-listing mode: no bulk flag, no install, no dry-run.
+	if cmdutil.IsJSON(cmd) && bulkModes == 0 && !dryRun {
 		result, err := doctor.ListOptionalTools(runner)
 		if err != nil {
 			return err
@@ -469,6 +494,29 @@ func runToolsReccs(_ context.Context, cmd *cli.Command, installName string) erro
 	// Resolve Brewfile path so install functions can sync it afterward.
 	brewfilePath, _ := resolveToolsFile()
 
+	// Bulk paths: --all / --include / --exclude (and dry-run, which implies bulk).
+	if all || len(include) > 0 || len(exclude) > 0 || dryRun {
+		filter := doctor.OptionalFilter{All: all, Include: include, Exclude: exclude}
+		if !all && len(include) == 0 && len(exclude) == 0 {
+			// Bare --dry-run with no scope → preview "all missing".
+			filter.All = true
+		}
+		entries, err := doctor.ResolveOptionalSet(runner, filter)
+		if err != nil {
+			return err
+		}
+		result, err := doctor.InstallOptionalTools(runner, entries, brewfilePath, dryRun)
+		if err != nil {
+			return err
+		}
+		cmdutil.Output(cmd, result)
+		if len(result.Failed) > 0 {
+			return fmt.Errorf("%d optional tool(s) failed to install", len(result.Failed))
+		}
+		return nil
+	}
+
+	// Single-tool and TUI paths (unchanged).
 	var result doctor.OptionalSetupResult
 	var err error
 	if installName != "" {
@@ -482,4 +530,19 @@ func runToolsReccs(_ context.Context, cmd *cli.Command, installName string) erro
 
 	cmdutil.Output(cmd, result)
 	return nil
+}
+
+// splitCSV trims whitespace and drops empty entries from a comma-separated list.
+func splitCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

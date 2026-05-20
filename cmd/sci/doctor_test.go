@@ -72,6 +72,30 @@ func TestToolsReccs_JSONSkipsForm(t *testing.T) {
 	}
 }
 
+// TestToolsReccs_BulkMutex asserts that combining --install, --all,
+// --include, or --exclude returns a CLI-level error before any backend work.
+func TestToolsReccs_BulkMutex(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("sci tools is darwin-only")
+	}
+	cases := [][]string{
+		{"sci", "--json", "tools", "reccs", "--all", "--include", "bat"},
+		{"sci", "--json", "tools", "reccs", "--all", "--exclude", "quarto"},
+		{"sci", "--json", "tools", "reccs", "--include", "bat", "--exclude", "quarto"},
+		{"sci", "--json", "tools", "reccs", "--install", "bat", "--all"},
+	}
+	for _, args := range cases {
+		err := buildRoot().Run(context.Background(), args)
+		if err == nil {
+			t.Errorf("%v: expected mutex error, got nil", args)
+			continue
+		}
+		if !strings.Contains(err.Error(), "mutually exclusive") {
+			t.Errorf("%v: expected mutex error, got: %v", args, err)
+		}
+	}
+}
+
 func TestDoctor_JSONIncludesBrewfileFields(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("doctor brewfile fields are macOS-only")

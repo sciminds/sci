@@ -478,6 +478,8 @@ type mockBrewRunner struct {
 	installCasksErr      error
 	installUVToolsCalls  [][]string
 	installUVToolsErr    error
+	directInstallCalls   [][2]string      // (pkg, pkgType) per call
+	directInstallErrors  map[string]error // pkg-name → error to return; nil = success
 
 	// Update/upgrade.
 	outdated      []brew.OutdatedPackage
@@ -499,9 +501,21 @@ func (m *mockBrewRunner) Leaves() ([]string, error) { return m.leavesResult, m.l
 func (m *mockBrewRunner) ListFormulae() ([]string, error) {
 	return m.listFormulaeResult, m.listFormulaeErr
 }
-func (m *mockBrewRunner) ListCasks() ([]string, error)      { return m.listCasksResult, m.listCasksErr }
-func (m *mockBrewRunner) Taps() ([]string, error)           { return m.tapsResult, m.tapsErr }
-func (m *mockBrewRunner) DirectInstall(_, _ string) error   { return nil }
+func (m *mockBrewRunner) ListCasks() ([]string, error) { return m.listCasksResult, m.listCasksErr }
+func (m *mockBrewRunner) Taps() ([]string, error)      { return m.tapsResult, m.tapsErr }
+func (m *mockBrewRunner) DirectInstall(pkg, pkgType string) error {
+	m.directInstallCalls = append(m.directInstallCalls, [2]string{pkg, pkgType})
+	if m.directInstallErrors != nil {
+		// Match by Spec prefix so callers can key on the bare package name
+		// regardless of any [extras] suffix in the Brewfile entry.
+		for name, err := range m.directInstallErrors {
+			if pkg == name || strings.HasPrefix(pkg, name+"[") {
+				return err
+			}
+		}
+	}
+	return nil
+}
 func (m *mockBrewRunner) DirectUninstall(_, _ string) error { return nil }
 func (m *mockBrewRunner) InstallFormulae(names []string) error {
 	m.installFormulaeCalls = append(m.installFormulaeCalls, names)
