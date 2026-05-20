@@ -2,6 +2,7 @@ package brew
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -39,6 +40,12 @@ func Remove(r Runner, file, pkg, pkgType string) (RemoveResult, error) {
 // Install installs missing packages from the Brewfile. It collects a system
 // snapshot, diffs against the Brewfile entries, and batch-installs each type
 // via [InstallEntries].
+//
+// Sync always runs at the end — even when InstallEntries reports errors —
+// so the Brewfile reflects what's actually installed. Without this, a
+// partial failure (e.g. one cask conflicts with a manually-installed app)
+// would leave the user's Brewfile out of sync with reality and the failure
+// would repeat on every doctor run.
 func Install(r Runner, file string) (InstallResult, error) {
 	content, err := os.ReadFile(file)
 	if err != nil {
@@ -59,15 +66,29 @@ func Install(r Runner, file string) (InstallResult, error) {
 		return InstallResult{}, nil
 	}
 
-	installed, err := InstallEntries(r, missing)
-	if err != nil {
-		return InstallResult{}, err
+	installed, installErr := InstallEntries(r, missing)
+	result := InstallResult{Installed: installed}
+
+	// Reconcile the Brewfile with the new system state regardless of
+	// install errors so successful installs land in the Brewfile and
+	// failed ones don't linger as unmet intent on the next run.
+	_, syncErr := Sync(r, file)
+	if syncErr != nil {
+		syncErr = fmt.Errorf("sync brewfile: %w", syncErr)
 	}
-	return InstallResult{Installed: installed}, nil
+
+	return result, errors.Join(installErr, syncErr)
 }
 
 // InstallEntries installs the given Brewfile entries in dependency order:
-// taps → formulae → casks → uv tools. Returns the names of installed packages.
+// taps → formulae → casks → uv tools. Returns the names of packages that
+// were actually requested (the install attempt — successful or not) and
+// a joined error covering every phase that failed.
+//
+// All four phases run regardless of intermediate failures: one bad cask
+// shouldn't keep `gh`, `uv`, or `marimo` from installing. Callers should
+// check `err == nil` for full success; on partial success they get the
+// joined error plus the list of names that were dispatched.
 func InstallEntries(r Runner, entries []BrewfileEntry) ([]string, error) {
 	if len(entries) == 0 {
 		return nil, nil
@@ -85,25 +106,27 @@ func InstallEntries(r Runner, entries []BrewfileEntry) ([]string, error) {
 		})
 	}
 
+	var errs []error
+
 	// Taps first (individually — needed before tap-qualified formulae).
 	for _, name := range names("tap") {
 		if err := r.DirectInstall(name, "tap"); err != nil {
-			return nil, fmt.Errorf("tap %s: %w", name, err)
+			errs = append(errs, fmt.Errorf("tap %s: %w", name, err))
 		}
 	}
 	if err := r.InstallFormulae(names("brew")); err != nil {
-		return nil, fmt.Errorf("install formulae: %w", err)
+		errs = append(errs, fmt.Errorf("install formulae: %w", err))
 	}
 	if err := r.InstallCasks(names("cask")); err != nil {
-		return nil, fmt.Errorf("install casks: %w", err)
+		errs = append(errs, fmt.Errorf("install casks: %w", err))
 	}
 	// uv tools install via spec so bracket extras like "[standard]" reach uv.
 	if err := r.InstallUVTools(specs("uv")); err != nil {
-		return nil, fmt.Errorf("install uv tools: %w", err)
+		errs = append(errs, fmt.Errorf("install uv tools: %w", err))
 	}
 
 	installed := lo.Map(entries, func(e BrewfileEntry, _ int) string { return e.Name })
-	return installed, nil
+	return installed, errors.Join(errs...)
 }
 
 // List lists packages from the Brewfile, optionally filtered by type.

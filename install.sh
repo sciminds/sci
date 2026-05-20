@@ -111,13 +111,16 @@ esac
 
 # Auto-run doctor when stdin is a terminal (interactive install) and PATH is
 # in good shape. Otherwise nudge the user — for piped installs (curl ... | sh)
-# stdin is the script, so prompts in `sci doctor` would not work.
+# stdin is the script, so prompts in `sci doctor` would not work. The user's
+# current shell also doesn't have INSTALL_DIR on PATH yet (the rc file was
+# just edited), so we ask them to open a new terminal where the updated PATH
+# is in effect.
 if [ "${NEEDS_MANUAL_PATH}" = "0" ]; then
   if [ -t 0 ]; then
     echo ""
     exec "${INSTALL_DIR}/sci" doctor
   else
     echo ""
-    echo "Run 'sci doctor' to finish setting up your environment."
+    echo "Open a new terminal window and run 'sci doctor' to finish setup."
   fi
 fi

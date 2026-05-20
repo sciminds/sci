@@ -417,9 +417,10 @@ func TestInstallEntries_FormulaError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	// Casks should not have been attempted.
-	if len(m.installCasksCalls) != 0 {
-		t.Error("InstallCasks should not be called after formulae error")
+	// Casks should still have been attempted — one failing phase
+	// shouldn't block later phases from installing.
+	if len(m.installCasksCalls) != 1 {
+		t.Errorf("InstallCasks should still be called after formulae error, got %d calls", len(m.installCasksCalls))
 	}
 }
 
@@ -435,8 +436,10 @@ func TestInstallEntries_CaskError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if len(m.installUVToolsCalls) != 0 {
-		t.Error("InstallUVTools should not be called after cask error")
+	// uv tools should still install — a stuck cask (e.g. one that conflicts
+	// with a pre-existing app on disk) must not block the rest of the batch.
+	if len(m.installUVToolsCalls) != 1 {
+		t.Errorf("InstallUVTools should still be called after cask error, got %d calls", len(m.installUVToolsCalls))
 	}
 }
 
@@ -463,9 +466,10 @@ func TestInstallEntries_TapError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	// Formulae should not have been attempted.
-	if len(m.installFormulaeCalls) != 0 {
-		t.Error("InstallFormulae should not be called after tap error")
+	// Formulae should still be attempted — tap failures shouldn't poison
+	// the rest of the install chain.
+	if len(m.installFormulaeCalls) != 1 {
+		t.Errorf("InstallFormulae should still be called after tap error, got %d calls", len(m.installFormulaeCalls))
 	}
 }
 

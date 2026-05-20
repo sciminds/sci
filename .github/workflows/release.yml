@@ -1,11 +1,17 @@
 name: Release
 
-# Triggers only after Environment Scenarios succeeds on main (so a broken
-# scenario matrix blocks the release build) or via manual dispatch.
+# Triggers:
+#   - workflow_run: normal path — wait for Environment Scenarios to succeed on
+#     main so a broken scenario matrix blocks the release build.
+#   - push: fast path — commits whose message contains `RELEASE FAST` skip the
+#     scenarios wait and run release immediately (still gated by check-ci).
+#   - workflow_dispatch: manual override.
 on:
   workflow_run:
     workflows: ["Environment Scenarios"]
     types: [completed]
+    branches: [main]
+  push:
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -22,20 +28,24 @@ jobs:
   release:
     runs-on: macos-latest
     # For workflow_run triggers, require that upstream succeeded and skip
-    # [skip ci] / [ci skip] commits. workflow_dispatch bypasses these.
+    # [skip ci] / [ci skip] commits. workflow_dispatch bypasses these. push
+    # only fires when the commit message contains `RELEASE FAST`.
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      (github.event_name == 'push' &&
+       contains(github.event.head_commit.message, 'RELEASE FAST')) ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
        !contains(github.event.workflow_run.head_commit.message, '[skip ci]') &&
        !contains(github.event.workflow_run.head_commit.message, '[ci skip]'))
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       # SHA that was actually tested by the upstream scenarios run (for
-      # workflow_run triggers). For workflow_dispatch this falls back to
-      # github.sha. Referenced by the checkout and release-body steps.
+      # workflow_run triggers). For push / workflow_dispatch this falls back
+      # to github.sha. Referenced by the checkout and release-body steps.
       TESTED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-      RELEASE_COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
+      RELEASE_COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message || github.event.head_commit.message }}
 
     steps:
       - name: Checkout
@@ -108,13 +118,13 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Delete existing release
-        if: (github.event_name == 'workflow_dispatch' && inputs.publish) || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE')
+        if: (github.event_name == 'workflow_dispatch' && inputs.publish) || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE') || contains(env.RELEASE_COMMIT_MSG, 'RELEASE FAST')
         run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
-        if: (github.event_name == 'workflow_dispatch' && inputs.publish) || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE')
+        if: (github.event_name == 'workflow_dispatch' && inputs.publish) || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE') || contains(env.RELEASE_COMMIT_MSG, 'RELEASE FAST')
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: latest

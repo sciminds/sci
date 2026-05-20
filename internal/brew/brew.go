@@ -5,6 +5,7 @@ package brew
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -154,13 +155,18 @@ func (BrewRunner) Taps() ([]string, error) {
 }
 
 // DirectInstall implements Runner. Installs a single package by type.
+//
+// Casks pass --adopt so an existing app at the destination (e.g. a VLC.app
+// the user dragged in manually before sci managed it) is claimed by brew
+// instead of failing the install. --adopt is a no-op when the destination
+// is empty, so it's safe to pass unconditionally.
 func (BrewRunner) DirectInstall(pkg, pkgType string) error {
 	switch pkgType {
 	case "", "formula", "brew":
 		_, err := runBrewLive("install", pkg)
 		return err
 	case "cask":
-		_, err := runBrewLive("install", "--cask", pkg)
+		_, err := runBrewLive("install", "--cask", "--adopt", pkg)
 		return err
 	case "tap":
 		_, err := runBrewLive("tap", pkg)
@@ -208,13 +214,21 @@ func (BrewRunner) InstallFormulae(names []string) error {
 	return err
 }
 
-// InstallCasks implements Runner. Installs multiple casks in one call.
+// InstallCasks implements Runner. Installs casks one at a time so a single
+// failure (e.g. a pre-existing app brew can't adopt) doesn't poison the
+// rest of the batch. --adopt claims an existing app at the destination
+// instead of failing — it's a no-op when nothing is there yet.
+//
+// Errors are accumulated via errors.Join so the caller sees every failure
+// at once instead of just the first one.
 func (BrewRunner) InstallCasks(names []string) error {
-	if len(names) == 0 {
-		return nil
+	var errs []error
+	for _, name := range names {
+		if _, err := runBrewLive("install", "--cask", "--adopt", name); err != nil {
+			errs = append(errs, fmt.Errorf("install cask %s: %w", name, err))
+		}
 	}
-	_, err := runBrewLive(slices.Concat([]string{"install", "--cask"}, names)...)
-	return err
+	return errors.Join(errs...)
 }
 
 // InstallUVTools implements Runner. Installs uv tools sequentially (no batch mode).
