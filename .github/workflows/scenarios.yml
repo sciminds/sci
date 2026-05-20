@@ -246,11 +246,12 @@ jobs:
           ! sci tools reccs --include not-a-real-tool --json
           ! sci tools reccs --all --include bat --json
 
-          # 4. --exclude (skip both casks: quarto is ~1GB and kitty needs
-          #    a font cache rebuild) installs the rest of BrewfileOptional
-          #    in one shot. JSON return drives the cleanup so the runner
-          #    is left in the same state we found it.
-          BULK_JSON=$(sci tools reccs --exclude quarto,kitty --json)
+          # 4. --exclude all casks (quarto is ~1GB, kitty needs a font
+          #    cache rebuild, the GUI note/productivity apps are huge and
+          #    pointless on a headless runner) installs the rest of
+          #    BrewfileOptional in one shot. JSON return drives the cleanup
+          #    so the runner is left in the same state we found it.
+          BULK_JSON=$(sci tools reccs --exclude quarto,kitty,obsidian,reflect,notion --json)
           echo "$BULK_JSON" | jq -e '.installed | type == "array"' >/dev/null
           INSTALLED=$(echo "$BULK_JSON" | jq -r '.installed[]?')
           if [ -n "$INSTALLED" ]; then
