@@ -7,6 +7,11 @@ build:
 tidy:
     go mod tidy
 
+# Install Go dev tools pinned in go.mod's `tool` block (goimports,
+# golangci-lint, gopls, gofumpt, dlv) into $GOBIN. Run once after cloning.
+bootstrap:
+    go install tool
+
 fmt:
     gofmt -w .
     goimports -w .
