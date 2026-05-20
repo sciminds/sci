@@ -38,6 +38,7 @@ type Store struct {
 	views       map[string]bool                        // populated by TableNames
 	rowEditable map[string]bool                        // populated by TableColumns: table → has-PK
 	rowKeys     map[string]map[int64]map[string]string // populated by QueryTable: table → synthID → pkCol → value
+	heavyCols   map[string]map[string]bool             // populated by QueryTable: table → col → isHeavy
 }
 
 // Open starts a `duckdb -jsonlines <path>` subprocess and returns a
@@ -342,6 +343,12 @@ func (s *Store) TableSummaries() ([]store.TableSummary, error) {
 // PK values via the rowKeys cache populated here. The cache for table
 // is replaced wholesale on every call so it stays consistent with the
 // rows the caller now sees.
+//
+// Columns whose DuckDB type would JSON-serialise to a large value (see
+// [isHeavyType] — FLOAT[], STRUCT, BLOB, JSON, …) are rewritten in the
+// SELECT projection to a short placeholder produced server-side (e.g.
+// `<FLOAT[768]>`). Heavy columns are tracked per table so callers can
+// later fetch the full value via [Store.FetchCell].
 func (s *Store) QueryTable(table string) (colNames []string, rows [][]string, nullFlags [][]bool, rowIDs []int64, err error) {
 	if !store.IsSafeIdentifier(table) {
 		return nil, nil, nil, nil, fmt.Errorf("invalid table name: %q", table)
@@ -352,7 +359,11 @@ func (s *Store) QueryTable(table string) (colNames []string, rows [][]string, nu
 	}
 	colNames = lo.Map(cols, func(c store.PragmaColumn, _ int) string { return c.Name })
 
-	lines, err := s.proc.query(fmt.Sprintf(`SELECT * FROM "%s" LIMIT %d`, table, store.MaxTableRows))
+	projection, heavy, err := buildHeavyProjection(cols)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	lines, err := s.proc.query(fmt.Sprintf(`SELECT %s FROM "%s" LIMIT %d`, projection, table, store.MaxTableRows))
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -365,7 +376,63 @@ func (s *Store) QueryTable(table string) (colNames []string, rows [][]string, nu
 		rowIDs[i] = int64(i + 1)
 	}
 	s.refreshRowKeys(table, cols, rows, rowIDs)
+	s.recordHeavyCols(table, heavy)
 	return colNames, rows, nullFlags, rowIDs, nil
+}
+
+// buildHeavyProjection turns a column list into a SELECT projection where
+// heavy columns are wrapped in [heavyPlaceholderExpr] and aliased back to
+// their original name (so JSON keys match colNames in scanRows). Returns
+// the comma-joined projection and the set of heavy column names.
+func buildHeavyProjection(cols []store.PragmaColumn) (string, map[string]bool, error) {
+	parts := make([]string, 0, len(cols))
+	heavy := make(map[string]bool)
+	for _, c := range cols {
+		if !store.IsSafeColumnName(c.Name) {
+			return "", nil, fmt.Errorf("invalid column name: %q", c.Name)
+		}
+		if isHeavyType(c.Type) {
+			expr, err := heavyPlaceholderExpr(c.Name, c.Type)
+			if err != nil {
+				return "", nil, err
+			}
+			parts = append(parts, fmt.Sprintf(`%s AS "%s"`, expr, c.Name))
+			heavy[c.Name] = true
+			continue
+		}
+		parts = append(parts, fmt.Sprintf(`"%s"`, c.Name))
+	}
+	return strings.Join(parts, ", "), heavy, nil
+}
+
+// recordHeavyCols replaces the per-table heavy-column set. Called at the
+// end of every QueryTable so a follow-up FetchCell call knows which
+// columns were placeholdered.
+func (s *Store) recordHeavyCols(table string, heavy map[string]bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.heavyCols == nil {
+		s.heavyCols = make(map[string]map[string]bool)
+	}
+	if len(heavy) == 0 {
+		delete(s.heavyCols, table)
+		return
+	}
+	s.heavyCols[table] = heavy
+}
+
+// IsHeavyColumn reports whether the most recent QueryTable on table
+// replaced column with a placeholder. dbtui calls this to decide whether
+// Enter should trigger a lazy [Store.FetchCell] round-trip instead of
+// previewing the in-memory placeholder. Returns false for tables that
+// have not been queried yet.
+func (s *Store) IsHeavyColumn(table, column string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if cols, ok := s.heavyCols[table]; ok {
+		return cols[column]
+	}
+	return false
 }
 
 // refreshRowKeys replaces the rowKeys cache for table with the PK
@@ -424,6 +491,52 @@ func (s *Store) lookupRowKey(table string, rowID int64) (map[string]string, bool
 // DELETE / INSERT SQL must funnel string values through this helper.
 func sqlQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
+// FetchCell returns the full value of one cell, addressed by the
+// synthetic rowID returned from the most recent [Store.QueryTable] on
+// the same table. The PK values cached during QueryTable are used to
+// build a `WHERE pk = ?` clause — tables without a PRIMARY KEY (which
+// have no entries in the rowKeys cache) return an error.
+//
+// Implements [store.CellFetcher]. dbtui calls this for the Enter preview
+// of cells whose stored value is a placeholder (see [isHeavyType] +
+// [Store.QueryTable]) so the real embedding / struct / BLOB JSON appears
+// in the overlay on demand rather than being held in memory per row.
+func (s *Store) FetchCell(table, column string, rowID int64) (string, bool, error) {
+	if !store.IsSafeIdentifier(table) {
+		return "", false, fmt.Errorf("invalid table name: %q", table)
+	}
+	if !store.IsSafeColumnName(column) {
+		return "", false, fmt.Errorf("invalid column name: %q", column)
+	}
+	keys, ok := s.lookupRowKey(table, rowID)
+	if !ok {
+		return "", false, fmt.Errorf("no cached PK values for %q row %d (call QueryTable first)", table, rowID)
+	}
+	whereSQL, err := buildPKWhere(keys)
+	if err != nil {
+		return "", false, err
+	}
+	sql := fmt.Sprintf(`SELECT "%s" AS v FROM "%s" WHERE %s LIMIT 1`, column, table, whereSQL)
+	lines, err := s.proc.query(sql)
+	if err != nil {
+		return "", false, fmt.Errorf("fetch %q.%q row %d: %w", table, column, rowID, err)
+	}
+	if len(lines) == 0 {
+		return "", false, fmt.Errorf("row %d not found in %q", rowID, table)
+	}
+	dec := json.NewDecoder(strings.NewReader(string(lines[0])))
+	dec.UseNumber()
+	var obj map[string]any
+	if err := dec.Decode(&obj); err != nil {
+		return "", false, fmt.Errorf("decode cell: %w", err)
+	}
+	v, present := obj["v"]
+	if !present || v == nil {
+		return "", true, nil
+	}
+	return formatValue(v), false, nil
 }
 
 // ReadOnlyQuery executes a validated SELECT and returns columns + rows.
@@ -677,6 +790,7 @@ func (s *Store) invalidateTableCaches(name string) {
 	delete(s.rowKeys, name)
 	delete(s.rowEditable, name)
 	delete(s.views, name)
+	delete(s.heavyCols, name)
 	s.mu.Unlock()
 }
 

@@ -148,6 +148,13 @@ type ColumnSpec struct {
 	Kind      CellKind  // data type category
 	HideOrder int       // 0 = visible; >0 = hidden (higher = more recently hidden)
 	Expanded  bool      // when true, column uses full natural width
+	// Heavy is true when the column's in-memory value is a short
+	// server-side placeholder (e.g. `<FLOAT[768]>`) for a large payload —
+	// the DuckDB backend rewrites array/struct/blob/json columns this way
+	// to keep load + render cost bounded. dbtui marks these columns
+	// read-only and routes the Enter preview through store.CellFetcher
+	// so the real value is fetched lazily on demand.
+	Heavy bool
 }
 
 // StatusKind distinguishes informational from error status messages.

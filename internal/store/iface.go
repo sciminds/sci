@@ -147,6 +147,31 @@ type SortKeyProvider interface {
 	CellSortKeys(table string) ([][]string, error)
 }
 
+// CellFetcher is an optional interface that DataStore implementations may
+// provide to fetch a single cell's full value on demand. dbtui uses it
+// for cells whose stored value is a server-side placeholder for a large
+// payload (e.g. DuckDB's FLOAT[768] embedding columns rewritten by
+// QueryTable into `<FLOAT[768]>`) — pressing Enter on such a cell
+// triggers FetchCell to populate the preview overlay with the real data.
+// rowID is the synthetic ID returned from the most recent QueryTable on
+// the same table; implementations are expected to resolve it back to a
+// PK (or rowid) via their own internal cache.
+type CellFetcher interface {
+	FetchCell(table, column string, rowID int64) (value string, isNull bool, err error)
+}
+
+// HeavyColumnLister is an optional interface that DataStore
+// implementations may provide to report which columns were rewritten
+// into placeholders by the most recent QueryTable call. dbtui uses it to
+// mark those columns read-only and route their Enter preview through
+// [CellFetcher] instead of using the in-memory placeholder string.
+// Backends without server-side placeholdering (e.g. SQLite) can leave
+// this interface unimplemented; dbtui falls back to the previous
+// behaviour of previewing the in-memory cell value.
+type HeavyColumnLister interface {
+	IsHeavyColumn(table, column string) bool
+}
+
 // FulltextSearcher is an optional interface that DataStore implementations may
 // provide to support content-level fulltext search (e.g. PDF body text).
 // When implemented, unscoped search queries union fulltext hits with fuzzy

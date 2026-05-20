@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -667,6 +668,36 @@ func naturalWidthsIndirect(
 	)
 }
 
+// naturalWidthSampleBytes caps how many bytes of a cell value are fed into
+// lipgloss.Width when computing a column's natural width. Anything wider
+// than columnWidths' autoCap (≤40% of terminal width, currently capped to
+// roughly a few hundred visual cells) is clamped anyway, so measuring more
+// is wasted work. Big DuckDB cell payloads (e.g. JSON-serialised FLOAT[768]
+// embeddings at ~9 KB each) would otherwise dominate per-render cost on
+// every cursor move or resize.
+const naturalWidthSampleBytes = 1024
+
+// boundedWidthSample returns a prefix of value safe to hand to
+// lipgloss.Width without scanning megabytes of cell content. Multi-byte
+// UTF-8 sequences at the boundary are trimmed so the returned string is
+// always valid UTF-8 — both dangling continuation bytes (10xxxxxx) and
+// partial multi-byte starts (e.g. the first 2 bytes of a 3-byte rune)
+// are stripped.
+func boundedWidthSample(value string) string {
+	if len(value) <= naturalWidthSampleBytes {
+		return value
+	}
+	value = value[:naturalWidthSampleBytes]
+	for len(value) > 0 {
+		r, size := utf8.DecodeLastRuneInString(value)
+		if r != utf8.RuneError || size != 1 {
+			break
+		}
+		value = value[:len(value)-1]
+	}
+	return value
+}
+
 func computeNaturalWidths(
 	specs []columnSpec,
 	rows [][]cell,
@@ -685,7 +716,7 @@ func computeNaturalWidths(
 			if value == "" {
 				continue
 			}
-			cw := lipgloss.Width(value)
+			cw := lipgloss.Width(boundedWidthSample(value))
 			if cw > w {
 				w = cw
 			}

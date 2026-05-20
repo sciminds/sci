@@ -852,3 +852,192 @@ func TestAppendCSVMissingTable(t *testing.T) {
 		t.Error("expected AppendCSV to error when target table is missing")
 	}
 }
+
+// makeHeavyFixture writes a .duckdb file exercising the heavy-type
+// projection path: a FLOAT[] array column, a STRUCT, a BLOB, and a JSON
+// column. Two rows with one NULL each so the NULL-pass-through is
+// observable.
+func makeHeavyFixture(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "heavy.duckdb")
+	script := `CREATE TABLE vecs (
+  id BIGINT PRIMARY KEY,
+  label VARCHAR,
+  embedding FLOAT[],
+  info STRUCT(name VARCHAR, score DOUBLE),
+  payload BLOB,
+  meta JSON
+);
+INSERT INTO vecs VALUES
+  (1, 'a', [0.1, 0.2, 0.3, 0.4]::FLOAT[], {'name': 'alice', 'score': 3.14}, 'hello'::BLOB, '{"k":1}'),
+  (2, 'b', NULL, {'name': 'bob', 'score': 2.72}, NULL, '{"k":2,"nested":{"x":1}}');
+`
+	cmd := exec.Command("duckdb", path)
+	cmd.Stdin = strings.NewReader(script)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("create heavy fixture: %v\n%s", err, out)
+	}
+	return path
+}
+
+// TestQueryTableHeavyTypesEmitPlaceholders verifies the SELECT projection
+// rewrite — heavy columns come back as short typed placeholders instead
+// of the full JSON-serialised payload.
+func TestQueryTableHeavyTypesEmitPlaceholders(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeHeavyFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	cols, rows, nulls, _, err := s.QueryTable("vecs")
+	if err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+	want := []string{"id", "label", "embedding", "info", "payload", "meta"}
+	if !reflect.DeepEqual(cols, want) {
+		t.Fatalf("cols = %v, want %v", cols, want)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("rows = %d, want 2", len(rows))
+	}
+
+	// Row 0: full values.
+	checks := map[int]string{
+		2: "<FLOAT[4]>",
+		3: "<STRUCT>",
+		4: "<BLOB 5 bytes>",
+	}
+	for ci, want := range checks {
+		if rows[0][ci] != want {
+			t.Errorf("row 0 col %d (%s) = %q, want %q", ci, cols[ci], rows[0][ci], want)
+		}
+	}
+	// JSON placeholder includes the char count — we just sanity-check the prefix.
+	if !strings.HasPrefix(rows[0][5], "<JSON ") || !strings.HasSuffix(rows[0][5], " chars>") {
+		t.Errorf("row 0 meta placeholder = %q; want <JSON N chars>", rows[0][5])
+	}
+
+	// Row 1: embedding and payload are NULL → null flags set, no placeholder.
+	if !nulls[1][2] {
+		t.Errorf("row 1 embedding should be NULL")
+	}
+	if rows[1][2] != "" {
+		t.Errorf("row 1 embedding value = %q; want empty for NULL", rows[1][2])
+	}
+	if !nulls[1][4] {
+		t.Errorf("row 1 payload should be NULL")
+	}
+
+	// IsHeavyColumn caches the column set.
+	for _, c := range []string{"embedding", "info", "payload", "meta"} {
+		if !s.IsHeavyColumn("vecs", c) {
+			t.Errorf("IsHeavyColumn(vecs, %s) = false; want true", c)
+		}
+	}
+	for _, c := range []string{"id", "label"} {
+		if s.IsHeavyColumn("vecs", c) {
+			t.Errorf("IsHeavyColumn(vecs, %s) = true; want false", c)
+		}
+	}
+}
+
+// TestFetchCellRoundTrip verifies that FetchCell returns the *full* value
+// of a heavy cell (the placeholder shown in the table) by resolving the
+// synthetic rowID back to the PK via the rowKeys cache.
+func TestFetchCellRoundTrip(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeHeavyFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	// Prime the rowKeys cache.
+	if _, _, _, _, err := s.QueryTable("vecs"); err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+
+	// Embedding: rowID=1 → full FLOAT[4] payload.
+	got, isNull, err := s.FetchCell("vecs", "embedding", 1)
+	if err != nil {
+		t.Fatalf("FetchCell embedding: %v", err)
+	}
+	if isNull {
+		t.Fatalf("FetchCell embedding row 1 returned null")
+	}
+	if !strings.HasPrefix(got, "[") || !strings.HasSuffix(got, "]") {
+		t.Errorf("FetchCell embedding = %q; want JSON array", got)
+	}
+	for _, want := range []string{"0.1", "0.2", "0.3", "0.4"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("FetchCell embedding = %q; missing %q", got, want)
+		}
+	}
+
+	// Embedding: rowID=2 is NULL → isNull=true.
+	_, isNull, err = s.FetchCell("vecs", "embedding", 2)
+	if err != nil {
+		t.Fatalf("FetchCell embedding row 2: %v", err)
+	}
+	if !isNull {
+		t.Errorf("FetchCell embedding row 2 should be null")
+	}
+
+	// Struct value: well-formed JSON object with the original keys.
+	got, _, err = s.FetchCell("vecs", "info", 1)
+	if err != nil {
+		t.Fatalf("FetchCell info: %v", err)
+	}
+	if !strings.Contains(got, "alice") || !strings.Contains(got, "3.14") {
+		t.Errorf("FetchCell info = %q; want struct with alice/3.14", got)
+	}
+}
+
+// TestFetchCellNoPKReturnsError exercises the contract for PK-less tables:
+// FetchCell needs cached PK values built by QueryTable, and a table
+// without a PK leaves rowKeys empty.
+func TestFetchCellNoPKReturnsError(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	// extras has no PK → rowKeys cache stays empty for it.
+	if _, _, _, _, err := s.QueryTable("extras"); err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+	if _, _, err := s.FetchCell("extras", "v", 1); err == nil {
+		t.Error("expected FetchCell to error for PK-less table")
+	}
+}
+
+// TestQueryTableNonHeavyUntouched verifies the placeholder rewrite is a
+// no-op on schemas without any heavy columns — the existing fixture's
+// people table still returns numeric / string values verbatim.
+func TestQueryTableNonHeavyUntouched(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	_, rows, _, _, err := s.QueryTable("people")
+	if err != nil {
+		t.Fatalf("QueryTable: %v", err)
+	}
+	if rows[0][1] != "alice" {
+		t.Errorf("row 0 name = %q, want alice", rows[0][1])
+	}
+	if rows[0][2] != "3.14" {
+		t.Errorf("row 0 score = %q, want 3.14", rows[0][2])
+	}
+	if s.IsHeavyColumn("people", "name") {
+		t.Errorf("IsHeavyColumn(people, name) = true; want false")
+	}
+}

@@ -7,9 +7,7 @@ package app
 import (
 	"strings"
 
-	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/uikit"
 )
 
 // handleNormalModeKey processes keys specific to normal mode.
@@ -113,45 +111,7 @@ func (m *Model) handleNormalModeKey(k string, tab *Tab) bool {
 	// Enter = preview cell.
 	case keyEnter:
 		if c := m.selectedCell(tab); c != nil && c.Value != "" {
-			title := ""
-			if tab.ColCursor < len(tab.Specs) {
-				title = tab.Specs[tab.ColCursor].Title
-			}
-			// Check if the store provides rich markdown note content for this row.
-			cursor := tab.Table.Cursor()
-			// When a row search is active, seed the overlay with the query so
-			// the preview lands on the actual matched words instead of the top.
-			var overlayOpts []uikit.OverlayOption
-			if m.search != nil && m.search.Query != "" {
-				overlayOpts = append(overlayOpts, uikit.WithInitialQuery(m.search.Query))
-			}
-			var overlay uikit.ScrollableOverlay
-			if ncp, ok := m.store.(store.NoteContentProvider); ok && cursor >= 0 && cursor < len(tab.Rows) {
-				if md := ncp.NoteContent(tab.Rows[cursor].RowID); md != "" {
-					overlay = uikit.NewMarkdownOverlay(title, md, m.width, m.height, overlayOpts...)
-				}
-			}
-			if overlay == nil {
-				if pretty, isJSON := prettyPrintJSON(c.Value); isJSON {
-					// Wrap in a json code fence so glamour's chroma highlighter
-					// colors keys/strings/numbers/booleans/null in the overlay.
-					// For compound duckdb types (STRUCT/LIST/MAP/INTERVAL/…)
-					// prepend the SQL signature as small italic context.
-					var dbType string
-					if tab.ColCursor < len(tab.Specs) {
-						dbType = tab.Specs[tab.ColCursor].DBType
-					}
-					md := compoundTypeHeader(dbType) + "```json\n" + pretty + "\n```"
-					overlay = uikit.NewMarkdownOverlay(title, md, m.width, m.height, overlayOpts...)
-				} else {
-					overlay = uikit.NewOverlay(title, c.Value, m.width, m.height, overlayOpts...)
-				}
-			}
-			m.notePreview = &notePreviewState{
-				Text:    c.Value,
-				Title:   title,
-				Overlay: overlay,
-			}
+			m.openCellPreview(tab, c)
 		}
 
 	// Visual mode.

@@ -52,6 +52,22 @@ func buildTab(ds store.DataStore, tableName string) (Tab, error) {
 		return Tab{}, fmt.Errorf("query %q: %w", tableName, err)
 	}
 
+	// Mark columns that were placeholdered by the store (DuckDB's
+	// heavy-type projection — FLOAT[], STRUCT, BLOB, JSON, …). These
+	// cells are read-only and their full value is fetched lazily on
+	// Enter via store.CellFetcher. Stores without server-side
+	// placeholdering (e.g. SQLite) skip this loop entirely. The
+	// bubbles.Table column list is unaffected — Title/Width come from
+	// the spec name, not the kind — so we don't need to rebuild it.
+	if heavy, ok := ds.(store.HeavyColumnLister); ok {
+		for i := range specs {
+			if heavy.IsHeavyColumn(tableName, specs[i].DBName) {
+				specs[i].Heavy = true
+				specs[i].Kind = cellReadonly
+			}
+		}
+	}
+
 	// Optional per-cell sort keys (for columns whose display format is not
 	// lexicographically ordered, e.g. human dates). Nil if unsupported or
 	// if the provider returns an error — sort falls back to Value.
