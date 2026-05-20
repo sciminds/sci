@@ -251,7 +251,7 @@ jobs:
           #    pointless on a headless runner) installs the rest of
           #    BrewfileOptional in one shot. JSON return drives the cleanup
           #    so the runner is left in the same state we found it.
-          BULK_JSON=$(sci tools reccs --exclude quarto,kitty,obsidian,reflect,notion --json)
+          BULK_JSON=$(sci tools reccs --exclude quarto,kitty,obsidian,reflect,notion,tailscale-app --json)
           echo "$BULK_JSON" | jq -e '.installed | type == "array"' >/dev/null
           INSTALLED=$(echo "$BULK_JSON" | jq -r '.installed[]?')
           if [ -n "$INSTALLED" ]; then
