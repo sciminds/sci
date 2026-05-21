@@ -4,6 +4,12 @@ package duck_test
 // Each test generates its own fixture .duckdb via the `duckdb` CLI so we
 // don't have to commit binary blobs. Tests skip cleanly when duckdb is
 // not on PATH.
+//
+// Shared DataStore-iface assertions live in internal/store/contracttest
+// and are wired up via [TestStoreContract] in contract_test.go. The tests
+// here cover duck-specific behaviour only: subprocess lifecycle, view
+// detection, PK-less table rejections, heavy-type placeholders, the
+// rowKeys cache invalidation on rename, and quoting round-trips.
 
 import (
 	"errors"
@@ -15,7 +21,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/store"
 	"github.com/sciminds/cli/internal/store/duck"
 )
@@ -51,7 +56,7 @@ CREATE VIEW recent_scores AS SELECT name, score FROM people WHERE score IS NOT N
 	return path
 }
 
-// ---------- tests ----------
+// ---------- subprocess lifecycle ----------
 
 func TestOpenAndClose(t *testing.T) {
 	requireDuck(t)
@@ -78,6 +83,8 @@ func TestOpenMissingBinary(t *testing.T) {
 	}
 }
 
+// ---------- view detection (duck-specific: VIEW vs TABLE in information_schema) ----------
+
 func TestTableNamesAndViews(t *testing.T) {
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
@@ -103,6 +110,8 @@ func TestTableNamesAndViews(t *testing.T) {
 	}
 }
 
+// TestTableColumns asserts duck-specific column types (BIGINT/VARCHAR/DOUBLE)
+// surface via the information_schema-backed describeColumns path.
 func TestTableColumns(t *testing.T) {
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
@@ -129,49 +138,7 @@ func TestTableColumns(t *testing.T) {
 	}
 }
 
-func TestTableRowCount(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	n, err := s.TableRowCount("people")
-	if err != nil {
-		t.Fatalf("TableRowCount: %v", err)
-	}
-	if n != 3 {
-		t.Errorf("TableRowCount(people) = %d, want 3", n)
-	}
-}
-
-func TestTableSummaries(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	summaries, err := s.TableSummaries()
-	if err != nil {
-		t.Fatalf("TableSummaries: %v", err)
-	}
-	got := make(map[string]store.TableSummary, len(summaries))
-	for _, s := range summaries {
-		got[s.Name] = s
-	}
-	if got["people"].Rows != 3 || got["people"].Columns != 3 {
-		t.Errorf("people summary = %+v; want rows=3 cols=3", got["people"])
-	}
-	if got["extras"].Rows != 2 || got["extras"].Columns != 2 {
-		t.Errorf("extras summary = %+v; want rows=2 cols=2", got["extras"])
-	}
-	if got["recent_scores"].Rows != 2 || got["recent_scores"].Columns != 2 {
-		t.Errorf("recent_scores summary = %+v; want rows=2 cols=2", got["recent_scores"])
-	}
-}
+// ---------- IsRowEditable (duck-specific: PK presence gates row mutations) ----------
 
 func TestIsRowEditable(t *testing.T) {
 	requireDuck(t)
@@ -189,37 +156,16 @@ func TestIsRowEditable(t *testing.T) {
 	if s.IsRowEditable("extras") {
 		t.Error("extras has no PK; should not be row-editable")
 	}
-}
-
-func TestQueryTable(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
+	// CreateEmptyTable produces a table with a PK → editable.
+	if err := s.CreateEmptyTable("fresh"); err != nil {
+		t.Fatalf("CreateEmptyTable: %v", err)
 	}
-	defer func() { _ = s.Close() }()
-
-	cols, rows, nulls, ids, err := s.QueryTable("people")
-	if err != nil {
-		t.Fatalf("QueryTable: %v", err)
-	}
-	if !reflect.DeepEqual(cols, []string{"id", "name", "score"}) {
-		t.Errorf("cols = %v, want [id name score]", cols)
-	}
-	if len(rows) != 3 {
-		t.Fatalf("got %d rows, want 3", len(rows))
-	}
-	if rows[0][0] != "1" || rows[0][1] != "alice" {
-		t.Errorf("row 0 = %v; want [1 alice 3.14]", rows[0])
-	}
-	// Carol's score is NULL.
-	if !nulls[2][2] {
-		t.Errorf("expected null flag for row 2 col 2 (carol.score)")
-	}
-	if ids[0] != 1 || ids[2] != 3 {
-		t.Errorf("synthetic row IDs = %v, want [1 2 3]", ids)
+	if !s.IsRowEditable("fresh") {
+		t.Error("freshly created empty table should be row-editable (id INTEGER PRIMARY KEY)")
 	}
 }
+
+// ---------- view querying (duck-specific code path) ----------
 
 func TestQueryTableView(t *testing.T) {
 	requireDuck(t)
@@ -241,44 +187,10 @@ func TestQueryTableView(t *testing.T) {
 	}
 }
 
-func TestReadOnlyQuery(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	cols, rows, err := s.ReadOnlyQuery("SELECT name FROM people WHERE score > 3")
-	if err != nil {
-		t.Fatalf("ReadOnlyQuery: %v", err)
-	}
-	if !reflect.DeepEqual(cols, []string{"name"}) {
-		t.Errorf("cols = %v", cols)
-	}
-	if len(rows) != 1 || rows[0][0] != "alice" {
-		t.Errorf("rows = %v; want [[alice]]", rows)
-	}
-}
-
-func TestReadOnlyQueryRejectsWrites(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	if _, _, err := s.ReadOnlyQuery("DELETE FROM people"); err == nil {
-		t.Error("expected ReadOnlyQuery to reject DELETE")
-	}
-}
-
-// User queries that already terminate in LIMIT or ORDER BY must not be
-// corrupted by the row-cap LIMIT we append. Naive `query + " LIMIT 200"`
-// concatenation produces `SELECT … LIMIT 1 LIMIT 200`, which duckdb
-// rejects as a parse error — masquerading as a "query failed" message
-// the user can't act on.
+// TestReadOnlyQueryWithUserLimit guards against the row-cap LIMIT being
+// naively concatenated onto a user query that already terminates in LIMIT
+// or ORDER BY — naive `query + " LIMIT 200"` produces `SELECT … LIMIT 1
+// LIMIT 200`, which duckdb rejects as a parse error.
 func TestReadOnlyQueryWithUserLimit(t *testing.T) {
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
@@ -295,6 +207,8 @@ func TestReadOnlyQueryWithUserLimit(t *testing.T) {
 		t.Errorf("got %d rows, want 1 (user LIMIT 1 should be honored)", len(rows))
 	}
 }
+
+// ---------- rename: duck-specific rowEditable cache invalidation ----------
 
 func TestRenameTable(t *testing.T) {
 	requireDuck(t)
@@ -336,75 +250,11 @@ func TestRenameTable(t *testing.T) {
 	}
 }
 
-func TestRenameTableRejectsUnsafeNames(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
+// ---------- mutations: duck-specific quoting + transitions ----------
 
-	if err := s.RenameTable("people", `evil"; DROP TABLE people; --`); err == nil {
-		t.Error("expected unsafe new name to be rejected")
-	}
-	if err := s.RenameTable(`evil"; DROP TABLE people; --`, "x"); err == nil {
-		t.Error("expected unsafe old name to be rejected")
-	}
-}
-
-func TestDropTable(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	if err := s.DropTable("extras"); err != nil {
-		t.Fatalf("DropTable: %v", err)
-	}
-	names, err := s.TableNames()
-	if err != nil {
-		t.Fatalf("TableNames: %v", err)
-	}
-	if slices.Contains(names, "extras") {
-		t.Errorf("extras still present after drop: %v", names)
-	}
-}
-
-func TestCreateEmptyTable(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	if err := s.CreateEmptyTable("new_table"); err != nil {
-		t.Fatalf("CreateEmptyTable: %v", err)
-	}
-	names, err := s.TableNames()
-	if err != nil {
-		t.Fatalf("TableNames: %v", err)
-	}
-	if !slices.Contains(names, "new_table") {
-		t.Errorf("new_table missing after create: %v", names)
-	}
-	// Has a PK → should be row-editable.
-	if !s.IsRowEditable("new_table") {
-		t.Error("new_table should be row-editable (id INTEGER PRIMARY KEY)")
-	}
-	// Schema columns match the SQLite default.
-	cols, err := s.TableColumns("new_table")
-	if err != nil {
-		t.Fatalf("TableColumns: %v", err)
-	}
-	gotNames := lo.Map(cols, func(c store.PragmaColumn, _ int) string { return c.Name })
-	if !reflect.DeepEqual(gotNames, []string{"id", "name", "value"}) {
-		t.Errorf("columns = %v; want [id name value]", gotNames)
-	}
-}
-
+// TestUpdateCell exercises duck's PK-cache resolution and the NULL→value
+// transition (carol's NULL score → 9.9) that the contract test doesn't
+// cover.
 func TestUpdateCell(t *testing.T) {
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
@@ -418,10 +268,6 @@ func TestUpdateCell(t *testing.T) {
 		t.Fatalf("QueryTable: %v", err)
 	}
 
-	// Alice → "ALICE".
-	if err := s.UpdateCell("people", "name", 1, nil, ptr("ALICE")); err != nil {
-		t.Fatalf("UpdateCell name: %v", err)
-	}
 	// Carol's score (currently NULL) → 9.9.
 	if err := s.UpdateCell("people", "score", 3, nil, ptr("9.9")); err != nil {
 		t.Fatalf("UpdateCell score: %v", err)
@@ -431,13 +277,9 @@ func TestUpdateCell(t *testing.T) {
 		t.Fatalf("UpdateCell null: %v", err)
 	}
 
-	// Verify by re-querying.
 	_, rows, nulls, _, err := s.QueryTable("people")
 	if err != nil {
 		t.Fatalf("re-query: %v", err)
-	}
-	if rows[0][1] != "ALICE" {
-		t.Errorf("alice name = %q; want ALICE", rows[0][1])
 	}
 	if rows[2][2] != "9.9" {
 		t.Errorf("carol score = %q; want 9.9", rows[2][2])
@@ -471,51 +313,8 @@ func TestUpdateCellEscapesSingleQuote(t *testing.T) {
 	}
 }
 
-func TestDeleteRows(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	if _, _, _, _, err := s.QueryTable("people"); err != nil {
-		t.Fatalf("QueryTable: %v", err)
-	}
-	// Delete alice (rowID 1) and bob (rowID 2); leave carol.
-	n, err := s.DeleteRows("people", []store.RowIdentifier{{RowID: 1}, {RowID: 2}})
-	if err != nil {
-		t.Fatalf("DeleteRows: %v", err)
-	}
-	if n != 2 {
-		t.Errorf("deleted = %d; want 2", n)
-	}
-	_, rows, _, _, err := s.QueryTable("people")
-	if err != nil {
-		t.Fatalf("re-query: %v", err)
-	}
-	if len(rows) != 1 || rows[0][1] != "carol" {
-		t.Errorf("remaining rows = %v; want [[3 carol …]]", rows)
-	}
-}
-
-func TestDeleteRowsEmpty(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	n, err := s.DeleteRows("people", nil)
-	if err != nil {
-		t.Fatalf("DeleteRows(nil): %v", err)
-	}
-	if n != 0 {
-		t.Errorf("deleted = %d; want 0", n)
-	}
-}
-
+// TestInsertRows asserts duck-specific quote round-tripping and the
+// empty-string→NULL semantics during multi-row INSERT.
 func TestInsertRows(t *testing.T) {
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
@@ -632,18 +431,7 @@ func TestUpdateCellRejectsNoPKTable(t *testing.T) {
 	}
 }
 
-func TestUnsafeTableNameRejected(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	if _, err := s.TableColumns(`evil"; DROP TABLE people; --`); err == nil {
-		t.Error("expected unsafe table name to be rejected")
-	}
-}
+// ---------- export / import (duck-specific behaviours) ----------
 
 func TestExportCSV(t *testing.T) {
 	requireDuck(t)
@@ -663,49 +451,6 @@ func TestExportCSV(t *testing.T) {
 	}
 	if len(b) == 0 || string(b[:3]) != "id," {
 		t.Errorf("export contents = %q; want CSV with header", string(b))
-	}
-}
-
-// ptr is a one-line generic pointer helper used by the table-driven
-// mutation tests above.
-func ptr[T any](v T) *T { return &v }
-
-// writeTempFile writes contents to a fresh file under t.TempDir() with
-// the given extension and returns the absolute path.
-func writeTempFile(t *testing.T, ext, contents string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "data"+ext)
-	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-	return path
-}
-
-func TestImportCSV(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	csv := writeTempFile(t, ".csv", "k,v\nx,1\ny,2\nz,3\n")
-	if err := s.ImportCSV(csv, "imported"); err != nil {
-		t.Fatalf("ImportCSV: %v", err)
-	}
-	n, err := s.TableRowCount("imported")
-	if err != nil {
-		t.Fatalf("TableRowCount: %v", err)
-	}
-	if n != 3 {
-		t.Errorf("rowcount = %d; want 3", n)
-	}
-	cols, err := s.TableColumns("imported")
-	if err != nil {
-		t.Fatalf("TableColumns: %v", err)
-	}
-	if len(cols) != 2 || cols[0].Name != "k" || cols[1].Name != "v" {
-		t.Errorf("cols = %+v; want [k v]", cols)
 	}
 }
 
@@ -735,28 +480,10 @@ func TestImportCSVQuotedPath(t *testing.T) {
 	}
 }
 
-func TestAppendCSV(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	csv := writeTempFile(t, ".csv", "k,v\nc,3\nd,4\n")
-	if err := s.AppendCSV(csv, "extras"); err != nil {
-		t.Fatalf("AppendCSV: %v", err)
-	}
-	n, err := s.TableRowCount("extras")
-	if err != nil {
-		t.Fatalf("TableRowCount: %v", err)
-	}
-	if n != 4 {
-		t.Errorf("rowcount = %d; want 4 (2 original + 2 appended)", n)
-	}
-}
-
-func TestImportFile(t *testing.T) {
+// TestImportFileDuckFormats covers the import formats that the duck
+// backend supports beyond the contract suite's csv/json/jsonl (TSV and
+// NDJSON, both routed via `read_csv_auto` / `read_json_auto`).
+func TestImportFileDuckFormats(t *testing.T) {
 	requireDuck(t)
 	cases := []struct {
 		name     string
@@ -766,31 +493,10 @@ func TestImportFile(t *testing.T) {
 		wantRows int
 	}{
 		{
-			name:     "csv",
-			ext:      ".csv",
-			contents: "k,v\na,1\nb,2\n",
-			table:    "from_csv",
-			wantRows: 2,
-		},
-		{
 			name:     "tsv",
 			ext:      ".tsv",
 			contents: "k\tv\na\t1\nb\t2\nc\t3\n",
 			table:    "from_tsv",
-			wantRows: 3,
-		},
-		{
-			name:     "json",
-			ext:      ".json",
-			contents: `[{"k":"a","v":1},{"k":"b","v":2}]`,
-			table:    "from_json",
-			wantRows: 2,
-		},
-		{
-			name:     "jsonl",
-			ext:      ".jsonl",
-			contents: "{\"k\":\"a\",\"v\":1}\n{\"k\":\"b\",\"v\":2}\n{\"k\":\"c\",\"v\":3}\n",
-			table:    "from_jsonl",
 			wantRows: 3,
 		},
 		{
@@ -824,33 +530,19 @@ func TestImportFile(t *testing.T) {
 	}
 }
 
-func TestImportFileUnsupportedExtension(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
+// ptr is a one-line generic pointer helper used by the table-driven
+// mutation tests above.
+func ptr[T any](v T) *T { return &v }
 
-	path := writeTempFile(t, ".xyz", "anything")
-	err = s.ImportFile(path, "boom")
-	if !errors.Is(err, store.ErrImportNotSupported) {
-		t.Errorf("err = %v; want store.ErrImportNotSupported", err)
+// writeTempFile writes contents to a fresh file under t.TempDir() with
+// the given extension and returns the absolute path.
+func writeTempFile(t *testing.T, ext, contents string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "data"+ext)
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
-}
-
-func TestAppendCSVMissingTable(t *testing.T) {
-	requireDuck(t)
-	s, err := duck.Open(makeFixture(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	csv := writeTempFile(t, ".csv", "k,v\nc,3\n")
-	if err := s.AppendCSV(csv, "no_such_table"); err == nil {
-		t.Error("expected AppendCSV to error when target table is missing")
-	}
+	return path
 }
 
 // makeHeavyFixture writes a .duckdb file exercising the heavy-type

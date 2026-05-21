@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -75,7 +76,7 @@ func TestDeleteTags_Batching50(t *testing.T) {
 	// 120 tags → 3 batches (50, 50, 20).
 	tags := make([]string, 120)
 	for i := range tags {
-		tags[i] = "t" + itoaIdx(i%10) // content doesn't matter, just distinct-ish
+		tags[i] = "t" + strconv.Itoa(i%10) // content doesn't matter, just distinct-ish
 	}
 	if err := c.DeleteTagsFromLibrary(context.Background(), tags); err != nil {
 		t.Fatal(err)

@@ -11,6 +11,7 @@ import (
 	"github.com/adrg/xdg"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/cli/internal/tuitest"
 )
 
 // hermeticTransferLog points xdg.StateHome at a fresh temp dir so the
@@ -38,38 +39,14 @@ func startTeatest(t *testing.T, b Backend) *teatest.TestModel {
 	return tm
 }
 
-func sendKey(tm *teatest.TestModel, text string) {
-	runes := []rune(text)
-	if len(runes) == 1 {
-		tm.Send(tea.KeyPressMsg{Code: runes[0], Text: text})
-		return
-	}
-	tm.Send(tea.KeyPressMsg{Text: text})
-}
-
-func sendSpecial(tm *teatest.TestModel, code rune) {
-	tm.Send(tea.KeyPressMsg{Code: code})
-}
-
-// finalModel sends ctrl+c and returns the final *Model. Reads from the
-// returned model are race-free: FinalModel blocks until the program exits
-// and its Update goroutine has drained.
+// Thin aliases for the shared tuitest helpers.
+func sendKey(tm *teatest.TestModel, text string)   { tuitest.SendKey(tm, text) }
+func sendSpecial(tm *teatest.TestModel, code rune) { tuitest.SendSpecial(tm, code) }
 func finalModel(t *testing.T, tm *teatest.TestModel) *Model {
-	t.Helper()
-	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	final := tm.FinalModel(t, teatest.WithFinalTimeout(testFinal))
-	return final.(*Model)
+	return tuitest.Final[*Model](t, tm, testFinal)
 }
-
-// waitOutput blocks until output contains substr. The renderer drains the
-// output buffer as it goes, so a single substring may only be matched once
-// per test — re-entering the same view (e.g. ascending back to root) needs
-// a FinalModel assertion instead.
 func waitOutput(t *testing.T, tm *teatest.TestModel, substr string) {
-	t.Helper()
-	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
-		return bytes.Contains(out, []byte(substr))
-	}, teatest.WithDuration(testWait), teatest.WithCheckInterval(time.Millisecond))
+	tuitest.WaitFor(t, tm, substr, testWait)
 }
 
 func TestTeatest_BrowseLoadsRoot(t *testing.T) {

@@ -3,6 +3,7 @@ package lab
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/adrg/xdg"
@@ -45,7 +46,7 @@ func TestTransferLog_StartAppendsEntry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	if want := `"remote":"/labs/sciminds/a"`; !contains(string(data), want) {
+	if want := `"remote":"/labs/sciminds/a"`; !strings.Contains(string(data), want) {
 		t.Errorf("expected log to contain %q; got:\n%s", want, data)
 	}
 }
@@ -223,13 +224,4 @@ func mustTouch(t *testing.T, p string) {
 	if err := os.WriteFile(p, []byte{}, 0o600); err != nil {
 		t.Fatalf("touch %s: %v", p, err)
 	}
-}
-
-func contains(haystack, needle string) bool {
-	for i := 0; i+len(needle) <= len(haystack); i++ {
-		if haystack[i:i+len(needle)] == needle {
-			return true
-		}
-	}
-	return false
 }

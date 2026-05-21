@@ -25,6 +25,30 @@ func writeStubPDF(t *testing.T, path string, body string) {
 	}
 }
 
+// mkBatchItem builds a fully-populated BatchItem whose PlanRequest mirrors
+// the BatchRequest fields. The Plan is non-nil with the given Action; the
+// outcome Err is left zero (set it separately for error-path tests).
+func mkBatchItem(parentKey, pdfKey, pdfName, pdfPath, hash string, action Action) BatchItem {
+	return BatchItem{
+		Request: BatchRequest{
+			ParentKey: parentKey,
+			PDFKey:    pdfKey,
+			PDFName:   pdfName,
+			PDFPath:   pdfPath,
+		},
+		Hash: hash,
+		Plan: &Plan{
+			Request: PlanRequest{
+				ParentKey: parentKey,
+				PDFKey:    pdfKey,
+				PDFName:   pdfName,
+				PDFHash:   hash,
+			},
+			Action: action,
+		},
+	}
+}
+
 // TestPlanBatch_MixedOutcomes: the batch contains one Create, one
 // Skip (existing docling note), and one planning failure (bad PDF path).
 func TestPlanBatch_MixedOutcomes(t *testing.T) {
@@ -102,22 +126,8 @@ func TestExecuteBatch_HappyPath(t *testing.T) {
 	}
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
-		{
-			Request: BatchRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFPath: pdfB},
-			Hash:    "hb",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFHash: "hb"},
-				Action:  ActionSkip,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
+		mkBatchItem("PB", "PDFB", "b.pdf", pdfB, "hb", ActionSkip),
 	}
 
 	ex := &fakeExtractor{md: "# Body\n", version: "docling 2.86.0"}
@@ -163,14 +173,7 @@ func TestExecuteBatch_PerItemErrorsContinue(t *testing.T) {
 
 	items := []BatchItem{
 		{Request: BatchRequest{ParentKey: "BAD"}, Err: errors.New("bad hash")},
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
 	}
 
 	res, err := ExecuteBatch(context.Background(), BatchInput{
@@ -206,24 +209,14 @@ func TestExecuteBatch_ExtractorFailureMarksAllPending(t *testing.T) {
 	for i := 0; i < N; i++ {
 		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
 		writeStubPDF(t, p, fmt.Sprintf("b%d", i))
-		items[i] = BatchItem{
-			Request: BatchRequest{
-				ParentKey: fmt.Sprintf("P%d", i),
-				PDFKey:    fmt.Sprintf("PDF%d", i),
-				PDFName:   fmt.Sprintf("p%d.pdf", i),
-				PDFPath:   p,
-			},
-			Hash: fmt.Sprintf("h%d", i),
-			Plan: &Plan{
-				Request: PlanRequest{
-					ParentKey: fmt.Sprintf("P%d", i),
-					PDFKey:    fmt.Sprintf("PDF%d", i),
-					PDFName:   fmt.Sprintf("p%d.pdf", i),
-					PDFHash:   fmt.Sprintf("h%d", i),
-				},
-				Action: ActionCreate,
-			},
-		}
+		items[i] = mkBatchItem(
+			fmt.Sprintf("P%d", i),
+			fmt.Sprintf("PDF%d", i),
+			fmt.Sprintf("p%d.pdf", i),
+			p,
+			fmt.Sprintf("h%d", i),
+			ActionCreate,
+		)
 	}
 
 	res, err := ExecuteBatch(context.Background(), BatchInput{
@@ -250,14 +243,7 @@ func TestExecuteBatch_FiresCallbacks(t *testing.T) {
 	pdf := filepath.Join(dir, "p.pdf")
 	writeStubPDF(t, pdf, "p")
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFPath: pdf},
-			Hash:    "h",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "P", PDFKey: "PDF1", PDFName: "p.pdf", PDFHash: "h"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("P", "PDF1", "p.pdf", pdf, "h", ActionCreate),
 	}
 
 	var dones atomic.Int32
@@ -294,14 +280,7 @@ func TestExecuteBatch_CacheHitSkipsExtractor(t *testing.T) {
 	writeStubPDF(t, pdfA, "a")
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
 	}
 
 	ex := &fakeExtractor{md: "unused", version: "docling 2.86.0"}
@@ -345,14 +324,7 @@ func TestExecuteBatch_CachePreservedOnWriterError(t *testing.T) {
 	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
 	}
 
 	res, err := ExecuteBatch(context.Background(), BatchInput{
@@ -383,14 +355,7 @@ func TestExecuteBatch_OnProgressFires(t *testing.T) {
 	writeStubPDF(t, pdfA, "a")
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
 	}
 
 	var progressCalls atomic.Int32
@@ -423,24 +388,14 @@ func TestExecuteBatch_ParallelJobs(t *testing.T) {
 	for i := 0; i < N; i++ {
 		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
 		writeStubPDF(t, p, fmt.Sprintf("body%d", i))
-		items[i] = BatchItem{
-			Request: BatchRequest{
-				ParentKey: fmt.Sprintf("P%d", i),
-				PDFKey:    fmt.Sprintf("PDF%d", i),
-				PDFName:   fmt.Sprintf("p%d.pdf", i),
-				PDFPath:   p,
-			},
-			Hash: fmt.Sprintf("h%d", i),
-			Plan: &Plan{
-				Request: PlanRequest{
-					ParentKey: fmt.Sprintf("P%d", i),
-					PDFKey:    fmt.Sprintf("PDF%d", i),
-					PDFName:   fmt.Sprintf("p%d.pdf", i),
-					PDFHash:   fmt.Sprintf("h%d", i),
-				},
-				Action: ActionCreate,
-			},
-		}
+		items[i] = mkBatchItem(
+			fmt.Sprintf("P%d", i),
+			fmt.Sprintf("PDF%d", i),
+			fmt.Sprintf("p%d.pdf", i),
+			p,
+			fmt.Sprintf("h%d", i),
+			ActionCreate,
+		)
 	}
 
 	ex := &fakeExtractor{md: "# chunk\n", version: "docling 2.86.0"}
@@ -479,24 +434,14 @@ func TestExecuteBatch_SingleJobDefault(t *testing.T) {
 	for i := 0; i < N; i++ {
 		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
 		writeStubPDF(t, p, fmt.Sprintf("body%d", i))
-		items[i] = BatchItem{
-			Request: BatchRequest{
-				ParentKey: fmt.Sprintf("P%d", i),
-				PDFKey:    fmt.Sprintf("PDF%d", i),
-				PDFName:   fmt.Sprintf("p%d.pdf", i),
-				PDFPath:   p,
-			},
-			Hash: fmt.Sprintf("h%d", i),
-			Plan: &Plan{
-				Request: PlanRequest{
-					ParentKey: fmt.Sprintf("P%d", i),
-					PDFKey:    fmt.Sprintf("PDF%d", i),
-					PDFName:   fmt.Sprintf("p%d.pdf", i),
-					PDFHash:   fmt.Sprintf("h%d", i),
-				},
-				Action: ActionCreate,
-			},
-		}
+		items[i] = mkBatchItem(
+			fmt.Sprintf("P%d", i),
+			fmt.Sprintf("PDF%d", i),
+			fmt.Sprintf("p%d.pdf", i),
+			p,
+			fmt.Sprintf("h%d", i),
+			ActionCreate,
+		)
 	}
 
 	ex := &fakeExtractor{md: "# all\n", version: "docling 2.86.0"}
@@ -596,22 +541,8 @@ func TestExecuteBatch_CachesAfterExtraction(t *testing.T) {
 	writeStubPDF(t, pdfB, "bbb")
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
-		{
-			Request: BatchRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFPath: pdfB},
-			Hash:    "hb",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFHash: "hb"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
+		mkBatchItem("PB", "PDFB", "b.pdf", pdfB, "hb", ActionCreate),
 	}
 
 	ex := &fakeExtractor{md: "# body\n", version: "docling 2.86.0"}
@@ -688,22 +619,8 @@ func TestExecuteBatch_PhaseOrder(t *testing.T) {
 	writeStubPDF(t, pdfB, "b")
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
-		{
-			Request: BatchRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFPath: pdfB},
-			Hash:    "hb",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PB", PDFKey: "PDFB", PDFName: "b.pdf", PDFHash: "hb"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
+		mkBatchItem("PB", "PDFB", "b.pdf", pdfB, "hb", ActionCreate),
 	}
 
 	type phaseEvent struct {
@@ -780,14 +697,7 @@ func TestExecuteBatch_CachedOnlySkipsExtract(t *testing.T) {
 	}
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
 	}
 
 	type phaseEvent struct {
@@ -837,14 +747,7 @@ func TestExecuteBatch_FreshOnlySkipsPostCached(t *testing.T) {
 	writeStubPDF(t, pdfA, "a")
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
 	}
 
 	type phaseEvent struct {
@@ -890,14 +793,7 @@ func TestExecuteBatch_TagsParentAfterFreshPost(t *testing.T) {
 	writeStubPDF(t, pdfA, "a")
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
 	}
 
 	w := &fakeNoteWriter{}
@@ -934,14 +830,7 @@ func TestExecuteBatch_TagsParentAfterCachedPost(t *testing.T) {
 	writeStubPDF(t, pdfA, "a")
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
 	}
 
 	w := &fakeNoteWriter{}
@@ -972,14 +861,7 @@ func TestExecuteBatch_TagFailureDoesNotFailPost(t *testing.T) {
 	writeStubPDF(t, pdfA, "a")
 
 	items := []BatchItem{
-		{
-			Request: BatchRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFPath: pdfA},
-			Hash:    "ha",
-			Plan: &Plan{
-				Request: PlanRequest{ParentKey: "PA", PDFKey: "PDFA", PDFName: "a.pdf", PDFHash: "ha"},
-				Action:  ActionCreate,
-			},
-		},
+		mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate),
 	}
 
 	w := &fakeNoteWriter{tagErr: errors.New("412 conflict")}

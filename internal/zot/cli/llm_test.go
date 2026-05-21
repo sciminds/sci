@@ -74,87 +74,9 @@ func TestIsHTMLNote(t *testing.T) {
 	}
 }
 
-func TestRunMQ(t *testing.T) {
-	t.Parallel()
-	if os.Getenv("MQ") == "" {
-		t.Skip("MQ=1 not set — skipping mq integration test")
-	}
-	mqBin, err := exec.LookPath("mq")
-	if err != nil {
-		t.Fatalf("mq not found: %v", err)
-	}
-
-	dir := t.TempDir()
-	mdFile := filepath.Join(dir, "test.md")
-	content := "# Introduction\n\nHello world.\n\n## Methods\n\nWe used transformers.\n"
-	if err := os.WriteFile(mdFile, []byte(content), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	// Test: extract all headings.
-	out, err := runMQ(context.Background(), mqBin, []string{".h"}, mdFile)
-	if err != nil {
-		t.Fatalf("runMQ .h: %v", err)
-	}
-	if !strings.Contains(out, "# Introduction") {
-		t.Errorf("missing h1 in output: %s", out)
-	}
-	if !strings.Contains(out, "## Methods") {
-		t.Errorf("missing h2 in output: %s", out)
-	}
-}
-
-func TestRunMQ_JSONOutput(t *testing.T) {
-	t.Parallel()
-	if os.Getenv("MQ") == "" {
-		t.Skip("MQ=1 not set — skipping mq integration test")
-	}
-	mqBin, err := exec.LookPath("mq")
-	if err != nil {
-		t.Fatalf("mq not found: %v", err)
-	}
-
-	dir := t.TempDir()
-	mdFile := filepath.Join(dir, "test.md")
-	content := "# Title\n\nParagraph.\n"
-	if err := os.WriteFile(mdFile, []byte(content), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	out, err := runMQ(context.Background(), mqBin, []string{"-F", "json", ".h"}, mdFile)
-	if err != nil {
-		t.Fatalf("runMQ -F json: %v", err)
-	}
-	if !strings.Contains(out, `"type"`) {
-		t.Errorf("expected JSON output, got: %s", out)
-	}
-}
-
-func TestRunMQ_SectionModule(t *testing.T) {
-	t.Parallel()
-	if os.Getenv("MQ") == "" {
-		t.Skip("MQ=1 not set — skipping mq integration test")
-	}
-	mqBin, err := exec.LookPath("mq")
-	if err != nil {
-		t.Fatalf("mq not found: %v", err)
-	}
-
-	dir := t.TempDir()
-	mdFile := filepath.Join(dir, "test.md")
-	content := "# Intro\n\nContent.\n\n## Methods\n\nWe used transformers.\n\n## Results\n\n95% accuracy.\n"
-	if err := os.WriteFile(mdFile, []byte(content), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	out, err := runMQ(context.Background(), mqBin, []string{"-m", "section", `section::section("Methods")`}, mdFile)
-	if err != nil {
-		t.Fatalf("runMQ section: %v", err)
-	}
-	if !strings.Contains(out, "Methods") {
-		t.Errorf("expected Methods section in output: %s", out)
-	}
-}
+// Basic runMQ invocation (single-pattern, JSON output, section module)
+// is exercised by [TestMQPatternsInHelpWork] below — it runs every
+// advertised selector against a fixture and verifies the selectors engage.
 
 func TestLLMQueryRequiresFilter(t *testing.T) {
 	t.Parallel()

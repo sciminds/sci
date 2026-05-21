@@ -64,5 +64,3 @@ const (
 type statusMsg = tabstate.StatusMsg
 type visualState = tabstate.VisualState
 type statusHint = tabstate.StatusHint
-
-const nullPinKey = tabstate.NullPinKey

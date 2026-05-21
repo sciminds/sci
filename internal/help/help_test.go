@@ -1,7 +1,6 @@
 package help
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/sciminds/cli/internal/tuitest"
 	"github.com/urfave/cli/v3"
 )
 
@@ -19,6 +19,16 @@ const (
 	testWait  = 2 * time.Second
 	testFinal = 3 * time.Second
 )
+
+// Thin aliases for the shared tuitest helpers.
+func tSendKey(tm *teatest.TestModel, key string)    { tuitest.SendKey(tm, key) }
+func tSendSpecial(tm *teatest.TestModel, code rune) { tuitest.SendSpecial(tm, code) }
+func tWaitFor(t *testing.T, tm *teatest.TestModel, substr string) {
+	tuitest.WaitFor(t, tm, substr, testWait)
+}
+func tFinalModel(t *testing.T, tm *teatest.TestModel) *model {
+	return tuitest.Final[*model](t, tm, testFinal)
+}
 
 // ── Test fixtures ──────────────────────────────────────────────────────────
 
@@ -54,27 +64,6 @@ func startHelpTeatest(t *testing.T) *teatest.TestModel {
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
 	tWaitFor(t, tm, "alpha")
 	return tm
-}
-
-func tSendKey(tm *teatest.TestModel, key string) {
-	tm.Type(key)
-}
-
-func tSendSpecial(tm *teatest.TestModel, code rune) {
-	tm.Send(tea.KeyPressMsg{Code: code})
-}
-
-func tWaitFor(t *testing.T, tm *teatest.TestModel, substr string) {
-	t.Helper()
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte(substr))
-	}, teatest.WithDuration(testWait))
-}
-
-func tFinalModel(t *testing.T, tm *teatest.TestModel) *model {
-	t.Helper()
-	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	return tm.FinalModel(t, teatest.WithFinalTimeout(testFinal)).(*model)
 }
 
 // testRoot returns a cli.Command tree that mirrors the real app structure:

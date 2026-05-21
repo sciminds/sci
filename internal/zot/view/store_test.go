@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -118,7 +119,7 @@ func TestStoreEditorsExcludedFromAuthors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := rows[0][0]; got == "" || contains(got, "Editor") {
+	if got := rows[0][0]; got == "" || strings.Contains(got, "Editor") {
 		t.Errorf("row 0 authors = %q, editor must be excluded", got)
 	}
 }
@@ -367,10 +368,10 @@ func TestStoreNoteContent(t *testing.T) {
 	if md == "" {
 		t.Fatal("NoteContent(10) = empty, want extracted markdown")
 	}
-	if !contains(md, "# Heading") {
+	if !strings.Contains(md, "# Heading") {
 		t.Errorf("NoteContent(10) should contain markdown heading, got %q", md)
 	}
-	if contains(md, "zotero-note") {
+	if strings.Contains(md, "zotero-note") {
 		t.Error("NoteContent should strip the Zotero wrapper div")
 	}
 
@@ -580,13 +581,4 @@ func sliceEqual[T comparable](a, b []T) bool {
 		}
 	}
 	return true
-}
-
-func contains(haystack, needle string) bool {
-	for i := 0; i+len(needle) <= len(haystack); i++ {
-		if haystack[i:i+len(needle)] == needle {
-			return true
-		}
-	}
-	return false
 }

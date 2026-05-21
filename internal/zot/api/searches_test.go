@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -78,13 +79,13 @@ func (h *searchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if d.Key != nil && *d.Key != "" {
 				existing, ok := h.searches[*d.Key]
 				if !ok {
-					result["failed"].(map[string]any)[itoaIdx(idx)] = map[string]any{"code": 404, "message": "not found"}
+					result["failed"].(map[string]any)[strconv.Itoa(idx)] = map[string]any{"code": 404, "message": "not found"}
 					continue
 				}
 				if h.post412Once {
 					h.post412Once = false
 					existing.version += 1 // simulate someone else writing in between
-					result["failed"].(map[string]any)[itoaIdx(idx)] = map[string]any{"code": 412, "message": "version conflict"}
+					result["failed"].(map[string]any)[strconv.Itoa(idx)] = map[string]any{"code": 412, "message": "version conflict"}
 					continue
 				}
 				existing.version += 1
@@ -92,7 +93,7 @@ func (h *searchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				existing.data.Conditions = d.Conditions
 				v := existing.version
 				existing.data.Version = &v
-				result["successful"].(map[string]any)[itoaIdx(idx)] = client.Search{
+				result["successful"].(map[string]any)[strconv.Itoa(idx)] = client.Search{
 					Key: *d.Key, Version: existing.version, Data: existing.data,
 				}
 				continue
@@ -103,7 +104,7 @@ func (h *searchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			v := 1
 			d.Version = &v
 			h.searches[key] = &fakeSearch{data: d, version: 1}
-			result["successful"].(map[string]any)[itoaIdx(idx)] = client.Search{
+			result["successful"].(map[string]any)[strconv.Itoa(idx)] = client.Search{
 				Key: key, Version: 1, Data: d,
 			}
 		}

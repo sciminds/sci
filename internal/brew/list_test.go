@@ -4,45 +4,117 @@ import (
 	"testing"
 )
 
-func TestListModel_ViewAtZeroSize(t *testing.T) {
+func TestList_HappyPath(t *testing.T) {
 	t.Parallel()
-	m := newListModel(nil)
-	_ = m.View() // must not panic before WindowSizeMsg
-}
+	bf := brewfile(t, "brew \"htop\"\nbrew \"curl\"\n")
 
-func TestListModel_ViewWithItems(t *testing.T) {
-	t.Parallel()
-	packages := []PackageInfo{
-		{Name: "ripgrep", Desc: "fast grep", Version: "14.1", Type: "formula"},
-		{Name: "firefox", Desc: "web browser", Type: "cask"},
+	result, err := List(bf, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	m := newListModel(packages)
-	v := m.View()
-	if v.Content == "" {
-		t.Error("expected non-empty view")
+
+	if len(result.Packages) != 2 {
+		t.Fatalf("expected 2 packages, got %d", len(result.Packages))
+	}
+	if result.Packages[0] != "htop" {
+		t.Errorf("result.Packages[0] = %q, want %q", result.Packages[0], "htop")
 	}
 }
 
-func TestMakeListItem_Cask(t *testing.T) {
+func TestList_WithType(t *testing.T) {
 	t.Parallel()
-	item := makeListItem(PackageInfo{Name: "firefox", Type: "cask", Desc: "browser"})
-	if item.Title() != "firefox (cask)" {
-		t.Errorf("title = %q, want %q", item.Title(), "firefox (cask)")
+	bf := brewfile(t, "brew \"htop\"\ncask \"firefox\"\nuv \"marimo\"\n")
+
+	result, err := List(bf, "cask")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Packages) != 1 {
+		t.Fatalf("expected 1 package, got %d", len(result.Packages))
+	}
+	if result.Packages[0] != "firefox" {
+		t.Errorf("result.Packages[0] = %q, want %q", result.Packages[0], "firefox")
 	}
 }
 
-func TestMakeListItem_Formula(t *testing.T) {
+func TestList_FormulaType(t *testing.T) {
 	t.Parallel()
-	item := makeListItem(PackageInfo{Name: "ripgrep", Type: "formula", Desc: "fast grep"})
-	if item.Title() != "ripgrep" {
-		t.Errorf("title = %q, want %q", item.Title(), "ripgrep")
+	bf := brewfile(t, "brew \"htop\"\ncask \"firefox\"\n")
+
+	result, err := List(bf, "formula")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Packages) != 1 {
+		t.Fatalf("expected 1 package, got %d", len(result.Packages))
+	}
+	if result.Packages[0] != "htop" {
+		t.Errorf("result.Packages[0] = %q, want %q", result.Packages[0], "htop")
 	}
 }
 
-func TestMakeListItem_FilterValue(t *testing.T) {
+func TestParseBrewInfo_Formulae(t *testing.T) {
 	t.Parallel()
-	item := makeListItem(PackageInfo{Name: "rg", Desc: "fast grep"})
-	if item.FilterValue() != "rg fast grep" {
-		t.Errorf("filter = %q, want %q", item.FilterValue(), "rg fast grep")
+	jsonData := `{"formulae":[{"name":"htop","desc":"Improved top","versions":{"stable":"3.4.1"}},{"name":"curl","desc":"Get a file from an HTTP server","versions":{"stable":"8.9.1"}}],"casks":[]}`
+	pkgs, err := parseBrewInfo(jsonData, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(pkgs) != 2 {
+		t.Fatalf("expected 2 packages, got %d", len(pkgs))
+	}
+	if pkgs[0].Name != "htop" || pkgs[0].Desc != "Improved top" || pkgs[0].Type != "formula" {
+		t.Errorf("pkgs[0] = %+v", pkgs[0])
+	}
+	if pkgs[0].Version != "3.4.1" {
+		t.Errorf("pkgs[0].Version = %q, want %q", pkgs[0].Version, "3.4.1")
+	}
+}
+
+func TestParseBrewInfo_Casks(t *testing.T) {
+	t.Parallel()
+	jsonData := `{"formulae":[],"casks":[{"token":"firefox","desc":"Web browser","version":"149.0"}]}`
+	pkgs, err := parseBrewInfo(jsonData, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(pkgs) != 1 {
+		t.Fatalf("expected 1 package, got %d", len(pkgs))
+	}
+	if pkgs[0].Name != "firefox" || pkgs[0].Type != "cask" {
+		t.Errorf("pkgs[0] = %+v", pkgs[0])
+	}
+	if pkgs[0].Version != "149.0" {
+		t.Errorf("pkgs[0].Version = %q, want %q", pkgs[0].Version, "149.0")
+	}
+}
+
+func TestListDetailed_HappyPath(t *testing.T) {
+	t.Parallel()
+	bf := brewfile(t, "brew \"htop\"\ncask \"firefox\"\n")
+	m := &mockRunner{
+		infoResult: []PackageInfo{
+			{Name: "htop", Desc: "Improved top", Type: "formula"},
+		},
+		infoCaskResult: []PackageInfo{
+			{Name: "firefox", Desc: "Web browser", Type: "cask"},
+		},
+	}
+
+	result, err := ListDetailed(m, bf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 2 {
+		t.Fatalf("expected 2 packages, got %d", len(result))
+	}
+	// Sorted alphabetically.
+	if result[0].Name != "firefox" {
+		t.Errorf("result[0].Name = %q, want %q", result[0].Name, "firefox")
+	}
+	if result[1].Name != "htop" {
+		t.Errorf("result[1].Name = %q, want %q", result[1].Name, "htop")
 	}
 }

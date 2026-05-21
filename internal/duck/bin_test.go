@@ -6,12 +6,6 @@ import (
 	"testing"
 )
 
-func TestAvailableNoPanic(t *testing.T) {
-	// Just confirm Available() returns a bool without panicking; both
-	// outcomes are valid depending on host setup.
-	_ = Available()
-}
-
 func TestErrNotInstalledMessageMentionsDoctor(t *testing.T) {
 	msg := ErrNotInstalled.Error()
 	if !strings.Contains(msg, "sci doctor") {

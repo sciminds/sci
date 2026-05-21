@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -87,7 +88,7 @@ func (h *collHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			v := 1
 			d.Version = &v
 			h.colls[key] = &fakeColl{data: d, version: 1}
-			result["successful"].(map[string]any)[itoaIdx(idx)] = client.Collection{
+			result["successful"].(map[string]any)[strconv.Itoa(idx)] = client.Collection{
 				Key:     key,
 				Version: 1,
 				Data:    d,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -175,7 +176,7 @@ func (h *noteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if d.ParentItem != nil {
 				h.children[*d.ParentItem] = append(h.children[*d.ParentItem], key)
 			}
-			result["successful"].(map[string]any)[itoaIdx(idx)] = map[string]any{
+			result["successful"].(map[string]any)[strconv.Itoa(idx)] = map[string]any{
 				"key":     key,
 				"version": 1,
 			}

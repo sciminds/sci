@@ -1,17 +1,18 @@
 package learn
 
 import (
-	"bytes"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/sciminds/cli/internal/tuitest"
 )
 
-// ── Integration: open/close/resize split view through the full model ──────
-
-func TestGuideSplitViewResize(t *testing.T) {
-	books := []Book{
+// splitBooks is the fixture used by every test in this file — a single
+// "test" book with one entry that has both a cast and a page so the split
+// view kicks in.
+func splitBooks() []Book {
+	return []Book{
 		{
 			Name:    "test",
 			Heading: "Test Guide",
@@ -28,12 +29,14 @@ func TestGuideSplitViewResize(t *testing.T) {
 			},
 		},
 	}
+}
 
-	m := newModel(books)
+// ── Integration: open/close/resize split view through the full model ──────
+
+func TestGuideSplitViewResize(t *testing.T) {
+	m := newModel(splitBooks())
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("Test Guide"))
-	}, teatest.WithDuration(testWait))
+	tuitest.WaitFor(t, tm, "Test Guide", testWait)
 
 	tSendSpecial(tm, tea.KeyEnter)
 	tWaitForOutput(t, tm, "split test")
@@ -59,29 +62,9 @@ func TestGuideSplitViewResize(t *testing.T) {
 }
 
 func TestGuideOpenSplitView(t *testing.T) {
-	books := []Book{
-		{
-			Name:    "test",
-			Heading: "Test Guide",
-			Desc:    "Test book with split entry",
-			Entries: []Entry{
-				{
-					Name:     "split-test",
-					Cmd:      "split test — dual view",
-					Desc:     "Entry with both cast and page",
-					Category: "Test",
-					CastFile: "ls.cast",
-					PageFile: "python-basics.md",
-				},
-			},
-		},
-	}
-
-	m := newModel(books)
+	m := newModel(splitBooks())
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("Test Guide"))
-	}, teatest.WithDuration(testWait))
+	tuitest.WaitFor(t, tm, "Test Guide", testWait)
 
 	tSendSpecial(tm, tea.KeyEnter)
 	tWaitForOutput(t, tm, "split test")
@@ -104,29 +87,9 @@ func TestGuideOpenSplitView(t *testing.T) {
 }
 
 func TestGuideCloseSplitView(t *testing.T) {
-	books := []Book{
-		{
-			Name:    "test",
-			Heading: "Test Guide",
-			Desc:    "Test book with split entry",
-			Entries: []Entry{
-				{
-					Name:     "split-test",
-					Cmd:      "split test — dual view",
-					Desc:     "Entry with both cast and page",
-					Category: "Test",
-					CastFile: "ls.cast",
-					PageFile: "python-basics.md",
-				},
-			},
-		},
-	}
-
-	m := newModel(books)
+	m := newModel(splitBooks())
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("Test Guide"))
-	}, teatest.WithDuration(testWait))
+	tuitest.WaitFor(t, tm, "Test Guide", testWait)
 
 	tSendSpecial(tm, tea.KeyEnter)
 	tWaitForOutput(t, tm, "split test")

@@ -223,30 +223,8 @@ func TestDownload(t *testing.T) {
 	}
 }
 
-func TestProgressReader(t *testing.T) {
-	data := []byte("hello world")
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write(data)
-	}))
-	defer srv.Close()
-
-	dir := t.TempDir()
-	dest := filepath.Join(dir, "test")
-	f, err := os.Create(dest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var calls int
-	err = Download(srv.URL, f, func(_ int64) { calls++ })
-	_ = f.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if calls == 0 {
-		t.Error("progressFn was never called")
-	}
-}
+// Progress-callback semantics are exercised by [TestDownload] above
+// (which sets progressFn and asserts lastProgress equals the body length).
 
 func TestDownload_TruncatedResponse(t *testing.T) {
 	// Server advertises 10 000 bytes via Content-Length but only sends 5.

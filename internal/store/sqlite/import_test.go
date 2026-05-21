@@ -10,59 +10,27 @@ import (
 
 // ---------- Type inference ----------
 
-func TestInferType_Integer(t *testing.T) {
-	vals := []string{"1", "42", "-7", "0", "1000000"}
-	got := inferColumnType(vals)
-	if got != "INTEGER" {
-		t.Errorf("inferColumnType(%v) = %q, want INTEGER", vals, got)
+func TestInferColumnType(t *testing.T) {
+	cases := []struct {
+		name string
+		vals []string
+		want string
+	}{
+		{"Integer", []string{"1", "42", "-7", "0", "1000000"}, "INTEGER"},
+		{"Real", []string{"1.5", "3.14", "-0.001", "42.0"}, "REAL"},
+		{"MixedIntAndReal", []string{"1", "2.5", "3", "4.0"}, "REAL"},
+		{"Text", []string{"hello", "world", "foo"}, "TEXT"},
+		{"EmptyStringsIgnored", []string{"1", "", "3", ""}, "INTEGER"},
+		{"AllEmpty", []string{"", "", ""}, "TEXT"},
+		{"BooleanAsText", []string{"true", "false", "true"}, "TEXT"},
 	}
-}
-
-func TestInferType_Real(t *testing.T) {
-	vals := []string{"1.5", "3.14", "-0.001", "42.0"}
-	got := inferColumnType(vals)
-	if got != "REAL" {
-		t.Errorf("inferColumnType(%v) = %q, want REAL", vals, got)
-	}
-}
-
-func TestInferType_MixedIntAndReal(t *testing.T) {
-	vals := []string{"1", "2.5", "3", "4.0"}
-	got := inferColumnType(vals)
-	if got != "REAL" {
-		t.Errorf("inferColumnType(%v) = %q, want REAL", vals, got)
-	}
-}
-
-func TestInferType_Text(t *testing.T) {
-	vals := []string{"hello", "world", "foo"}
-	got := inferColumnType(vals)
-	if got != "TEXT" {
-		t.Errorf("inferColumnType(%v) = %q, want TEXT", vals, got)
-	}
-}
-
-func TestInferType_EmptyStringsIgnored(t *testing.T) {
-	vals := []string{"1", "", "3", ""}
-	got := inferColumnType(vals)
-	if got != "INTEGER" {
-		t.Errorf("inferColumnType(%v) = %q, want INTEGER", vals, got)
-	}
-}
-
-func TestInferType_AllEmpty(t *testing.T) {
-	vals := []string{"", "", ""}
-	got := inferColumnType(vals)
-	if got != "TEXT" {
-		t.Errorf("inferColumnType(%v) = %q, want TEXT", vals, got)
-	}
-}
-
-func TestInferType_BooleanAsInteger(t *testing.T) {
-	vals := []string{"true", "false", "true"}
-	got := inferColumnType(vals)
-	if got != "TEXT" {
-		t.Errorf("inferColumnType(%v) = %q, want TEXT", vals, got)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := inferColumnType(tc.vals)
+			if got != tc.want {
+				t.Errorf("inferColumnType(%v) = %q, want %q", tc.vals, got, tc.want)
+			}
+		})
 	}
 }
 

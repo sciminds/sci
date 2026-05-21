@@ -7,21 +7,8 @@ import (
 	"github.com/charmbracelet/x/exp/teatest/v2"
 )
 
-// TestTeatestReadOnlyEditBlocked verifies edit mode is blocked on forceRO model.
-func TestTeatestReadOnlyEditBlocked(t *testing.T) {
-	t.Parallel()
-	m := newReadOnlyTeatestModel(t)
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	waitForTable(t, tm)
-
-	sendKey(tm, "i")
-
-	fm := finalModel(t, tm)
-
-	if fm.mode != modeNormal {
-		t.Error("edit mode should be blocked on read-only model")
-	}
-}
+// Read-only edit blocking is covered in teatest_edit_test.go's
+// TestTeatestEditModeBlockedReadOnly.
 
 // TestTeatestEmptyDatabase verifies the TUI handles an empty database.
 func TestTeatestEmptyDatabase(t *testing.T) {

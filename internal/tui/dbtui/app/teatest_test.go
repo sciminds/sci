@@ -247,82 +247,11 @@ func TestTeatestTabSwitch(t *testing.T) {
 	}
 }
 
-// TestTeatestEditMode verifies entering and exiting edit mode.
-func TestTeatestEditMode(t *testing.T) {
-	tm, _ := startTeatest(t)
-
-	// Enter edit mode with 'i'.
-	sendKey(tm, "i")
-
-	// Exit edit mode.
-	sendSpecial(tm, tea.KeyEscape)
-
-	fm := finalModel(t, tm)
-
-	if fm.mode != modeNormal {
-		t.Errorf("mode = %d, want modeNormal (%d)", fm.mode, modeNormal)
-	}
-}
-
-// TestTeatestVisualMode verifies entering visual mode and selecting rows.
-func TestTeatestVisualMode(t *testing.T) {
-	tm, _ := startTeatest(t)
-
-	sendKey(tm, "v")
-	sendKey(tm, "j")
-
-	fm := finalModel(t, tm)
-
-	if fm.mode != modeVisual {
-		t.Errorf("mode = %d, want modeVisual (%d)", fm.mode, modeVisual)
-	}
-	if fm.visual == nil {
-		t.Fatal("visual state is nil in visual mode")
-	}
-}
-
-// TestTeatestSearchOverlay verifies the search overlay opens and closes.
-func TestTeatestSearchOverlay(t *testing.T) {
-	tm, _ := startTeatest(t)
-
-	sendKey(tm, "/")
-	tm.Type("Alice")
-	// First Esc clears the populated query; second Esc closes the bar.
-	sendSpecial(tm, tea.KeyEscape)
-	sendSpecial(tm, tea.KeyEscape)
-
-	fm := finalModel(t, tm)
-
-	if fm.search != nil {
-		t.Error("search overlay should be closed after Esc Esc")
-	}
-}
-
-// TestTeatestTableListOverlay verifies the table list overlay opens with 't'.
-func TestTeatestTableListOverlay(t *testing.T) {
-	tm, _ := startTeatest(t)
-
-	sendKey(tm, "t")
-
-	fm := finalModel(t, tm)
-
-	if fm.tableList == nil {
-		t.Error("table list overlay should be open after pressing 't'")
-	}
-}
-
-// TestTeatestHelpOverlay verifies the help overlay opens with '?'.
-func TestTeatestHelpOverlay(t *testing.T) {
-	tm, _ := startTeatest(t)
-
-	sendKey(tm, "?")
-
-	fm := finalModel(t, tm)
-
-	if !fm.helpVisible {
-		t.Error("help overlay should be visible after pressing '?'")
-	}
-}
+// Mode-entry smokes (edit, visual, search overlay, table list overlay,
+// help overlay) live in their per-feature teatest files —
+// teatest_edit_test.go, teatest_visual_test.go, teatest_search_test.go,
+// teatest_tablelist_test.go, and teatest_edge_test.go. The smokes here
+// would only duplicate them.
 
 // TestTeatestColumnNavigation verifies h/l column navigation.
 func TestTeatestColumnNavigation(t *testing.T) {

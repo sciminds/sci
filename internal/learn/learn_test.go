@@ -1,13 +1,13 @@
 package learn
 
 import (
-	"bytes"
 	"testing"
 	"time"
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/sciminds/cli/internal/tuitest"
 )
 
 const (
@@ -17,15 +17,24 @@ const (
 	testFinal = 8 * time.Second
 )
 
+// Thin aliases for the shared tuitest helpers — keep the original names so
+// the rest of this file reads unchanged.
+func tSendKey(tm *teatest.TestModel, key string)    { tuitest.SendKey(tm, key) }
+func tSendSpecial(tm *teatest.TestModel, code rune) { tuitest.SendSpecial(tm, code) }
+func tWaitForOutput(t *testing.T, tm *teatest.TestModel, s string) {
+	tuitest.WaitFor(t, tm, s, testWait)
+}
+func tFinalModel(t *testing.T, tm *teatest.TestModel) *model {
+	return tuitest.Final[*model](t, tm, testFinal)
+}
+
 // ── Shared helpers ──────────────────────────────────────────────────────────
 
 func startGuideTeatest(t *testing.T) *teatest.TestModel {
 	t.Helper()
 	m := newModel(Books)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("Terminal Guide"))
-	}, teatest.WithDuration(testWait))
+	tuitest.WaitFor(t, tm, "Terminal Guide", testWait)
 	return tm
 }
 
@@ -34,27 +43,6 @@ func enterBook(t *testing.T, tm *teatest.TestModel) {
 	t.Helper()
 	tSendSpecial(tm, tea.KeyEnter)
 	tWaitForOutput(t, tm, "ls")
-}
-
-func tSendKey(tm *teatest.TestModel, key string) {
-	tm.Type(key)
-}
-
-func tSendSpecial(tm *teatest.TestModel, code rune) {
-	tm.Send(tea.KeyPressMsg{Code: code})
-}
-
-func tWaitForOutput(t *testing.T, tm *teatest.TestModel, substr string) {
-	t.Helper()
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte(substr))
-	}, teatest.WithDuration(testWait))
-}
-
-func tFinalModel(t *testing.T, tm *teatest.TestModel) *model {
-	t.Helper()
-	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	return tm.FinalModel(t, teatest.WithFinalTimeout(testFinal)).(*model)
 }
 
 // ── Integration tests ───────────────────────────────────────────────────────

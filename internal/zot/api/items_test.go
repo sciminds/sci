@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -125,11 +126,11 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				key := *d.Key
 				it, ok := h.items[key]
 				if !ok {
-					result["failed"].(map[string]any)[itoaIdx(idx)] = map[string]any{"code": 404, "message": "not found"}
+					result["failed"].(map[string]any)[strconv.Itoa(idx)] = map[string]any{"code": 404, "message": "not found"}
 					continue
 				}
 				if d.Version != nil && *d.Version != it.version {
-					result["failed"].(map[string]any)[itoaIdx(idx)] = map[string]any{"code": 412, "message": "version conflict"}
+					result["failed"].(map[string]any)[strconv.Itoa(idx)] = map[string]any{"code": 412, "message": "version conflict"}
 					continue
 				}
 				if d.Title != nil {
@@ -146,7 +147,7 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 				it.version++
 				// Zotero returns the full wrapped Item JSON under successful.{idx}.
-				result["successful"].(map[string]any)[itoaIdx(idx)] = client.Item{
+				result["successful"].(map[string]any)[strconv.Itoa(idx)] = client.Item{
 					Key:     key,
 					Version: it.version,
 					Data:    it.data,
@@ -158,7 +159,7 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			v := 1
 			d.Version = &v
 			h.items[key] = &fakeItem{data: d, version: 1}
-			result["successful"].(map[string]any)[itoaIdx(idx)] = client.Item{
+			result["successful"].(map[string]any)[strconv.Itoa(idx)] = client.Item{
 				Key:     key,
 				Version: 1,
 				Data:    d,
@@ -187,8 +188,6 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
-
-func itoaIdx(i int) string { return string(rune('0' + i)) }
 
 func TestGetItem_ReturnsFullItem(t *testing.T) {
 	t.Parallel()
