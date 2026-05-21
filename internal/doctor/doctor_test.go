@@ -491,6 +491,9 @@ type mockBrewRunner struct {
 	upgradeErr    error
 	uvUpgCalls    int
 	uvUpgradeErr  error
+
+	caskAppPathsResult map[string][]string
+	caskAppPathsErr    error
 }
 
 func (m *mockBrewRunner) Info(_ []string, _ bool) ([]brew.PackageInfo, error) {
@@ -544,6 +547,9 @@ func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) {
 func (m *mockBrewRunner) UVUpgrade(_ []string) (string, error) {
 	m.uvUpgCalls++
 	return "", m.uvUpgradeErr
+}
+func (m *mockBrewRunner) CaskAppPaths(_ []string) (map[string][]string, error) {
+	return m.caskAppPathsResult, m.caskAppPathsErr
 }
 func TestRunToolChecks_SnapshotError(t *testing.T) {
 	mock := &mockBrewRunner{listFormulaeErr: fmt.Errorf("brew not installed")}

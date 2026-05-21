@@ -51,6 +51,13 @@ type SystemSnapshot struct {
 	Casks    []string // brew list --cask
 	Taps     []string // brew tap
 	UVTools  []string // uv tool list
+
+	// ExternalCasks are cask names whose app artifact exists on disk but
+	// `brew list --cask` doesn't report them — e.g. an app the user dragged
+	// into /Applications, or a .pkg-based cask like Zoom that was installed
+	// via the vendor's official installer. Populated by
+	// [CollectSnapshotForBrewfile]; empty after a plain [CollectSnapshot].
+	ExternalCasks []string
 }
 
 // CollectSnapshot queries all five data sources concurrently and returns the
@@ -79,12 +86,14 @@ func CollectSnapshot(r Runner) (SystemSnapshot, error) {
 
 // IsInstalled reports whether a (type, name) pair is present in the snapshot.
 // Uses the Formulae list (all installed, including deps) for brew entries.
+// For casks, also returns true when the app exists on disk but brew didn't
+// track it (see [SystemSnapshot.ExternalCasks]).
 func (s SystemSnapshot) IsInstalled(typ, name string) bool {
 	switch typ {
 	case "brew":
 		return slices.Contains(s.Formulae, name)
 	case "cask":
-		return slices.Contains(s.Casks, name)
+		return slices.Contains(s.Casks, name) || slices.Contains(s.ExternalCasks, name)
 	case "tap":
 		return slices.Contains(s.Taps, name)
 	case "uv":
@@ -92,6 +101,58 @@ func (s SystemSnapshot) IsInstalled(typ, name string) bool {
 	default:
 		return false
 	}
+}
+
+// CollectSnapshotForBrewfile collects a [SystemSnapshot] and augments it with
+// external-cask detection for casks declared in brewfileContent. Use this in
+// flows that have a Brewfile in hand — Install, Sync, [doctor.RunToolChecks] —
+// so apps the user installed manually (drag-to-Applications, or .pkg-based
+// casks installed via the vendor) don't show up as "missing".
+//
+// Detection failures are non-fatal: if [Runner.CaskAppPaths] errors, the
+// returned snapshot has no ExternalCasks but is otherwise valid.
+func CollectSnapshotForBrewfile(r Runner, brewfileContent string) (SystemSnapshot, error) {
+	snap, err := CollectSnapshot(r)
+	if err != nil {
+		return snap, err
+	}
+	declared := lo.FilterMap(ParseBrewfileEntries(brewfileContent), func(e BrewfileEntry, _ int) (string, bool) {
+		return e.Name, e.Type == "cask"
+	})
+	// Only probe casks brew doesn't already track — saves a `brew info` round-trip.
+	candidates := lo.Filter(declared, func(name string, _ int) bool {
+		return !slices.Contains(snap.Casks, name)
+	})
+	if len(candidates) == 0 {
+		return snap, nil
+	}
+	external, _ := ResolveExternalCasks(r, candidates) // non-fatal
+	snap.ExternalCasks = external
+	return snap, nil
+}
+
+// ResolveExternalCasks queries cask metadata for the given names and returns
+// those whose primary app artifact path exists on disk. Used by
+// [CollectSnapshotForBrewfile]; exposed for callers that already know which
+// candidates to check.
+func ResolveExternalCasks(r Runner, names []string) ([]string, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+	paths, err := r.CaskAppPaths(names)
+	if err != nil {
+		return nil, err
+	}
+	var external []string
+	for _, name := range names {
+		for _, p := range paths[name] {
+			if _, statErr := os.Stat(p); statErr == nil {
+				external = append(external, name)
+				break
+			}
+		}
+	}
+	return external, nil
 }
 
 // Runner abstracts brew commands for testability.
@@ -112,6 +173,13 @@ type Runner interface {
 	UVOutdated() ([]OutdatedPackage, error)
 	UVUpgrade(names []string) (string, error)
 	UVToolList() ([]string, error)
+
+	// CaskAppPaths returns the .app filesystem paths declared by each named
+	// cask's artifact metadata — both the `app` artifact and any
+	// `uninstall.delete` entries that point at /Applications/*.app. Used to
+	// detect casks the user installed manually so doctor doesn't try to
+	// reinstall them. Missing names are simply absent from the result map.
+	CaskAppPaths(names []string) (map[string][]string, error)
 }
 
 // BrewRunner shells out to brew.
@@ -341,19 +409,24 @@ func (BrewRunner) UVOutdated() ([]OutdatedPackage, error) {
 	return parseUVOutdated(string(out)), nil
 }
 
-// UVUpgrade implements Runner.
+// UVUpgrade implements Runner. Continues past per-tool failures and joins
+// errors at the end so one bad tool doesn't block the rest — previously a
+// single uv upgrade failure stranded every later tool as still outdated.
 func (BrewRunner) UVUpgrade(names []string) (string, error) {
-	var out strings.Builder
+	var (
+		out  strings.Builder
+		errs []error
+	)
 	for _, name := range names {
 		cmd := exec.Command("uv", "tool", "upgrade", name)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			return out.String(), fmt.Errorf("uv tool upgrade %s: %w", name, err)
+			errs = append(errs, fmt.Errorf("uv tool upgrade %s: %w", name, err))
 		}
 	}
-	return out.String(), nil
+	return out.String(), errors.Join(errs...)
 }
 
 // UVToolList implements Runner. If uv is not on PATH, returns an empty
@@ -371,6 +444,115 @@ func (BrewRunner) UVToolList() ([]string, error) {
 		return nil, fmt.Errorf("uv tool list: %w", err)
 	}
 	return parseUVToolList(string(out)), nil
+}
+
+// CaskAppPaths implements Runner. Calls `brew info --cask --json=v2` for the
+// given casks and extracts the .app paths brew would install or remove.
+func (BrewRunner) CaskAppPaths(names []string) (map[string][]string, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+	args := slices.Concat([]string{"info", "--json=v2", "--cask"}, names)
+	out, err := runBrewOutputLocal(args...)
+	if err != nil {
+		return nil, err
+	}
+	return parseCaskAppPaths(out)
+}
+
+// caskWithArtifacts captures only the fields we need from brew info v2 for casks.
+type caskWithArtifacts struct {
+	Token     string            `json:"token"`
+	Artifacts []json.RawMessage `json:"artifacts"`
+}
+
+type caskArtifactsJSON struct {
+	Casks []caskWithArtifacts `json:"casks"`
+}
+
+func parseCaskAppPaths(jsonData string) (map[string][]string, error) {
+	var doc caskArtifactsJSON
+	if err := json.Unmarshal([]byte(jsonData), &doc); err != nil {
+		return nil, fmt.Errorf("parse cask info: %w", err)
+	}
+	return lo.SliceToMap(doc.Casks, func(c caskWithArtifacts) (string, []string) {
+		return c.Token, extractCaskAppPaths(c.Artifacts)
+	}), nil
+}
+
+// extractCaskAppPaths walks the heterogeneous artifacts array brew returns
+// and pulls out every /Applications/*.app path. Two sources matter:
+//
+//   - `app` artifacts (e.g. {"app": ["VLC.app"]}) — the install target;
+//     missing for .pkg-based casks like Zoom.
+//   - `uninstall.delete` paths (e.g. ["/Applications/zoom.us.app"]) — what
+//     brew would delete on uninstall. For pkg-based casks this is the only
+//     hint of where the app actually lives.
+//
+// app artifact values can be either a bare string ("VLC.app") or an object
+// with rename rules ({"target": "MyName.app"}); both are handled.
+func extractCaskAppPaths(artifacts []json.RawMessage) []string {
+	var paths []string
+	for _, raw := range artifacts {
+		var obj map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &obj); err != nil {
+			continue
+		}
+		if v, ok := obj["app"]; ok {
+			paths = append(paths, appArtifactPaths(v)...)
+		}
+		if v, ok := obj["uninstall"]; ok {
+			paths = append(paths, uninstallDeletePaths(v)...)
+		}
+	}
+	return paths
+}
+
+func appArtifactPaths(raw json.RawMessage) []string {
+	var arr []json.RawMessage
+	if err := json.Unmarshal(raw, &arr); err != nil {
+		return nil
+	}
+	var paths []string
+	for _, item := range arr {
+		var s string
+		if err := json.Unmarshal(item, &s); err == nil {
+			if strings.HasSuffix(s, ".app") {
+				paths = append(paths, filepath.Join("/Applications", s))
+			}
+			continue
+		}
+		// Object form with a `target` override: {"target": "Foo.app"}.
+		var obj map[string]string
+		if err := json.Unmarshal(item, &obj); err == nil {
+			if target := obj["target"]; strings.HasSuffix(target, ".app") {
+				paths = append(paths, filepath.Join("/Applications", target))
+			}
+		}
+	}
+	return paths
+}
+
+func uninstallDeletePaths(raw json.RawMessage) []string {
+	var arr []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &arr); err != nil {
+		return nil
+	}
+	var paths []string
+	for _, m := range arr {
+		dv, ok := m["delete"]
+		if !ok {
+			continue
+		}
+		var dpaths []string
+		if err := json.Unmarshal(dv, &dpaths); err != nil {
+			continue
+		}
+		paths = append(paths, lo.Filter(dpaths, func(p string, _ int) bool {
+			return strings.HasSuffix(p, ".app")
+		})...)
+	}
+	return paths
 }
 
 // outdatedJSON is the top-level brew outdated --json=v2 response.

@@ -179,8 +179,10 @@ func RunPreflightIdentity() []CheckSection {
 
 // RunToolChecks checks the system for required (embedded) packages by
 // collecting a system snapshot and comparing against the embedded Brewfile.
+// Uses [brew.CollectSnapshotForBrewfile] so casks installed manually (drag
+// into /Applications, vendor .pkg installers) aren't flagged as missing.
 func RunToolChecks(r brew.Runner) ([]ToolInfo, error) {
-	snap, err := brew.CollectSnapshot(r)
+	snap, err := brew.CollectSnapshotForBrewfile(r, Brewfile)
 	if err != nil {
 		return nil, fmt.Errorf("check tools: %w", err)
 	}

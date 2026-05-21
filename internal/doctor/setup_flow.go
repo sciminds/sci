@@ -200,10 +200,14 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool, opts SetupOpts) 
 		return result
 	}
 
+	// Run brew and uv upgrades independently — a brew failure (e.g. one cask
+	// hangs on a sudo prompt) shouldn't keep uv tools stranded as outdated.
+	var upgradeErrs []string
 	if len(brewOutdated) > 0 {
 		if _, err := r.Upgrade(); err != nil {
-			result.UpdateError = err.Error()
-			return result
+			upgradeErrs = append(upgradeErrs, "brew upgrade: "+err.Error())
+		} else {
+			result.Upgraded = append(result.Upgraded, brewOutdated...)
 		}
 	}
 	if len(uvOutdated) > 0 {
@@ -211,12 +215,14 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool, opts SetupOpts) 
 			return pkg.Name
 		})
 		if _, err := r.UVUpgrade(names); err != nil {
-			result.UpdateError = err.Error()
-			return result
+			upgradeErrs = append(upgradeErrs, "uv upgrade: "+err.Error())
+		} else {
+			result.Upgraded = append(result.Upgraded, uvOutdated...)
 		}
 	}
-
-	result.Upgraded = result.Outdated
+	if len(upgradeErrs) > 0 {
+		result.UpdateError = strings.Join(upgradeErrs, "; ")
+	}
 	return result
 }
 

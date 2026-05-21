@@ -294,9 +294,11 @@ func brewfileTypeToPkgType(typ string) string {
 // missingSet collects a system snapshot and returns a set of package names
 // from content that are not installed. On error, returns a set containing
 // ALL package names (assumes everything is missing) so callers don't
-// incorrectly treat tools as installed.
+// incorrectly treat tools as installed. Uses [brew.CollectSnapshotForBrewfile]
+// so casks installed manually (drag into /Applications, vendor .pkg) aren't
+// re-offered.
 func missingSet(r brew.Runner, content string) map[string]bool {
-	snap, err := brew.CollectSnapshot(r)
+	snap, err := brew.CollectSnapshotForBrewfile(r, content)
 	if err != nil {
 		return allNamesSet(content)
 	}

@@ -58,6 +58,10 @@ type mockRunner struct {
 	uvUpgradeErr     error
 	uvToolListResult []string
 	uvToolListErr    error
+
+	caskAppPathsResult map[string][]string
+	caskAppPathsErr    error
+	caskAppPathsCalls  [][]string
 }
 
 type mockCall struct {
@@ -137,6 +141,11 @@ func (m *mockRunner) UVUpgrade(_ []string) (string, error) {
 
 func (m *mockRunner) UVToolList() ([]string, error) {
 	return m.uvToolListResult, m.uvToolListErr
+}
+
+func (m *mockRunner) CaskAppPaths(names []string) (map[string][]string, error) {
+	m.caskAppPathsCalls = append(m.caskAppPathsCalls, names)
+	return m.caskAppPathsResult, m.caskAppPathsErr
 }
 
 func brewfile(t *testing.T, content string) string {
@@ -738,6 +747,37 @@ func TestUpdate_OnlyUVOutdated(t *testing.T) {
 	}
 	if m.uvUpgradeCalls != 1 {
 		t.Errorf("expected 1 uv upgrade call, got %d", m.uvUpgradeCalls)
+	}
+}
+
+func TestUpdate_BrewFailureDoesNotStrandUV(t *testing.T) {
+	// Regression: a brew upgrade failure (e.g. a cask sudo prompt timing out)
+	// used to early-return before uv upgrade ran, leaving uv tools as still
+	// outdated. Now both phases run; the error covers brew, but uv still
+	// gets its upgrade call.
+	t.Parallel()
+	m := &mockRunner{
+		outdatedResult: []OutdatedPackage{
+			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
+		},
+		uvOutdatedResult: []OutdatedPackage{
+			{Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
+		},
+		upgradeErr: errors.New("brew upgrade: sudo timed out"),
+	}
+
+	_, err := Update(m, false)
+	if err == nil {
+		t.Fatal("expected brew upgrade error, got nil")
+	}
+	if !strings.Contains(err.Error(), "brew upgrade") {
+		t.Errorf("error = %q, want it to mention brew upgrade", err.Error())
+	}
+	if m.upgradeCalls != 1 {
+		t.Errorf("expected 1 brew upgrade call, got %d", m.upgradeCalls)
+	}
+	if m.uvUpgradeCalls != 1 {
+		t.Errorf("expected 1 uv upgrade call (continued past brew failure), got %d", m.uvUpgradeCalls)
 	}
 }
 

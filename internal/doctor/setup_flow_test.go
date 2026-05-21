@@ -475,6 +475,51 @@ func TestRunSetup_UpgradeError(t *testing.T) {
 	}
 }
 
+// TestRunSetup_BrewFailureStillUpgradesUV is a regression for issue #2: a
+// brew upgrade failure used to short-circuit the uv path, leaving uv tools
+// stranded as still outdated. Both phases must run independently.
+func TestRunSetup_BrewFailureStillUpgradesUV(t *testing.T) {
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
+
+	tmpFile := writeTmpBrewfile(t, Brewfile)
+
+	mock := &mockBrewRunner{
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
+		outdated: []brew.OutdatedPackage{
+			{Name: "git", InstalledVersion: "2.44", CurrentVersion: "2.45"},
+		},
+		uvOutdated: []brew.OutdatedPackage{
+			{Name: "marimo", InstalledVersion: "0.22", CurrentVersion: "0.23"},
+		},
+		upgradeErr: fmt.Errorf("brew upgrade: sudo timed out"),
+	}
+
+	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+
+	if mock.upgradeCalls != 1 {
+		t.Errorf("expected 1 brew upgrade call, got %d", mock.upgradeCalls)
+	}
+	if mock.uvUpgCalls != 1 {
+		t.Errorf("expected 1 uv upgrade call (continued past brew failure), got %d", mock.uvUpgCalls)
+	}
+	if result.UpdateError == "" {
+		t.Error("expected UpdateError to record the brew failure")
+	}
+	// uv side should still be marked as upgraded since UVUpgrade had no error.
+	upgradedUV := false
+	for _, pkg := range result.Upgraded {
+		if pkg.Name == "marimo" {
+			upgradedUV = true
+		}
+	}
+	if !upgradedUV {
+		t.Errorf("expected marimo in Upgraded after successful uv upgrade, got %v", result.Upgraded)
+	}
+}
+
 // TestRunSetup_UVUpgradeError verifies that when brew upgrade succeeds but
 // uv upgrade fails, the error is still recorded.
 func TestRunSetup_UVUpgradeError(t *testing.T) {

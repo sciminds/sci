@@ -52,7 +52,9 @@ func Install(r Runner, file string) (InstallResult, error) {
 		return InstallResult{}, fmt.Errorf("read Brewfile: %w", err)
 	}
 
-	snap, err := CollectSnapshot(r)
+	// ForBrewfile so externally-installed casks (e.g. Zoom from the vendor's
+	// .pkg) aren't tried again on every doctor run.
+	snap, err := CollectSnapshotForBrewfile(r, string(content))
 	if err != nil {
 		return InstallResult{}, fmt.Errorf("collect snapshot: %w", err)
 	}
@@ -225,26 +227,32 @@ func checkOutdated(r Runner) (brewOutdated, uvOutdated []OutdatedPackage, err er
 }
 
 // runUpgrades runs brew upgrade and uv upgrade for the given outdated packages.
+// Both phases run regardless of intermediate failures: a brew upgrade error
+// (e.g. one cask prompts for a password and times out) shouldn't strand uv
+// tools as still-outdated when uv has no shared failure mode.
 func runUpgrades(r Runner, brewOutdated, uvOutdated []OutdatedPackage) (string, error) {
-	var upgradeOut string
+	var (
+		upgradeOut string
+		errs       []error
+	)
 	if len(brewOutdated) > 0 {
 		out, err := r.Upgrade()
+		upgradeOut += out
 		if err != nil {
-			return "", fmt.Errorf("brew upgrade: %w", err)
+			errs = append(errs, fmt.Errorf("brew upgrade: %w", err))
 		}
-		upgradeOut = out
 	}
 	if len(uvOutdated) > 0 {
 		names := lo.Map(uvOutdated, func(pkg OutdatedPackage, _ int) string {
 			return pkg.Name
 		})
 		out, err := r.UVUpgrade(names)
-		if err != nil {
-			return upgradeOut, fmt.Errorf("uv upgrade: %w", err)
-		}
 		upgradeOut += out
+		if err != nil {
+			errs = append(errs, fmt.Errorf("uv upgrade: %w", err))
+		}
 	}
-	return upgradeOut, nil
+	return upgradeOut, errors.Join(errs...)
 }
 
 // ListDetailed parses the Brewfile for formula/cask names, fetches descriptions

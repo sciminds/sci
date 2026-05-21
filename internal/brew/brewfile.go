@@ -210,9 +210,19 @@ var scannableTypes = map[string]bool{
 // that are installed as dependencies, e.g. rsync, sqlite).
 //
 // Only entries of scannable types (brew, cask, tap, uv) are candidates
-// for removal; unknown types are left untouched.
+// for removal; unknown types are left untouched. Cask entries that resolve
+// to an .app on disk (via [SystemSnapshot.ExternalCasks]) are also kept —
+// otherwise a manually-installed app like Zoom from the vendor .pkg would
+// be stripped on every sync.
 func Sync(r Runner, path string) (SyncResult, error) {
-	snap, err := CollectSnapshot(r)
+	// Read the Brewfile first so the snapshot can probe declared casks for
+	// external installs (apps the user has on disk but brew didn't install).
+	existing, err := os.ReadFile(path)
+	if err != nil {
+		return SyncResult{}, fmt.Errorf("read Brewfile: %w", err)
+	}
+
+	snap, err := CollectSnapshotForBrewfile(r, string(existing))
 	if err != nil {
 		return SyncResult{}, err
 	}
@@ -233,7 +243,9 @@ func Sync(r Runner, path string) (SyncResult, error) {
 
 	// installedSet: all installed packages (full formula list, not just leaves).
 	// Used to decide what NOT to remove — a Brewfile entry for a package that's
-	// installed as a dependency (e.g. rsync, sqlite) should be kept.
+	// installed as a dependency (e.g. rsync, sqlite) should be kept. External
+	// casks are included so Sync doesn't strip entries for apps the user
+	// installed manually (drag-to-Applications, vendor .pkg, etc.).
 	toKey := func(typ string) func(string) (string, bool) {
 		return func(name string) (string, bool) {
 			return typ + "\t" + name, true
@@ -242,15 +254,11 @@ func Sync(r Runner, path string) (SyncResult, error) {
 	installedSet := lo.Assign(
 		lo.SliceToMap(snap.Formulae, toKey("brew")),
 		lo.SliceToMap(snap.Casks, toKey("cask")),
+		lo.SliceToMap(snap.ExternalCasks, toKey("cask")),
 		lo.SliceToMap(snap.Taps, toKey("tap")),
 		lo.SliceToMap(snap.UVTools, toKey("uv")),
 	)
 
-	// Read the existing Brewfile.
-	existing, err := os.ReadFile(path)
-	if err != nil {
-		return SyncResult{}, fmt.Errorf("read Brewfile: %w", err)
-	}
 	brewfileSet := lo.SliceToMap(ParseBrewfileEntries(string(existing)), func(e BrewfileEntry) (string, bool) {
 		return e.Type + "\t" + e.Name, true
 	})
