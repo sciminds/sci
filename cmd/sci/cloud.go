@@ -10,6 +10,7 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/share"
+	"github.com/sciminds/cli/internal/tui/cloudbrowse"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
@@ -229,8 +230,8 @@ func cloudBrowseCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			if err := share.RunCloudBrowseTUI(objects, c); err != nil {
-				if errors.Is(err, share.ErrInterrupted) {
+			if err := cloudbrowse.Run(objects, c); err != nil {
+				if errors.Is(err, cloudbrowse.ErrInterrupted) {
 					return cli.Exit("", 130)
 				}
 				return err

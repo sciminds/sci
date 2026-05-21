@@ -164,12 +164,12 @@ commands:
 
   # ── cloud browse (exempt) ──────────────────────────────────────────────────
   cloud-browse:
-    file: internal/share/listtui.go
+    file: internal/tui/cloudbrowse/cloudbrowse.go
     prompts:
       - id: cloud-browse-tui
         type: uikit.Run
         nth: 1
-        line: 238
+        line: 29
         description: "Interactive cloud file browser (delete/copy-url/download)"
         status: exempt
         reason: "Interactive-only by design; `sci cloud ls` is the scriptable counterpart"

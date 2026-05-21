@@ -316,7 +316,7 @@ func treeToShared(entries []TreeEntry) []SharedEntry {
 			Size:    e.Size,
 		}
 		if !e.IsDir {
-			s.Type = detectFileType(e.Name)
+			s.Type = DetectFileType(e.Name)
 		}
 		return s
 	})
@@ -460,8 +460,8 @@ func nameFromFile(path string) string {
 	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
-// detectFileType maps file extensions to type labels.
-func detectFileType(path string) string {
+// DetectFileType maps file extensions to type labels.
+func DetectFileType(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".csv", ".tsv":

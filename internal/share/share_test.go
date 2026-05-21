@@ -53,8 +53,8 @@ func TestDetectFileType(t *testing.T) {
 		{"readme.txt", "other"},
 	}
 	for _, tt := range tests {
-		if got := detectFileType(tt.path); got != tt.want {
-			t.Errorf("detectFileType(%q) = %q, want %q", tt.path, got, tt.want)
+		if got := DetectFileType(tt.path); got != tt.want {
+			t.Errorf("DetectFileType(%q) = %q, want %q", tt.path, got, tt.want)
 		}
 	}
 }
@@ -71,8 +71,8 @@ func TestDetectFileType_UppercaseExtensions(t *testing.T) {
 		{"Data.Tsv", "csv"},
 	}
 	for _, tt := range tests {
-		if got := detectFileType(tt.path); got != tt.want {
-			t.Errorf("detectFileType(%q) = %q, want %q", tt.path, got, tt.want)
+		if got := DetectFileType(tt.path); got != tt.want {
+			t.Errorf("DetectFileType(%q) = %q, want %q", tt.path, got, tt.want)
 		}
 	}
 }
