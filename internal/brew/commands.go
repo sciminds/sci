@@ -246,13 +246,46 @@ func runUpgrades(r Runner, brewOutdated, uvOutdated []OutdatedPackage) (string, 
 		names := lo.Map(uvOutdated, func(pkg OutdatedPackage, _ int) string {
 			return pkg.Name
 		})
-		out, err := r.UVUpgrade(names)
+		out, err := r.UVUpgrade(ResolveUVSpecs(names))
 		upgradeOut += out
 		if err != nil {
 			errs = append(errs, fmt.Errorf("uv upgrade: %w", err))
 		}
 	}
 	return upgradeOut, errors.Join(errs...)
+}
+
+// ResolveUVSpecs maps uv package names to their Brewfile install specs so
+// bracket extras (e.g. `marimo[recommended]`) survive the upgrade reinstall.
+// Names without a matching `uv "..."` entry — or when no Brewfile is found —
+// pass through unchanged.
+func ResolveUVSpecs(names []string) []string {
+	specs := loadUVSpecMap()
+	return lo.Map(names, func(name string, _ int) string {
+		if spec, ok := specs[name]; ok {
+			return spec
+		}
+		return name
+	})
+}
+
+func loadUVSpecMap() map[string]string {
+	path := LocateBrewfile()
+	if path == "" {
+		return nil
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	specs := map[string]string{}
+	for _, e := range ParseBrewfileEntries(string(content)) {
+		if e.Type != "uv" {
+			continue
+		}
+		specs[e.Name] = cmp.Or(e.Spec, e.Name)
+	}
+	return specs
 }
 
 // ListDetailed parses the Brewfile for formula/cask names, fetches descriptions

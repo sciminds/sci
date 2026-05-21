@@ -214,7 +214,7 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool, opts SetupOpts) 
 		names := lo.Map(uvOutdated, func(pkg brew.OutdatedPackage, _ int) string {
 			return pkg.Name
 		})
-		if _, err := r.UVUpgrade(names); err != nil {
+		if _, err := r.UVUpgrade(brew.ResolveUVSpecs(names)); err != nil {
 			upgradeErrs = append(upgradeErrs, "uv upgrade: "+err.Error())
 		} else {
 			result.Upgraded = append(result.Upgraded, uvOutdated...)

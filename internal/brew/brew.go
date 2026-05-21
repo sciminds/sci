@@ -171,7 +171,7 @@ type Runner interface {
 	Outdated() ([]OutdatedPackage, error)
 	Upgrade() (string, error)
 	UVOutdated() ([]OutdatedPackage, error)
-	UVUpgrade(names []string) (string, error)
+	UVUpgrade(specs []string) (string, error)
 	UVToolList() ([]string, error)
 
 	// CaskAppPaths returns the .app filesystem paths declared by each named
@@ -409,24 +409,34 @@ func (BrewRunner) UVOutdated() ([]OutdatedPackage, error) {
 	return parseUVOutdated(string(out)), nil
 }
 
-// UVUpgrade implements Runner. Continues past per-tool failures and joins
-// errors at the end so one bad tool doesn't block the rest — previously a
-// single uv upgrade failure stranded every later tool as still outdated.
-func (BrewRunner) UVUpgrade(names []string) (string, error) {
-	var (
-		out  strings.Builder
-		errs []error
-	)
-	for _, name := range names {
-		cmd := exec.Command("uv", "tool", "upgrade", name)
+// UVUpgrade implements Runner. Reinstalls each tool at the latest version via
+// `uv tool install <spec>@latest`. Plain `uv tool upgrade` is a no-op for
+// tools that were installed with an exact-version pin (uv prints
+// "Nothing to upgrade" plus a hint that you must reinstall via
+// `uv tool install <name>@latest` to lift the pin) — that left pinned tools
+// like `hf` stranded as outdated on every doctor/sci tools run. The
+// reinstall path lifts the pin and upgrades in one shot.
+//
+// Specs come from the Brewfile when callers can resolve them, so bracket
+// extras like `marimo[recommended]` survive the reinstall instead of being
+// silently dropped. Continues past per-tool failures and joins errors at
+// the end so one bad tool doesn't block the rest.
+func (BrewRunner) UVUpgrade(specs []string) (string, error) {
+	var errs []error
+	for _, spec := range specs {
+		target := spec
+		if !strings.Contains(target, "@") {
+			target += "@latest"
+		}
+		cmd := exec.Command("uv", "tool", "install", target)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			errs = append(errs, fmt.Errorf("uv tool upgrade %s: %w", name, err))
+			errs = append(errs, fmt.Errorf("uv tool install %s: %w", target, err))
 		}
 	}
-	return out.String(), errors.Join(errs...)
+	return "", errors.Join(errs...)
 }
 
 // UVToolList implements Runner. If uv is not on PATH, returns an empty

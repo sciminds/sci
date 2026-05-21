@@ -490,6 +490,7 @@ type mockBrewRunner struct {
 	upgradeCalls  int
 	upgradeErr    error
 	uvUpgCalls    int
+	uvUpgradeArgs [][]string
 	uvUpgradeErr  error
 
 	caskAppPathsResult map[string][]string
@@ -544,8 +545,9 @@ func (m *mockBrewRunner) Upgrade() (string, error) {
 func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) {
 	return m.uvOutdated, m.uvOutdatedErr
 }
-func (m *mockBrewRunner) UVUpgrade(_ []string) (string, error) {
+func (m *mockBrewRunner) UVUpgrade(specs []string) (string, error) {
 	m.uvUpgCalls++
+	m.uvUpgradeArgs = append(m.uvUpgradeArgs, specs)
 	return "", m.uvUpgradeErr
 }
 func (m *mockBrewRunner) CaskAppPaths(_ []string) (map[string][]string, error) {

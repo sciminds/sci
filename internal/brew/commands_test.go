@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -54,6 +55,7 @@ type mockRunner struct {
 	uvOutdatedResult []OutdatedPackage
 	uvOutdatedErr    error
 	uvUpgradeCalls   int
+	uvUpgradeArgs    [][]string
 	uvUpgradeOut     string
 	uvUpgradeErr     error
 	uvToolListResult []string
@@ -134,8 +136,9 @@ func (m *mockRunner) UVOutdated() ([]OutdatedPackage, error) {
 	return m.uvOutdatedResult, m.uvOutdatedErr
 }
 
-func (m *mockRunner) UVUpgrade(_ []string) (string, error) {
+func (m *mockRunner) UVUpgrade(specs []string) (string, error) {
 	m.uvUpgradeCalls++
+	m.uvUpgradeArgs = append(m.uvUpgradeArgs, specs)
 	return m.uvUpgradeOut, m.uvUpgradeErr
 }
 
@@ -778,6 +781,53 @@ func TestUpdate_BrewFailureDoesNotStrandUV(t *testing.T) {
 	}
 	if m.uvUpgradeCalls != 1 {
 		t.Errorf("expected 1 uv upgrade call (continued past brew failure), got %d", m.uvUpgradeCalls)
+	}
+}
+
+func TestUpdate_UVUpgradePreservesBracketExtras(t *testing.T) {
+	// Regression: when a uv tool is declared in the Brewfile with bracket
+	// extras (e.g. `uv "marimo[recommended]"`), Update must pass the spec
+	// — not the bare name — to UVUpgrade. Otherwise the underlying
+	// `uv tool install <name>@latest` reinstall silently drops the extras.
+	// t.Setenv prevents t.Parallel here.
+	dir := t.TempDir()
+	bf := filepath.Join(dir, "Brewfile")
+	if err := os.WriteFile(bf, []byte(`uv "marimo[recommended]"`+"\n"+`uv "hf"`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOMEBREW_BUNDLE_FILE_GLOBAL", bf)
+
+	m := &mockRunner{
+		uvOutdatedResult: []OutdatedPackage{
+			{Name: "marimo", InstalledVersion: "0.23.0", CurrentVersion: "0.24.0"},
+			{Name: "hf", InstalledVersion: "1.8.0", CurrentVersion: "1.15.0"},
+		},
+	}
+
+	if _, err := Update(m, false); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if m.uvUpgradeCalls != 1 {
+		t.Fatalf("expected 1 uv upgrade call, got %d", m.uvUpgradeCalls)
+	}
+	want := []string{"marimo[recommended]", "hf"}
+	if !slices.Equal(m.uvUpgradeArgs[0], want) {
+		t.Errorf("UVUpgrade specs = %v, want %v", m.uvUpgradeArgs[0], want)
+	}
+}
+
+func TestResolveUVSpecs_NoBrewfile(t *testing.T) {
+	// When no Brewfile is found, names pass through unchanged so the upgrade
+	// path still works on a system without one. t.Setenv prevents t.Parallel.
+	t.Setenv("HOMEBREW_BUNDLE_FILE_GLOBAL", "/nonexistent/Brewfile")
+	t.Setenv("XDG_CONFIG_HOME", "/nonexistent")
+	t.Setenv("HOME", t.TempDir())
+
+	got := ResolveUVSpecs([]string{"marimo", "hf"})
+	want := []string{"marimo", "hf"}
+	if !slices.Equal(got, want) {
+		t.Errorf("ResolveUVSpecs = %v, want %v", got, want)
 	}
 }
 
