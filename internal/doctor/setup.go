@@ -151,8 +151,10 @@ func InstallOptionalTool(r brew.Runner, name, brewfilePath string) (OptionalSetu
 	return OptionalSetupResult{Installed: []string{name}}, nil
 }
 
-// RunOptionalSetup presents a list of uninstalled optional tools and installs
-// the user's selection via direct install. When brewfilePath is non-empty, the
+// RunOptionalSetup presents the full list of optional tools (installed and
+// missing both) and installs the user's selection via direct install. Picking
+// an already-installed tool flashes a status message and keeps the TUI open
+// so the user can pick a different row. When brewfilePath is non-empty, the
 // Brewfile is synced after install.
 func RunOptionalSetup(r brew.Runner, brewfilePath string) (OptionalSetupResult, error) {
 	entries := brew.ParseBrewfileEntries(BrewfileOptional)
@@ -162,12 +164,6 @@ func RunOptionalSetup(r brew.Runner, brewfilePath string) (OptionalSetupResult, 
 
 	missing := missingSet(r, BrewfileOptional)
 
-	// All tools already installed — nothing to show.
-	if lo.NoneBy(entries, func(e brew.BrewfileEntry) bool { return missing[e.Name] }) {
-		return OptionalSetupResult{}, nil
-	}
-
-	// Launch list TUI — only uninstalled tools are shown.
 	model, err := uikit.RunModel(newReccsModel(entries, missing))
 	if err != nil {
 		return OptionalSetupResult{}, err

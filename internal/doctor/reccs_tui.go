@@ -33,12 +33,19 @@ var toolDescs = map[string]string{
 
 // reccsItem implements list.Item for the bubbles list component.
 type reccsItem struct {
-	entry brew.BrewfileEntry
-	desc  string
+	entry     brew.BrewfileEntry
+	desc      string
+	installed bool
 }
 
-// Title implements list.DefaultItem.
-func (i reccsItem) Title() string { return i.entry.Name }
+// Title implements list.DefaultItem. Installed tools get a green check suffix
+// so the list mirrors `sci tools` (every recc visible, status at a glance).
+func (i reccsItem) Title() string {
+	if i.installed {
+		return i.entry.Name + " " + uikit.SymOK
+	}
+	return i.entry.Name
+}
 
 // Description implements list.DefaultItem.
 func (i reccsItem) Description() string { return i.desc }
@@ -55,30 +62,24 @@ type reccsModel struct {
 }
 
 func newReccsModel(entries []brew.BrewfileEntry, missing map[string]bool) reccsModel {
-	// Only show tools that are not yet installed.
-	var filtered []brew.BrewfileEntry
-	var items []reccsItem
-	for _, e := range entries {
-		if !missing[e.Name] {
-			continue // already installed — hide it
-		}
+	items := lo.Map(entries, func(e brew.BrewfileEntry, _ int) reccsItem {
 		desc := toolDescs[e.Name]
 		if desc == "" {
 			desc = e.Type + " package"
 		}
 		desc += uikit.TUI.TextPink().Render("  " + e.Type)
-		filtered = append(filtered, e)
-		items = append(items, reccsItem{entry: e, desc: desc})
-	}
+		return reccsItem{entry: e, desc: desc, installed: !missing[e.Name]}
+	})
 
-	title := fmt.Sprintf("Recommended tools — %d available", len(items))
+	installedCount := lo.CountBy(items, func(i reccsItem) bool { return i.installed })
+	title := fmt.Sprintf("Recommended tools — %d total, %d installed", len(items), installedCount)
 	hints := []key.Binding{
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "install")),
 		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 	}
 	return reccsModel{
 		list:    uikit.NewListPicker(title, uikit.Items(items), hints...),
-		entries: filtered,
+		entries: entries,
 		chosen:  -1,
 	}
 }
@@ -100,12 +101,21 @@ func (m reccsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		case "enter":
-			if item, ok := m.list.SelectedItem().(reccsItem); ok {
-				_, idx, _ := lo.FindIndexOf(m.entries, func(e brew.BrewfileEntry) bool {
-					return e.Name == item.entry.Name
-				})
-				m.chosen = idx
+			item, ok := m.list.SelectedItem().(reccsItem)
+			if !ok {
+				return m, tea.Quit
 			}
+			if item.installed {
+				// Stay in the TUI; flash a transient status so the user can pick
+				// another row instead of getting kicked back to the shell.
+				m.list.StatusMessage(uikit.TUI.Warn().Render(
+					fmt.Sprintf("%s is already installed", item.entry.Name)))
+				return m, nil
+			}
+			_, idx, _ := lo.FindIndexOf(m.entries, func(e brew.BrewfileEntry) bool {
+				return e.Name == item.entry.Name
+			})
+			m.chosen = idx
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
