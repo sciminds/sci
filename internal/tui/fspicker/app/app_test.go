@@ -275,6 +275,65 @@ func TestForceUploadAction_Run_SetsForceAndQuits(t *testing.T) {
 	}
 }
 
+func TestUploadAction_HasConfirm(t *testing.T) {
+	t.Parallel()
+	up := findAction(t, BuildActions(&State{}), "u")
+	if !up.Confirm {
+		t.Error("upload.Confirm = false; want true")
+	}
+	if up.ConfirmPrompt == nil {
+		t.Fatal("upload.ConfirmPrompt = nil")
+	}
+}
+
+func TestUploadAction_ConfirmPrompt_FileVsFolder(t *testing.T) {
+	t.Parallel()
+	up := findAction(t, BuildActions(&State{}), "u")
+
+	file := Entry{Name: "results.csv"}
+	title, _ := up.ConfirmPrompt(file)
+	if !strings.Contains(title, "upload") || !strings.Contains(title, "results.csv") || strings.Contains(title, "results.csv/") {
+		t.Errorf("file upload prompt = %q, want 'upload results.csv' without trailing slash", title)
+	}
+
+	dir := Entry{Name: "myrepo", Dir: true}
+	dtitle, _ := up.ConfirmPrompt(dir)
+	if !strings.Contains(dtitle, "myrepo/") {
+		t.Errorf("folder upload prompt = %q, want trailing slash on folder name", dtitle)
+	}
+}
+
+func TestForceUploadAction_HasConfirm(t *testing.T) {
+	t.Parallel()
+	force := findAction(t, BuildActions(&State{}), "U")
+	if !force.Confirm {
+		t.Error("force-upload.Confirm = false; want true")
+	}
+	if force.ConfirmPrompt == nil {
+		t.Fatal("force-upload.ConfirmPrompt = nil")
+	}
+}
+
+func TestForceUploadAction_ConfirmPrompt_MentionsOverwrite(t *testing.T) {
+	t.Parallel()
+	force := findAction(t, BuildActions(&State{}), "U")
+	title, _ := force.ConfirmPrompt(Entry{Name: "results.csv"})
+	if !strings.Contains(title, "overwrite") {
+		t.Errorf("force-upload prompt = %q, want it to mention overwrite (it's what distinguishes U from u)", title)
+	}
+}
+
+func TestToggleHiddenAction_NoConfirm(t *testing.T) {
+	t.Parallel()
+	// Toggle hidden is a view-state flip, not a transfer/destructive
+	// action — explicitly out of the "confirm everything that isn't
+	// motion" scope. Pin it so it can't drift.
+	toggle := findAction(t, BuildActions(&State{}), ".")
+	if toggle.Confirm {
+		t.Error("toggle-hidden should not require confirmation; it's an in-pane view flip")
+	}
+}
+
 func TestToggleHiddenAction_Run_FlipsAndRefreshes(t *testing.T) {
 	t.Parallel()
 	state := &State{}

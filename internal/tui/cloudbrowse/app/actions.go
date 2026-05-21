@@ -177,10 +177,21 @@ func copyURLAction() browser.Action {
 
 // downloadAction handles both files (fetch) and folders (sync). Because
 // the semantics differ, AppliesTo is nil — applies to every entry — and
-// Run branches on IsDir.
+// Run branches on IsDir. Confirm is on for parity with delete: any
+// non-motion action that touches the wire goes through the modal so a
+// stray keystroke can't kick off a transfer.
 func downloadAction(client *cloud.Client) browser.Action {
 	return browser.Action{
-		Key: key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "download (folder = sync)")),
+		Key:     key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "download (folder = sync)")),
+		Confirm: true,
+		ConfirmPrompt: func(e browser.Entry) (string, string) {
+			ce := e.(Entry)
+			name := ce.T.Name
+			if ce.T.IsDir {
+				name += "/"
+			}
+			return fmt.Sprintf("Are you sure you want to download %s?", name), ""
+		},
 		Run: func(e browser.Entry) tea.Cmd {
 			ce := e.(Entry)
 			pending := "Downloading " + ce.T.Name + "…"

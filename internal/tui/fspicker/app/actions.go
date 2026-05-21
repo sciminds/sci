@@ -15,6 +15,8 @@ package app
 // so dotfiles appear/disappear without restarting the picker.
 
 import (
+	"fmt"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -31,10 +33,14 @@ func BuildActions(state *State) []browser.Action {
 }
 
 // uploadAction binds "u" to "select this entry and quit". Works on
-// files AND dirs (browse parity: `d` downloads both).
+// files AND dirs (browse parity: `d` downloads both). Confirm is on so
+// every commit-to-upload goes through the modal — a stray u can't kick
+// off a transfer.
 func uploadAction(state *State) browser.Action {
 	return browser.Action{
-		Key: key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "upload")),
+		Key:           key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "upload")),
+		Confirm:       true,
+		ConfirmPrompt: uploadPrompt("upload"),
 		Run: func(e browser.Entry) tea.Cmd {
 			state.Picked = e.Path()
 			state.Force = false
@@ -44,15 +50,34 @@ func uploadAction(state *State) browser.Action {
 }
 
 // forceUploadAction binds "U" to "select + force overwrite". Caller
-// reads State.Force to skip the pre-upload prefix check.
+// reads State.Force to skip the pre-upload prefix check. The modal copy
+// calls out the overwrite — that's the only thing that distinguishes it
+// from a plain upload at the user-facing level.
 func forceUploadAction(state *State) browser.Action {
 	return browser.Action{
-		Key: key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "force upload")),
+		Key:           key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "force upload")),
+		Confirm:       true,
+		ConfirmPrompt: uploadPrompt("force-upload (overwrites existing)"),
 		Run: func(e browser.Entry) tea.Cmd {
 			state.Picked = e.Path()
 			state.Force = true
 			return tea.Quit
 		},
+	}
+}
+
+// uploadPrompt builds the "Are you sure you want to <verb> foo?" closure
+// shared by upload and force-upload. The verb is the only thing that
+// differs; folder vs file is signalled with a trailing slash on name,
+// matching the cloudbrowse delete/download modal convention.
+func uploadPrompt(verb string) func(browser.Entry) (string, string) {
+	return func(e browser.Entry) (string, string) {
+		ne := e.(Entry)
+		name := ne.Name
+		if ne.Dir {
+			name += "/"
+		}
+		return fmt.Sprintf("Are you sure you want to %s %s?", verb, name), ""
 	}
 }
 

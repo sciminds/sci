@@ -273,6 +273,36 @@ func TestDownloadAction_AppliesTo_AllEntries(t *testing.T) {
 	}
 }
 
+func TestDownloadAction_HasConfirm(t *testing.T) {
+	t.Parallel()
+	p := NewProvider(browseFixture, fakeClient("ejolly"))
+	d := findAction(t, BuildActions(p), "d")
+	if !d.Confirm {
+		t.Error("download.Confirm = false; want true (every transfer goes through the modal)")
+	}
+	if d.ConfirmPrompt == nil {
+		t.Fatal("download.ConfirmPrompt = nil; want per-entry copy")
+	}
+}
+
+func TestDownloadAction_ConfirmPrompt_FileVsFolder(t *testing.T) {
+	t.Parallel()
+	p := NewProvider(browseFixture, fakeClient("ejolly"))
+	d := findAction(t, BuildActions(p), "d")
+
+	file := Entry{T: share.TreeEntry{Name: "results.csv", Key: "ejolly/results.csv"}}
+	title, _ := d.ConfirmPrompt(file)
+	if !strings.Contains(title, "results.csv") || strings.Contains(title, "results.csv/") {
+		t.Errorf("file confirm title = %q, want it to contain 'results.csv' without trailing slash", title)
+	}
+
+	dir := Entry{T: share.TreeEntry{Name: "python-tutorials", IsDir: true, Key: "ejolly/python-tutorials"}}
+	dtitle, _ := d.ConfirmPrompt(dir)
+	if !strings.Contains(dtitle, "python-tutorials/") {
+		t.Errorf("folder confirm title = %q, want trailing slash on folder name", dtitle)
+	}
+}
+
 // findAction returns the Action whose key binding contains keyStr,
 // failing the test if none match.
 func findAction(t *testing.T, actions []browser.Action, keyStr string) browser.Action {
