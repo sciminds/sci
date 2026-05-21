@@ -446,8 +446,10 @@ Two opt-in actions are driven by strings in the commit message on `main`:
 
 | Trigger | Effect |
 |---|---|
-| `BUILD RELEASE` | After the gate passes, publishes the build to the `latest` GitHub release. Without it, push/PR runs only fmt/vet/lint/test + cross-compile. |
-| `RUN SCENARIOS` | Runs the [Environment Scenarios](.github/workflows/scenarios.yml) matrix (no-brew / brew-no-file / brew-file / no-brew-accept) for this commit. Otherwise scenarios only runs weekly (Mondays 09:00 UTC) or via manual dispatch. |
+| `[release]` | After the gate passes, publishes the build to the `latest` GitHub release. Without it, push/PR runs only fmt/vet/lint/test + cross-compile. |
+| `[scenarios]` | Runs the [Environment Scenarios](.github/workflows/scenarios.yml) matrix (no-brew / brew-no-file / brew-file / no-brew-accept) for this commit. Otherwise scenarios only runs weekly (Mondays 09:00 UTC) or via manual dispatch. |
+
+Markers are matched as substrings (same convention as `[skip ci]`); the brackets keep them visually distinct from prose so describing them in the commit body doesn't fire them accidentally.
 
 Combine both in one commit if a release touches brew/doctor/tools code and you want scenario coverage *before* it ships.
 

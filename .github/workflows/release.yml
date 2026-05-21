@@ -5,13 +5,17 @@ name: Build & Release
 # step still works on every commit, not just at release time.
 #
 # Publishing is opt-in via commit message:
-#   - `BUILD RELEASE` on a main commit → publish after the gate passes.
+#   - `[release]` on a main commit → publish after the gate passes.
 #   - workflow_dispatch with publish=true → manual override.
 #
 # The Environment Scenarios workflow is fully decoupled: it runs weekly and
-# on opt-in (`RUN SCENARIOS` in the commit message). If you want a release
+# on opt-in (`[scenarios]` in the commit message). If you want a release
 # that's also been validated against the scenario matrix, drop both
-# `BUILD RELEASE` and `RUN SCENARIOS` into the same commit.
+# `[release]` and `[scenarios]` into the same commit.
+#
+# Bracket markers (rather than UPPERCASE phrases) so a commit message that
+# describes the trigger in prose doesn't accidentally fire it. Match style
+# follows the existing `[skip ci]` convention.
 on:
   push:
     branches: [main]
@@ -131,7 +135,7 @@ jobs:
         if: >
           (github.event_name == 'workflow_dispatch' && inputs.publish) ||
           (github.event_name == 'push' &&
-           contains(github.event.head_commit.message, 'BUILD RELEASE'))
+           contains(github.event.head_commit.message, '[release]'))
         run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -140,7 +144,7 @@ jobs:
         if: >
           (github.event_name == 'workflow_dispatch' && inputs.publish) ||
           (github.event_name == 'push' &&
-           contains(github.event.head_commit.message, 'BUILD RELEASE'))
+           contains(github.event.head_commit.message, '[release]'))
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: latest

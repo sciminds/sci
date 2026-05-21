@@ -7,7 +7,7 @@
 - **TDD by default** for new features and bug fixes: write the failing test first, then make it pass. Skip TDD only for trivial edits (typos, doc tweaks, one-line refactors).
 - **Bubbletea work → invoke the `bubbletea` skill** before designing layouts, fixing rendering bugs, or adding mouse/keyboard handling. Its `references/golden-rules.md` prevents the most common border/overflow bugs. Required for any new TUI screen.
 - **All work on `main`.**
-- **CI commit-message triggers:** push/PR always runs the gate + cross-compile. Add `BUILD RELEASE` to publish the build to the `latest` GitHub release. Add `RUN SCENARIOS` to run the brew/doctor scenarios matrix (otherwise weekly cron only). Combine both for a release that also clears the scenarios.
+- **CI commit-message triggers:** push/PR always runs the gate + cross-compile. Add `[release]` to publish the build to the `latest` GitHub release. Add `[scenarios]` to run the brew/doctor scenarios matrix (otherwise weekly cron only). Combine both for a release that also clears the scenarios. Bracket markers (not UPPERCASE prose) so describing them in commit bodies doesn't fire them.
 
 ## Test recipes
 

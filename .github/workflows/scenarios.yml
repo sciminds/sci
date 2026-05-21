@@ -9,9 +9,13 @@ name: Environment Scenarios
 #   - schedule: weekly health check (the matrix is expensive and the
 #     scenarios it covers — brew install paths, doctor lifecycle — don't
 #     change commit-to-commit, so paying for it on every push is wasteful).
-#   - push to main: opt-in via `RUN SCENARIOS` in the commit message, for
+#   - push to main: opt-in via `[scenarios]` in the commit message, for
 #     commits that touch brew/doctor/tools code and warrant a re-check.
 #   - workflow_dispatch: manual on-demand.
+#
+# Bracket marker (rather than an UPPERCASE phrase) so a commit message that
+# describes the trigger in prose doesn't accidentally fire it. Match style
+# follows the existing `[skip ci]` convention.
 
 on:
   schedule:
@@ -32,12 +36,12 @@ jobs:
   scenario:
     runs-on: macos-latest
     # schedule + workflow_dispatch always run. push runs only when the
-    # commit message opts in with `RUN SCENARIOS`.
+    # commit message opts in with `[scenarios]`.
     if: >
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
-       contains(github.event.head_commit.message, 'RUN SCENARIOS'))
+       contains(github.event.head_commit.message, '[scenarios]'))
 
     strategy:
       fail-fast: false
