@@ -1,18 +1,21 @@
-name: Release
+name: Build & Release
 
-# Triggers:
-#   - workflow_run: normal path — wait for Environment Scenarios to succeed on
-#     main so a broken scenario matrix blocks the release build.
-#   - push: fast path — commits whose message contains `RELEASE FAST` skip the
-#     scenarios wait and run release immediately (still gated by check-ci).
-#   - workflow_dispatch: manual override.
+# Primary CI gate. Runs `just check-ci` + cross-compiles all four release
+# binaries on every push to main and every PR — proving the release artifact
+# step still works on every commit, not just at release time.
+#
+# Publishing is opt-in via commit message:
+#   - `BUILD RELEASE` on a main commit → publish after the gate passes.
+#   - workflow_dispatch with publish=true → manual override.
+#
+# The Environment Scenarios workflow is fully decoupled: it runs weekly and
+# on opt-in (`RUN SCENARIOS` in the commit message). If you want a release
+# that's also been validated against the scenario matrix, drop both
+# `BUILD RELEASE` and `RUN SCENARIOS` into the same commit.
 on:
-  workflow_run:
-    workflows: ["Environment Scenarios"]
-    types: [completed]
-    branches: [main]
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
     inputs:
       publish:
@@ -21,11 +24,8 @@ on:
         required: false
         default: false
 
-# Always evaluates to false for this workflow's actual triggers — workflow_run
-# fires with github.ref = refs/heads/main (default branch), and the push
-# trigger only fires on main. The ref!=main guard is defensive: it keeps the
-# release pipeline from ever cancelling itself mid-run if the workflow file
-# is ever invoked from another branch (e.g. workflow_dispatch on a tag).
+# main runs never cancel — a release commit's build must finish even if
+# another push lands on top of it. PR runs cancel on push, which is normal.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -34,33 +34,20 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: macos-latest
-    # For workflow_run triggers, require that upstream succeeded and skip
-    # [skip ci] / [ci skip] commits. workflow_dispatch bypasses these. push
-    # only fires when the commit message contains `RELEASE FAST`.
+    # Skip [skip ci] / [ci skip] commits. head_commit is undefined on PRs;
+    # `contains(null, …)` evaluates to false, so PRs always run.
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' &&
-       contains(github.event.head_commit.message, 'RELEASE FAST')) ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       !contains(github.event.workflow_run.head_commit.message, '[skip ci]') &&
-       !contains(github.event.workflow_run.head_commit.message, '[ci skip]'))
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[ci skip]')
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      # SHA that was actually tested by the upstream scenarios run (for
-      # workflow_run triggers). For push / workflow_dispatch this falls back
-      # to github.sha. Referenced by the checkout and release-body steps.
-      TESTED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-      RELEASE_COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message || github.event.head_commit.message }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          ref: ${{ env.TESTED_SHA }}
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -71,7 +58,7 @@ jobs:
       - name: Cache Homebrew downloads
         # Caches bottle downloads under $(brew --cache). On hit, the brew
         # install step below skips the network fetch and only links — the
-        # six formulae below collectively pull ~hundreds of MB of bottles.
+        # formulae below collectively pull ~hundreds of MB of bottles.
         # The cache key hashes this workflow file so it auto-invalidates
         # when the formula list changes; restore-keys give a partial hit
         # for any prior release-cache.
@@ -103,7 +90,7 @@ jobs:
 
       - name: Build
         run: |
-          COMMIT="${TESTED_SHA}"
+          COMMIT="${GITHUB_SHA}"
           LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
 
           mkdir -p dist
@@ -141,13 +128,19 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Delete existing release
-        if: (github.event_name == 'workflow_dispatch' && inputs.publish) || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE') || contains(env.RELEASE_COMMIT_MSG, 'RELEASE FAST')
+        if: >
+          (github.event_name == 'workflow_dispatch' && inputs.publish) ||
+          (github.event_name == 'push' &&
+           contains(github.event.head_commit.message, 'BUILD RELEASE'))
         run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
-        if: (github.event_name == 'workflow_dispatch' && inputs.publish) || contains(env.RELEASE_COMMIT_MSG, 'BUILD RELEASE') || contains(env.RELEASE_COMMIT_MSG, 'RELEASE FAST')
+        if: >
+          (github.event_name == 'workflow_dispatch' && inputs.publish) ||
+          (github.event_name == 'push' &&
+           contains(github.event.head_commit.message, 'BUILD RELEASE'))
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: latest
@@ -158,9 +151,8 @@ jobs:
           body: |
             Latest build from `main` branch.
 
-            **Commit:** ${{ env.TESTED_SHA }}
+            **Commit:** ${{ github.sha }}
 
             ${{ steps.checksums.outputs.sha_lines }}
 
             **Install:** `curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh`
-

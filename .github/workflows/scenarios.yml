@@ -4,16 +4,26 @@ name: Environment Scenarios
 #   1. no-brew      — fresh machine, Homebrew not installed
 #   2. brew-no-file — Homebrew installed, no Brewfile on disk
 #   3. brew-file    — Homebrew installed, existing Brewfile with entries
+#
+# Triggers:
+#   - schedule: weekly health check (the matrix is expensive and the
+#     scenarios it covers — brew install paths, doctor lifecycle — don't
+#     change commit-to-commit, so paying for it on every push is wasteful).
+#   - push to main: opt-in via `RUN SCENARIOS` in the commit message, for
+#     commits that touch brew/doctor/tools code and warrant a re-check.
+#   - workflow_dispatch: manual on-demand.
 
 on:
+  schedule:
+    # Mondays 09:00 UTC.
+    - cron: '0 9 * * 1'
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
-# Cancel in-flight runs when new commits land on a PR. Pushes to main never
-# cancel — release.yml chains off this workflow's success via `workflow_run`,
-# so a cancelled main run would leave the release pipeline stuck.
+# PRs and most main pushes no longer trigger this workflow, so the
+# cancel-in-progress guard mostly only matters for back-to-back manual
+# dispatches. Keep main runs uncancellable for safety.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -21,7 +31,13 @@ concurrency:
 jobs:
   scenario:
     runs-on: macos-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+    # schedule + workflow_dispatch always run. push runs only when the
+    # commit message opts in with `RUN SCENARIOS`.
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       contains(github.event.head_commit.message, 'RUN SCENARIOS'))
 
     strategy:
       fail-fast: false
@@ -64,7 +80,7 @@ jobs:
           # can't drift between release.yml, scenarios.yml, and a
           # developer's machine. (Not `just ok` — that runs the full
           # fmt/lint/test gate, which needs goimports/golangci-lint/etc.
-          # not preinstalled here. The check workflow owns that gate.)
+          # not preinstalled here. release.yml owns that gate.)
           just build
           mkdir -p "${HOME}/.local/bin"
           cp sci "${HOME}/.local/bin/sci"

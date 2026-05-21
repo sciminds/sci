@@ -2,6 +2,12 @@
 
 A small smart CLI toolkit for academic work on macOS in a single command: `sci`
 
+Highlights:
+- Wraps `brew` and `uv` tool installs to reliably auto-sync with a `Brewfile`
+- TUIs for browsing: files, databases, hugging-face buckets, remote lab servers (ssh)
+- Control Zotero from the command-line (write cloud, read local) with OpenAlex integration, pdf-to-markdown extraction, and LLM tools
+- Control Canvas LMS from the command-line (experimental): manage assignments, modules, grades, files, etc
+
 ## Install
 
 ```bash
@@ -12,7 +18,7 @@ Written in Go because:
 - Go is *typed* and *compiled* which makes it much faster than Python/JS *and* makes TDD with LLMs more reliable 
 - Easy to create single-file programs that work on any computer
 - No complicated dev tooling: everything is pretty standardized in the ecosystem and distribution is just GitHub
-- Eshin wanted to learn a new language
+- Eshin wanted to learn a new language and it's particularly nice for agentic engineering
 
 ## Getting started
 
@@ -398,11 +404,11 @@ For the bulk pipeline, `sci zot extract-lib` runs docling on every PDF in the li
 
 ## Releases
 
-Every push to `main` triggers the [Release workflow](.github/workflows/release.yml):
+Every push to `main` and every PR runs the [Build & Release workflow](.github/workflows/release.yml):
 
 1. **Check** — fmt, vet, lint, test
 2. **Build** — cross-compiles `sci` for darwin/linux × arm64/amd64
-3. **Publish** — uploads all binaries to a rolling `latest` GitHub release
+3. **Publish** — uploads all binaries to a rolling `latest` GitHub release *(only when opted in via commit message, see Development below)*
 
 Binaries are named `sci-{os}-{arch}` (e.g. `sci-darwin-arm64`, `sci-linux-amd64`).
 
@@ -433,6 +439,17 @@ To try commands during development:
 just run doctor       # same as: go run ./cmd/sci doctor
 just run proj new     # etc.
 ```
+
+### CI commit-message triggers
+
+Two opt-in actions are driven by strings in the commit message on `main`:
+
+| Trigger | Effect |
+|---|---|
+| `BUILD RELEASE` | After the gate passes, publishes the build to the `latest` GitHub release. Without it, push/PR runs only fmt/vet/lint/test + cross-compile. |
+| `RUN SCENARIOS` | Runs the [Environment Scenarios](.github/workflows/scenarios.yml) matrix (no-brew / brew-no-file / brew-file / no-brew-accept) for this commit. Otherwise scenarios only runs weekly (Mondays 09:00 UTC) or via manual dispatch. |
+
+Combine both in one commit if a release touches brew/doctor/tools code and you want scenario coverage *before* it ships.
 
 ### Cloud auth infrastructure
 
