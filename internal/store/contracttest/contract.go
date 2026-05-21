@@ -55,11 +55,7 @@ func Run(t *testing.T, setup SetupFunc) {
 	t.Run("RenameTableRejectsUnsafe", func(t *testing.T) { testRenameTableRejectsUnsafe(t, setup) })
 	t.Run("DropTable", func(t *testing.T) { testDropTable(t, setup) })
 	t.Run("CreateEmptyTable", func(t *testing.T) { testCreateEmptyTable(t, setup) })
-	// CreateEmptyTableExisting (asserting CREATE on a duplicate name errors)
-	// is not in the contract suite: duck's stderr-drain goroutine races
-	// against the sentinel-stdout read for errors raised by the failing
-	// statement, so the error is reliably propagated only when stderr has
-	// drained — see subproc.go. Each backend keeps its own variant.
+	t.Run("CreateEmptyTableExisting", func(t *testing.T) { testCreateEmptyTableExisting(t, setup) })
 	t.Run("ImportCSV", func(t *testing.T) { testImportCSV(t, setup) })
 	t.Run("AppendCSV", func(t *testing.T) { testAppendCSV(t, setup) })
 	t.Run("AppendCSVMissingTable", func(t *testing.T) { testAppendCSVMissingTable(t, setup) })
@@ -327,6 +323,14 @@ func testDropTable(t *testing.T, setup SetupFunc) {
 	}
 	if slices.Contains(names, "extras") {
 		t.Errorf("extras still present after drop: %v", names)
+	}
+}
+
+func testCreateEmptyTableExisting(t *testing.T, setup SetupFunc) {
+	s := setup(t)
+	// `people` is part of the contract fixture; recreating it must fail.
+	if err := s.CreateEmptyTable("people"); err == nil {
+		t.Error("expected error when creating table that already exists")
 	}
 }
 

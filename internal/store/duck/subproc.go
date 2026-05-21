@@ -39,6 +39,19 @@ const defaultCloseTimeout = 3 * time.Second
 // row payloads.
 const sentinelKey = "__sci_duck_sentinel__"
 
+// stderrSentinelTable is the (non-existent) table name we reference from a
+// synthetic statement appended to every query. The resulting catalog-error
+// line on stderr is our synchronisation point: query() can only sample
+// stderrBuf after drainStderr has observed this marker, so user-statement
+// errors that race the stdout sentinel are guaranteed visible.
+const stderrSentinelTable = "__sci_duck_stderr_sentinel__"
+
+// stderrDrainTimeout bounds query()'s wait for drainStderr to observe the
+// per-query stderr sentinel after the stdout sentinel arrives. The drain
+// is normally signalled within microseconds; the timeout is purely defensive
+// and only fires if duckdb's stderr stream stalls.
+const stderrDrainTimeout = 2 * time.Second
+
 // subproc owns one duckdb child process. Methods are safe to call from
 // any goroutine but serialise through [subproc.mu] — duckdb's stdin is
 // a single command stream.
@@ -50,9 +63,19 @@ type subproc struct {
 	mu      sync.Mutex // serialises query()
 	counter atomic.Uint64
 
+	// stderrMu guards stderrBuf and the sentinel-arming fields below. The
+	// drain goroutine and query() both touch them.
 	stderrMu  sync.Mutex
 	stderrBuf strings.Builder
 	stderrDie chan struct{} // closed when the stderr drain goroutine exits
+
+	// stderrSentinel, when non-empty, is the per-query marker drainStderr
+	// is watching for. On match the goroutine closes stderrSeen, clears
+	// both fields, and ignores further lines until query() rearms — so the
+	// trailing lines of the synthetic catalog error (hint, LINE, caret)
+	// do not pollute the user's snapshot.
+	stderrSentinel string
+	stderrSeen     chan struct{}
 
 	closed atomic.Bool
 
@@ -117,26 +140,57 @@ func startSubprocFromCmd(cmd *exec.Cmd) (*subproc, error) {
 	return s, nil
 }
 
-// drainStderr appends every stderr line to the shared buffer so it can
-// be sampled by query() right after each sentinel.
+// drainStderr is the sole reader of the child's stderr stream. It operates
+// in two states, guarded by stderrMu:
+//
+//   - armed (stderrSentinel != ""): a query is in flight. Append each line
+//     to stderrBuf until one contains the sentinel marker; on match close
+//     stderrSeen, drop the marker line, and disarm. This is the
+//     synchronisation point query() waits on before sampling stderrBuf.
+//   - disarmed (stderrSentinel == ""): no query is waiting, OR we have
+//     already signalled this query. Discard the line. The trailing lines
+//     of the synthetic catalog error (the "Did you mean…", "LINE 1: …",
+//     and caret lines) land here and are correctly dropped.
 func (s *subproc) drainStderr(r io.Reader) {
 	defer close(s.stderrDie)
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64<<10), 1<<20)
 	for scanner.Scan() {
+		line := scanner.Text()
 		s.stderrMu.Lock()
-		s.stderrBuf.WriteString(scanner.Text())
+		if s.stderrSentinel == "" {
+			s.stderrMu.Unlock()
+			continue
+		}
+		if strings.Contains(line, s.stderrSentinel) {
+			if s.stderrSeen != nil {
+				close(s.stderrSeen)
+				s.stderrSeen = nil
+			}
+			s.stderrSentinel = ""
+			s.stderrMu.Unlock()
+			continue
+		}
+		s.stderrBuf.WriteString(line)
 		s.stderrBuf.WriteByte('\n')
 		s.stderrMu.Unlock()
 	}
 }
 
-// query sends sql followed by a framing SELECT, reads stdout lines until
-// the sentinel arrives, and returns the per-row JSON payloads. A non-nil
-// error is returned when duckdb wrote anything to stderr while the
-// statement was processed; the rows slice may still be non-empty if the
-// failing statement was after a successful one (rare for single-query
-// callers).
+// query sends sql followed by two framing statements — a synthetic SELECT
+// against a non-existent table whose name embeds a per-query marker, then
+// the stdout sentinel SELECT — and reads stdout lines until the sentinel
+// arrives. A non-nil error is returned when duckdb wrote anything to stderr
+// while the user statement was processed; the rows slice may still be
+// non-empty if the failing statement was after a successful one (rare for
+// single-query callers).
+//
+// The two-sentinel framing exists to synchronise the two independent
+// readers — the goroutine main loop here reads stdout, while drainStderr
+// reads stderr — so a failing user statement's stderr error is always
+// observed *before* we sample stderrBuf. Without this, a fast stdout
+// sentinel could race ahead of a slow stderr drain and we'd return
+// (rows=nil, err=nil) for a statement duckdb actually rejected.
 func (s *subproc) query(sql string) ([][]byte, error) {
 	if s.closed.Load() {
 		return nil, errors.New("duckdb subprocess closed")
@@ -145,13 +199,20 @@ func (s *subproc) query(sql string) ([][]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Clear stderr from any earlier query.
-	s.stderrMu.Lock()
-	s.stderrBuf.Reset()
-	s.stderrMu.Unlock()
-
 	n := s.counter.Add(1)
 	marker := fmt.Sprintf("end_%d", n)
+	stderrMarker := fmt.Sprintf("%s%d__", stderrSentinelTable, n)
+
+	// Arm drainStderr: it will append user-error lines to stderrBuf until it
+	// sees stderrMarker, then signal stderrSeen and ignore the trailing
+	// lines of the synthetic catalog error.
+	seen := make(chan struct{})
+	s.stderrMu.Lock()
+	s.stderrBuf.Reset()
+	s.stderrSentinel = stderrMarker
+	s.stderrSeen = seen
+	s.stderrMu.Unlock()
+	defer s.disarmStderrSentinel()
 
 	// Statements are terminated explicitly; the sentinel is a tiny SELECT
 	// that always succeeds and renders as `{"__sci_duck_sentinel__":"end_N"}`.
@@ -159,7 +220,10 @@ func (s *subproc) query(sql string) ([][]byte, error) {
 	// statement separator we append is the only one in play — otherwise
 	// duckdb sees one combined statement and parse-errors.
 	user := strings.TrimRight(sql, "; \t\r\n")
-	payload := fmt.Sprintf("%s;\nSELECT '%s' AS %s;\n", user, marker, sentinelKey)
+	payload := fmt.Sprintf(
+		"%s;\nSELECT 1 FROM %s;\nSELECT '%s' AS %s;\n",
+		user, stderrMarker, marker, sentinelKey,
+	)
 	if _, err := io.WriteString(s.stdin, payload); err != nil {
 		return nil, fmt.Errorf("write stdin: %w", err)
 	}
@@ -190,10 +254,32 @@ func (s *subproc) query(sql string) ([][]byte, error) {
 		}
 	}
 
+	// Wait for drainStderr to observe the stderr marker. Without this,
+	// stderrSnapshot() can return "" for a failing user statement whose
+	// error line is still buffered in the OS pipe.
+	select {
+	case <-seen:
+	case <-s.stderrDie:
+		// Drain goroutine exited (subprocess died). Snapshot whatever we have.
+	case <-time.After(stderrDrainTimeout):
+		// Defensive: stderr stream stalled. Snapshot anyway.
+	}
+
 	if errText := s.stderrSnapshot(); errText != "" {
 		return rows, fmt.Errorf("duckdb: %s", errText)
 	}
 	return rows, nil
+}
+
+// disarmStderrSentinel is called via defer from query() to make sure the
+// drain goroutine isn't left armed if we return early (stdin write failure,
+// stdout EOF). Idempotent: a no-op when drainStderr already consumed the
+// sentinel.
+func (s *subproc) disarmStderrSentinel() {
+	s.stderrMu.Lock()
+	s.stderrSentinel = ""
+	s.stderrSeen = nil
+	s.stderrMu.Unlock()
 }
 
 // stderrSnapshot returns the current stderr buffer with leading/trailing
@@ -212,6 +298,12 @@ func (s *subproc) stderrSnapshot() string {
 // Hard path: if the child has not exited within [closeTimeout], SIGKILL the
 // entire process group and continue waiting. A stuck query or a locked WAL
 // would otherwise hang dbtui's shutdown indefinitely.
+//
+// duckdb sets a non-zero exit status when any statement in the session
+// failed. Our per-query stderr sentinel (see [subproc.query]) deliberately
+// fails, so every well-behaved session exits 1 — that's not a real error.
+// We surface signal-induced terminations (SIGKILL fallback below, segfaults,
+// etc.) and ignore polite non-zero exits.
 func (s *subproc) close() error {
 	if !s.closed.CompareAndSwap(false, true) {
 		return nil
@@ -226,7 +318,7 @@ func (s *subproc) close() error {
 	}()
 	select {
 	case err := <-waitErr:
-		return err
+		return filterPoliteExit(err)
 	case <-time.After(s.closeTimeout):
 		// SIGKILL the whole group — a stuck duckdb may have ignored .exit,
 		// and any descendants reparented to init would otherwise leak.
@@ -235,4 +327,18 @@ func (s *subproc) close() error {
 		}
 		return <-waitErr
 	}
+}
+
+// filterPoliteExit suppresses the *exec.ExitError that duckdb returns on a
+// clean shutdown after the synthetic stderr sentinel raised an error during
+// the session. Signal-induced terminations are still propagated.
+func filterPoliteExit(err error) error {
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return err
+	}
+	if ws, ok := exitErr.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+		return err
+	}
+	return nil
 }

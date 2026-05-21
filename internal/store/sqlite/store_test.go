@@ -221,21 +221,6 @@ func TestQueryTableEmptyResult(t *testing.T) {
 	}
 }
 
-// ---------- DDL: contract-skipped because duck has a stderr-drain race ----------
-
-func TestCreateEmptyTableExisting(t *testing.T) {
-	path := copyFixture(t, "test.db")
-	s, err := Open(path)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer func() { _ = s.Close() }()
-
-	if err := s.CreateEmptyTable("researchers"); err == nil {
-		t.Error("expected error when creating table that already exists")
-	}
-}
-
 // ---------- rowid semantics (sqlite-specific) ----------
 
 func TestUpdateCellNoMatchingRow(t *testing.T) {
