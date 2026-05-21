@@ -79,7 +79,7 @@ func TestSubcommandTrees(t *testing.T) {
 		{"db", []string{"create", "reset", "info", "add", "delete", "rename",
 			"cols", "head", "tail", "glimpse", "shape", "summarize", "convert", "query", "view"}},
 		{"cloud", []string{"setup", "ls", "get", "put", "remove"}},
-		{"lab", []string{"setup", "ls", "get", "put", "browse"}},
+		{"lab", []string{"setup", "ls", "get", "put"}},
 	}
 
 	for _, tt := range tests {

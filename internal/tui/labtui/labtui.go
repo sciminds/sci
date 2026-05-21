@@ -1,6 +1,7 @@
-// Package labtui is the interactive lab storage browser. It wraps the
-// app package model with a Run entry point that constructs an SSH-backed
-// Backend, launches the Bubbletea program via uikit.Run, and translates
+// Package labtui is the interactive lab storage browser that powers
+// `sci lab get` when invoked without arguments. It wraps the app package
+// model with a Run entry point that constructs an SSH-backed Backend,
+// launches the Bubbletea program via uikit.Run, and translates
 // tea.ErrInterrupted into the package's ErrInterrupted sentinel.
 package labtui
 

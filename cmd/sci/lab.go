@@ -13,6 +13,7 @@ import (
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/lab"
 	"github.com/sciminds/cli/internal/netutil"
+	"github.com/sciminds/cli/internal/tui/fspicker"
 	"github.com/sciminds/cli/internal/tui/labtui"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
@@ -33,10 +34,14 @@ var warmMaster = lab.WarmMaster
 
 func labCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "lab",
-		Usage:       "Access university lab storage (SFTP)",
-		Description: "$ sci lab ls\n$ sci lab get data/results.csv\n$ sci lab put results.csv",
-		Category:    "Commands",
+		Name:  "lab",
+		Usage: "Access university lab storage (SFTP)",
+		Description: "$ sci lab ls\n" +
+			"$ sci lab get data/results.csv\n" +
+			"$ sci lab get                       # interactive TUI (browse + download)\n" +
+			"$ sci lab put results.csv\n" +
+			"$ sci lab put                       # interactive picker",
+		Category: "Commands",
 		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
 			if !netutil.Online() {
 				return nil, fmt.Errorf("no internet connection — sci lab requires network access")
@@ -51,7 +56,6 @@ func labCommand() *cli.Command {
 			labLsCommand(),
 			labGetCommand(),
 			labPutCommand(),
-			labBrowseCommand(),
 			labConnectCommand(),
 		},
 	}
@@ -137,17 +141,35 @@ func labLsCommand() *cli.Command {
 
 func labGetCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "get",
-		Usage:       "Download a file or directory from lab storage",
-		Description: "$ sci lab get data/results.csv\n$ sci lab get data/experiment/ ./local/",
-		ArgsUsage:   "<remote> [local]",
+		Name:  "get",
+		Usage: "Download a file or directory from lab storage, or browse interactively with no arg",
+		Description: "$ sci lab get                              # interactive TUI (browse + download)\n" +
+			"$ sci lab get data/results.csv\n" +
+			"$ sci lab get data/experiment/ ./local/",
+		ArgsUsage: "[remote [local]]",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			cfg, err := lab.RequireConfig()
 			if err != nil {
 				return err
 			}
-			if cmd.Args().Len() < 1 {
-				return cmdutil.UsageErrorf(cmd, "expected at least 1 argument, got %d", cmd.Args().Len())
+
+			if cmd.Args().Len() == 0 {
+				if cmdutil.IsJSON(cmd) {
+					return fmt.Errorf("get requires a remote path in JSON mode")
+				}
+				// Warm the ControlMaster on the real terminal so the TUI inherits
+				// an authenticated connection — avoids Duo prompts hanging behind
+				// the alt-screen on every internal ssh/rsync call.
+				if err := warmMaster(cfg); err != nil {
+					return err
+				}
+				if err := labtui.Run(cfg); err != nil {
+					if errors.Is(err, labtui.ErrInterrupted) {
+						return cli.Exit("", 130)
+					}
+					return err
+				}
+				return nil
 			}
 
 			remotePath, err := lab.SafeReadPath(cmd.Args().Get(0))
@@ -176,10 +198,13 @@ func labGetCommand() *cli.Command {
 
 func labPutCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "put",
-		Usage:       "Upload a file or directory to your lab space",
-		Description: "$ sci lab put results.csv\n$ sci lab put results.csv experiment/results.csv\n$ sci lab put results.csv --dry-run",
-		ArgsUsage:   "<local> [remote]",
+		Name:  "put",
+		Usage: "Upload a file or directory to your lab space, or pick interactively with no arg",
+		Description: "$ sci lab put                                  # interactive picker (rooted at CWD)\n" +
+			"$ sci lab put results.csv\n" +
+			"$ sci lab put results.csv experiment/results.csv\n" +
+			"$ sci lab put results.csv --dry-run",
+		ArgsUsage: "[local [remote]]",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "show what would be transferred without uploading", Destination: &putDryRun, Local: true},
 		},
@@ -188,11 +213,26 @@ func labPutCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			if cmd.Args().Len() < 1 {
-				return cmdutil.UsageErrorf(cmd, "expected at least 1 argument, got %d", cmd.Args().Len())
+
+			var localPath string
+			switch cmd.Args().Len() {
+			case 0:
+				if cmdutil.IsJSON(cmd) {
+					return fmt.Errorf("put requires a local path in JSON mode")
+				}
+				res, err := fspicker.Pick(fspicker.Opts{})
+				if err != nil {
+					if errors.Is(err, fspicker.ErrCancelled) {
+						uikit.Hint("cancelled")
+						return nil
+					}
+					return err
+				}
+				localPath = res.Path
+			default:
+				localPath = cmd.Args().Get(0)
 			}
 
-			localPath := cmd.Args().Get(0)
 			if _, err := os.Stat(localPath); err != nil {
 				return fmt.Errorf("local file not found: %s", localPath)
 			}
@@ -218,33 +258,6 @@ func labPutCommand() *cli.Command {
 				return fmt.Errorf("rsync not found in PATH")
 			}
 			return syscall.Exec(bin, argv, os.Environ())
-		},
-	}
-}
-
-func labBrowseCommand() *cli.Command {
-	return &cli.Command{
-		Name:        "browse",
-		Usage:       "Interactively browse lab storage and download folders",
-		Description: "$ sci lab browse",
-		Action: func(_ context.Context, _ *cli.Command) error {
-			cfg, err := lab.RequireConfig()
-			if err != nil {
-				return err
-			}
-			// Warm the ControlMaster on the real terminal so the TUI inherits
-			// an authenticated connection — avoids Duo prompts hanging behind
-			// the alt-screen on every internal ssh/rsync call.
-			if err := warmMaster(cfg); err != nil {
-				return err
-			}
-			if err := labtui.Run(cfg); err != nil {
-				if errors.Is(err, labtui.ErrInterrupted) {
-					return cli.Exit("", 130)
-				}
-				return err
-			}
-			return nil
 		},
 	}
 }

@@ -112,8 +112,8 @@ func TestLab_WarmsMasterBeforeSSH(t *testing.T) {
 	}{
 		{"ls", []string{"sci", "lab", "ls"}},
 		{"get", []string{"sci", "lab", "get", "data/foo"}},
+		{"get-noarg", []string{"sci", "lab", "get"}},
 		{"put", []string{"sci", "lab", "put", tmpFile}},
-		{"browse", []string{"sci", "lab", "browse"}},
 		{"connect", []string{"sci", "lab", "connect"}},
 	}
 	for _, tc := range cases {

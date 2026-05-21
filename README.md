@@ -123,9 +123,8 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 |---------|--------------|
 | `sci lab setup` | Configure SSH access to lab storage |
 | `sci lab ls` | List remote directory contents |
-| `sci lab get` | Download a file or directory from lab storage |
-| `sci lab put` | Upload a file or directory to your lab space |
-| `sci lab browse` | Interactively browse lab storage and download folders |
+| `sci lab get <remote> [local]` | Download a file or directory from lab storage (no arg → interactive browser) |
+| `sci lab put <local> [remote]` | Upload a file or directory to your lab space (no arg → interactive picker) |
 | `sci lab connect` | Open an SSH shell in lab storage |
 
 
