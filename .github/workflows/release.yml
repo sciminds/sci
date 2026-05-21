@@ -21,6 +21,15 @@ on:
         required: false
         default: false
 
+# Always evaluates to false for this workflow's actual triggers — workflow_run
+# fires with github.ref = refs/heads/main (default branch), and the push
+# trigger only fires on main. The ref!=main guard is defensive: it keeps the
+# release pipeline from ever cancelling itself mid-run if the workflow file
+# is ever invoked from another branch (e.g. workflow_dispatch on a tag).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 permissions:
   contents: write
 
@@ -58,6 +67,20 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Cache Homebrew downloads
+        # Caches bottle downloads under $(brew --cache). On hit, the brew
+        # install step below skips the network fetch and only links — the
+        # six formulae below collectively pull ~hundreds of MB of bottles.
+        # The cache key hashes this workflow file so it auto-invalidates
+        # when the formula list changes; restore-keys give a partial hit
+        # for any prior release-cache.
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: brew-cache-${{ runner.os }}-release-${{ hashFiles('.github/workflows/release.yml') }}
+          restore-keys: |
+            brew-cache-${{ runner.os }}-release-
 
       - name: Install tools
         # Go dev tools (goimports, golangci-lint, gopls, gofumpt, dlv) are

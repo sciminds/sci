@@ -11,6 +11,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Cancel in-flight runs when new commits land on a PR. Pushes to main never
+# cancel — release.yml chains off this workflow's success via `workflow_run`,
+# so a cancelled main run would leave the release pipeline stuck.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   scenario:
     runs-on: macos-latest
@@ -34,6 +41,19 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      - name: Cache Homebrew downloads
+        # Caches bottle downloads under $(brew --cache). On hit, the `brew
+        # install just` step below skips the network fetch and only links.
+        # Restore-keys fall back to any prior cache from this workflow so
+        # cold caches still get a partial hit. The cache key hashes this
+        # workflow file so it auto-invalidates when the formula list changes.
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: brew-cache-${{ runner.os }}-scenarios-${{ hashFiles('.github/workflows/scenarios.yml') }}
+          restore-keys: |
+            brew-cache-${{ runner.os }}-scenarios-
 
       - name: Install just
         run: brew install just
