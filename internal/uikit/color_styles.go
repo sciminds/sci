@@ -141,7 +141,7 @@ func NewStyles(isDark bool) *Styles {
 			Bold(true).
 			Padding(0, 1),
 		footer: lipgloss.NewStyle().
-			Foreground(p.TextMid).
+			Foreground(p.Indigo).
 			Padding(0, 1),
 		page: lipgloss.NewStyle().
 			Padding(1, 2),

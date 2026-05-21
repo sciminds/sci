@@ -17,6 +17,7 @@ type Palette struct {
 	Green  color.Color
 	Red    color.Color
 	Pink   color.Color
+	Indigo color.Color // footer / keymap hint — adjacent to Wong (no native indigo), kept colorblind-safe by living in the blue half
 
 	TextBright    color.Color
 	TextMid       color.Color
@@ -52,6 +53,7 @@ func NewPalette(isDark bool) Palette {
 		Green:  ld(lipgloss.Color("#007A5A"), lipgloss.Color("#009E73")),
 		Red:    ld(lipgloss.Color("#CC3311"), lipgloss.Color("#D55E00")),
 		Pink:   ld(lipgloss.Color("#AA4499"), lipgloss.Color("#CC79A7")),
+		Indigo: ld(lipgloss.Color("#4F46E5"), lipgloss.Color("#A5B4FC")),
 
 		TextBright:    ld(lipgloss.Color("#1F2937"), lipgloss.Color("#E5E7EB")),
 		TextMid:       ld(lipgloss.Color("#4B5563"), lipgloss.Color("#9CA3AF")),
