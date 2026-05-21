@@ -9,19 +9,21 @@
 // own Provider + Actions; the Model owns navigation, breadcrumb, filter
 // mode, and the standard list look.
 //
-// Two-press confirmation for destructive actions is a first-class
-// Action property — set Action.Confirm = true and the Model handles the
-// "press X again to confirm" UX on its own. Refreshing after a mutation
-// is driven by [RefreshMsg], which the Model translates back into a
-// Provider.Children call against the current path.
+// Confirmation for destructive actions is a first-class Action property
+// — set Action.Confirm = true and the Model embeds a huh.NewConfirm
+// modal (theme + keymap from uikit) on the first press. Yes fires Run;
+// No / esc / q just closes the modal without quitting the program.
+// Per-entry copy is supplied via Action.ConfirmPrompt. Refreshing after
+// a mutation is driven by [RefreshMsg], which the Model translates back
+// into a Provider.Children call against the current path.
 package browser
 
 import (
-	"strings"
-
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/uikit"
 )
@@ -102,18 +104,24 @@ type StatusMsg struct {
 //     is hidden from help. Used for "delete is a file-only action".
 //   - Allowed (optional): false + reason → reason is shown as a warn
 //     toast and Run does not fire. Used for ownership/permission rules.
-//   - Confirm: true → the first press shows a "press again to confirm"
-//     toast; the second press in a row (no other key in between) calls
-//     Run. Any other key cancels.
+//   - Confirm: true → the first press opens a huh.NewConfirm modal.
+//     Yes fires Run; No / esc / q closes the modal without quitting.
+//     Default focus is the negative button so an accidental Enter is
+//     a no-op.
+//   - ConfirmPrompt (optional, paired with Confirm): per-entry modal
+//     copy as (title, description). Default if nil is generic — wire
+//     this for every destructive action so users see what's about to
+//     happen.
 //   - Run: returns the tea.Cmd that performs the action. Usually emits
 //     a [StatusMsg] for feedback and a [RefreshMsg] for re-fetching the
 //     listing after a mutation.
 type Action struct {
-	Key       key.Binding
-	AppliesTo func(Entry) bool
-	Allowed   func(Entry) (bool, string)
-	Confirm   bool
-	Run       func(Entry) tea.Cmd
+	Key           key.Binding
+	AppliesTo     func(Entry) bool
+	Allowed       func(Entry) (bool, string)
+	Confirm       bool
+	ConfirmPrompt func(Entry) (title, description string)
+	Run           func(Entry) tea.Cmd
 }
 
 // applies reports whether this action's key applies to the given entry.
@@ -174,15 +182,18 @@ type Model struct {
 	nav     navKeys
 	list    list.Model
 	cwd     string
-	pending *pendingAction
+	confirm *confirmState
 }
 
-// pendingAction tracks a Confirm-style action awaiting its second press.
-// Path scopes the confirmation to a specific entry — if the user moves
-// the cursor, the pending state is cleared.
-type pendingAction struct {
-	keyHelp string // the key string ("x", "d", …) to match next press
-	path    string // entry the action was primed against
+// confirmState owns the embedded huh modal for a single Confirm:true
+// action. While non-nil, the parent Update routes all keys through the
+// form first — that's how esc/q cancel the modal instead of quitting
+// the program.
+type confirmState struct {
+	form   *huh.Form
+	answer bool
+	action Action
+	entry  Entry
 }
 
 // New constructs a [Model]. It does not fetch children yet — call
@@ -224,11 +235,16 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Update routes incoming messages. Order matters:
-//  1. ChildrenMsg / RefreshMsg / StatusMsg — internal protocol.
-//  2. tea.WindowSizeMsg — resize list.
-//  3. tea.KeyPressMsg — navigation, actions, then list (when not handled).
-//  4. Anything else falls through to list.Model.Update.
+//  1. While the confirm modal is active, ALL messages flow to the form
+//     so huh's internal NextField/NextGroup cmd cascade reaches it.
+//  2. ChildrenMsg / RefreshMsg / StatusMsg — internal protocol.
+//  3. tea.WindowSizeMsg — resize list.
+//  4. tea.KeyPressMsg — navigation, actions, then list (when not handled).
+//  5. Anything else falls through to list.Model.Update.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if m.confirm != nil {
+		return m.routeConfirm(msg)
+	}
 	switch msg := msg.(type) {
 	case ChildrenMsg:
 		return m.handleChildren(msg)
@@ -264,7 +280,8 @@ func (m Model) handleChildren(msg ChildrenMsg) (Model, tea.Cmd) {
 }
 
 // handleKey dispatches a key press. While the filter input is active,
-// the list owns everything except quit.
+// the list owns everything except quit. Modal routing happens upstream
+// in [Model.Update].
 func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	if m.list.FilterState() == list.Filtering {
 		var cmd tea.Cmd
@@ -277,13 +294,11 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
-	// Navigation. Both Enter (on dir) and Backspace clear any pending
-	// confirmation — the user has moved on.
+	// Navigation.
 	switch {
 	case key.Matches(msg, m.nav.open):
 		if e, ok := m.list.SelectedItem().(Entry); ok && e.IsDir() {
 			m.cwd = e.Path()
-			m.pending = nil
 			return m, m.cfg.Provider.Children(m.cwd)
 		}
 		// Enter on a leaf falls through to action dispatch so a
@@ -292,7 +307,6 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	case key.Matches(msg, m.nav.up):
 		if parent := m.cfg.Provider.Parent(m.cwd); parent != m.cwd {
 			m.cwd = parent
-			m.pending = nil
 			return m, m.cfg.Provider.Children(m.cwd)
 		}
 		return m, nil
@@ -308,42 +322,100 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			return m, nil
 		}
 		if !a.applies(entry) {
-			m.pending = nil
 			return m, nil
 		}
 		if ok, reason := a.allowed(entry); !ok {
-			m.pending = nil
 			return m, m.list.NewStatusMessage(renderStatus(StatusMsg{
 				Text: reason,
 				Kind: StatusWarn,
 			}))
 		}
 		if a.Confirm {
-			actionKey := strings.Join(a.Key.Keys(), ",")
-			if m.pending != nil && m.pending.keyHelp == actionKey && m.pending.path == entry.Path() {
-				m.pending = nil
-				return m, a.Run(entry)
-			}
-			m.pending = &pendingAction{keyHelp: actionKey, path: entry.Path()}
-			return m, m.list.NewStatusMessage(renderStatus(StatusMsg{
-				Text: "Press " + a.Key.Help().Key + " again to confirm",
-				Kind: StatusWarn,
-			}))
+			m.confirm = newConfirmState(a, entry)
+			return m, m.confirm.form.Init()
 		}
-		m.pending = nil
 		return m, a.Run(entry)
 	}
 
-	// Unrecognized key: clear pending, defer to list (cursor movement,
-	// filter activation, paging).
-	m.pending = nil
+	// Unrecognized key: defer to list (cursor movement, filter, paging).
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
 
-// View renders the browser.
+// routeConfirm forwards a message to the active confirm modal and
+// inspects the resulting form state. Any msg type is accepted because
+// huh emits internal NextField/NextGroup cmds whose resulting msgs
+// must reach the form to drive the State transition.
+//
+// On StateCompleted the answer decides whether Action.Run fires. On
+// StateAborted (esc / q / ctrl+c via uikit.HuhKeyMap) the modal closes
+// silently — crucially the form's tea.Quit Cmd is discarded so the
+// parent program stays alive.
+func (m Model) routeConfirm(msg tea.Msg) (Model, tea.Cmd) {
+	next, cmd := m.confirm.form.Update(msg)
+	if f, ok := next.(*huh.Form); ok {
+		m.confirm.form = f
+	}
+	switch m.confirm.form.State {
+	case huh.StateCompleted:
+		c := m.confirm
+		m.confirm = nil
+		if c.answer {
+			return m, c.action.Run(c.entry)
+		}
+		return m, nil
+	case huh.StateAborted:
+		m.confirm = nil
+		return m, nil
+	}
+	return m, cmd
+}
+
+// newConfirmState builds the modal for an action+entry pair. Default
+// focus lands on the negative button — Enter alone is a no-op so a
+// fat-fingered confirm key doesn't compound into an accidental delete.
+func newConfirmState(a Action, e Entry) *confirmState {
+	title, desc := defaultPrompt(a, e)
+	if a.ConfirmPrompt != nil {
+		title, desc = a.ConfirmPrompt(e)
+	}
+	c := &confirmState{action: a, entry: e}
+	c.form = huh.NewForm(huh.NewGroup(
+		huh.NewConfirm().
+			Title(title).
+			Description(desc).
+			Affirmative("Yes").
+			Negative("No").
+			Value(&c.answer),
+	)).
+		WithTheme(uikit.HuhTheme()).
+		WithKeyMap(uikit.HuhKeyMap()).
+		WithShowHelp(false).
+		WithShowErrors(false)
+	return c
+}
+
+// defaultPrompt is the fallback when an Action does not supply
+// ConfirmPrompt. Generic on purpose — consumers should override.
+func defaultPrompt(a Action, _ Entry) (string, string) {
+	return "Confirm " + a.Key.Help().Key + "?", ""
+}
+
+// View renders the browser. While a confirm modal is active the form
+// is centered over the list area; the list is hidden because lipgloss
+// v2's Place fills the background. A future iteration could composite
+// the form on top of a dimmed list via lipgloss.NewLayer.
 func (m Model) View() string {
+	if m.confirm != nil {
+		return lipgloss.Place(
+			m.list.Width(),
+			m.list.Height(),
+			lipgloss.Center,
+			lipgloss.Center,
+			m.confirm.form.View(),
+		)
+	}
 	return m.list.View()
 }
 

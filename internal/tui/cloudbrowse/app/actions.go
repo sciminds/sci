@@ -46,9 +46,12 @@ func BuildActions(p *Provider) []browser.Action {
 
 // deleteAction surfaces the owner-only delete for files AND folders.
 // Allowed rejects foreign owners with a toast (and, as a side effect,
-// the empty-owner case at the bucket-root user folder); Confirm makes
-// the second press fire the network call. Run branches on IsDir:
-// files use `hf buckets rm`, folders use `hf buckets rm -R`.
+// the empty-owner case at the bucket-root user folder); Confirm opens
+// a huh modal so the destructive action requires an explicit Yes.
+// ConfirmPrompt spells out the consequence — files vs recursive folder
+// — so the modal can't be dismissed via muscle-memory Enter.
+// Run branches on IsDir: files use `hf buckets rm`, folders use
+// `hf buckets rm -R`.
 func deleteAction(p *Provider) browser.Action {
 	return browser.Action{
 		Key: key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "delete (own files/folders)")),
@@ -67,6 +70,14 @@ func deleteAction(p *Provider) browser.Action {
 			return true, ""
 		},
 		Confirm: true,
+		ConfirmPrompt: func(e browser.Entry) (string, string) {
+			ce := e.(Entry)
+			name := ce.T.Name
+			if ce.T.IsDir {
+				name += "/"
+			}
+			return fmt.Sprintf("Are you sure you want to delete %s?", name), ""
+		},
 		Run: func(e browser.Entry) tea.Cmd {
 			ce := e.(Entry)
 			pending := "Deleting " + ce.T.Name + "…"

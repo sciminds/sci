@@ -81,6 +81,21 @@ func runCmd(c tea.Cmd) tea.Msg {
 	return c()
 }
 
+// drainTwice mirrors the helper huh's own tests use to drive a form's
+// submit cascade: confirm-field Submit returns a NextField cmd whose
+// resulting nextFieldMsg returns a NextGroup cmd whose resulting
+// nextGroupMsg flips State to Completed. Two cycles cover it.
+func drainTwice(m Model, cmd tea.Cmd) (Model, tea.Cmd) {
+	for i := 0; i < 2 && cmd != nil; i++ {
+		msg := cmd()
+		if msg == nil {
+			return m, nil
+		}
+		m, cmd = m.Update(msg)
+	}
+	return m, cmd
+}
+
 // keyPress builds a tea.KeyPressMsg from a single rune.
 func keyPress(r rune) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Code: r, Text: string(r)}
@@ -333,7 +348,13 @@ func TestAction_AllowedFalse_ShowsReasonNoRun(t *testing.T) {
 	}
 }
 
-func TestAction_Confirm_FiresOnSecondPress(t *testing.T) {
+// Confirm semantics: the first press of a Confirm:true action opens a huh
+// modal. Pressing Yes (toggle right + Enter) fires Run. Submitting on the
+// default-focused No, or cancelling via esc/q, just closes the modal —
+// crucially it must NOT propagate tea.Quit, even when q is also bound as
+// a QuitKey on the parent Config.
+
+func TestAction_Confirm_FirstPressOpensModal(t *testing.T) {
 	t.Parallel()
 	p := newStubProvider()
 	flag := &runFlag{}
@@ -342,26 +363,43 @@ func TestAction_Confirm_FiresOnSecondPress(t *testing.T) {
 
 	m.list.Select(1) // ejolly/report.pdf
 	m, _ = m.Update(keyPress('x'))
-	if flag.fired {
-		t.Fatal("first press fired Run; want primed-only")
-	}
-	if m.pending == nil {
-		t.Fatal("expected pending after first press")
-	}
 
+	if m.confirm == nil {
+		t.Fatal("first press did not open modal")
+	}
+	if flag.fired {
+		t.Error("first press fired Run; modal should gate it")
+	}
+}
+
+func TestAction_Confirm_YesFiresRun(t *testing.T) {
+	t.Parallel()
+	p := newStubProvider()
+	flag := &runFlag{}
+	m := New(Config{Provider: p, Actions: []Action{deleteAction(flag, true)}})
+	m, _ = m.Update(ChildrenMsg{Path: "ejolly", Entries: p.tree["ejolly"]})
+
+	m.list.Select(1) // ejolly/report.pdf
 	m, _ = m.Update(keyPress('x'))
+
+	// Default focus is the negative button (safer). Toggle to Yes, submit,
+	// then drain the form's NextField → NextGroup cascade.
+	m, _ = m.Update(keyPress('l'))
+	m, cmd := m.Update(specialKey(tea.KeyEnter))
+	m, _ = drainTwice(m, cmd)
+
 	if !flag.fired {
-		t.Error("second press did not fire Run")
+		t.Fatal("yes did not fire Run")
 	}
 	if flag.onEntry.Path() != "ejolly/report.pdf" {
 		t.Errorf("Run called on %q, want ejolly/report.pdf", flag.onEntry.Path())
 	}
-	if m.pending != nil {
-		t.Error("pending not cleared after second press")
+	if m.confirm != nil {
+		t.Error("modal not cleared after yes")
 	}
 }
 
-func TestAction_Confirm_OtherKeyCancels(t *testing.T) {
+func TestAction_Confirm_NoCancelsKeepsBrowserAlive(t *testing.T) {
 	t.Parallel()
 	p := newStubProvider()
 	flag := &runFlag{}
@@ -370,21 +408,102 @@ func TestAction_Confirm_OtherKeyCancels(t *testing.T) {
 
 	m.list.Select(1)
 	m, _ = m.Update(keyPress('x'))
-	if m.pending == nil {
-		t.Fatal("expected pending after first press")
-	}
 
-	// Move cursor — should clear pending.
-	m, _ = m.Update(specialKey('j'))
-	if m.pending != nil {
-		t.Error("pending not cleared by cursor move")
-	}
+	// Default focus is No — submit immediately and drain the cascade.
+	m, cmd := m.Update(specialKey(tea.KeyEnter))
+	m, cmd = drainTwice(m, cmd)
 
-	// Second x — should re-prime, not fire.
+	if flag.fired {
+		t.Error("no fired Run")
+	}
+	if m.confirm != nil {
+		t.Error("modal not cleared after no")
+	}
+	if _, ok := runCmd(cmd).(tea.QuitMsg); ok {
+		t.Error("no returned tea.Quit; should just close modal")
+	}
+}
+
+func TestAction_Confirm_EscDoesNotQuit(t *testing.T) {
+	t.Parallel()
+	p := newStubProvider()
+	flag := &runFlag{}
+	m := New(Config{
+		Provider: p,
+		Actions:  []Action{deleteAction(flag, true)},
+		QuitKeys: key.NewBinding(key.WithKeys("q", "ctrl+c")),
+	})
+	m, _ = m.Update(ChildrenMsg{Path: "ejolly", Entries: p.tree["ejolly"]})
+
 	m.list.Select(1)
 	m, _ = m.Update(keyPress('x'))
+
+	m, cmd := m.Update(specialKey(tea.KeyEsc))
+
 	if flag.fired {
-		t.Error("Run fired after pending was cancelled")
+		t.Error("esc fired Run")
+	}
+	if m.confirm != nil {
+		t.Error("modal not cleared after esc")
+	}
+	if _, ok := runCmd(cmd).(tea.QuitMsg); ok {
+		t.Error("esc returned tea.Quit; should just close modal")
+	}
+}
+
+func TestAction_Confirm_QInModalDoesNotQuit(t *testing.T) {
+	t.Parallel()
+	p := newStubProvider()
+	flag := &runFlag{}
+	m := New(Config{
+		Provider: p,
+		Actions:  []Action{deleteAction(flag, true)},
+		QuitKeys: key.NewBinding(key.WithKeys("q", "ctrl+c")),
+	})
+	m, _ = m.Update(ChildrenMsg{Path: "ejolly", Entries: p.tree["ejolly"]})
+
+	m.list.Select(1)
+	m, _ = m.Update(keyPress('x'))
+
+	// q is the parent QuitKey AND a huh KeyMap.Quit binding. The modal
+	// must consume it as cancel — never propagate tea.Quit.
+	m, cmd := m.Update(keyPress('q'))
+
+	if m.confirm != nil {
+		t.Error("modal not cleared after q")
+	}
+	if _, ok := runCmd(cmd).(tea.QuitMsg); ok {
+		t.Error("q in modal returned tea.Quit; should cancel modal only")
+	}
+}
+
+func TestAction_ConfirmPrompt_AppearsInModalView(t *testing.T) {
+	t.Parallel()
+	p := newStubProvider()
+	flag := &runFlag{}
+	custom := Action{
+		Key:     key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "delete")),
+		Confirm: true,
+		ConfirmPrompt: func(e Entry) (string, string) {
+			return "Delete " + e.Path() + "?", "irreversible"
+		},
+		Run: func(e Entry) tea.Cmd {
+			flag.fired = true
+			return nil
+		},
+	}
+	m := New(Config{Provider: p, Actions: []Action{custom}})
+	m, _ = m.Update(ChildrenMsg{Path: "ejolly", Entries: p.tree["ejolly"]})
+
+	m.list.Select(1) // ejolly/report.pdf
+	m, _ = m.Update(keyPress('x'))
+
+	view := m.View()
+	if !strings.Contains(view, "Delete ejolly/report.pdf?") {
+		t.Errorf("modal view missing custom title; got:\n%s", view)
+	}
+	if !strings.Contains(view, "irreversible") {
+		t.Errorf("modal view missing custom description; got:\n%s", view)
 	}
 }
 
