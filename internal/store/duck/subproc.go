@@ -55,13 +55,14 @@ const stderrDrainTimeout = 2 * time.Second
 // stderrSyntheticTrailerLines is how many stderr lines follow the line that
 // matches our synthetic-sentinel marker before the catalog-error block
 // finishes. duckdb's "Catalog Error: Table X does not exist!" is followed
-// by exactly 3 more lines: a "Did you mean ..." hint, a "LINE 1: ..."
-// echo of the offending statement, and a caret-pointer line. drainStderr
-// drops these regardless of arm state — without that, lines that haven't
-// reached the drain by the time the next query() re-arms get appended to
-// the new query's stderrBuf and surface as spurious errors. See
-// TestDrainStderr_TrailerDoesNotLeakAcrossQueries.
-const stderrSyntheticTrailerLines = 3
+// by exactly 4 more lines: a "Did you mean ..." hint, a blank separator,
+// a "LINE 1: ..." echo of the offending statement, and a caret-pointer
+// line. drainStderr drops these regardless of arm state — without that,
+// lines that haven't reached the drain by the time the next query()
+// re-arms get appended to the new query's stderrBuf and surface as
+// spurious errors (a lone "^" from the caret line was the classic
+// symptom). See TestDrainStderr_TrailerDoesNotLeakAcrossQueries.
+const stderrSyntheticTrailerLines = 4
 
 // subproc owns one duckdb child process. Methods are safe to call from
 // any goroutine but serialise through [subproc.mu] — duckdb's stdin is
@@ -82,7 +83,7 @@ type subproc struct {
 
 	// stderrSentinel, when non-empty, is the per-query marker drainStderr
 	// is watching for. On match the goroutine closes stderrSeen, clears
-	// both fields, and arms stderrSyntheticRemaining so the trailing 3
+	// both fields, and arms stderrSyntheticRemaining so the trailing 4
 	// lines of the catalog error are dropped even if the next query has
 	// already re-armed by the time they arrive.
 	stderrSentinel string
@@ -161,8 +162,8 @@ func startSubprocFromCmd(cmd *exec.Cmd) (*subproc, error) {
 //
 //   - draining trailer (stderrSyntheticRemaining > 0): silently drop the
 //     line and decrement. Set after a sentinel match; persists across the
-//     next query()'s arm so the catalog-error trailer (hint, LINE 1: echo,
-//     caret) never leaks into the wrong query's buf.
+//     next query()'s arm so the catalog-error trailer (hint, blank, LINE 1:
+//     echo, caret) never leaks into the wrong query's buf.
 //   - armed (stderrSentinel != ""): a query is in flight. Append each line
 //     to stderrBuf until one contains the sentinel marker; on match close
 //     stderrSeen, arm stderrSyntheticRemaining, and disarm. This is the

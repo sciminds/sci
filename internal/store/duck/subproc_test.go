@@ -90,12 +90,13 @@ func TestClose_PolitePathCompletes(t *testing.T) {
 }
 
 // TestDrainStderr_TrailerDoesNotLeakAcrossQueries pins the fix for the
-// race where Q_N's synthetic catalog-error trailer (the 3 lines after
-// "Catalog Error: ...": hint, "LINE 1:" echo, caret) leaked into
-// Q_{N+1}'s stderrBuf when Q_{N+1} armed before drainStderr had a chance
-// to read those trailing lines. Symptom: spurious errors like
-// `duckdb: Did you mean "duckdb_constraints"? LINE 1: SELECT 1 FROM
-// __sci_duck_stderr_sentinel__N__;` flaking TestStoreContract under -race.
+// race where Q_N's synthetic catalog-error trailer (the 4 lines after
+// "Catalog Error: ...": hint, blank separator, "LINE 1:" echo, caret)
+// leaked into Q_{N+1}'s stderrBuf when Q_{N+1} armed before drainStderr
+// had a chance to read those trailing lines. Symptom: spurious errors
+// like `duckdb: Did you mean "duckdb_constraints"? LINE 1: SELECT 1 FROM
+// __sci_duck_stderr_sentinel__N__;` or a lone `duckdb: ^` flaking
+// TestStoreContract under -race.
 //
 // The test simulates the race deterministically by re-arming the sentinel
 // AFTER drainStderr signals it matched line 1 but BEFORE the trailer is
@@ -142,12 +143,15 @@ func TestDrainStderr_TrailerDoesNotLeakAcrossQueries(t *testing.T) {
 	// none of them contain Q2's marker.
 	seen2 := arm("__sci_duck_stderr_sentinel__2__")
 
-	// Q1 trailer (hint, LINE 1 echo, caret) then Q2 full 4-line synthetic.
+	// Q1 trailer (hint, blank, LINE 1 echo, caret) then Q2 full 5-line
+	// synthetic block — mirroring the actual duckdb v1.5.x error format.
 	write(`Did you mean "duckdb_constraints"?`)
+	write(``)
 	write(`LINE 1: SELECT 1 FROM __sci_duck_stderr_sentinel__1__;`)
 	write(`                      ^`)
 	write(`Catalog Error: Table "__sci_duck_stderr_sentinel__2__" does not exist!`)
 	write(`Did you mean "duckdb_constraints"?`)
+	write(``)
 	write(`LINE 1: SELECT 1 FROM __sci_duck_stderr_sentinel__2__;`)
 	write(`                      ^`)
 
