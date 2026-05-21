@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
+	"strings"
 	"testing"
+
+	"github.com/sciminds/cli/internal/netutil"
 )
 
 // TestCloud_SubcommandShape locks in the surface: setup/ls/get/put/remove.
@@ -60,5 +64,29 @@ func TestCloud_SubcommandShape(t *testing.T) {
 
 	if findCmd(cloud.Commands, "browse") != nil {
 		t.Errorf("cloud browse should be removed; its functionality moved to `sci cloud get`")
+	}
+}
+
+// TestCloud_BrowseRedirectsToGet locks in the user-facing redirect for the
+// removed `sci cloud browse` command. Muscle-memory typing should land on a
+// tailored "use sci cloud get instead" message, not the generic Levenshtein
+// suggestion (which used to surface "remove" — actively misleading).
+func TestCloud_BrowseRedirectsToGet(t *testing.T) {
+	// netutil.Online runs in cloudCommand's Before, but RejectUnknownSubcommand
+	// is chained ahead of it via WireNamespaceDefaults, so the redirect short-
+	// circuits before any network probe. Stubbing online anyway keeps this
+	// test honest if that wiring order ever flips.
+	netutil.SetProbeURL("http://127.0.0.1:1")
+	t.Cleanup(netutil.ResetProbeURL)
+
+	err := buildRoot().Run(context.Background(), []string{"sci", "cloud", "browse"})
+	if err == nil {
+		t.Fatal("expected deprecation error")
+	}
+	if !strings.Contains(err.Error(), "removed") {
+		t.Errorf("error should say the command was removed, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "sci cloud get") {
+		t.Errorf("error should point to `sci cloud get`, got: %v", err)
 	}
 }

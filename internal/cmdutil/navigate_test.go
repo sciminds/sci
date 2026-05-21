@@ -89,6 +89,73 @@ func TestRejectUnknownSubcommand_ErrorsOnUnknown(t *testing.T) {
 	}
 }
 
+// --- MarkDeprecatedChildren ---
+
+func TestRejectUnknownSubcommand_RedirectsDeprecatedChild(t *testing.T) {
+	t.Parallel()
+	var buf strings.Builder
+	root := &cli.Command{
+		Name:   "test",
+		Writer: &buf,
+		Before: RejectUnknownSubcommand,
+		Commands: []*cli.Command{
+			{Name: "get", Action: func(context.Context, *cli.Command) error { return nil }},
+		},
+	}
+	MarkDeprecatedChildren(root, map[string]string{"browse": "get"})
+
+	err := root.Run(context.Background(), []string{"test", "browse"})
+	if err == nil {
+		t.Fatal("expected error for deprecated subcommand")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "removed") {
+		t.Errorf("error should mention removal, got: %v", err)
+	}
+	if !strings.Contains(msg, "browse") || !strings.Contains(msg, "get") {
+		t.Errorf("error should name both removed and replacement, got: %v", err)
+	}
+	// Help-dump is noise on a deprecation — the message itself is the answer.
+	if buf.Len() != 0 {
+		t.Errorf("deprecated redirect should not dump help; got: %q", buf.String())
+	}
+}
+
+func TestRejectUnknownSubcommand_DeprecatedMissDoesNotPoisonUnknown(t *testing.T) {
+	t.Parallel()
+	root := &cli.Command{
+		Name:   "test",
+		Before: RejectUnknownSubcommand,
+		Commands: []*cli.Command{
+			{Name: "get", Action: func(context.Context, *cli.Command) error { return nil }},
+		},
+	}
+	MarkDeprecatedChildren(root, map[string]string{"browse": "get"})
+
+	err := root.Run(context.Background(), []string{"test", "bogus"})
+	if err == nil {
+		t.Fatal("expected error for unknown subcommand")
+	}
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Errorf("non-deprecated unknown should still produce the generic message, got: %v", err)
+	}
+}
+
+func TestMarkDeprecatedChildren_MergesOnRepeatCalls(t *testing.T) {
+	t.Parallel()
+	cmd := &cli.Command{Name: "test"}
+	MarkDeprecatedChildren(cmd, map[string]string{"a": "x"})
+	MarkDeprecatedChildren(cmd, map[string]string{"b": "y"})
+
+	got, ok := cmd.Metadata[deprecatedChildrenKey].(map[string]string)
+	if !ok {
+		t.Fatalf("metadata missing or wrong type: %T", cmd.Metadata[deprecatedChildrenKey])
+	}
+	if got["a"] != "x" || got["b"] != "y" {
+		t.Errorf("merge lost a key; got %v", got)
+	}
+}
+
 // --- ChainBefore ---
 
 func TestChainBefore_RunsInOrderUntilError(t *testing.T) {

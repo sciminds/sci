@@ -33,7 +33,7 @@ var (
 var warmMaster = lab.WarmMaster
 
 func labCommand() *cli.Command {
-	return &cli.Command{
+	cmd := &cli.Command{
 		Name:  "lab",
 		Usage: "Access university lab storage (SFTP)",
 		Description: "$ sci lab ls\n" +
@@ -59,6 +59,8 @@ func labCommand() *cli.Command {
 			labConnectCommand(),
 		},
 	}
+	cmdutil.MarkDeprecatedChildren(cmd, map[string]string{"browse": "get"})
+	return cmd
 }
 
 func labSetupCommand() *cli.Command {

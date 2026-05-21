@@ -126,6 +126,38 @@ func TestLab_WarmsMasterBeforeSSH(t *testing.T) {
 	}
 }
 
+// TestLab_BrowseRedirectsToGet locks in the user-facing redirect for the
+// removed `sci lab browse` command. Muscle-memory typing should land on a
+// tailored "use sci lab get instead" message, not the generic Levenshtein
+// suggestion (which used to surface "connect" — actively misleading).
+func TestLab_BrowseRedirectsToGet(t *testing.T) {
+	// labCommand's Before probes netutil + lab.Preflight, but
+	// RejectUnknownSubcommand runs first in the chain, so the redirect fires
+	// before either probe. Stub both anyway so this test stays hermetic if
+	// the chain order ever flips.
+	probe := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(probe.Close)
+	netutil.SetProbeURL(probe.URL)
+	t.Cleanup(netutil.ResetProbeURL)
+
+	ln := startSSHBannerListener(t)
+	lab.SetPreflightAddr(ln.Addr().String())
+	t.Cleanup(lab.ResetPreflightAddr)
+
+	err := buildRoot().Run(context.Background(), []string{"sci", "lab", "browse"})
+	if err == nil {
+		t.Fatal("expected deprecation error")
+	}
+	if !strings.Contains(err.Error(), "removed") {
+		t.Errorf("error should say the command was removed, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "sci lab get") {
+		t.Errorf("error should point to `sci lab get`, got: %v", err)
+	}
+}
+
 func TestLabSetup_HasUserFlag(t *testing.T) {
 	root := buildRoot()
 	lab := findCmd(root.Commands, "lab")

@@ -30,6 +30,7 @@ package cmdutil
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/urfave/cli/v3"
 )
@@ -38,6 +39,32 @@ import (
 // to track whether a command has already been wired, so repeated walks are
 // idempotent.
 const wireMarker = "cmdutil.namespaceDefaultsWired"
+
+// deprecatedChildrenKey is the metadata key under which a namespace stores
+// a map of removed → replacement subcommand names. RejectUnknownSubcommand
+// consults this first; a match produces a tailored "removed — use X
+// instead" error instead of the generic Levenshtein suggestion (which is
+// useless when the user typed a name from muscle memory of the old API).
+const deprecatedChildrenKey = "cmdutil.deprecatedChildren"
+
+// MarkDeprecatedChildren records that the given subcommand names have been
+// removed, with each value naming the recommended replacement. Typing one
+// of the keys at this namespace produces a tailored error pointing at the
+// new command. Idempotent: repeated calls merge their maps.
+func MarkDeprecatedChildren(cmd *cli.Command, redirects map[string]string) {
+	if cmd == nil || len(redirects) == 0 {
+		return
+	}
+	if cmd.Metadata == nil {
+		cmd.Metadata = map[string]any{}
+	}
+	merged, _ := cmd.Metadata[deprecatedChildrenKey].(map[string]string)
+	if merged == nil {
+		merged = map[string]string{}
+	}
+	maps.Copy(merged, redirects)
+	cmd.Metadata[deprecatedChildrenKey] = merged
+}
 
 // RejectUnknownSubcommand is a Before hook for commands that group
 // subcommands. If the first positional arg doesn't name a direct subcommand,
@@ -52,6 +79,15 @@ func RejectUnknownSubcommand(ctx context.Context, cmd *cli.Command) (context.Con
 	first := cmd.Args().First()
 	if first == "" || cmd.Command(first) != nil {
 		return ctx, nil
+	}
+	if redirects, ok := cmd.Metadata[deprecatedChildrenKey].(map[string]string); ok {
+		if replacement, ok := redirects[first]; ok {
+			// Skip the help dump on a known-deprecated name: the tailored
+			// "use X instead" line is already the answer the user needs.
+			return ctx, fmt.Errorf("%q was removed — use %q instead",
+				cmd.FullName()+" "+first,
+				cmd.FullName()+" "+replacement)
+		}
 	}
 	_ = cli.ShowSubcommandHelp(cmd)
 	msg := fmt.Sprintf("unknown command %q", first)

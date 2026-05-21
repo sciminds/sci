@@ -28,7 +28,7 @@ var (
 )
 
 func cloudCommand() *cli.Command {
-	return &cli.Command{
+	cmd := &cli.Command{
 		Name:    "cloud",
 		Aliases: []string{"cl"},
 		Usage:   "Upload/download files to the SciMinds Hugging Face buckets",
@@ -55,6 +55,8 @@ func cloudCommand() *cli.Command {
 			cloudRemoveCommand(),
 		},
 	}
+	cmdutil.MarkDeprecatedChildren(cmd, map[string]string{"browse": "get"})
+	return cmd
 }
 
 func cloudSetupCommand() *cli.Command {
