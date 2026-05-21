@@ -24,9 +24,12 @@ const InternalRefreshEnv = "SCI_INTERNAL_REFRESH_UPDATE_CACHE"
 // refreshTTL is the minimum time between live update checks. Rapid-fire
 // invocations within this window read from the cache without re-hitting
 // GitHub — preserves the API rate-limit budget and avoids spawning
-// redundant refresh subprocesses. The 24h cadence matches gh's pattern
-// and is also the natural display cadence for the notice.
-const refreshTTL = 24 * time.Hour
+// redundant refresh subprocesses. 1h is calibrated to sci's release
+// cadence (multiple releases per day during bursts); a longer window
+// would leave lab members blind to mid-day releases. Even an LLM
+// chaining hundreds of commands triggers at most one refresh per hour,
+// well inside GitHub's 60/h unauth rate limit.
+const refreshTTL = time.Hour
 
 // now is the package's clock seam — tests override it to exercise
 // time-dependent paths without sleeping.
@@ -119,6 +122,23 @@ func RefreshCache() {
 		result.LastShownAt = prev.LastShownAt
 	}
 	writeCache(result)
+}
+
+// InvalidateCache marks the cache as stale by zeroing LastCheckedAt,
+// forcing the next [SpawnDetachedRefresh] to re-hit GitHub. Intended
+// to be called after a successful `sci update`: a new release can land
+// minutes after the user's update, and trusting the stamp would hide
+// it for up to [refreshTTL]. Missing cache is a no-op.
+//
+// LastShownAt is preserved — once the next refresh stamps a newer
+// LastCheckedAt, the show-once-per-cycle gate naturally re-opens.
+func InvalidateCache() {
+	cached, ok := loadCache()
+	if !ok {
+		return
+	}
+	cached.LastCheckedAt = time.Time{}
+	writeCache(cached)
 }
 
 // cacheIsFresh reports whether the cache was refreshed within [refreshTTL].

@@ -104,6 +104,13 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 
 	cmdutil.Output(cmd, updateResult{inner: result, Updated: true})
 
+	// Invalidate the update-check cache: the freshly installed binary must
+	// re-check on its next invocation, because another release can land
+	// minutes after this one (bursty release schedule). Trusting the stale
+	// LastCheckedAt would hide same-day follow-up releases for up to a
+	// full refreshTTL.
+	selfupdate.InvalidateCache()
+
 	// Chain into the freshly installed binary's doctor so any new required
 	// tools (e.g. git-xet, hf for the HF cloud backend) get installed
 	// without the user having to know they exist. The new binary's

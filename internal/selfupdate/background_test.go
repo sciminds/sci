@@ -362,6 +362,39 @@ func TestWriteCache_ReadOnlyParent(t *testing.T) {
 	}
 }
 
+// TestInvalidateCache_ClearsLastCheckedAt verifies the post-update hook:
+// after sci updates itself, the freshly installed binary must NOT trust
+// the cache's "we checked recently" stamp — a second release of the day
+// could have landed minutes after the user's update, and a 1h TTL window
+// would still hide it. InvalidateCache zeros LastCheckedAt so the next
+// SpawnDetachedRefresh sees the cache as stale and re-checks.
+func TestInvalidateCache_ClearsLastCheckedAt(t *testing.T) {
+	withCache(t)
+
+	writeCache(CheckResult{
+		Available:     true,
+		LatestSHA:     "bbbbbbb2222222",
+		LastCheckedAt: time.Now(), // fresh — would normally suppress refresh
+	})
+	if !cacheIsFresh() {
+		t.Fatal("test setup: expected fresh cache before invalidation")
+	}
+
+	InvalidateCache()
+
+	if cacheIsFresh() {
+		t.Error("cacheIsFresh = true after InvalidateCache; next refresh would be skipped")
+	}
+}
+
+// TestInvalidateCache_NoCacheIsNoop verifies that calling InvalidateCache
+// when no cache file exists is safe — sci update on a brand-new install
+// (no prior update check ever ran) must not panic or error.
+func TestInvalidateCache_NoCacheIsNoop(t *testing.T) {
+	withCache(t)
+	InvalidateCache() // must not panic
+}
+
 func TestReadCachedNotice_DevBuild(t *testing.T) {
 	withCommit(t, "unknown")
 
