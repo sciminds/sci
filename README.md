@@ -282,7 +282,7 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 <details>
 <summary><b>sub-commands</b> — click to expand</summary>
 
-**Library scope.** Every zot command (except `setup`, `info`, `import`, and `guide`) requires `--library personal` or `--library shared`. Personal is your own Zotero user library; shared is a Zotero group library auto-detected at setup time. `sci zot info` without the flag summarizes both libraries side-by-side. Examples below include `--library personal` for the common case.
+**Library scope.** Every zot command (except `setup`, `info`, `import`, `guide`, and `view`) requires `--library personal` or `--library shared`. Personal is your own Zotero user library; shared is a Zotero group library auto-detected at setup time. `sci zot info` without the flag summarizes both libraries side-by-side. Examples below include `--library personal` for the common case.
 
 **Setup & overview**
 
@@ -325,7 +325,7 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 |---------|--------------|
 | [`sci zot --library personal extract <key>`](#extraction--llm-workflows) | Convert the item's PDF into a Zotero child note (default is dry-run; `--apply` to post) |
 | [`sci zot --library personal extract <key> --out DIR --apply`](#extraction--llm-workflows) | Full extraction: md + json + referenced PNGs + CSV tables to `DIR` |
-| [`sci zot --library personal extract-lib --apply`](#extraction--llm-workflows) | Bulk-extract every PDF in the library (parallelizable with `-j`) |
+| [`sci zot --library personal extract-lib`](#extraction--llm-workflows) | Bulk-extract every PDF in the library (default is cache-only; `--apply` to post notes; parallelizable with `-j`) |
 | [`sci zot --library personal notes list\|read\|add\|update\|delete`](#extraction--llm-workflows) | Manage docling extraction notes |
 | [`sci zot --library personal llm catalog\|query\|read`](#extraction--llm-workflows) | LLM-agent tools for querying docling notes |
 
@@ -349,6 +349,8 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 `sci zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` picks the group automatically when the account belongs to exactly one, or accepts `--shared-group-id` when multiple groups exist.
 
 **PDF → child note extraction.** `sci zot extract <KEY>` pipes the item's PDF attachment through [`docling`](https://github.com/DS4SD/docling) and posts the markdown as a child note on the parent — tagged `docling` and stamped with a sentinel comment so re-runs dedupe by sha256. Default is dry-run; pass `--apply` to actually create the note (`--html` posts rendered HTML instead of raw markdown). `--out DIR` switches to full extraction (md + json + referenced PNGs + CSV tables per `docling`'s always-on TableFormer) persisted for Obsidian-style vault exports; `--no-note` skips the Zotero post entirely. Identical re-runs skip; PDF updates PATCH-in-place so the note key stays stable. `sci zot notes delete` is the surgical undo — matches notes by their embedded sentinel (not tag). Requires `docling` on PATH (`sci doctor` installs it via `uv`).
+
+For the bulk pipeline, `sci zot extract-lib` runs docling on every PDF in the library and **caches results locally without posting** by default — pass `--apply` to create the child notes. Cached output is reused on re-runs, so a failed run resumes where it left off; `--reextract` discards the cache.
 
 **Library export details.** `sci zot export` honors user-pinned cite-keys (Zotero 7's native `citationKey` field, or legacy Better BibTeX `Citation Key:` lines in `extra`) and synthesizes semantic keys for everything else as `lastname{year}{firstword}-ZOTKEY`. The trailing 8-char Zotero key suffix guarantees uniqueness without collision arithmetic and keeps entries round-trippable back to the source item. Pinned entries also carry a `zotero://select/library/items/<KEY>` URI in the `note` field (appended to any existing user prose, never overwriting). A `.zotero-citekeymap.json` sidecar is written next to the output file; on the next run, any synthesized prefix that drifted (e.g. after a metadata typo fix) gets a biblatex `ids = {oldkey}` alias so manuscripts citing the old form still resolve.
 
