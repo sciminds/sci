@@ -27,9 +27,10 @@ import (
 
 // Per-action timeouts.
 const (
-	deleteTimeout   = 30 * time.Second
-	downloadTimeout = 10 * time.Minute // single-file
-	folderTimeout   = 30 * time.Minute // whole-prefix sync
+	deleteTimeout       = 30 * time.Second
+	folderDeleteTimeout = 5 * time.Minute  // recursive hf rm of a whole prefix
+	downloadTimeout     = 10 * time.Minute // single-file
+	folderTimeout       = 30 * time.Minute // whole-prefix sync
 )
 
 // BuildActions returns the standard delete/copy-URL/download action
@@ -43,19 +44,24 @@ func BuildActions(p *Provider) []browser.Action {
 	}
 }
 
-// deleteAction surfaces the file-only, owner-only delete. AppliesTo
-// hides it for folders; Allowed rejects foreign owners with a toast;
-// Confirm makes the second press fire the network call.
+// deleteAction surfaces the owner-only delete for files AND folders.
+// Allowed rejects foreign owners with a toast (and, as a side effect,
+// the empty-owner case at the bucket-root user folder); Confirm makes
+// the second press fire the network call. Run branches on IsDir:
+// files use `hf buckets rm`, folders use `hf buckets rm -R`.
 func deleteAction(p *Provider) browser.Action {
 	return browser.Action{
-		Key:       key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "delete (own files)")),
-		AppliesTo: notDir,
+		Key: key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "delete (own files/folders)")),
 		Allowed: func(e browser.Entry) (bool, string) {
 			ce, ok := e.(Entry)
 			if !ok {
 				return false, "unknown entry type"
 			}
-			if owner := ce.T.Owner(); owner != p.Client().Username {
+			owner := ce.T.Owner()
+			if owner == "" {
+				return false, "cannot delete the bucket-root user folder"
+			}
+			if owner != p.Client().Username {
 				return false, fmt.Sprintf("cannot delete @%s's files — only the owner can", owner)
 			}
 			return true, ""
@@ -63,17 +69,44 @@ func deleteAction(p *Provider) browser.Action {
 		Confirm: true,
 		Run: func(e browser.Entry) tea.Cmd {
 			ce := e.(Entry)
+			pending := "Deleting " + ce.T.Name + "…"
+			worker := doDelete(p, ce.T.Key, ce.T.Name)
+			if ce.T.IsDir {
+				pending = "Deleting " + ce.T.Name + "/…"
+				worker = doDeletePrefix(p, ce.T.Key, ce.T.Name)
+			}
 			return tea.Batch(
-				browser.SendMsg(browser.StatusMsg{
-					Text: "Deleting " + ce.T.Name + "…",
-					Kind: browser.StatusInfo,
-				}),
+				browser.SendMsg(browser.StatusMsg{Text: pending, Kind: browser.StatusInfo}),
 				tea.Sequence(
-					doDelete(p, ce.T.Key, ce.T.Name),
+					worker,
 					browser.SendMsg(browser.RefreshMsg{}),
 				),
 			)
 		},
+	}
+}
+
+// doDeletePrefix runs the recursive prefix-delete via hf rm -R. On
+// success it prunes every object with the matching prefix so the
+// subsequent RefreshMsg sees the new state.
+func doDeletePrefix(p *Provider, fullKey, displayName string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), folderDeleteTimeout)
+		defer cancel()
+		// Allowed gated this on owner == username, so the prefix
+		// strip is safe.
+		name := strings.TrimPrefix(fullKey, p.Client().Username+"/")
+		if err := p.Client().DeletePrefix(ctx, name); err != nil {
+			return browser.StatusMsg{
+				Text: "Delete failed: " + err.Error(),
+				Kind: browser.StatusError,
+			}
+		}
+		p.RemovePrefix(fullKey)
+		return browser.StatusMsg{
+			Text: "Deleted " + displayName + "/",
+			Kind: browser.StatusSuccess,
+		}
 	}
 }
 

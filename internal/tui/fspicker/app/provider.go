@@ -30,10 +30,14 @@ type State struct {
 	showHidden bool
 
 	// Picked is the absolute path the user selected, or "" if they
-	// quit without picking. Written by the pick action on the
+	// quit without picking. Written by the upload action on the
 	// Bubbletea event-loop goroutine; read by the root fspicker
 	// package after the program exits.
 	Picked string
+
+	// Force is set by the force-upload action (uppercase U). The
+	// caller uses it to skip the overwrite confirmation.
+	Force bool
 }
 
 // ShowHidden returns whether hidden files should be listed.

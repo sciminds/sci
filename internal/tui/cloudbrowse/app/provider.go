@@ -79,6 +79,19 @@ func (p *Provider) Remove(fullKey string) {
 	})
 }
 
+// RemovePrefix drops every object whose Key starts with fullPrefix+"/".
+// Called by the folder-delete action after a successful recursive
+// remove. The trailing slash guards against substring matches —
+// e.g. RemovePrefix("ejolly/py") won't prune "ejolly/pyproject.toml".
+func (p *Provider) RemovePrefix(fullPrefix string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	guard := fullPrefix + "/"
+	p.objects = lo.Filter(p.objects, func(o cloud.ObjectInfo, _ int) bool {
+		return !strings.HasPrefix(o.Key, guard)
+	})
+}
+
 // Objects returns a snapshot of the underlying slice. Used by tests
 // asserting on the post-delete state.
 func (p *Provider) Objects() []cloud.ObjectInfo {

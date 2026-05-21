@@ -113,6 +113,37 @@ func TestProvider_Remove_PrunesObject(t *testing.T) {
 	}
 }
 
+func TestProvider_RemovePrefix_PrunesMatchingKeys(t *testing.T) {
+	t.Parallel()
+	p := NewProvider(browseFixture, fakeClient("ejolly"))
+	p.RemovePrefix("ejolly/python-tutorials")
+
+	// Both files under ejolly/python-tutorials should be gone; the
+	// sibling file ejolly/pyproject.toml and alice/results.csv stay.
+	objs := p.Objects()
+	if got := len(objs); got != 2 {
+		t.Errorf("objects after RemovePrefix = %d, want 2", got)
+	}
+	for _, o := range objs {
+		if strings.HasPrefix(o.Key, "ejolly/python-tutorials/") {
+			t.Errorf("RemovePrefix left %q in place", o.Key)
+		}
+	}
+}
+
+func TestProvider_RemovePrefix_DoesNotMatchPrefixWithoutSlash(t *testing.T) {
+	t.Parallel()
+	// Guard: RemovePrefix("ejolly/py") must NOT prune "ejolly/pyproject.toml"
+	// (substring match would; we require a slash boundary).
+	p := NewProvider(browseFixture, fakeClient("ejolly"))
+	p.RemovePrefix("ejolly/py")
+
+	objs := p.Objects()
+	if len(objs) != len(browseFixture) {
+		t.Errorf("RemovePrefix(ejolly/py) pruned %d entries; expected 0", len(browseFixture)-len(objs))
+	}
+}
+
 func TestProvider_Parent_StaysAtRoot(t *testing.T) {
 	t.Parallel()
 	p := NewProvider(nil, fakeClient("ejolly"))
@@ -129,14 +160,53 @@ func TestProvider_Parent_StaysAtRoot(t *testing.T) {
 
 // ── Action predicates ───────────────────────────────────────────────────────
 
-func TestDeleteAction_AppliesTo_RejectsFolders(t *testing.T) {
+func TestDeleteAction_AppliesTo_FilesAndFolders(t *testing.T) {
 	t.Parallel()
 	p := NewProvider(browseFixture, fakeClient("ejolly"))
 	actions := BuildActions(p)
 	del := findAction(t, actions, "x")
-	dir := Entry{T: share.TreeEntry{Name: "data", IsDir: true, Key: "ejolly/data"}}
-	if del.AppliesTo(dir) {
-		t.Error("delete AppliesTo true for folder; want false")
+	if del.AppliesTo != nil {
+		t.Error("delete.AppliesTo != nil; want nil (applies to files and folders)")
+	}
+}
+
+func TestDeleteAction_Allowed_RejectsForeignOwnedFolder(t *testing.T) {
+	t.Parallel()
+	p := NewProvider(browseFixture, fakeClient("ejolly"))
+	actions := BuildActions(p)
+	del := findAction(t, actions, "x")
+	foreign := Entry{T: share.TreeEntry{Name: "data", IsDir: true, Key: "alice/data"}}
+	ok, reason := del.Allowed(foreign)
+	if ok {
+		t.Error("delete Allowed = true for foreign-owned folder; want false")
+	}
+	if !strings.Contains(reason, "alice") {
+		t.Errorf("reason = %q, want to mention foreign owner", reason)
+	}
+}
+
+func TestDeleteAction_Allowed_RejectsTopLevelUserFolder(t *testing.T) {
+	t.Parallel()
+	// Top-level user folders have Key == username (no slash), so
+	// Owner() returns "". The Allowed check naturally rejects them —
+	// safety net against the user wiping out their entire prefix.
+	p := NewProvider(browseFixture, fakeClient("ejolly"))
+	actions := BuildActions(p)
+	del := findAction(t, actions, "x")
+	top := Entry{T: share.TreeEntry{Name: "ejolly", IsDir: true, Key: "ejolly"}}
+	if ok, _ := del.Allowed(top); ok {
+		t.Error("delete Allowed = true for top-level user folder; want false (owner-guard side effect)")
+	}
+}
+
+func TestDeleteAction_Allowed_AcceptsOwnFolder(t *testing.T) {
+	t.Parallel()
+	p := NewProvider(browseFixture, fakeClient("ejolly"))
+	actions := BuildActions(p)
+	del := findAction(t, actions, "x")
+	own := Entry{T: share.TreeEntry{Name: "python-tutorials", IsDir: true, Key: "ejolly/python-tutorials"}}
+	if ok, _ := del.Allowed(own); !ok {
+		t.Error("delete Allowed = false for own folder; want true")
 	}
 }
 

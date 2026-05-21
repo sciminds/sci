@@ -181,10 +181,10 @@ commands:
       - id: cloud-put-fs-picker
         type: uikit.RunModel
         nth: 1
-        line: 58
+        line: 68
         description: "Local filesystem picker (sci cloud put with no file arg)"
         status: covered
-        bypass: "sci cloud put <file>"
+        bypass: "sci cloud put <file-or-dir>"
 
   # ── tools list ─────────────────────────────────────────────────────────────
   tools-list:

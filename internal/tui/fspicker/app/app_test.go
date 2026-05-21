@@ -216,34 +216,62 @@ func TestState_ToggleHidden_Flips(t *testing.T) {
 
 // ── Actions ─────────────────────────────────────────────────────────────────
 
-func TestPickAction_AppliesTo_RejectsDirs(t *testing.T) {
+func TestUploadAction_BoundToU(t *testing.T) {
 	t.Parallel()
 	actions := BuildActions(&State{})
-	pick := findAction(t, actions, "enter")
-	if pick.AppliesTo(Entry{Dir: true}) {
-		t.Error("pick.AppliesTo = true for dir; want false")
-	}
-	if !pick.AppliesTo(Entry{Dir: false}) {
-		t.Error("pick.AppliesTo = false for file; want true")
+	findAction(t, actions, "u") // fails the test if absent
+}
+
+func TestUploadAction_AppliesToFilesAndDirs(t *testing.T) {
+	t.Parallel()
+	actions := BuildActions(&State{})
+	up := findAction(t, actions, "u")
+	if up.AppliesTo != nil {
+		t.Error("upload.AppliesTo != nil; want nil (applies to files AND dirs, like browse's download)")
 	}
 }
 
-func TestPickAction_Run_SetsPickedAndQuits(t *testing.T) {
+func TestUploadAction_Run_SetsPickedAndQuits_NotForce(t *testing.T) {
 	t.Parallel()
 	state := &State{}
 	actions := BuildActions(state)
-	pick := findAction(t, actions, "enter")
+	up := findAction(t, actions, "u")
+	e := Entry{Abs: "/abs/path/myrepo", Name: "myrepo", Dir: true}
+
+	cmd := up.Run(e)
+	if state.Picked != "/abs/path/myrepo" {
+		t.Errorf("state.Picked = %q, want /abs/path/myrepo", state.Picked)
+	}
+	if state.Force {
+		t.Error("state.Force = true after 'u'; want false")
+	}
+	if cmd == nil || !isQuitMsg(cmd()) {
+		t.Errorf("upload Run = %v, want tea.QuitMsg", cmd)
+	}
+}
+
+func TestForceUploadAction_BoundToCapitalU(t *testing.T) {
+	t.Parallel()
+	actions := BuildActions(&State{})
+	findAction(t, actions, "U")
+}
+
+func TestForceUploadAction_Run_SetsForceAndQuits(t *testing.T) {
+	t.Parallel()
+	state := &State{}
+	actions := BuildActions(state)
+	force := findAction(t, actions, "U")
 	e := Entry{Abs: "/abs/path/results.csv", Name: "results.csv"}
 
-	cmd := pick.Run(e)
+	cmd := force.Run(e)
 	if state.Picked != "/abs/path/results.csv" {
-		t.Errorf("state.Picked = %q, want /abs/path/results.csv", state.Picked)
+		t.Errorf("state.Picked = %q, want path", state.Picked)
 	}
-	if cmd == nil {
-		t.Fatal("pick.Run returned nil Cmd; want tea.Quit")
+	if !state.Force {
+		t.Error("state.Force = false after 'U'; want true")
 	}
-	if msg := cmd(); !isQuitMsg(msg) {
-		t.Errorf("pick.Run msg = %T (%v), want tea.QuitMsg", msg, msg)
+	if cmd == nil || !isQuitMsg(cmd()) {
+		t.Errorf("force-upload Run = %v, want tea.QuitMsg", cmd)
 	}
 }
 

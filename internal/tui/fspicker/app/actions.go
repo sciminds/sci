@@ -1,11 +1,15 @@
 package app
 
-// actions.go — pick + toggle-hidden actions for the filesystem picker.
+// actions.go — upload + force-upload + toggle-hidden actions for the
+// filesystem picker.
 //
-// pickAction binds Enter and applies only to files: dirs go through the
-// browser's built-in nav (descend). Run records the absolute path into
-// State.Picked and quits the program; the root fspicker package reads
-// the path from the returned final model.
+// uploadAction binds "u" and applies to BOTH files and dirs (matching
+// browse's "d" download semantics). Run records the absolute path into
+// State.Picked and quits. Enter still drills into dirs via the
+// browser's built-in nav; Enter on a file is inert.
+//
+// forceUploadAction is the uppercase-U variant: same as upload but
+// also sets State.Force so the caller skips the overwrite check.
 //
 // toggleHiddenAction flips State.ShowHidden and refreshes the listing
 // so dotfiles appear/disappear without restarting the picker.
@@ -17,23 +21,36 @@ import (
 	"github.com/sciminds/cli/internal/uikit/browser"
 )
 
-// BuildActions returns the pick + toggle-hidden pair.
+// BuildActions returns upload + force-upload + toggle-hidden.
 func BuildActions(state *State) []browser.Action {
 	return []browser.Action{
-		pickAction(state),
+		uploadAction(state),
+		forceUploadAction(state),
 		toggleHiddenAction(state),
 	}
 }
 
-// pickAction binds Enter on a file to "select this file and quit".
-// The Help line shows "⏎ pick" so users know Enter has dual roles
-// (descend on dirs, pick on files — both are "open").
-func pickAction(state *State) browser.Action {
+// uploadAction binds "u" to "select this entry and quit". Works on
+// files AND dirs (browse parity: `d` downloads both).
+func uploadAction(state *State) browser.Action {
 	return browser.Action{
-		Key:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("⏎", "pick")),
-		AppliesTo: notDir,
+		Key: key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "upload")),
 		Run: func(e browser.Entry) tea.Cmd {
 			state.Picked = e.Path()
+			state.Force = false
+			return tea.Quit
+		},
+	}
+}
+
+// forceUploadAction binds "U" to "select + force overwrite". Caller
+// reads State.Force to skip the pre-upload prefix check.
+func forceUploadAction(state *State) browser.Action {
+	return browser.Action{
+		Key: key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "force upload")),
+		Run: func(e browser.Entry) tea.Cmd {
+			state.Picked = e.Path()
+			state.Force = true
 			return tea.Quit
 		},
 	}
@@ -56,6 +73,3 @@ func toggleHiddenAction(state *State) browser.Action {
 		},
 	}
 }
-
-// notDir is the file-only AppliesTo predicate.
-func notDir(e browser.Entry) bool { return !e.IsDir() }

@@ -237,6 +237,86 @@ func TestClient_Exists_False(t *testing.T) {
 	}
 }
 
+func TestClient_SyncUp_BuildsCorrectArgs(t *testing.T) {
+	c, r, _ := newTestClient(t, BucketPrivate)
+	if err := c.SyncUp(context.Background(), "/tmp/myrepo", "myrepo"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"buckets", "sync", "/tmp/myrepo", "hf://buckets/sciminds/private/alice/myrepo"}
+	if !strSliceEq(r.calls[0], want) {
+		t.Errorf("syncup args = %v, want %v", r.calls[0], want)
+	}
+}
+
+func TestClient_SyncUp_PropagatesError(t *testing.T) {
+	c, r, _ := newTestClient(t, BucketPrivate)
+	r.err = errors.New("hf failed")
+	err := c.SyncUp(context.Background(), "/tmp/x", "x")
+	if err == nil || !strings.Contains(err.Error(), "hf failed") {
+		t.Errorf("SyncUp err = %v, want to contain 'hf failed'", err)
+	}
+}
+
+func TestClient_SyncUp_StripsTrailingSlashes(t *testing.T) {
+	c, r, _ := newTestClient(t, BucketPrivate)
+	if err := c.SyncUp(context.Background(), "/tmp/myrepo/", "myrepo/"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"buckets", "sync", "/tmp/myrepo", "hf://buckets/sciminds/private/alice/myrepo"}
+	if !strSliceEq(r.calls[0], want) {
+		t.Errorf("syncup args = %v, want %v (trailing slashes stripped)", r.calls[0], want)
+	}
+}
+
+func TestClient_PrefixExists_BuildsCorrectArgs(t *testing.T) {
+	c, r, _ := newTestClient(t, BucketPrivate)
+	r.out = []byte("[]")
+	if _, err := c.PrefixExists(context.Background(), "myrepo"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"buckets", "ls", "sciminds/private/alice/myrepo", "-R", "--json"}
+	if !strSliceEq(r.calls[0], want) {
+		t.Errorf("PrefixExists ls args = %v, want %v", r.calls[0], want)
+	}
+}
+
+func TestClient_PrefixExists_True(t *testing.T) {
+	c, r, _ := newTestClient(t, BucketPrivate)
+	r.out = []byte(`[{"type":"file","path":"alice/myrepo/data.csv","size":1,"mtime":"","uploaded_at":""}]`)
+	ok, err := c.PrefixExists(context.Background(), "myrepo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Error("PrefixExists = false, want true (one file under prefix)")
+	}
+}
+
+func TestClient_PrefixExists_False(t *testing.T) {
+	c, r, _ := newTestClient(t, BucketPrivate)
+	r.out = []byte("[]")
+	ok, err := c.PrefixExists(context.Background(), "missing-repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Error("PrefixExists = true, want false (empty listing)")
+	}
+}
+
+func TestClient_PrefixExists_HFNotFound_NoError(t *testing.T) {
+	c, r, _ := newTestClient(t, BucketPrivate)
+	r.out = []byte("Error: prefix not found")
+	r.err = errors.New("exit 1")
+	ok, err := c.PrefixExists(context.Background(), "ghost-repo")
+	if err != nil {
+		t.Fatalf("PrefixExists err = %v, want nil (not-found maps to empty)", err)
+	}
+	if ok {
+		t.Error("PrefixExists = true on not-found, want false")
+	}
+}
+
 func TestClient_Delete(t *testing.T) {
 	c, r, _ := newTestClient(t, BucketPrivate)
 	if err := c.Delete(context.Background(), "data.csv"); err != nil {
@@ -245,6 +325,26 @@ func TestClient_Delete(t *testing.T) {
 	want := []string{"buckets", "rm", "-y", "sciminds/private/alice/data.csv"}
 	if !strSliceEq(r.calls[0], want) {
 		t.Errorf("delete args = %v, want %v", r.calls[0], want)
+	}
+}
+
+func TestClient_DeletePrefix_BuildsCorrectArgs(t *testing.T) {
+	c, r, _ := newTestClient(t, BucketPrivate)
+	if err := c.DeletePrefix(context.Background(), "myrepo"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"buckets", "rm", "-y", "-R", "sciminds/private/alice/myrepo"}
+	if !strSliceEq(r.calls[0], want) {
+		t.Errorf("DeletePrefix args = %v, want %v", r.calls[0], want)
+	}
+}
+
+func TestClient_DeletePrefix_PropagatesError(t *testing.T) {
+	c, r, _ := newTestClient(t, BucketPrivate)
+	r.err = errors.New("hf failed")
+	err := c.DeletePrefix(context.Background(), "myrepo")
+	if err == nil || !strings.Contains(err.Error(), "hf failed") {
+		t.Errorf("DeletePrefix err = %v, want to contain 'hf failed'", err)
 	}
 }
 

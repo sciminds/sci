@@ -153,11 +153,12 @@ func cloudPutCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "put",
 		Usage: "Upload a file (private by default; --public to share)",
-		Description: "$ sci cloud put results.csv\n" +
+		Description: "$ sci cloud put results.csv                   # upload a single file\n" +
+			"$ sci cloud put ./myrepo                     # sync a directory as a tree\n" +
 			"$ sci cloud put results.csv --public\n" +
 			"$ sci cloud put results.csv --name my-results.csv --force\n" +
-			"$ sci cloud put                              # interactive file picker",
-		ArgsUsage: "[file]",
+			"$ sci cloud put                              # interactive picker (u=upload, U=force)",
+		ArgsUsage: "[file-or-dir]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "upload name (default: filename)", Destination: &putName, Local: true},
 			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "upload to the public bucket (world-readable URL)", Destination: &putPublic, Local: true},
@@ -172,7 +173,7 @@ func cloudPutCommand() *cli.Command {
 				if cmdutil.IsJSON(cmd) {
 					return fmt.Errorf("put requires a file path in JSON mode")
 				}
-				picked, err := fspicker.Pick(fspicker.Opts{})
+				res, err := fspicker.Pick(fspicker.Opts{})
 				if err != nil {
 					if errors.Is(err, fspicker.ErrCancelled) {
 						uikit.Hint("cancelled")
@@ -180,7 +181,10 @@ func cloudPutCommand() *cli.Command {
 					}
 					return err
 				}
-				filePath = picked
+				filePath = res.Path
+				if res.Force {
+					putForce = true
+				}
 			default:
 				return fmt.Errorf("put takes at most one file path\n\n" +
 					"  Upload privately:  sci cloud put results.csv\n" +
@@ -205,12 +209,21 @@ func cloudPutCommand() *cli.Command {
 			}
 
 			if !force {
-				exists, err := share.CheckExists(name, putPublic)
+				info, statErr := os.Stat(filePath)
+				if statErr != nil {
+					return statErr
+				}
+				isDir := info.IsDir()
+				exists, err := share.CheckExists(name, putPublic, isDir)
 				if err != nil {
 					return err
 				}
 				if exists {
-					if err := cmdutil.Confirm(fmt.Sprintf("File %q already exists. Overwrite?", name)); err != nil {
+					prompt := fmt.Sprintf("File %q already exists. Overwrite?", name)
+					if isDir {
+						prompt = fmt.Sprintf("Remote prefix %q is not empty. Overwrite differing files? (Non-conflicting remote files stay.)", name+"/")
+					}
+					if err := cmdutil.Confirm(prompt); err != nil {
 						if errors.Is(err, cmdutil.ErrCancelled) {
 							uikit.Hint("cancelled")
 							return nil

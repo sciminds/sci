@@ -1,12 +1,38 @@
 package share
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sciminds/cli/internal/cloud"
 )
+
+// fakeUploader implements dirUploader for shareDir unit tests.
+type fakeUploader struct {
+	prefixHas        bool
+	prefixErr        error
+	prefixCalledWith string
+	syncErr          error
+	syncLocal        string
+	syncName         string
+	syncCalled       bool
+}
+
+func (f *fakeUploader) PrefixExists(_ context.Context, name string) (bool, error) {
+	f.prefixCalledWith = name
+	return f.prefixHas, f.prefixErr
+}
+
+func (f *fakeUploader) SyncUp(_ context.Context, localDir, name string) error {
+	f.syncCalled = true
+	f.syncLocal = localDir
+	f.syncName = name
+	return f.syncErr
+}
 
 func TestBucketFor(t *testing.T) {
 	if got := BucketFor(true); got != cloud.BucketPublic {
@@ -25,14 +51,6 @@ func TestDefaultShareName(t *testing.T) {
 	}
 	if got := DefaultShareName(f); got != "results.csv" {
 		t.Errorf("DefaultShareName(file) = %q, want %q", got, "results.csv")
-	}
-
-	d := filepath.Join(tmp, "mydata")
-	if err := os.Mkdir(d, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if got := DefaultShareName(d); got != "mydata.zip" {
-		t.Errorf("DefaultShareName(dir) = %q, want %q", got, "mydata.zip")
 	}
 
 	if got := DefaultShareName("/no/such/file.db"); got != "file.db" {
@@ -132,6 +150,81 @@ func TestResolveDownloadKey(t *testing.T) {
 					tc.name, tc.username, tc.public, got, tc.want)
 			}
 		})
+	}
+}
+
+// ── shareDir ────────────────────────────────────────────────────────────────
+
+func TestShareDir_NoForce_RefusesNonEmptyPrefix(t *testing.T) {
+	up := &fakeUploader{prefixHas: true}
+	_, err := shareDir(up, cloud.BucketPrivate, "/tmp/x", "myrepo", false)
+	if err == nil {
+		t.Fatal("shareDir = nil err on non-empty prefix; want error")
+	}
+	if !strings.Contains(err.Error(), "myrepo") {
+		t.Errorf("err = %v, want it to name the prefix", err)
+	}
+	if up.syncCalled {
+		t.Error("SyncUp called despite non-empty prefix refusal")
+	}
+}
+
+func TestShareDir_Force_SkipsPrefixCheckAndSyncs(t *testing.T) {
+	up := &fakeUploader{prefixHas: true} // even if true, force ignores
+	res, err := shareDir(up, cloud.BucketPrivate, "/tmp/x", "myrepo", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if up.prefixCalledWith != "" {
+		t.Errorf("PrefixExists called with force=true; want skipped")
+	}
+	if !up.syncCalled {
+		t.Error("SyncUp not called under force")
+	}
+	if up.syncLocal != "/tmp/x" || up.syncName != "myrepo" {
+		t.Errorf("SyncUp args = (%q, %q), want (/tmp/x, myrepo)", up.syncLocal, up.syncName)
+	}
+	if res == nil || !res.OK || res.Action != "put" {
+		t.Errorf("CloudResult = %+v, want OK put result", res)
+	}
+}
+
+func TestShareDir_EmptyPrefix_SyncsSuccessfully(t *testing.T) {
+	up := &fakeUploader{} // prefixHas defaults to false
+	res, err := shareDir(up, cloud.BucketPrivate, "/tmp/x", "myrepo", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if up.prefixCalledWith != "myrepo" {
+		t.Errorf("PrefixExists called with %q, want myrepo", up.prefixCalledWith)
+	}
+	if !up.syncCalled {
+		t.Error("SyncUp not called after empty-prefix check")
+	}
+	if res == nil || res.Message == "" {
+		t.Errorf("missing CloudResult message: %+v", res)
+	}
+}
+
+func TestShareDir_SyncError_Propagated(t *testing.T) {
+	up := &fakeUploader{syncErr: errors.New("hf timeout")}
+	_, err := shareDir(up, cloud.BucketPrivate, "/tmp/x", "myrepo", true)
+	if err == nil {
+		t.Fatal("shareDir = nil err despite SyncUp error")
+	}
+	if !strings.Contains(err.Error(), "hf timeout") {
+		t.Errorf("err = %v, want to contain 'hf timeout'", err)
+	}
+}
+
+func TestDefaultShareName_Dir_NoZipSuffix(t *testing.T) {
+	tmp := t.TempDir()
+	d := filepath.Join(tmp, "mydata")
+	if err := os.Mkdir(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := DefaultShareName(d); got != "mydata" {
+		t.Errorf("DefaultShareName(dir) = %q, want %q (no .zip suffix; uploaded as tree)", got, "mydata")
 	}
 }
 

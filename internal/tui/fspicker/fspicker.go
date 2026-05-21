@@ -37,20 +37,29 @@ type Opts struct {
 	Filter func(os.DirEntry) bool
 }
 
-// Pick launches the picker and returns the absolute path of the file
-// the user selected, or [ErrCancelled] if they quit without picking.
-func Pick(opts Opts) (string, error) {
+// Result is what Pick returns on a successful selection. Path is the
+// absolute path of the chosen file or directory. Force is true when
+// the user pressed `U` (force-upload) — callers use it to skip the
+// remote overwrite check.
+type Result struct {
+	Path  string
+	Force bool
+}
+
+// Pick launches the picker and returns the user's selection. Returns
+// [ErrCancelled] if they quit without picking.
+func Pick(opts Opts) (Result, error) {
 	start := opts.Start
 	if start == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return "", err
+			return Result{}, err
 		}
 		start = cwd
 	}
 	abs, err := filepath.Abs(start)
 	if err != nil {
-		return "", err
+		return Result{}, err
 	}
 
 	state := &app.State{}
@@ -59,14 +68,14 @@ func Pick(opts Opts) (string, error) {
 	final, err := uikit.RunModel(m)
 	if err != nil {
 		if errors.Is(err, tea.ErrInterrupted) {
-			return "", ErrCancelled
+			return Result{}, ErrCancelled
 		}
-		return "", err
+		return Result{}, err
 	}
-	if final.Picked() == "" {
-		return "", ErrCancelled
+	if final.Result().Path == "" {
+		return Result{}, ErrCancelled
 	}
-	return final.Picked(), nil
+	return final.Result(), nil
 }
 
 // model wraps browser.Model so we can attach AltScreen via View() and
@@ -91,9 +100,11 @@ func newModel(p *app.Provider, state *app.State) model {
 	}
 }
 
-// Picked returns the absolute path the user selected, or "" if they
-// cancelled. Read after [uikit.RunModel] returns.
-func (m model) Picked() string { return m.state.Picked }
+// Result returns the user's selection. Path is "" when they cancelled.
+// Read after [uikit.RunModel] returns.
+func (m model) Result() Result {
+	return Result{Path: m.state.Picked, Force: m.state.Force}
+}
 
 func (m model) Init() tea.Cmd { return m.inner.Init() }
 

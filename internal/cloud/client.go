@@ -176,9 +176,29 @@ func (c *Client) Exists(ctx context.Context, filename string) (bool, error) {
 	return lo.ContainsBy(objects, func(o ObjectInfo) bool { return o.Key == key }), nil
 }
 
+// PrefixExists reports whether any objects live under the user's
+// <name> prefix — used as the dir-upload analogue of [Exists]. Treats
+// the hf "prefix not found" case as empty (no error).
+func (c *Client) PrefixExists(ctx context.Context, name string) (bool, error) {
+	objects, err := c.ListPrefix(ctx, c.objectKey(name))
+	if err != nil {
+		return false, err
+	}
+	return len(objects) > 0, nil
+}
+
 // Delete removes <bucket>/<username>/<filename>.
 func (c *Client) Delete(ctx context.Context, filename string) error {
 	_, err := c.run(ctx, "buckets", "rm", "-y", c.Org+"/"+c.Bucket+"/"+c.objectKey(filename))
+	return err
+}
+
+// DeletePrefix recursively removes every object under <user>/<name>
+// via `hf buckets rm -y -R`. Used to delete whole folders from the
+// browse TUI; sole entry point for tree deletion.
+func (c *Client) DeletePrefix(ctx context.Context, name string) error {
+	target := c.Org + "/" + c.Bucket + "/" + c.objectKey(name)
+	_, err := c.run(ctx, "buckets", "rm", "-y", "-R", target)
 	return err
 }
 
@@ -188,6 +208,19 @@ func (c *Client) Delete(ctx context.Context, filename string) error {
 func (c *Client) Sync(ctx context.Context, prefix, localDir string) error {
 	src := c.bucketHandle() + "/" + strings.TrimSuffix(prefix, "/")
 	_, err := c.run(ctx, "buckets", "sync", src, localDir)
+	return err
+}
+
+// SyncUp uploads localDir as a tree under the current user's prefix at
+// name, via `hf buckets sync <localDir> hf://.../<user>/<name>`. Existing
+// remote files at the same path are overwritten when size/mtime differ;
+// remote files not present locally are left in place (no --delete).
+// Used for whole-folder uploads; the per-file `cp` path doesn't accept
+// directories.
+func (c *Client) SyncUp(ctx context.Context, localDir, name string) error {
+	src := strings.TrimSuffix(localDir, "/")
+	dst := c.bucketHandle() + "/" + strings.TrimSuffix(c.objectKey(name), "/")
+	_, err := c.run(ctx, "buckets", "sync", src, dst)
 	return err
 }
 

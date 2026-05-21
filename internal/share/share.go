@@ -110,27 +110,29 @@ type ShareOpts struct { //nolint:revive // name is established in the API
 }
 
 // DefaultShareName returns the default share name for a file path,
-// preserving the extension. For directories, appends ".zip".
+// preserving the extension. Directories upload as trees, so the name
+// is the bare directory name (no .zip suffix).
 func DefaultShareName(filePath string) string {
-	info, err := os.Stat(filePath)
-	if err != nil {
-		return filepath.Base(filePath)
-	}
-	if info.IsDir() {
-		return nameFromFile(filePath) + ".zip"
-	}
 	return filepath.Base(filePath)
 }
 
-// CheckExists returns true if a file with the given name already exists in
-// the bucket selected by public.
-func CheckExists(name string, public bool) (bool, error) {
+// CheckExists returns true if something already lives at name in the
+// bucket selected by public. When isDir is true the check is "any
+// object under <user>/<name>/"; otherwise it's an exact-file check.
+func CheckExists(name string, public, isDir bool) (bool, error) {
 	_, c, err := cloud.Setup(BucketFor(public))
 	if err != nil {
 		return false, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), metadataTimeout)
 	defer cancel()
+	if isDir {
+		ok, err := c.PrefixExists(ctx, name)
+		if err != nil {
+			return false, netutil.Wrap("checking prefix", err)
+		}
+		return ok, nil
+	}
 	ok, err := c.Exists(ctx, name)
 	if err != nil {
 		return false, netutil.Wrap("checking file", err)
@@ -138,8 +140,50 @@ func CheckExists(name string, public bool) (bool, error) {
 	return ok, nil
 }
 
+// dirUploader is the subset of *cloud.Client that shareDir needs, kept
+// as an interface so the helper is unit-testable without spawning hf.
+type dirUploader interface {
+	PrefixExists(ctx context.Context, name string) (bool, error)
+	SyncUp(ctx context.Context, localDir, name string) error
+}
+
+// shareDir uploads localDir as a tree under the user's <name> prefix.
+// When force is false, refuses to upload if any object already lives
+// under the prefix. Returns a populated [CloudResult] on success.
+//
+// Extracted from [Share] so the dir-upload path is testable without a
+// live hf binary; [Share] wraps it in the upload spinner.
+func shareDir(c dirUploader, bucket, localDir, name string, force bool) (*CloudResult, error) {
+	if !force {
+		ctx, cancel := context.WithTimeout(context.Background(), metadataTimeout)
+		defer cancel()
+		exists, err := c.PrefixExists(ctx, name)
+		if err != nil {
+			return nil, netutil.Wrap("checking prefix", err)
+		}
+		if exists {
+			return nil, fmt.Errorf("remote prefix %q is not empty (use --force to overwrite differing files; non-conflicting remote files stay)", name)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), folderSyncTimeout)
+	defer cancel()
+	if err := c.SyncUp(ctx, localDir, name); err != nil {
+		return nil, netutil.Wrap("sync", err)
+	}
+	action := "shared"
+	if force {
+		action = "updated"
+	}
+	return &CloudResult{
+		OK:      true,
+		Action:  "put",
+		Message: fmt.Sprintf("%s %q to %s bucket", action, name+"/", bucket),
+	}, nil
+}
+
 // Share uploads a file or directory under the chosen name to the bucket
-// selected by opts.Public. Directories are automatically zipped.
+// selected by opts.Public. Files use `hf buckets cp`; directories sync
+// as trees via `hf buckets sync` (see [shareDir]).
 func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 	_, c, err := cloud.Setup(BucketFor(opts.Public))
 	if err != nil {
@@ -161,26 +205,18 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		name = filepath.Base(absPath)
 	}
 
-	// Zip directories to a temp file.
+	// Directories upload as trees via hf buckets sync — different
+	// exists-check semantics (prefix not file) and no size guard.
 	if info.IsDir() {
-		stem := nameFromFile(filePath)
-		tmpZip, err := os.CreateTemp("", stem+"-*.zip")
-		if err != nil {
-			return nil, fmt.Errorf("creating temp file: %w", err)
-		}
-		tmpZipPath := tmpZip.Name()
-		_ = tmpZip.Close()
-		if err := uikit.RunWithSpinner("Packing "+stem, func() error {
-			return zipDir(absPath, tmpZipPath)
+		var result *CloudResult
+		if err := uikit.RunWithSpinner("Syncing "+name+"/", func() error {
+			r, syncErr := shareDir(c, c.Bucket, absPath, name, opts.Force)
+			result = r
+			return syncErr
 		}); err != nil {
-			_ = os.Remove(tmpZipPath)
-			return nil, fmt.Errorf("zipping directory: %w", err)
+			return nil, err
 		}
-		defer func() { _ = os.Remove(tmpZipPath) }()
-		absPath = tmpZipPath
-		if !strings.HasSuffix(name, ".zip") {
-			name += ".zip"
-		}
+		return result, nil
 	}
 
 	// Refuse to clobber unless --force.
