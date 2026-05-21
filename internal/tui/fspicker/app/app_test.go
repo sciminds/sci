@@ -1,0 +1,305 @@
+package app
+
+// app_test.go — fspicker-specific tests. The browser primitive's own
+// behaviour (navigation, two-press confirm, refresh, Enter-on-leaf
+// fall-through) is covered in internal/uikit/browser. Here we cover:
+//   - Entry rendering (folder slash, file size/mtime description)
+//   - Provider sort / hidden filter / parent clamp / breadcrumb
+//   - Action wiring (pick sets State.Picked + quits; toggle flips)
+
+import (
+	"os"
+	"path/filepath"
+	"reflect"
+	"runtime"
+	"strings"
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/sciminds/cli/internal/uikit/browser"
+)
+
+// ── Entry rendering ─────────────────────────────────────────────────────────
+
+func TestEntry_Title_FolderHasTrailingSlash(t *testing.T) {
+	t.Parallel()
+	dir := Entry{Name: "data", Dir: true}
+	if dir.Title() != "data/" {
+		t.Errorf("folder Title = %q, want %q", dir.Title(), "data/")
+	}
+	file := Entry{Name: "results.csv"}
+	if file.Title() != "results.csv" {
+		t.Errorf("file Title = %q, want %q", file.Title(), "results.csv")
+	}
+}
+
+func TestEntry_Description_FolderVsFile(t *testing.T) {
+	t.Parallel()
+	dir := Entry{Name: "data", Dir: true}
+	if !strings.Contains(dir.Description(), "folder") {
+		t.Errorf("folder Description = %q, want to contain 'folder'", dir.Description())
+	}
+	// File with no Info still renders ("?"), no panic.
+	file := Entry{Name: "broken.csv"}
+	if got := file.Description(); !strings.Contains(got, "?") {
+		t.Errorf("missing-Info Description = %q, want to contain '?'", got)
+	}
+}
+
+func TestEntry_FilterValue_UsesName(t *testing.T) {
+	t.Parallel()
+	if got := (Entry{Name: "credit.csv"}).FilterValue(); got != "credit.csv" {
+		t.Errorf("FilterValue = %q, want credit.csv", got)
+	}
+}
+
+// ── Provider ────────────────────────────────────────────────────────────────
+
+// seedDir builds a small tree under t.TempDir():
+//
+//	<root>/
+//	  .hidden        (file)
+//	  alpha/         (dir)
+//	  Beta.csv       (file, 100 bytes)
+//	  zeta/          (dir)
+func seedDir(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	mustMkdir(t, filepath.Join(root, "alpha"))
+	mustMkdir(t, filepath.Join(root, "zeta"))
+	mustWrite(t, filepath.Join(root, "Beta.csv"), strings.Repeat("x", 100))
+	mustWrite(t, filepath.Join(root, ".hidden"), "secret")
+	return root
+}
+
+func mustMkdir(t *testing.T, path string) {
+	t.Helper()
+	if err := os.Mkdir(path, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", path, err)
+	}
+}
+
+func mustWrite(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func TestProvider_Children_DirsFirstThenAlpha(t *testing.T) {
+	t.Parallel()
+	root := seedDir(t)
+	p := NewProvider(root, nil, &State{})
+
+	msg, ok := p.Children(root)().(browser.ChildrenMsg)
+	if !ok {
+		t.Fatalf("Children emitted %T, want ChildrenMsg", msg)
+	}
+	names := entryNames(msg.Entries)
+	// Dirs (alpha, zeta) first — alphabetical, case-insensitive — then files (Beta.csv).
+	// .hidden is filtered out by default.
+	want := []string{"alpha", "zeta", "Beta.csv"}
+	if !reflect.DeepEqual(names, want) {
+		t.Errorf("entries = %v, want %v", names, want)
+	}
+}
+
+func TestProvider_Children_HidesDotfilesByDefault(t *testing.T) {
+	t.Parallel()
+	root := seedDir(t)
+	p := NewProvider(root, nil, &State{})
+
+	msg := p.Children(root)().(browser.ChildrenMsg)
+	for _, e := range msg.Entries {
+		if strings.HasPrefix(e.(Entry).Name, ".") {
+			t.Errorf("hidden entry %q surfaced with ShowHidden=false", e.(Entry).Name)
+		}
+	}
+}
+
+func TestProvider_Children_ShowHiddenIncludesDotfiles(t *testing.T) {
+	t.Parallel()
+	root := seedDir(t)
+	state := &State{}
+	state.ToggleHidden() // turn on
+	p := NewProvider(root, nil, state)
+
+	msg := p.Children(root)().(browser.ChildrenMsg)
+	names := entryNames(msg.Entries)
+	if !contains(names, ".hidden") {
+		t.Errorf("entries = %v, want to include .hidden", names)
+	}
+}
+
+func TestProvider_Children_FilterApplies(t *testing.T) {
+	t.Parallel()
+	root := seedDir(t)
+	// Only .csv files (and any dir, since filter only runs on entries
+	// that survive the hidden check; we let dirs through explicitly).
+	csvOnly := func(de os.DirEntry) bool {
+		return de.IsDir() || strings.HasSuffix(de.Name(), ".csv")
+	}
+	p := NewProvider(root, csvOnly, &State{})
+
+	msg := p.Children(root)().(browser.ChildrenMsg)
+	names := entryNames(msg.Entries)
+	want := []string{"alpha", "zeta", "Beta.csv"}
+	if !reflect.DeepEqual(names, want) {
+		t.Errorf("filtered entries = %v, want %v", names, want)
+	}
+}
+
+func TestProvider_Children_ErrorOnMissingDir(t *testing.T) {
+	t.Parallel()
+	p := NewProvider("/nonexistent-path-zzz", nil, &State{})
+	msg := p.Children("/nonexistent-path-zzz/also-missing")().(browser.ChildrenMsg)
+	if msg.Err == nil {
+		t.Error("Children on missing dir returned nil Err; want non-nil")
+	}
+}
+
+func TestProvider_Parent_ClampsAtFilesystemRoot(t *testing.T) {
+	t.Parallel()
+	p := NewProvider("/", nil, &State{})
+	if runtime.GOOS == "windows" {
+		t.Skip("path semantics differ on windows")
+	}
+	if got := p.Parent("/"); got != "/" {
+		t.Errorf("Parent(/) = %q, want /", got)
+	}
+	if got := p.Parent("/foo"); got != "/" {
+		t.Errorf("Parent(/foo) = %q, want /", got)
+	}
+	if got := p.Parent("/foo/bar"); got != "/foo" {
+		t.Errorf("Parent(/foo/bar) = %q, want /foo", got)
+	}
+}
+
+func TestProvider_Breadcrumb_CollapsesHome(t *testing.T) {
+	t.Parallel()
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skip("no home dir available")
+	}
+	p := NewProvider(home, nil, &State{})
+	if got := p.Breadcrumb(home); got != "~" {
+		t.Errorf("Breadcrumb(home) = %q, want ~", got)
+	}
+	deeper := filepath.Join(home, "Documents", "x")
+	if got := p.Breadcrumb(deeper); got != "~"+strings.TrimPrefix(deeper, home) {
+		t.Errorf("Breadcrumb(deeper) = %q, want ~/...", got)
+	}
+	if got := p.Breadcrumb("/tmp"); got != "/tmp" {
+		t.Errorf("Breadcrumb(/tmp) = %q, want /tmp (unchanged)", got)
+	}
+}
+
+// ── State ───────────────────────────────────────────────────────────────────
+
+func TestState_ToggleHidden_Flips(t *testing.T) {
+	t.Parallel()
+	s := &State{}
+	if s.ShowHidden() {
+		t.Fatal("ShowHidden default = true, want false")
+	}
+	if got := s.ToggleHidden(); !got {
+		t.Errorf("ToggleHidden first call = false, want true")
+	}
+	if !s.ShowHidden() {
+		t.Error("ShowHidden after first toggle = false, want true")
+	}
+	if got := s.ToggleHidden(); got {
+		t.Errorf("ToggleHidden second call = true, want false")
+	}
+}
+
+// ── Actions ─────────────────────────────────────────────────────────────────
+
+func TestPickAction_AppliesTo_RejectsDirs(t *testing.T) {
+	t.Parallel()
+	actions := BuildActions(&State{})
+	pick := findAction(t, actions, "enter")
+	if pick.AppliesTo(Entry{Dir: true}) {
+		t.Error("pick.AppliesTo = true for dir; want false")
+	}
+	if !pick.AppliesTo(Entry{Dir: false}) {
+		t.Error("pick.AppliesTo = false for file; want true")
+	}
+}
+
+func TestPickAction_Run_SetsPickedAndQuits(t *testing.T) {
+	t.Parallel()
+	state := &State{}
+	actions := BuildActions(state)
+	pick := findAction(t, actions, "enter")
+	e := Entry{Abs: "/abs/path/results.csv", Name: "results.csv"}
+
+	cmd := pick.Run(e)
+	if state.Picked != "/abs/path/results.csv" {
+		t.Errorf("state.Picked = %q, want /abs/path/results.csv", state.Picked)
+	}
+	if cmd == nil {
+		t.Fatal("pick.Run returned nil Cmd; want tea.Quit")
+	}
+	if msg := cmd(); !isQuitMsg(msg) {
+		t.Errorf("pick.Run msg = %T (%v), want tea.QuitMsg", msg, msg)
+	}
+}
+
+func TestToggleHiddenAction_Run_FlipsAndRefreshes(t *testing.T) {
+	t.Parallel()
+	state := &State{}
+	actions := BuildActions(state)
+	toggle := findAction(t, actions, ".")
+
+	cmd := toggle.Run(Entry{Name: "any"})
+	if !state.ShowHidden() {
+		t.Error("ShowHidden not flipped after first toggle Run")
+	}
+	if cmd == nil {
+		t.Fatal("toggle.Run returned nil Cmd")
+	}
+	// Cmd is a tea.Batch of (StatusMsg, RefreshMsg); we don't dispatch
+	// it here (batches are runtime-specific). We just confirm state
+	// changed and a Cmd came back.
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+func entryNames(es []browser.Entry) []string {
+	out := make([]string, len(es))
+	for i, e := range es {
+		out[i] = e.(Entry).Name
+	}
+	return out
+}
+
+func contains(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
+}
+
+func findAction(t *testing.T, actions []browser.Action, keyStr string) browser.Action {
+	t.Helper()
+	for _, a := range actions {
+		for _, k := range a.Key.Keys() {
+			if k == keyStr {
+				return a
+			}
+		}
+	}
+	t.Fatalf("no action bound to %q", keyStr)
+	return browser.Action{}
+}
+
+// isQuitMsg matches tea.QuitMsg without importing it by name — the
+// concrete type is tea.QuitMsg{} (empty struct).
+func isQuitMsg(msg tea.Msg) bool {
+	_, ok := msg.(tea.QuitMsg)
+	return ok
+}

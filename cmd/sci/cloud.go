@@ -11,6 +11,7 @@ import (
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/share"
 	"github.com/sciminds/cli/internal/tui/cloudbrowse"
+	"github.com/sciminds/cli/internal/tui/fspicker"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
@@ -154,21 +155,39 @@ func cloudPutCommand() *cli.Command {
 		Usage: "Upload a file (private by default; --public to share)",
 		Description: "$ sci cloud put results.csv\n" +
 			"$ sci cloud put results.csv --public\n" +
-			"$ sci cloud put results.csv --name my-results.csv --force",
-		ArgsUsage: "<file>",
+			"$ sci cloud put results.csv --name my-results.csv --force\n" +
+			"$ sci cloud put                              # interactive file picker",
+		ArgsUsage: "[file]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "upload name (default: filename)", Destination: &putName, Local: true},
 			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "upload to the public bucket (world-readable URL)", Destination: &putPublic, Local: true},
 			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing file without prompting", Destination: &putForce, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			if cmd.Args().Len() != 1 {
-				return fmt.Errorf("put requires a file path\n\n" +
+			var filePath string
+			switch cmd.Args().Len() {
+			case 1:
+				filePath = cmd.Args().First()
+			case 0:
+				if cmdutil.IsJSON(cmd) {
+					return fmt.Errorf("put requires a file path in JSON mode")
+				}
+				picked, err := fspicker.Pick(fspicker.Opts{})
+				if err != nil {
+					if errors.Is(err, fspicker.ErrCancelled) {
+						uikit.Hint("cancelled")
+						return nil
+					}
+					return err
+				}
+				filePath = picked
+			default:
+				return fmt.Errorf("put takes at most one file path\n\n" +
 					"  Upload privately:  sci cloud put results.csv\n" +
-					"  Share publicly:    sci cloud put results.csv --public\n\n" +
+					"  Share publicly:    sci cloud put results.csv --public\n" +
+					"  Pick interactively: sci cloud put\n\n" +
 					"  Run 'sci cloud put --help' for more options")
 			}
-			filePath := cmd.Args().First()
 
 			if putPublic {
 				fmt.Fprintf(os.Stderr, "\n  %s --public creates a world-readable URL. Do not share sensitive or personally identifying information.\n", uikit.SymWarn)

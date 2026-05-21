@@ -286,9 +286,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			m.pending = nil
 			return m, m.cfg.Provider.Children(m.cwd)
 		}
-		// Enter on a leaf is intentionally inert — actions like "d"
-		// drive downloads.
-		return m, nil
+		// Enter on a leaf falls through to action dispatch so a
+		// consumer can bind an Action to "enter" (e.g. fspicker's
+		// "pick file"). If no action matches, the key is inert.
 	case key.Matches(msg, m.nav.up):
 		if parent := m.cfg.Provider.Parent(m.cwd); parent != m.cwd {
 			m.cwd = parent

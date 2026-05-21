@@ -167,13 +167,13 @@ func TestDescend_OnDir_UpdatesCwdAndFetches(t *testing.T) {
 	}
 }
 
-func TestDescend_OnFile_IsInert(t *testing.T) {
+func TestDescend_OnFile_NoActionIsInert(t *testing.T) {
 	t.Parallel()
 	p := newStubProvider()
 	m := New(Config{Provider: p})
 	m, _ = m.Update(ChildrenMsg{Path: "ejolly", Entries: p.tree["ejolly"]})
 
-	m.list.Select(1) // report.pdf
+	m.list.Select(1) // report.pdf — no Enter-bound action registered
 	m, cmd := m.Update(specialKey(tea.KeyEnter))
 
 	if m.Path() != "" {
@@ -181,6 +181,64 @@ func TestDescend_OnFile_IsInert(t *testing.T) {
 	}
 	if cmd != nil {
 		t.Error("file Enter returned a non-nil Cmd")
+	}
+}
+
+// TestDescend_OnFile_FiresEnterAction confirms the fall-through:
+// fspicker binds Action.Key = "enter" with AppliesTo = !IsDir so Enter
+// on a file becomes "pick this file". Enter on a dir still descends
+// (the dir branch returns early before reaching action dispatch).
+func TestDescend_OnFile_FiresEnterAction(t *testing.T) {
+	t.Parallel()
+	p := newStubProvider()
+	flag := &runFlag{}
+	pick := Action{
+		Key:       key.NewBinding(key.WithKeys("enter")),
+		AppliesTo: func(e Entry) bool { return !e.IsDir() },
+		Run: func(e Entry) tea.Cmd {
+			flag.fired = true
+			flag.onEntry = e
+			return nil
+		},
+	}
+	m := New(Config{Provider: p, Actions: []Action{pick}})
+	m, _ = m.Update(ChildrenMsg{Path: "ejolly", Entries: p.tree["ejolly"]})
+
+	m.list.Select(1) // report.pdf
+	m, _ = m.Update(specialKey(tea.KeyEnter))
+
+	if !flag.fired {
+		t.Fatal("Enter on file did not fire Enter-bound action")
+	}
+	if flag.onEntry.Path() != "ejolly/report.pdf" {
+		t.Errorf("action fired on %q, want ejolly/report.pdf", flag.onEntry.Path())
+	}
+}
+
+// TestDescend_OnDir_DoesNotFireEnterAction confirms Enter on a dir still
+// descends (no fall-through to action dispatch) — preserving normal nav.
+func TestDescend_OnDir_DoesNotFireEnterAction(t *testing.T) {
+	t.Parallel()
+	p := newStubProvider()
+	flag := &runFlag{}
+	pick := Action{
+		Key: key.NewBinding(key.WithKeys("enter")),
+		Run: func(e Entry) tea.Cmd {
+			flag.fired = true
+			return nil
+		},
+	}
+	m := New(Config{Provider: p, Actions: []Action{pick}})
+	m, _ = m.Update(ChildrenMsg{Path: "", Entries: p.tree[""]})
+
+	m.list.Select(0) // alice (dir)
+	m, _ = m.Update(specialKey(tea.KeyEnter))
+
+	if flag.fired {
+		t.Error("Enter on dir fired pick action; want descend instead")
+	}
+	if m.Path() != "alice" {
+		t.Errorf("cwd = %q, want alice", m.Path())
 	}
 }
 
