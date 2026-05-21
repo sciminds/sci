@@ -68,6 +68,22 @@ Setup your Mac for scientific work — installs Homebrew if missing, walks you t
 ![sci doctor](docs/casts/doctor.gif)
 </details>
 
+### `sci update`
+
+Self-update the `sci` binary in place. Downloads the latest release asset for your OS/arch, verifies its SHA256 against the release notes, and replaces the running binary atomically.
+
+<details>
+![sci update](docs/casts/update.gif)
+</details>
+
+### `sci learn`
+
+Interactive TUI for common terminal/git/Python commands — pick a topic, watch a rendered asciicast, repeat. Browses the casts under `internal/learn/casts/`.
+
+<details>
+![sci learn](docs/casts/learn.gif)
+</details>
+
 ### `sci view`
 
 Browse data files & markdown interactively.
