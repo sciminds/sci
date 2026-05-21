@@ -37,6 +37,11 @@ type Model struct {
 	cache   map[string][]lab.Entry
 	loading bool
 	loadErr error
+	// firstLoadDone flips true on the first listLoadedMsg (success or error).
+	// Pre-flip, viewBrowse hides the breadcrumb / hint chrome so the user
+	// can't be misled by action hints for actions that effectively no-op
+	// while the initial listing is still in flight.
+	firstLoadDone bool
 
 	// selection (absolute paths, persisted across nav)
 	selected map[string]bool

@@ -30,6 +30,9 @@ func (m *Model) View() tea.View {
 }
 
 func (m *Model) viewBrowse() string {
+	if !m.firstLoadDone {
+		return uikit.TUI.Dim().Render("loading…")
+	}
 	var b strings.Builder
 	if n := len(m.pending); n > 0 {
 		b.WriteString(uikit.TUI.Warn().Render(

@@ -3,6 +3,7 @@ package app
 import (
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sciminds/cli/internal/lab"
@@ -46,6 +47,50 @@ func TestNewModel_StartsAtRoot(t *testing.T) {
 	}
 	if m.SelectedCount() != 0 {
 		t.Errorf("expected no selections initially")
+	}
+}
+
+// Before the first listLoadedMsg arrives, the View must not render the
+// breadcrumb or action hints — those tell the user about actions that
+// effectively no-op while entries are still loading, and they create a
+// teatest race where "sciminds" is matched in the loading state and the
+// next sent keystroke is silently dropped by descendIfDir.
+func TestModel_ViewBeforeFirstLoadIsLoadingOnly(t *testing.T) {
+	m, _ := newTestModel(t)
+	out := m.View().Content
+	if !strings.Contains(out, "loading") {
+		t.Errorf("expected 'loading' placeholder in initial view:\n%s", out)
+	}
+	if strings.Contains(out, "sciminds") {
+		t.Errorf("breadcrumb should not render before first load:\n%s", out)
+	}
+	if strings.Contains(out, "space select") {
+		t.Errorf("hint line should not render before first load:\n%s", out)
+	}
+}
+
+// Once the first listLoadedMsg arrives, the full browse chrome is restored:
+// breadcrumb, entries, and the action-hint line.
+func TestModel_ViewAfterFirstLoadShowsChrome(t *testing.T) {
+	m, _ := newTestModel(t)
+	updated, _ := m.Update(listLoadedMsg{
+		path: lab.ReadRoot,
+		entries: []lab.Entry{
+			{Name: "data", IsDir: true},
+			{Name: "scripts", IsDir: true},
+			{Name: "README.md"},
+		},
+	})
+	m = updated.(*Model)
+	out := m.View().Content
+	if !strings.Contains(out, "sciminds") {
+		t.Errorf("breadcrumb should render after first load:\n%s", out)
+	}
+	if !strings.Contains(out, "README.md") {
+		t.Errorf("entries should render after first load:\n%s", out)
+	}
+	if !strings.Contains(out, "space select") {
+		t.Errorf("hint line should render after first load:\n%s", out)
 	}
 }
 

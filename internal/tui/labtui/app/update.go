@@ -23,6 +23,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case listLoadedMsg:
 		m.loading = false
+		m.firstLoadDone = true
 		if msg.err != nil {
 			m.loadErr = msg.err
 			return m, nil
