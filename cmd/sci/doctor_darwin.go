@@ -242,10 +242,17 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// ── Step 5: Check for outdated packages ─────────────────────────────
 	if skipUpgradeCheck() {
-		printAllSet()
+		printDoctorClosing()
 		return nil
 	}
 	return runDoctorUpdateCheck(runner)
+}
+
+// printDoctorClosing refreshes the identity preflight (gh/hf may have been
+// installed during this run) and prints the closing summary — either the
+// celebratory banner or the "finish these logins" warning block.
+func printDoctorClosing() {
+	printClosingSummary(doctor.RunPreflightIdentity())
 }
 
 // offerHomebrewInstall prompts the user to install Homebrew and runs the
@@ -348,7 +355,7 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 	}
 
 	if len(result.Outdated) == 0 {
-		printAllSet()
+		printDoctorClosing()
 		return nil
 	}
 
@@ -382,6 +389,6 @@ func runDoctorUpdateCheck(runner brew.Runner) error {
 		return nil
 	}
 
-	printAllSet()
+	printDoctorClosing()
 	return nil
 }

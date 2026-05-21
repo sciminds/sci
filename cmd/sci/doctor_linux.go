@@ -40,8 +40,6 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	if result.AllPassed() {
-		printAllSet()
-	}
+	printClosingSummary(result.Sections)
 	return nil
 }

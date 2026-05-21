@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/doctor"
@@ -71,10 +72,49 @@ func skipUpgradeCheck() bool {
 	return doctorSkipUpgradeCheck || os.Getenv(postUpdateEnvVar) == "1"
 }
 
-// printAllSet prints the "all set up" line at the end of a successful run.
-// Shared by both platform Action bodies.
-func printAllSet() {
-	fmt.Fprintf(os.Stderr, "\n  🧠 %s\n\n", uikit.TUI.Pass().Render("You're all set up!"))
+// closingSummary returns the trailing message printed at the end of doctor.
+// When gh/hf auth are still pending the user sees a warning block with the
+// exact follow-up commands; otherwise the celebratory banner.
+func closingSummary(sections []doctor.CheckSection) string {
+	var ghStatus, hfStatus doctor.Status
+	for _, sec := range sections {
+		for _, c := range sec.Checks {
+			switch c.Label {
+			case "GitHub CLI auth":
+				ghStatus = c.Status
+			case "Hugging Face auth":
+				hfStatus = c.Status
+			}
+		}
+	}
+
+	ghPending := ghStatus == doctor.StatusFail
+	hfPending := hfStatus == doctor.StatusFail || hfStatus == doctor.StatusWarn
+
+	if !ghPending && !hfPending {
+		return fmt.Sprintf("\n  🧠 %s\n\n", uikit.TUI.Pass().Render("You're all set up!"))
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n  %s %s\n\n", uikit.SymWarn,
+		uikit.TUI.Warn().Render("Almost there — finish these to unlock the full sci toolkit:"))
+	if ghPending {
+		fmt.Fprintf(&b, "     %s %-18s %s\n", uikit.SymArrow,
+			uikit.TUI.TextBlue().Render("gh auth login"),
+			uikit.TUI.Dim().Render("Sign in to GitHub"))
+	}
+	if hfPending {
+		fmt.Fprintf(&b, "     %s %-18s %s\n", uikit.SymArrow,
+			uikit.TUI.TextBlue().Render("hf auth login"),
+			uikit.TUI.Dim().Render("Sign in to Hugging Face (sci cloud)"))
+	}
+	b.WriteString("\n")
+	return b.String()
+}
+
+// printClosingSummary writes closingSummary to stderr (Doctor's UX channel).
+func printClosingSummary(sections []doctor.CheckSection) {
+	fmt.Fprint(os.Stderr, closingSummary(sections))
 }
 
 // applyGitIdentityFlags writes any --git-name / --git-email values straight
