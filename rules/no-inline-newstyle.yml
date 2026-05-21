@@ -4,10 +4,8 @@ rule:
   pattern: lipgloss.NewStyle()
 severity: error
 message: |
-  lipgloss.NewStyle() is only allowed in style files (internal/uikit/ or internal/tui/*/ui/).
+  lipgloss.NewStyle() is only allowed inside internal/uikit/.
   Use uikit.TUI accessors for semantic styles, or uikit.TUI.Base() for layout containers.
-  See CLAUDE.md: "No inline lipgloss.NewStyle() outside internal/uikit/ or internal/tui/*/ui/"
+  See CLAUDE.md: "No inline lipgloss.NewStyle() outside internal/uikit/"
 ignores:
   - "internal/uikit/*.go"
-  - "internal/tui/*/ui/*.go"
-  - "internal/cmdutil/huh_theme.go"

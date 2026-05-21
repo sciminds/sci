@@ -4,11 +4,8 @@ rule:
   pattern: lipgloss.Color($STR)
 severity: error
 message: |
-  Hardcoded lipgloss.Color() is only allowed in palette/style files.
+  Hardcoded lipgloss.Color() is only allowed in the uikit palette.
   Define colors in internal/uikit/color_palette.go and reference via uikit.TUI.Palette().
 ignores:
   - "internal/uikit/color_palette.go"
   - "internal/uikit/color_styles.go"
-  - "internal/tui/*/ui/palette.go"
-  - "internal/tui/*/ui/styles.go"
-  - "internal/tui/dbtui/app/mode_styles.go"

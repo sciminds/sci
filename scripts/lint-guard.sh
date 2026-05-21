@@ -303,7 +303,6 @@ interactive_rules="scripts/interactive-calls.yml"
 # Exempt paths — these never need inventory entries.
 scriptable_exempt=(
 	"internal/tui/dbtui/"
-	"internal/mdview/"
 	"internal/cmdutil/confirm.go"
 	"internal/uikit/"
 )
