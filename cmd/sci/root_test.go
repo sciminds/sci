@@ -15,6 +15,7 @@ import (
 	"github.com/sciminds/cli/internal/selfupdate"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/version"
+	"github.com/urfave/cli/v3"
 )
 
 // setupNoticeEnv redirects the selfupdate cache to a tempdir, pins
@@ -144,6 +145,14 @@ func TestRootBefore_JSONSuppressesNotice(t *testing.T) {
 // does not double-announce — the user is already running the updater.
 // Detection uses cmd.Args().First() because root's Before receives the
 // root command, not the resolved subcommand.
+//
+// The real update.Action calls uikit.RunWithSpinner which spawns a
+// goroutine to run its callback; tea.Program's internal sync edge isn't
+// visible to the race detector, so mocking selfupdateCheck/Update/Exec
+// and running the real Action via buildRoot triggers a flaky race in CI
+// (caught on Go 1.26 darwin/arm64). We don't need to exercise runUpdate
+// at all here — swap update.Action to a no-op so Before still fires with
+// the same Args().First() but no spinner goroutine spawns.
 func TestRootBefore_UpdateSubcommandSuppressesNotice(t *testing.T) {
 	path := setupNoticeEnv(t)
 	writeNoticeCache(t, path, selfupdate.CheckResult{
@@ -152,28 +161,16 @@ func TestRootBefore_UpdateSubcommandSuppressesNotice(t *testing.T) {
 		LastCheckedAt: time.Now(),
 	})
 
-	// Mock the update flow so we don't touch the network or re-exec.
-	origCheck, origUpdate, origExec := selfupdateCheck, selfupdateUpdate, execAfterUpdate
-	t.Cleanup(func() {
-		selfupdateCheck = origCheck
-		selfupdateUpdate = origUpdate
-		execAfterUpdate = origExec
-	})
-	selfupdateCheck = func() selfupdate.CheckResult {
-		return selfupdate.CheckResult{
-			Available:   true,
-			CurrentSHA:  "aaaaaaa1111111",
-			LatestSHA:   "bbbbbbb2222222",
-			DownloadURL: "https://example.invalid/sci",
+	root := buildRoot()
+	for _, c := range root.Commands {
+		if c.Name == "update" {
+			c.Action = func(context.Context, *cli.Command) error { return nil }
+			c.Before = nil
 		}
 	}
-	selfupdateUpdate = func(_, _ string) (string, error) {
-		return "/tmp/sci-new", nil
-	}
-	execAfterUpdate = func(_ string) error { return nil }
 
 	stderr := captureStderr(t, func() {
-		_ = buildRoot().Run(context.Background(), []string{"sci", "update"})
+		_ = root.Run(context.Background(), []string{"sci", "update"})
 	})
 
 	if strings.Contains(stderr, "Update available") {
