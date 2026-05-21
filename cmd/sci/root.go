@@ -21,8 +21,10 @@ import (
 var jsonOutput bool
 
 func buildRoot() *cli.Command {
-	// Update check: Before reads the *previous* cached result (instant) and
-	// kicks off a fire-and-forget goroutine to refresh the cache for next time.
+	// Update check: Before reads the previous cached result (instant) and
+	// spawns a detached subprocess to refresh the cache when stale. The
+	// subprocess survives the parent's exit so even short-lived commands
+	// actually complete the network call.
 	var updateNotice string
 
 	root := &cli.Command{
@@ -35,15 +37,16 @@ func buildRoot() *cli.Command {
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			uikit.SetQuiet(cmdutil.IsJSON(cmd))
 			updateNotice = selfupdate.ReadCachedNotice()
-			go selfupdate.RefreshCache()
+			selfupdate.SpawnDetachedRefresh()
 			return ctx, nil
 		},
 		After: func(_ context.Context, cmd *cli.Command) error {
-			if cmdutil.IsJSON(cmd) || (len(os.Args) > 1 && os.Args[1] == "update") {
+			if cmdutil.IsJSON(cmd) || cmd.Name == "update" {
 				return nil
 			}
 			if updateNotice != "" {
 				fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymArrow, updateNotice)
+				selfupdate.MarkNoticeShown()
 			}
 			return nil
 		},
@@ -84,6 +87,15 @@ func buildRoot() *cli.Command {
 }
 
 func main() {
+	// Detached refresh trampoline: when [selfupdate.SpawnDetachedRefresh]
+	// re-execs this binary with the sentinel env var set, do the (slow)
+	// update check and exit. This bypasses every urfave/cli code path so
+	// the child cannot accidentally execute a user-facing command.
+	if os.Getenv(selfupdate.InternalRefreshEnv) == "1" {
+		selfupdate.RefreshCache()
+		return
+	}
+
 	root := buildRoot()
 	if err := root.Run(context.Background(), os.Args); err != nil {
 		if errors.Is(err, dbtui.ErrInterrupted) {
