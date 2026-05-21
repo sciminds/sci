@@ -248,10 +248,13 @@ jobs:
 
           # 4. --exclude all casks (quarto is ~1GB, kitty needs a font
           #    cache rebuild, the GUI note/productivity apps are huge and
-          #    pointless on a headless runner) installs the rest of
-          #    BrewfileOptional in one shot. JSON return drives the cleanup
-          #    so the runner is left in the same state we found it.
-          BULK_JSON=$(sci tools reccs --exclude quarto,kitty,obsidian,reflect,notion,tailscale-app --json)
+          #    pointless on a headless runner; brave-browser/raycast/
+          #    amethyst/karabiner-elements/dropbox/google-drive/fantastical
+          #    are heavyweight GUI casks whose vendor CDNs flake under CI
+          #    download load) installs the rest of BrewfileOptional in one
+          #    shot. JSON return drives the cleanup so the runner is left
+          #    in the same state we found it.
+          BULK_JSON=$(sci tools reccs --exclude quarto,kitty,obsidian,reflect,notion,tailscale-app,brave-browser,raycast,amethyst,karabiner-elements,dropbox,google-drive,fantastical --json)
           echo "$BULK_JSON" | jq -e '.installed | type == "array"' >/dev/null
           INSTALLED=$(echo "$BULK_JSON" | jq -r '.installed[]?')
           if [ -n "$INSTALLED" ]; then
