@@ -4,7 +4,8 @@ package share
 // keys returned by `hf buckets ls -R`. HF stores objects in a flat namespace
 // where "/" is just a character in the key; the tree structure is purely a
 // client-side projection. We do that projection here so both `sci cloud ls`
-// (plain) and `sci cloud browse` (TUI) can share one navigation model.
+// (plain) and the interactive browser under `sci cloud get` can share one
+// navigation model.
 
 import (
 	"path"

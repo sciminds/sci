@@ -16,7 +16,7 @@
 //   - [Unshare] removes a shared file.
 //   - [FetchObjects] returns the raw bucket listing; [ListAt] folds it into
 //     immediate children of a path (used by `sci cloud ls`); [ChildrenAt]
-//     drives the `sci cloud browse` TUI.
+//     drives the interactive browser launched by `sci cloud get` (no args).
 //   - [Auth] / [AuthLogout] wrap `hf auth login` / `hf auth logout`.
 //   - [Get] downloads a file to the current directory.
 package share

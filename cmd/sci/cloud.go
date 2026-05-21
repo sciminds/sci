@@ -17,15 +17,14 @@ import (
 )
 
 var (
-	putName      string
-	putPublic    bool
-	putForce     bool
-	getPublic    bool
-	removeYes    bool
-	removePub    bool
-	lsPublic     bool
-	browsePublic bool
-	setupLogout  bool
+	putName     string
+	putPublic   bool
+	putForce    bool
+	getPublic   bool
+	removeYes   bool
+	removePub   bool
+	lsPublic    bool
+	setupLogout bool
 )
 
 func cloudCommand() *cli.Command {
@@ -39,7 +38,7 @@ func cloudCommand() *cli.Command {
 			"  $ sci cloud put results.csv --public      # public, prints URL\n" +
 			"  $ sci cloud ls                            # your private files\n" +
 			"  $ sci cloud ls --public                   # everyone's public files\n" +
-			"  $ sci cloud browse                        # interactive TUI\n" +
+			"  $ sci cloud get                           # interactive TUI\n" +
 			"  $ sci cloud get someone/data.csv --public",
 		Category: "Commands",
 		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
@@ -53,7 +52,6 @@ func cloudCommand() *cli.Command {
 			cloudLsCommand(),
 			cloudGetCommand(),
 			cloudPutCommand(),
-			cloudBrowseCommand(),
 			cloudRemoveCommand(),
 		},
 	}
@@ -118,20 +116,36 @@ func cloudLsCommand() *cli.Command {
 func cloudGetCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "get",
-		Usage: "Download a shared file (private bucket by default; --public for public bucket)",
-		Description: "$ sci cloud get results.csv                  # your private file\n" +
+		Usage: "Download a shared file, or browse interactively with no arg (--public for public bucket)",
+		Description: "$ sci cloud get                              # interactive TUI (browse + download)\n" +
+			"$ sci cloud get --public                     # browse the public bucket\n" +
+			"$ sci cloud get results.csv                  # your private file\n" +
 			"$ sci cloud get results.csv ./local/         # download into ./local/\n" +
 			"$ sci cloud get alice/data.csv --public      # someone else's public file",
-		ArgsUsage: "<name> [local]",
+		ArgsUsage: "[name [local]]",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "fetch from the public bucket", Destination: &getPublic, Local: true},
+			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "fetch from / browse the public bucket", Destination: &getPublic, Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			if cmd.Args().Len() < 1 {
-				return fmt.Errorf("get requires a file name\n\n" +
-					"  Download own private:    sci cloud get experiment.csv\n" +
-					"  Download someone else's: sci cloud get alice/data.csv --public\n\n" +
-					"  Run 'sci cloud get --help' for more options")
+			if cmd.Args().Len() == 0 {
+				if cmdutil.IsJSON(cmd) {
+					return fmt.Errorf("get requires a file name in JSON mode")
+				}
+				_, c, err := cloud.Setup(share.BucketFor(getPublic))
+				if err != nil {
+					return err
+				}
+				objects, err := share.FetchObjects(c, false)
+				if err != nil {
+					return err
+				}
+				if err := cloudbrowse.Run(objects, c); err != nil {
+					if errors.Is(err, cloudbrowse.ErrInterrupted) {
+						return cli.Exit("", 130)
+					}
+					return err
+				}
+				return nil
 			}
 			name := cmd.Args().Get(0)
 			local := ""
@@ -239,35 +253,6 @@ func cloudPutCommand() *cli.Command {
 				return err
 			}
 			cmdutil.Output(cmd, result)
-			return nil
-		},
-	}
-}
-
-func cloudBrowseCommand() *cli.Command {
-	return &cli.Command{
-		Name: "browse",
-		Usage: "Interactively browse the bucket starting at root " +
-			"(navigate user folders, download, delete own files)",
-		Description: "$ sci cloud browse\n$ sci cloud browse --public",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "browse the public bucket", Destination: &browsePublic, Local: true},
-		},
-		Action: func(_ context.Context, _ *cli.Command) error {
-			_, c, err := cloud.Setup(share.BucketFor(browsePublic))
-			if err != nil {
-				return err
-			}
-			objects, err := share.FetchObjects(c, false)
-			if err != nil {
-				return err
-			}
-			if err := cloudbrowse.Run(objects, c); err != nil {
-				if errors.Is(err, cloudbrowse.ErrInterrupted) {
-					return cli.Exit("", 130)
-				}
-				return err
-			}
 			return nil
 		},
 	}

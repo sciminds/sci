@@ -4,10 +4,11 @@ import (
 	"testing"
 )
 
-// TestCloud_SubcommandShape locks in the post-alignment surface: ls/get/put
-// /browse/remove (mirrors `sci lab`). The actions themselves are exercised
-// by integration tests; here we just guard the command shape so a typo or
-// rename never silently regresses the contract with `sci lab`.
+// TestCloud_SubcommandShape locks in the surface: setup/ls/get/put/remove.
+// `get` with no arg opens the interactive browser (folded in from the old
+// `browse` subcommand). The actions themselves are exercised by integration
+// tests; here we just guard the command shape so a typo or rename never
+// silently regresses it.
 func TestCloud_SubcommandShape(t *testing.T) {
 	root := buildRoot()
 	cloud := findCmd(root.Commands, "cloud")
@@ -23,7 +24,6 @@ func TestCloud_SubcommandShape(t *testing.T) {
 		{"ls", []string{"list"}},
 		{"get", nil},
 		{"put", nil},
-		{"browse", nil},
 		{"remove", []string{"rm"}},
 	}
 	for _, w := range want {
@@ -46,9 +46,9 @@ func TestCloud_SubcommandShape(t *testing.T) {
 		}
 	}
 
-	// ls/browse must both accept --public; lab's TUI/CLI split has the
-	// same flag on both halves, so cloud should too.
-	for _, name := range []string{"ls", "browse"} {
+	// `browse` is gone; its --public flag now lives on `get`, which serves
+	// both the CLI download and the interactive-browser entry point.
+	for _, name := range []string{"ls", "get"} {
 		sub := findCmd(cloud.Commands, name)
 		if sub == nil {
 			continue
@@ -56,5 +56,9 @@ func TestCloud_SubcommandShape(t *testing.T) {
 		if !hasFlag(sub, "public") {
 			t.Errorf("cloud %s should have a --public flag", name)
 		}
+	}
+
+	if findCmd(cloud.Commands, "browse") != nil {
+		t.Errorf("cloud browse should be removed; its functionality moved to `sci cloud get`")
 	}
 }

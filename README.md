@@ -39,9 +39,9 @@ Written in Go because:
 
 Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.markdown`) render via the uikit markdown viewer — press `r` to reload from disk after external edits.
 
+![sci view](docs/casts/view.gif)
 </details>
 
-![sci view](docs/casts/view.gif)
 
 ### `sci proj` - Manage Python projects
 
@@ -59,9 +59,9 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 | `sci proj run` | Run a project task |
 
 
+![sci proj](docs/casts/proj-new.gif)
 </details>
 
-![sci proj](docs/casts/proj-new.gif)
 
 ### `sci py` - ephemeral python repls/notebooks & file conversion
 
@@ -74,9 +74,9 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 | `sci py notebook` | Open a marimo notebook |
 | `sci py convert` | Convert between marimo (.py), MyST (.md), and Quarto (.qmd) |
 
+![sci py](docs/casts/py-repl.gif)
 </details>
 
-![sci py](docs/casts/py-repl.gif)
 
 ### `sci db` - Manage databases
 
@@ -92,9 +92,9 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 | `sci db delete` | Delete a table from a database |
 | `sci db reset` | Delete and recreate an empty database |
 
+![sci db](docs/casts/db-add.gif)
 </details>
 
-![sci db](docs/casts/db-add.gif)
 
 ### `sci cloud` - public cloud storage
 
@@ -105,14 +105,13 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 |---------|--------------|
 | `sci cloud setup` | Authenticate with Hugging Face (requires sciminds org membership) |
 | `sci cloud ls` | List shared files |
-| `sci cloud get <name> [local]` | Download a shared file |
-| `sci cloud put <file>` | Upload a file to cloud storage |
-| `sci cloud browse` | Interactively browse shared files |
+| `sci cloud get <name> [local]` | Download a shared file (no arg → interactive browser) |
+| `sci cloud put <file>` | Upload a file to cloud storage (no arg → interactive picker) |
 | `sci cloud remove <name>` | Remove a shared file |
 
+![sci cloud](docs/casts/cloud-put.gif)
 </details>
 
-![sci cloud](docs/casts/cloud-put.gif)
 
 ### `sci lab` - lab storage (sftp)
 
@@ -130,9 +129,9 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 | `sci lab connect` | Open an SSH shell in lab storage |
 
 
+![sci lab](docs/casts/lab-browse.gif)
 </details>
 
-![sci lab](docs/casts/lab-browse.gif)
 
 ### `sci tools` - manage tools (Homebrew & uv)
 
@@ -148,9 +147,9 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 | `sci tools outdated` | List outdated packages without upgrading |
 | `sci tools reccs` | Pick optional tools to install |
 
+![sci tools](docs/casts/tools-install.gif)
 </details>
 
-![sci tools](docs/casts/tools-install.gif)
 
 ### `sci vid` - Video/audio editing
 
@@ -170,9 +169,9 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 | `sci vid extract-audio` | Extract audio track to file |
 | `sci vid strip-subs` | Remove subtitles from a video |
 
+![sci vid](docs/casts/vid-cut.gif)
 </details>
 
-![sci vid](docs/casts/vid-cut.gif)
 
 ### `sci cass` - Canvas LMS & GitHub Classroom
 
@@ -199,9 +198,9 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 
 Syncs course data to a local SQLite database (`cass.db`) with a git-like workflow: pull shows changelogs, diff shows pending grade changes, push sends grades to Canvas with conflict detection. GitHub Classroom is optional — works with Canvas-only courses.
 
+![sci cass](docs/casts/cass-pull.gif)
 </details>
 
-![sci cass](docs/casts/cass-pull.gif)
 
 ### `sci zot` - Zotero library management (Experimental)
 

@@ -1,6 +1,7 @@
-// Package cloudbrowse is the hierarchical bucket browser mounted under
-// `sci cloud browse`. The implementation lives in [app]; this root pkg
-// only exports the launcher and the interrupt sentinel.
+// Package cloudbrowse is the hierarchical bucket browser launched when
+// `sci cloud get` is invoked with no arguments. The implementation lives
+// in [app]; this root pkg only exports the launcher and the interrupt
+// sentinel.
 package cloudbrowse
 
 import (
