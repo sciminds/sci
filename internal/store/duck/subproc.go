@@ -52,6 +52,17 @@ const stderrSentinelTable = "__sci_duck_stderr_sentinel__"
 // and only fires if duckdb's stderr stream stalls.
 const stderrDrainTimeout = 2 * time.Second
 
+// stderrSyntheticTrailerLines is how many stderr lines follow the line that
+// matches our synthetic-sentinel marker before the catalog-error block
+// finishes. duckdb's "Catalog Error: Table X does not exist!" is followed
+// by exactly 3 more lines: a "Did you mean ..." hint, a "LINE 1: ..."
+// echo of the offending statement, and a caret-pointer line. drainStderr
+// drops these regardless of arm state — without that, lines that haven't
+// reached the drain by the time the next query() re-arms get appended to
+// the new query's stderrBuf and surface as spurious errors. See
+// TestDrainStderr_TrailerDoesNotLeakAcrossQueries.
+const stderrSyntheticTrailerLines = 3
+
 // subproc owns one duckdb child process. Methods are safe to call from
 // any goroutine but serialise through [subproc.mu] — duckdb's stdin is
 // a single command stream.
@@ -71,11 +82,16 @@ type subproc struct {
 
 	// stderrSentinel, when non-empty, is the per-query marker drainStderr
 	// is watching for. On match the goroutine closes stderrSeen, clears
-	// both fields, and ignores further lines until query() rearms — so the
-	// trailing lines of the synthetic catalog error (hint, LINE, caret)
-	// do not pollute the user's snapshot.
+	// both fields, and arms stderrSyntheticRemaining so the trailing 3
+	// lines of the catalog error are dropped even if the next query has
+	// already re-armed by the time they arrive.
 	stderrSentinel string
 	stderrSeen     chan struct{}
+
+	// stderrSyntheticRemaining counts the trailing synthetic-error lines
+	// drainStderr still owes itself a drop on. It persists across query()
+	// arms so the trailer cannot leak into the next query's stderrBuf.
+	stderrSyntheticRemaining int
 
 	closed atomic.Bool
 
@@ -141,16 +157,18 @@ func startSubprocFromCmd(cmd *exec.Cmd) (*subproc, error) {
 }
 
 // drainStderr is the sole reader of the child's stderr stream. It operates
-// in two states, guarded by stderrMu:
+// as a small state machine, guarded by stderrMu:
 //
+//   - draining trailer (stderrSyntheticRemaining > 0): silently drop the
+//     line and decrement. Set after a sentinel match; persists across the
+//     next query()'s arm so the catalog-error trailer (hint, LINE 1: echo,
+//     caret) never leaks into the wrong query's buf.
 //   - armed (stderrSentinel != ""): a query is in flight. Append each line
 //     to stderrBuf until one contains the sentinel marker; on match close
-//     stderrSeen, drop the marker line, and disarm. This is the
+//     stderrSeen, arm stderrSyntheticRemaining, and disarm. This is the
 //     synchronisation point query() waits on before sampling stderrBuf.
-//   - disarmed (stderrSentinel == ""): no query is waiting, OR we have
-//     already signalled this query. Discard the line. The trailing lines
-//     of the synthetic catalog error (the "Did you mean…", "LINE 1: …",
-//     and caret lines) land here and are correctly dropped.
+//   - disarmed (stderrSentinel == "" and no trailer pending): no query is
+//     waiting. Discard the line.
 func (s *subproc) drainStderr(r io.Reader) {
 	defer close(s.stderrDie)
 	scanner := bufio.NewScanner(r)
@@ -158,6 +176,11 @@ func (s *subproc) drainStderr(r io.Reader) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		s.stderrMu.Lock()
+		if s.stderrSyntheticRemaining > 0 {
+			s.stderrSyntheticRemaining--
+			s.stderrMu.Unlock()
+			continue
+		}
 		if s.stderrSentinel == "" {
 			s.stderrMu.Unlock()
 			continue
@@ -168,6 +191,7 @@ func (s *subproc) drainStderr(r io.Reader) {
 				s.stderrSeen = nil
 			}
 			s.stderrSentinel = ""
+			s.stderrSyntheticRemaining = stderrSyntheticTrailerLines
 			s.stderrMu.Unlock()
 			continue
 		}

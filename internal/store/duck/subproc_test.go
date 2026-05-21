@@ -7,6 +7,7 @@ package duck
 
 import (
 	"errors"
+	"io"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -85,6 +86,114 @@ func TestClose_PolitePathCompletes(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 1*time.Second {
 		t.Errorf("close() took %v on clean shutdown — should be near-instant", elapsed)
+	}
+}
+
+// TestDrainStderr_TrailerDoesNotLeakAcrossQueries pins the fix for the
+// race where Q_N's synthetic catalog-error trailer (the 3 lines after
+// "Catalog Error: ...": hint, "LINE 1:" echo, caret) leaked into
+// Q_{N+1}'s stderrBuf when Q_{N+1} armed before drainStderr had a chance
+// to read those trailing lines. Symptom: spurious errors like
+// `duckdb: Did you mean "duckdb_constraints"? LINE 1: SELECT 1 FROM
+// __sci_duck_stderr_sentinel__N__;` flaking TestStoreContract under -race.
+//
+// The test simulates the race deterministically by re-arming the sentinel
+// AFTER drainStderr signals it matched line 1 but BEFORE the trailer is
+// fed into the pipe. io.Pipe is unbuffered, so drainStderr blocks on Read
+// between the match and the next write — that's our synchronisation point.
+func TestDrainStderr_TrailerDoesNotLeakAcrossQueries(t *testing.T) {
+	t.Parallel()
+
+	pr, pw := io.Pipe()
+	s := &subproc{stderrDie: make(chan struct{})}
+	go s.drainStderr(pr)
+	defer func() {
+		_ = pw.Close() // signals io.EOF; drainStderr exits, closes stderrDie
+		<-s.stderrDie
+	}()
+
+	arm := func(marker string) chan struct{} {
+		seen := make(chan struct{})
+		s.stderrMu.Lock()
+		s.stderrBuf.Reset()
+		s.stderrSentinel = marker
+		s.stderrSeen = seen
+		s.stderrMu.Unlock()
+		return seen
+	}
+	write := func(line string) {
+		if _, err := io.WriteString(pw, line+"\n"); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+
+	// Q1: arm with _1_, write its synthetic line 1, wait for match. After
+	// this returns, drainStderr is blocked in scanner.Scan() waiting for
+	// the next pipe Read — so re-arming below is race-free.
+	seen1 := arm("__sci_duck_stderr_sentinel__1__")
+	write(`Catalog Error: Table "__sci_duck_stderr_sentinel__1__" does not exist!`)
+	<-seen1
+	if got := s.stderrSnapshot(); got != "" {
+		t.Errorf("Q1 buf after match = %q; want empty (line 1 should be consumed by sentinel match)", got)
+	}
+
+	// Q2 arms BEFORE Q1's trailer is fed in. Without the fix, Q1's 3
+	// trailer lines would be appended to Q2's freshly-reset buf because
+	// none of them contain Q2's marker.
+	seen2 := arm("__sci_duck_stderr_sentinel__2__")
+
+	// Q1 trailer (hint, LINE 1 echo, caret) then Q2 full 4-line synthetic.
+	write(`Did you mean "duckdb_constraints"?`)
+	write(`LINE 1: SELECT 1 FROM __sci_duck_stderr_sentinel__1__;`)
+	write(`                      ^`)
+	write(`Catalog Error: Table "__sci_duck_stderr_sentinel__2__" does not exist!`)
+	write(`Did you mean "duckdb_constraints"?`)
+	write(`LINE 1: SELECT 1 FROM __sci_duck_stderr_sentinel__2__;`)
+	write(`                      ^`)
+
+	<-seen2
+	if got := s.stderrSnapshot(); got != "" {
+		t.Errorf("Q2 buf after match = %q; want empty (Q1 trailer leaked into Q2)", got)
+	}
+}
+
+// TestDrainStderr_PreservesRealUserErrors confirms the trailer-drop counter
+// does not eat legitimate user-error lines that arrive *after* the
+// trailing-drop window has closed.
+func TestDrainStderr_PreservesRealUserErrors(t *testing.T) {
+	t.Parallel()
+
+	pr, pw := io.Pipe()
+	s := &subproc{stderrDie: make(chan struct{})}
+	go s.drainStderr(pr)
+	defer func() {
+		_ = pw.Close()
+		<-s.stderrDie
+	}()
+
+	arm := func(marker string) chan struct{} {
+		seen := make(chan struct{})
+		s.stderrMu.Lock()
+		s.stderrBuf.Reset()
+		s.stderrSentinel = marker
+		s.stderrSeen = seen
+		s.stderrMu.Unlock()
+		return seen
+	}
+	write := func(line string) {
+		if _, err := io.WriteString(pw, line+"\n"); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+
+	// Q1 with user error: user-error line arrives BEFORE the synthetic
+	// sentinel line, so it must be captured.
+	seen1 := arm("__sci_duck_stderr_sentinel__1__")
+	write(`Parser Error: syntax error at or near "FROMM"`)
+	write(`Catalog Error: Table "__sci_duck_stderr_sentinel__1__" does not exist!`)
+	<-seen1
+	if got := s.stderrSnapshot(); !strings.Contains(got, "Parser Error") {
+		t.Errorf("Q1 buf = %q; want it to contain Parser Error", got)
 	}
 }
 
