@@ -21,12 +21,13 @@ import (
 var jsonOutput bool
 
 func buildRoot() *cli.Command {
-	// Update check: Before reads the previous cached result (instant) and
-	// spawns a detached subprocess to refresh the cache when stale. The
-	// subprocess survives the parent's exit so even short-lived commands
-	// actually complete the network call.
-	var updateNotice string
-
+	// Update notice: rendered in Before (not After) so it surfaces even for
+	// subcommands that end in syscall.Exec (REPL, marimo, quarto, lab
+	// get/put/connect, py, proj/exec) or sit inside an alt-screen TUI —
+	// urfave/cli's After hook is unreachable from any of those paths.
+	// Trade-off: the notice prints at the top of output instead of the
+	// bottom. For exec/TUI flows the line stays on the main-screen
+	// scrollback and is restored when the user exits.
 	root := &cli.Command{
 		Name:    "sci",
 		Usage:   "Your scientific computing toolkit",
@@ -36,19 +37,18 @@ func buildRoot() *cli.Command {
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			uikit.SetQuiet(cmdutil.IsJSON(cmd))
-			updateNotice = selfupdate.ReadCachedNotice()
 			selfupdate.SpawnDetachedRefresh()
+			// Suppress for --json (machine output) and for `sci update`
+			// itself (the user is already running the updater). At root's
+			// Before, cmd is the root command — peek at the first positional
+			// arg to identify the resolved subcommand.
+			if !cmdutil.IsJSON(cmd) && cmd.Args().First() != "update" {
+				if notice := selfupdate.ReadCachedNotice(); notice != "" {
+					fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymArrow, notice)
+					selfupdate.MarkNoticeShown()
+				}
+			}
 			return ctx, nil
-		},
-		After: func(_ context.Context, cmd *cli.Command) error {
-			if cmdutil.IsJSON(cmd) || cmd.Name == "update" {
-				return nil
-			}
-			if updateNotice != "" {
-				fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymArrow, updateNotice)
-				selfupdate.MarkNoticeShown()
-			}
-			return nil
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			return cli.ShowAppHelp(cmd)
