@@ -49,3 +49,4 @@ rodney/
 # MyST typst templates under active iteration — commit once stable
 /templates/
 .claude/
+frontmatter/
