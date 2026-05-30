@@ -197,7 +197,7 @@ func TestUpdate_UVUpgradePreservesBracketExtras(t *testing.T) {
 	// Regression: when a uv tool is declared in the Brewfile with bracket
 	// extras (e.g. `uv "marimo[recommended]"`), Update must pass the spec
 	// — not the bare name — to UVUpgrade. Otherwise the underlying
-	// `uv tool install <name>@latest` reinstall silently drops the extras.
+	// `uv tool install <name> --upgrade` reinstall silently drops the extras.
 	// t.Setenv prevents t.Parallel here.
 	dir := t.TempDir()
 	bf := filepath.Join(dir, "Brewfile")

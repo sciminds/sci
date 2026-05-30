@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/creack/pty/v2"
 	"github.com/samber/lo"
 )
@@ -406,16 +407,86 @@ func (BrewRunner) UVOutdated() ([]OutdatedPackage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("uv tool list --outdated: %w", err)
 	}
-	return parseUVOutdated(string(out)), nil
+	// `uv tool list --outdated` reports the highest *published* version, even
+	// when that version can't be installed under the default (stable) resolver
+	// — e.g. markitdown 0.1.6 declares a dependency that only exists as a
+	// pre-release. Re-resolve each candidate and keep only the ones whose
+	// newest *installable* version actually beats what's installed, so we never
+	// nag about (or try to apply) an upgrade uv would refuse.
+	return filterUVUpgradable(parseUVOutdated(string(out)), uvResolveVersion), nil
 }
 
-// UVUpgrade implements Runner. Reinstalls each tool at the latest version via
-// `uv tool install <spec>@latest`. Plain `uv tool upgrade` is a no-op for
-// tools that were installed with an exact-version pin (uv prints
-// "Nothing to upgrade" plus a hint that you must reinstall via
-// `uv tool install <name>@latest` to lift the pin) — that left pinned tools
-// like `hf` stranded as outdated on every doctor/sci tools run. The
-// reinstall path lifts the pin and upgrades in one shot.
+// uvResolveVersion resolves spec under uv's default (stable) resolver and
+// returns the installable version of pkgName — the primary package — or ""
+// when the spec doesn't resolve. `uv pip compile` reads the requirement from
+// stdin and prints the fully-resolved set without touching any environment.
+func uvResolveVersion(spec, pkgName string) (string, error) {
+	cmd := exec.Command("uv", "pip", "compile", "-", "--no-annotate", "--no-header", "--quiet")
+	cmd.Stdin = strings.NewReader(spec + "\n")
+	out, err := cmd.Output()
+	if err != nil {
+		// Unsatisfiable under the stable resolver (the markitdown case): there
+		// is no installable upgrade, so signal "nothing to offer."
+		return "", err
+	}
+	return parseResolvedVersion(string(out), pkgName), nil
+}
+
+// filterUVUpgradable drops outdated candidates whose newest *installable*
+// version (via resolve) doesn't actually beat the installed version, and
+// rewrites CurrentVersion to that installable version for the ones it keeps.
+// Probes run concurrently since each shells out to a network resolve. A probe
+// that errors means the candidate can't be installed at all → drop it; a probe
+// that succeeds but yields no version (parse miss) is kept unchanged so a
+// genuine upgrade is never hidden by a quirk in the output.
+func filterUVUpgradable(candidates []OutdatedPackage, resolve func(spec, pkgName string) (string, error)) []OutdatedPackage {
+	if len(candidates) == 0 {
+		return candidates
+	}
+	names := lo.Map(candidates, func(p OutdatedPackage, _ int) string { return p.Name })
+	specs := ResolveUVSpecs(names)
+
+	resolved := make([]string, len(candidates))
+	resolveErr := make([]error, len(candidates))
+	var wg sync.WaitGroup
+	for i := range candidates {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			resolved[i], resolveErr[i] = resolve(specs[i], candidates[i].Name)
+		}(i)
+	}
+	wg.Wait()
+
+	var out []OutdatedPackage
+	for i, c := range candidates {
+		switch {
+		case resolveErr[i] != nil:
+			// No installable version — held back (e.g. latest needs a pre-release).
+			continue
+		case resolved[i] == "":
+			// Couldn't read the resolved version; keep the candidate as-is
+			// rather than risk hiding a real upgrade.
+			out = append(out, c)
+		case newerVersion(resolved[i], c.InstalledVersion):
+			c.CurrentVersion = resolved[i]
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// UVUpgrade implements Runner. Reinstalls each tool at its newest installable
+// version via `uv tool install <spec> --upgrade`. Plain `uv tool upgrade` is a
+// no-op for tools installed with an exact-version pin (uv prints "Nothing to
+// upgrade" plus a hint to reinstall to lift the pin) — that left pinned tools
+// like `hf` stranded as outdated on every doctor/sci tools run. `--upgrade`
+// (`-U`) ignores those pins, so it lifts them and upgrades in one shot.
+//
+// Unlike the earlier `<spec>@latest` form, `--upgrade` does not hard-pin to the
+// highest *published* version: when that version is unsatisfiable (e.g.
+// markitdown 0.1.6 depends on a dependency that only exists as a pre-release),
+// uv backtracks to the highest *installable* version instead of erroring out.
 //
 // Specs come from the Brewfile when callers can resolve them, so bracket
 // extras like `marimo[recommended]` survive the reinstall instead of being
@@ -424,19 +495,21 @@ func (BrewRunner) UVOutdated() ([]OutdatedPackage, error) {
 func (BrewRunner) UVUpgrade(specs []string) (string, error) {
 	var errs []error
 	for _, spec := range specs {
-		target := spec
-		if !strings.Contains(target, "@") {
-			target += "@latest"
-		}
-		cmd := exec.Command("uv", "tool", "install", target)
+		cmd := exec.Command("uv", uvUpgradeArgs(spec)...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			errs = append(errs, fmt.Errorf("uv tool install %s: %w", target, err))
+			errs = append(errs, fmt.Errorf("uv tool install %s: %w", spec, err))
 		}
 	}
 	return "", errors.Join(errs...)
+}
+
+// uvUpgradeArgs builds the `uv` argv that upgrades a single tool. Extracted so
+// tests can assert on the flags without shelling out.
+func uvUpgradeArgs(spec string) []string {
+	return []string{"tool", "install", spec, "--upgrade"}
 }
 
 // UVToolList implements Runner. If uv is not on PATH, returns an empty
@@ -733,6 +806,42 @@ func parseUVOutdated(output string) []OutdatedPackage {
 		}
 	}
 	return pkgs
+}
+
+// parseResolvedVersion pulls the pinned version of pkgName out of `uv pip
+// compile` output (lines look like "markitdown==0.1.5"). Package names are
+// compared after PEP 503 normalization (lower-case, runs of -_. collapsed to a
+// single -) so "Markitdown" / "markitdown_all" still match.
+func parseResolvedVersion(output, pkgName string) string {
+	want := normalizePkgName(pkgName)
+	for _, line := range strings.Split(output, "\n") {
+		name, version, ok := strings.Cut(strings.TrimSpace(line), "==")
+		if !ok {
+			continue
+		}
+		if normalizePkgName(name) == want {
+			return strings.TrimSpace(version)
+		}
+	}
+	return ""
+}
+
+var pkgNameSepRe = regexp.MustCompile(`[-_.]+`)
+
+func normalizePkgName(name string) string {
+	return pkgNameSepRe.ReplaceAllString(strings.ToLower(strings.TrimSpace(name)), "-")
+}
+
+// newerVersion reports whether candidate is a strictly higher version than
+// installed. Falls back to a plain string inequality when either side isn't
+// valid semver, so an odd version string never silently hides an upgrade.
+func newerVersion(candidate, installed string) bool {
+	cv, cerr := semver.NewVersion(candidate)
+	iv, ierr := semver.NewVersion(installed)
+	if cerr != nil || ierr != nil {
+		return candidate != installed
+	}
+	return cv.GreaterThan(iv)
 }
 
 func splitLines(s string) []string {
