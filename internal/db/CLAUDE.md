@@ -63,7 +63,13 @@ basenames import safely.
   for multi-table databases. The SQLite attach deliberately omits
   `sqlite_all_varchar`, so columns report under their declared types (no
   per-column `promote`/`TRY_CAST` pass — that only applies to single-table
-  sources).
+  sources). SQLite's dynamic typing means a cell can violate its column's
+  declared type (e.g. `""` or `"abc"` in an `INTEGER` column); duckdb's
+  sqlite_scanner rejects that with a "Mismatch Type Error". `queryAttached`
+  catches it (keyed on the `sqlite_all_varchar` remedy duckdb names) and
+  transparently retries the whole query with `SET sqlite_all_varchar=true`, so
+  the query succeeds and the offending cell survives as text — duckdb still
+  coerces text→numeric inside aggregates, so `avg(col)` etc. keep working.
 - **Flat / single-table files** (csv, tsv, json, parquet, single-sheet xlsx) —
   exposed as `src` via a CTE, since they have no inherent table name
   (`SELECT name FROM src`).

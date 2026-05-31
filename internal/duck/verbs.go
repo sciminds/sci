@@ -235,8 +235,7 @@ func Query(path, sql string) (*RowsResult, error) {
 		return nil, err
 	}
 	if preamble, alias, ok := attachForQuery(path); ok {
-		wrapped := fmt.Sprintf("%s USE %s; %s", preamble, alias, validated)
-		return runRowsQuery(path, "", wrapped)
+		return queryAttached(path, preamble, alias, validated)
 	}
 	src, err := Resolve(path, "")
 	if err != nil {
@@ -248,6 +247,30 @@ func Query(path, sql string) (*RowsResult, error) {
 	}
 	wrapped := fmt.Sprintf("%s WITH src AS (SELECT * FROM %s) %s", psrc.Preamble, psrc.Expr, validated)
 	return runRowsQuery(path, "", wrapped)
+}
+
+// queryAttached runs validated SQL against an ATTACHed database file. It
+// tries native typing first (clean databases get proper column types), and
+// for SQLite falls back to loading every column as VARCHAR if a value
+// violates its declared type — SQLite's dynamic typing allows e.g. a "" or
+// "abc" in an INTEGER column, which duckdb's sqlite_scanner otherwise rejects
+// with a raw "Mismatch Type Error". The fallback mirrors promote's no-data-
+// loss contract: the query succeeds and the offending cell survives as text.
+func queryAttached(path, preamble, alias, validated string) (*RowsResult, error) {
+	wrapped := fmt.Sprintf("%s USE %s; %s", preamble, alias, validated)
+	res, err := runRowsQuery(path, "", wrapped)
+	if err == nil || !isSQLitePreamble(preamble) || !isTypeMismatch(err) {
+		return res, err
+	}
+	retry := fmt.Sprintf("SET sqlite_all_varchar=true; %s USE %s; %s", preamble, alias, validated)
+	return runRowsQuery(path, "", retry)
+}
+
+// isTypeMismatch reports whether err is duckdb's sqlite_scanner refusing to
+// cast a cell to its declared type. duckdb's own message names the remedy
+// (sqlite_all_varchar), which is the most stable signal to key off.
+func isTypeMismatch(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "sqlite_all_varchar")
 }
 
 // attachForQuery returns the ATTACH preamble and alias for a database file

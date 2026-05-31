@@ -364,6 +364,48 @@ func TestQuerySQLiteRealTableNames(t *testing.T) {
 	}
 }
 
+// TestQuerySQLiteDirtyTypesFallback: SQLite's dynamic typing lets a value
+// violate its column's declared type. Native typing would error with a raw
+// duckdb "Mismatch Type Error"; Query must instead retry with everything as
+// VARCHAR so the query succeeds and the offending cell survives as text.
+func TestQuerySQLiteDirtyTypesFallback(t *testing.T) {
+	requireDuck(t)
+	if _, err := os.Stat(dirtyDB); err != nil {
+		t.Skipf("dirty_types.db fixture not generated (sqlite3 missing?): %v", err)
+	}
+	// age is declared INTEGER but row 2 holds "abc" — a hard cast failure.
+	res, err := Query(dirtyDB, "SELECT id, name, age FROM demo ORDER BY id")
+	if err != nil {
+		t.Fatalf("Query should gracefully fall back, got: %v", err)
+	}
+	if len(res.Rows) != 3 {
+		t.Fatalf("got %d rows, want 3", len(res.Rows))
+	}
+	if v, _ := res.Rows[1]["age"].(string); v != "abc" {
+		t.Errorf("age[1] = %v, want \"abc\" (preserved as text)", res.Rows[1]["age"])
+	}
+}
+
+// TestQuerySQLiteEmptyStringFallback: the common real-world case — an empty
+// string "" placeholder in a numeric column (e.g. missing ages). Must not
+// error.
+func TestQuerySQLiteEmptyStringFallback(t *testing.T) {
+	requireDuck(t)
+	if _, err := os.Stat(mixedDB); err != nil {
+		t.Skipf("mixed_types.db fixture not generated (sqlite3 missing?): %v", err)
+	}
+	res, err := Query(mixedDB, "SELECT id, age FROM demo ORDER BY id")
+	if err != nil {
+		t.Fatalf("Query should gracefully fall back, got: %v", err)
+	}
+	if len(res.Rows) != 3 {
+		t.Fatalf("got %d rows, want 3", len(res.Rows))
+	}
+	if v, _ := res.Rows[1]["age"].(string); v != "" {
+		t.Errorf("age[1] = %v, want \"\" (preserved)", res.Rows[1]["age"])
+	}
+}
+
 func TestConvertCSVToParquet(t *testing.T) {
 	requireDuck(t)
 	dir := t.TempDir()
