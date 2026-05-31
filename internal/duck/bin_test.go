@@ -25,17 +25,6 @@ func TestRunJSONBasic(t *testing.T) {
 	}
 }
 
-func TestRunBoxBasic(t *testing.T) {
-	requireDuck(t)
-	out, err := runBox("SELECT 1 AS x")
-	if err != nil {
-		t.Fatalf("runBox: %v", err)
-	}
-	if !strings.Contains(out, "x") || !strings.Contains(out, "1") {
-		t.Errorf("runBox output = %q, want it to contain x and 1", out)
-	}
-}
-
 func TestRunJSONSyntaxError(t *testing.T) {
 	requireDuck(t)
 	if _, err := runJSON("THIS IS NOT SQL"); err == nil {

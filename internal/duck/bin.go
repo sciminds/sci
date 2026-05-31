@@ -3,9 +3,9 @@
 // tsv, json, jsonl, parquet, xlsx, sqlite, and duckdb files.
 //
 // We shell out to the binary rather than linking go-duckdb to keep the
-// `sci` build CGO-free. Each verb runs duckdb at most twice — once with
-// -json for the structured Result payload and once with -box for
-// human-friendly output. Snapshot verbs only; no hot loops.
+// `sci` build CGO-free. Each verb runs duckdb with -json for the structured
+// Result payload; human-friendly tables are rendered in-process via
+// uikit.RenderTable (see render.go). Snapshot verbs only; no hot loops.
 //
 // duckdb is an optional dependency declared in
 // internal/doctor/BrewfileOptional. Verbs return [ErrNotInstalled] when
@@ -42,24 +42,10 @@ func Available() bool {
 // ATTACHed READ_ONLY and verbs only emit SELECT (Convert is the
 // documented exception that legitimately writes via COPY ... TO).
 func runJSON(sql string) ([]byte, error) {
-	return runMode("-json", sql)
-}
-
-// runBox is the human-friendly counterpart of runJSON, returning duckdb's
-// box-mode table rendering as a string.
-func runBox(sql string) (string, error) {
-	out, err := runMode("-box", sql)
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
-}
-
-func runMode(modeFlag, sql string) ([]byte, error) {
 	if !Available() {
 		return nil, ErrNotInstalled
 	}
-	cmd := exec.Command(duckdbBinary, modeFlag, "-c", sql)
+	cmd := exec.Command(duckdbBinary, "-json", "-c", sql)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

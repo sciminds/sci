@@ -120,6 +120,16 @@ func FitRight(s string, width int) string {
 	return Fit(s, width, lipgloss.Right)
 }
 
+// Truncate shortens s to at most width cells, appending an ellipsis (…) when
+// it overflows. Unlike [Fit] it does not pad short strings to width. A width
+// <= 0 returns s unchanged — the signal for "no terminal, emit full content".
+func Truncate(s string, width int) string {
+	if width <= 0 {
+		return s
+	}
+	return ansi.Truncate(s, width, "…")
+}
+
 // ── FitHeight: pad or truncate to exact row count ─────────────────────────
 
 // FitHeight pads or truncates s so it contains exactly h newline-

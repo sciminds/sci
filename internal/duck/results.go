@@ -4,9 +4,10 @@ package duck
 // [cmdutil.Result] (JSON() any, Human() string) duck-typed so the
 // duck package does not import cmdutil and stays leaf-level.
 //
-// Convention: Human() returns the duckdb -box rendering captured at the
-// same moment the structured payload is read, so JSON and human output
-// stay consistent.
+// JSON() returns the struct itself (the typed payload). Human() renders
+// that same structured data through the shared uikit table renderer at
+// call time — see render.go — so terminal-width truncation reflects the
+// live terminal rather than a string frozen at construction.
 
 // ColumnInfo is one row of the resolved schema: column name, the duckdb
 // type used to read the column (post-promotion), and — for SQLite sources —
@@ -22,29 +23,23 @@ type ColumnInfo struct {
 
 // ColsResult is the result of [Cols].
 type ColsResult struct {
-	Path     string       `json:"path"`
-	Table    string       `json:"table,omitempty"`
-	Columns  []ColumnInfo `json:"columns"`
-	humanBox string
+	Path    string       `json:"path"`
+	Table   string       `json:"table,omitempty"`
+	Columns []ColumnInfo `json:"columns"`
 }
 
 // JSON satisfies cmdutil.Result.
 func (r *ColsResult) JSON() any { return r }
 
-// Human satisfies cmdutil.Result.
-func (r *ColsResult) Human() string { return r.humanBox }
-
 // RowsResult is the result of [Head], [Tail], and [Query].
 type RowsResult struct {
-	Path     string           `json:"path"`
-	Table    string           `json:"table,omitempty"`
-	Columns  []string         `json:"columns"`
-	Rows     []map[string]any `json:"rows"`
-	humanBox string
+	Path    string           `json:"path"`
+	Table   string           `json:"table,omitempty"`
+	Columns []string         `json:"columns"`
+	Rows    []map[string]any `json:"rows"`
 }
 
-func (r *RowsResult) JSON() any     { return r }
-func (r *RowsResult) Human() string { return r.humanBox }
+func (r *RowsResult) JSON() any { return r }
 
 // GlimpseColumn is one row of a transposed glimpse view: a column with
 // its type and the first N sample values from the file.
@@ -58,24 +53,21 @@ type GlimpseColumn struct {
 type GlimpseResult struct {
 	Path     string          `json:"path"`
 	Table    string          `json:"table,omitempty"`
+	RowCount int             `json:"row_count"`
 	Columns  []GlimpseColumn `json:"columns"`
-	humanBox string
 }
 
-func (r *GlimpseResult) JSON() any     { return r }
-func (r *GlimpseResult) Human() string { return r.humanBox }
+func (r *GlimpseResult) JSON() any { return r }
 
 // ShapeResult is the result of [Shape].
 type ShapeResult struct {
-	Path     string `json:"path"`
-	Table    string `json:"table,omitempty"`
-	Rows     int    `json:"rows"`
-	Columns  int    `json:"columns"`
-	humanBox string
+	Path    string `json:"path"`
+	Table   string `json:"table,omitempty"`
+	Rows    int    `json:"rows"`
+	Columns int    `json:"columns"`
 }
 
-func (r *ShapeResult) JSON() any     { return r }
-func (r *ShapeResult) Human() string { return r.humanBox }
+func (r *ShapeResult) JSON() any { return r }
 
 // SummarizeColumn is a per-column row of the SUMMARIZE table. Numeric
 // fields stay as strings to preserve duckdb's full precision.
@@ -96,14 +88,12 @@ type SummarizeColumn struct {
 
 // SummarizeResult is the result of [Summarize].
 type SummarizeResult struct {
-	Path     string            `json:"path"`
-	Table    string            `json:"table,omitempty"`
-	Columns  []SummarizeColumn `json:"columns"`
-	humanBox string
+	Path    string            `json:"path"`
+	Table   string            `json:"table,omitempty"`
+	Columns []SummarizeColumn `json:"columns"`
 }
 
-func (r *SummarizeResult) JSON() any     { return r }
-func (r *SummarizeResult) Human() string { return r.humanBox }
+func (r *SummarizeResult) JSON() any { return r }
 
 // ConvertResult is the result of [Convert].
 type ConvertResult struct {

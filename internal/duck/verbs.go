@@ -4,18 +4,15 @@ package duck
 //
 //  1. Resolves the file to a [Source] (preamble + FROM expression).
 //  2. Builds its SQL.
-//  3. Runs it twice — once with -json for the typed payload and once
-//     with -box for the human rendering — and returns a typed result.
+//  3. Runs it with -json for the typed payload and returns a typed result;
+//     human rendering happens lazily in render.go via uikit.RenderTable.
 //
-// Two duckdb invocations per call is acceptable because these are
-// snapshot verbs (one-shot CLI commands), not hot-loop operations.
+// Snapshot verbs only (one-shot CLI commands), not hot-loop operations.
 
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -37,48 +34,7 @@ func Cols(path, table string) (*ColsResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	box, err := renderColsBox(cols)
-	if err != nil {
-		return nil, err
-	}
-	return &ColsResult{
-		Path:     path,
-		Table:    table,
-		Columns:  cols,
-		humanBox: box,
-	}, nil
-}
-
-// renderColsBox builds the duckdb -box rendering for the cols listing.
-// When any column carries a Declared type (SQLite sources) the box gets
-// four columns so the resolved/declared/note story is visible; otherwise
-// it stays a simple 2-column (column, type) table.
-func renderColsBox(cols []ColumnInfo) (string, error) {
-	if len(cols) == 0 {
-		return "", nil
-	}
-	showDeclared := lo.SomeBy(cols, func(c ColumnInfo) bool { return c.Declared != "" })
-	var parts []string
-	if showDeclared {
-		for _, c := range cols {
-			note := ""
-			if c.FailingCells > 0 {
-				note = fmt.Sprintf("fallback: %d cell(s) did not cast to %s", c.FailingCells, c.Declared)
-			}
-			parts = append(parts, fmt.Sprintf(
-				"SELECT '%s' AS column, '%s' AS type, '%s' AS declared, '%s' AS note",
-				sqlEscape(c.Name), sqlEscape(c.Type), sqlEscape(c.Declared), sqlEscape(note),
-			))
-		}
-	} else {
-		for _, c := range cols {
-			parts = append(parts, fmt.Sprintf(
-				"SELECT '%s' AS column, '%s' AS type",
-				sqlEscape(c.Name), sqlEscape(c.Type),
-			))
-		}
-	}
-	return runBox(strings.Join(parts, " UNION ALL "))
+	return &ColsResult{Path: path, Table: table, Columns: cols}, nil
 }
 
 const defaultRowLimit = 10
@@ -139,15 +95,21 @@ func Glimpse(path, table string, samples int) (*GlimpseResult, error) {
 		return nil, err
 	}
 
-	// Sample rows from the typed projection.
+	// Sample rows from the typed projection. UseNumber preserves duckdb's
+	// exact numeric text rather than coercing through float64.
 	sampleSQL := fmt.Sprintf("%s SELECT * FROM %s LIMIT %d", psrc.Preamble, psrc.Expr, samples)
 	sampleOut, err := runJSON(sampleSQL)
 	if err != nil {
 		return nil, err
 	}
-	var sampleRows []map[string]any
-	if err := json.Unmarshal(sampleOut, &sampleRows); err != nil {
+	sampleRows, err := decodeRows(sampleOut)
+	if err != nil {
 		return nil, fmt.Errorf("parse samples: %w", err)
+	}
+
+	rowCount, err := countRows(psrc)
+	if err != nil {
+		return nil, err
 	}
 
 	// Transpose: one GlimpseColumn per column, samples drawn from the rows.
@@ -158,32 +120,7 @@ func Glimpse(path, table string, samples int) (*GlimpseResult, error) {
 		return GlimpseColumn{Name: d.Name, Type: d.Type, Samples: samples}
 	})
 
-	// 4) Render the transposed view as box for Human().
-	humanBox, err := renderGlimpseBox(cols)
-	if err != nil {
-		return nil, err
-	}
-	return &GlimpseResult{Path: path, Table: table, Columns: cols, humanBox: humanBox}, nil
-}
-
-// renderGlimpseBox builds a one-row-per-column duckdb table by UNION
-// ALL'ing constant rows, then reads it through duckdb -box for a
-// terminal-pretty rendering.
-func renderGlimpseBox(cols []GlimpseColumn) (string, error) {
-	if len(cols) == 0 {
-		return "", nil
-	}
-	var parts []string
-	for _, c := range cols {
-		samplesJoined := strings.Join(lo.Map(c.Samples, func(s any, _ int) string {
-			return fmt.Sprintf("%v", s)
-		}), ", ")
-		parts = append(parts, fmt.Sprintf(
-			"SELECT '%s' AS column, '%s' AS type, '%s' AS samples",
-			sqlEscape(c.Name), sqlEscape(c.Type), sqlEscape(samplesJoined),
-		))
-	}
-	return runBox(strings.Join(parts, " UNION ALL "))
+	return &GlimpseResult{Path: path, Table: table, RowCount: rowCount, Columns: cols}, nil
 }
 
 // Shape returns the (rows, cols) shape of a tabular file.
@@ -217,11 +154,7 @@ func Shape(path, table string) (*ShapeResult, error) {
 	if len(rows) != 1 {
 		return nil, fmt.Errorf("shape: expected 1 row, got %d", len(rows))
 	}
-	box, err := runBox(sql)
-	if err != nil {
-		return nil, err
-	}
-	return &ShapeResult{Path: path, Table: table, Rows: rows[0].Rows, Columns: rows[0].Cols, humanBox: box}, nil
+	return &ShapeResult{Path: path, Table: table, Rows: rows[0].Rows, Columns: rows[0].Cols}, nil
 }
 
 // Summarize returns per-column statistics via duckdb's SUMMARIZE.
@@ -257,10 +190,6 @@ func Summarize(path, table string) (*SummarizeResult, error) {
 	if err := json.Unmarshal(out, &rows); err != nil {
 		return nil, fmt.Errorf("parse summarize: %w", err)
 	}
-	box, err := runBox(sql)
-	if err != nil {
-		return nil, err
-	}
 	cols := lo.Map(rows, func(r struct {
 		ColumnName     string `json:"column_name"`
 		ColumnType     string `json:"column_type"`
@@ -282,7 +211,7 @@ func Summarize(path, table string) (*SummarizeResult, error) {
 			Count: r.Count, NullPercentage: r.NullPercentage,
 		}
 	})
-	return &SummarizeResult{Path: path, Table: table, Columns: cols, humanBox: box}, nil
+	return &SummarizeResult{Path: path, Table: table, Columns: cols}, nil
 }
 
 // Query runs a user-supplied read-only SELECT against the file.
@@ -308,42 +237,22 @@ func Query(path, sql string) (*RowsResult, error) {
 }
 
 // runRowsQuery is the shared executor for verbs that return row-shaped
-// data: it runs sql twice (json + box) and assembles a [RowsResult].
+// data: it runs sql once with -json and assembles a [RowsResult],
+// preserving duckdb's projection column order.
 func runRowsQuery(path, table, sql string) (*RowsResult, error) {
 	out, err := runJSON(sql)
 	if err != nil {
 		return nil, err
 	}
-	var rows []map[string]any
-	if err := json.Unmarshal(out, &rows); err != nil {
+	rows, err := decodeRows(out)
+	if err != nil {
 		return nil, fmt.Errorf("parse rows: %w", err)
 	}
-	cols := extractColumnOrder(rows)
-	box, err := runBox(sql)
+	cols, err := columnOrder(out)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse columns: %w", err)
 	}
-	return &RowsResult{
-		Path:     path,
-		Table:    table,
-		Columns:  cols,
-		Rows:     rows,
-		humanBox: box,
-	}, nil
-}
-
-// extractColumnOrder pulls column names off the first row. duckdb's
-// JSON mode preserves projection order in the JSON object, but Go's
-// json.Unmarshal into map[string]any loses that order, so we just take
-// whatever order Go's range gives us. For the typical 1-3 column files
-// we deal with, ordering is cosmetic; the box-mode rendering is what
-// the user reads. Callers that care about exact projection order should
-// use Cols (which goes through DESCRIBE) instead.
-func extractColumnOrder(rows []map[string]any) []string {
-	if len(rows) == 0 {
-		return nil
-	}
-	return slices.Collect(maps.Keys(rows[0]))
+	return &RowsResult{Path: path, Table: table, Columns: cols, Rows: rows}, nil
 }
 
 // Convert exports source file at in to out. srcTable disambiguates
