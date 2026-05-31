@@ -96,6 +96,7 @@ func (m *Model) tableListCommitCreate() {
 	// Refresh table entries.
 	if entries, err := m.buildTableListEntries(); err == nil {
 		tl.Tables = entries
+		tl.clampCursor()
 	}
 
 	// Add a stub tab.
@@ -290,6 +291,7 @@ func (m *Model) commitDerive(asView bool) tea.Cmd {
 				IsVirtual: isVirtual,
 			})
 		}
+		tl.clampCursor()
 	}
 
 	tl.Status = fmt.Sprintf("Created %s %q", kind, name)

@@ -15,6 +15,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/sahilm/fuzzy"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/store"
 )
@@ -68,6 +69,99 @@ func (m *Model) buildTableListEntries() ([]tableListEntry, error) {
 	return entries, nil
 }
 
+// ── Filtering ─────────────────────────────────────────────────────────────
+
+// tableMatch is one entry in the visible (filtered) list: an index into
+// tableListState.Tables plus the matched rune positions for highlighting.
+type tableMatch struct {
+	Index     int
+	Positions []int
+}
+
+// visibleMatches returns the entries that match the active fuzzy Query, in
+// rank order, each paired with the rune positions that matched. With no
+// active query every table is returned in its original order.
+func (tl *tableListState) visibleMatches() []tableMatch {
+	if tl.Query == "" {
+		return lo.Map(tl.Tables, func(_ tableListEntry, i int) tableMatch {
+			return tableMatch{Index: i}
+		})
+	}
+	names := lo.Map(tl.Tables, func(e tableListEntry, _ int) string {
+		return e.Name
+	})
+	return lo.Map(fuzzy.Find(tl.Query, names), func(match fuzzy.Match, _ int) tableMatch {
+		return tableMatch{Index: match.Index, Positions: match.MatchedIndexes}
+	})
+}
+
+// selectedIndex maps the visible cursor to an index into tl.Tables, honoring
+// the active filter. Returns -1 when nothing is visible.
+func (tl *tableListState) selectedIndex() int {
+	vis := tl.visibleMatches()
+	if len(vis) == 0 {
+		return -1
+	}
+	c := min(tl.Cursor, len(vis)-1)
+	return vis[c].Index
+}
+
+// clampCursor keeps Cursor within the bounds of the current visible list.
+func (tl *tableListState) clampCursor() {
+	n := len(tl.visibleMatches())
+	if tl.Cursor >= n {
+		tl.Cursor = n - 1
+	}
+	if tl.Cursor < 0 {
+		tl.Cursor = 0
+	}
+}
+
+// startFilter focuses the / filter input, seeded with any existing query so
+// the user can refine it.
+func (m *Model) startFilter() {
+	tl := m.tableList
+	ti := textinput.New()
+	ti.Prompt = ""
+	ti.SetValue(tl.Query)
+	ti.CursorEnd()
+	ti.Focus()
+	tl.Filtering = true
+	tl.FilterInput = ti
+	tl.Status = ""
+}
+
+// clearFilter drops the active filter and resets the cursor.
+func (tl *tableListState) clearFilter() {
+	tl.Filtering = false
+	tl.Query = ""
+	tl.FilterInput = textinput.Model{}
+	tl.Cursor = 0
+}
+
+// handleTableListFilterKey handles key events while the / filter is focused.
+func (m *Model) handleTableListFilterKey(msg tea.KeyPressMsg) tea.Cmd {
+	tl := m.tableList
+	switch msg.String() {
+	case keyEsc:
+		// Cancel: discard the query and restore the full list.
+		tl.clearFilter()
+		return nil
+	case keyEnter:
+		// Commit: keep the query applied but stop capturing keystrokes so
+		// normal navigation (j/k/g/G/enter) resumes over the filtered list.
+		tl.Filtering = false
+		tl.clampCursor()
+		return nil
+	}
+
+	var cmd tea.Cmd
+	tl.FilterInput, cmd = tl.FilterInput.Update(msg)
+	tl.Query = tl.FilterInput.Value()
+	tl.Cursor = 0 // re-rank resets the selection to the top match
+	return cmd
+}
+
 // handleTableListKey dispatches key events when the table list overlay is active.
 func (m *Model) handleTableListKey(msg tea.KeyPressMsg) tea.Cmd {
 	tl := m.tableList
@@ -95,14 +189,32 @@ func (m *Model) handleTableListKey(msg tea.KeyPressMsg) tea.Cmd {
 		return m.handleTableListRenameKey(msg)
 	}
 
+	// If filtering, delegate to the / filter key handler.
+	if tl.Filtering {
+		return m.handleTableListFilterKey(msg)
+	}
+
+	visible := len(tl.visibleMatches())
 	k := msg.String()
 	switch k {
-	case keyEsc, keyT, keyQ:
+	case keyEsc:
+		// First Esc clears an active filter; a second one closes the overlay.
+		if tl.Query != "" {
+			tl.clearFilter()
+			return nil
+		}
 		m.tableList = nil
 		return nil
 
+	case keyT, keyQ:
+		m.tableList = nil
+		return nil
+
+	case keySlash:
+		m.startFilter()
+
 	case keyJ, keyDown:
-		if tl.Cursor < len(tl.Tables)-1 {
+		if tl.Cursor < visible-1 {
 			tl.Cursor++
 			tl.Status = ""
 		}
@@ -113,10 +225,20 @@ func (m *Model) handleTableListKey(msg tea.KeyPressMsg) tea.Cmd {
 			tl.Status = ""
 		}
 
+	case keyG:
+		tl.Cursor = 0
+		tl.Status = ""
+
+	case keyShiftG:
+		if visible > 0 {
+			tl.Cursor = visible - 1
+			tl.Status = ""
+		}
+
 	case keyEnter:
 		// Switch to the selected table's tab.
-		if len(tl.Tables) > 0 {
-			name := tl.Tables[tl.Cursor].Name
+		if idx := tl.selectedIndex(); idx >= 0 {
+			name := tl.Tables[idx].Name
 			for i, tab := range m.tabs {
 				if tab.Name == name {
 					cmd := m.switchToTab(i)
@@ -128,11 +250,14 @@ func (m *Model) handleTableListKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 
 	case keyD:
-		if len(tl.Tables) > 0 && tl.Tables[tl.Cursor].IsView {
+		idx := tl.selectedIndex()
+		switch {
+		case idx < 0:
+		case tl.Tables[idx].IsView:
 			tl.Status = "Cannot delete a view"
-		} else if len(tl.Tables) > 0 && tl.Tables[tl.Cursor].IsVirtual {
+		case tl.Tables[idx].IsVirtual:
 			tl.Status = "Cannot delete a virtual table"
-		} else {
+		default:
 			m.tableListDelete()
 		}
 
@@ -143,11 +268,14 @@ func (m *Model) handleTableListKey(msg tea.KeyPressMsg) tea.Cmd {
 		return m.tableListAdd()
 
 	case keyR:
-		if len(tl.Tables) > 0 && tl.Tables[tl.Cursor].IsView {
+		idx := tl.selectedIndex()
+		switch {
+		case idx < 0:
+		case tl.Tables[idx].IsView:
 			tl.Status = "Cannot rename a view"
-		} else if len(tl.Tables) > 0 && tl.Tables[tl.Cursor].IsVirtual {
+		case tl.Tables[idx].IsVirtual:
 			tl.Status = "Cannot rename a virtual table"
-		} else {
+		default:
 			m.tableListStartRename()
 		}
 
@@ -169,10 +297,14 @@ func (m *Model) handleTableListKey(msg tea.KeyPressMsg) tea.Cmd {
 // tableListStartRename enters rename mode for the selected table.
 func (m *Model) tableListStartRename() {
 	tl := m.tableList
-	if tl == nil || len(tl.Tables) == 0 {
+	if tl == nil {
 		return
 	}
-	name := tl.Tables[tl.Cursor].Name
+	idx := tl.selectedIndex()
+	if idx < 0 {
+		return
+	}
+	name := tl.Tables[idx].Name
 	ti := textinput.New()
 	ti.SetValue(name)
 	ti.Focus()
@@ -213,7 +345,13 @@ func (m *Model) tableListCommitRename() {
 		return
 	}
 
-	oldName := tl.Tables[tl.Cursor].Name
+	idx := tl.selectedIndex()
+	if idx < 0 {
+		tl.Renaming = false
+		tl.RenameInput = textinput.Model{}
+		return
+	}
+	oldName := tl.Tables[idx].Name
 	newName := tl.RenameInput.Value()
 
 	// Exit rename mode.
@@ -233,7 +371,7 @@ func (m *Model) tableListCommitRename() {
 
 	// Check for collision.
 	for i, e := range tl.Tables {
-		if i != tl.Cursor && e.Name == newName {
+		if i != idx && e.Name == newName {
 			tl.Status = fmt.Sprintf("Table %q already exists", newName)
 			return
 		}
@@ -245,7 +383,7 @@ func (m *Model) tableListCommitRename() {
 	}
 
 	// Update overlay list.
-	tl.Tables[tl.Cursor].Name = newName
+	tl.Tables[idx].Name = newName
 
 	// Update in-memory tab.
 	for i, tab := range m.tabs {
@@ -263,11 +401,15 @@ func (m *Model) tableListCommitRename() {
 // tableListDelete drops the selected table and removes it from the in-memory state.
 func (m *Model) tableListDelete() {
 	tl := m.tableList
-	if tl == nil || len(tl.Tables) == 0 {
+	if tl == nil {
+		return
+	}
+	idx := tl.selectedIndex()
+	if idx < 0 {
 		return
 	}
 
-	entry := tl.Tables[tl.Cursor]
+	entry := tl.Tables[idx]
 
 	if err := m.store.DropTable(entry.Name); err != nil {
 		tl.Status = fmt.Sprintf("Drop failed: %v", err)
@@ -289,14 +431,10 @@ func (m *Model) tableListDelete() {
 		}
 	}
 
-	// Remove from overlay list.
-	tl.Tables = append(tl.Tables[:tl.Cursor], tl.Tables[tl.Cursor+1:]...)
-	if tl.Cursor >= len(tl.Tables) {
-		tl.Cursor = len(tl.Tables) - 1
-	}
-	if tl.Cursor < 0 {
-		tl.Cursor = 0
-	}
+	// Remove from overlay list, then keep the cursor within the (possibly
+	// filtered) visible range.
+	tl.Tables = append(tl.Tables[:idx], tl.Tables[idx+1:]...)
+	tl.clampCursor()
 
 	tl.Status = fmt.Sprintf("Dropped %q", entry.Name)
 }
@@ -304,11 +442,15 @@ func (m *Model) tableListDelete() {
 // tableListExport exports the selected table to a CSV file in the current directory.
 func (m *Model) tableListExport() {
 	tl := m.tableList
-	if tl == nil || len(tl.Tables) == 0 {
+	if tl == nil {
+		return
+	}
+	idx := tl.selectedIndex()
+	if idx < 0 {
 		return
 	}
 
-	entry := tl.Tables[tl.Cursor]
+	entry := tl.Tables[idx]
 	csvPath := entry.Name + ".csv"
 
 	if err := m.store.ExportCSV(entry.Name, csvPath); err != nil {
@@ -322,11 +464,15 @@ func (m *Model) tableListExport() {
 // tableListDedup removes duplicate rows from the selected table.
 func (m *Model) tableListDedup() {
 	tl := m.tableList
-	if tl == nil || len(tl.Tables) == 0 {
+	if tl == nil {
+		return
+	}
+	idx := tl.selectedIndex()
+	if idx < 0 {
 		return
 	}
 
-	entry := tl.Tables[tl.Cursor]
+	entry := tl.Tables[idx]
 	if entry.IsView {
 		tl.Status = "Cannot dedup a view"
 		return
@@ -355,7 +501,7 @@ func (m *Model) tableListDedup() {
 
 	// Update row count in the overlay.
 	entry.Rows -= int(removed)
-	tl.Tables[tl.Cursor] = entry
+	tl.Tables[idx] = entry
 
 	// Rebuild the tab if it exists.
 	for i, tab := range m.tabs {

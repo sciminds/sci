@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -21,8 +22,8 @@ const (
 	fileBrowserNameAlignReserve = 12 // space for size label
 
 	// Extra chrome lines beyond OverlayChromeLines for each overlay type.
-	// header+path(1) + blanks(3) + status(1) + hints(2) = 7
-	tableListExtraChrome   = 7
+	// header+path(1) + blanks(3) + filter(1) + blank(1) + status(1) + hints(2) = 9
+	tableListExtraChrome   = 9
 	fileBrowserExtraChrome = 7
 
 	// Derive textarea sizing.
@@ -69,15 +70,25 @@ func (m *Model) buildTableListOverlay() string {
 	}
 	b.WriteString("\n\n")
 
-	if len(tl.Tables) == 0 {
-		b.WriteString(m.styles.Empty().Render("No tables"))
+	// Filter line — always reserved so the box height stays stable whether or
+	// not a filter is active (see tableListExtraChrome).
+	b.WriteString(m.tableListFilterLine(innerW))
+	b.WriteString("\n\n")
+
+	vis := tl.visibleMatches()
+	if len(vis) == 0 {
+		empty := "No tables"
+		if tl.Query != "" {
+			empty = "No tables match"
+		}
+		b.WriteString(m.styles.Empty().Render(empty))
 		b.WriteString("\n")
 	} else {
-		// Compute max name width for alignment.
+		// Compute max name width for alignment across the visible entries.
 		maxNameW := 0
-		for _, e := range tl.Tables {
-			if len(e.Name) > maxNameW {
-				maxNameW = len(e.Name)
+		for _, mt := range vis {
+			if l := len(tl.Tables[mt.Index].Name); l > maxNameW {
+				maxNameW = l
 			}
 		}
 		if maxNameW > innerW-tableListNameAlignReserve {
@@ -85,25 +96,27 @@ func (m *Model) buildTableListOverlay() string {
 		}
 
 		maxVisible := uikit.OverlayBodyHeight(m.height, tableListExtraChrome)
-		if maxVisible > len(tl.Tables) {
-			maxVisible = len(tl.Tables)
+		if maxVisible > len(vis) {
+			maxVisible = len(vis)
 		}
-		start := tl.Cursor - maxVisible/2
+		cursor := min(tl.Cursor, len(vis)-1)
+		start := cursor - maxVisible/2
 		if start < 0 {
 			start = 0
 		}
 		end := start + maxVisible
-		if end > len(tl.Tables) {
-			end = len(tl.Tables)
+		if end > len(vis) {
+			end = len(vis)
 			start = end - maxVisible
 			if start < 0 {
 				start = 0
 			}
 		}
 
-		for i := start; i < end; i++ {
-			entry := tl.Tables[i]
-			selected := i == tl.Cursor
+		for vi := start; vi < end; vi++ {
+			mt := vis[vi]
+			entry := tl.Tables[mt.Index]
+			selected := vi == cursor
 
 			name := entry.Name
 			if len(name) > maxNameW {
@@ -117,9 +130,6 @@ func (m *Model) buildTableListOverlay() string {
 				shape = "virtual · " + shape
 			}
 			shapeStyled := m.styles.HeaderHint().Render(shape)
-
-			// Pad name to align shape column (+2 for separator gap).
-			paddedName := uikit.PadRight(name, maxNameW+2)
 
 			if selected && tl.Renaming {
 				// Show textinput for rename
@@ -136,13 +146,17 @@ func (m *Model) buildTableListOverlay() string {
 				}
 				b.WriteString(line)
 			} else {
+				// Highlight the fuzzy-matched characters in unselected rows.
+				positions := clampPositions(mt.Positions, len([]rune(name)))
+				nameStyled := highlightFuzzyPositions(name, positions, m.styles.Base(), m.styles.TextBlueBold())
+				paddedName := uikit.PadRight(nameStyled, maxNameW+2)
 				line := "  " + paddedName + shapeStyled
 				if lipgloss.Width(line) > innerW {
 					line = m.styles.Base().MaxWidth(innerW).Render(line)
 				}
 				b.WriteString(line)
 			}
-			if i < end-1 {
+			if vi < end-1 {
 				b.WriteString("\n")
 			}
 		}
@@ -166,6 +180,39 @@ func (m *Model) buildTableListOverlay() string {
 		Render(b.String())
 }
 
+// tableListFilterLine renders the / filter row. While typing it shows the
+// live input; once committed it shows the query and the match count; when no
+// filter is active it reserves a blank line so the box height stays stable.
+func (m *Model) tableListFilterLine(innerW int) string {
+	tl := m.tableList
+	prompt := m.styles.Keycap().Render("/")
+
+	var line string
+	switch {
+	case tl.Filtering:
+		count := m.styles.HeaderHint().Render(fmt.Sprintf(" %d/%d", len(tl.visibleMatches()), len(tl.Tables)))
+		line = prompt + " " + tl.FilterInput.View() + count
+	case tl.Query != "":
+		count := m.styles.HeaderHint().Render(fmt.Sprintf(" %d/%d", len(tl.visibleMatches()), len(tl.Tables)))
+		line = prompt + " " + tl.Query + count
+	default:
+		return " " // reserve the line so the box height stays stable
+	}
+
+	if lipgloss.Width(line) > innerW {
+		line = m.styles.Base().MaxWidth(innerW).Render(line)
+	}
+	return line
+}
+
+// clampPositions drops match positions that fall outside [0, n), which can
+// happen after a long name is truncated for display.
+func clampPositions(positions []int, n int) []int {
+	return lo.Filter(positions, func(p int, _ int) bool {
+		return p >= 0 && p < n
+	})
+}
+
 // tableListHints renders action key hints, wrapping to fit within maxW.
 func (m *Model) tableListHints(maxW int) string {
 	var hints []string
@@ -175,9 +222,15 @@ func (m *Model) tableListHints(maxW int) string {
 			m.helpItem(keyEnter, "confirm"),
 			m.helpItem(keyEsc, "cancel"),
 		}
+	} else if tl.Filtering {
+		hints = []string{
+			m.helpItem(keyEnter, "apply"),
+			m.helpItem(keyEsc, "clear"),
+		}
 	} else {
 		hints = []string{
 			m.helpItem(symReturn, "switch"),
+			m.helpItem(keySlash, "filter"),
 			m.helpItem(keyR, "rename"),
 			m.helpItem(keyD, "delete"),
 			m.helpItem(keyE, "export"),

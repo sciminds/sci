@@ -28,12 +28,21 @@ type notePreviewState struct {
 }
 
 // tableListState holds the state for the table list overlay.
+//
+// Tables is the full, unfiltered list (source of truth). Cursor indexes into
+// the *visible* (filtered) list — use [tableListState.selectedIndex] to map it
+// back to Tables. Query holds the active fuzzy filter ("" = show everything);
+// Filtering is true only while the user is typing into FilterInput.
 type tableListState struct {
 	Tables  []tableListEntry
 	Cursor  int
 	Status  string // transient status message shown in the overlay
 	Adding  bool
 	Browser *fileBrowserState
+
+	Filtering   bool            // user is typing a / filter query
+	FilterInput textinput.Model // the / filter input
+	Query       string          // active fuzzy filter applied to the list
 
 	Renaming    bool
 	RenameInput textinput.Model

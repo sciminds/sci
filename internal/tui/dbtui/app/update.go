@@ -86,6 +86,11 @@ func (m *Model) updateEditors(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tableList.RenameInput, cmd = m.tableList.RenameInput.Update(msg)
 		return m, cmd
 	}
+	if m.tableList != nil && m.tableList.Filtering {
+		var cmd tea.Cmd
+		m.tableList.FilterInput, cmd = m.tableList.FilterInput.Update(msg)
+		return m, cmd
+	}
 	return m, nil
 }
 

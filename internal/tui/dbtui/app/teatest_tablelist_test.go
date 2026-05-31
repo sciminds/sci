@@ -145,6 +145,159 @@ func TestTeatestTableListClose(t *testing.T) {
 	}
 }
 
+// ── Jump to top / bottom (g / G) ──────────────────────────────────────────
+
+// TestTeatestTableListJumpBottom verifies G jumps the cursor to the last row.
+func TestTeatestTableListJumpBottom(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "t") // open table list (cursor on "products", index 0)
+	sendKey(tm, "G") // jump to bottom
+
+	fm := finalModel(t, tm)
+	if fm.tableList == nil {
+		t.Fatal("table list should be open")
+	}
+	// Fixture has 2 tables (products, users) → last index is 1.
+	if fm.tableList.Cursor != 1 {
+		t.Errorf("tableList.Cursor = %d, want 1 (bottom)", fm.tableList.Cursor)
+	}
+}
+
+// TestTeatestTableListJumpTop verifies g jumps the cursor back to the top.
+func TestTeatestTableListJumpTop(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "t") // open table list
+	sendKey(tm, "G") // go to bottom
+	sendKey(tm, "g") // jump back to top
+
+	fm := finalModel(t, tm)
+	if fm.tableList == nil {
+		t.Fatal("table list should be open")
+	}
+	if fm.tableList.Cursor != 0 {
+		t.Errorf("tableList.Cursor = %d, want 0 (top)", fm.tableList.Cursor)
+	}
+}
+
+// ── Filter (/) ──────────────────────────────────────────────────────────
+
+// TestTeatestTableListFilter verifies / filters the list and Enter applies it.
+func TestTeatestTableListFilter(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "t")              // open table list
+	sendKey(tm, "/")              // start filter
+	tm.Type("user")               // matches "users", not "products"
+	sendSpecial(tm, tea.KeyEnter) // apply filter (stops typing)
+
+	fm := finalModel(t, tm)
+	if fm.tableList == nil {
+		t.Fatal("table list should still be open after applying filter")
+	}
+	if fm.tableList.Filtering {
+		t.Error("Filtering should be false after Enter applies the filter")
+	}
+	if fm.tableList.Query != "user" {
+		t.Errorf("Query = %q, want %q", fm.tableList.Query, "user")
+	}
+	vis := fm.tableList.visibleMatches()
+	if len(vis) != 1 {
+		t.Fatalf("visibleMatches = %d, want 1", len(vis))
+	}
+	if got := fm.tableList.Tables[vis[0].Index].Name; got != "users" {
+		t.Errorf("filtered match = %q, want %q", got, "users")
+	}
+}
+
+// TestTeatestTableListFilterSwitch verifies that after filtering, Enter switches
+// to the matching table even though it is not at index 0 in the full list.
+func TestTeatestTableListFilterSwitch(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "t")
+	sendKey(tm, "/")
+	tm.Type("user")
+	sendSpecial(tm, tea.KeyEnter) // apply filter
+	sendSpecial(tm, tea.KeyEnter) // switch to selected (users)
+
+	fm := finalModel(t, tm)
+	if fm.tableList != nil {
+		t.Error("table list should be closed after switching")
+	}
+	if fm.active != 1 {
+		t.Errorf("active tab = %d, want 1 (users)", fm.active)
+	}
+}
+
+// TestTeatestTableListFilterClear verifies Esc while filtering clears the query
+// and restores the full list.
+func TestTeatestTableListFilterClear(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "t")
+	sendKey(tm, "/")
+	tm.Type("user")
+	sendSpecial(tm, tea.KeyEscape) // cancel filter
+
+	fm := finalModel(t, tm)
+	if fm.tableList == nil {
+		t.Fatal("table list should still be open after clearing filter")
+	}
+	if fm.tableList.Query != "" {
+		t.Errorf("Query = %q, want empty after clear", fm.tableList.Query)
+	}
+	if n := len(fm.tableList.visibleMatches()); n != 2 {
+		t.Errorf("visibleMatches = %d, want 2 (full list)", n)
+	}
+}
+
+// TestTeatestTableListFilterEscClosesAfterClear verifies a second Esc closes the
+// overlay once an applied filter has been cleared.
+func TestTeatestTableListFilterEscClosesAfterClear(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "t")
+	sendKey(tm, "/")
+	tm.Type("user")
+	sendSpecial(tm, tea.KeyEnter)  // apply (Query stays set)
+	sendSpecial(tm, tea.KeyEscape) // first Esc clears the filter
+	sendSpecial(tm, tea.KeyEscape) // second Esc closes
+
+	fm := finalModel(t, tm)
+	if fm.tableList != nil {
+		t.Error("table list should be closed after second Esc")
+	}
+}
+
+// TestTeatestTableListFilterNoMatch verifies a non-matching filter yields an
+// empty list and Enter is a no-op (overlay stays open).
+func TestTeatestTableListFilterNoMatch(t *testing.T) {
+	t.Parallel()
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "t")
+	sendKey(tm, "/")
+	tm.Type("zzzzz")
+	sendSpecial(tm, tea.KeyEnter) // apply
+	sendSpecial(tm, tea.KeyEnter) // attempt switch — nothing selected
+
+	fm := finalModel(t, tm)
+	if fm.tableList == nil {
+		t.Fatal("table list should still be open (no match to switch to)")
+	}
+	if got := fm.tableList.selectedIndex(); got != -1 {
+		t.Errorf("selectedIndex = %d, want -1 on empty filter", got)
+	}
+}
+
 // ── Derive table/view ──────────────────────────────────────────────────
 
 // TestTeatestTableListDeriveTable verifies creating a derived table via SQL.
