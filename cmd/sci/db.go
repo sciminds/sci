@@ -203,9 +203,9 @@ func dbViewCommand() *cli.Command {
 func dbQueryCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "query",
-		Usage: "Run a read-only SELECT against a file (refer to it as `src`)",
+		Usage: "Run a read-only SELECT against a file (databases: real table names; flat files: `src`)",
 		Description: "$ sci db query data.csv 'SELECT name, score FROM src WHERE score > 2'\n" +
-			"$ sci db query lab.duckdb 'SELECT * FROM src LIMIT 5'",
+			"$ sci db query lab.duckdb 'SELECT title FROM documents LIMIT 5'",
 		ArgsUsage: "<file> <sql>",
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			args := cmd.Args().Slice()

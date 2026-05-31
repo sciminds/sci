@@ -52,6 +52,22 @@ ImportFile returns `store.ErrImportNotSupported` for unknown
 extensions. File paths are funneled through `sqlQuote` so quoted
 basenames import safely.
 
+## `query` source models (in `internal/duck`)
+
+`duck.Query` has two ways to reference data, dispatched on file extension by
+`attachForQuery`:
+
+- **Database files** (`.duckdb`, `.db`/`.sqlite`/`.sqlite3`) — `ATTACH` the
+  file, `USE` its schema, and run the user's SQL verbatim against **real table
+  names** (`SELECT title FROM documents`). This is the only model that works
+  for multi-table databases. The SQLite attach deliberately omits
+  `sqlite_all_varchar`, so columns report under their declared types (no
+  per-column `promote`/`TRY_CAST` pass — that only applies to single-table
+  sources).
+- **Flat / single-table files** (csv, tsv, json, parquet, single-sheet xlsx) —
+  exposed as `src` via a CTE, since they have no inherent table name
+  (`SELECT name FROM src`).
+
 ## Collision semantics
 
 `AddCSV` errors when any target table already exists and the error

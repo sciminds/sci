@@ -216,13 +216,27 @@ func Summarize(path, table string) (*SummarizeResult, error) {
 
 // Query runs a user-supplied read-only SELECT against the file.
 //
-// The user references the source as `src` — we wrap their query in a
-// CTE that exposes the file under that name. ValidateReadOnlySQL rejects
-// multi-statement strings and any write keyword (INSERT/UPDATE/DELETE/...).
+// Two source models, dispatched on file type:
+//
+//   - Database files (sqlite/duckdb) have named tables the user already
+//     knows, so we ATTACH the file, USE its schema, and run the query
+//     verbatim against real table names (e.g. `SELECT title FROM documents`).
+//     This is the only model that works for multi-table databases.
+//   - Flat / single-table files (csv, parquet, json, single-sheet xlsx)
+//     have no inherent table name, so we expose the file as `src` via a CTE
+//     (e.g. `SELECT name FROM src`).
+//
+// ValidateReadOnlySQL rejects multi-statement strings and any write keyword
+// (INSERT/UPDATE/DELETE/...); the ATTACH/USE preamble below is ours, not the
+// user's, so its semicolons don't trip that check.
 func Query(path, sql string) (*RowsResult, error) {
 	validated, err := store.ValidateReadOnlySQL(sql)
 	if err != nil {
 		return nil, err
+	}
+	if preamble, alias, ok := attachForQuery(path); ok {
+		wrapped := fmt.Sprintf("%s USE %s; %s", preamble, alias, validated)
+		return runRowsQuery(path, "", wrapped)
 	}
 	src, err := Resolve(path, "")
 	if err != nil {
@@ -234,6 +248,23 @@ func Query(path, sql string) (*RowsResult, error) {
 	}
 	wrapped := fmt.Sprintf("%s WITH src AS (SELECT * FROM %s) %s", psrc.Preamble, psrc.Expr, validated)
 	return runRowsQuery(path, "", wrapped)
+}
+
+// attachForQuery returns the ATTACH preamble and alias for a database file
+// (sqlite/duckdb), whose named tables [Query] exposes directly. ok is false
+// for flat/single-table files, which [Query] exposes as `src` instead. The
+// preambles match those in resolveSQLite/resolveDuckDB — notably, the SQLite
+// attach does not set sqlite_all_varchar, so duckdb's sqlite_scanner reports
+// each column under its declared type.
+func attachForQuery(path string) (preamble, alias string, ok bool) {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".duckdb":
+		return fmt.Sprintf("ATTACH '%s' AS d (READ_ONLY);", sqlEscape(path)), "d", true
+	case ".db", ".sqlite", ".sqlite3":
+		return fmt.Sprintf("ATTACH '%s' AS s (TYPE SQLITE, READ_ONLY);", sqlEscape(path)), "s", true
+	default:
+		return "", "", false
+	}
 }
 
 // runRowsQuery is the shared executor for verbs that return row-shaped

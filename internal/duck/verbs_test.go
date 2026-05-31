@@ -324,6 +324,46 @@ func TestQueryReadOnly(t *testing.T) {
 	}
 }
 
+func TestQueryDuckDBRealTableNames(t *testing.T) {
+	requireDuck(t)
+	// tiny.duckdb has 3 tables (people, extras); the user references one
+	// by its real name rather than `src`. This must not demand --table.
+	res, err := Query(tinyDuck, "SELECT name FROM people WHERE id = 2")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	if len(res.Rows) != 1 {
+		t.Fatalf("got %d rows, want 1", len(res.Rows))
+	}
+	if res.Rows[0]["name"] != "bob" {
+		t.Errorf("name = %v, want bob", res.Rows[0]["name"])
+	}
+
+	// A different table in the same file is just as reachable.
+	res2, err := Query(tinyDuck, "SELECT k, v FROM extras ORDER BY k")
+	if err != nil {
+		t.Fatalf("Query extras: %v", err)
+	}
+	if len(res2.Rows) != 2 {
+		t.Fatalf("got %d rows from extras, want 2", len(res2.Rows))
+	}
+}
+
+func TestQuerySQLiteRealTableNames(t *testing.T) {
+	requireDuck(t)
+	// Multi-table SQLite (people, extras) — same contract as DuckDB.
+	res, err := Query(tinyDB, "SELECT name FROM people WHERE id = 3")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	if len(res.Rows) != 1 {
+		t.Fatalf("got %d rows, want 1", len(res.Rows))
+	}
+	if res.Rows[0]["name"] != "carol" {
+		t.Errorf("name = %v, want carol", res.Rows[0]["name"])
+	}
+}
+
 func TestConvertCSVToParquet(t *testing.T) {
 	requireDuck(t)
 	dir := t.TempDir()
