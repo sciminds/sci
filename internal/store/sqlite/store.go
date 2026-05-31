@@ -200,9 +200,16 @@ func (s *Store) TableRowCount(table string) (int, error) {
 	return count, err
 }
 
+// maxCompoundSelect bounds how many tables we fold into a single UNION ALL
+// row-count query. SQLite's SQLITE_MAX_COMPOUND_SELECT defaults to 500, so we
+// batch well under it — table-heavy databases (1000s of tables) otherwise fail
+// with "too many terms in compound SELECT".
+const maxCompoundSelect = 100
+
 // TableSummaries returns all table names with row counts and column counts.
-// Row counts are fetched in a single UNION ALL query to minimize round trips;
-// column counts still require one PRAGMA per table (unavoidable in SQLite).
+// Row counts are fetched with batched UNION ALL queries to minimize round
+// trips while staying under SQLite's compound-select ceiling; column counts
+// still require one PRAGMA per table (unavoidable in SQLite).
 func (s *Store) TableSummaries() ([]store.TableSummary, error) {
 	names, err := s.TableNames()
 	if err != nil {
@@ -212,30 +219,11 @@ func (s *Store) TableSummaries() ([]store.TableSummary, error) {
 		return nil, nil
 	}
 
-	var b strings.Builder
-	for i, name := range names {
-		if i > 0 {
-			b.WriteString(" UNION ALL ")
-		}
-		fmt.Fprintf(&b, "SELECT %q AS name, COUNT(*) AS cnt FROM %q", name, name)
-	}
-	rows, err := s.db.Query(b.String())
-	if err != nil {
-		return nil, fmt.Errorf("table summaries: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
 	countMap := make(map[string]int, len(names))
-	for rows.Next() {
-		var name string
-		var cnt int
-		if err := rows.Scan(&name, &cnt); err != nil {
+	for _, batch := range lo.Chunk(names, maxCompoundSelect) {
+		if err := s.countRowsBatch(batch, countMap); err != nil {
 			return nil, err
 		}
-		countMap[name] = cnt
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
 	}
 
 	summaries := make([]store.TableSummary, 0, len(names))
@@ -248,6 +236,34 @@ func (s *Store) TableSummaries() ([]store.TableSummary, error) {
 		})
 	}
 	return summaries, nil
+}
+
+// countRowsBatch runs a single UNION ALL row-count query over the given table
+// names and records the results in counts. The batch must stay under
+// [maxCompoundSelect] terms.
+func (s *Store) countRowsBatch(names []string, counts map[string]int) error {
+	var b strings.Builder
+	for i, name := range names {
+		if i > 0 {
+			b.WriteString(" UNION ALL ")
+		}
+		fmt.Fprintf(&b, "SELECT %q AS name, COUNT(*) AS cnt FROM %q", name, name)
+	}
+	rows, err := s.db.Query(b.String())
+	if err != nil {
+		return fmt.Errorf("table summaries: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var name string
+		var cnt int
+		if err := rows.Scan(&name, &cnt); err != nil {
+			return err
+		}
+		counts[name] = cnt
+	}
+	return rows.Err()
 }
 
 // ---------- queries ----------

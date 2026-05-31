@@ -19,6 +19,11 @@ import (
 	"github.com/sciminds/cli/internal/store"
 )
 
+// maxCompoundSelect bounds how many tables we fold into one UNION ALL
+// row-count query, so table-heavy databases don't build a single
+// pathologically large compound query.
+const maxCompoundSelect = 100
+
 // Store is a DataStore over a `.duckdb` file. The underlying duckdb CLI
 // subprocess is kept alive for the lifetime of the Store so interactive
 // workloads (per-keystroke filter queries) don't pay per-call
@@ -307,26 +312,29 @@ func (s *Store) TableSummaries() ([]store.TableSummary, error) {
 
 	// Row counts: UNION ALL one COUNT(*) per table. Table names are
 	// IsSafeIdentifier-validated by TableNames so direct interpolation
-	// (double-quoted) is safe.
-	parts := lo.Map(names, func(name string, _ int) string {
-		return fmt.Sprintf(`SELECT '%s' AS name, COUNT(*) AS n FROM "%s"`,
-			strings.ReplaceAll(name, "'", "''"), name)
-	})
-	rowLines, err := s.proc.query(strings.Join(parts, " UNION ALL "))
-	if err != nil {
-		return nil, err
-	}
+	// (double-quoted) is safe. Batched in chunks so table-heavy databases
+	// don't build a single pathologically large compound query.
 	rowsByName := make(map[string]int, len(names))
-	for _, l := range rowLines {
-		var row struct {
-			Name string      `json:"name"`
-			N    json.Number `json:"n"`
+	for _, batch := range lo.Chunk(names, maxCompoundSelect) {
+		parts := lo.Map(batch, func(name string, _ int) string {
+			return fmt.Sprintf(`SELECT '%s' AS name, COUNT(*) AS n FROM "%s"`,
+				strings.ReplaceAll(name, "'", "''"), name)
+		})
+		rowLines, err := s.proc.query(strings.Join(parts, " UNION ALL "))
+		if err != nil {
+			return nil, err
 		}
-		if err := json.Unmarshal(l, &row); err != nil {
-			return nil, fmt.Errorf("decode row counts: %w", err)
+		for _, l := range rowLines {
+			var row struct {
+				Name string      `json:"name"`
+				N    json.Number `json:"n"`
+			}
+			if err := json.Unmarshal(l, &row); err != nil {
+				return nil, fmt.Errorf("decode row counts: %w", err)
+			}
+			n, _ := row.N.Int64()
+			rowsByName[row.Name] = int(n)
 		}
-		n, _ := row.N.Int64()
-		rowsByName[row.Name] = int(n)
 	}
 
 	return lo.Map(names, func(name string, _ int) store.TableSummary {

@@ -62,6 +62,33 @@ func TestOpenMemory(t *testing.T) {
 	}
 }
 
+// TestTableSummariesManyTables guards against the SQLITE_MAX_COMPOUND_SELECT
+// limit (default 500): TableSummaries must not build one giant UNION ALL that
+// fails with "too many terms in compound select" on table-heavy databases.
+func TestTableSummariesManyTables(t *testing.T) {
+	t.Parallel()
+	s, err := OpenMemory()
+	if err != nil {
+		t.Fatalf("OpenMemory: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	const n = 1200 // well past the 500-term compound-select ceiling
+	for i := range n {
+		if _, err := s.Exec(fmt.Sprintf("CREATE TABLE t%d (id INTEGER)", i)); err != nil {
+			t.Fatalf("create table %d: %v", i, err)
+		}
+	}
+
+	summaries, err := s.TableSummaries()
+	if err != nil {
+		t.Fatalf("TableSummaries: %v", err)
+	}
+	if len(summaries) != n {
+		t.Errorf("got %d summaries, want %d", len(summaries), n)
+	}
+}
+
 func TestMmapPragmaSet(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "mmap.db")
