@@ -151,6 +151,35 @@ lint-docs:
 doc-coverage:
     ./scripts/doc-coverage.sh
 
+# ─── Modernization via `go fix` (Go 1.26) ──────────────────────────────────
+# Go 1.26 rewrote `go fix` into a suite of modernizers (the same ones gopls
+# runs). We apply them in reviewable stages and commit each separately. Append
+# `-diff` to any recipe to preview without writing, e.g. `just modernize-safe -diff`.
+# Not part of the `ok` gate — run manually when bumping the Go toolchain.
+# Excluded everywhere: omitzero (possible behavior change — handle by hand).
+# Fixes touching generated files (e.g. zotero.gen.go) are skipped automatically;
+# modernize those via the generator/template, not the file.
+
+# Preview every auto-appliable safe fix (stages 1+2), writes nothing.
+modernize-diff *ARGS:
+    go fix -diff -omitzero=false -newexpr=false {{ARGS}} ./...
+
+# Stage 1 — replace interface{} with `any` in hand-written files. Optionally
+# commit alone; here it's a single site so it folds into `modernize-safe`.
+modernize-any *ARGS:
+    go fix -any {{ARGS}} ./...
+
+# Stage 2 — remaining safe modernizers: minmax, rangeint, slices/strings
+# helpers, forvar, waitgroup, … (excludes any, omitzero, and newexpr).
+modernize-safe *ARGS:
+    go fix -any=false -omitzero=false -newexpr=false {{ARGS}} ./...
+
+# Stage 3 — newexpr: rewrite ptr(x) helpers + calls to Go 1.26's new(x).
+# Leaves the now-unused helper funcs as dead code; delete them by hand, then
+# `just ok`. Preview first with `just modernize-deadcode -diff`.
+modernize-deadcode *ARGS:
+    go fix -newexpr {{ARGS}} ./...
+
 run *ARGS:
     go run ./cmd/sci {{ARGS}}
 
