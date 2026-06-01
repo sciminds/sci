@@ -114,7 +114,7 @@ const findEnvMaxDepth = 40
 func FindEnv(dir string) EnvInfo {
 	home, _ := os.UserHomeDir()
 	d := filepath.Clean(dir)
-	for depth := 0; depth < findEnvMaxDepth; depth++ {
+	for range findEnvMaxDepth {
 		if env := DetectEnv(d); env.Kind != EnvNone {
 			return env
 		}

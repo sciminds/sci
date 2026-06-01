@@ -138,7 +138,7 @@ func (m *Model) viewError() string {
 		fmt.Fprintf(&b, "  %s\n", m.queue[m.queueIdx])
 	}
 	if m.transferErr != nil {
-		for _, line := range strings.Split(m.transferErr.Error(), "\n") {
+		for line := range strings.SplitSeq(m.transferErr.Error(), "\n") {
 			fmt.Fprintf(&b, "  %s\n", line)
 		}
 	}

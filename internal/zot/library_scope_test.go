@@ -25,7 +25,6 @@ func TestValidateLibraryScope(t *testing.T) {
 		{"Personal", true}, // case-sensitive; flag parser normalizes upstream
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.in, func(t *testing.T) {
 			t.Parallel()
 			err := ValidateLibraryScope(tc.in)

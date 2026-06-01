@@ -144,7 +144,7 @@ func renderHelp(w io.Writer, c *cli.Command) {
 	if c.Description != "" {
 		p()
 		p(uikit.TUI.HelpSection().Render("Examples"))
-		for _, line := range strings.Split(c.Description, "\n") {
+		for line := range strings.SplitSeq(c.Description, "\n") {
 			trimmed := strings.TrimSpace(line)
 			switch {
 			case trimmed == "":

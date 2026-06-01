@@ -99,10 +99,7 @@ func (r *retryDoer) Do(req *http.Request) (*http.Response, error) {
 // backoffDelay returns an exponential backoff (no jitter) of 200ms * 2^attempt,
 // capped at 10s. Tests override time.Sleep so zero-duration is effectively free.
 func backoffDelay(attempt int) time.Duration {
-	d := time.Duration(200*(1<<attempt)) * time.Millisecond
-	if d > 10*time.Second {
-		d = 10 * time.Second
-	}
+	d := min(time.Duration(200*(1<<attempt))*time.Millisecond, 10*time.Second)
 	return d
 }
 

@@ -29,7 +29,7 @@ func (e BrewfileEntry) Label() string {
 // ParseBrewfileEntries parses a Brewfile into structured entries.
 func ParseBrewfileEntries(content string) []BrewfileEntry {
 	var entries []BrewfileEntry
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
@@ -317,7 +317,7 @@ func RemoveEntries(path string, entries []BrewfileEntry) ([]string, error) {
 
 	var kept []string
 	var removed []string
-	for _, line := range strings.Split(string(content), "\n") {
+	for line := range strings.SplitSeq(string(content), "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			kept = append(kept, line)

@@ -35,17 +35,17 @@ func OpenAlexID(it *local.Item) string {
 // emitted by buildExtra. Tolerant of leading whitespace, mixed case on
 // the prefix, and trailing whitespace on the value.
 func openAlexIDFromExtra(extra string) string {
-	for _, line := range strings.Split(extra, "\n") {
+	for line := range strings.SplitSeq(extra, "\n") {
 		line = strings.TrimSpace(line)
-		colon := strings.IndexByte(line, ':')
-		if colon < 0 {
+		before, after, ok := strings.Cut(line, ":")
+		if !ok {
 			continue
 		}
-		key := strings.TrimSpace(line[:colon])
+		key := strings.TrimSpace(before)
 		if !strings.EqualFold(key, "OpenAlex") {
 			continue
 		}
-		val := strings.TrimSpace(line[colon+1:])
+		val := strings.TrimSpace(after)
 		if val == "" {
 			continue
 		}

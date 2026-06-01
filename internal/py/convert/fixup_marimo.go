@@ -89,12 +89,12 @@ func fixReturnTuples(text string) string {
 		}
 
 		names := make(map[string]bool)
-		for _, line := range strings.Split(body, "\n") {
+		for line := range strings.SplitSeq(body, "\n") {
 			stripped := strings.TrimSpace(line)
 
 			// from X import a, b
 			if m := reFromImport.FindStringSubmatch(stripped); m != nil {
-				for _, name := range strings.Split(m[1], ",") {
+				for name := range strings.SplitSeq(m[1], ",") {
 					name = strings.TrimSpace(name)
 					if strings.Contains(name, " as ") {
 						parts := strings.Split(name, " as ")
@@ -136,7 +136,7 @@ func fixReturnTuples(text string) string {
 		retStr := strings.TrimSpace(oldReturn)
 		retStr = strings.TrimPrefix(retStr, "(")
 		retStr = strings.TrimSuffix(retStr, ")")
-		for _, name := range strings.Split(retStr, ",") {
+		for name := range strings.SplitSeq(retStr, ",") {
 			n := strings.TrimSpace(name)
 			if n != "" {
 				existing[n] = true
@@ -223,7 +223,7 @@ func FixupsAfterToMarimo(text string) string {
 // extractImportNames extracts all names introduced by import statements.
 func extractImportNames(code string) map[string]bool {
 	names := make(map[string]bool)
-	for _, line := range strings.Split(code, "\n") {
+	for line := range strings.SplitSeq(code, "\n") {
 		stripped := strings.TrimSpace(line)
 
 		if m := reImportAs.FindStringSubmatch(stripped); m != nil {
@@ -235,7 +235,7 @@ func extractImportNames(code string) map[string]bool {
 			continue
 		}
 		if m := reFromImport.FindStringSubmatch(stripped); m != nil {
-			for _, name := range strings.Split(m[1], ",") {
+			for name := range strings.SplitSeq(m[1], ",") {
 				name = strings.TrimSpace(name)
 				if strings.Contains(name, " as ") {
 					parts := strings.Split(name, " as ")

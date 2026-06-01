@@ -191,7 +191,6 @@ func TestSaveStandaloneAttachment_parsesCanRecognize(t *testing.T) {
 		{"notRecognizable", `{"canRecognize": false}`, false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -347,7 +346,6 @@ func TestBuildFileURL(t *testing.T) {
 		{"posix-with-spaces", "/tmp/some paper.pdf", "file:///tmp/some%20paper.pdf"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got := BuildFileURL(tc.in)

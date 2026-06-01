@@ -89,7 +89,7 @@ func RenderTable(headers []string, rows [][]string, opts TableOptions) string {
 	// pads, leaving content intact.
 	fitRow := func(cells []string) []string {
 		out := make([]string, nCols)
-		for c := 0; c < nCols; c++ {
+		for c := range nCols {
 			cell := ""
 			if c < len(cells) {
 				cell = cells[c]

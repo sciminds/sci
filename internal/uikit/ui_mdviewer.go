@@ -54,10 +54,7 @@ func NewMdViewer(name, markdown string) *MdViewer {
 
 // SetSize configures the viewport dimensions and re-renders content.
 func (v *MdViewer) SetSize(w, h int) {
-	contentW := w - mdViewerHorizontalSlack
-	if contentW < mdViewerMinContentW {
-		contentW = mdViewerMinContentW
-	}
+	contentW := max(w-mdViewerHorizontalSlack, mdViewerMinContentW)
 
 	if v.rendered == "" || v.renderedWidth != contentW {
 		rendered, err := RenderMarkdown(v.content, contentW)
@@ -311,10 +308,7 @@ func mdScrollPercent(vp *viewport.Model) int {
 	if total <= visible {
 		return 100
 	}
-	pct := (vp.YOffset() + visible) * 100 / total
-	if pct > 100 {
-		pct = 100
-	}
+	pct := min((vp.YOffset()+visible)*100/total, 100)
 	return pct
 }
 

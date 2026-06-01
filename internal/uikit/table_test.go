@@ -10,7 +10,7 @@ import (
 // maxLineWidth returns the widest visible line in s (ANSI-aware).
 func maxLineWidth(s string) int {
 	w := 0
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		if lw := lipgloss.Width(line); lw > w {
 			w = lw
 		}

@@ -196,10 +196,7 @@ func (m *Model) buildColumnPickerOverlay() string {
 	if m.columnPicker.Cursor >= maxVisible {
 		start = m.columnPicker.Cursor - maxVisible + 1
 	}
-	end := start + maxVisible
-	if end > len(hidden) {
-		end = len(hidden)
-	}
+	end := min(start+maxVisible, len(hidden))
 
 	for i := start; i < end; i++ {
 		spec := tab.Specs[hidden[i]]

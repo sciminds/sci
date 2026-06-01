@@ -185,16 +185,10 @@ func overlayApplySearch(query, rendered string, vp *viewport.Model) (matchLines 
 // viewport body height from terminal dimensions and rendered content.
 func overlayDims(rendered string, termW, termH int) (boxW, innerW, bodyH int) {
 	boxW = OverlayWidth(termW, OverlayMinW, OverlayMaxW)
-	innerW = boxW - OverlayBoxPadding
-	if innerW < 1 {
-		innerW = 1
-	}
+	innerW = max(boxW-OverlayBoxPadding, 1)
 	maxBodyH := OverlayBodyHeight(termH, 0)
 	contentLines := strings.Count(rendered, "\n") + 1
-	bodyH = contentLines
-	if bodyH > maxBodyH {
-		bodyH = maxBodyH
-	}
+	bodyH = min(contentLines, maxBodyH)
 	if bodyH < OverlayMinH {
 		bodyH = OverlayMinH
 	}
@@ -260,10 +254,7 @@ func seedInitialQuery(s *overlaySearch, vp *viewport.Model, rendered, q string) 
 // fit short content so there is no empty space.
 func NewOverlay(title, content string, termW, termH int, opts ...OverlayOption) Overlay {
 	cfg := applyOverlayOptions(opts)
-	innerW := OverlayWidth(termW, OverlayMinW, OverlayMaxW) - OverlayBoxPadding
-	if innerW < 1 {
-		innerW = 1
-	}
+	innerW := max(OverlayWidth(termW, OverlayMinW, OverlayMaxW)-OverlayBoxPadding, 1)
 	wrapped := WordWrap(content, innerW)
 	boxW, _, bodyH := overlayDims(wrapped, termW, termH)
 
@@ -278,10 +269,7 @@ func NewOverlay(title, content string, termW, termH int, opts ...OverlayOption) 
 // Resize recalculates the overlay dimensions for the given terminal size,
 // re-wrapping content and adjusting the viewport height.
 func (o Overlay) Resize(termW, termH int) Overlay {
-	innerW := OverlayWidth(termW, OverlayMinW, OverlayMaxW) - OverlayBoxPadding
-	if innerW < 1 {
-		innerW = 1
-	}
+	innerW := max(OverlayWidth(termW, OverlayMinW, OverlayMaxW)-OverlayBoxPadding, 1)
 	wrapped := WordWrap(o.content, innerW)
 	boxW, _, bodyH := overlayDims(wrapped, termW, termH)
 
@@ -414,10 +402,7 @@ func CancelFaint(s string) string {
 // OverlayWidth computes the overlay content width given terminal width and
 // constraints. It applies [OverlayMargin] of margin, then clamps to [minW, maxW].
 func OverlayWidth(termW, minW, maxW int) int {
-	w := termW - OverlayMargin
-	if w < minW {
-		w = minW
-	}
+	w := max(termW-OverlayMargin, minW)
 	if w > maxW {
 		w = maxW
 	}

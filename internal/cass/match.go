@@ -123,10 +123,7 @@ func scoreName(normGH string, ghTokens []string, normCanvas string) int {
 	}
 
 	// Score based on overlap ratio.
-	shorter := len(ghSet)
-	if len(canvasSet) < shorter {
-		shorter = len(canvasSet)
-	}
+	shorter := min(len(canvasSet), len(ghSet))
 
 	// Require at least 50% overlap of the shorter set.
 	ratio := float64(len(overlap)) / float64(shorter)

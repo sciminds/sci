@@ -115,7 +115,7 @@ func detectPkgManager(dir string) PkgManager {
 
 // tomlContains checks whether any non-comment line in text contains substr.
 func tomlContains(text, substr string) bool {
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "#") {
 			continue

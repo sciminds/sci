@@ -114,10 +114,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	})
 
 	// PlanBatch uses concurrent hashing; use a reasonable parallelism.
-	planJobs := extract.BatchJobsDefault(extractLibDevice, runtime.NumCPU())
-	if planJobs < 4 {
-		planJobs = 4
-	}
+	planJobs := max(extract.BatchJobsDefault(extractLibDevice, runtime.NumCPU()), 4)
 
 	opts := extract.ZoteroDefaults()
 	if extractLibDevice != "" {

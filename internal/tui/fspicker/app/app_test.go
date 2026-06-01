@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -363,21 +364,14 @@ func entryNames(es []browser.Entry) []string {
 }
 
 func contains(xs []string, want string) bool {
-	for _, x := range xs {
-		if x == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(xs, want)
 }
 
 func findAction(t *testing.T, actions []browser.Action, keyStr string) browser.Action {
 	t.Helper()
 	for _, a := range actions {
-		for _, k := range a.Key.Keys() {
-			if k == keyStr {
-				return a
-			}
+		if slices.Contains(a.Key.Keys(), keyStr) {
+			return a
 		}
 	}
 	t.Fatalf("no action bound to %q", keyStr)

@@ -3,6 +3,7 @@ package pdffind
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/sciminds/cli/internal/zot/local"
@@ -514,13 +515,7 @@ func TestTitleSearchSelect_ExcludesIsOA(t *testing.T) {
 		}
 	}
 	// open_access is the canonical replacement; ensure we still request it.
-	hasOpenAccess := false
-	for _, f := range titleSearchSelect {
-		if f == "open_access" {
-			hasOpenAccess = true
-			break
-		}
-	}
+	hasOpenAccess := slices.Contains(titleSearchSelect, "open_access")
 	if !hasOpenAccess {
 		t.Error("titleSearchSelect must include \"open_access\" so f.IsOA can be derived")
 	}

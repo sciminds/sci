@@ -227,10 +227,9 @@ func (m *model) renderDesc() string {
 	if m.group == nil || m.group.LongDesc == "" {
 		return ""
 	}
-	w := m.width - 4 // account for list padding
-	if w > descMaxWidth {
-		w = descMaxWidth
-	}
+	w := min(
+		// account for list padding
+		m.width-4, descMaxWidth)
 	if w < 20 {
 		w = 20
 	}

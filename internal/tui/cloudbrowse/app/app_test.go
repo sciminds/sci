@@ -10,6 +10,7 @@ package app
 //   - Provider.Remove pruning the underlying slice
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -308,10 +309,8 @@ func TestDownloadAction_ConfirmPrompt_FileVsFolder(t *testing.T) {
 func findAction(t *testing.T, actions []browser.Action, keyStr string) browser.Action {
 	t.Helper()
 	for _, a := range actions {
-		for _, k := range a.Key.Keys() {
-			if k == keyStr {
-				return a
-			}
+		if slices.Contains(a.Key.Keys(), keyStr) {
+			return a
 		}
 	}
 	t.Fatalf("no action bound to %q", keyStr)

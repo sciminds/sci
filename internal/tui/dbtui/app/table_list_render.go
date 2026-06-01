@@ -95,22 +95,13 @@ func (m *Model) buildTableListOverlay() string {
 			maxNameW = innerW - tableListNameAlignReserve
 		}
 
-		maxVisible := uikit.OverlayBodyHeight(m.height, tableListExtraChrome)
-		if maxVisible > len(vis) {
-			maxVisible = len(vis)
-		}
+		maxVisible := min(uikit.OverlayBodyHeight(m.height, tableListExtraChrome), len(vis))
 		cursor := min(tl.Cursor, len(vis)-1)
-		start := cursor - maxVisible/2
-		if start < 0 {
-			start = 0
-		}
+		start := max(cursor-maxVisible/2, 0)
 		end := start + maxVisible
 		if end > len(vis) {
 			end = len(vis)
-			start = end - maxVisible
-			if start < 0 {
-				start = 0
-			}
+			start = max(end-maxVisible, 0)
 		}
 
 		for vi := start; vi < end; vi++ {

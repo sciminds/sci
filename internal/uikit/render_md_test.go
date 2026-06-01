@@ -136,8 +136,8 @@ func TestHighlightMatchesSpansAcrossANSI(t *testing.T) {
 	if !strings.Contains(out, hlOn) {
 		t.Error("match spanning ANSI boundaries should still be highlighted")
 	}
-	resetIdx := strings.Index(out, "\x1b[0m")
-	afterReset := out[resetIdx+len("\x1b[0m"):]
+	_, after, _ := strings.Cut(out, "\x1b[0m")
+	afterReset := after
 	if !strings.HasPrefix(afterReset, hlOn) {
 		t.Error("highlight should be re-asserted after SGR reset within a match")
 	}

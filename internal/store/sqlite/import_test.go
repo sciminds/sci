@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -708,13 +709,7 @@ func TestCreateViewAs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := false
-	for _, n := range names {
-		if n == "older_names" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(names, "older_names")
 	if !found {
 		t.Errorf("view 'older_names' not in table names: %v", names)
 	}

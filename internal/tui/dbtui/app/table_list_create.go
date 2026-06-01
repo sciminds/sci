@@ -162,10 +162,7 @@ func (m *Model) tableListStartDerive() {
 	ta.Focus()
 	ta.CharLimit = 0
 	ta.SetWidth(uikit.OverlayWidth(m.width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
-	taH := m.height - deriveSQLChrome
-	if taH < deriveSQLMinH {
-		taH = deriveSQLMinH
-	}
+	taH := max(m.height-deriveSQLChrome, deriveSQLMinH)
 	ta.SetHeight(taH)
 	ta.ShowLineNumbers = false
 

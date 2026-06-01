@@ -111,7 +111,7 @@ func substringRuneSpans(cell, tok string, tokRunes int) []int {
 		}
 		byteStart := start + idx
 		runeStart := utf8.RuneCountInString(cell[:byteStart])
-		for k := 0; k < tokRunes; k++ {
+		for k := range tokRunes {
 			out = append(out, runeStart+k)
 		}
 		start = byteStart + len(tok)
@@ -260,17 +260,17 @@ func parseSingleClause(s string) Clause {
 	}
 
 	// Fall back to "@col terms" (space separator).
-	spaceIdx := strings.IndexByte(rest, ' ')
-	if spaceIdx < 0 {
+	before, after, ok := strings.Cut(rest, " ")
+	if !ok {
 		col := rest
 		if col == "" {
 			return Clause{Terms: s}
 		}
 		return Clause{Column: col}
 	}
-	col := rest[:spaceIdx]
+	col := before
 	if col == "" {
 		return Clause{Terms: s}
 	}
-	return Clause{Column: col, Terms: strings.TrimSpace(rest[spaceIdx+1:])}
+	return Clause{Column: col, Terms: strings.TrimSpace(after)}
 }

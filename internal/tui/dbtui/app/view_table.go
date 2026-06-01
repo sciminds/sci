@@ -536,8 +536,8 @@ func cellStyle(kind cellKind) lipgloss.Style {
 
 func firstLine(s string) string {
 	s = strings.TrimSpace(s)
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return strings.TrimRight(s[:i], "\r \t")
+	if before, _, ok := strings.Cut(s, "\n"); ok {
+		return strings.TrimRight(before, "\r \t")
 	}
 	return s
 }
@@ -555,17 +555,11 @@ func visibleRange(total, height, cursor int) (int, int) {
 		return 0, total
 	}
 	cursor = clampCursor(cursor, total)
-	start := cursor - height/2
-	if start < 0 {
-		start = 0
-	}
+	start := max(cursor-height/2, 0)
 	end := start + height
 	if end > total {
 		end = total
-		start = end - height
-		if start < 0 {
-			start = 0
-		}
+		start = max(end-height, 0)
 	}
 	return start, end
 }
@@ -581,10 +575,7 @@ func columnWidths(
 	if columnCount == 0 {
 		return nil
 	}
-	available := width - separatorWidth*(columnCount-1)
-	if available < columnCount {
-		available = columnCount
-	}
+	available := max(width-separatorWidth*(columnCount-1), columnCount)
 
 	natural := precompNatural
 	if natural == nil {
@@ -608,10 +599,7 @@ func columnWidths(
 	// Auto-cap: no column should consume more than 40% of available width
 	// unless an explicit Max (from ColHints) says otherwise.
 	// Expanded columns bypass the cap and keep their natural width.
-	autoCap := available * 40 / 100
-	if autoCap < 20 {
-		autoCap = 20
-	}
+	autoCap := max(available*40/100, 20)
 
 	widths := make([]int, columnCount)
 	for i, w := range natural {

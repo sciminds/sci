@@ -91,7 +91,7 @@ var gitXetInstallFn = func() error {
 // orgs is empty when the user has no org memberships.
 func parseHFWhoami(s string) (string, []string, error) {
 	user, orgs := "", []string(nil)
-	for _, tok := range strings.Fields(strings.TrimSpace(s)) {
+	for tok := range strings.FieldsSeq(strings.TrimSpace(s)) {
 		k, v, ok := strings.Cut(tok, "=")
 		if !ok {
 			continue

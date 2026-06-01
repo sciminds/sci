@@ -56,10 +56,7 @@ func (m *Model) openCellEditor() {
 	ta.Focus()
 	ta.CharLimit = 0 // no limit
 	ta.SetWidth(uikit.OverlayWidth(m.width, cellEditorMinW, cellEditorMaxW) - cellEditorWidthInset)
-	taH := m.height - cellEditorChrome
-	if taH < cellEditorMinH {
-		taH = cellEditorMinH
-	}
+	taH := max(m.height-cellEditorChrome, cellEditorMinH)
 	ta.SetHeight(taH)
 	ta.ShowLineNumbers = false
 	styles := ta.Styles()

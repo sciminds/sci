@@ -207,8 +207,8 @@ func normalizeDOI(raw string) string {
 		"http://dx.doi.org/",
 		"doi:",
 	} {
-		if strings.HasPrefix(s, prefix) {
-			s = strings.TrimPrefix(s, prefix)
+		if after, ok := strings.CutPrefix(s, prefix); ok {
+			s = after
 			break
 		}
 	}
@@ -367,7 +367,7 @@ func ClusterByTitle(cands []DuplicateCandidate, threshold float64, fuzzy bool) [
 // roundTo truncates a float to n decimal places for display stability.
 func roundTo(f float64, n int) float64 {
 	shift := 1.0
-	for i := 0; i < n; i++ {
+	for range n {
 		shift *= 10
 	}
 	return float64(int(f*shift+0.5)) / shift

@@ -108,8 +108,8 @@ func BuildResizeArgs(input, output, size, hwEncoder string) ([]string, error) {
 	lower := strings.ToLower(size)
 	if preset, ok := resizePresets[lower]; ok {
 		scaleExpr = preset
-	} else if strings.HasSuffix(size, "%") {
-		pct, err := strconv.ParseFloat(strings.TrimSuffix(size, "%"), 64)
+	} else if before, ok0 := strings.CutSuffix(size, "%"); ok0 {
+		pct, err := strconv.ParseFloat(before, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid percentage: %s", size)
 		}

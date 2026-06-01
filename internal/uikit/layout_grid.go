@@ -79,7 +79,6 @@ func (g *GridLayout) Cell(fn func(w, h int) string) *GridLayout {
 //	})
 func (g *GridLayout) Cells(n int, fn func(index, w, h int) string) *GridLayout {
 	for i := range n {
-		i := i // capture
 		g.cells = append(g.cells, gridCell{fn: func(w, h int) string {
 			return fn(i, w, h)
 		}})
@@ -101,15 +100,9 @@ func (g *GridLayout) Render() string {
 	availW := g.width - totalHGap
 	availH := g.height - totalVGap
 
-	colW := availW / g.columns
-	if colW < 1 {
-		colW = 1
-	}
+	colW := max(availW/g.columns, 1)
 
-	rowH := availH / rowCount
-	if rowH < 1 {
-		rowH = 1
-	}
+	rowH := max(availH/rowCount, 1)
 
 	// Render rows.
 	rows := make([]string, 0, rowCount)
@@ -119,10 +112,7 @@ func (g *GridLayout) Render() string {
 		// Last row gets remaining height (avoids rounding loss).
 		thisRowH := rowH
 		if row == rowCount-1 {
-			thisRowH = availH - rowH*(rowCount-1)
-			if thisRowH < 1 {
-				thisRowH = 1
-			}
+			thisRowH = max(availH-rowH*(rowCount-1), 1)
 		}
 
 		rowCells := make([]string, 0, g.columns)
@@ -143,10 +133,7 @@ func (g *GridLayout) Render() string {
 			// Last column in row gets remaining width.
 			thisColW := colW
 			if col == g.columns-1 {
-				thisColW = availW - colW*(g.columns-1)
-				if thisColW < 1 {
-					thisColW = 1
-				}
+				thisColW = max(availW-colW*(g.columns-1), 1)
 			}
 
 			content := g.cells[cellIdx].fn(thisColW, thisRowH)

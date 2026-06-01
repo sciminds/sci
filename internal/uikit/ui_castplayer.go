@@ -224,10 +224,7 @@ func (p *CastPlayer) SetWidth(w int) { p.width = w }
 // SetSize implements ScrollPanel: h is the total rows available; the player
 // reserves 2 rows for its internal status line (blank + "playing N/M").
 func (p *CastPlayer) SetSize(w, h int) {
-	body := h - 2
-	if body < 1 {
-		body = 1
-	}
+	body := max(h-2, 1)
 	p.height = body
 	p.width = w
 }

@@ -255,7 +255,7 @@ func ValidateISBN(raw string) (bool, string) {
 // first 9 digits + checksum (where X = 10) must be divisible by 11.
 func checkISBN10(d []byte) (bool, string) {
 	sum := 0
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		if d[i] < '0' || d[i] > '9' {
 			return false, "non-digit in body"
 		}
@@ -284,7 +284,7 @@ func checkISBN13(d []byte) (bool, string) {
 		}
 	}
 	sum := 0
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		n := int(d[i] - '0')
 		if i%2 == 0 {
 			sum += n

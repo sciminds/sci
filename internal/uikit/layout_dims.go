@@ -118,10 +118,7 @@ func ClampWidth(width int) int {
 // adds beyond OverlayChromeLines (e.g. status row, hint rows). The result is
 // clamped to at least OverlayMinH.
 func OverlayBodyHeight(termH, extraChrome int) int {
-	h := termH - OverlayChromeLines - extraChrome
-	if h < OverlayMinH {
-		h = OverlayMinH
-	}
+	h := max(termH-OverlayChromeLines-extraChrome, OverlayMinH)
 	return h
 }
 

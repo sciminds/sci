@@ -67,7 +67,7 @@ for that.`,
 			raw := cmd.StringSlice("check")
 			var checks []string
 			for _, r := range raw {
-				for _, p := range strings.Split(r, ",") {
+				for p := range strings.SplitSeq(r, ",") {
 					p = strings.TrimSpace(p)
 					if p == "" {
 						continue

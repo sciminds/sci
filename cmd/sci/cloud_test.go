@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -37,13 +38,7 @@ func TestCloud_SubcommandShape(t *testing.T) {
 			continue
 		}
 		for _, a := range w.aliases {
-			found := false
-			for _, got := range sub.Aliases {
-				if got == a {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(sub.Aliases, a)
 			if !found {
 				t.Errorf("cloud %s missing alias %q (have %v)", w.name, a, sub.Aliases)
 			}

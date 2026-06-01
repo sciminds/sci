@@ -216,10 +216,8 @@ func TestAllWriteOps_RespectScope(t *testing.T) {
 	}
 
 	for _, ref := range []zot.LibraryRef{personalRef(), sharedRef()} {
-		ref := ref
 		t.Run(string(ref.Scope), func(t *testing.T) {
 			for _, op := range ops {
-				op := op
 				t.Run(op.name, func(t *testing.T) {
 					h := &captureHandler{}
 					c := newScopedClient(t, h, ref)

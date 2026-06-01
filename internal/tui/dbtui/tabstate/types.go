@@ -97,7 +97,7 @@ type Tab struct {
 	PostPinCellRows [][]Cell
 
 	// CachedVP holds the last computed table viewport (nil = needs recompute).
-	CachedVP interface{}
+	CachedVP any
 }
 
 // InvalidateVP clears the cached viewport so it is recomputed on next render.

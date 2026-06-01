@@ -61,8 +61,8 @@ func ChildrenAt(objects []cloud.ObjectInfo, cwd string) []TreeEntry {
 		if rest == "" {
 			continue
 		}
-		if slash := strings.Index(rest, "/"); slash != -1 {
-			folders[rest[:slash]] = true
+		if before, _, ok := strings.Cut(rest, "/"); ok {
+			folders[before] = true
 			continue
 		}
 		files = append(files, TreeEntry{

@@ -104,7 +104,7 @@ func TestTeatest_PressR_ResumesPending(t *testing.T) {
 func TestTeatest_TransferQuitWithQ_LeavesPending(t *testing.T) {
 	hermeticTransferLog(t)
 	b := sampleBackend()
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		b.progressFrames = append(b.progressFrames, lab.Progress{Bytes: int64(i), Percent: i, Rate: "1MB/s", ETA: "0:01:00"})
 	}
 	// Hold the transfer in-flight until ctx cancellation so `q` reliably
@@ -144,7 +144,7 @@ func TestTeatest_TransferQuitWithQ_LeavesPending(t *testing.T) {
 func TestTeatest_TransferQuitWithCtrlC_DropsPending(t *testing.T) {
 	hermeticTransferLog(t)
 	b := sampleBackend()
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		b.progressFrames = append(b.progressFrames, lab.Progress{Bytes: int64(i), Percent: i, Rate: "1MB/s", ETA: "0:01:00"})
 	}
 	// Hold the transfer in-flight until ctx cancellation so the test can

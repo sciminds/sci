@@ -542,7 +542,7 @@ func parseCitekeyFixKinds(values []string) (fix.CitekeyKind, error) {
 	}
 	var mask fix.CitekeyKind
 	for _, raw := range values {
-		for _, p := range strings.Split(raw, ",") {
+		for p := range strings.SplitSeq(raw, ",") {
 			p = strings.TrimSpace(p)
 			if p == "" {
 				continue

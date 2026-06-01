@@ -42,10 +42,7 @@ func (m *Model) halfPageDown(tab *Tab) {
 	if total == 0 {
 		return
 	}
-	half := tab.Table.Height() / 2
-	if half < 1 {
-		half = 1
-	}
+	half := max(tab.Table.Height()/2, 1)
 	next := tab.Table.Cursor() + half
 	if next >= total {
 		next = total - 1
@@ -54,14 +51,8 @@ func (m *Model) halfPageDown(tab *Tab) {
 }
 
 func (m *Model) halfPageUp(tab *Tab) {
-	half := tab.Table.Height() / 2
-	if half < 1 {
-		half = 1
-	}
-	next := tab.Table.Cursor() - half
-	if next < 0 {
-		next = 0
-	}
+	half := max(tab.Table.Height()/2, 1)
+	next := max(tab.Table.Cursor()-half, 0)
 	tab.Table.SetCursor(next)
 }
 

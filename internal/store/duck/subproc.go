@@ -253,7 +253,7 @@ func (s *subproc) query(sql string) ([][]byte, error) {
 		return nil, fmt.Errorf("write stdin: %w", err)
 	}
 
-	sentinelBytes := []byte(fmt.Sprintf(`"%s":"%s"`, sentinelKey, marker))
+	sentinelBytes := fmt.Appendf(nil, `"%s":"%s"`, sentinelKey, marker)
 	var rows [][]byte
 	for {
 		line, err := s.stdout.ReadBytes('\n')

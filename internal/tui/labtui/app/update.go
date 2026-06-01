@@ -11,10 +11,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		barW := m.width - 20
-		if barW > 60 {
-			barW = 60
-		}
+		barW := min(m.width-20, 60)
 		if barW < 10 {
 			barW = 10
 		}

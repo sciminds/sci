@@ -24,18 +24,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if ce := m.cellEditor; ce != nil {
 			ce.Editor.SetWidth(uikit.OverlayWidth(msg.Width, cellEditorMinW, cellEditorMaxW) - cellEditorWidthInset)
-			taH := msg.Height - cellEditorChrome
-			if taH < cellEditorMinH {
-				taH = cellEditorMinH
-			}
+			taH := max(msg.Height-cellEditorChrome, cellEditorMinH)
 			ce.Editor.SetHeight(taH)
 		}
 		if tl := m.tableList; tl != nil && tl.Deriving {
 			tl.DeriveSQL.SetWidth(uikit.OverlayWidth(msg.Width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
-			taH := msg.Height - deriveSQLChrome
-			if taH < deriveSQLMinH {
-				taH = deriveSQLMinH
-			}
+			taH := max(msg.Height-deriveSQLChrome, deriveSQLMinH)
 			tl.DeriveSQL.SetHeight(taH)
 		}
 		return m, nil

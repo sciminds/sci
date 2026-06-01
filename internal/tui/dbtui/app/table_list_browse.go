@@ -248,29 +248,17 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 		b.WriteString("\n")
 	} else {
 		// Compute max name width for alignment.
-		maxNameW := lo.Reduce(br.Entries, func(mx int, e fileBrowserEntry, _ int) int {
+		maxNameW := min(lo.Reduce(br.Entries, func(mx int, e fileBrowserEntry, _ int) int {
 			return max(mx, len(e.Name))
-		}, 0)
-		if maxNameW > innerW-fileBrowserNameAlignReserve {
-			maxNameW = innerW - fileBrowserNameAlignReserve
-		}
+		}, 0), innerW-fileBrowserNameAlignReserve)
 
 		// Visible window.
-		maxVisible := uikit.OverlayBodyHeight(m.height, fileBrowserExtraChrome)
-		if maxVisible > len(br.Entries) {
-			maxVisible = len(br.Entries)
-		}
-		start := br.Cursor - maxVisible/2
-		if start < 0 {
-			start = 0
-		}
+		maxVisible := min(uikit.OverlayBodyHeight(m.height, fileBrowserExtraChrome), len(br.Entries))
+		start := max(br.Cursor-maxVisible/2, 0)
 		end := start + maxVisible
 		if end > len(br.Entries) {
 			end = len(br.Entries)
-			start = end - maxVisible
-			if start < 0 {
-				start = 0
-			}
+			start = max(end-maxVisible, 0)
 		}
 
 		for i := start; i < end; i++ {

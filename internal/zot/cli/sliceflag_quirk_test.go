@@ -70,7 +70,6 @@ func TestSliceFlagLocalQuirk_Reproduction(t *testing.T) {
 	}
 
 	for _, sc := range scenarios {
-		sc := sc
 		t.Run(sc.name, func(t *testing.T) {
 			t.Parallel()
 			var dest []string
@@ -138,7 +137,6 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		// NB: no t.Parallel() — see test comment above. Subtests share
 		// package-level slice-flag Destinations and PreParse races them.
 		t.Run(tc.name, func(t *testing.T) {
@@ -205,11 +203,8 @@ func walkToLeaf(cmds []*cli.Command, argv []string) *cli.Command {
 				next = c
 				break
 			}
-			for _, a := range c.Aliases {
-				if a == tok {
-					next = c
-					break
-				}
+			if slices.Contains(c.Aliases, tok) {
+				next = c
 			}
 			if next != nil {
 				break

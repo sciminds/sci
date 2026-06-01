@@ -278,10 +278,7 @@ func (m *Model) tableView(tab *Tab) string {
 		rowCountChrome = 1
 	}
 
-	effectiveHeight := tab.Table.Height() - badgeChrome - rowCountChrome
-	if effectiveHeight < 2 {
-		effectiveHeight = 2
-	}
+	effectiveHeight := max(tab.Table.Height()-badgeChrome-rowCountChrome, 2)
 
 	pinCtx := m.viewportPinContext(tab, vp)
 	var visualSel map[int]bool
@@ -373,10 +370,7 @@ func (m *Model) viewportPinContext(tab *Tab, vp tableViewport) pinRenderContext 
 func (m *Model) buildLoadingView() string {
 	name := m.tabs[m.active].Name
 	label := m.spinner.View() + " " + m.styles.TextBlueBold().Render("Loading "+name+"…")
-	bodyH := m.height - loadingChromeLines
-	if bodyH < minLoadingBodyH {
-		bodyH = minLoadingBodyH
-	}
+	bodyH := max(m.height-loadingChromeLines, minLoadingBodyH)
 	return lipgloss.Place(m.width, bodyH, lipgloss.Center, lipgloss.Center, label)
 }
 

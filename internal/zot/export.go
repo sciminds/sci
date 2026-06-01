@@ -132,7 +132,7 @@ func yearFromDate(date string) int {
 		return 0
 	}
 	y := 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		c := date[i]
 		if c < '0' || c > '9' {
 			return 0
@@ -273,7 +273,7 @@ func firstDigits(s string, n int) string {
 	if len(s) < n {
 		return ""
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if s[i] < '0' || s[i] > '9' {
 			return ""
 		}

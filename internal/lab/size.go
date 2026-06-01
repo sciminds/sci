@@ -20,7 +20,7 @@ func BuildSizeArgs(cfg *Config, remotePaths []string) []string {
 // ParseDuTotal extracts the aggregate byte count from `du -c` output,
 // which ends with a "<bytes>\ttotal" line.
 func ParseDuTotal(out string) (int64, error) {
-	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+	for line := range strings.SplitSeq(strings.TrimRight(out, "\n"), "\n") {
 		fields := strings.SplitN(line, "\t", 2)
 		if len(fields) == 2 && strings.TrimSpace(fields[1]) == "total" {
 			return strconv.ParseInt(strings.TrimSpace(fields[0]), 10, 64)

@@ -241,17 +241,11 @@ func (m runnerModel) View() tea.View {
 func (m runnerModel) viewProgress(b *strings.Builder) {
 	// Progress bar
 	if m.total > 0 {
-		barWidth := m.width - 12
-		if barWidth < 10 {
-			barWidth = 10
-		}
+		barWidth := max(m.width-12, 10)
 		if barWidth > 60 {
 			barWidth = 60
 		}
-		filled := barWidth * m.current / m.total
-		if filled > barWidth {
-			filled = barWidth
-		}
+		filled := min(barWidth*m.current/m.total, barWidth)
 		pct := 100 * m.current / m.total
 		b.WriteString("  ")
 		b.WriteString(TUI.TextBlue().Render(strings.Repeat("█", filled)))

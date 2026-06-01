@@ -37,14 +37,8 @@ func Box(width, height int, style lipgloss.Style, fn func(innerW, innerH int) st
 	frameW := style.GetHorizontalFrameSize()
 	frameH := style.GetVerticalFrameSize()
 
-	innerW := width - frameW
-	if innerW < 1 {
-		innerW = 1
-	}
-	innerH := height - frameH
-	if innerH < 1 {
-		innerH = 1
-	}
+	innerW := max(width-frameW, 1)
+	innerH := max(height-frameH, 1)
 
 	content := fn(innerW, innerH)
 

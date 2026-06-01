@@ -781,7 +781,7 @@ var uvToolListRe = regexp.MustCompile(`^(\S+)\s+v\S+`)
 
 func parseUVToolList(output string) []string {
 	var names []string
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		if m := uvToolListRe.FindStringSubmatch(line); m != nil {
 			names = append(names, m[1])
 		}
@@ -796,7 +796,7 @@ var uvOutdatedRe = regexp.MustCompile(`^(\S+)\s+v(\S+)\s+\[latest:\s+(\S+)]`)
 
 func parseUVOutdated(output string) []OutdatedPackage {
 	var pkgs []OutdatedPackage
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		if m := uvOutdatedRe.FindStringSubmatch(line); m != nil {
 			pkgs = append(pkgs, OutdatedPackage{
 				Name:             m[1],
@@ -814,7 +814,7 @@ func parseUVOutdated(output string) []OutdatedPackage {
 // single -) so "Markitdown" / "markitdown_all" still match.
 func parseResolvedVersion(output, pkgName string) string {
 	want := normalizePkgName(pkgName)
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		name, version, ok := strings.Cut(strings.TrimSpace(line), "==")
 		if !ok {
 			continue

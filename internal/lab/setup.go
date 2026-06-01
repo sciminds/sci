@@ -282,7 +282,7 @@ func (b sshHostBlock) matchesHost(host string) bool {
 func parseSSHConfig(data string) []sshHostBlock {
 	var blocks []sshHostBlock
 	var cur *sshHostBlock
-	for _, raw := range strings.Split(data, "\n") {
+	for raw := range strings.SplitSeq(data, "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue

@@ -48,13 +48,13 @@ func TestSelectedChecks_Defaults(t *testing.T) {
 // severity mix, so the doctor aggregation tests don't need a database.
 func buildReport(check string, errors, warns, infos int) *hygiene.Report {
 	r := &hygiene.Report{Check: check, Scanned: 100}
-	for i := 0; i < errors; i++ {
+	for range errors {
 		r.Findings = append(r.Findings, hygiene.Finding{Check: check, Severity: hygiene.SevError})
 	}
-	for i := 0; i < warns; i++ {
+	for range warns {
 		r.Findings = append(r.Findings, hygiene.Finding{Check: check, Severity: hygiene.SevWarn})
 	}
-	for i := 0; i < infos; i++ {
+	for range infos {
 		r.Findings = append(r.Findings, hygiene.Finding{Check: check, Severity: hygiene.SevInfo})
 	}
 	return r

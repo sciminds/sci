@@ -423,10 +423,7 @@ func (m *model) exportPage(entry Entry) tea.Cmd {
 // preRenderPages returns a Cmd that renders all page-based entries in the
 // background so they're cached by the time the user opens them.
 func (m *model) preRenderPages() tea.Cmd {
-	contentW := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding - 2
-	if contentW < 20 {
-		contentW = 20
-	}
+	contentW := max(uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW)-uikit.OverlayBoxPadding-2, 20)
 
 	var docs []string
 	for _, book := range m.allBooks {

@@ -223,10 +223,8 @@ func (c *Client) AddItemToCollection(ctx context.Context, itemKey, collKey strin
 	if it.Data.Collections != nil {
 		current = *it.Data.Collections
 	}
-	for _, k := range current {
-		if k == collKey {
-			return nil // already member
-		}
+	if slices.Contains(current, collKey) {
+		return nil // already member
 	}
 	updated := append(slices.Clone(current), collKey)
 	return c.UpdateItem(ctx, itemKey, client.ItemData{

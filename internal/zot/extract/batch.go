@@ -54,7 +54,6 @@ func PlanBatch(ctx context.Context, reqs []BatchRequest, jobs int, force bool, h
 	sem := make(chan struct{}, jobs)
 	var wg sync.WaitGroup
 	for i, req := range reqs {
-		i, req := i, req
 		wg.Add(1)
 		sem <- struct{}{}
 		go func() {
@@ -300,10 +299,7 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 			pdfToIdx[pdfPaths[pi]] = idx
 		}
 
-		jobs := in.Jobs
-		if jobs < 1 {
-			jobs = 1
-		}
+		jobs := max(in.Jobs, 1)
 
 		// Build stem→(pdfPath, item index) so the progress callback
 		// can cache each document as soon as docling writes it.
@@ -337,10 +333,7 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 			chunkResults := make([]chunkResult, len(chunks))
 			var wg sync.WaitGroup
 			for ci, chunk := range chunks {
-				ci, chunk := ci, chunk
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					if ctx.Err() != nil {
 						chunkResults[ci] = chunkResult{chunk: chunk, err: ctx.Err()}
 						return
@@ -384,7 +377,7 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 
 					res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, cacheOnOutput)
 					chunkResults[ci] = chunkResult{chunk: chunk, res: res, err: err}
-				}()
+				})
 			}
 			wg.Wait()
 			batchNum++
@@ -571,10 +564,7 @@ func chunkByJobs(s []string, jobs int) [][]string {
 func BatchJobsDefault(device string, numCPU int) int {
 	switch device {
 	case "cpu":
-		jobs := numCPU / 4
-		if jobs < 1 {
-			jobs = 1
-		}
+		jobs := max(numCPU/4, 1)
 		return jobs
 	case "", "auto", "mps", "cuda":
 		return 1

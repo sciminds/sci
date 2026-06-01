@@ -248,7 +248,7 @@ func firstThreeTitleWords(title string) string {
 	}
 	var picks []string
 	var firstRaw string
-	for _, w := range strings.Fields(title) {
+	for w := range strings.FieldsSeq(title) {
 		tok := normalizeToken(w)
 		if tok == "" {
 			continue
@@ -316,7 +316,7 @@ func yearFromDate(date string) int {
 		return 0
 	}
 	y := 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		c := s[i]
 		if c < '0' || c > '9' {
 			return 0

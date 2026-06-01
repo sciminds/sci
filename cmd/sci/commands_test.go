@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -339,10 +340,8 @@ func TestNamespaceRejectsUnknownChildren(t *testing.T) {
 // hasFlag returns true if cmd has a flag with the given name.
 func hasFlag(cmd *cli.Command, name string) bool {
 	for _, f := range cmd.Flags {
-		for _, n := range f.Names() {
-			if n == name {
-				return true
-			}
+		if slices.Contains(f.Names(), name) {
+			return true
 		}
 	}
 	return false

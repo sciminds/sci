@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sciminds/cli/internal/zot/api"
@@ -257,12 +258,12 @@ func TestAttach_FiresCallbacksPerFinding(t *testing.T) {
 // sliceAsCSV is a tiny helper kept local to this file — avoids dragging in
 // strings.Join from other tests' helper surfaces.
 func sliceAsCSV(ss []string) string {
-	out := ""
+	var out strings.Builder
 	for i, s := range ss {
 		if i > 0 {
-			out += ","
+			out.WriteString(",")
 		}
-		out += s
+		out.WriteString(s)
 	}
-	return out
+	return out.String()
 }

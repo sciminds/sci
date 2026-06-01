@@ -53,10 +53,7 @@ func SpreadMinGap(width, minGap int, left, right string) string {
 	}
 	left = ansi.Truncate(left, maxLeft, "")
 	lw = lipgloss.Width(left)
-	gap = width - lw - rw
-	if gap < minGap {
-		gap = minGap
-	}
+	gap = max(width-lw-rw, minGap)
 	return left + strings.Repeat(" ", gap) + right
 }
 
@@ -157,7 +154,7 @@ func WordWrap(text string, maxW int) string {
 		return text
 	}
 	var result strings.Builder
-	for _, paragraph := range strings.Split(text, "\n") {
+	for paragraph := range strings.SplitSeq(text, "\n") {
 		if result.Len() > 0 {
 			result.WriteByte('\n')
 		}

@@ -166,7 +166,7 @@ func TestReadOnlyQueryMaxRows(t *testing.T) {
 	if _, err := s.Exec("CREATE TABLE big(id INTEGER PRIMARY KEY, val TEXT)"); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	for i := 0; i < 250; i++ {
+	for i := range 250 {
 		if _, err := s.Exec(fmt.Sprintf("INSERT INTO big(id, val) VALUES (%d, 'row%d')", i, i)); err != nil {
 			t.Fatalf("insert %d: %v", i, err)
 		}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -17,10 +18,8 @@ import (
 func TestDoctor_SkipUpgradeCheckFlagDefined(t *testing.T) {
 	cmd := doctorCommand()
 	for _, f := range cmd.Flags {
-		for _, n := range f.Names() {
-			if n == "skip-upgrade-check" {
-				return
-			}
+		if slices.Contains(f.Names(), "skip-upgrade-check") {
+			return
 		}
 	}
 	t.Error("doctor command missing --skip-upgrade-check flag")

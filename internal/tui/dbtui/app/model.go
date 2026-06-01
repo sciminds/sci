@@ -271,10 +271,7 @@ func (m *Model) resizeTables() {
 	if m.search != nil && !m.search.Committed {
 		chrome++
 	}
-	tableHeight := m.height - chrome
-	if tableHeight < minTableBodyH {
-		tableHeight = minTableBodyH
-	}
+	tableHeight := max(m.height-chrome, minTableBodyH)
 	for i := range m.tabs {
 		m.tabs[i].Table.SetHeight(tableHeight)
 		m.tabs[i].InvalidateVP()

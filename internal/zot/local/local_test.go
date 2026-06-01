@@ -1,6 +1,7 @@
 package local
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -102,13 +103,7 @@ func TestList_FilterByType_Note(t *testing.T) {
 		}
 	}
 	for k := range wantSet {
-		found := false
-		for _, g := range got {
-			if g == k {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(got, k)
 		if !found {
 			t.Errorf("missing expected note %q; got %v", k, got)
 		}

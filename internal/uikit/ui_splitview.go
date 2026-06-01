@@ -103,16 +103,10 @@ func (s *SplitView) SetSize(w, h int) {
 		return
 	}
 
-	bodyH := h - splitChromeLines
-	if bodyH < splitMinBodyH {
-		bodyH = splitMinBodyH
-	}
+	bodyH := max(h-splitChromeLines, splitMinBodyH)
 
 	if s.stacked() {
-		availH := bodyH - splitStackedDivider
-		if availH < 2 {
-			availH = 2
-		}
+		availH := max(bodyH-splitStackedDivider, 2)
 		topH := availH / 2
 		botH := availH - topH
 		s.left.SetSize(w, topH-splitFooterLines)
@@ -180,10 +174,7 @@ func (s *SplitView) View() string {
 func (s *SplitView) viewSideBySide() string {
 	leftW, rightW := splitPanelWidths(s.width, s.right.PreferredWidth())
 
-	bodyH := s.height - splitChromeLines
-	if bodyH < splitMinBodyH {
-		bodyH = splitMinBodyH
-	}
+	bodyH := max(s.height-splitChromeLines, splitMinBodyH)
 
 	// Both panels go through Box so frame size (border + padding) is
 	// derived automatically. leftW/rightW are content widths; Box adds the
@@ -209,14 +200,8 @@ func (s *SplitView) viewSideBySide() string {
 }
 
 func (s *SplitView) viewStacked() string {
-	bodyH := s.height - splitChromeLines
-	if bodyH < splitMinBodyH {
-		bodyH = splitMinBodyH
-	}
-	availH := bodyH - splitStackedDivider
-	if availH < 2 {
-		availH = 2
-	}
+	bodyH := max(s.height-splitChromeLines, splitMinBodyH)
+	availH := max(bodyH-splitStackedDivider, 2)
 	topH := availH / 2
 	botH := availH - topH
 

@@ -788,8 +788,8 @@ func (d *DB) itemAttachments(parentID int64) ([]Attachment, error) {
 		a.ContentType = ct.String
 		// Zotero stores attachment paths as "storage:filename.pdf".
 		p := path.String
-		if strings.HasPrefix(p, "storage:") {
-			a.Filename = strings.TrimPrefix(p, "storage:")
+		if after, ok := strings.CutPrefix(p, "storage:"); ok {
+			a.Filename = after
 		} else {
 			a.Filename = p
 		}

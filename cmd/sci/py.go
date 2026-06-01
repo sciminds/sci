@@ -77,7 +77,7 @@ func parsePkgs(csv string) []string {
 		return nil
 	}
 	var pkgs []string
-	for _, pkg := range strings.Split(csv, ",") {
+	for pkg := range strings.SplitSeq(csv, ",") {
 		if p := strings.TrimSpace(pkg); p != "" {
 			pkgs = append(pkgs, p)
 		}

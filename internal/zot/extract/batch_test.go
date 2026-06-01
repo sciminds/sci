@@ -206,7 +206,7 @@ func TestExecuteBatch_ExtractorFailureMarksAllPending(t *testing.T) {
 	dir := t.TempDir()
 	const N = 3
 	items := make([]BatchItem, N)
-	for i := 0; i < N; i++ {
+	for i := range N {
 		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
 		writeStubPDF(t, p, fmt.Sprintf("b%d", i))
 		items[i] = mkBatchItem(
@@ -385,7 +385,7 @@ func TestExecuteBatch_ParallelJobs(t *testing.T) {
 	dir := t.TempDir()
 	const N = 6
 	items := make([]BatchItem, N)
-	for i := 0; i < N; i++ {
+	for i := range N {
 		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
 		writeStubPDF(t, p, fmt.Sprintf("body%d", i))
 		items[i] = mkBatchItem(
@@ -431,7 +431,7 @@ func TestExecuteBatch_SingleJobDefault(t *testing.T) {
 	dir := t.TempDir()
 	const N = 4
 	items := make([]BatchItem, N)
-	for i := 0; i < N; i++ {
+	for i := range N {
 		p := filepath.Join(dir, fmt.Sprintf("p%d.pdf", i))
 		writeStubPDF(t, p, fmt.Sprintf("body%d", i))
 		items[i] = mkBatchItem(
