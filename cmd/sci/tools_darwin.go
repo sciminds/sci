@@ -35,7 +35,7 @@ func toolsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "tools",
 		Usage:       "Manage Homebrew & uv tools via your Brewfile",
-		Description: "$ sci tools install\n$ sci tools install pandoc\n$ sci tools uninstall pandoc\n$ sci tools list\n$ sci tools update\n$ sci tools outdated\n$ sci tools reccs",
+		Description: "$ sci tools install\n$ sci tools install pandoc\n$ sci tools uninstall pandoc\n$ sci tools list\n$ sci tools update\n$ sci tools outdated\n$ sci tools reccs\n$ sci tools apps",
 		Category:    "Maintenance",
 		Flags: []cli.Flag{
 			// lint:no-local — propagates to subcommands
@@ -60,6 +60,7 @@ func toolsCommand() *cli.Command {
 			toolsUpdateCommand(),
 			toolsOutdatedCommand(),
 			toolsReccsCommand(),
+			toolsAppsCommand(),
 		},
 	}
 }
@@ -136,32 +137,63 @@ func toolsOutdatedCommand() *cli.Command {
 	}
 }
 
+// reccsOpts holds the flags shared by `tools reccs` and its `tools apps` alias.
+type reccsOpts struct {
+	installName string
+	all         bool
+	includeCSV  string
+	excludeCSV  string
+	dryRun      bool
+}
+
+// reccsFlags builds the flag set shared by reccs and apps, binding into o.
+func reccsFlags(o *reccsOpts) []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{Name: "install", Usage: "install a named tool without the picker", Destination: &o.installName, Local: true},
+		&cli.BoolFlag{Name: "all", Usage: "install every missing recommendation", Destination: &o.all, Local: true},
+		&cli.StringFlag{Name: "include", Usage: "comma-separated tools to install (skips already-installed)", Destination: &o.includeCSV, Local: true},
+		&cli.StringFlag{Name: "exclude", Usage: "comma-separated tools to skip; install the rest", Destination: &o.excludeCSV, Local: true},
+		&cli.BoolFlag{Name: "dry-run", Usage: "preview the resolved set without installing", Destination: &o.dryRun, Local: true},
+	}
+}
+
 func toolsReccsCommand() *cli.Command {
-	var (
-		installName string
-		all         bool
-		includeCSV  string
-		excludeCSV  string
-		dryRun      bool
+	var o reccsOpts
+	var apps bool
+	flags := append(reccsFlags(&o),
+		&cli.BoolFlag{Name: "apps", Usage: "limit to recommended GUI apps (casks)", Destination: &apps, Local: true},
 	)
 	return &cli.Command{
 		Name:  "reccs",
-		Usage: "Pick optional tools to install",
-		Description: "$ sci tools reccs                              # interactive picker\n" +
+		Usage: "Pick recommended tools to install",
+		Description: "$ sci tools reccs                              # interactive multi-select picker\n" +
+			"$ sci tools reccs --apps                       # just the GUI apps\n" +
 			"$ sci tools reccs --install pandoc             # single, non-interactive\n" +
 			"$ sci tools reccs --all                        # install everything missing\n" +
 			"$ sci tools reccs --include bat,fd             # install just these\n" +
 			"$ sci tools reccs --exclude quarto             # skip these, install the rest\n" +
-			"$ sci tools reccs --all --dry-run              # preview without installing",
-		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "install", Usage: "install a named tool without TUI", Destination: &installName, Local: true},
-			&cli.BoolFlag{Name: "all", Usage: "install every missing optional tool", Destination: &all, Local: true},
-			&cli.StringFlag{Name: "include", Usage: "comma-separated tools to install (skips already-installed)", Destination: &includeCSV, Local: true},
-			&cli.StringFlag{Name: "exclude", Usage: "comma-separated tools to skip; install the rest", Destination: &excludeCSV, Local: true},
-			&cli.BoolFlag{Name: "dry-run", Usage: "preview the resolved set without installing", Destination: &dryRun, Local: true},
-		},
+			"$ sci tools reccs --apps --all --dry-run       # preview all missing apps",
+		Flags: flags,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runToolsReccs(ctx, cmd, installName, all, includeCSV, excludeCSV, dryRun)
+			return runToolsReccs(ctx, cmd, o, apps)
+		},
+	}
+}
+
+// toolsAppsCommand is a discoverable alias for `tools reccs --apps`: the
+// recommendations surface pre-scoped to GUI apps (casks).
+func toolsAppsCommand() *cli.Command {
+	var o reccsOpts
+	return &cli.Command{
+		Name:  "apps",
+		Usage: "Pick recommended GUI apps (casks) to install",
+		Description: "$ sci tools apps                               # interactive multi-select picker\n" +
+			"$ sci tools apps --all                         # install every missing app\n" +
+			"$ sci tools apps --include obsidian,raycast    # install just these\n" +
+			"$ sci tools apps --all --dry-run               # preview without installing",
+		Flags: reccsFlags(&o),
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runToolsReccs(ctx, cmd, o, true)
 		},
 	}
 }
@@ -469,21 +501,21 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func runToolsReccs(_ context.Context, cmd *cli.Command, installName string, all bool, includeCSV, excludeCSV string, dryRun bool) error {
+func runToolsReccs(_ context.Context, cmd *cli.Command, o reccsOpts, apps bool) error {
 	runner := brew.BrewRunner{}
 
-	include := splitCSV(includeCSV)
-	exclude := splitCSV(excludeCSV)
+	include := splitCSV(o.includeCSV)
+	exclude := splitCSV(o.excludeCSV)
 
 	// Mutex: at most one of --install / --all / --include / --exclude.
-	bulkModes := lo.Count([]bool{installName != "", all, len(include) > 0, len(exclude) > 0}, true)
+	bulkModes := lo.Count([]bool{o.installName != "", o.all, len(include) > 0, len(exclude) > 0}, true)
 	if bulkModes > 1 {
 		return errors.New("--install, --all, --include, and --exclude are mutually exclusive")
 	}
 
 	// JSON catalog-listing mode: no bulk flag, no install, no dry-run.
-	if cmdutil.IsJSON(cmd) && bulkModes == 0 && !dryRun {
-		result, err := doctor.ListOptionalTools(runner)
+	if cmdutil.IsJSON(cmd) && bulkModes == 0 && !o.dryRun {
+		result, err := doctor.ListOptionalTools(runner, apps)
 		if err != nil {
 			return err
 		}
@@ -495,9 +527,9 @@ func runToolsReccs(_ context.Context, cmd *cli.Command, installName string, all 
 	brewfilePath, _ := resolveToolsFile()
 
 	// Bulk paths: --all / --include / --exclude (and dry-run, which implies bulk).
-	if all || len(include) > 0 || len(exclude) > 0 || dryRun {
-		filter := doctor.OptionalFilter{All: all, Include: include, Exclude: exclude}
-		if !all && len(include) == 0 && len(exclude) == 0 {
+	if o.all || len(include) > 0 || len(exclude) > 0 || o.dryRun {
+		filter := doctor.OptionalFilter{All: o.all, Include: include, Exclude: exclude, Apps: apps}
+		if !o.all && len(include) == 0 && len(exclude) == 0 {
 			// Bare --dry-run with no scope → preview "all missing".
 			filter.All = true
 		}
@@ -505,7 +537,7 @@ func runToolsReccs(_ context.Context, cmd *cli.Command, installName string, all 
 		if err != nil {
 			return err
 		}
-		result, err := doctor.InstallOptionalTools(runner, entries, brewfilePath, dryRun)
+		result, err := doctor.InstallOptionalTools(runner, entries, brewfilePath, o.dryRun)
 		if err != nil {
 			return err
 		}
@@ -516,13 +548,13 @@ func runToolsReccs(_ context.Context, cmd *cli.Command, installName string, all 
 		return nil
 	}
 
-	// Single-tool and TUI paths (unchanged).
+	// Single-tool and multi-select picker paths.
 	var result doctor.OptionalSetupResult
 	var err error
-	if installName != "" {
-		result, err = doctor.InstallOptionalTool(runner, installName, brewfilePath)
+	if o.installName != "" {
+		result, err = doctor.InstallOptionalTool(runner, o.installName, brewfilePath, apps)
 	} else {
-		result, err = doctor.RunOptionalSetup(runner, brewfilePath)
+		result, err = doctor.RunOptionalSetup(runner, brewfilePath, apps)
 	}
 	if err != nil {
 		return err

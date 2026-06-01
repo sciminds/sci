@@ -1,136 +1,88 @@
 package doctor
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 var testEntries = []brew.BrewfileEntry{
-	{Name: "rg", Type: "formula", Line: `brew "rg"`},
-	{Name: "jq", Type: "formula", Line: `brew "jq"`},
-	{Name: "lsd", Type: "formula", Line: `brew "lsd"`},
+	{Name: "bat", Type: "brew", Spec: "bat", Line: `brew "bat"`},
+	{Name: "obsidian", Type: "cask", Spec: "obsidian", Line: `cask "obsidian"`},
+	{Name: "made-up-tool", Type: "uv", Spec: "made-up-tool", Line: `uv "made-up-tool"`},
 }
 
-func TestReccsModel_ViewAtZeroSize(t *testing.T) {
+func TestOptionalToolOptions_ValueIsName(t *testing.T) {
 	t.Parallel()
-	missing := map[string]bool{"rg": true, "jq": true}
-	m := newReccsModel(testEntries, missing)
-	_ = m.View() // must not panic before WindowSizeMsg
-}
-
-func TestReccsModel_IncludesInstalled(t *testing.T) {
-	t.Parallel()
-	// Only rg is missing; jq and lsd are installed. All three should still
-	// appear in the model so the user can see status at a glance.
-	missing := map[string]bool{"rg": true}
-	m := newReccsModel(testEntries, missing)
-	if len(m.entries) != len(testEntries) {
-		t.Errorf("entries = %d, want %d (installed entries must not be hidden)", len(m.entries), len(testEntries))
+	opts := optionalToolOptions(testEntries, false)
+	if len(opts) != len(testEntries) {
+		t.Fatalf("got %d options, want %d", len(opts), len(testEntries))
 	}
-	if len(m.list.Items()) != len(testEntries) {
-		t.Errorf("list items = %d, want %d", len(m.list.Items()), len(testEntries))
-	}
-}
-
-func TestReccsItem_TitleMarksInstalled(t *testing.T) {
-	t.Parallel()
-	missing := newReccsModel(testEntries, map[string]bool{"rg": true})
-	items := missing.list.Items()
-
-	// rg is missing → plain title.
-	if got := items[0].(reccsItem).Title(); got != "rg" {
-		t.Errorf("missing title = %q, want %q", got, "rg")
-	}
-	// jq is installed → title carries the OK glyph.
-	jqTitle := items[1].(reccsItem).Title()
-	if !strings.Contains(jqTitle, "jq") || !strings.Contains(jqTitle, "✓") {
-		t.Errorf("installed title = %q, want it to contain %q and %q", jqTitle, "jq", "✓")
-	}
-}
-
-func TestReccsModel_ChosenDefaultNegative(t *testing.T) {
-	t.Parallel()
-	missing := map[string]bool{"rg": true}
-	m := newReccsModel(testEntries, missing)
-	if m.chosen != -1 {
-		t.Errorf("chosen = %d, want -1", m.chosen)
-	}
-}
-
-func TestReccsModel_QuitSetsQuitting(t *testing.T) {
-	t.Parallel()
-	missing := map[string]bool{"rg": true}
-	m := newReccsModel(testEntries, missing)
-	updated, cmd := m.Update(tea.KeyPressMsg{Code: 'q'})
-	rm := updated.(reccsModel)
-	if !rm.quitting {
-		t.Error("expected quitting=true after q")
-	}
-	if cmd == nil {
-		t.Error("expected quit Cmd")
-	}
-}
-
-func TestReccsItem_Title(t *testing.T) {
-	t.Parallel()
-	item := reccsItem{entry: brew.BrewfileEntry{Name: "rg"}, desc: "fast grep"}
-	if item.Title() != "rg" {
-		t.Errorf("title = %q, want %q", item.Title(), "rg")
-	}
-}
-
-func TestReccsItem_FilterValue(t *testing.T) {
-	t.Parallel()
-	item := reccsItem{entry: brew.BrewfileEntry{Name: "rg"}, desc: "fast grep"}
-	if item.FilterValue() != "rg fast grep" {
-		t.Errorf("filter = %q, want %q", item.FilterValue(), "rg fast grep")
-	}
-}
-
-func TestReccsModel_EmptyMissing(t *testing.T) {
-	t.Parallel()
-	// Even when every tool is installed, the picker still lists them all so
-	// the user can confirm status — matches `sci tools list` behavior.
-	m := newReccsModel(testEntries, map[string]bool{})
-	if len(m.entries) != len(testEntries) {
-		t.Errorf("entries = %d, want %d when nothing is missing", len(m.entries), len(testEntries))
-	}
-	for _, it := range m.list.Items() {
-		if !it.(reccsItem).installed {
-			t.Errorf("item %q must be marked installed", it.(reccsItem).entry.Name)
+	for i, e := range testEntries {
+		if opts[i].Value != e.Name {
+			t.Errorf("option %d value = %q, want %q (must map back to the entry name)", i, opts[i].Value, e.Name)
 		}
 	}
 }
 
-func TestReccsModel_EnterOnInstalledDoesNotQuit(t *testing.T) {
+func TestOptionalToolOptions_LabelCarriesDescription(t *testing.T) {
 	t.Parallel()
-	// All three tools are installed → cursor starts on the first item (rg).
-	// Pressing enter must NOT pick or quit — the user should stay in the TUI
-	// and see a status message about the already-installed tool.
-	m := newReccsModel(testEntries, map[string]bool{})
-	updated, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	rm := updated.(reccsModel)
-	if rm.chosen != -1 {
-		t.Errorf("chosen = %d, want -1 (installed tools are not installable)", rm.chosen)
+	opts := optionalToolOptions(testEntries, false)
+	// bat has a known description → label includes name + " — " + desc.
+	batLabel := opts[0].Key
+	if !strings.HasPrefix(batLabel, "bat — ") {
+		t.Errorf("bat label = %q, want it to start with %q", batLabel, "bat — ")
 	}
-	if rm.quitting {
-		t.Error("quitting = true, want false (enter on installed must keep the TUI open)")
-	}
-	if cmd != nil {
-		t.Error("cmd != nil, want nil (no tea.Quit when picking an installed tool)")
+	if !strings.Contains(batLabel, toolDescs["bat"]) {
+		t.Errorf("bat label = %q, want it to contain the description", batLabel)
 	}
 }
 
-func TestReccsModel_EnterOnMissingSetsChosen(t *testing.T) {
+func TestOptionalToolOptions_UnknownToolFallsBackToBareName(t *testing.T) {
 	t.Parallel()
-	// rg is missing → cursor starts on it; enter picks it for install.
-	m := newReccsModel(testEntries, map[string]bool{"rg": true})
-	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	rm := updated.(reccsModel)
-	if rm.chosen != 0 {
-		t.Errorf("chosen = %d, want 0 (rg is the first entry)", rm.chosen)
+	// made-up-tool has no description → no em-dash, just the name (+ type tag).
+	opts := optionalToolOptions(testEntries, false)
+	label := opts[2].Key
+	if strings.Contains(label, "—") {
+		t.Errorf("undescribed tool label = %q, want no em-dash separator", label)
+	}
+	if !strings.HasPrefix(label, "made-up-tool") {
+		t.Errorf("label = %q, want it to start with the tool name", label)
+	}
+}
+
+func TestOptionalToolOptions_MixedViewTagsType(t *testing.T) {
+	t.Parallel()
+	// The mixed catalog tags each row with its type so apps and CLI tools are
+	// distinguishable at a glance.
+	opts := optionalToolOptions(testEntries, false)
+	if !strings.Contains(opts[1].Key, "(cask)") {
+		t.Errorf("obsidian label = %q, want a (cask) type tag in mixed view", opts[1].Key)
+	}
+}
+
+func TestOptionalToolOptions_AppsViewDropsTypeTag(t *testing.T) {
+	t.Parallel()
+	// The apps view is all casks, so the redundant type tag is omitted.
+	casks := []brew.BrewfileEntry{{Name: "obsidian", Type: "cask", Spec: "obsidian"}}
+	opts := optionalToolOptions(casks, true)
+	if strings.Contains(opts[0].Key, "(cask)") {
+		t.Errorf("apps-view label = %q, should not carry a (cask) tag", opts[0].Key)
+	}
+}
+
+func TestPickOptionalTools_QuietReturnsFormQuiet(t *testing.T) {
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
+
+	got, err := pickOptionalTools(testEntries, false)
+	if !errors.Is(err, uikit.ErrFormQuiet) {
+		t.Errorf("pickOptionalTools in quiet mode should return ErrFormQuiet, got: %v", err)
+	}
+	if got != nil {
+		t.Errorf("expected nil selection in quiet mode, got: %v", got)
 	}
 }

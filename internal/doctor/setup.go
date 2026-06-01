@@ -3,6 +3,7 @@ package doctor
 // setup.go — optional tool picker via interactive list TUI.
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -99,10 +100,25 @@ func (r OptionalToolsResult) Human() string {
 	return b.String()
 }
 
-// ListOptionalTools returns optional tools with their install status,
-// without prompting the user. Used in --json mode.
-func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
+// optionalCatalog returns the optional-tool catalog parsed from
+// BrewfileOptional, optionally narrowed to GUI apps (casks). "Apps" is not a
+// separate list — it's the cask subset of the optional catalog — so bare
+// reccs and the --apps view share a single source of truth.
+func optionalCatalog(apps bool) []brew.BrewfileEntry {
 	entries := brew.ParseBrewfileEntries(BrewfileOptional)
+	if !apps {
+		return entries
+	}
+	return lo.Filter(entries, func(e brew.BrewfileEntry, _ int) bool {
+		return e.Type == "cask"
+	})
+}
+
+// ListOptionalTools returns optional tools with their install status,
+// without prompting the user. Used in --json mode. When apps is true the
+// catalog is narrowed to GUI apps (casks).
+func ListOptionalTools(r brew.Runner, apps bool) (OptionalToolsResult, error) {
+	entries := optionalCatalog(apps)
 	if len(entries) == 0 {
 		return OptionalToolsResult{}, nil
 	}
@@ -122,9 +138,10 @@ func ListOptionalTools(r brew.Runner) (OptionalToolsResult, error) {
 // InstallOptionalTool installs a named optional tool without interactive
 // prompts. Returns an error if the tool is not in the optional list or is
 // already installed. When brewfilePath is non-empty, the Brewfile is synced
-// after install so the new package appears immediately.
-func InstallOptionalTool(r brew.Runner, name, brewfilePath string) (OptionalSetupResult, error) {
-	entries := brew.ParseBrewfileEntries(BrewfileOptional)
+// after install so the new package appears immediately. When apps is true the
+// lookup is scoped to GUI apps (casks), so naming a non-cask errors.
+func InstallOptionalTool(r brew.Runner, name, brewfilePath string, apps bool) (OptionalSetupResult, error) {
+	entries := optionalCatalog(apps)
 	entry, ok := lo.Find(entries, func(e brew.BrewfileEntry) bool {
 		return e.Name == name
 	})
@@ -151,48 +168,53 @@ func InstallOptionalTool(r brew.Runner, name, brewfilePath string) (OptionalSetu
 	return OptionalSetupResult{Installed: []string{name}}, nil
 }
 
-// RunOptionalSetup presents the full list of optional tools (installed and
-// missing both) and installs the user's selection via direct install. Picking
-// an already-installed tool flashes a status message and keeps the TUI open
-// so the user can pick a different row. When brewfilePath is non-empty, the
+// RunOptionalSetup presents the missing optional tools in a multi-select
+// picker and installs everything the user ticks in one pass (continue-on-error
+// via InstallOptionalTools). Already-installed tools are omitted — this is an
+// "install what you're missing" flow, not a status view. When apps is true the
+// catalog is narrowed to GUI apps (casks). When brewfilePath is non-empty, the
 // Brewfile is synced after install.
-func RunOptionalSetup(r brew.Runner, brewfilePath string) (OptionalSetupResult, error) {
-	entries := brew.ParseBrewfileEntries(BrewfileOptional)
+func RunOptionalSetup(r brew.Runner, brewfilePath string, apps bool) (OptionalSetupResult, error) {
+	entries := optionalCatalog(apps)
 	if len(entries) == 0 {
 		return OptionalSetupResult{}, nil
 	}
 
 	missing := missingSet(r, BrewfileOptional)
+	missingEntries := lo.Filter(entries, func(e brew.BrewfileEntry, _ int) bool {
+		return missing[e.Name]
+	})
 
-	model, err := uikit.RunModel(newReccsModel(entries, missing))
-	if err != nil {
-		return OptionalSetupResult{}, err
-	}
-	if model.quitting || model.chosen < 0 {
+	if len(missingEntries) == 0 {
+		noun := lo.Ternary(apps, "apps", "tools")
+		uikit.Hint(fmt.Sprintf("All recommended %s are already installed.", noun))
 		return OptionalSetupResult{}, nil
 	}
 
-	chosen := model.entries[model.chosen]
-
-	if err := r.DirectInstall(chosen.Spec, brewfileTypeToPkgType(chosen.Type)); err != nil {
-		return OptionalSetupResult{}, fmt.Errorf("install %s: %w", chosen.Name, err)
-	}
-
-	if brewfilePath != "" {
-		if _, err := brew.Sync(r, brewfilePath); err != nil {
-			return OptionalSetupResult{}, fmt.Errorf("sync brewfile: %w", err)
+	chosen, err := pickOptionalTools(missingEntries, apps)
+	if err != nil {
+		// User cancellation (esc/q/ctrl+c) is a clean no-op, not an error.
+		if errors.Is(err, uikit.ErrFormAborted) {
+			return OptionalSetupResult{}, nil
 		}
+		return OptionalSetupResult{}, err
+	}
+	if len(chosen) == 0 {
+		return OptionalSetupResult{}, nil
 	}
 
-	return OptionalSetupResult{Installed: []string{chosen.Name}}, nil
+	return InstallOptionalTools(r, chosen, brewfilePath, false)
 }
 
 // OptionalFilter selects which optional tools to act on. Exactly one of
-// All/Include/Exclude should be set; the CLI layer enforces mutex.
+// All/Include/Exclude should be set; the CLI layer enforces mutex. Apps is an
+// orthogonal scope modifier: when true, the catalog is narrowed to GUI apps
+// (casks) before the All/Include/Exclude filter is applied.
 type OptionalFilter struct {
 	All     bool
 	Include []string
 	Exclude []string
+	Apps    bool
 }
 
 // ResolveOptionalSet maps a filter onto BrewfileOptional and returns the
@@ -200,7 +222,7 @@ type OptionalFilter struct {
 // missing from the system. Unknown names in Include/Exclude return an error
 // listing the available tools so the user can correct.
 func ResolveOptionalSet(r brew.Runner, f OptionalFilter) ([]brew.BrewfileEntry, error) {
-	entries := brew.ParseBrewfileEntries(BrewfileOptional)
+	entries := optionalCatalog(f.Apps)
 	if len(entries) == 0 {
 		return nil, nil
 	}

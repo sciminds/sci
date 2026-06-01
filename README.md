@@ -236,7 +236,8 @@ Manage Homebrew & uv tools via your Brewfile.
 | `sci tools uninstall` | Remove a package from the Brewfile and uninstall it |
 | `sci tools update` | Update the Homebrew registry and upgrade outdated packages |
 | `sci tools outdated` | List outdated packages without upgrading |
-| `sci tools reccs` | Pick optional tools to install |
+| `sci tools reccs` | Pick recommended tools to install |
+| `sci tools apps` | Pick recommended GUI apps (casks) to install |
 
 ![sci tools](docs/casts/tools-install.gif)
 </details>

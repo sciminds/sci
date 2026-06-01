@@ -37,7 +37,8 @@ var longDescs = map[string]string{
 
 	"tools": "A single layer over Homebrew and uv to keep your tools in sync with a Brewfile. " +
 		"Install, uninstall, list, and update packages — type detection is automatic. " +
-		"The reccs subcommand suggests useful optional tools; like a lab-vetted 'App Store' for your terminal :)",
+		"The reccs subcommand suggests useful optional tools — and apps narrows that to recommended GUI apps; " +
+		"like a lab-vetted 'App Store' for your terminal :)",
 
 	"doctor": "Run a health check on your Mac to verify that required tools, " +
 		"runtimes, and configurations are present and correctly set up.",

@@ -189,3 +189,40 @@ func Select[T comparable](title string, options []huh.Option[T]) (T, error) {
 	}
 	return selected, nil
 }
+
+// MultiSelect prompts the user to tick zero or more options from a list
+// (space toggles, enter confirms). Returns the selected values in option
+// order — an empty slice if the user confirms without ticking anything.
+// Returns nil and ErrFormAborted if the user cancels, or ErrFormQuiet in
+// quiet mode. The list is filterable and height-capped so a long catalog
+// scrolls within a fixed viewport instead of overflowing the screen.
+func MultiSelect[T comparable](title, description string, options []huh.Option[T]) ([]T, error) {
+	if IsQuiet() {
+		return nil, ErrFormQuiet
+	}
+
+	var selected []T
+	field := huh.NewMultiSelect[T]().
+		Title(title).
+		Description(description).
+		Options(options...).
+		Filterable(true).
+		Height(multiSelectHeight(len(options))).
+		Value(&selected)
+	if err := RunForm(huh.NewForm(huh.NewGroup(field))); err != nil {
+		return nil, err
+	}
+	return selected, nil
+}
+
+// multiSelectHeight caps the total field height so a long option list scrolls
+// inside a fixed viewport rather than pushing the prompt off-screen. Short
+// lists size to their content; the +4 leaves room for the title, description,
+// and help line huh renders around the options.
+func multiSelectHeight(optionCount int) int {
+	const maxHeight = 18
+	if h := optionCount + 4; h < maxHeight {
+		return h
+	}
+	return maxHeight
+}

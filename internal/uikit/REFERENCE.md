@@ -61,6 +61,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `SpreadMinGap` | func | SpreadMinGap is like [Spread] but guarantees at least minGap spaces between |
 | `StatusRow` | func | StatusRow renders a standard indented icon + label line used in phase views. |
 | `SummaryLine` | func | SummaryLine renders a "N label · N label · …" summary. Zero-count parts |
+| `Truncate` | func | Truncate shortens s to at most width cells, appending an ellipsis (…) when |
 | `VStack` | func | VStack creates a vertical stack builder. Children are composed top-to-bottom. |
 | `WordWrap` | func | WordWrap wraps text at maxW, preserving paragraph breaks (newlines). |
 | `DividerInset` | const | DividerInset is the total horizontal inset for RenderDivider: |
@@ -88,10 +89,16 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 |---|---|---|
 | `Action` | type | Action is a single entry in an [ActionMenu]. |
 | `ActionMenu` | type | ActionMenu is a single-select cursor menu for "pick one action" overlays. |
+| `Cast` | type | Cast holds a parsed asciicast v2 recording. |
+| `CastEvent` | type | CastEvent is a single output event: [time, "o", data]. |
+| `CastHeader` | type | CastHeader is the first line of an asciicast v2 recording. |
+| `CastPlayer` | type | CastPlayer is a bubbletea sub-model that plays back an asciicast recording. |
+| `CastTickMsg` | type | CastTickMsg advances playback to the given event index. |
 | `Chrome` | type | Chrome renders a three-part vertical layout: title bar, body, and |
 | `Grid2D` | type | Grid2D is a 2-D cursor for grid-like layouts (table columns × rows, |
 | `ListPicker` | type | ListPicker wraps [list.Model] with the standard project styling: |
 | `MarkdownOverlay` | type | MarkdownOverlay is a scrollable content panel that renders markdown via |
+| `MdViewer` | type | MdViewer is a scrollable, searchable markdown viewer sub-model. Embed in |
 | `Overlay` | type | Overlay is a scrollable content panel rendered as a modal over other content. |
 | `OverlayBox` | type | OverlayBox renders a modal-style overlay with a title section, body |
 | `ProgressTracker` | type | ProgressTracker is the handle passed to the callback in RunWithProgress. |
@@ -99,9 +106,11 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `Screen` | type | Screen bundles the four per-screen callbacks that Bubbletea models |
 | `SelectList` | type | SelectList is a reusable Bubble Tea model for a toggle-select list. |
 | `SelectListKeys` | type | SelectListKeys is the help.KeyMap for the selecting phase. |
+| `SplitView` | type | SplitView composes two ScrollPanels into a responsive layout: side-by-side |
 | `Toast` | type | Toast is a single notification. It is a plain value — the ToastModel |
 | `ToastLevel` | type | ToastLevel represents the severity of a toast notification. |
 | `ToastModel` | type | ToastModel manages a stack of auto-dismissing toast notifications. |
+| `ScrollPanel` | interface | ScrollPanel is a side-by-side-ready sub-model. Each panel owns its own |
 | `ScrollableOverlay` | interface | ScrollableOverlay is the common interface satisfied by both [Overlay] |
 | `SelectItem` | interface | SelectItem is the interface that items in a SelectList must implement. |
 | `OverlayOption` | func type | OverlayOption configures an [Overlay] or [MarkdownOverlay] at construction. |
@@ -110,18 +119,24 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `CenterOverlay` | func | CenterOverlay composites fg centered over bg. Both are newline-delimited |
 | `Compose` | func | Compose is a convenience for CenterOverlay(CancelFaint(fg), DimBackground(bg)). |
 | `DimBackground` | func | DimBackground applies faint (SGR 2) to every line of s. |
+| `HardenListKeyMap` | func | HardenListKeyMap frees the vim half-page keys (d/u/b/f) from the list's |
 | `Items` | func | Items converts a typed slice to []list.Item so callers don't need to |
 | `NewActionMenu` | func | NewActionMenu creates an action menu. The cursor starts on the first |
+| `NewCastPlayer` | func | NewCastPlayer creates a player for the given cast recording. |
 | `NewListDelegate` | func | NewListDelegate returns a list.DefaultDelegate styled to match the TUI theme. |
 | `NewListPicker` | func | NewListPicker creates a pre-styled filterable list. The hints (if |
 | `NewMarkdownOverlay` | func | NewMarkdownOverlay creates an auto-sized markdown overlay. The content is |
+| `NewMdViewer` | func | NewMdViewer creates a viewer for a single markdown document. |
 | `NewOverlay` | func | NewOverlay creates an auto-sized overlay. The viewport height shrinks to |
 | `NewRouter` | func | NewRouter builds a Router from a set of screen registrations. |
 | `NewSelectList` | func | NewSelectList creates a new SelectList with the given items. |
 | `NewSelectListKeys` | func | NewSelectListKeys returns the default key map for a select list. |
+| `NewSplitView` | func | NewSplitView creates a split view titled with the given string. Left is |
 | `NewToastModel` | func | NewToastModel returns an empty toast manager showing up to 5 toasts. |
 | `OverlayWidth` | func | OverlayWidth computes the overlay content width given terminal width and |
+| `ParseCast` | func | ParseCast parses asciicast v2 format (JSON-lines: header object + event arrays). |
 | `RenderSelectItemLine` | func | RenderSelectItemLine renders the cursor/marker/name skeleton common to all |
+| `RunMdViewer` | func | RunMdViewer launches a full-screen markdown viewer for the file at path. |
 | `RunWithProgress` | func | RunWithProgress shows an inline progress display while fn runs. The |
 | `RunWithSpinner` | func | RunWithSpinner shows an inline spinner while fn runs. Returns fn's error. |
 | `RunWithSpinnerStatus` | func | RunWithSpinnerStatus shows an inline spinner while fn runs, with a |
@@ -149,6 +164,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `HuhTheme` | func | HuhTheme returns a huh.ThemeFunc built from the project's Wong |
 | `Input` | func | Input prompts for a single text value. Returns ("", ErrFormAborted) if |
 | `InputInto` | func | InputInto prompts for a single text value, writing the result into *dst. |
+| `MultiSelect` | func | MultiSelect prompts the user to tick zero or more options from a list |
 | `RunForm` | func | RunForm applies the project theme and keymap, runs the form, and drains |
 | `Select` | func | Select prompts the user to pick one option from a list. Returns the zero |
 | `WithEchoMode` | func | WithEchoMode sets the echo mode (e.g. huh.EchoModePassword). |
@@ -171,6 +187,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `Result` | type | Result is a generic outcome from an async command. Use in a type switch |
 | `AsyncCmd` | func | AsyncCmd wraps a fallible function into a tea.Cmd that returns |
 | `AsyncCmdCtx` | func | AsyncCmdCtx wraps a context-aware function with a timeout into a |
+| `DrainStdin` | func | DrainStdin flushes any bytes pending in the stdin buffer. This absorbs |
 | `DrainStdin` | func | DrainStdin flushes any bytes pending in the stdin buffer. This absorbs |
 | `IsQuiet` | func | IsQuiet reports whether quiet mode is active. |
 | `Run` | func | Run launches a Bubbletea program and returns its error. It drains |

@@ -1,136 +1,124 @@
 package doctor
 
-// reccs_tui.go — interactive list TUI for optional tool recommendations.
+// reccs_tui.go — multi-select picker for optional tool recommendations.
 
 import (
 	"fmt"
 
-	"charm.land/bubbles/v2/key"
-	tea "charm.land/bubbletea/v2"
+	"charm.land/huh/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
-// toolDescs maps tool names to user-friendly descriptions.
+// toolDescs maps optional-tool names to one-line, user-facing descriptions
+// shown in the recommendations picker. Names without an entry fall back to a
+// bare label. Keyed by BrewfileEntry.Name (no [extras] suffix).
 var toolDescs = map[string]string{
-	"helix":              "Terminal text editor with modal editing and built-in LSP",
-	"neovim":             "Highly extensible terminal text editor",
-	"msedit":             "Quick file editing from the terminal via MS Edit",
-	"starship":           "Minimal, fast, customizable shell prompt",
-	"lsd":                "Modern ls replacement with colors and icons",
-	"jq":                 "Lightweight command-line JSON processor",
-	"mq":                 "jq for Markdown — query and transform .md files",
-	"ripgrep-all":        "ripgrep across PDFs, archives, and more",
-	"ast-grep":           "Structural code search and rewrite using AST patterns",
+	// CLI tools (brew formulae)
+	"helix":                      "Modal terminal editor with built-in LSP",
+	"neovim":                     "Hyperextensible Vim-based terminal editor",
+	"msedit":                     "Microsoft's simple terminal text editor",
+	"starship":                   "Fast, customizable cross-shell prompt",
+	"lsd":                        "Modern ls with colors, icons, and tree view",
+	"bat":                        "cat clone with syntax highlighting and Git integration",
+	"just":                       "Command runner for project task recipes",
+	"fzf":                        "Fuzzy finder for files, history, and pipes",
+	"zoxide":                     "Smarter cd that learns your most-used dirs",
+	"fd":                         "Fast, user-friendly alternative to find",
+	"sd":                         "Intuitive find-and-replace (sed alternative)",
+	"jaq":                        "Fast jq clone for querying JSON",
+	"xan":                        "CSV toolkit for slicing and analyzing tables",
+	"mq":                         "jq for Markdown — query and transform .md files",
+	"git-delta":                  "Syntax-highlighted pager for git diffs",
+	"ripgrep-all":                "ripgrep across PDFs, archives, and more",
+	"ast-grep":                   "Structural code search and rewrite via AST patterns",
+	"semgrep":                    "Pattern-based static analysis and linting",
+	"visidata":                   "Terminal spreadsheet for exploring tabular data",
+	"pandoc":                     "Universal document converter",
+	"typst":                      "Modern markup-based typesetting system",
+	"tinymist":                   "Language server for Typst",
+	"glow":                       "Render Markdown beautifully in the terminal",
+	"dust":                       "Intuitive du — see what's using disk space",
+	"yazi":                       "Blazing-fast terminal file manager",
+	"harper":                     "Fast, private grammar checker",
+	"poppler":                    "PDF rendering tools (pdftotext, pdfimages, …)",
+	"markdown-oxide":             "Knowledge-base language server for Markdown",
+	"tig":                        "Text-mode interface for Git",
+	"yadm":                       "Dotfiles manager built on Git",
+	"atuin":                      "Searchable, synced shell history",
+	"zsh-syntax-highlighting":    "Fish-like syntax highlighting for zsh",
+	"typescript-language-server": "Language server for TypeScript/JavaScript",
+
+	// GUI apps (casks)
+	"1password":          "Password manager and secrets vault",
+	"brave-browser":      "Privacy-focused Chromium web browser",
+	"kitty":              "Fast, GPU-accelerated terminal emulator",
+	"obsidian":           "Markdown knowledge base and note-taking",
+	"reflect":            "Networked note-taking with backlinks",
+	"notion":             "All-in-one notes, docs, and wikis",
+	"tailscale-app":      "Zero-config WireGuard VPN mesh",
+	"dropbox":            "Cloud file sync and storage",
+	"google-drive":       "Google cloud file sync and storage",
+	"fantastical":        "Natural-language calendar and scheduling",
+	"quarto":             "Scientific and technical publishing system",
+	"raycast":            "Extensible launcher and Spotlight replacement",
+	"amethyst":           "Tiling window manager for macOS",
+	"karabiner-elements": "Powerful keyboard customizer and remapper",
 	"visual-studio-code": "Popular graphical code editor by Microsoft",
 	"zed":                "High-performance graphical code editor",
-	"symbex":             "Find Python symbols (functions, classes) from the CLI",
-	"sqlite-utils":       "CLI tool for manipulating SQLite databases",
-	"markitdown":         "Convert documents (PDF, DOCX, etc.) to Markdown",
-	"datasette":          "Instant web UI and JSON API for SQLite databases",
+	"zoom":               "Video conferencing and meetings",
+	"zotero":             "Reference manager for research and citations",
+	"slack":              "Team chat and messaging",
+	"vlc":                "Plays nearly any audio or video format",
+
+	// Python tools (uv)
+	"symbex":       "Find Python symbols (functions, classes) from the CLI",
+	"sqlite-utils": "CLI for creating and querying SQLite databases",
+	"markitdown":   "Convert documents (PDF, DOCX, …) to Markdown",
+	"datasette":    "Instant web UI and JSON API for SQLite",
+	"docling-slim": "Parse PDFs and documents into structured data",
+	"rodney":       "Chrome automation for scraping and testing",
+	"llm":          "Talk to LLMs from the command line",
+	"pdf2doi":      "Look up DOIs and metadata for PDF papers",
 }
 
-// reccsItem implements list.Item for the bubbles list component.
-type reccsItem struct {
-	entry     brew.BrewfileEntry
-	desc      string
-	installed bool
-}
+// pickOptionalTools presents the given (missing) entries in a multi-select
+// picker and returns the entries the user ticked. apps tailors the wording and
+// drops the redundant per-row type tag (every row is a cask).
+func pickOptionalTools(entries []brew.BrewfileEntry, apps bool) ([]brew.BrewfileEntry, error) {
+	noun := lo.Ternary(apps, "apps", "tools")
+	title := fmt.Sprintf("Recommended %s — %d available to install", noun, len(entries))
+	desc := "Space to tick, enter to install, / to filter, esc to cancel."
 
-// Title implements list.DefaultItem. Installed tools get a green check suffix
-// so the list mirrors `sci tools` (every recc visible, status at a glance).
-func (i reccsItem) Title() string {
-	if i.installed {
-		return i.entry.Name + " " + uikit.SymOK
+	chosen, err := uikit.MultiSelect(title, desc, optionalToolOptions(entries, apps))
+	if err != nil {
+		return nil, err
 	}
-	return i.entry.Name
+
+	byName := lo.KeyBy(entries, func(e brew.BrewfileEntry) string { return e.Name })
+	return lo.FilterMap(chosen, func(name string, _ int) (brew.BrewfileEntry, bool) {
+		e, ok := byName[name]
+		return e, ok
+	}), nil
 }
 
-// Description implements list.DefaultItem.
-func (i reccsItem) Description() string { return i.desc }
-
-// FilterValue implements list.DefaultItem.
-func (i reccsItem) FilterValue() string { return i.entry.Name + " " + i.desc }
-
-// reccsModel is the Bubble Tea model for the recommendations list.
-type reccsModel struct {
-	list     uikit.ListPicker
-	entries  []brew.BrewfileEntry
-	chosen   int // index into entries; -1 = nothing selected
-	quitting bool
-}
-
-func newReccsModel(entries []brew.BrewfileEntry, missing map[string]bool) reccsModel {
-	items := lo.Map(entries, func(e brew.BrewfileEntry, _ int) reccsItem {
-		desc := toolDescs[e.Name]
-		if desc == "" {
-			desc = e.Type + " package"
+// optionalToolOptions builds huh options whose label carries an inline
+// description (and, in the mixed catalog view, the package type) so users can
+// recognize each tool without a separate detail pane. The option value is the
+// tool name, which maps back to a BrewfileEntry after selection.
+func optionalToolOptions(entries []brew.BrewfileEntry, apps bool) []huh.Option[string] {
+	return lo.Map(entries, func(e brew.BrewfileEntry, _ int) huh.Option[string] {
+		label := e.Name
+		if desc := toolDescs[e.Name]; desc != "" {
+			label += " — " + desc
 		}
-		desc += uikit.TUI.TextPink().Render("  " + e.Type)
-		return reccsItem{entry: e, desc: desc, installed: !missing[e.Name]}
+		// In the mixed catalog, tag the type so an app and a CLI tool are
+		// distinguishable at a glance. The apps view is all casks, so the tag
+		// would just be noise.
+		if !apps {
+			label += fmt.Sprintf("  (%s)", e.Type)
+		}
+		return huh.NewOption(label, e.Name)
 	})
-
-	installedCount := lo.CountBy(items, func(i reccsItem) bool { return i.installed })
-	title := fmt.Sprintf("Recommended tools — %d total, %d installed", len(items), installedCount)
-	hints := []key.Binding{
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "install")),
-		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
-	}
-	return reccsModel{
-		list:    uikit.NewListPicker(title, uikit.Items(items), hints...),
-		entries: entries,
-		chosen:  -1,
-	}
-}
-
-// Init implements tea.Model.
-func (m reccsModel) Init() tea.Cmd {
-	return nil
-}
-
-// Update implements tea.Model.
-func (m reccsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if m.list.IsFiltering() {
-			break
-		}
-		switch msg.String() {
-		case "q", "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-		case "enter":
-			item, ok := m.list.SelectedItem().(reccsItem)
-			if !ok {
-				return m, tea.Quit
-			}
-			if item.installed {
-				// Stay in the TUI; flash a transient status so the user can pick
-				// another row instead of getting kicked back to the shell.
-				m.list.StatusMessage(uikit.TUI.Warn().Render(
-					fmt.Sprintf("%s is already installed", item.entry.Name)))
-				return m, nil
-			}
-			_, idx, _ := lo.FindIndexOf(m.entries, func(e brew.BrewfileEntry) bool {
-				return e.Name == item.entry.Name
-			})
-			m.chosen = idx
-			return m, tea.Quit
-		}
-	case tea.WindowSizeMsg:
-		m.list.SetSize(msg.Width, msg.Height)
-		return m, nil
-	}
-
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	return m, cmd
-}
-
-// View implements tea.Model.
-func (m reccsModel) View() tea.View {
-	v := tea.NewView(m.list.View())
-	v.AltScreen = true
-	return v
 }

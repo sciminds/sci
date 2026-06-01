@@ -72,6 +72,33 @@ func TestSelect_QuietReturnsError(t *testing.T) {
 	}
 }
 
+func TestMultiSelect_QuietReturnsError(t *testing.T) {
+	SetQuiet(true)
+	defer SetQuiet(false)
+
+	opts := []huh.Option[string]{
+		huh.NewOption("A", "a"),
+		huh.NewOption("B", "b"),
+	}
+	got, err := MultiSelect("Pick some", "tick what you want", opts)
+	if !errors.Is(err, ErrFormQuiet) {
+		t.Errorf("MultiSelect in quiet mode should return ErrFormQuiet, got: %v", err)
+	}
+	if got != nil {
+		t.Errorf("MultiSelect in quiet mode should return nil selection, got: %v", got)
+	}
+}
+
+func TestMultiSelectHeight_CapsLongLists(t *testing.T) {
+	// Short lists size to content (+4 chrome); long lists cap at the ceiling.
+	if h := multiSelectHeight(3); h != 7 {
+		t.Errorf("multiSelectHeight(3) = %d, want 7 (3 + 4 chrome)", h)
+	}
+	if h := multiSelectHeight(50); h != 18 {
+		t.Errorf("multiSelectHeight(50) = %d, want 18 (capped)", h)
+	}
+}
+
 func TestErrFormAborted_MatchesHuh(t *testing.T) {
 	// ErrFormAborted should be the same sentinel as huh.ErrUserAborted
 	// so callers can use either for errors.Is checks.

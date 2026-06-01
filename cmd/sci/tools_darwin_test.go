@@ -46,3 +46,35 @@ func TestToolsListFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestToolsReccsAppsFlag(t *testing.T) {
+	root := buildRoot()
+	tools := findCmd(root.Commands, "tools")
+	reccs := findCmd(tools.Commands, "reccs")
+	if reccs == nil {
+		t.Fatal("tools reccs not found")
+	}
+	for _, name := range []string{"install", "all", "include", "exclude", "dry-run", "apps"} {
+		if !hasFlag(reccs, name) {
+			t.Errorf("tools reccs should have flag --%s", name)
+		}
+	}
+}
+
+func TestToolsAppsCommand(t *testing.T) {
+	root := buildRoot()
+	tools := findCmd(root.Commands, "tools")
+	apps := findCmd(tools.Commands, "apps")
+	if apps == nil {
+		t.Fatal("tools apps command not found")
+	}
+	for _, name := range []string{"install", "all", "include", "exclude", "dry-run"} {
+		if !hasFlag(apps, name) {
+			t.Errorf("tools apps should have flag --%s", name)
+		}
+	}
+	// `apps` is pre-scoped to casks, so a redundant --apps flag would be confusing.
+	if hasFlag(apps, "apps") {
+		t.Error("tools apps should not expose a redundant --apps flag")
+	}
+}
