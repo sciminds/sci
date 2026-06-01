@@ -8,9 +8,6 @@ import (
 	"github.com/sciminds/cli/internal/zot/openalex"
 )
 
-func sp(s string) *string { return &s }
-func ip(i int) *int       { return &i }
-
 func TestFindWorksResult_Empty(t *testing.T) {
 	t.Parallel()
 	r := FindWorksResult{Query: "transformers"}
@@ -28,9 +25,9 @@ func TestFindWorksResult_Human_lists(t *testing.T) {
 		Count: 1,
 		Works: []openalex.Work{{
 			ID:              "https://openalex.org/W2963403868",
-			Title:           sp("Attention Is All You Need"),
-			PublicationYear: ip(2017),
-			DOI:             sp("https://doi.org/10.5555/3295222.3295349"),
+			Title:           new("Attention Is All You Need"),
+			PublicationYear: new(2017),
+			DOI:             new("https://doi.org/10.5555/3295222.3295349"),
 			Authorships: []openalex.Authorship{
 				{Author: openalex.AuthorRef{DisplayName: "Ashish Vaswani"}},
 				{Author: openalex.AuthorRef{DisplayName: "Noam Shazeer"}},
@@ -84,10 +81,10 @@ func TestFindWorksResult_JSON_compactByDefault(t *testing.T) {
 		Count: 1,
 		Works: []openalex.Work{{
 			ID:              "https://openalex.org/W2963403868",
-			DOI:             sp("https://doi.org/10.1000/abc"),
-			Title:           sp("A Paper"),
-			PublicationYear: ip(2017),
-			Type:            sp("article"),
+			DOI:             new("https://doi.org/10.1000/abc"),
+			Title:           new("A Paper"),
+			PublicationYear: new(2017),
+			Type:            new("article"),
 			CitedByCount:    42,
 			IsOA:            true,
 			Authorships: []openalex.Authorship{
@@ -153,8 +150,8 @@ func TestFindWorksResult_LibraryHits(t *testing.T) {
 		Query: "x",
 		Count: 2,
 		Works: []openalex.Work{
-			{ID: "https://openalex.org/W1", DOI: sp("https://doi.org/10.1000/inlib"), Title: sp("Already in library")},
-			{ID: "https://openalex.org/W2", DOI: sp("https://doi.org/10.1000/elsewhere"), Title: sp("Not yet")},
+			{ID: "https://openalex.org/W1", DOI: new("https://doi.org/10.1000/inlib"), Title: new("Already in library")},
+			{ID: "https://openalex.org/W2", DOI: new("https://doi.org/10.1000/elsewhere"), Title: new("Not yet")},
 		},
 		LibraryHits: map[string]string{
 			"10.1000/inlib": "ZKEY1234",
@@ -189,7 +186,7 @@ func TestFindAuthorsResult_Human(t *testing.T) {
 		Authors: []openalex.Author{{
 			ID:           "https://openalex.org/A5061940714",
 			DisplayName:  "Ashish Vaswani",
-			ORCID:        sp("https://orcid.org/0000-0002-1234-5678"),
+			ORCID:        new("https://orcid.org/0000-0002-1234-5678"),
 			WorksCount:   42,
 			CitedByCount: 120000,
 		}},

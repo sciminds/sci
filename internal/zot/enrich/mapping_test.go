@@ -8,10 +8,6 @@ import (
 	"github.com/sciminds/cli/internal/zot/openalex"
 )
 
-// strPtr is a tiny helper to keep the table tests below readable.
-func strPtr(s string) *string { return &s }
-func intPtr(i int) *int       { return &i }
-
 func TestToItemFields_journalArticle(t *testing.T) {
 	t.Parallel()
 	doi := "https://doi.org/10.1038/nature12373"
@@ -31,7 +27,7 @@ func TestToItemFields_journalArticle(t *testing.T) {
 		Language:        &lang,
 		PrimaryLocation: &openalex.Location{
 			LandingPageURL: &landing,
-			Source:         &openalex.SourceRef{DisplayName: journal, Type: strPtr("journal")},
+			Source:         &openalex.SourceRef{DisplayName: journal, Type: new("journal")},
 		},
 		Authorships: []openalex.Authorship{
 			{Author: openalex.AuthorRef{DisplayName: "Alice Smith"}},
@@ -152,7 +148,7 @@ func TestToItemFields_sourceRoutingByType(t *testing.T) {
 				ID:   "https://openalex.org/W1",
 				Type: &typ,
 				PrimaryLocation: &openalex.Location{
-					Source: &openalex.SourceRef{DisplayName: tc.sourceDisplay, Type: strPtr("journal")},
+					Source: &openalex.SourceRef{DisplayName: tc.sourceDisplay, Type: new("journal")},
 				},
 			})
 			if got.ItemType != tc.wantItemType {
@@ -224,7 +220,7 @@ func TestToItemFields_yearOnlyDate(t *testing.T) {
 	// OpenAlex sometimes omits publication_date but keeps publication_year.
 	w := &openalex.Work{
 		ID:              "https://openalex.org/W1",
-		PublicationYear: intPtr(1871),
+		PublicationYear: new(1871),
 	}
 	got := ToItemFields(w)
 	if got.Date == nil || *got.Date != "1871" {

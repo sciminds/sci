@@ -51,7 +51,7 @@ func TestPlanFromMissing_fillsOnlyMissingFields(t *testing.T) {
 	oa := &fakeLookup{works: map[string]*openalex.Work{
 		"10.1/x": {
 			ID:    "https://openalex.org/W1",
-			Title: strPtr("OpenAlex Title"),
+			Title: new("OpenAlex Title"),
 			Authorships: []openalex.Authorship{
 				{Author: openalex.AuthorRef{DisplayName: "Alice Smith"}},
 			},
@@ -133,7 +133,7 @@ func TestPlanFromMissing_dedupesFindingsByItemKey(t *testing.T) {
 	oa := &lookupCountingStub{
 		count: &lookups,
 		inner: &fakeLookup{works: map[string]*openalex.Work{
-			"10.1/x": {ID: "https://openalex.org/W1", Title: strPtr("T"), PublicationDate: strPtr("2024-01-01")},
+			"10.1/x": {ID: "https://openalex.org/W1", Title: new("T"), PublicationDate: new("2024-01-01")},
 		}},
 	}
 	findings := []hygiene.Finding{

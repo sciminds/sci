@@ -171,8 +171,8 @@ func TestUpsertAssignments(t *testing.T) {
 	db := openTestDB(t)
 
 	assignments := []AssignmentRow{
-		{Slug: "lab-1", Title: "Lab 1", CanvasID: intPtr(101), PointsPossible: 20, Published: true},
-		{Slug: "lab-2", Title: "Lab 2", CanvasID: intPtr(102), PointsPossible: 25},
+		{Slug: "lab-1", Title: "Lab 1", CanvasID: new(101), PointsPossible: 20, Published: true},
+		{Slug: "lab-2", Title: "Lab 2", CanvasID: new(102), PointsPossible: 25},
 	}
 	if err := db.UpsertAssignments(assignments); err != nil {
 		t.Fatal(err)
@@ -400,5 +400,3 @@ func openTestDB(t *testing.T) *DB {
 	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
-
-func intPtr(v int) *int { return &v }

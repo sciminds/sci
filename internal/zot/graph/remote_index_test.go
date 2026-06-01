@@ -37,13 +37,11 @@ func stubAPIServer(t *testing.T, items []client.Item) *api.Client {
 	return c
 }
 
-func ptrStr(s string) *string { return &s }
-
 func TestRemoteIndex_BuildsDOIMapFromAPI(t *testing.T) {
 	t.Parallel()
 	items := []client.Item{
-		{Key: "AAA00001", Data: client.ItemData{ItemType: "preprint", DOI: ptrStr("10.1/Foo")}},
-		{Key: "BBB00002", Data: client.ItemData{ItemType: "journalArticle", DOI: ptrStr("10.2/bar")}},
+		{Key: "AAA00001", Data: client.ItemData{ItemType: "preprint", DOI: new("10.1/Foo")}},
+		{Key: "BBB00002", Data: client.ItemData{ItemType: "journalArticle", DOI: new("10.2/bar")}},
 		{Key: "CCC00003", Data: client.ItemData{ItemType: "preprint"}}, // no DOI
 	}
 	c := stubAPIServer(t, items)
@@ -74,7 +72,7 @@ func TestRemoteIndex_PrefetchOnce(t *testing.T) {
 			fetches++
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode([]client.Item{
-				{Key: "K1", Data: client.ItemData{ItemType: "preprint", DOI: ptrStr("10.1/foo")}},
+				{Key: "K1", Data: client.ItemData{ItemType: "preprint", DOI: new("10.1/foo")}},
 			})
 			return
 		}

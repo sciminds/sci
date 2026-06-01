@@ -43,8 +43,6 @@ func (l *fakeLookup) SearchWorks(_ context.Context, opts openalex.SearchOpts) (*
 	return &openalex.Results[openalex.Work]{Results: res}, nil
 }
 
-func strPtr(s string) *string { return &s }
-
 // --- tests ------------------------------------------------------------------
 
 func TestScan_ResolvesByDOIWhenPresent(t *testing.T) {
@@ -55,17 +53,17 @@ func TestScan_ResolvesByDOIWhenPresent(t *testing.T) {
 	oa := &fakeLookup{works: map[string]*openalex.Work{
 		"10.1/x": {
 			ID:          "https://openalex.org/W42",
-			DOI:         strPtr("https://doi.org/10.1/x"),
-			Title:       strPtr("A paper"),
+			DOI:         new("https://doi.org/10.1/x"),
+			Title:       new("A paper"),
 			IsOA:        true,
 			HasFulltext: true,
 			OpenAccess:  &openalex.OpenAccess{IsOA: true, OAStatus: "gold"},
 			BestOALocation: &openalex.Location{
-				PDFURL: strPtr("https://cdn.example.org/a.pdf"),
+				PDFURL: new("https://cdn.example.org/a.pdf"),
 				IsOA:   true,
 			},
 			PrimaryLocation: &openalex.Location{
-				LandingPageURL: strPtr("https://publisher.example.org/a"),
+				LandingPageURL: new("https://publisher.example.org/a"),
 			},
 		},
 	}}
@@ -110,10 +108,10 @@ func TestScan_FallsBackToTitleSearchWhenNoDOI(t *testing.T) {
 		"Attention is all you need": {
 			{
 				ID:    "https://openalex.org/W999",
-				DOI:   strPtr("https://doi.org/10.1/attn"),
-				Title: strPtr("Attention Is All You Need"),
+				DOI:   new("https://doi.org/10.1/attn"),
+				Title: new("Attention Is All You Need"),
 				BestOALocation: &openalex.Location{
-					PDFURL: strPtr("https://arxiv.org/pdf/1706.03762"),
+					PDFURL: new("https://arxiv.org/pdf/1706.03762"),
 				},
 			},
 		},
@@ -164,7 +162,7 @@ func TestScan_RecordsDOIErrorsAndContinues(t *testing.T) {
 	oa := &fakeLookup{
 		resolveErrs: map[string]error{"10.1/broken": errors.New("404")},
 		works: map[string]*openalex.Work{
-			"10.1/ok": {ID: "https://openalex.org/W1", Title: strPtr("Good")},
+			"10.1/ok": {ID: "https://openalex.org/W1", Title: new("Good")},
 		},
 	}
 	res, err := Scan(context.Background(), items, oa, ScanOptions{})
@@ -203,15 +201,15 @@ func TestScan_GathersFallbackURLsFromLocationsPreferringFriendlyHosts(t *testing
 		"10.1/x": {
 			ID: "https://openalex.org/W1",
 			BestOALocation: &openalex.Location{
-				PDFURL: strPtr("https://onlinelibrary.wiley.com/doi/pdf/10.1/x"),
+				PDFURL: new("https://onlinelibrary.wiley.com/doi/pdf/10.1/x"),
 			},
 			PrimaryLocation: &openalex.Location{
-				LandingPageURL: strPtr("https://onlinelibrary.wiley.com/doi/10.1/x"),
+				LandingPageURL: new("https://onlinelibrary.wiley.com/doi/10.1/x"),
 			},
 			Locations: []openalex.Location{
-				{PDFURL: strPtr("https://onlinelibrary.wiley.com/doi/pdf/10.1/x")},       // dup of best_oa
-				{PDFURL: strPtr("https://arxiv.org/pdf/2105.12345")},                     // friendly!
-				{PDFURL: strPtr("https://pmc.ncbi.nlm.nih.gov/articles/PMC12345/pdf/x")}, // friendly!
+				{PDFURL: new("https://onlinelibrary.wiley.com/doi/pdf/10.1/x")},       // dup of best_oa
+				{PDFURL: new("https://arxiv.org/pdf/2105.12345")},                     // friendly!
+				{PDFURL: new("https://pmc.ncbi.nlm.nih.gov/articles/PMC12345/pdf/x")}, // friendly!
 			},
 		},
 	}}
@@ -247,8 +245,8 @@ func TestScan_FallsBackToPrimaryLocationPDFURL(t *testing.T) {
 		"10.1/x": {
 			ID: "https://openalex.org/W1",
 			PrimaryLocation: &openalex.Location{
-				LandingPageURL: strPtr("https://publisher.example.org/a"),
-				PDFURL:         strPtr("https://publisher.example.org/a.pdf"),
+				LandingPageURL: new("https://publisher.example.org/a"),
+				PDFURL:         new("https://publisher.example.org/a.pdf"),
 			},
 		},
 	}}
@@ -309,7 +307,7 @@ func TestScan_UsesCacheOnHit(t *testing.T) {
 	t.Parallel()
 	items := []local.Item{{Key: "ABC", DOI: "10.1/x"}}
 	oa := &fakeLookup{works: map[string]*openalex.Work{
-		"10.1/x": {ID: "https://openalex.org/W42", Title: strPtr("From network")},
+		"10.1/x": {ID: "https://openalex.org/W42", Title: new("From network")},
 	}}
 	cache := &Cache{Dir: t.TempDir()}
 
@@ -419,9 +417,9 @@ func TestScan_NormalizedDOIRetryOn404(t *testing.T) {
 		works: map[string]*openalex.Work{
 			"10.3389/fnhum.2013.00015": {
 				ID:  "https://openalex.org/W42",
-				DOI: strPtr("https://doi.org/10.3389/fnhum.2013.00015"),
+				DOI: new("https://doi.org/10.3389/fnhum.2013.00015"),
 				BestOALocation: &openalex.Location{
-					PDFURL: strPtr("https://frontiersin.org/articles/15/pdf"),
+					PDFURL: new("https://frontiersin.org/articles/15/pdf"),
 				},
 			},
 		},

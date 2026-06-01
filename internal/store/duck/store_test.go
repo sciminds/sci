@@ -269,7 +269,7 @@ func TestUpdateCell(t *testing.T) {
 	}
 
 	// Carol's score (currently NULL) → 9.9.
-	if err := s.UpdateCell("people", "score", 3, nil, ptr("9.9")); err != nil {
+	if err := s.UpdateCell("people", "score", 3, nil, new("9.9")); err != nil {
 		t.Fatalf("UpdateCell score: %v", err)
 	}
 	// Bob's score → NULL.
@@ -301,7 +301,7 @@ func TestUpdateCellEscapesSingleQuote(t *testing.T) {
 		t.Fatalf("QueryTable: %v", err)
 	}
 	// "O'Brien" needs the embedded quote to round-trip safely.
-	if err := s.UpdateCell("people", "name", 1, nil, ptr("O'Brien")); err != nil {
+	if err := s.UpdateCell("people", "name", 1, nil, new("O'Brien")); err != nil {
 		t.Fatalf("UpdateCell with quote: %v", err)
 	}
 	_, rows, _, _, err := s.QueryTable("people")
@@ -420,7 +420,7 @@ func TestUpdateCellRejectsNoPKTable(t *testing.T) {
 		t.Fatalf("QueryTable: %v", err)
 	}
 	// extras has no PK → UpdateCell should refuse.
-	err = s.UpdateCell("extras", "v", 1, nil, ptr("42"))
+	err = s.UpdateCell("extras", "v", 1, nil, new("42"))
 	if err == nil {
 		t.Fatalf("expected error for no-PK table")
 	}
@@ -529,10 +529,6 @@ func TestImportFileDuckFormats(t *testing.T) {
 		})
 	}
 }
-
-// ptr is a one-line generic pointer helper used by the table-driven
-// mutation tests above.
-func ptr[T any](v T) *T { return &v }
 
 // writeTempFile writes contents to a fresh file under t.TempDir() with
 // the given extension and returns the absolute path.

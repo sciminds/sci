@@ -60,28 +60,26 @@ func newOpenAlex(t *testing.T, work *openalex.Work, list *openalex.Results[opena
 	return c
 }
 
-func ptr[T any](v T) *T { return &v }
-
 func TestRefs_SplitsLibraryAndOutside(t *testing.T) {
 	t.Parallel()
 	parent := &openalex.Work{
 		ID:              "https://openalex.org/W3105657479",
-		Title:           ptr("MuZero"),
+		Title:           new("MuZero"),
 		ReferencedWorks: []string{"https://openalex.org/W1", "https://openalex.org/W2"},
 	}
 	hydrated := &openalex.Results[openalex.Work]{Results: []openalex.Work{
 		{
 			ID:              "https://openalex.org/W1",
-			Title:           ptr("PlaNet"),
-			DOI:             ptr("https://doi.org/10.48550/arxiv.1811.04551"),
-			PublicationYear: ptr(2018),
+			Title:           new("PlaNet"),
+			DOI:             new("https://doi.org/10.48550/arxiv.1811.04551"),
+			PublicationYear: new(2018),
 			CitedByCount:    487,
 		},
 		{
 			ID:              "https://openalex.org/W2",
-			Title:           ptr("AlphaZero"),
-			DOI:             ptr("https://doi.org/10.1126/science.aar6404"),
-			PublicationYear: ptr(2017),
+			Title:           new("AlphaZero"),
+			DOI:             new("https://doi.org/10.1126/science.aar6404"),
+			PublicationYear: new(2017),
 			CitedByCount:    4231,
 		},
 	}}
@@ -130,7 +128,7 @@ func TestRefs_MissingDOIGoesToOutside(t *testing.T) {
 		ReferencedWorks: []string{"https://openalex.org/W9000002"},
 	}
 	hydrated := &openalex.Results[openalex.Work]{Results: []openalex.Work{
-		{ID: "https://openalex.org/W9000002", Title: ptr("DOI-less preprint")},
+		{ID: "https://openalex.org/W9000002", Title: new("DOI-less preprint")},
 	}}
 	oa := newOpenAlex(t, parent, hydrated)
 	db := &stubReader{dois: map[string]string{}}
@@ -174,8 +172,8 @@ func TestRefs_LimitTruncates_KeepsInLibraryFirst(t *testing.T) {
 		refs = append(refs, ref)
 		results = append(results, openalex.Work{
 			ID:    ref,
-			Title: ptr(fmt.Sprintf("Work %d", i)),
-			DOI:   ptr(fmt.Sprintf("10.1000/w%d", i)),
+			Title: new(fmt.Sprintf("Work %d", i)),
+			DOI:   new(fmt.Sprintf("10.1000/w%d", i)),
 		})
 	}
 	parent := &openalex.Work{ID: "https://openalex.org/W9000900", ReferencedWorks: refs}
@@ -213,7 +211,7 @@ func TestRefs_LimitZero_Unlimited(t *testing.T) {
 		ReferencedWorks: []string{"https://openalex.org/W1"},
 	}
 	hydrated := &openalex.Results[openalex.Work]{Results: []openalex.Work{
-		{ID: "https://openalex.org/W1", Title: ptr("Single")},
+		{ID: "https://openalex.org/W1", Title: new("Single")},
 	}}
 	oa := newOpenAlex(t, parent, hydrated)
 	db := &stubReader{}
@@ -230,7 +228,7 @@ func TestRefs_LimitZero_Unlimited(t *testing.T) {
 
 func TestRefs_DOIFallbackResolves(t *testing.T) {
 	t.Parallel()
-	parent := &openalex.Work{ID: "https://openalex.org/W9000003", Title: ptr("via DOI")}
+	parent := &openalex.Work{ID: "https://openalex.org/W9000003", Title: new("via DOI")}
 	oa := newOpenAlex(t, parent, &openalex.Results[openalex.Work]{})
 	db := &stubReader{}
 	item := &local.Item{Key: "X", DOI: "10.1000/anything"}
@@ -249,13 +247,13 @@ func TestCites_FiltersAndSplits(t *testing.T) {
 	citing := &openalex.Results[openalex.Work]{Results: []openalex.Work{
 		{
 			ID:           "https://openalex.org/W9000011",
-			Title:        ptr("Follow-up A"),
-			DOI:          ptr("10.1000/citerA"),
+			Title:        new("Follow-up A"),
+			DOI:          new("10.1000/citerA"),
 			CitedByCount: 100,
 		},
 		{
 			ID:           "https://openalex.org/W9000012",
-			Title:        ptr("Follow-up B"),
+			Title:        new("Follow-up B"),
 			CitedByCount: 50,
 		},
 	}}
@@ -291,8 +289,8 @@ func TestRefs_ExcludesSelf(t *testing.T) {
 		},
 	}
 	hydrated := &openalex.Results[openalex.Work]{Results: []openalex.Work{
-		{ID: "https://openalex.org/W4379279965", Title: ptr("Self-cite")},
-		{ID: "https://openalex.org/W2", Title: ptr("Real reference"), DOI: ptr("10.1/real")},
+		{ID: "https://openalex.org/W4379279965", Title: new("Self-cite")},
+		{ID: "https://openalex.org/W2", Title: new("Real reference"), DOI: new("10.1/real")},
 	}}
 	oa := newOpenAlex(t, parent, hydrated)
 	db := &stubReader{}
@@ -319,8 +317,8 @@ func TestCites_ExcludesSelf(t *testing.T) {
 	t.Parallel()
 	parent := &openalex.Work{ID: "https://openalex.org/W4379279965"}
 	citing := &openalex.Results[openalex.Work]{Results: []openalex.Work{
-		{ID: "https://openalex.org/W4379279965", Title: ptr("Self in cites")},
-		{ID: "https://openalex.org/WCITER", Title: ptr("Real citer"), DOI: ptr("10.1/citer")},
+		{ID: "https://openalex.org/W4379279965", Title: new("Self in cites")},
+		{ID: "https://openalex.org/WCITER", Title: new("Real citer"), DOI: new("10.1/citer")},
 	}}
 	oa := newOpenAlex(t, parent, citing)
 	db := &stubReader{}

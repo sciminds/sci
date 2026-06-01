@@ -7,8 +7,6 @@ import (
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
-func intPtr(i int) *int { return &i }
-
 func TestItemFromClient_MapsCoreFields(t *testing.T) {
 	t.Parallel()
 	dateAdded := time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC)
@@ -133,7 +131,7 @@ func TestItemFromClient_PopulatesNumChildren(t *testing.T) {
 		Key:     "WITHKIDS",
 		Version: 1,
 		Data:    client.ItemData{ItemType: "journalArticle", Title: &title},
-		Meta:    &client.Item_Meta{NumChildren: intPtr(2)},
+		Meta:    &client.Item_Meta{NumChildren: new(2)},
 	}
 	got := ItemFromClient(it)
 	if got.NumChildren != 2 {
@@ -171,7 +169,7 @@ func TestCollectionFromClient_MapsNameAndCount(t *testing.T) {
 			Name: "My Papers",
 		},
 		Meta: &client.Collection_Meta{
-			NumItems: intPtr(12),
+			NumItems: new(12),
 		},
 	}
 	got := CollectionFromClient(c)
