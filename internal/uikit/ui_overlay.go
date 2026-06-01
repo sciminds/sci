@@ -188,10 +188,7 @@ func overlayDims(rendered string, termW, termH int) (boxW, innerW, bodyH int) {
 	innerW = max(boxW-OverlayBoxPadding, 1)
 	maxBodyH := OverlayBodyHeight(termH, 0)
 	contentLines := strings.Count(rendered, "\n") + 1
-	bodyH = min(contentLines, maxBodyH)
-	if bodyH < OverlayMinH {
-		bodyH = OverlayMinH
-	}
+	bodyH = max(min(contentLines, maxBodyH), OverlayMinH)
 	return boxW, innerW, bodyH
 }
 
@@ -402,10 +399,7 @@ func CancelFaint(s string) string {
 // OverlayWidth computes the overlay content width given terminal width and
 // constraints. It applies [OverlayMargin] of margin, then clamps to [minW, maxW].
 func OverlayWidth(termW, minW, maxW int) int {
-	w := max(termW-OverlayMargin, minW)
-	if w > maxW {
-		w = maxW
-	}
+	w := min(max(termW-OverlayMargin, minW), maxW)
 	return w
 }
 

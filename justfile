@@ -171,6 +171,9 @@ modernize-any *ARGS:
 
 # Stage 2 — remaining safe modernizers: minmax, rangeint, slices/strings
 # helpers, forvar, waitgroup, … (excludes any, omitzero, and newexpr).
+# Re-run until `just modernize-diff` is empty: synergistic fixes (e.g. an
+# if-clamp left beside a fresh min() becomes a nested max(min(…))) surface
+# only on a second pass. Pass a single analyzer to scope, e.g. `-minmax`.
 modernize-safe *ARGS:
     go fix -any=false -omitzero=false -newexpr=false {{ARGS}} ./...
 

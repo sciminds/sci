@@ -241,10 +241,7 @@ func (m runnerModel) View() tea.View {
 func (m runnerModel) viewProgress(b *strings.Builder) {
 	// Progress bar
 	if m.total > 0 {
-		barWidth := max(m.width-12, 10)
-		if barWidth > 60 {
-			barWidth = 60
-		}
+		barWidth := min(max(m.width-12, 10), 60)
 		filled := min(barWidth*m.current/m.total, barWidth)
 		pct := 100 * m.current / m.total
 		b.WriteString("  ")

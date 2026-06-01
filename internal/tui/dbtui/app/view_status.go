@@ -20,10 +20,7 @@ func (m *Model) statusView() string {
 	navW := lipgloss.Width(m.styles.ModeNormal().Render("NAV"))
 	editW := lipgloss.Width(m.styles.ModeEdit().Render("EDIT"))
 	visW := lipgloss.Width(m.styles.ModeVisual().Render("VISUAL"))
-	badgeWidth := max(editW, navW)
-	if visW > badgeWidth {
-		badgeWidth = visW
-	}
+	badgeWidth := max(visW, max(editW, navW))
 	modeBadge := m.styles.ModeNormal().
 		Width(badgeWidth).
 		Align(lipgloss.Center).

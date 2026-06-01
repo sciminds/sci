@@ -227,12 +227,8 @@ func (m *model) renderDesc() string {
 	if m.group == nil || m.group.LongDesc == "" {
 		return ""
 	}
-	w := min(
-		// account for list padding
-		m.width-4, descMaxWidth)
-	if w < 20 {
-		w = 20
-	}
+	// account for list padding; clamp to [20, descMaxWidth]
+	w := max(min(m.width-4, descMaxWidth), 20)
 	body := uikit.TUI.TextMid().Width(w).Render(m.group.LongDesc)
 	// one blank line below the description to separate from items
 	return body + "\n"
