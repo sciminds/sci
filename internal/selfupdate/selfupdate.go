@@ -48,14 +48,16 @@ const (
 // cache layer (see internal/selfupdate/background.go). They are not set
 // by Check() itself — Check() is a pure network read.
 type CheckResult struct {
-	Available      bool      `json:"available"`
-	CurrentSHA     string    `json:"currentCommit"`
-	LatestSHA      string    `json:"latestCommit,omitempty"`
-	DownloadURL    string    `json:"downloadUrl,omitempty"`
-	ExpectedSHA256 string    `json:"expectedSha256,omitempty"`
-	Error          string    `json:"error,omitempty"`
-	LastCheckedAt  time.Time `json:"lastCheckedAt,omitempty"`
-	LastShownAt    time.Time `json:"lastShownAt,omitempty"`
+	Available      bool   `json:"available"`
+	CurrentSHA     string `json:"currentCommit"`
+	LatestSHA      string `json:"latestCommit,omitempty"`
+	DownloadURL    string `json:"downloadUrl,omitempty"`
+	ExpectedSHA256 string `json:"expectedSha256,omitempty"`
+	Error          string `json:"error,omitempty"`
+	// omitempty has no effect on time.Time (a struct is never "empty"), so
+	// these always serialize — a zero value means "never checked / shown".
+	LastCheckedAt time.Time `json:"lastCheckedAt"`
+	LastShownAt   time.Time `json:"lastShownAt"`
 }
 
 // releaseResponse is the subset of the GitHub release API we need.

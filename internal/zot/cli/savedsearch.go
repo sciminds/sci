@@ -305,18 +305,18 @@ func buildSavedSearchConditions(condFlags []string, fromJSON string, joinAny boo
 // colons (e.g. "isInTheLast:30 days" is fine; "title:contains:foo:bar" yields
 // value="foo:bar").
 func parseConditionSpec(s string) (client.SearchCondition, error) {
-	first := strings.IndexByte(s, ':')
-	if first < 0 {
+	// Split on the first two colons only; the value may itself contain colons
+	// (e.g. "fulltextContent:contains:see https://example.com").
+	field, rest, ok := strings.Cut(s, ":")
+	if !ok {
 		return client.SearchCondition{}, fmt.Errorf("--condition %q: expected 'field:operator:value'", s)
 	}
-	rest := s[first+1:]
-	second := strings.IndexByte(rest, ':')
-	if second < 0 {
+	operator, val, ok := strings.Cut(rest, ":")
+	if !ok {
 		return client.SearchCondition{}, fmt.Errorf("--condition %q: expected 'field:operator:value'", s)
 	}
-	cond := strings.TrimSpace(s[:first])
-	op := strings.TrimSpace(rest[:second])
-	val := rest[second+1:]
+	cond := strings.TrimSpace(field)
+	op := strings.TrimSpace(operator)
 	if cond == "" || op == "" {
 		return client.SearchCondition{}, fmt.Errorf("--condition %q: condition and operator must be non-empty", s)
 	}
