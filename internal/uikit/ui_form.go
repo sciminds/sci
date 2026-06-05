@@ -108,6 +108,17 @@ func HuhKeyMap() *huh.KeyMap {
 
 // ---------- convenience wrappers (Input, InputInto, Select) ----------
 
+// Option is a single Select/MultiSelect choice. It aliases huh.Option so
+// callers build option lists with uikit.NewOption and never import huh
+// directly — uikit owns all UI.
+type Option[T comparable] = huh.Option[T]
+
+// NewOption builds a Select/MultiSelect choice: label is shown to the user,
+// value is returned when the option is picked.
+func NewOption[T comparable](label string, value T) Option[T] {
+	return huh.NewOption(label, value)
+}
+
 // InputOption configures an Input or InputInto prompt.
 type InputOption func(*inputConfig)
 
@@ -122,9 +133,11 @@ func WithPlaceholder(s string) InputOption {
 	return func(c *inputConfig) { c.placeholder = s }
 }
 
-// WithEchoMode sets the echo mode (e.g. huh.EchoModePassword).
-func WithEchoMode(m huh.EchoMode) InputOption {
-	return func(c *inputConfig) { c.echoMode = m }
+// WithPassword masks the input (dots instead of characters), for secrets
+// like API tokens. Keeps huh's EchoMode an uikit-internal detail so callers
+// stay huh-free.
+func WithPassword() InputOption {
+	return func(c *inputConfig) { c.echoMode = huh.EchoModePassword }
 }
 
 // WithValidation attaches a validation function to the input.
@@ -176,7 +189,7 @@ func InputInto(dst *string, title, description string, opts ...InputOption) erro
 // Select prompts the user to pick one option from a list. Returns the zero
 // value and ErrFormAborted if the user cancels. Returns ErrFormQuiet in
 // quiet mode.
-func Select[T comparable](title string, options []huh.Option[T]) (T, error) {
+func Select[T comparable](title string, options []Option[T]) (T, error) {
 	var zero T
 	if IsQuiet() {
 		return zero, ErrFormQuiet
@@ -196,7 +209,7 @@ func Select[T comparable](title string, options []huh.Option[T]) (T, error) {
 // Returns nil and ErrFormAborted if the user cancels, or ErrFormQuiet in
 // quiet mode. The list is filterable and height-capped so a long catalog
 // scrolls within a fixed viewport instead of overflowing the screen.
-func MultiSelect[T comparable](title, description string, options []huh.Option[T]) ([]T, error) {
+func MultiSelect[T comparable](title, description string, options []Option[T]) ([]T, error) {
 	if IsQuiet() {
 		return nil, ErrFormQuiet
 	}

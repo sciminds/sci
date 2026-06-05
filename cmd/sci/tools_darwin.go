@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"charm.land/huh/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/cmdutil"
@@ -275,13 +274,13 @@ func detectPkgType(pkg string) (string, error) {
 // promptPkgType presents an interactive selector when a package is found
 // in multiple registries. The first match (highest priority) is pre-selected.
 func promptPkgType(pkg string, matches []brew.DetectedPackage) (string, error) {
-	options := make([]huh.Option[string], len(matches))
+	options := make([]uikit.Option[string], len(matches))
 	for i, m := range matches {
 		label := m.Type
 		if i == 0 {
 			label += " (recommended)"
 		}
-		options[i] = huh.NewOption(label, m.Type)
+		options[i] = uikit.NewOption(label, m.Type)
 	}
 
 	return uikit.Select(fmt.Sprintf("%q was found in multiple registries", pkg), options)

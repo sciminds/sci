@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 
-	"charm.land/huh/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/uikit"
 )
@@ -280,13 +279,13 @@ func RunMatch(db *DB, autoOnly bool) (*MatchResult, error) {
 			continue
 		}
 
-		// Build options for huh select.
-		options := make([]huh.Option[int], 0, len(candidates)+1)
+		// Build options for the select.
+		options := make([]uikit.Option[int], 0, len(candidates)+1)
 		for _, c := range candidates {
 			label := fmt.Sprintf("%s (%d%%)", c.Student.Name, c.Score)
-			options = append(options, huh.NewOption(label, c.Student.CanvasID))
+			options = append(options, uikit.NewOption(label, c.Student.CanvasID))
 		}
-		options = append(options, huh.NewOption("Skip", -1))
+		options = append(options, uikit.NewOption("Skip", -1))
 
 		choice, err := uikit.Select(fmt.Sprintf("Match GitHub user: %s", ghName), options)
 		if err != nil {

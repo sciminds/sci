@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 
-	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
@@ -48,11 +47,11 @@ var defaultIsInteractive = func() bool {
 }
 
 func uikitLibraryPrompter(opts []zot.LibraryScope) (zot.LibraryScope, error) {
-	huhOpts := make([]huh.Option[zot.LibraryScope], 0, len(opts))
+	uiOpts := make([]uikit.Option[zot.LibraryScope], 0, len(opts))
 	for _, s := range opts {
-		huhOpts = append(huhOpts, huh.NewOption(string(s), s))
+		uiOpts = append(uiOpts, uikit.NewOption(string(s), s))
 	}
-	return uikit.Select("Pick a Zotero library (no --library was passed)", huhOpts)
+	return uikit.Select("Pick a Zotero library (no --library was passed)", uiOpts)
 }
 
 // libraryHolder is the mutable scope state pinned to ctx by ResolveLibraryBefore.

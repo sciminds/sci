@@ -480,6 +480,32 @@ for f in $huh_files; do
 	fi
 done
 
+# ── Rule 15: huh imports only via the RunForm escape hatch ───────────────────
+# uikit owns all UI. A module may import charm.land/huh/v2 ONLY to hand a
+# *huh.Form to uikit.RunForm — the escape hatch for multi-field forms uikit has
+# no builder for yet. Single prompts must use uikit.Input/InputInto/Select/
+# MultiSelect, which expose uikit.Option/uikit.NewOption/uikit.WithPassword so
+# callers never name huh. Importing huh without calling RunForm is a UI leak.
+# Reuses huh_files + the exempt list from rule 14.
+for f in $huh_files; do
+	skip=false
+	for exempt in "${huh_raw_exempt[@]}"; do
+		if [[ "$f" == *"$exempt"* ]]; then
+			skip=true
+			break
+		fi
+	done
+	$skip && continue
+
+	if ! rg -q 'uikit\.RunForm' "$f" 2>/dev/null; then
+		echo "FAIL [huh-needs-runform] $f imports charm.land/huh/v2 but never calls uikit.RunForm"
+		echo "  Single prompts: use uikit.Input/InputInto/Select/MultiSelect (with"
+		echo "  uikit.Option/uikit.NewOption/uikit.WithPassword) and drop the huh import."
+		echo "  Multi-field forms: build a *huh.Form and run it via uikit.RunForm."
+		fail "huh-needs-runform"
+	fi
+done
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
 	echo ""

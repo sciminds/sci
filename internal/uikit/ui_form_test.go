@@ -106,3 +106,25 @@ func TestErrFormAborted_MatchesHuh(t *testing.T) {
 		t.Error("ErrFormAborted should match huh.ErrUserAborted")
 	}
 }
+
+func TestNewOption_SetsKeyAndValue(t *testing.T) {
+	// NewOption lets callers build Select/MultiSelect options without
+	// importing huh themselves (uikit owns all UI).
+	opt := NewOption("Label", 42)
+	if opt.Key != "Label" {
+		t.Errorf("NewOption key = %q, want %q", opt.Key, "Label")
+	}
+	if opt.Value != 42 {
+		t.Errorf("NewOption value = %d, want 42", opt.Value)
+	}
+}
+
+func TestWithPassword_SetsPasswordEcho(t *testing.T) {
+	// WithPassword is the huh-free way to mask an input — callers no longer
+	// reach for huh.EchoModePassword.
+	var cfg inputConfig
+	WithPassword()(&cfg)
+	if cfg.echoMode != huh.EchoModePassword {
+		t.Errorf("WithPassword echoMode = %v, want %v", cfg.echoMode, huh.EchoModePassword)
+	}
+}

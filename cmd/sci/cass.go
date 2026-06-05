@@ -101,7 +101,7 @@ func cassSetupCommand() *cli.Command {
 				if err := uikit.InputInto(&token,
 					"Canvas API token",
 					"Paste the token from Canvas → Account → Settings → Approved Integrations",
-					uikit.WithEchoMode(huh.EchoModePassword),
+					uikit.WithPassword(),
 					uikit.WithValidation(func(s string) error {
 						if len(s) < 10 {
 							return fmt.Errorf("token too short")

@@ -5,7 +5,6 @@ package doctor
 import (
 	"fmt"
 
-	"charm.land/huh/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/brew"
 	"github.com/sciminds/cli/internal/uikit"
@@ -107,8 +106,8 @@ func pickOptionalTools(entries []brew.BrewfileEntry, apps bool) ([]brew.Brewfile
 // description (and, in the mixed catalog view, the package type) so users can
 // recognize each tool without a separate detail pane. The option value is the
 // tool name, which maps back to a BrewfileEntry after selection.
-func optionalToolOptions(entries []brew.BrewfileEntry, apps bool) []huh.Option[string] {
-	return lo.Map(entries, func(e brew.BrewfileEntry, _ int) huh.Option[string] {
+func optionalToolOptions(entries []brew.BrewfileEntry, apps bool) []uikit.Option[string] {
+	return lo.Map(entries, func(e brew.BrewfileEntry, _ int) uikit.Option[string] {
 		label := e.Name
 		if desc := toolDescs[e.Name]; desc != "" {
 			label += " — " + desc
@@ -119,6 +118,6 @@ func optionalToolOptions(entries []brew.BrewfileEntry, apps bool) []huh.Option[s
 		if !apps {
 			label += fmt.Sprintf("  (%s)", e.Type)
 		}
-		return huh.NewOption(label, e.Name)
+		return uikit.NewOption(label, e.Name)
 	})
 }

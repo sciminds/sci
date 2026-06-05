@@ -180,7 +180,7 @@ commands:
       - id: match-github-user
         type: uikit.Select
         nth: 1
-        line: 291
+        line: 290
         description: "Manual roster match for ambiguous GitHub usernames"
         bypass: "--auto (forced on under --json)"
         status: covered
@@ -230,7 +230,7 @@ commands:
       - id: reccs-picker
         type: uikit.MultiSelect
         nth: 1
-        line: 94
+        line: 93
         description: "Interactive optional tools multi-select installer"
         bypass: "--install <name> | --all | --include | --exclude"
         status: covered
@@ -242,7 +242,7 @@ commands:
       - id: pkg-type-disambig
         type: uikit.Select
         nth: 1
-        line: 287
+        line: 286
         description: "Registry disambiguation when a package name resolves to >1 type"
         bypass: "--formula | --cask | --uv"
         status: covered
@@ -310,7 +310,7 @@ commands:
       - id: library-scope
         type: uikit.Select
         nth: 1
-        line: 55
+        line: 54
         description: "Personal/shared library picker when --library is unset"
         bypass: "--library personal|shared (errors under --json / non-TTY)"
         status: covered
