@@ -1,7 +1,15 @@
 # interactive-calls.yml — ast-grep rules for discovering interactive call sites.
 # Used by lint-guard rule 13 (scriptable-parity) to structurally find all
-# huh.New*, uikit.Run*, and tea.NewProgram calls. Each rule's id becomes the
-# "type" key matched against scriptable-inventory.yml entries.
+# huh.New*, uikit.Run*, uikit input/select wrappers, and tea.NewProgram calls.
+# Each rule's id becomes the "type" key matched against scriptable-inventory.yml
+# entries.
+#
+# uikit owns all UI, so modules import its wrappers (uikit.Input / InputInto /
+# Select / MultiSelect) instead of building huh prompts inline. The wrapper
+# builds the huh.New* prompt INSIDE the exempt internal/uikit/ package, so the
+# huh-New* rules below never see it — the uikit-* wrapper rules are what keep
+# those prompts on the parity radar. Track the wrapper boundary, not just the
+# raw primitive.
 #
 # The `kind: call_expression` + `regex` combo handles Go method chains:
 # huh.NewInput().Title("x").Value(&v) is nested call_expressions, and
@@ -48,6 +56,33 @@ language: go
 rule:
   kind: call_expression
   regex: '^uikit\.RunModel[\[\(]'
+---
+# uikit input/select wrappers — the "uikit owns all UI" boundary. The `^`
+# anchor keeps uikit.Input from matching uikit.InputInto, and uikit.Select
+# from matching uikit.MultiSelect (the longer name has a different prefix).
+id: uikit-Input
+language: go
+rule:
+  kind: call_expression
+  regex: '^uikit\.Input\('
+---
+id: uikit-InputInto
+language: go
+rule:
+  kind: call_expression
+  regex: '^uikit\.InputInto\('
+---
+id: uikit-Select
+language: go
+rule:
+  kind: call_expression
+  regex: '^uikit\.Select[\[\(]'
+---
+id: uikit-MultiSelect
+language: go
+rule:
+  kind: call_expression
+  regex: '^uikit\.MultiSelect[\[\(]'
 ---
 id: tea-NewProgram
 language: go

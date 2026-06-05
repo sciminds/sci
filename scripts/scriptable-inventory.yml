@@ -161,6 +161,30 @@ commands:
         bypass: "--classroom-url"
         status: covered
 
+  # ── cass setup ─────────────────────────────────────────────────────────────
+  cass-setup:
+    file: cmd/sci/cass.go
+    prompts:
+      - id: canvas-token
+        type: uikit.InputInto
+        nth: 1
+        line: 101
+        description: "Canvas API token (password echo)"
+        bypass: "--token (required in --json mode)"
+        status: covered
+
+  # ── cass match ─────────────────────────────────────────────────────────────
+  cass-match:
+    file: internal/cass/match.go
+    prompts:
+      - id: match-github-user
+        type: uikit.Select
+        nth: 1
+        line: 291
+        description: "Manual roster match for ambiguous GitHub usernames"
+        bypass: "--auto (forced on under --json)"
+        status: covered
+
   # ── cloud browse (exempt) ──────────────────────────────────────────────────
   cloud-browse:
     file: internal/tui/cloudbrowse/cloudbrowse.go
@@ -198,15 +222,41 @@ commands:
         status: covered
 
   # ── tools reccs ────────────────────────────────────────────────────────────
+  # Refactored from a custom uikit.RunModel TUI in setup.go to a uikit.MultiSelect
+  # wrapper in reccs_tui.go — the parity radar follows the wrapper boundary.
   tools-reccs:
-    file: internal/doctor/setup.go
+    file: internal/doctor/reccs_tui.go
     prompts:
-      - id: reccs-tui
-        type: uikit.RunModel
+      - id: reccs-picker
+        type: uikit.MultiSelect
         nth: 1
-        line: 151
-        description: "Interactive optional tools installer"
-        bypass: "--install <name>"
+        line: 94
+        description: "Interactive optional tools multi-select installer"
+        bypass: "--install <name> | --all | --include | --exclude"
+        status: covered
+
+  # ── tools install ──────────────────────────────────────────────────────────
+  tools-install:
+    file: cmd/sci/tools_darwin.go
+    prompts:
+      - id: pkg-type-disambig
+        type: uikit.Select
+        nth: 1
+        line: 287
+        description: "Registry disambiguation when a package name resolves to >1 type"
+        bypass: "--formula | --cask | --uv"
+        status: covered
+
+  # ── lab setup ──────────────────────────────────────────────────────────────
+  lab-setup:
+    file: cmd/sci/lab.go
+    prompts:
+      - id: ssh-username
+        type: uikit.InputInto
+        nth: 1
+        line: 82
+        description: "SSH username for lab storage access"
+        bypass: "--user/-u (required in --json mode)"
         status: covered
 
   # ── zot setup ──────────────────────────────────────────────────────────────
@@ -251,6 +301,18 @@ commands:
         line: 139
         description: "OpenAlex premium API key (optional)"
         bypass: "--openalex-api"
+        status: covered
+
+  # ── zot library scope ──────────────────────────────────────────────────────
+  zot-library:
+    file: internal/zot/cli/library_resolve.go
+    prompts:
+      - id: library-scope
+        type: uikit.Select
+        nth: 1
+        line: 55
+        description: "Personal/shared library picker when --library is unset"
+        bypass: "--library personal|shared (errors under --json / non-TTY)"
         status: covered
 
   # ── help (exempt) ──────────────────────────────────────────────────────────
