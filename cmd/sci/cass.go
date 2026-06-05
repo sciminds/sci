@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/huh/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cass"
 	"github.com/sciminds/cli/internal/cmdutil"
@@ -176,27 +175,23 @@ func cassInitCommand() *cli.Command {
 				}
 			} else if canvasURL == "" {
 				// Interactive mode — prompt for URLs.
-				if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
-					huh.NewInput().
-						Title("Canvas course URL").
-						Description("Paste the full URL from your browser (e.g. https://canvas.ucsd.edu/courses/12345)").
-						Value(&canvasURL).
-						Validate(func(s string) error {
+				if err := uikit.NewForm(uikit.FormGroup(
+					uikit.FormInput(&canvasURL, "Canvas course URL",
+						uikit.WithDescription("Paste the full URL from your browser (e.g. https://canvas.ucsd.edu/courses/12345)"),
+						uikit.WithValidation(func(s string) error {
 							_, _, err := cass.ParseCanvasURL(s)
 							return err
-						}),
-					huh.NewInput().
-						Title("GitHub Classroom URL (optional)").
-						Description("Leave blank for Canvas-only courses").
-						Value(&classroomURL).
-						Validate(func(s string) error {
+						})),
+					uikit.FormInput(&classroomURL, "GitHub Classroom URL (optional)",
+						uikit.WithDescription("Leave blank for Canvas-only courses"),
+						uikit.WithValidation(func(s string) error {
 							if s == "" {
 								return nil
 							}
 							_, err := cass.ParseClassroomURL(s)
 							return err
-						}),
-				))); err != nil {
+						})),
+				)).Run(); err != nil {
 					return err
 				}
 			}

@@ -1,16 +1,16 @@
 package new
 
-// wizard.go — interactive TUI form for populating [CreateOptions] via huh.
+// wizard.go — interactive TUI form for populating [CreateOptions] via the
+// uikit multi-field form builder.
 
 import (
 	"errors"
 	"strings"
 
-	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
-// RunWizard runs an interactive huh form to populate CreateOptions.
+// RunWizard runs an interactive form to populate CreateOptions.
 // Fields already set (e.g. from flags) are shown as pre-filled defaults.
 // Selecting "writing" hides the package manager / doc system questions.
 func RunWizard(opts *CreateOptions) error {
@@ -58,97 +58,67 @@ func RunWizard(opts *CreateOptions) error {
 		return opts.Kind != "python" || opts.DocSystem != "myst"
 	}
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Project name").
-				Description("Lowercase, no spaces — becomes the directory name.").
-				Placeholder("my-project").
-				Value(&opts.Name).
-				Validate(validateName),
-
-			huh.NewSelect[string]().
-				Title("Project kind").
-				Description("Python = data analysis (uv/pixi) with optional MyST/Quarto docs. Writing = pure manuscript (MyST → Typst → PDF).").
-				Options(
-					huh.NewOption("Python   (data analysis + writing)", "python"),
-					huh.NewOption("Writing  (MyST → Typst PDF only)", "writing"),
-				).
-				Value(&opts.Kind),
+	form := uikit.NewForm(
+		uikit.FormGroup(
+			uikit.FormInput(&opts.Name, "Project name",
+				uikit.WithDescription("Lowercase, no spaces — becomes the directory name."),
+				uikit.WithPlaceholder("my-project"),
+				uikit.WithValidation(validateName)),
+			uikit.FormSelect(&opts.Kind, "Project kind",
+				[]uikit.Option[string]{
+					uikit.NewOption("Python   (data analysis + writing)", "python"),
+					uikit.NewOption("Writing  (MyST → Typst PDF only)", "writing"),
+				},
+				uikit.WithDescription("Python = data analysis (uv/pixi) with optional MyST/Quarto docs. Writing = pure manuscript (MyST → Typst → PDF).")),
 		),
-
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Package manager").
-				Options(
-					huh.NewOption("uv     (pure Python, recommended)", "uv"),
-					huh.NewOption("pixi   (conda, good for multi-language e.g. R & Python)", "pixi"),
-				).
-				Value(&opts.PkgManager),
-
-			huh.NewSelect[string]().
-				Title("Authoring system").
-				Description("MyST uses .md notebooks. Quarto uses .qmd notebooks.").
-				Options(
-					huh.NewOption("MyST     (.md notebooks, recommended)", "myst"),
-					huh.NewOption("Quarto   (.qmd notebooks)", "quarto"),
-					huh.NewOption("None", "none"),
-				).
-				Value(&opts.DocSystem),
-		).WithHideFunc(pythonOnly),
-
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Manuscript layout").
-				Description("Single-file = abstract/keypoints/etc. inline in main.md frontmatter. Composed = separate sections/ files.").
-				Options(
-					huh.NewOption("single-file (recommended for solo authoring)", "single-file"),
-					huh.NewOption("composed    (separate sections/ files)", "composed"),
-				).
-				Value(&opts.MdLayout),
-
-			huh.NewSelect[string]().
-				Title("Typst template").
-				Description("`lab` ships a local, editable copy of the sci-preprint template under _templates/paper/. `default` and any other name use a MyST-hosted template.").
-				Options(
-					huh.NewOption("lab     (local, editable)", "lab"),
-					huh.NewOption("default (MyST built-in default)", "default"),
-					huh.NewOption("other   (any MyST template name)", "custom"),
-				).
-				Value(&templateChoice),
-		).WithHideFunc(noManuscript),
-
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Template name").
-				Description("Any MyST-resolvable template, e.g. lapreprint-typst, arxiv-two-column.").
-				Placeholder("lapreprint-typst").
-				Value(&templateCustom).
-				Validate(validateTemplateName),
-		).WithHideFunc(func() bool {
+		uikit.FormGroup(
+			uikit.FormSelect(&opts.PkgManager, "Package manager",
+				[]uikit.Option[string]{
+					uikit.NewOption("uv     (pure Python, recommended)", "uv"),
+					uikit.NewOption("pixi   (conda, good for multi-language e.g. R & Python)", "pixi"),
+				}),
+			uikit.FormSelect(&opts.DocSystem, "Authoring system",
+				[]uikit.Option[string]{
+					uikit.NewOption("MyST     (.md notebooks, recommended)", "myst"),
+					uikit.NewOption("Quarto   (.qmd notebooks)", "quarto"),
+					uikit.NewOption("None", "none"),
+				},
+				uikit.WithDescription("MyST uses .md notebooks. Quarto uses .qmd notebooks.")),
+		).HideWhen(pythonOnly),
+		uikit.FormGroup(
+			uikit.FormSelect(&opts.MdLayout, "Manuscript layout",
+				[]uikit.Option[string]{
+					uikit.NewOption("single-file (recommended for solo authoring)", "single-file"),
+					uikit.NewOption("composed    (separate sections/ files)", "composed"),
+				},
+				uikit.WithDescription("Single-file = abstract/keypoints/etc. inline in main.md frontmatter. Composed = separate sections/ files.")),
+			uikit.FormSelect(&templateChoice, "Typst template",
+				[]uikit.Option[string]{
+					uikit.NewOption("lab     (local, editable)", "lab"),
+					uikit.NewOption("default (MyST built-in default)", "default"),
+					uikit.NewOption("other   (any MyST template name)", "custom"),
+				},
+				uikit.WithDescription("`lab` ships a local, editable copy of the sci-preprint template under _templates/paper/. `default` and any other name use a MyST-hosted template.")),
+		).HideWhen(noManuscript),
+		uikit.FormGroup(
+			uikit.FormInput(&templateCustom, "Template name",
+				uikit.WithDescription("Any MyST-resolvable template, e.g. lapreprint-typst, arxiv-two-column."),
+				uikit.WithPlaceholder("lapreprint-typst"),
+				uikit.WithValidation(validateTemplateName)),
+		).HideWhen(func() bool {
 			return noManuscript() || templateChoice != "custom"
 		}),
-
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Author name").
-				Placeholder("Your Name").
-				Value(&opts.AuthorName),
-
-			huh.NewInput().
-				Title("Author email").
-				Placeholder("you@example.com").
-				Value(&opts.AuthorEmail),
-
-			huh.NewInput().
-				Title("Description").
-				Description("Optional one-line project description.").
-				Placeholder("").
-				Value(&opts.Description),
+		uikit.FormGroup(
+			uikit.FormInput(&opts.AuthorName, "Author name",
+				uikit.WithPlaceholder("Your Name")),
+			uikit.FormInput(&opts.AuthorEmail, "Author email",
+				uikit.WithPlaceholder("you@example.com")),
+			uikit.FormInput(&opts.Description, "Description",
+				uikit.WithDescription("Optional one-line project description.")),
 		),
 	)
 
-	if err := uikit.RunForm(form); err != nil {
+	if err := form.Run(); err != nil {
 		return err
 	}
 

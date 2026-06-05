@@ -84,6 +84,22 @@ rule:
   kind: call_expression
   regex: '^uikit\.MultiSelect[\[\(]'
 ---
+# uikit multi-field form-builder fields — the "uikit owns all UI" boundary for
+# forms with several fields on one screen (NewForm/FormGroup/FormInput/
+# FormSelect). Each field constructor is tracked individually so per-field
+# parity (one --flag bypass per prompt) survives the migration off raw huh.
+id: uikit-FormInput
+language: go
+rule:
+  kind: call_expression
+  regex: '^uikit\.FormInput\('
+---
+id: uikit-FormSelect
+language: go
+rule:
+  kind: call_expression
+  regex: '^uikit\.FormSelect[\[\(]'
+---
 id: tea-NewProgram
 language: go
 rule:

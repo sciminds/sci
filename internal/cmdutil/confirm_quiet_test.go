@@ -1,15 +1,15 @@
 package cmdutil
 
-// Confirm, ConfirmYes, and ConfirmOrSkip use huh.NewConfirm() for interactive
-// prompts. This replaced the previous raw bufio.ReadString(os.Stdin) approach
-// because bubbletea programs (spinners, progress bars) leave DECRQM terminal
-// responses (modes 2026/2027) in the stdin buffer after exiting
+// Confirm, ConfirmYes, and ConfirmOrSkip render via uikit.Confirm for
+// interactive prompts. This replaced the previous raw bufio.ReadString(os.Stdin)
+// approach because bubbletea programs (spinners, progress bars) leave DECRQM
+// terminal responses (modes 2026/2027) in the stdin buffer after exiting
 // (charmbracelet/bubbletea#1590). Raw reads would pick up those escape
 // sequences, making it impossible to type "y" — the answer would contain
 // garbage like ^[[?2026;2$y prepended to the user's input.
 //
-// huh internally runs its own bubbletea program with proper raw-mode terminal
-// handling, so it's immune to stale stdin bytes.
+// uikit's huh-backed prompt runs its own bubbletea program with proper raw-mode
+// terminal handling, so it's immune to stale stdin bytes.
 //
 // Interactive huh forms can't be tested without a TTY, so these tests cover
 // the quiet-mode (--json) auto-confirm path and the skip=true bypass.

@@ -63,9 +63,20 @@
 //
 // # Forms (ui_form.go)
 //
-//   - [RunForm] — run a huh form with project theme, keymap, and stdin drain.
+// uikit owns huh; no other package imports it. Single prompts:
+//
 //   - [Input] / [InputInto] — single text input prompt.
-//   - [Select] — single select prompt.
+//   - [Select] / [MultiSelect] — single / multi choice prompt.
+//   - [Confirm] — yes/no prompt (most callers want cmdutil.Confirm).
+//
+// Multi-field forms (several fields on one screen, optionally conditional):
+//
+//   - [NewForm] / [FormGroup] / [FormInput] / [FormSelect] — build a form;
+//     run it with [Form.Run]. [Group.HideWhen] drives conditional groups.
+//
+// Field options ([WithDescription] / [WithPlaceholder] / [WithPassword] /
+// [WithValidation]) configure both the single-prompt and form-builder inputs.
+//
 //   - [HuhTheme] / [HuhKeyMap] — project theming for huh forms.
 //   - [ErrFormQuiet] — returned when a form needs input but quiet mode is active.
 //   - [ErrFormAborted] — re-export of huh.ErrUserAborted for callers.

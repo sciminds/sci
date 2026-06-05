@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 
-	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
@@ -38,20 +37,7 @@ func Confirm(msg string) error {
 	if handled, err := assumeAnswer(); handled {
 		return err
 	}
-	confirmed := false
-	if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().
-			Title(msg).
-			Affirmative("Yes").
-			Negative("No").
-			Value(&confirmed),
-	))); err != nil {
-		return err
-	}
-	if !confirmed {
-		return ErrCancelled
-	}
-	return nil
+	return runConfirm(msg, "Yes", "No", false)
 }
 
 // ConfirmYes prompts with a default-yes. Empty input or "y"/"yes"
@@ -64,20 +50,7 @@ func ConfirmYes(msg string) error {
 	if handled, err := assumeAnswer(); handled {
 		return err
 	}
-	confirmed := true
-	if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().
-			Title(msg).
-			Affirmative("Yes").
-			Negative("No").
-			Value(&confirmed),
-	))); err != nil {
-		return err
-	}
-	if !confirmed {
-		return ErrCancelled
-	}
-	return nil
+	return runConfirm(msg, "Yes", "No", true)
 }
 
 // ConfirmRequired prompts with an emphasized "Yes (required)" affirmative
@@ -90,14 +63,15 @@ func ConfirmRequired(msg string) error {
 	if handled, err := assumeAnswer(); handled {
 		return err
 	}
-	confirmed := true
-	if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().
-			Title(msg).
-			Affirmative("Yes (required)").
-			Negative("No").
-			Value(&confirmed),
-	))); err != nil {
+	return runConfirm(msg, "Yes (required)", "No", true)
+}
+
+// runConfirm renders the yes/no prompt via uikit (uikit owns huh) and maps a
+// "No" answer to ErrCancelled. Quiet-mode and SCI_ASSUME short-circuits are
+// handled by the callers before they reach here.
+func runConfirm(msg, affirmative, negative string, defaultYes bool) error {
+	confirmed, err := uikit.Confirm(msg, affirmative, negative, defaultYes)
+	if err != nil {
 		return err
 	}
 	if !confirmed {

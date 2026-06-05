@@ -159,15 +159,25 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 
 | Symbol | Kind | Description |
 |---|---|---|
+| `Field` | type | Field is one prompt inside a multi-field [Form]. Build it with FormInput or |
+| `Form` | type | Form is a multi-field, optionally multi-screen prompt — the sanctioned |
+| `Group` | type | Group is one screen of a [Form] — a set of fields shown together. Build it |
+| `Option` | type | Option is a single Select/MultiSelect choice. It aliases huh.Option so |
 | `InputOption` | func type | InputOption configures an Input or InputInto prompt. |
+| `Confirm` | func | Confirm renders a yes/no prompt and reports the user's choice. defaultYes |
+| `FormGroup` | func | FormGroup bundles fields onto a single form screen. |
+| `FormInput` | func | FormInput is the multi-field-form counterpart of InputInto: a single-line |
+| `FormSelect` | func | FormSelect is the multi-field-form counterpart of Select: a single-choice |
 | `HuhKeyMap` | func | HuhKeyMap returns a huh.KeyMap with esc and q added to the Quit binding |
 | `HuhTheme` | func | HuhTheme returns a huh.ThemeFunc built from the project's Wong |
 | `Input` | func | Input prompts for a single text value. Returns ("", ErrFormAborted) if |
 | `InputInto` | func | InputInto prompts for a single text value, writing the result into *dst. |
 | `MultiSelect` | func | MultiSelect prompts the user to tick zero or more options from a list |
-| `RunForm` | func | RunForm applies the project theme and keymap, runs the form, and drains |
+| `NewForm` | func | NewForm assembles groups into a runnable form. Each group is one screen, |
+| `NewOption` | func | NewOption builds a Select/MultiSelect choice: label is shown to the user, |
 | `Select` | func | Select prompts the user to pick one option from a list. Returns the zero |
-| `WithEchoMode` | func | WithEchoMode sets the echo mode (e.g. huh.EchoModePassword). |
+| `WithDescription` | func | WithDescription sets the dimmed help line shown under a field's title. Input |
+| `WithPassword` | func | WithPassword masks the input (dots instead of characters), for secrets |
 | `WithPlaceholder` | func | WithPlaceholder sets greyed-out placeholder text inside the input. |
 | `WithValidation` | func | WithValidation attaches a validation function to the input. |
 | `ErrFormAborted` | var | ErrFormAborted is re-exported from huh so callers can check for user |

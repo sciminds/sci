@@ -1,8 +1,10 @@
 # scriptable-inventory.yml — Interactive ↔ Non-interactive parity tracker
 #
-# Every huh.New* prompt and tea.NewProgram/uikit.Run TUI launch (outside exempt
-# paths) must have an entry here. lint-guard rule 13 fails the build when an
-# unregistered call site appears.
+# Every interactive prompt — uikit input/select/form-builder wrappers and
+# tea.NewProgram/uikit.Run TUI launches (outside exempt paths) — must have an
+# entry here. lint-guard rule 13 fails the build when an unregistered call site
+# appears. (huh.New* prompts only exist inside the exempt internal/uikit/
+# package now; callers use the uikit.* wrappers tracked below.)
 #
 # Matching uses file + type + nth (the Nth occurrence of that call type in the
 # file, ordered by source line). Line numbers are kept as documentation but are
@@ -30,17 +32,17 @@ commands:
     file: cmd/sci/doctor.go
     prompts:
       - id: git-name
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 1
-        line: 358
+        line: 149
         description: "Git user.name"
         bypass: "--git-name"
         status: covered
 
       - id: git-email
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 2
-        line: 364
+        line: 153
         description: "Git user.email"
         bypass: "--git-email"
         status: covered
@@ -50,81 +52,81 @@ commands:
     file: internal/proj/new/wizard.go
     prompts:
       - id: project-name
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 1
-        line: 41
+        line: 63
         description: "Project name"
         bypass: "positional arg [name]"
         status: covered
 
       - id: kind
-        type: huh.NewSelect
+        type: uikit.FormSelect
         nth: 1
-        line: 48
+        line: 67
         description: "Project kind (python/writing)"
         bypass: "--kind"
         status: covered
 
       - id: pkg-manager
-        type: huh.NewSelect
+        type: uikit.FormSelect
         nth: 2
-        line: 59
+        line: 75
         description: "Package manager (pixi/uv)"
         bypass: "--pkg-manager"
         status: covered
 
       - id: doc-system
-        type: huh.NewSelect
+        type: uikit.FormSelect
         nth: 3
-        line: 89
+        line: 80
         description: "Authoring system (quarto/myst/none)"
         bypass: "--doc-system"
         status: covered
 
       - id: md-layout
-        type: huh.NewSelect
+        type: uikit.FormSelect
         nth: 4
-        line: 101
+        line: 89
         description: "Manuscript layout (single-file/composed)"
         bypass: "--md-layout"
         status: covered
 
       - id: template
-        type: huh.NewSelect
+        type: uikit.FormSelect
         nth: 5
-        line: 110
+        line: 95
         description: "Typst template (lab/default/custom)"
         bypass: "--template"
         status: covered
 
       - id: template-name
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 2
-        line: 122
+        line: 104
         description: "Custom Typst template name"
         bypass: "--template <name>"
         status: covered
 
       - id: author-name
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 3
-        line: 133
+        line: 112
         description: "Author name"
         bypass: "--author"
         status: covered
 
       - id: author-email
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 4
-        line: 138
+        line: 114
         description: "Author email"
         bypass: "--email"
         status: covered
 
       - id: description
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 5
-        line: 143
+        line: 116
         description: "Project description"
         bypass: "--description"
         status: covered
@@ -146,17 +148,17 @@ commands:
     file: cmd/sci/cass.go
     prompts:
       - id: canvas-url
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 1
-        line: 180
+        line: 179
         description: "Canvas course URL"
         bypass: "--canvas-url"
         status: covered
 
       - id: classroom-url
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 2
-        line: 188
+        line: 185
         description: "GitHub Classroom URL"
         bypass: "--classroom-url"
         status: covered
@@ -264,41 +266,41 @@ commands:
     file: internal/zot/cli/setup.go
     prompts:
       - id: api-key
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 1
-        line: 102
+        line: 127
         description: "Zotero API key"
         bypass: "--api"
         status: covered
 
       - id: user-id
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 2
-        line: 107
+        line: 130
         description: "Zotero user ID"
         bypass: "--user-id"
         status: covered
 
       - id: data-dir
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 3
-        line: 112
+        line: 133
         description: "Zotero data directory"
         bypass: "--data-dir"
         status: covered
 
       - id: openalex-email
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 4
-        line: 135
+        line: 136
         description: "OpenAlex polite-pool email (optional)"
         bypass: "--openalex-email"
         status: covered
 
       - id: openalex-api-key
-        type: huh.NewInput
+        type: uikit.FormInput
         nth: 5
-        line: 139
+        line: 138
         description: "OpenAlex premium API key (optional)"
         bypass: "--openalex-api"
         status: covered

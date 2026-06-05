@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/doctor"
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
@@ -145,21 +144,17 @@ func promptGitIdentity(result doctor.DocResult) error {
 	fmt.Fprintf(os.Stderr, "\n")
 
 	var name, email string
-	var fields []huh.Field
+	var fields []uikit.Field
 	if needName {
-		fields = append(fields, huh.NewInput().
-			Title("Git user.name").
-			Description("Used in your git commits (e.g. Jane Doe)").
-			Value(&name))
+		fields = append(fields, uikit.FormInput(&name, "Git user.name",
+			uikit.WithDescription("Used in your git commits (e.g. Jane Doe)")))
 	}
 	if needEmail {
-		fields = append(fields, huh.NewInput().
-			Title("Git user.email").
-			Description("Used in your git commits (e.g. jane@example.com)").
-			Value(&email))
+		fields = append(fields, uikit.FormInput(&email, "Git user.email",
+			uikit.WithDescription("Used in your git commits (e.g. jane@example.com)")))
 	}
 
-	if err := uikit.RunForm(huh.NewForm(huh.NewGroup(fields...))); err != nil {
+	if err := uikit.NewForm(uikit.FormGroup(fields...)).Run(); err != nil {
 		return err
 	}
 

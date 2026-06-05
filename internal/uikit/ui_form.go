@@ -1,9 +1,15 @@
 package uikit
 
 // ui_form.go — huh form helpers: themed execution with automatic stdin drain.
-// All huh form execution should go through RunForm (or the convenience
-// wrappers Input, InputInto, Select) so callers never need to remember
-// theme, keymap, or drain boilerplate.
+//
+// uikit owns huh entirely; no other package imports it. Callers reach for:
+//   - single prompts: Input / InputInto / Select / MultiSelect
+//   - multi-field forms: NewForm / FormGroup / FormInput / FormSelect, run via
+//     Form.Run (the builder for several fields on one screen, with optional
+//     conditional groups)
+//   - yes/no confirmations: Confirm
+// Every path funnels through runHuhForm so theme, keymap, and stdin drain are
+// applied in exactly one place.
 
 import (
 	"errors"
@@ -12,6 +18,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/samber/lo"
 )
 
 // ErrFormQuiet is returned when a form would need interactive input but
@@ -23,12 +30,14 @@ var ErrFormQuiet = errors.New("interactive form required but quiet mode is activ
 // cancellation without importing huh directly.
 var ErrFormAborted = huh.ErrUserAborted
 
-// RunForm applies the project theme and keymap, runs the form, and drains
+// runHuhForm applies the project theme and keymap, runs the form, and drains
 // stdin afterward to absorb stale DECRQM terminal responses. This is the
-// single entry point for all huh form execution.
+// single, uikit-internal entry point for all huh form execution — every public
+// helper (Input, Select, MultiSelect, Form.Run, Confirm) routes through it so
+// callers never name huh.
 //
 // Returns ErrFormQuiet if quiet mode is active.
-func RunForm(f *huh.Form) error {
+func runHuhForm(f *huh.Form) error {
 	if IsQuiet() {
 		return ErrFormQuiet
 	}
@@ -123,9 +132,17 @@ func NewOption[T comparable](label string, value T) Option[T] {
 type InputOption func(*inputConfig)
 
 type inputConfig struct {
+	description string
 	placeholder string
 	echoMode    huh.EchoMode
 	validate    func(string) error
+}
+
+// WithDescription sets the dimmed help line shown under a field's title. Input
+// and InputInto take description as a positional argument; the multi-field
+// builders (FormInput / FormSelect) take it through this option instead.
+func WithDescription(s string) InputOption {
+	return func(c *inputConfig) { c.description = s }
 }
 
 // WithPlaceholder sets greyed-out placeholder text inside the input.
@@ -171,8 +188,16 @@ func InputInto(dst *string, title, description string, opts ...InputOption) erro
 	for _, o := range opts {
 		o(&cfg)
 	}
+	cfg.description = description // positional description wins over any option
 
-	field := huh.NewInput().Title(title).Description(description).Value(dst)
+	return runHuhForm(huh.NewForm(huh.NewGroup(newInputField(title, dst, cfg))))
+}
+
+// newInputField builds a themed huh.Input bound to dst from a resolved
+// inputConfig. Shared by InputInto and the FormInput builder so the
+// title/description/placeholder/echo/validate mapping lives in one place.
+func newInputField(title string, dst *string, cfg inputConfig) *huh.Input {
+	field := huh.NewInput().Title(title).Description(cfg.description).Value(dst)
 	if cfg.placeholder != "" {
 		field = field.Placeholder(cfg.placeholder)
 	}
@@ -182,8 +207,7 @@ func InputInto(dst *string, title, description string, opts ...InputOption) erro
 	if cfg.validate != nil {
 		field = field.Validate(cfg.validate)
 	}
-
-	return RunForm(huh.NewForm(huh.NewGroup(field)))
+	return field
 }
 
 // Select prompts the user to pick one option from a list. Returns the zero
@@ -197,7 +221,7 @@ func Select[T comparable](title string, options []Option[T]) (T, error) {
 
 	var selected T
 	field := huh.NewSelect[T]().Title(title).Options(options...).Value(&selected)
-	if err := RunForm(huh.NewForm(huh.NewGroup(field))); err != nil {
+	if err := runHuhForm(huh.NewForm(huh.NewGroup(field))); err != nil {
 		return zero, err
 	}
 	return selected, nil
@@ -222,7 +246,7 @@ func MultiSelect[T comparable](title, description string, options []Option[T]) (
 		Filterable(true).
 		Height(multiSelectHeight(len(options))).
 		Value(&selected)
-	if err := RunForm(huh.NewForm(huh.NewGroup(field))); err != nil {
+	if err := runHuhForm(huh.NewForm(huh.NewGroup(field))); err != nil {
 		return nil, err
 	}
 	return selected, nil
@@ -238,4 +262,125 @@ func multiSelectHeight(optionCount int) int {
 		return h
 	}
 	return maxHeight
+}
+
+// ---------- multi-field form builder (FormInput, FormSelect, FormGroup) ----------
+//
+// For several fields on one screen (or several conditional screens) the single-
+// prompt wrappers above don't fit. NewForm assembles FormGroup screens of
+// FormInput / FormSelect fields and runs them through the same themed pipeline,
+// so callers build multi-field forms without ever importing huh.
+
+// Field is one prompt inside a multi-field [Form]. Build it with FormInput or
+// FormSelect — never construct one directly. The build closure defers huh field
+// construction until Form.Run, binding each field to its destination pointer at
+// run time.
+type Field struct {
+	build func() huh.Field
+}
+
+// FormInput is the multi-field-form counterpart of InputInto: a single-line
+// text prompt bound to *value, shown alongside the other fields in its group.
+// It accepts the same options as Input — WithDescription, WithPlaceholder,
+// WithPassword, WithValidation.
+func FormInput(value *string, title string, opts ...InputOption) Field {
+	var cfg inputConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
+	return Field{build: func() huh.Field { return newInputField(title, value, cfg) }}
+}
+
+// FormSelect is the multi-field-form counterpart of Select: a single-choice
+// picker bound to *value. Only WithDescription applies — placeholder, password,
+// and validation are meaningless for a fixed option list.
+func FormSelect[T comparable](value *T, title string, options []Option[T], opts ...InputOption) Field {
+	var cfg inputConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
+	return Field{build: func() huh.Field {
+		return huh.NewSelect[T]().
+			Title(title).
+			Description(cfg.description).
+			Options(options...).
+			Value(value)
+	}}
+}
+
+// Group is one screen of a [Form] — a set of fields shown together. Build it
+// with FormGroup; make it conditional with HideWhen.
+type Group struct {
+	fields []Field
+	hide   func() bool
+}
+
+// FormGroup bundles fields onto a single form screen.
+func FormGroup(fields ...Field) Group {
+	return Group{fields: fields}
+}
+
+// HideWhen makes the group disappear when cond returns true. cond is evaluated
+// live as the user navigates, so it can read pointers bound by earlier fields —
+// e.g. hide the package-manager screen once an earlier answer selects a
+// writing-only project.
+func (g Group) HideWhen(cond func() bool) Group {
+	g.hide = cond
+	return g
+}
+
+// Form is a multi-field, optionally multi-screen prompt — the sanctioned
+// replacement for hand-built huh forms. Build with NewForm, run with Run.
+type Form struct {
+	groups []Group
+}
+
+// NewForm assembles groups into a runnable form. Each group is one screen,
+// shown in order (skipping any whose HideWhen predicate is true at run time).
+func NewForm(groups ...Group) *Form {
+	return &Form{groups: groups}
+}
+
+// Run renders the form with the project theme and keymap, then drains stdin.
+// Returns ErrFormQuiet in quiet mode and ErrFormAborted if the user cancels.
+func (f *Form) Run() error {
+	if IsQuiet() {
+		return ErrFormQuiet
+	}
+	return runHuhForm(f.toHuh())
+}
+
+// toHuh lowers the uikit form into the huh form runHuhForm executes. Split out
+// from Run so tests can assemble the huh form without a TTY.
+func (f *Form) toHuh() *huh.Form {
+	groups := lo.Map(f.groups, func(g Group, _ int) *huh.Group {
+		fields := lo.Map(g.fields, func(fl Field, _ int) huh.Field { return fl.build() })
+		hg := huh.NewGroup(fields...)
+		if g.hide != nil {
+			hg = hg.WithHideFunc(g.hide)
+		}
+		return hg
+	})
+	return huh.NewForm(groups...)
+}
+
+// Confirm renders a yes/no prompt and reports the user's choice. defaultYes
+// seeds the highlighted button; affirmative and negative label the buttons.
+// Returns ErrFormQuiet in quiet mode. This is the primitive behind
+// cmdutil.Confirm — most callers want that policy wrapper (quiet auto-confirm,
+// SCI_ASSUME handling, ErrCancelled) rather than this raw prompt.
+func Confirm(title, affirmative, negative string, defaultYes bool) (bool, error) {
+	if IsQuiet() {
+		return false, ErrFormQuiet
+	}
+	confirmed := defaultYes
+	field := huh.NewConfirm().
+		Title(title).
+		Affirmative(affirmative).
+		Negative(negative).
+		Value(&confirmed)
+	if err := runHuhForm(huh.NewForm(huh.NewGroup(field))); err != nil {
+		return false, err
+	}
+	return confirmed, nil
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"charm.land/huh/v2"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/uikit"
@@ -124,31 +123,21 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 		}
 		needForm := apiKey == "" || userID == "" || dataDir == ""
 		if needForm {
-			if err := uikit.RunForm(huh.NewForm(huh.NewGroup(
-				huh.NewInput().
-					Title("Zotero API key").
-					Description("From https://www.zotero.org/settings/keys").
-					Value(&apiKey).
-					Validate(func(s string) error { return zot.ValidateAPIKey(s) }),
-				huh.NewInput().
-					Title("User ID").
-					Description("Numeric user ID (https://www.zotero.org/settings/keys — \"Your userID for use in API calls\")").
-					Value(&userID).
-					Validate(func(s string) error { return zot.ValidateUserID(s) }),
-				huh.NewInput().
-					Title("Data directory").
-					Description("Zotero's data dir (contains zotero.sqlite)").
-					Value(&dataDir).
-					Validate(func(s string) error { return zot.ValidateDataDir(s) }),
-				huh.NewInput().
-					Title("OpenAlex email (optional)").
-					Description("Unlocks the polite pool (~10 req/s). Leave blank to skip.").
-					Value(&openAlexEmail),
-				huh.NewInput().
-					Title("OpenAlex API key (optional)").
-					Description("Premium tier (~100 req/s). Leave blank to skip.").
-					Value(&openAlexAPIKey),
-			))); err != nil {
+			if err := uikit.NewForm(uikit.FormGroup(
+				uikit.FormInput(&apiKey, "Zotero API key",
+					uikit.WithDescription("From https://www.zotero.org/settings/keys"),
+					uikit.WithValidation(func(s string) error { return zot.ValidateAPIKey(s) })),
+				uikit.FormInput(&userID, "User ID",
+					uikit.WithDescription("Numeric user ID (https://www.zotero.org/settings/keys — \"Your userID for use in API calls\")"),
+					uikit.WithValidation(func(s string) error { return zot.ValidateUserID(s) })),
+				uikit.FormInput(&dataDir, "Data directory",
+					uikit.WithDescription("Zotero's data dir (contains zotero.sqlite)"),
+					uikit.WithValidation(func(s string) error { return zot.ValidateDataDir(s) })),
+				uikit.FormInput(&openAlexEmail, "OpenAlex email (optional)",
+					uikit.WithDescription("Unlocks the polite pool (~10 req/s). Leave blank to skip.")),
+				uikit.FormInput(&openAlexAPIKey, "OpenAlex API key (optional)",
+					uikit.WithDescription("Premium tier (~100 req/s). Leave blank to skip.")),
+			)).Run(); err != nil {
 				return err
 			}
 		}
