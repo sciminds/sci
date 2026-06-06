@@ -18,17 +18,23 @@ var ErrCommandPanic = errors.New("command panicked")
 // the inner model except [CommandPanicMsg], which it captures and turns into
 // a clean tea.Quit. After the program exits, [Run] / [RunModel] inspect the
 // captured panic so the terminal is restored before the panic is reported.
+//
+// Sitting in the message path for every model, it is also where the opt-in
+// [TUIDebugEnv] message dump is tapped (see [msgDumper]).
 type panicGuard struct {
 	inner    tea.Model
 	captured *CommandPanicMsg
+	dump     *msgDumper // nil unless SCI_TUI_DEBUG is set
 }
 
 // Init forwards to the inner model.
 func (g panicGuard) Init() tea.Cmd { return g.inner.Init() }
 
-// Update captures a [CommandPanicMsg] (quitting cleanly so the terminal is
-// restored) and forwards every other message to the inner model.
+// Update logs the message (when debugging), captures a [CommandPanicMsg]
+// (quitting cleanly so the terminal is restored), and forwards every other
+// message to the inner model.
 func (g panicGuard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	g.dump.log(msg) // no-op unless SCI_TUI_DEBUG names a file
 	if cp, ok := msg.(CommandPanicMsg); ok {
 		g.captured = &cp
 		return g, tea.Quit
@@ -60,7 +66,9 @@ func reportCommandPanic(cp CommandPanicMsg) error {
 //
 //	if err := kit.Run(myModel); err != nil { … }
 func Run(m tea.Model, opts ...tea.ProgramOption) error {
-	p := tea.NewProgram(panicGuard{inner: m}, opts...)
+	dump := newMsgDumper()
+	defer dump.close()
+	p := tea.NewProgram(panicGuard{inner: m, dump: dump}, opts...)
 	final, err := p.Run()
 	DrainStdin()
 	if err != nil {
@@ -83,7 +91,9 @@ func Run(m tea.Model, opts ...tea.ProgramOption) error {
 //	if err != nil { … }
 //	fmt.Println(final.Chosen)
 func RunModel[M tea.Model](m M, opts ...tea.ProgramOption) (M, error) {
-	p := tea.NewProgram(panicGuard{inner: m}, opts...)
+	dump := newMsgDumper()
+	defer dump.close()
+	p := tea.NewProgram(panicGuard{inner: m, dump: dump}, opts...)
 	final, err := p.Run()
 	DrainStdin()
 	if err != nil {

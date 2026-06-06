@@ -89,7 +89,7 @@
 //
 //   - [LineEditor] — single-line rune buffer with cursor for overlay text inputs.
 //
-// # Runtime (run_async.go, run_program.go, run_drain.go, run_quiet.go)
+// # Runtime (run_async.go, run_program.go, run_drain.go, run_quiet.go, run_debug.go)
 //
 //   - [AsyncCmd] / [AsyncCmdCtx] — generic async tea.Cmd with [Result];
 //     a panic in the wrapped fn becomes a [CommandPanicMsg].
@@ -99,6 +99,10 @@
 //     command panic is surfaced as [ErrCommandPanic] with the terminal restored.
 //   - [DrainStdin] — flush stale terminal responses after tea.Program.Run().
 //   - [IsQuiet] / [SetQuiet] — global toggle for non-interactive (--json) mode.
+//   - [TUIDebugEnv] — set this env var to a file path and [Run] / [RunModel]
+//     dump every tea.Msg to it (pretty-printed, tail-able) for debugging the
+//     message stream. Off by default; suppressed in quiet mode; zero overhead
+//     when unset.
 //
 // All component types are designed for unit testing without teatest (plain
 // structs, no tea.Model dependency) and for integration testing with teatest
