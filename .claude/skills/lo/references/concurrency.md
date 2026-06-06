@@ -6,10 +6,12 @@ Import: `lop "github.com/samber/lo/parallel"`
 
 Run callbacks in goroutines. Results preserve order. **Only use for I/O-bound work** — goroutine overhead makes CPU-bound transforms slower than sequential `lo.Map`.
 
+The package is exactly five functions — `Map`, `ForEach`, `Times`, `GroupBy`, `PartitionBy` — and their callbacks mirror the sequential signatures.
+
 ```go
-// Parallel Map — fetch URLs concurrently
-results := lop.Map(urls, func(url string, _ int) (*Response, error) {
-    return http.Get(url)
+// Parallel Map — callback returns ONE value, no error (see caveat below)
+labels := lop.Map(items, func(it Item, _ int) string {
+    return render(it) // pure, cannot fail
 })
 
 // Parallel ForEach — fire-and-forget side effects
@@ -26,6 +28,37 @@ results := lop.Times(10, func(i int) Result { return expensiveCompute(i) })
 // Parallel PartitionBy
 partitions := lop.PartitionBy(items, func(i Item) string { return i.Status })
 ```
+
+### ⚠️ `lop` has no error-aware variants — reach for errgroup
+
+There is no `lop.MapErr`. The callbacks take `func(item, index) R` — a **single** return value — so you cannot return an `error`. Trying to (`func(u Item, _ int) (R, error)`) is a compile error, not a slow path.
+
+That matters because the whole reason to go parallel is usually I/O (HTTP, disk, DB) — which is exactly the work that fails. So in practice `lop.Map` only fits pure, infallible transforms, which rarely need parallelism in the first place. (Across this codebase, `lop`/`lom` are used **zero** times; `errgroup` is the established tool.)
+
+For parallel work that can fail, use `golang.org/x/sync/errgroup` (already a dependency). `SetLimit(N)` bounds concurrency and the first error cancels the rest via the context — the pattern in `internal/zot/pdffind/download.go`:
+
+```go
+import "golang.org/x/sync/errgroup"
+
+g, gctx := errgroup.WithContext(ctx)
+g.SetLimit(8) // bound concurrency to 8 in-flight
+results := make([]Response, len(urls))
+for i, url := range urls {
+    g.Go(func() error {
+        resp, err := fetch(gctx, url)
+        if err != nil {
+            return fmt.Errorf("fetching %s: %w", url, err)
+        }
+        results[i] = resp // distinct index per goroutine — no mutex needed
+        return nil
+    })
+}
+if err := g.Wait(); err != nil {
+    return nil, err
+}
+```
+
+Each goroutine writes its own slot (`results[i]`), so there's no shared-write race and order is preserved without a mutex.
 
 ## Mutable Variants (lom)
 

@@ -1,5 +1,7 @@
 # Map Transforms — Complete Reference
 
+⚠️ **Callback argument order is not uniform.** `MapValues` and `MapKeys` pass `(value, key)` — value first. Everything else here (`PickBy`, `OmitBy`, `MapToSlice`, `MapEntries`, `FilterKeys`, `FilterValues`, …) passes `(key, value)` — key first. Coming from Python/JS you'll reach for `(key, value)` everywhere; in `MapValues`/`MapKeys` that's a silent bug when key and value share a type. Match the order to the signature in each example below, and name the params (not `_`) so a swap reads wrong.
+
 ## Keys / Values
 
 ```go

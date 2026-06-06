@@ -41,7 +41,7 @@ Need to transform a slice?
 ├── Deduplicate            → lo.Uniq / lo.UniqBy
 ├── Accumulate to value    → lo.Reduce
 ├── Any callback can error → use the *Err variant (lo.MapErr, lo.FilterErr, etc.)
-└── I/O-bound parallelism  → lop.Map / lop.ForEach
+└── Parallel + fallible    → errgroup, NOT lop (lop has no error variant — see Gotchas)
 
 Need to transform a map?
 ├── Filter entries    → lo.PickBy / lo.OmitBy
@@ -122,13 +122,13 @@ allTags := lo.FlatMap(posts, func(p Post, _ int) []string {
 See `references/map-transforms.md` for the complete catalog.
 
 ```go
-// Transform values
-upper := lo.MapValues(m, func(v string, _ string) string {
+// Transform values — MapValues/MapKeys callback is (value, key)
+upper := lo.MapValues(m, func(v, key string) string {
     return strings.ToUpper(v)
 })
 
-// Filter entries
-admins := lo.PickBy(users, func(_ string, u User) bool {
+// Filter entries — PickBy callback is (key, value)
+admins := lo.PickBy(users, func(name string, u User) bool {
     return u.Role == "admin"
 })
 
@@ -210,15 +210,61 @@ uniqueBy := lo.UniqBy(users, func(u User) int { return u.ID })
 | Sort slice | `slices.Sort` / `slices.SortFunc` | `slices.SortFunc(users, func(a, b User) int { return cmp.Compare(a.Name, b.Name) })` |
 | Clone slice | `slices.Clone` | `copy := slices.Clone(original)` |
 | Concat slices | `slices.Concat` | `all := slices.Concat(a, b, c)` |
-| Simple contains | `slices.Contains` | `slices.Contains(ids, 42)` |
-| Sorted map keys | `slices.Sorted(maps.Keys(m))` | — |
+| Reverse in place | `slices.Reverse` | — |
+| Simple contains (equality) | `slices.Contains` | `slices.Contains(ids, 42)` |
+| Sorted map keys | `slices.Sorted(maps.Keys(m))` | iterator-based since Go 1.23 |
 | Clone bytes | `bytes.Clone` | — |
 | Map/Filter/Reduce | **`lo`** | stdlib has none of these |
 | GroupBy/KeyBy | **`lo`** | stdlib has none of these |
 | Set ops (intersect/diff) | **`lo`** | stdlib has none of these |
-| Find with predicate | **`lo.Find`** | `slices.Contains` only checks equality |
+| Contains by predicate | **`lo.ContainsBy`** | this project's convention — see note |
+| Find value + index by predicate | **`lo.Find`** / **`lo.FindIndexOf`** | returns the element, not just a bool |
 
-**Rule of thumb:** if stdlib has it, use stdlib. If not (Map, Filter, GroupBy, KeyBy, Find, Reduce, Chunk, set ops), use `lo`. Never hand-roll what either provides.
+**stdlib has predicate helpers too** — `slices.ContainsFunc`, `slices.IndexFunc`, `slices.MaxFunc`, `slices.MinFunc` overlap with `lo.ContainsBy` / `lo.FindIndexOf` / `lo.MaxBy` / `lo.MinBy`. **This project deliberately prefers the `lo` forms for predicate work** — the `.semgrep/go-modern.yml` rules rewrite manual predicate-search loops to `lo.ContainsBy` and `lo.FindIndexOf`, not the `slices.*Func` equivalents, because `lo` returns the matched value (not just a bool/index) and keeps the call style consistent with the rest of the pipeline. Reserve `slices.Contains` (no `Func`) for plain equality checks.
+
+**Rule of thumb:** if stdlib has a *non-predicate* helper (`Sort`, `Clone`, `Concat`, `Contains`, `Reverse`), use stdlib. For transforms (Map, Filter, GroupBy, KeyBy, Reduce, Chunk, set ops) and predicate search (ContainsBy, Find), use `lo`. Never hand-roll what either provides.
+
+## Gotchas & Anti-Patterns
+
+These are the mistakes that actually bite — especially coming from Python/JS, where the conventions differ.
+
+### Callback argument order is not consistent across `lo`
+
+There's no single rule, and the inconsistency is the trap:
+
+| Function family | Callback signature |
+|---|---|
+| Slice transforms (`Map`, `Filter`, `FilterMap`, `FlatMap`, …) | `func(item T, index int)` |
+| `MapValues` / `MapKeys` | `func(value V, key K)` — **value first** |
+| `PickBy` / `OmitBy` / `MapToSlice` / `MapEntries` / `FilterKeys` / `FilterValues` | `func(key K, value V)` — **key first** |
+
+A Python/JS dev reaches for `(key, value)` everywhere and silently swaps the args in `MapValues`. When both `K` and `V` are the same type (e.g. `map[string]string`) it still compiles and produces garbage. **Defense:** in the *map* functions, name **both** params (`func(val, key string)`, not `func(v string, _ string)`) so a swap reads wrong at a glance — the linter here doesn't flag a named-but-unused closure param, so there's no cost. (Slice-transform callbacks keep `_ int` for the index — it's positionally unambiguous; only key-vs-value is the trap.) When unsure, copy the order from the per-function example in `references/map-transforms.md` rather than guessing.
+
+### Parallel work that can fail → `errgroup`, not `lop`
+
+`lo/parallel` callbacks return a single value with no `error` slot, and there are no `*Err` parallel variants. Since parallelism is almost always for I/O (which fails), `lop` rarely fits real work — use `golang.org/x/sync/errgroup` (`SetLimit(N)` to bound concurrency, first error cancels the rest). Full pattern in `references/concurrency.md`.
+
+### Don't chain `Filter` then `Map` — fold them into `FilterMap`
+
+```go
+// Two passes, two allocations:
+active := lo.Filter(users, func(u User, _ int) bool { return u.Active })
+names := lo.Map(active, func(u User, _ int) string { return u.Name })
+
+// One pass:
+names := lo.FilterMap(users, func(u User, _ int) (string, bool) {
+    return u.Name, u.Active
+})
+```
+`FilterMap` is heavily used here (~32 call sites); semgrep flags the manual loop version as `no-manual-filtermap`.
+
+### `lo` is for *transforms*, not iteration-for-effect
+
+If you're not building a new value, don't wrap a loop in `lo`. A plain `for range` for side effects is idiomatic Go and clearer than `lo.ForEach` for most cases — reach for `lo.ForEach` only when it reads better in a pipeline. Never use `lo.Map` and throw away the result.
+
+### Prefer the named aggregator over a hand-rolled `Reduce`
+
+`lo.SumBy`, `MaxBy`, `MinBy`, `CountBy`, `GroupBy` say what they mean; a `Reduce` that reimplements them makes the reader decode the accumulator. Reach for `Reduce` only when no named aggregator fits.
 
 ## Performance Notes
 
