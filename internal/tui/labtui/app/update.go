@@ -105,19 +105,8 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Quit
 	}
-	switch m.screen {
-	case screenBrowse:
-		return m.keyBrowse(msg)
-	case screenConfirm:
-		return m.keyConfirm(msg)
-	case screenTransfer:
-		return m.keyTransfer(msg)
-	case screenError:
-		return m.keyError(msg)
-	case screenDone:
-		return m.keyDone(msg)
-	}
-	return m, nil
+	// Per-screen dispatch lives in router (router.go).
+	return router.Keys(m.screen, m, msg)
 }
 
 func (m *Model) keyBrowse(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

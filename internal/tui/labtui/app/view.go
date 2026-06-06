@@ -9,22 +9,9 @@ import (
 	"github.com/sciminds/cli/internal/uikit"
 )
 
-// View implements tea.Model. Dispatch by screen.
+// View implements tea.Model. Routing lives in router (router.go).
 func (m *Model) View() tea.View {
-	var body string
-	switch m.screen {
-	case screenBrowse:
-		body = m.viewBrowse()
-	case screenConfirm:
-		body = m.viewConfirm()
-	case screenTransfer:
-		body = m.viewTransfer()
-	case screenError:
-		body = m.viewError()
-	case screenDone:
-		body = m.viewDone()
-	}
-	v := tea.NewView(body)
+	v := tea.NewView(router.View(m.screen, m, m.width, m.height))
 	v.AltScreen = true
 	return v
 }

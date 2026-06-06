@@ -71,6 +71,20 @@
 // means it is open. At most one overlay is active at a time. Overlay state
 // types are defined in overlay_state.go.
 //
+// # Why not uikit.Router
+//
+// dbtui deliberately does not route through [uikit.Router] (unlike labtui).
+// Router models a flat state machine — one active screen owns the whole frame
+// and replaces all others. dbtui is a compositor instead: the base table view
+// is always rendered, the normal/edit/visual modes modulate it rather than
+// replacing it, and an active overlay is drawn *on top of* the dimmed base
+// (see buildView in view.go). Several things are "active" at once, which Router
+// can't express without a stack/compositing extension. Dispatch is already
+// centralized for this shape — dispatchOverlayKey (update.go) for keys and the
+// overlays slice (view.go) for rendering — so adopting Router would add an
+// abstraction that fits worse than what it replaced. See the Router godoc in
+// internal/uikit/ui_screen.go.
+//
 // # Async Tab Loading
 //
 // Tabs are initialized as stubs (name only, Loaded=false). When a tab is

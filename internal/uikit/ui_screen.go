@@ -31,6 +31,18 @@ type Screen[M any] struct {
 //
 // S is the screen ID type (typically an int/iota enum).
 // M is the model type.
+//
+// Router models a flat state machine: exactly one screen is active at a time
+// and it owns the whole frame. It is the right tool for an app whose Update and
+// View each dispatch on a single "current screen" field (see
+// internal/tui/labtui/app/router.go for a worked example) — registering a
+// screen wires both dispatches at once so they can't drift.
+//
+// It is deliberately not a compositor. An app that layers modal overlays on top
+// of an always-present base (e.g. dbtui's overlay stack) has several things
+// "active" simultaneously and composites them; that needs a stack/history
+// abstraction Router doesn't provide. Don't force such an app through Router —
+// see internal/tui/dbtui/app/doc.go ("Overlays") for that decision.
 type Router[S comparable, M any] struct {
 	screens map[S]Screen[M]
 }
