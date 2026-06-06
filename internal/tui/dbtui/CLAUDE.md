@@ -22,3 +22,4 @@ See `app/TESTING.md` for the full teatest protocol, checklist, and file placemen
 - The canonical `test.db` fixture lives in `internal/store/sqlite/testdata/test.db`; SQLite store tests reference it from there. dbtui's own teatest models spin up their own per-test SQLite files via `sqlite.Open(t.TempDir() + …)`.
 - Mutation tests use `copyFixture` to copy fixtures to temp dirs.
 - `ReadOnlyQuery` caps at 200 rows with 10s timeout.
+- **Debugging the overlay stack:** the seven nil-checked overlay states make "which message opened/closed which overlay?" hard to eyeball. Run `SCI_TUI_DEBUG=/tmp/dbtui.log sci view <file>` and `tail -f` the log to watch every `tea.Msg` live (see root `CLAUDE.md` → "Debugging a live TUI").

@@ -73,6 +73,17 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 - No `time.Sleep` — use `teatest.WaitFor`.
 - Golden updates: `go test ./path -run TestName -update` (the only sanctioned raw `go test` — `-update` isn't wired through `just`).
 
+## Debugging a live TUI
+
+When a TUI misbehaves and you need to *see the message stream* (which `tea.Msg` drives an overlay/mode transition, why a key seems ignored), run it with `SCI_TUI_DEBUG` pointed at a file and `tail -f` that file in another pane:
+
+```
+SCI_TUI_DEBUG=/tmp/sci-tui.log sci view data.db   # any of the four TUIs
+tail -f /tmp/sci-tui.log                           # other pane: every tea.Msg, pretty-printed
+```
+
+Every message reaching the program is dumped via go-spew (sequence #, time, concrete type, fields), truncated per run. It's tapped in `uikit.panicGuard`, so all four TUIs (`uikit.Run`/`RunModel`) get it. **Dev/debugging only** — off by default (no env var = nil dumper, zero overhead), suppressed under `--json`; never wire it into shipping code paths. Mechanism: `internal/uikit/run_debug.go` ([TUIDebugEnv] in godoc). Fastest debugger for dbtui's overlay stack.
+
 ## Gotchas
 
 - `proj/new` integration tests skip unless `SLOW=1`.
