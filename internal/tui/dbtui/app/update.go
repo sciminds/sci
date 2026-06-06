@@ -22,16 +22,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.notePreview != nil {
 			m.notePreview.Overlay = m.notePreview.Overlay.ResizeOverlay(msg.Width, msg.Height)
 		}
-		if ce := m.cellEditor; ce != nil {
-			ce.Editor.SetWidth(uikit.OverlayWidth(msg.Width, cellEditorMinW, cellEditorMaxW) - cellEditorWidthInset)
-			taH := max(msg.Height-cellEditorChrome, cellEditorMinH)
-			ce.Editor.SetHeight(taH)
-		}
-		if tl := m.tableList; tl != nil && tl.Deriving {
-			tl.DeriveSQL.SetWidth(uikit.OverlayWidth(msg.Width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
-			taH := max(msg.Height-deriveSQLChrome, deriveSQLMinH)
-			tl.DeriveSQL.SetHeight(taH)
-		}
+		// The cell-editor and derive-SQL textareas are sized in their build
+		// functions from the live overlay frame + measured chrome, so no manual
+		// resize is needed here (see uikit.OverlayBodyBudget).
 		return m, nil
 	case tabLoadedMsg:
 		return m.handleTabLoaded(msg)

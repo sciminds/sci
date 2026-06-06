@@ -28,7 +28,7 @@ type MarkdownOverlay struct {
 // to fit short content so there is no empty space.
 func NewMarkdownOverlay(title, markdown string, termW, termH int, opts ...OverlayOption) MarkdownOverlay {
 	cfg := applyOverlayOptions(opts)
-	innerW := max(OverlayWidth(termW, OverlayMinW, OverlayMaxW)-OverlayBoxPadding, 1)
+	innerW := OverlayContentWidth(termW)
 	rendered := renderMarkdownForOverlay(markdown, innerW)
 	boxW, _, bodyH := overlayDims(rendered, termW, termH)
 
@@ -43,7 +43,7 @@ func NewMarkdownOverlay(title, markdown string, termW, termH int, opts ...Overla
 // Resize recalculates the overlay dimensions for the given terminal size,
 // re-rendering content at the new width.
 func (o MarkdownOverlay) Resize(termW, termH int) MarkdownOverlay {
-	innerW := max(OverlayWidth(termW, OverlayMinW, OverlayMaxW)-OverlayBoxPadding, 1)
+	innerW := OverlayContentWidth(termW)
 	rendered := renderMarkdownForOverlay(o.markdown, innerW)
 	boxW, _, bodyH := overlayDims(rendered, termW, termH)
 

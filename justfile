@@ -20,8 +20,10 @@ lint:
     golangci-lint run ./internal/... ./cmd/...
 
 # Structural style rules enforced via ast-grep.
-# No lipgloss.NewStyle() outside ui/ packages; no hardcoded lipgloss.Color() outside palette/style files.
+# No lipgloss.NewStyle() outside ui/ packages; no hardcoded lipgloss.Color() outside palette/style files;
+# no manual m.width/m.height literal arithmetic outside uikit. `sg test` validates the rules' own fixtures.
 lint-style:
+    sg test
     sg scan
     semgrep --config .semgrep/ --error --quiet ./internal/ ./cmd/
 

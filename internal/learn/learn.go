@@ -65,10 +65,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.player != nil {
 			m.player.SetHeight(uikit.OverlayBodyHeight(m.height, 4))
-			m.player.SetWidth(uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding)
+			m.player.SetWidth(uikit.OverlayContentWidth(m.width))
 		}
 		if m.viewer != nil {
-			w := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding
+			w := uikit.OverlayContentWidth(m.width)
 			m.viewer.SetSize(w, uikit.OverlayBodyHeight(m.height, 4))
 		}
 		if m.split != nil {
@@ -207,7 +207,7 @@ func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			break
 		}
 		visH := uikit.OverlayBodyHeight(m.height, 4)
-		visW := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding
+		visW := uikit.OverlayContentWidth(m.width)
 		m.player = uikit.NewCastPlayer(cast, visH)
 		m.player.SetWidth(visW)
 		m.level = levelOverlay
@@ -226,7 +226,7 @@ func (m *model) openPage(item Entry) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	v := uikit.NewMdViewer(item.Cmd, string(data))
-	w := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding
+	w := uikit.OverlayContentWidth(m.width)
 	v.SetSize(w, uikit.OverlayBodyHeight(m.height, 4))
 	m.viewer = v
 	m.level = levelOverlay
@@ -423,7 +423,7 @@ func (m *model) exportPage(entry Entry) tea.Cmd {
 // preRenderPages returns a Cmd that renders all page-based entries in the
 // background so they're cached by the time the user opens them.
 func (m *model) preRenderPages() tea.Cmd {
-	contentW := max(uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW)-uikit.OverlayBoxPadding-2, 20)
+	contentW := max(uikit.OverlayContentWidth(m.width)-2, 20)
 
 	var docs []string
 	for _, book := range m.allBooks {

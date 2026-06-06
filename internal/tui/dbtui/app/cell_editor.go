@@ -5,20 +5,19 @@ package app
 
 import (
 	"fmt"
-	"strings"
 
 	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/uikit"
 )
 
-// Cell editor overlay constants.
+// Cell editor overlay width/height bounds. The textarea's own size is derived
+// from the live overlay frame and measured chrome in buildCellEditorOverlay (see
+// uikit.OverlayInnerWidth / uikit.OverlayBodyBudget), not from hardcoded insets.
 const (
-	cellEditorMinW       = 20
-	cellEditorMaxW       = 80
-	cellEditorMinH       = 6 // minimum textarea height
-	cellEditorChrome     = 8 // lines consumed by header, hints, padding
-	cellEditorWidthInset = 6 // textarea width = overlayContentW - inset
+	cellEditorMinW = 20
+	cellEditorMaxW = 80
+	cellEditorMinH = 6 // minimum textarea height
 )
 
 func (m *Model) openCellEditor() {
@@ -55,9 +54,6 @@ func (m *Model) openCellEditor() {
 	ta.SetValue(value)
 	ta.Focus()
 	ta.CharLimit = 0 // no limit
-	ta.SetWidth(uikit.OverlayWidth(m.width, cellEditorMinW, cellEditorMaxW) - cellEditorWidthInset)
-	taH := max(m.height-cellEditorChrome, cellEditorMinH)
-	ta.SetHeight(taH)
 	ta.ShowLineNumbers = false
 	styles := ta.Styles()
 	styles.Focused.CursorLine = styles.Focused.CursorLine.UnsetBackground()
@@ -172,29 +168,31 @@ func (m *Model) buildCellEditorOverlay() string {
 		return ""
 	}
 
+	box := m.styles.OverlayBox()
 	contentW := uikit.OverlayWidth(m.width, cellEditorMinW, cellEditorMaxW)
-
-	var b strings.Builder
 
 	title := ce.Title
 	if cellEditorIsDirty(ce) {
 		title += " *"
 	}
-	b.WriteString(m.overlayHeader(title))
+	prefix := m.overlayHeader(title)
 
-	// Render the textarea (handles cursor, scrolling, multi-line)
-	b.WriteString(ce.Editor.View())
-
-	b.WriteString("\n\n")
 	hints := joinWithSeparator(
 		m.helpSeparator(),
 		m.helpItem(keyEnter, "save"),
 		m.helpItem("shift+enter", "newline"),
 		m.helpItem(keyEsc, "cancel"),
 	)
-	b.WriteString(hints)
+	suffix := "\n\n" + hints
 
-	return m.styles.OverlayBox().
+	// Size the textarea from the live overlay frame + measured chrome, so adding
+	// a hint line or changing the box border/padding never drifts the editor out
+	// of the box (see uikit.OverlayInnerWidth / uikit.OverlayBodyBudget).
+	ce.Editor.SetWidth(uikit.OverlayInnerWidth(contentW, box))
+	ce.Editor.SetHeight(max(uikit.OverlayBodyBudget(m.height, contentW, box, prefix, suffix), cellEditorMinH))
+
+	// prefix + textarea (cursor, scrolling, multi-line) + hints.
+	return box.
 		Width(contentW).
-		Render(b.String())
+		Render(prefix + ce.Editor.View() + suffix)
 }

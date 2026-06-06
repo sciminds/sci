@@ -69,7 +69,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.player != nil {
 			m.player.SetHeight(uikit.OverlayBodyHeight(m.height, 4))
-			m.player.SetWidth(uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding)
+			m.player.SetWidth(uikit.OverlayContentWidth(m.width))
 		}
 		return m, nil
 
@@ -176,7 +176,7 @@ func (m *model) updateSubs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			break
 		}
 		visH := uikit.OverlayBodyHeight(m.height, 4)
-		visW := uikit.OverlayWidth(m.width, uikit.OverlayMinW, uikit.OverlayMaxW) - uikit.OverlayBoxPadding
+		visW := uikit.OverlayContentWidth(m.width)
 		m.player = uikit.NewCastPlayer(cast, visH)
 		m.player.SetWidth(visW)
 		m.level = levelOverlay
@@ -219,7 +219,12 @@ func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 // descMaxWidth caps the description paragraph so it doesn't stretch across
 // ultra-wide terminals.
-const descMaxWidth = 76
+const (
+	descMaxWidth = 76
+	// descListHPadding is the horizontal padding the bubbles list reserves;
+	// subtract it from the terminal width to get the usable description width.
+	descListHPadding = 4
+)
 
 // renderDesc returns the styled description block for the current group,
 // or "" if there is no long description.
@@ -228,7 +233,7 @@ func (m *model) renderDesc() string {
 		return ""
 	}
 	// account for list padding; clamp to [20, descMaxWidth]
-	w := max(min(m.width-4, descMaxWidth), 20)
+	w := max(min(m.width-descListHPadding, descMaxWidth), 20)
 	body := uikit.TUI.TextMid().Width(w).Render(m.group.LongDesc)
 	// one blank line below the description to separate from items
 	return body + "\n"

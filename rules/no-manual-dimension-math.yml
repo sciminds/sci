@@ -1,0 +1,21 @@
+id: no-manual-dimension-math
+language: go
+rule:
+  any:
+    - pattern: $RECV.width - $N
+    - pattern: $RECV.height - $N
+constraints:
+  N:
+    kind: int_literal
+severity: error
+message: |
+  Raw `m.width - N` / `m.height - N` arithmetic is brittle (leg100 point 7): the
+  literal silently drifts the moment a border, padding, or chrome line changes.
+  Derive the value instead — uikit.Box / uikit.VStack / uikit.OverlayInnerWidth /
+  uikit.OverlayBodyBudget, or subtract a measured size (lipgloss.Width/Height,
+  style.GetFrameSize). A measured subtraction (m.width - lipgloss.Width(x)) and a
+  named reserve const (m.width - sidePadding) are both fine; only bare integer
+  literals are flagged. See CLAUDE.md "Cross-cutting design rules" (layout discipline).
+ignores:
+  - "internal/uikit/*.go"
+  - "internal/uikit/**/*.go"

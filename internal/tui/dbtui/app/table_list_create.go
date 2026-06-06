@@ -161,9 +161,6 @@ func (m *Model) tableListStartDerive() {
 	ta.SetValue("SELECT ")
 	ta.Focus()
 	ta.CharLimit = 0
-	ta.SetWidth(uikit.OverlayWidth(m.width, tableListMinW, tableListMaxW) - deriveSQLWidthInset)
-	taH := max(m.height-deriveSQLChrome, deriveSQLMinH)
-	ta.SetHeight(taH)
 	ta.ShowLineNumbers = false
 
 	ti := textinput.New()
@@ -302,27 +299,20 @@ func (m *Model) buildDeriveOverlay(contentW int) string {
 		return ""
 	}
 
-	var b strings.Builder
-	b.WriteString(m.overlayHeader("Derive Table / View"))
+	box := m.styles.OverlayBox()
 
-	// SQL label + editor.
+	// Everything above the SQL editor: title + SQL label.
 	sqlLabel := "SQL"
 	if tl.DeriveFocus == 0 {
 		sqlLabel = m.styles.TextBlue().Render("SQL")
 	}
-	b.WriteString(sqlLabel + "\n")
-	b.WriteString(tl.DeriveSQL.View())
-	b.WriteString("\n\n")
+	prefix := m.overlayHeader("Derive Table / View") + sqlLabel + "\n"
 
-	// Name label + editor.
+	// Everything below the SQL editor: name label + name input + hints.
 	nameLabel := "Name"
 	if tl.DeriveFocus == 1 {
 		nameLabel = m.styles.TextBlue().Render("Name")
 	}
-	b.WriteString(nameLabel + "\n")
-	b.WriteString(tl.DeriveName.View())
-	b.WriteString("\n\n")
-
 	hints := joinWithSeparator(
 		m.helpSeparator(),
 		m.helpItem(keyEnter, "table"),
@@ -330,9 +320,14 @@ func (m *Model) buildDeriveOverlay(contentW int) string {
 		m.helpItem(keyTab, "switch field"),
 		m.helpItem(keyEsc, "cancel"),
 	)
-	b.WriteString(hints)
+	suffix := "\n\n" + nameLabel + "\n" + tl.DeriveName.View() + "\n\n" + hints
 
-	return m.styles.OverlayBox().
+	// Size the SQL textarea from the live overlay frame + measured chrome so the
+	// editor always fills the box without overflow (see uikit.OverlayBodyBudget).
+	tl.DeriveSQL.SetWidth(uikit.OverlayInnerWidth(contentW, box))
+	tl.DeriveSQL.SetHeight(max(uikit.OverlayBodyBudget(m.height, contentW, box, prefix, suffix), deriveSQLMinH))
+
+	return box.
 		Width(contentW).
-		Render(b.String())
+		Render(prefix + tl.DeriveSQL.View() + suffix)
 }

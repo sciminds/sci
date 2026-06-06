@@ -185,7 +185,7 @@ func overlayApplySearch(query, rendered string, vp *viewport.Model) (matchLines 
 // viewport body height from terminal dimensions and rendered content.
 func overlayDims(rendered string, termW, termH int) (boxW, innerW, bodyH int) {
 	boxW = OverlayWidth(termW, OverlayMinW, OverlayMaxW)
-	innerW = max(boxW-OverlayBoxPadding, 1)
+	innerW = OverlayInnerWidth(boxW, TUI.OverlayBox())
 	maxBodyH := OverlayBodyHeight(termH, 0)
 	contentLines := strings.Count(rendered, "\n") + 1
 	bodyH = max(min(contentLines, maxBodyH), OverlayMinH)
@@ -251,7 +251,7 @@ func seedInitialQuery(s *overlaySearch, vp *viewport.Model, rendered, q string) 
 // fit short content so there is no empty space.
 func NewOverlay(title, content string, termW, termH int, opts ...OverlayOption) Overlay {
 	cfg := applyOverlayOptions(opts)
-	innerW := max(OverlayWidth(termW, OverlayMinW, OverlayMaxW)-OverlayBoxPadding, 1)
+	innerW := OverlayContentWidth(termW)
 	wrapped := WordWrap(content, innerW)
 	boxW, _, bodyH := overlayDims(wrapped, termW, termH)
 
@@ -266,7 +266,7 @@ func NewOverlay(title, content string, termW, termH int, opts ...OverlayOption) 
 // Resize recalculates the overlay dimensions for the given terminal size,
 // re-wrapping content and adjusting the viewport height.
 func (o Overlay) Resize(termW, termH int) Overlay {
-	innerW := max(OverlayWidth(termW, OverlayMinW, OverlayMaxW)-OverlayBoxPadding, 1)
+	innerW := OverlayContentWidth(termW)
 	wrapped := WordWrap(o.content, innerW)
 	boxW, _, bodyH := overlayDims(wrapped, termW, termH)
 
@@ -401,6 +401,42 @@ func CancelFaint(s string) string {
 func OverlayWidth(termW, minW, maxW int) int {
 	w := min(max(termW-OverlayMargin, minW), maxW)
 	return w
+}
+
+// OverlayInnerWidth returns the inner content width inside an overlay frame:
+// contentW minus the style's horizontal frame (border + padding), derived from
+// the style with [lipgloss.Style.GetHorizontalFrameSize] so the inset tracks
+// border/padding changes automatically. Never hardcode the inset — pass the same
+// style you render with (e.g. TUI.OverlayBox()). Clamped to >= 1.
+func OverlayInnerWidth(contentW int, style lipgloss.Style) int {
+	return max(contentW-style.GetHorizontalFrameSize(), 1)
+}
+
+// OverlayContentWidth returns the inner text width of a default-bounded overlay
+// (width clamped to [OverlayMinW, OverlayMaxW]) for the given terminal width,
+// using the shared TUI.OverlayBox frame. Convenience for the common case; for
+// custom width bounds or a custom frame style call [OverlayInnerWidth] directly.
+// Distinct from [ContentWidth], which is PageLayout's side-padding inset.
+func OverlayContentWidth(termW int) int {
+	return OverlayInnerWidth(OverlayWidth(termW, OverlayMinW, OverlayMaxW), TUI.OverlayBox())
+}
+
+// OverlayBodyBudget returns how many body lines fit inside an overlay rendered
+// through style at outer width contentW, for the given terminal height. It
+// renders the overlay once with a single-line body placeholder between the
+// chrome — prefix (rendered above the body) and suffix (below it) — so border,
+// padding, AND width-wrapping of the chrome are all accounted for exactly as the
+// real frame renders them, then backs out how many further body lines fit under
+// termH. (Each body line beyond the placeholder adds exactly one rendered line,
+// since the body sits between fixed top/bottom frame.)
+//
+// Callers build prefix and suffix as the literal strings they will concatenate
+// around the body, then render box.Width(contentW).Render(prefix + body +
+// suffix). Adding a header or hint line, letting a hint wrap, or changing the
+// border therefore never silently breaks body sizing. Clamped to >= OverlayMinH.
+func OverlayBodyBudget(termH, contentW int, style lipgloss.Style, prefix, suffix string) int {
+	probe := style.Width(contentW).Render(prefix + "x" + suffix)
+	return max(termH-lipgloss.Height(probe)+1, OverlayMinH)
 }
 
 // Compose is a convenience for CenterOverlay(CancelFaint(fg), DimBackground(bg)).

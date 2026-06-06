@@ -1,0 +1,16 @@
+id: no-manual-dimension-math
+valid:
+  # Measured subtraction is the sanctioned form.
+  - "x := m.width - lipgloss.Width(s)"
+  - "x := m.height - lipgloss.Height(s)"
+  # A named reserve const documents intent and is allowed.
+  - "x := m.width - sidePadding"
+  - "x := m.height - loadingChromeLines"
+  # Subtracting another measured/variable value is fine.
+  - "x := m.width - tabsW - tabPathGap"
+  # Not a subtraction.
+  - "x := m.width * 4 / 5"
+invalid:
+  # Bare integer literals are the brittle pattern this rule bans.
+  - "x := m.height - 3"
+  - "x := m.width - 2"

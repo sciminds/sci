@@ -234,18 +234,28 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 		return ""
 	}
 
-	var b strings.Builder
-	b.WriteString(m.styles.HeaderSection().Render(" Add Table "))
+	box := m.styles.OverlayBox()
 
-	// Show current directory.
+	// Prefix: section header + current directory.
 	dirLabel := truncateLeft(shortenHome(br.Dir), innerW)
-	b.WriteString("  ")
-	b.WriteString(m.styles.HeaderHint().Render(dirLabel))
-	b.WriteString("\n\n")
+	prefix := m.styles.HeaderSection().Render(" Add Table ") +
+		"  " + m.styles.HeaderHint().Render(dirLabel) + "\n\n"
 
+	// Suffix: status line (always reserved) + action hints.
+	status := m.styles.HeaderHint().Render("Select a CSV or TSV file")
+	if tl.Status != "" {
+		status = m.styles.Info().Render(tl.Status)
+	}
+	hints := []string{
+		m.helpItem(keyEnter, "import"),
+		m.helpItem(keyEsc, "back"),
+	}
+	suffix := "\n\n" + status + "\n\n" + joinWithSeparator(m.helpSeparator(), hints...)
+
+	// Body: the visible window of directory entries, budgeted to fit the box.
+	var body string
 	if len(br.Entries) == 0 {
-		b.WriteString(m.styles.Empty().Render("No importable files"))
-		b.WriteString("\n")
+		body = m.styles.Empty().Render("No importable files")
 	} else {
 		// Compute max name width for alignment.
 		maxNameW := min(lo.Reduce(br.Entries, func(mx int, e fileBrowserEntry, _ int) int {
@@ -253,7 +263,7 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 		}, 0), innerW-fileBrowserNameAlignReserve)
 
 		// Visible window.
-		maxVisible := min(uikit.OverlayBodyHeight(m.height, fileBrowserExtraChrome), len(br.Entries))
+		maxVisible := min(uikit.OverlayBodyBudget(m.height, contentW, box, prefix, suffix), len(br.Entries))
 		start := max(br.Cursor-maxVisible/2, 0)
 		end := start + maxVisible
 		if end > len(br.Entries) {
@@ -261,6 +271,7 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 			start = max(end-maxVisible, 0)
 		}
 
+		lines := make([]string, 0, end-start)
 		for i := start; i < end; i++ {
 			entry := br.Entries[i]
 			selected := i == br.Cursor
@@ -279,45 +290,27 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 			}
 
 			var left string
-			if selected {
+			switch {
+			case selected:
 				pointer := m.styles.TextBlueBold().Render(symTriRight + " ")
 				left = pointer + m.styles.TextBlueBold().Render(name)
-			} else if entry.IsDir {
+			case entry.IsDir:
 				left = "  " + m.styles.Info().Render(name)
-			} else {
+			default:
 				left = "  " + name
 			}
 
 			if sizeLabel != "" {
 				right := m.styles.HeaderHint().Render(sizeLabel)
-				b.WriteString(uikit.SpreadMinGap(innerW, 1, left, right))
+				lines = append(lines, uikit.SpreadMinGap(innerW, 1, left, right))
 			} else {
-				b.WriteString(left)
-			}
-
-			if i < end-1 {
-				b.WriteString("\n")
+				lines = append(lines, left)
 			}
 		}
+		body = strings.Join(lines, "\n")
 	}
 
-	// Status message.
-	b.WriteString("\n\n")
-	if tl.Status != "" {
-		b.WriteString(m.styles.Info().Render(tl.Status))
-	} else {
-		b.WriteString(m.styles.HeaderHint().Render("Select a CSV or TSV file"))
-	}
-	b.WriteString("\n\n")
-
-	// Hints.
-	hints := []string{
-		m.helpItem(keyEnter, "import"),
-		m.helpItem(keyEsc, "back"),
-	}
-	b.WriteString(joinWithSeparator(m.helpSeparator(), hints...))
-
-	return m.styles.OverlayBox().
+	return box.
 		Width(contentW).
-		Render(b.String())
+		Render(prefix + body + suffix)
 }

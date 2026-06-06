@@ -6,12 +6,16 @@ import (
 	"github.com/sciminds/cli/internal/lab"
 )
 
+// progressBarInset is the terminal columns reserved around the progress bar
+// (label + padding); the bar fills the remaining width, clamped to [10, 60].
+const progressBarInset = 20
+
 // Update implements tea.Model. Dispatch by screen.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		barW := max(min(m.width-20, 60), 10)
+		barW := max(min(m.width-progressBarInset, 60), 10)
 		m.progressBar.SetWidth(barW)
 		return m, nil
 

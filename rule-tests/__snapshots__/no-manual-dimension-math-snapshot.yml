@@ -1,0 +1,14 @@
+id: no-manual-dimension-math
+snapshots:
+  x := m.height - 3:
+    labels:
+    - source: m.height - 3
+      style: primary
+      start: 5
+      end: 17
+  x := m.width - 2:
+    labels:
+    - source: m.width - 2
+      style: primary
+      start: 5
+      end: 16

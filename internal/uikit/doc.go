@@ -49,6 +49,10 @@
 //   - [MarkdownOverlay] — scrollable modal panel that renders markdown via glamour.
 //   - [ScrollableOverlay] — common interface for [Overlay] and [MarkdownOverlay].
 //   - [OverlayBox] — styled modal overlay with title, body, and hint footer.
+//   - [OverlayInnerWidth] / [OverlayContentWidth] / [OverlayBodyBudget] — derive an
+//     overlay's inner text width and scrolling-body line budget from its frame
+//     style plus measured chrome, so sizing tracks border/padding/chrome changes
+//     instead of drifting from hardcoded insets.
 //   - [ListPicker] — pre-styled filterable list with one-line construction.
 //   - [SelectList] — multi-select toggle list for wizard flows.
 //   - [Grid2D] — reusable 2-D cursor with move, clamp, and wrap.

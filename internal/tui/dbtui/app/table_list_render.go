@@ -21,15 +21,10 @@ const (
 	tableListNameAlignReserve   = 22 // space for shape label "virtual · N × N"
 	fileBrowserNameAlignReserve = 12 // space for size label
 
-	// Extra chrome lines beyond OverlayChromeLines for each overlay type.
-	// header+path(1) + blanks(3) + filter(1) + blank(1) + status(1) + hints(2) = 9
-	tableListExtraChrome   = 9
-	fileBrowserExtraChrome = 7
-
-	// Derive textarea sizing.
-	deriveSQLWidthInset = 8  // OverlayBoxPadding(6) + textarea border(2)
-	deriveSQLMinH       = 4  // minimum SQL textarea height
-	deriveSQLChrome     = 14 // lines consumed by header, labels, name field, blanks, hints
+	// deriveSQLMinH is the minimum SQL textarea height; its actual width/height
+	// are derived from the live overlay frame + measured chrome in
+	// buildDeriveOverlay (see uikit.OverlayInnerWidth / uikit.OverlayBodyBudget).
+	deriveSQLMinH = 4
 )
 
 // buildTableListOverlay renders the table list modal.
@@ -44,8 +39,9 @@ func (m *Model) buildTableListOverlay() string {
 	if tl.Adding {
 		minW, maxW = fileBrowserMinW, fileBrowserMaxW
 	}
+	box := m.styles.OverlayBox()
 	contentW := uikit.OverlayWidth(m.width, minW, maxW)
-	innerW := contentW - uikit.OverlayBoxPadding
+	innerW := uikit.OverlayInnerWidth(contentW, box)
 
 	if tl.Adding {
 		return m.buildAddFileOverlay(contentW, innerW)
@@ -59,30 +55,38 @@ func (m *Model) buildTableListOverlay() string {
 		return m.buildDeriveOverlay(contentW)
 	}
 
-	var b strings.Builder
-	b.WriteString(m.styles.HeaderSection().Render(" Tables "))
-
-	// Show db path.
+	// Prefix: section header + db path, then the always-reserved filter line.
+	var pre strings.Builder
+	pre.WriteString(m.styles.HeaderSection().Render(" Tables "))
 	if m.dbPath != "" {
 		path := truncateLeft(shortenHome(m.dbPath), innerW)
-		b.WriteString("  ")
-		b.WriteString(m.styles.HeaderHint().Render(path))
+		pre.WriteString("  ")
+		pre.WriteString(m.styles.HeaderHint().Render(path))
 	}
-	b.WriteString("\n\n")
-
+	pre.WriteString("\n\n")
 	// Filter line — always reserved so the box height stays stable whether or
-	// not a filter is active (see tableListExtraChrome).
-	b.WriteString(m.tableListFilterLine(innerW))
-	b.WriteString("\n\n")
+	// not a filter is active.
+	pre.WriteString(m.tableListFilterLine(innerW))
+	pre.WriteString("\n\n")
+	prefix := pre.String()
 
+	// Suffix: status line (always reserved so the box height doesn't jump when a
+	// status appears/disappears) + action hints wrapped to innerW.
+	status := " "
+	if tl.Status != "" {
+		status = m.styles.Info().Render(tl.Status)
+	}
+	suffix := "\n\n" + status + "\n\n" + m.tableListHints(innerW)
+
+	// Body: the visible window of matching tables, budgeted to fit the box.
 	vis := tl.visibleMatches()
+	var body string
 	if len(vis) == 0 {
 		empty := "No tables"
 		if tl.Query != "" {
 			empty = "No tables match"
 		}
-		b.WriteString(m.styles.Empty().Render(empty))
-		b.WriteString("\n")
+		body = m.styles.Empty().Render(empty)
 	} else {
 		// Compute max name width for alignment across the visible entries.
 		maxNameW := 0
@@ -95,7 +99,7 @@ func (m *Model) buildTableListOverlay() string {
 			maxNameW = innerW - tableListNameAlignReserve
 		}
 
-		maxVisible := min(uikit.OverlayBodyHeight(m.height, tableListExtraChrome), len(vis))
+		maxVisible := min(uikit.OverlayBodyBudget(m.height, contentW, box, prefix, suffix), len(vis))
 		cursor := min(tl.Cursor, len(vis)-1)
 		start := max(cursor-maxVisible/2, 0)
 		end := start + maxVisible
@@ -104,6 +108,7 @@ func (m *Model) buildTableListOverlay() string {
 			start = max(end-maxVisible, 0)
 		}
 
+		lines := make([]string, 0, end-start)
 		for vi := start; vi < end; vi++ {
 			mt := vis[vi]
 			entry := tl.Tables[mt.Index]
@@ -122,53 +127,38 @@ func (m *Model) buildTableListOverlay() string {
 			}
 			shapeStyled := m.styles.HeaderHint().Render(shape)
 
-			if selected && tl.Renaming {
-				// Show textinput for rename
+			var line string
+			switch {
+			case selected && tl.Renaming:
+				// Show textinput for rename.
 				pointer := m.styles.TextBlueBold().Render(symTriRight + " ")
-				line := pointer + tl.RenameInput.View()
-				b.WriteString(line)
-			} else if selected {
+				line = pointer + tl.RenameInput.View()
+			case selected:
 				pointer := m.styles.TextBlueBold().Render(symTriRight + " ")
 				nameStyled := m.styles.TextBlueBold().Render(name)
 				paddedStyled := uikit.PadRight(nameStyled, maxNameW+2)
-				line := pointer + paddedStyled + shapeStyled
+				line = pointer + paddedStyled + shapeStyled
 				if lipgloss.Width(line) > innerW {
 					line = m.styles.Base().MaxWidth(innerW).Render(line)
 				}
-				b.WriteString(line)
-			} else {
+			default:
 				// Highlight the fuzzy-matched characters in unselected rows.
 				positions := clampPositions(mt.Positions, len([]rune(name)))
 				nameStyled := highlightFuzzyPositions(name, positions, m.styles.Base(), m.styles.TextBlueBold())
 				paddedName := uikit.PadRight(nameStyled, maxNameW+2)
-				line := "  " + paddedName + shapeStyled
+				line = "  " + paddedName + shapeStyled
 				if lipgloss.Width(line) > innerW {
 					line = m.styles.Base().MaxWidth(innerW).Render(line)
 				}
-				b.WriteString(line)
 			}
-			if vi < end-1 {
-				b.WriteString("\n")
-			}
+			lines = append(lines, line)
 		}
+		body = strings.Join(lines, "\n")
 	}
 
-	// Status message (e.g. "Dropped table_x"). Always reserve the line to
-	// avoid the overlay height jumping when a status appears/disappears.
-	b.WriteString("\n\n")
-	if tl.Status != "" {
-		b.WriteString(m.styles.Info().Render(tl.Status))
-	} else {
-		b.WriteString(" ")
-	}
-	b.WriteString("\n\n")
-
-	// Action hints — wrap to innerW so keys don't get clipped.
-	b.WriteString(m.tableListHints(innerW))
-
-	return m.styles.OverlayBox().
+	return box.
 		Width(contentW).
-		Render(b.String())
+		Render(prefix + body + suffix)
 }
 
 // tableListFilterLine renders the / filter row. While typing it shows the

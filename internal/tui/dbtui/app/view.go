@@ -25,6 +25,16 @@ const (
 	minLoadingBodyH    = 3
 	emptyDBTopChrome   = 1 // top-line chrome in empty DB view
 
+	// tabPathGap is the minimum gap (columns) reserved between the tab row and
+	// the right-aligned db path so they never touch.
+	tabPathGap = 2
+	// tabBarFallbackInset is the columns left for the db path when the terminal
+	// is too narrow for the 80%-width tab budget to clear the 40-column floor.
+	tabBarFallbackInset = 4
+	// emptyDBPathInset keeps the right-aligned db path off the right edge in the
+	// empty-database view.
+	emptyDBPathInset = 2
+
 	// Overlay dimension bounds for help.
 	helpOverlayMinW = 30
 	helpOverlayMaxW = 70
@@ -112,7 +122,7 @@ func (m *Model) buildBaseView() string {
 	// Right-align db path on the tab row.
 	if m.dbPath != "" {
 		tabsW := lipgloss.Width(tabs)
-		available := m.width - tabsW - 2
+		available := m.width - tabsW - tabPathGap
 		if available > 5 {
 			path := truncateLeft(shortenHome(m.dbPath), available)
 			if strings.HasPrefix(m.dbPath, "/") || strings.HasPrefix(m.dbPath, "~") {
@@ -185,7 +195,7 @@ func (m *Model) tabsView() string {
 	// Use ~80% of terminal width for tabs to leave room for the path label.
 	maxTabsWidth := m.width * 4 / 5
 	if maxTabsWidth < 40 {
-		maxTabsWidth = m.width - 4
+		maxTabsWidth = m.width - tabBarFallbackInset
 	}
 
 	// Find the range of tabs that fit, centered around the active tab.
@@ -386,7 +396,7 @@ func (m *Model) buildEmptyDBView() string {
 	// Right-align db path in the top-right corner.
 	var topLine string
 	if m.dbPath != "" {
-		path := truncateLeft(shortenHome(m.dbPath), m.width-2)
+		path := truncateLeft(shortenHome(m.dbPath), m.width-emptyDBPathInset)
 		topLine = lipgloss.PlaceHorizontal(m.width, lipgloss.Right, m.styles.HeaderHint().Render(path))
 	}
 	body := lipgloss.Place(
