@@ -21,6 +21,21 @@ import "charm.land/lipgloss/v2"
 - Compositing layered content with Canvas/Compositor
 - Choosing between `Width` vs `MaxWidth`, padding vs margin, `Place` vs `Join`
 
+## In This Repo (sci-go)
+
+This skill covers lipgloss *mechanics* — the string-in/string-out primitives. In sci-go you rarely call them raw: `internal/uikit/` wraps them into a small layout system, and the **bubbletea skill** owns the TUI layer that ties it together. Reach for uikit first; drop to raw lipgloss only when uikit can't express what you need — and then the sizing rules below become yours to enforce again.
+
+| Raw lipgloss (what this skill teaches) | sci-go wrapper (reach for this first) |
+|---|---|
+| `Width(n)` minus `GetHorizontalFrameSize()` by hand | `uikit.Box(w, h, style, func(innerW, innerH int) string)` — frame overhead subtracted for you |
+| `JoinVertical` / `JoinHorizontal` with manual widths | `uikit.VStack(w, h)` / `uikit.HStack(w, h)` with `.Fixed` / `.Flex(ratio)` / `.Gap` children |
+| `PlaceHorizontal` for a status bar's left+right | `uikit.Spread(width, left, right)` |
+| `Place` / `PlaceHorizontal` to center or pad | `uikit.Center(width, s)` / `uikit.Pad(s, width, pos)` / `uikit.Fit(s, width, pos)` |
+| `lipgloss.Wrap` | `uikit.WordWrap(text, maxW)` |
+| `lipgloss.NewStyle()` inline | `uikit.TUI` accessors (`.Dim()`, `.Error()`, `.TextBlue()`, `.Base()`, …) — inline `NewStyle()` is lint-banned outside `internal/uikit/` |
+
+Skim `internal/uikit/doc.go` for the full catalog; extend uikit when a pattern appears in ≥ 2 TUIs. The code examples below use `lipgloss.NewStyle()` directly to teach the mechanics in isolation — translate them to `uikit.TUI` accessors in real code.
+
 ## Core Mental Model: The Render Pipeline
 
 When you call `style.Render(text)`, lipgloss applies rules in this exact order:
@@ -462,9 +477,9 @@ style := lipgloss.NewStyle().Border(border)
 result := style.Render(strings.Join(lines, "\n"))
 ```
 
-### 6. Inline style construction outside ui/ package
+### 6. Constructing styles inline (sci-go convention)
 
-Per project convention, never construct styles inline. Access via the `ui.TUI` singleton or the per-TUI `ui/styles.go`.
+In this repo, inline `lipgloss.NewStyle()` is allowed *only* inside `internal/uikit/*.go` — anywhere else it fails the lint gate (`rules/no-inline-newstyle.yml`). The point is one palette and one set of semantic styles, resolved once for light/dark terminals, rather than ad-hoc colors scattered across packages. Use the `uikit.TUI` singleton: semantic styles via accessors (`uikit.TUI.Dim()`, `.Error()`, `.TextBlue()`, …) and a raw container to build on via `uikit.TUI.Base()`. There is **no** per-TUI `ui/` package — styles never live next to the model. See the "In This Repo" section above and `internal/uikit/doc.go`.
 
 ## Reference Files
 
