@@ -1,8 +1,10 @@
 # Emoji Width Alignment Fix for Terminal UIs
 
 **Date:** 2025-10-27
-**Source:** TFE project debugging session
+**Source:** TFE project debugging session (reference implementation — paths below are from that repo, not sci-go)
 **Issue:** Emoji alignment breaks in WezTerm/Termux but works in Windows Terminal
+
+> **In `sci-go`:** route all width measurement and truncation through `uikit.Truncate` / `runewidth.StringWidth` rather than `len()` — that alone fixes the common cases. The variation-selector workaround below (stripping `️`/`︎` before measuring) is only needed if you ship emoji icons and users hit per-terminal drift. If you build that fix, put it in `internal/uikit/` so every TUI shares one implementation — don't copy `stripANSI`/`visualWidth` into a TUI package.
 
 ---
 

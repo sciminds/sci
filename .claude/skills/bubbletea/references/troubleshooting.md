@@ -50,29 +50,20 @@ Text wrapping. Long strings wrap to multiple lines in narrower panels, making th
 Never rely on auto-wrapping. Truncate all text explicitly. See [Golden Rules #2](golden-rules.md#rule-2-never-auto-wrap-in-bordered-panels).
 
 ```go
+import "github.com/sciminds/cli/internal/uikit"
+
 maxTextWidth := panelWidth - 4  // -2 borders, -2 padding
 
-// Truncate everything
-title = truncateString(title, maxTextWidth)
-subtitle = truncateString(subtitle, maxTextWidth)
+// Truncate everything with a width-aware truncator (rune- and ANSI-safe)
+title = uikit.Truncate(title, maxTextWidth)
+subtitle = uikit.Truncate(subtitle, maxTextWidth)
 
 for i := range contentLines {
-    contentLines[i] = truncateString(contentLines[i], maxTextWidth)
+    contentLines[i] = uikit.Truncate(contentLines[i], maxTextWidth)
 }
 ```
 
-**Helper function:**
-```go
-func truncateString(s string, maxLen int) string {
-    if len(s) <= maxLen {
-        return s
-    }
-    if maxLen < 1 {
-        return ""
-    }
-    return s[:maxLen-1] + "…"
-}
-```
+> Use `uikit.Truncate` (or `runewidth.Truncate` outside the repo) — **not** a byte-slice like `s[:maxLen-1]`. Byte-slicing splits multi-byte runes and miscounts emoji/CJK width, so the panel overflows the very wrapping you're trying to prevent. See [`emoji-width-fix.md`](emoji-width-fix.md).
 
 ### Borders Not Rendering
 
@@ -95,8 +86,8 @@ Panel borders missing or showing weird characters.
 
 3. **Wrong border style**
    ```go
-   // Make sure you're using a valid border
-   import "github.com/charmbracelet/lipgloss"
+   // Make sure you're using a valid border (lipgloss v2)
+   import "charm.land/lipgloss/v2"
 
    border := lipgloss.RoundedBorder()  // ╭─╮
    // or
@@ -151,13 +142,12 @@ Clicking panels doesn't change focus or trigger actions.
 
 1. **Mouse not enabled.** v2 declares this on the returned `View()` value (declarative); v1 used program options.
    ```go
-   // v2 — set on the View struct
+   // v2 — build with tea.NewView(...) and set fields
    func (m model) View() tea.View {
-       return tea.View{
-           Layer: tea.NewLayer(m.render()),
-           AltScreen: true,
-           MouseMode: tea.MouseModeCellMotion,
-       }
+       v := tea.NewView(m.render())
+       v.AltScreen = true
+       v.MouseMode = tea.MouseModeCellMotion
+       return v
    }
 
    // v1 — program option (legacy)
@@ -193,8 +183,9 @@ Clicks work in horizontal layout but break when terminal is resized to vertical 
 **Root Cause:**
 Using X coordinates when layout is vertical, or Y coordinates when horizontal.
 
-**Solution:**
-Check layout mode before processing mouse events. See [Golden Rules #3](golden-rules.md#rule-3-match-mouse-detection-to-layout).
+**Best fix in this project: use `bubblezone` instead of coordinates.** Mark each region with `m.zones.Mark(id, …)`, `m.zones.Scan(view)` the final frame, and test `m.zones.Get(id).InBounds(msg)`. The zone manager records where each marked region actually rendered, so reflow can't desync it. See `SKILL.md` § Mouse pattern.
+
+**Manual fallback:** Check layout mode before processing mouse events. See [Golden Rules #3](golden-rules.md#rule-3-match-mouse-detection-to-layout).
 
 ```go
 // v2 — coords come via .Mouse() on the click message
@@ -275,10 +266,9 @@ Screen flickers or elements jump around during updates.
 3. **Using alt screen incorrectly** — v2 declares this on the returned `View`:
    ```go
    func (m model) View() tea.View {
-       return tea.View{
-           Layer:     tea.NewLayer(m.render()),
-           AltScreen: true, // essential for full-screen TUIs
-       }
+       v := tea.NewView(m.render())
+       v.AltScreen = true // essential for full-screen TUIs
+       return v
    }
    ```
 
@@ -296,14 +286,16 @@ Colors appear as plain text or wrong colors.
    tput colors      # Should show 256 or more
    ```
 
-2. **Not using lipgloss properly**
+2. **Not using lipgloss properly** (v2: `lipgloss.Color` returns an `image/color.Color`)
    ```go
-   // Use lipgloss for color
-   import "github.com/charmbracelet/lipgloss"
-
+   // Outside this repo — raw lipgloss v2:
+   import "charm.land/lipgloss/v2"
    style := lipgloss.NewStyle().
        Foreground(lipgloss.Color("#FF0000")).
        Background(lipgloss.Color("#000000"))
+
+   // In sci-go: never inline NewStyle() — use the uikit.TUI singleton instead
+   // (semantic accessors like uikit.TUI.Error(), or uikit.TUI.Base() for containers).
    ```
 
 3. **Environment variables**
@@ -343,7 +335,7 @@ Different terminals calculate emoji width differently (1 vs 2 cells).
    ```
 
 4. **Terminal-specific settings**
-   For WezTerm, see project's `docs/EMOJI_WIDTH_FIX.md`.
+   For the full WezTerm/Termux variation-selector fix (strip `️`/`︎` before width calc), see [`emoji-width-fix.md`](emoji-width-fix.md).
 
 ## Keyboard Issues
 
@@ -678,15 +670,14 @@ Always use alt screen for full-screen TUIs — set it on the `tea.View` you retu
 
 ```go
 func (m model) View() tea.View {
-    return tea.View{
-        Layer:     tea.NewLayer(m.render()),
-        AltScreen: true,
-        MouseMode: tea.MouseModeCellMotion,
-    }
+    v := tea.NewView(m.render())
+    v.AltScreen = true
+    v.MouseMode = tea.MouseModeCellMotion
+    return v
 }
 ```
 
-This prevents messing up the user's terminal when your app exits.
+This prevents messing up the user's terminal when your app exits. (In `sci-go`, prefer `uikit.Run` / `uikit.RunModel`, which also drain stale stdin on exit.)
 
 ## Getting Help
 

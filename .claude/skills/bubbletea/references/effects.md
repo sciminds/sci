@@ -4,6 +4,8 @@ Recipes for animation loops, color cycling, spring physics, layered compositing,
 
 > Bubble Tea has no built-in `FrameMsg` or game-loop. Animation is just a `tea.Tick` (or `tea.Every`) that schedules a custom message, and you re-arm it each tick to keep ticking. Everything in this file is built from that one primitive.
 
+> **Repo note on the inline `lipgloss.NewStyle()` calls below.** Per-cell dynamic color (rainbows, pulses) is the one place `uikit.TUI`'s pre-built styles can't help — the style changes every frame. That's fine, but `rules/no-inline-newstyle.yml` still forbids `NewStyle()` outside `internal/uikit/`. So when you build a reusable effect for `sci-go`, **put it in `internal/uikit/`** (where `NewStyle` is allowed) or seed it from `uikit.TUI.Base()`. The examples here use bare `lipgloss.NewStyle()` for portability; adapt accordingly in-tree.
+
 ---
 
 ## 1. The animation primitive: `tea.Tick`

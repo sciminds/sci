@@ -1,576 +1,251 @@
-# Bubbletea Components Catalog
+# Bubble Tea Components Catalog
 
-Reusable components for building TUI applications. All components follow the Elm architecture pattern (Init, Update, View).
+What to reach for when you need a list, a panel, an input, an overlay, or a status bar — and in what order.
 
-> **v2 imports.** This project mandates Bubble Tea / Bubbles / Lip Gloss v2. Replace any `github.com/charmbracelet/bubbles` import below with `charm.land/bubbles/v2`, and `github.com/charmbracelet/lipgloss` with `charm.land/lipgloss/v2`. The component APIs are nearly identical — see the v2 upgrade guides for exact deltas.
->
-> **`huh` forms must run through `uikit`.** This catalog shows raw `huh` for reference; in this project, drive forms via `uikit.RunForm` / `uikit.Input` / `uikit.InputInto` / `uikit.Select`. Confirmations use `cmdutil.Confirm` / `cmdutil.ConfirmYes`.
+## The decision order
 
-## Panel System
+Before building any component, ask in this sequence:
 
-Pre-built panel layouts for different UI arrangements.
+1. **Does `uikit` already have it?** `internal/uikit/` is the shared foundation. Using it means correct styling, theming, border math, and testability for free — and it's the project rule (extend uikit when a pattern shows up in ≥ 2 TUIs). Skim `internal/uikit/doc.go`.
+2. **Does `bubbles/v2` have it?** The Charm component library — `list`, `table`, `textinput`, `textarea`, `viewport`, `progress`, `spinner`, `help`, `key`. Wrap it in uikit styling, don't restyle inline.
+3. **Only then hand-roll**, and put it in uikit if anyone else will want it.
 
-### Single Panel
+> **Imports are v2, always.** `charm.land/bubbletea/v2`, `charm.land/bubbles/v2/...`, `charm.land/lipgloss/v2`. The v1 GitHub paths (`github.com/charmbracelet/...`) are banned by `CLAUDE.md`. For lipgloss styling mechanics see the **`lipgloss` skill**; for form/prompt internals see the **`huh` skill** (in this repo, forms go through `uikit`, never `huh` directly).
 
-Full-screen single view with optional title and status bars.
+## Quick map: need → reach for
 
-**Use for:**
-- Simple focused interfaces
-- Full-screen text editors
-- Single-purpose tools
+| You need… | First choice (`uikit`) | Underlying / fallback |
+|---|---|---|
+| Title/body/status chrome | `uikit.Chrome` / `uikit.VStack` | hand-rolled `VStack` |
+| Weighted multi-pane layout | `uikit.HStack(...).Flex(r, fn)` | manual weight math (golden-rules #4) |
+| Single bordered panel | `uikit.Box(w, h, style, fn)` | `lipgloss` border + manual inner-size math |
+| Responsive (stack ↔ side-by-side) | `uikit.Responsive(w,h).When(...)` | branch on `m.width` yourself |
+| N-column grid | `uikit.Grid(w, h, cols)` | manual column math |
+| Filterable list / picker | `uikit.ListPicker` | `bubbles/v2/list` |
+| Multi-select toggle list | `uikit.SelectList` | hand-rolled |
+| Data table | `bubbles/v2/table` | — |
+| Single text prompt | `uikit.Input` / `uikit.InputInto` | — (never raw `huh`/`textinput` for prompts) |
+| Choose one / many | `uikit.Select` / `uikit.MultiSelect` | — |
+| Multi-field form | `uikit.NewForm(uikit.FormGroup(...))` | — |
+| Yes/no confirm | `cmdutil.Confirm` / `ConfirmYes` | `uikit.Confirm` |
+| Inline editable text (in a model) | `uikit.LineEditor` | `bubbles/v2/textinput` |
+| Modal / popover | `uikit.OverlayBox` / `uikit.Overlay` | `lipgloss` compositor (see `effects.md` §5) |
+| Markdown panel | `uikit.MarkdownOverlay` / `uikit.RenderMarkdown` | `glamour` via uikit |
+| Scrollable content region | `bubbles/v2/viewport` | — |
+| Spinner / progress for a blocking op | `uikit.RunWithSpinner` / `RunWithProgress` | `bubbles/v2/spinner` / `progress` |
+| Key help footer | `bubbles/v2/help` + `bubbles/v2/key` | `uikit` help styles |
+| Mouse hit-testing | `bubblezone/v2` (`zone.Mark`/`InBounds`) | manual coords (golden-rules #3) |
 
-**Implementation:**
+All components follow the Elm architecture (`Init`/`Update`/`View`) and compose inside a parent model.
+
+---
+
+## Layout & chrome (uikit)
+
+The layout primitives are the heart of uikit — they encode the golden rules (see `golden-rules.md`). Each child callback receives its exact inner dimensions, so children never need to know the parent's size.
+
 ```go
-func (m model) renderSinglePanel() string {
-    contentWidth, contentHeight := m.calculateLayout()
+import "github.com/sciminds/cli/internal/uikit"
 
-    // Create panel with full available space
-    panel := m.styles.Panel.
-        Width(contentWidth).
-        Render(content)
+// Vertical stack: fixed title + flexible body + fixed status.
+uikit.VStack(m.width, m.height).
+    Fixed(func(w int) string { return m.renderTitle(w) }).
+    Flex(1, func(w, h int) string { return m.renderBody(w, h) }).
+    Fixed(func(w int) string { return m.renderStatus(w) }).
+    Render()
 
-    return panel
-}
+// Horizontal split with accordion weighting (focused pane is wider).
+uikit.HStack(w, h).
+    Flex(m.leftRatio, func(w, h int) string { return m.renderLeft(w, h) }).
+    Flex(1, func(w, h int) string { return m.renderRight(w, h) }).
+    Render()
+
+// Single bordered box — inner dims already exclude the frame.
+uikit.Box(w, h, uikit.TUI.Base().Border(lipgloss.RoundedBorder()),
+    func(innerW, innerH int) string { return uikit.Truncate(text, innerW) })
+
+// Responsive: pick a layout by breakpoint. When(minWidth, fn) matches when
+// width >= minWidth (highest matching wins); Default is the narrow fallback.
+uikit.Responsive(m.width, m.height).
+    When(80, func(w, h int) string { return sideBySide(w, h) }).
+    Default(func(w, h int) string { return stacked(w, h) }).
+    Render()
 ```
 
-### Dual Pane
+`FixedIf` / `FlexIf` add a child only when a condition holds (e.g. hide a sidebar on narrow terminals). `Gap(n)` inserts spacing. Real example: `internal/tui/dbtui/app/view.go`.
 
-Side-by-side panels with configurable split ratio and accordion mode.
+---
 
-**Use for:**
-- File browsers with preview
-- Split editors
-- Source/destination views
+## Lists & selection
 
-**Features:**
-- Dynamic split ratio (50/50, 66/33, 75/25)
-- Accordion mode (focused panel expands)
-- Responsive (stacks vertically on narrow terminals)
-- Weight-based sizing for smooth resizing
+### `uikit.ListPicker` — filterable list, one-line construction
 
-**Implementation:**
+Pre-styled wrapper over `bubbles/v2/list`. Pass `list.Item`s and optional extra key bindings.
+
 ```go
-func (m model) renderDualPane() string {
-    contentWidth, contentHeight := m.calculateLayout()
-
-    // Calculate weights based on focus/accordion
-    leftWeight, rightWeight := 1, 1
-    if m.accordionMode && m.focusedPanel == "left" {
-        leftWeight = 2
-    }
-
-    // Calculate actual widths from weights
-    totalWeight := leftWeight + rightWeight
-    leftWidth := (contentWidth * leftWeight) / totalWeight
-    rightWidth := contentWidth - leftWidth
-
-    // Render panels
-    leftPanel := m.renderPanel("left", leftWidth, contentHeight)
-    rightPanel := m.renderPanel("right", rightWidth, contentHeight)
-
-    return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
-}
-```
-
-**Keyboard shortcuts:**
-- `Tab` - Switch focus between panels
-- `a` - Toggle accordion mode
-- Arrow keys - Focus panel in direction
-
-**Mouse support:**
-- Click panel to focus
-- Works in both horizontal and vertical stack modes
-
-### Multi-Panel
-
-3+ panels with configurable sizes and arrangements.
-
-**Use for:**
-- IDEs (file tree, editor, terminal, output)
-- Dashboard views
-- Complex workflows
-
-**Common layouts:**
-- Three-column (25/50/25)
-- Three-row
-- Grid (2x2, 3x3)
-- Sidebar + main + inspector
-
-**Implementation:**
-```go
-// Three-column example
-mainWeight, leftWeight, rightWeight := 2, 1, 1  // 50/25/25
-totalWeight := mainWeight + leftWeight + rightWeight
-
-leftWidth := (contentWidth * leftWeight) / totalWeight
-mainWidth := (contentWidth * mainWeight) / totalWeight
-rightWidth := contentWidth - leftWidth - mainWidth
-```
-
-### Tabbed
-
-Multiple views with tab switching.
-
-**Use for:**
-- Multiple documents
-- Settings pages
-- Different data views
-
-**Features:**
-- Tab bar with active indicator
-- Keyboard shortcuts (`1-9`, `Ctrl+Tab`)
-- Mouse click to switch tabs
-- Close tab support
-
-## Lists
-
-### Simple List
-
-Basic scrollable list of items.
-
-**Use for:**
-- File listings
-- Menu options
-- Search results
-
-**Features:**
-- Keyboard navigation (Up/Down, Home/End, PgUp/PgDn)
-- Mouse scrolling and selection
-- Visual selection indicator
-- Viewport scrolling (only visible items rendered)
-
-**Integration:**
-```go
-import "github.com/charmbracelet/bubbles/list"
-
-type model struct {
-    list list.Model
-}
-
-func (m model) Init() tea.Cmd {
-    items := []list.Item{
-        item{title: "Item 1", desc: "Description 1"},
-        item{title: "Item 2", desc: "Description 2"},
-    }
-    m.list = list.New(items, list.NewDefaultDelegate(), 0, 0)
-    return nil
-}
-```
-
-### Filtered List
-
-List with fuzzy search/filter.
-
-**Use for:**
-- Quick file finder
-- Command palette
-- Searchable settings
-
-**Features:**
-- Real-time filtering as you type
-- Fuzzy matching
-- Highlighted matches
-
-**Dependencies:**
-```go
-github.com/koki-develop/go-fzf
-```
-
-### Tree View
-
-Hierarchical list with expand/collapse.
-
-**Use for:**
-- Directory trees
-- Nested data structures
-- Outline views
-
-**Features:**
-- Expand/collapse nodes
-- Indentation levels
-- Parent/child relationships
-- Recursive rendering
-
-## Input Components
-
-### Text Input
-
-Single-line text field.
-
-**Use for:**
-- Forms
-- Search boxes
-- Prompts
-
-**Integration:**
-```go
-import "github.com/charmbracelet/bubbles/textinput"
-
-type model struct {
-    input textinput.Model
-}
-
-func (m model) Init() tea.Cmd {
-    m.input = textinput.New()
-    m.input.Placeholder = "Enter text..."
-    m.input.Focus()
-    return textinput.Blink
-}
-```
-
-### Multiline Input
-
-Text area for longer content.
-
-**Use for:**
-- Commit messages
-- Notes
-- Configuration editing
-
-**Integration:**
-```go
-import "github.com/charmbracelet/bubbles/textarea"
-
-type model struct {
-    textarea textarea.Model
-}
-```
-
-### Forms
-
-Structured input with multiple fields.
-
-**Use for:**
-- Settings dialogs
-- User registration
-- Multi-field input
-
-**Integration:**
-```go
-import "github.com/charmbracelet/huh"
-
-form := huh.NewForm(
-    huh.NewGroup(
-        huh.NewInput().
-            Title("Name").
-            Value(&name),
-        huh.NewInput().
-            Title("Email").
-            Value(&email),
-    ),
+import (
+    "charm.land/bubbles/v2/list"
+    "github.com/sciminds/cli/internal/uikit"
 )
+
+picker := uikit.NewListPicker("Pick a file", items) // items []list.Item
 ```
 
-### Autocomplete
+Use the raw `bubbles/v2/list` directly only when you need behaviour ListPicker doesn't expose. Its delegate handles fuzzy filtering (`/`), navigation (arrows, `Home`/`End`, `PgUp`/`PgDn`), and selection out of the box.
 
-Text input with suggestions.
+### `uikit.SelectList` — multi-select toggle list
 
-**Use for:**
-- Command entry
-- File paths
-- Tag selection
+For wizard-style "tick the ones you want" flows. Built from `uikit.SelectItem`s with `uikit.NewSelectList(items, opts...)`.
 
-**Features:**
-- Real-time suggestions
-- Keyboard navigation of suggestions
-- Tab completion
+### `bubbles/v2/table` — data tables
 
-## Dialogs
+The project standard for tabular data (not `evertras/bubble-table`). `dbtui` builds its grid on it.
 
-### Confirm Dialog
-
-Yes/No confirmation.
-
-**Use for:**
-- Delete confirmations
-- Save prompts
-- Destructive actions
-
-**Example:**
-```
-┌─────────────────────────────┐
-│ Delete this file?           │
-│                             │
-│  [Yes]  [No]                │
-└─────────────────────────────┘
-```
-
-### Input Dialog
-
-Prompt for single value.
-
-**Use for:**
-- Quick input
-- Rename operations
-- New file creation
-
-### Progress Dialog
-
-Show long-running operations.
-
-**Use for:**
-- File uploads
-- Build processes
-- Data processing
-
-**Integration:**
 ```go
-import "github.com/charmbracelet/bubbles/progress"
+import "charm.land/bubbles/v2/table"
 
-type model struct {
-    progress progress.Model
-}
+t := table.New(
+    table.WithColumns([]table.Column{{Title: "ID", Width: 6}, {Title: "Name", Width: 24}}),
+    table.WithRows(rows),
+    table.WithFocused(true),
+)
+// Style via uikit.TUI; route key/mouse msgs through t.Update in your model.
 ```
 
-### Modal
+---
 
-Full overlay dialog.
+## Text input, prompts & forms
 
-**Use for:**
-- Settings
-- Help screens
-- Complex forms
+Two distinct tiers — don't mix them up:
 
-## Menus
+**Tier 1 — interactive prompts (blocking, outside a running model).** Use the uikit wrappers; they own `huh` and apply project theming. Never call `huh` or build a `textinput` prompt yourself.
 
-### Context Menu
-
-Right-click or keyboard-triggered menu.
-
-**Use for:**
-- File operations
-- Quick actions
-- Tool integration
-
-**Example:**
-```
-┌─────────────┐
-│ Open        │
-│ Copy        │
-│ Delete      │
-│ Properties  │
-└─────────────┘
-```
-
-### Command Palette
-
-Fuzzy searchable command list.
-
-**Use for:**
-- Command discovery
-- Keyboard-first workflows
-- Power user features
-
-**Keyboard:**
-- `Ctrl+P` or `Ctrl+Shift+P` to open
-- Type to filter
-- Enter to execute
-
-### Menu Bar
-
-Top-level menu system.
-
-**Use for:**
-- Traditional application menus
-- Organized commands
-- Discoverability
-
-**Example:**
-```
-File  Edit  View  Help
-```
-
-## Status Components
-
-### Status Bar
-
-Bottom bar showing state and help.
-
-**Use for:**
-- Current mode/state
-- Keyboard hints
-- File info
-
-**Example:**
-```
-┌────────────────────────────────────┐
-│                                    │
-│        Content area                │
-│                                    │
-├────────────────────────────────────┤
-│ Normal | file.txt | Line 10/100   │
-└────────────────────────────────────┘
-```
-
-**Pattern:**
 ```go
+name, err := uikit.Input("Project name", "lowercase, no spaces",
+    uikit.WithValidation(validateName))
+err := uikit.InputInto(&cfg.Token, "API token", "", uikit.WithPassword())
+
+choice, err := uikit.Select("Backend", []uikit.Option[string]{
+    uikit.NewOption("SQLite", "sqlite"),
+    uikit.NewOption("DuckDB", "duck"),
+})
+picks, err := uikit.MultiSelect("Features", "space to toggle", opts)
+
+// Multi-field form, optionally conditional pages:
+err := uikit.NewForm(
+    uikit.FormGroup(
+        uikit.FormInput(&name, "Name", uikit.WithValidation(notEmpty)),
+        uikit.FormSelect(&backend, "Backend", backendOpts),
+    ),
+    uikit.FormGroup(
+        uikit.FormInput(&dsn, "Connection string"),
+    ).HideWhen(func() bool { return backend == "sqlite" }),
+).Run()
+
+// Confirmations:
+if err := cmdutil.ConfirmYes("Overwrite existing file?"); err != nil { return err }
+```
+
+Field options (`uikit.WithDescription`, `WithPlaceholder`, `WithPassword`, `WithValidation`) work for both single prompts and form fields. For everything about *how* huh forms behave (field types, dynamic `Func` forms, accessibility, theming) → **`huh` skill**.
+
+**Tier 2 — input embedded *inside* a live model.** Use the raw `bubbles` components and drive them from your `Update`:
+
+```go
+import "charm.land/bubbles/v2/textinput"
+
+ti := textinput.New()
+ti.Placeholder = "search…"
+ti.Focus()
+// in Update: m.ti, cmd = m.ti.Update(msg)
+```
+
+For a lightweight single-line editor inside an overlay (e.g. cell editing), `uikit.LineEditor` is a plain rune-buffer-with-cursor that needs no `tea.Model` wiring. `bubbles/v2/textarea` covers multi-line.
+
+---
+
+## Overlays & modals
+
+`uikit` composites overlays onto the base view for you — you don't hand-roll the lipgloss layering.
+
+```go
+// Styled modal with title, body, and hint footer (a struct, sized at Render):
+box := uikit.OverlayBox{
+    Title: "Player",
+    Body:  body,
+    Hints: []string{"space pause/play", "esc close"},
+}.Render(m.width, m.height)
+
+// Scrollable content overlay (handles its own up/down):
+ov := uikit.NewOverlay("Help", content, m.width, m.height)
+
+// Markdown overlay (renders via glamour, scrollable):
+md := uikit.NewMarkdownOverlay("README", markdown, m.width, m.height)
+```
+
+`Overlay` and `MarkdownOverlay` both satisfy `uikit.ScrollableOverlay`, so you can hold either behind one interface field. For bespoke "thing on top of thing" effects (sprites, popovers, transparency), drop to the lipgloss compositor — see `effects.md` §5.
+
+---
+
+## Markdown, preview & status
+
+- **Markdown:** `uikit.RenderMarkdown(md, width)` (cached glamour render); `uikit.PreRenderMarkdown` to warm the cache; `uikit.RunMdViewer(path)` for a standalone pager. Don't import `glamour` directly.
+- **Syntax-highlighted code preview:** not currently a project dependency — if you need it, add `chroma/v2` deliberately rather than assuming it's present.
+- **Status / help:** compose with `uikit` chrome helpers (`StatusRow`, `FooterBar`, `SummaryLine`) and `bubbles/v2/help` + `bubbles/v2/key` for an auto-generated key legend. The status-bar spacing pattern:
+
+```go
+import "charm.land/lipgloss/v2"
+
 func (m model) renderStatusBar() string {
-    left := fmt.Sprintf("%s | %s", m.mode, m.filename)
+    left  := fmt.Sprintf("%s | %s", m.mode, m.filename)
     right := fmt.Sprintf("Line %d/%d", m.cursor, m.lineCount)
-
-    width := m.width
-    gap := width - lipgloss.Width(left) - lipgloss.Width(right)
-
-    return left + strings.Repeat(" ", gap) + right
+    gap := m.width - lipgloss.Width(left) - lipgloss.Width(right) // lipgloss.Width, not len()
+    return left + strings.Repeat(" ", max(gap, 0)) + right
 }
 ```
 
-### Title Bar
+`lipgloss.Width` measures display cells (ANSI- and width-aware); `len()` counts bytes and will mis-space anything with color or wide runes.
 
-Top bar with app title and context.
+---
 
-**Use for:**
-- Application name
-- Current path/document
-- Action buttons
+## Progress & spinners
 
-### Breadcrumbs
+For a blocking operation with a live indicator, the uikit runners wrap the whole thing:
 
-Path navigation component.
-
-**Use for:**
-- Directory navigation
-- Nested views
-- History trail
-
-**Example:**
-```
-Home > Projects > TUITemplate > components
-```
-
-## Preview Components
-
-### Text Preview
-
-Rendered text with syntax highlighting.
-
-**Use for:**
-- File preview
-- Code display
-- Log viewing
-
-**Integration:**
 ```go
-import "github.com/alecthomas/chroma/v2/quick"
+err := uikit.RunWithSpinner("Fetching items…", func() error {
+    return doSlowWork()
+})
 
-func renderCode(code, language string) string {
-    var buf bytes.Buffer
-    quick.Highlight(&buf, code, language, "terminal256", "monokai")
-    return buf.String()
-}
-```
-
-### Markdown Preview
-
-Rendered markdown.
-
-**Integration:**
-```go
-import "github.com/charmbracelet/glamour"
-
-func renderMarkdown(md string) (string, error) {
-    renderer, _ := glamour.NewTermRenderer(
-        glamour.WithAutoStyle(),
-        glamour.WithWordWrap(80),
-    )
-    return renderer.Render(md)
-}
-```
-
-### Image Preview
-
-ASCII/Unicode art from images.
-
-**Use for:**
-- Image thumbnails
-- Visual file preview
-- Logos/artwork
-
-**External tools:**
-- `catimg` - Convert images to 256-color ASCII
-- `viu` - View images in terminal with full color
-
-### Hex Preview
-
-Binary file viewer.
-
-**Use for:**
-- Binary file inspection
-- Debugging
-- Data analysis
-
-**Example:**
-```
-00000000: 7f45 4c46 0201 0100 0000 0000 0000 0000  .ELF............
-00000010: 0200 3e00 0100 0000 6009 4000 0000 0000  ..>.....`.@.....
-```
-
-## Tables
-
-### Simple Table
-
-Static data display.
-
-**Use for:**
-- Data display
-- Reports
-- Comparison views
-
-### Interactive Table
-
-Navigable table with selection.
-
-**Use for:**
-- Database browsers
-- CSV viewers
-- Process lists
-
-**Integration:**
-```go
-import "github.com/evertras/bubble-table/table"
-
-type model struct {
-    table table.Model
-}
-
-func (m model) Init() tea.Cmd {
-    m.table = table.New([]table.Column{
-        table.NewColumn("id", "ID", 10),
-        table.NewColumn("name", "Name", 20),
-    })
+err := uikit.RunWithProgress("Downloading", func(t *uikit.ProgressTracker) error {
+    t.SetTotal(len(items))
+    for _, item := range items {
+        download(item)
+        t.Advance("downloaded", item.Name) // (counter bucket, status-line text)
+    }
     return nil
-}
+})
 ```
 
-**Features:**
-- Sort by column
-- Row selection
-- Keyboard navigation
-- Column resize
+Inside a long-lived model, embed `bubbles/v2/spinner` or `bubbles/v2/progress` and tick them yourself (`progress` uses `harmonica` springs internally — see `effects.md` §4).
 
-## Component Integration Patterns
+---
 
-### Composing Components
+## Composing components
+
+The core skill of a multi-component TUI is **routing** messages to whichever child has focus, and letting children talk back via commands.
+
+### Route to the focused component
 
 ```go
-type model struct {
-    // Multiple components in one view
-    list     list.Model
-    preview  string
-    input    textinput.Model
-    focused  string  // which component has focus
-}
-
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
-    case tea.KeyPressMsg:           // v2
-        // Route to focused component
+    case tea.KeyPressMsg:
         switch m.focused {
-        case "list":
+        case focusList:
             var cmd tea.Cmd
             m.list, cmd = m.list.Update(msg)
             return m, cmd
-        case "input":
+        case focusInput:
             var cmd tea.Cmd
             m.input, cmd = m.input.Update(msg)
             return m, cmd
@@ -580,72 +255,60 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 ```
 
-### Lazy Loading Components
-
-Only initialize components when needed:
+### Lazy-initialise expensive children
 
 ```go
 type model struct {
-    preview     *PreviewComponent  // nil until needed
-    previewPath string
+    preview *PreviewComponent // nil until first needed
 }
-
-func (m *model) showPreview(path string) {
+func (m *model) showPreview(path string) tea.Cmd {
     if m.preview == nil {
         m.preview = NewPreviewComponent()
     }
-    m.preview.Load(path)
+    return m.preview.Load(path) // return the Cmd, don't block
 }
 ```
 
-### Component Communication
+### Let children communicate via custom messages
 
-Use Bubbletea commands to communicate between components:
+A child shouldn't reach into a sibling. It emits a `tea.Cmd` returning a typed message; the parent routes the result. This keeps each component testable in isolation.
 
 ```go
-type fileSelectedMsg struct {
-    path string
-}
+type fileSelectedMsg struct{ path string }
 
-// In list component Update
-case tea.KeyMsg:
-    if key.Matches(msg, m.keymap.Enter) {
-        selectedFile := m.list.SelectedItem()
-        return m, func() tea.Msg {
-            return fileSelectedMsg{path: selectedFile.Path()}
-        }
-    }
+// In the list's Update, on Enter:
+return m, func() tea.Msg { return fileSelectedMsg{path: m.list.SelectedItem().Path()} }
 
-// In main model Update
+// In the parent's Update:
 case fileSelectedMsg:
-    m.preview.Load(msg.path)
-    return m, nil
+    return m, m.preview.Load(msg.path)
 ```
 
-## Best Practices
+---
 
-1. **Keep components focused** - Each component should have one responsibility
-2. **Use bubbles package** - Don't reinvent standard components
-3. **Lazy initialization** - Create components when needed, not upfront
-4. **Proper sizing** - Always pass explicit width/height to components
-5. **Clean interfaces** - Components should expose minimal, clear APIs
+## Best practices
 
-## External Dependencies
+1. **uikit first, bubbles second, hand-roll last** — and promote anything reused twice into uikit.
+2. **One responsibility per component** — a component owns its state, key handling, and render; the parent owns layout and routing.
+3. **Pass explicit width/height down** — every render fn takes its dimensions as arguments (the uikit layout primitives hand them to you); nothing reads `m.width` from the middle of a subtree.
+4. **Lazy-init** anything expensive; return its load as a `Cmd`, never block in `Update`.
+5. **Communicate via typed `tea.Msg`s**, not cross-component pointers.
+6. **Style only through `uikit.TUI`** — no inline `lipgloss.NewStyle()`, no per-component `ui/` package.
 
-**Core Charm libraries:**
+## Dependencies (v2)
+
+**Core (always):**
 ```
-github.com/charmbracelet/bubbletea    # Framework
-github.com/charmbracelet/lipgloss     # Styling
-github.com/charmbracelet/bubbles      # Standard components
-```
-
-**Extended functionality:**
-```
-github.com/charmbracelet/glamour      # Markdown rendering
-github.com/charmbracelet/huh          # Forms
-github.com/alecthomas/chroma/v2       # Syntax highlighting
-github.com/evertras/bubble-table      # Interactive tables
-github.com/koki-develop/go-fzf        # Fuzzy finder
+charm.land/bubbletea/v2
+charm.land/bubbles/v2     // list, table, textinput, textarea, viewport, progress, spinner, help, key
+charm.land/lipgloss/v2
 ```
 
-See `go.mod` in template for complete list of optional dependencies.
+**Used in this repo:**
+```
+github.com/lrstanley/bubblezone/v2   // mouse zone hit-testing
+github.com/charmbracelet/glamour     // markdown — via uikit.RenderMarkdown only
+github.com/charmbracelet/harmonica   // spring physics for progress/animation
+```
+
+**Add deliberately if a feature needs it** (not currently imported): `chroma/v2` (syntax highlighting), a dedicated fuzzy-finder, etc. Prefer the bubbles `list` filter before pulling in a new finder.

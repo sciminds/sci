@@ -1,5 +1,7 @@
 # teatest — Integration Testing for Bubble Tea
 
+> **In `sci-go`:** the canonical protocol (file placement, checklist, fixture handling) is `internal/tui/dbtui/app/TESTING.md` — read it first. This project is **v2-only**, so use the v2 message forms throughout (`tea.KeyPressMsg{Code: tea.KeyEnter}`, `tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})`), not the v1 `tea.KeyMsg{Type: ...}` that appears in many examples below. The v1 details are kept for completeness and because the package itself is still v1-rooted, but your test code targets `charm.land/bubbletea/v2`. Verify DB mutations by querying the store directly, not by inspecting model state.
+
 ## Overview
 
 `teatest` is Charm's helper library for integration-testing Bubble Tea (`tea.Model`) programs. It spins up a real `tea.Program` against an in-memory input buffer and a thread-safe output buffer, lets you drive the program with typed keys and arbitrary `tea.Msg` values, and then lets you assert against either the cumulative output stream or the final `tea.Model` state. It's essentially "drive the full Init/Update/View loop end-to-end, without a terminal."

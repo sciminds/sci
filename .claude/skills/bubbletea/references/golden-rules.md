@@ -2,6 +2,8 @@
 
 These rules prevent the most common and frustrating TUI layout bugs. They were discovered through trial-and-error on real projects and will save you hours of debugging.
 
+> **In `sci-go`, the uikit primitives already enforce these rules** — `uikit.Box` does the border math (#1), `uikit.Truncate`/`Fit` prevent wrapping (#2), `bubblezone` removes mouse coordinate math (#3), and `uikit.VStack/HStack(...).Flex(ratio)` *is* weight-based sizing (#4). Reach for those first (see `SKILL.md` § Layout). This file explains **what they're doing under the hood** and how to do it by hand when you drop to raw lipgloss — which is exactly when these bugs reappear, so the understanding still matters.
+
 ## Rule #1: Always Account for Borders
 
 **Subtract 2 from height calculations BEFORE rendering panels.**
@@ -93,30 +95,25 @@ Lipgloss auto-wraps text that exceeds the panel width. In bordered panels, this 
 
 ### The Solution
 
-Calculate the maximum text width and truncate ALL strings before rendering:
+Calculate the maximum text width and truncate ALL strings before rendering. Use a **width-aware** truncator — `uikit.Truncate` in-repo, or `runewidth.Truncate` outside it:
 
 ```go
+import "github.com/sciminds/cli/internal/uikit"
+
 // Calculate max text width to prevent wrapping
 maxTextWidth := panelWidth - 4 // -2 for borders, -2 for padding
 
 // Truncate ALL text before rendering
-title = truncateString(title, maxTextWidth)
-subtitle = truncateString(subtitle, maxTextWidth)
+title = uikit.Truncate(title, maxTextWidth)
+subtitle = uikit.Truncate(subtitle, maxTextWidth)
 
 // Truncate content lines too
 for i := 0; i < availableContentLines && i < len(content); i++ {
-    line := truncateString(content[i], maxTextWidth)
-    lines = append(lines, line)
-}
-
-// Helper function
-func truncateString(s string, maxLen int) string {
-    if len(s) <= maxLen {
-        return s
-    }
-    return s[:maxLen-1] + "…"
+    lines = append(lines, uikit.Truncate(content[i], maxTextWidth))
 }
 ```
+
+> **Never byte-slice to truncate** (`s[:maxLen-1] + "…"`). It splits multi-byte runes mid-codepoint (mojibake) and counts every rune as one cell, so emoji and CJK — which are 2 cells wide — overflow the panel anyway. `uikit.Truncate` / `runewidth.Truncate` measure *display width* and cut on rune boundaries. See `emoji-width-fix.md` for why width != length in a terminal.
 
 ### Real-World Example
 
@@ -139,11 +136,13 @@ With truncation:
 
 **Use X coordinates for horizontal layouts, Y coordinates for vertical layouts.**
 
+> **In `sci-go`, prefer `bubblezone` over this entirely.** Mark each clickable region with `m.zones.Mark(id, content)` when rendering, `m.zones.Scan(view)` the final frame, then hit-test with `m.zones.Get(id).InBounds(msg)`. The zone manager tracks where each marked region actually landed after layout, so a click resolves correctly no matter how panels reflowed — *that's the whole bug this rule is about, solved declaratively.* `dbtui/CLAUDE.md` requires zone-marking for every clickable element. The manual coordinate logic below is the fallback for non-zone code (and explains what the zone manager is doing for you).
+
 ### The Problem
 
 If your layout orientation changes (side-by-side vs stacked), but your mouse detection logic doesn't, clicks won't work correctly.
 
-### The Solution
+### The Solution (manual fallback)
 
 Check layout mode before processing mouse events. In v2, `tea.MouseMsg` is an interface — switch on the click subtype and pull coordinates via `.Mouse()`:
 
