@@ -202,6 +202,8 @@ lo.SliceToMap(users, func(u *User) (int, string) {
 // map[int]string{1: "Alice", 2: "Bob"}
 ```
 
+Need the index in the callback? The `I`-suffixed variants pass it: `lo.SliceToMapI(s, func(v T, i int) (K, V))`, `lo.AssociateI`, `lo.FilterSliceToMapI`.
+
 ## FilterSliceToMap
 
 Like SliceToMap but callback returns `(key, value, include)`.
@@ -300,6 +302,7 @@ lo.TakeFilter(xs, 3, func(v int, _ int) bool { return v%2 == 0 })  // first 3 ev
 lo.Drop([]int{0, 1, 2, 3, 4}, 2)              // []int{2, 3, 4}
 lo.DropRight([]int{0, 1, 2, 3, 4}, 2)         // []int{0, 1, 2}
 lo.DropWhile(xs, func(v string) bool { return len(v) <= 2 })
+lo.DropRightWhile(xs, func(v string) bool { return len(v) <= 2 })  // from the tail
 lo.DropByIndex(xs, 2, 4, -1)                  // drop by index (supports negative)
 ```
 
@@ -384,5 +387,7 @@ Analogues of `strings.Cut/CutPrefix/CutSuffix/Trim*`:
 left, right, ok := lo.Cut(slice, separator)
 trimmed := lo.TrimPrefix(slice, prefix)
 trimmed := lo.TrimSuffix(slice, suffix)
-trimmed := lo.Trim(slice, cutset)
+trimmed := lo.Trim(slice, cutset)            // both ends
+trimmed := lo.TrimLeft(slice, cutset)        // leading only
+trimmed := lo.TrimRight(slice, cutset)       // trailing only
 ```

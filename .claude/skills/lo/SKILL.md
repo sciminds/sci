@@ -248,15 +248,31 @@ A Python/JS dev reaches for `(key, value)` everywhere and silently swaps the arg
 
 ```go
 // Two passes, two allocations:
-active := lo.Filter(users, func(u User, _ int) bool { return u.Active })
-names := lo.Map(active, func(u User, _ int) string { return u.Name })
+names := lo.Map(lo.Filter(users, func(u User, _ int) bool { return u.Active }),
+    func(u User, _ int) string { return u.Name })
 
 // One pass:
 names := lo.FilterMap(users, func(u User, _ int) (string, bool) {
     return u.Name, u.Active
 })
 ```
-`FilterMap` is heavily used here (~32 call sites); semgrep flags the manual loop version as `no-manual-filtermap`.
+The inline form above is semgrep-enforced here (`no-lo-filter-then-map`) — with no intermediate variable, the fold is always safe. `FilterMap` is heavily used in this codebase (~32 call sites).
+
+**But fold only when the filtered slice isn't reused.** When you keep the intermediate around for a length check, indexing, slicing, or sorting *before* the map, the two passes are doing real work and `FilterMap` can't express it — leave them separate:
+
+```go
+matches := lo.Filter(cols, func(c Collection, _ int) bool { return c.Name == input })
+switch len(matches) {           // ← intermediate used for branching + indexing
+case 0:
+    return errNotFound
+case 1:
+    return matches[0], nil
+default:
+    keys := lo.Map(matches, func(c Collection, _ int) string { return c.Key }) // correct as-is
+    ...
+}
+```
+This is why the semgrep rule deliberately matches only the inline `lo.Map(lo.Filter(...))` form, not the two-statement version — the latter is a human judgment call, not a mechanical rewrite.
 
 ### `lo` is for *transforms*, not iteration-for-effect
 
@@ -273,14 +289,30 @@ If you're not building a new value, don't wrap a loop in `lo`. A plain `for rang
 - `lop.Map` (parallel) adds goroutine overhead — only use for I/O-bound callbacks, not CPU-bound transforms.
 - All `lo` functions are allocation-friendly — same profile as hand-written equivalents.
 
-## Semgrep Integration
+## Replacing Go Boilerplate
 
-This project enforces `lo` usage via `.semgrep/go-modern.yml`. Run `just lint-style` to check. Common flags:
-- Manual `for` + `append` with transform → use `lo.Map`
-- Manual `for` + `if` + `append` → use `lo.Filter`
-- Manual map building from slice → use `lo.KeyBy` or `lo.SliceToMap`
-- Manual `for` + counter → use `lo.CountBy` or `lo.CountValues`
-- `sort.Slice` / `sort.Strings` → use `slices.Sort` / `slices.SortFunc`
+The whole point of `lo` here is deleting verbose loops so the *intent* survives instead of the mechanics — the win a Python/JS dev expects from a comprehension. When you're about to write the left column, write the right column instead. These are the exact rewrites `.semgrep/go-modern.yml` enforces (`just lint-style`), so the manual forms fail the gate anyway.
+
+| Instead of this Go loop | Write |
+|---|---|
+| `out := make([]R, len(xs)); for i, x := range xs { out[i] = f(x) }` | `lo.Map(xs, func(x T, _ int) R { return f(x) })` |
+| `for _, x := range xs { if keep(x) { out = append(out, x) } }` | `lo.Filter(xs, func(x T, _ int) bool { return keep(x) })` |
+| `for _, x := range xs { if keep(x) { out = append(out, f(x)) } }` | `lo.FilterMap(xs, func(x T, _ int) (R, bool) { return f(x), keep(x) })` |
+| `for _, x := range xs { out = append(out, x.Sub...) }` | `lo.FlatMap(xs, func(x T, _ int) []R { return x.Sub })` |
+| `m := make(map[K]T); for _, x := range xs { m[x.K] = x }` | `lo.KeyBy(xs, func(x T) K { return x.K })` |
+| `m := make(map[K]V); for _, x := range xs { m[x.K] = x.V }` | `lo.SliceToMap(xs, func(x T) (K, V) { return x.K, x.V })` |
+| `m := make(map[K][]T); for _, x := range xs { m[x.K] = append(m[x.K], x) }` | `lo.GroupBy(xs, func(x T) K { return x.K })` |
+| `n := 0; for _, x := range xs { if keep(x) { n++ } }` | `lo.CountBy(xs, func(x T) bool { return keep(x) })` |
+| `for _, x := range xs { if x == target { return true } }; return false` | `slices.Contains(xs, target)` |
+| `for _, x := range xs { if pred(x) { return true } }; return false` | `lo.ContainsBy(xs, pred)` |
+| `for _, x := range xs { if pred(x) { return x, true } }` | `lo.Find(xs, pred)` |
+| `for i, x := range xs { if pred(x) { return i, true } }` | `_, i, ok := lo.FindIndexOf(xs, pred)` |
+| `seen := map[K]bool{}; for _, x := range xs { if !seen[x.K] { seen[x.K]=true; out=append(out,x) } }` | `lo.UniqBy(xs, func(x T) K { return x.K })` |
+| `keys := []K{}; for k := range m { keys = append(keys, k) }` | `slices.Sorted(maps.Keys(m))` |
+| `for k, v := range src { dst[k] = v }` | `maps.Copy(dst, src)` |
+| `sort.Slice(xs, …)` / `sort.Strings(xs)` | `slices.SortFunc(xs, …)` / `slices.Sort(xs)` |
+
+If the loop also branches on the intermediate (length checks, indexing, sorting), keep it explicit — see [Gotchas](#gotchas--anti-patterns) for when *not* to fold.
 
 ## Reference Files
 

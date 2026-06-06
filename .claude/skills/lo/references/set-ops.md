@@ -69,9 +69,10 @@ Remove specific values.
 ```go
 lo.Without([]int{0, 2, 10}, 2)               // []int{0, 10}
 lo.WithoutBy(users, func(u User) int { return u.ID }, 2, 3)  // exclude by ID
-lo.WithoutEmpty([]int{0, 2, 10})              // []int{2, 10} — removes zero values
 lo.WithoutNth([]int{0, 1, 2, 3}, 1, 3)       // []int{0, 2} — removes by index
 ```
+
+⚠️ `lo.WithoutEmpty` is **deprecated in v1.53.0** — use `lo.Compact` instead (identical behavior: drops zero-value elements). See `references/slice-transforms.md`.
 
 **Err:** `lo.WithoutByErr`
 
@@ -120,6 +121,7 @@ key, ok := lo.FindKeyBy(m, func(k string, v int) bool { return v > 5 })
 ```go
 lo.FindUniques([]int{1, 2, 2, 1, 3})       // []int{3}        — appear exactly once
 lo.FindDuplicates([]int{1, 2, 2, 1, 3})    // []int{1, 2}     — appear more than once
+lo.FindUniquesBy(items, func(i Item) string { return i.Key })       // by derived key
 lo.FindDuplicatesBy(items, func(i Item) string { return i.Key })
 ```
 
@@ -167,10 +169,15 @@ lo.LatestBy(items, func(i Item) time.Time { return i.UpdatedAt })
 Safe accessors that never panic.
 
 ```go
-first, ok := lo.First([]int{1, 2, 3})       // 1, true
+first, ok := lo.First([]int{1, 2, 3})       // 1, true   (ok=false if empty)
 last, ok := lo.Last([]int{1, 2, 3})         // 3, true
-lo.FirstOrEmpty([]int{})                      // 0
-lo.LastOr([]int{}, 42)                        // 42
-nth, err := lo.Nth([]int{10, 20, 30}, 1)    // 20, nil
-lo.NthOr([]int{10, 20}, 5, -1)              // -1 (fallback)
+nth, err := lo.Nth([]int{10, 20, 30}, 1)    // 20, nil   (err if out of range)
+
+// "OrEmpty" → zero value on miss; "Or" → your fallback on miss:
+lo.FirstOrEmpty([]int{})                     // 0
+lo.LastOrEmpty([]int{})                      // 0
+lo.NthOrEmpty([]int{10, 20}, 5)             // 0
+lo.FirstOr([]int{}, 42)                      // 42
+lo.LastOr([]int{}, 42)                       // 42
+lo.NthOr([]int{10, 20}, 5, -1)              // -1
 ```

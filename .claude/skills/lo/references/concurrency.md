@@ -82,15 +82,26 @@ ch := lo.SliceToChannel(2, items)      // buffered channel, sends items
 slice := lo.ChannelToSlice(ch)         // blocks until channel closes
 ```
 
-### Generator
+### Generator ⚠️ deprecated
+
+`lo.Generator` is **deprecated in v1.53.0** — use a stdlib `iter.Seq` (Go 1.23+ range-over-func) instead, which is lazy and needs no goroutine/channel:
 
 ```go
-ch := lo.Generator(2, func(yield func(int)) {
-    yield(1)
-    yield(2)
-    yield(3)
-})
-// <-chan int, buffered at 2
+import "iter"
+
+func count() iter.Seq[int] {
+    return func(yield func(int) bool) {
+        for i := 1; i <= 3; i++ {
+            if !yield(i) {
+                return
+            }
+        }
+    }
+}
+
+for n := range count() { // consume like any range
+    fmt.Println(n)
+}
 ```
 
 ### FanIn / FanOut

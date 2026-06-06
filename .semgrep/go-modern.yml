@@ -198,6 +198,35 @@ rules:
     severity: WARNING
     languages: [go]
 
+  # ── no-lo-filter-then-map (0 hits — regression guard) ───────────────────────
+  # lo.Map(lo.Filter(src, pred), xform) walks the slice twice and allocates an
+  # intermediate. Only the INLINE form is flagged: with no named intermediate
+  # there is nothing to reuse, so the fold to lo.FilterMap is always safe.
+  #
+  # Deliberately NOT matched: the two-statement form
+  #   mid := lo.Filter(src, pred); out := lo.Map(mid, xform)
+  # In this codebase every such `mid` is also used between the two calls —
+  # length-branching, indexing, slicing, or sorting — which is exactly when
+  # folding to FilterMap would be WRONG. Flagging it produced only false
+  # positives (measured: 6 candidates, 0 genuinely foldable). See the `lo`
+  # skill's "Gotchas" for the human-judgment version of this rule.
+  #
+  # Before:
+  #   names := lo.Map(lo.Filter(users, isActive), userName)
+  # After:
+  #   names := lo.FilterMap(users, func(u User, _ int) (string, bool) {
+  #       return u.Name, u.Active
+  #   })
+  - id: no-lo-filter-then-map
+    patterns:
+      - pattern: lo.Map(lo.Filter($SRC, $PRED), $XFORM)
+    message: >-
+      lo.Map(lo.Filter(...)) walks the slice twice and allocates an
+      intermediate. Fold into one lo.FilterMap($SRC, func(...) (R, bool) { ... })
+      pass. See CLAUDE.md "Modern Go style".
+    severity: WARNING
+    languages: [go]
+
   # ── no-manual-set-build (3 + 7 hits) ────────────────────────────────────────
   # make(map[T]bool) + for { m[key] = true } → lo.Keyify / lo.SliceToMap
   #
@@ -321,7 +350,7 @@ rules:
 
   # ── no-manual-compact (0 structural — real code uses TrimSpace != "") ──────
   # for _, v := range src { if v != "" { out = append(out, v) } }
-  # → lo.Compact or lo.WithoutEmpty
+  # → lo.Compact  (NOT lo.WithoutEmpty — deprecated in lo v1.53.0)
   - id: no-manual-compact-string
     patterns:
       - pattern: |
@@ -331,8 +360,8 @@ rules:
               }
           }
     message: >-
-      Use lo.Compact($SRC) or lo.WithoutEmpty($SRC) instead of manual
-      empty-string filter loop. See CLAUDE.md "Modern Go style".
+      Use lo.Compact($SRC) instead of manual empty-string filter loop.
+      See CLAUDE.md "Modern Go style".
     severity: WARNING
     languages: [go]
 
