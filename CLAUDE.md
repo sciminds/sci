@@ -32,6 +32,7 @@ just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 
 ## Modern Go style
 
+- **Writing or editing any Go → invoke the `go-modern` skill first.** It's the reference for current stdlib + language idioms (Go 1.21–1.26): `slices`/`maps`/`cmp`, the `min`/`max`/`clear` builtins, range-over-int and range-over-func iterators, `errors.Is/As/Join` + `%w` wrapping, generics, `new(expr)`, `omitzero`, `os.Root`, plus the legacy→modern migration map and a self-review checklist. Use it to write modern Go *up front* instead of leaning on the linters to catch legacy patterns after the fact. It complements the `lo` skill (below): `go-modern` owns everything stdlib- and language-level; `lo` owns functional transforms.
 - **Prefer `lo` patterns over vanilla loops whenever equivalently correct.** Audience is Python/JS devs — `lo.Map` / `lo.Filter` / `lo.GroupBy` / `lo.KeyBy` read closer to their intuitions than `for`+`append`. **Invoke the `lo` skill** before writing any slice/map/set transform — it has the full catalog, decision framework, and `*Err` variant tables.
 - **Stdlib when it suffices** (`slices`, `maps`, `cmp`). **No legacy `sort` package** — use `slices.Sort` / `slices.SortFunc` / `slices.SortStableFunc` / `slices.BinarySearch`. Banned by lint-guard rule 9.
 - **Semgrep enforces loop-to-`lo` rewrites** via `.semgrep/go-modern.yml` (run through `just lint-style`). Don't create new debt.

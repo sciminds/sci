@@ -47,6 +47,6 @@ scripts/package.json
 todo.md
 rodney/
 # MyST typst templates under active iteration — commit once stable
+.claude/worktrees/
 /templates/
-.claude/
 frontmatter/
