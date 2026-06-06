@@ -64,6 +64,7 @@ func buildRoot() *cli.Command {
 			helpCommand(),
 			// Getting Started
 			learnCommand(),
+			setupCommand(),
 			// Commands
 			cloudCommand(),
 			dbCommand(),

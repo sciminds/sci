@@ -27,7 +27,7 @@ func TestCommandTree(t *testing.T) {
 
 	// All top-level subcommands
 	topLevel := map[string]bool{
-		"learn": false,
+		"learn": false, "setup": false,
 		"tools": false, "doctor": false, "update": false,
 		"proj": false, "py": false, "vid": false,
 		"db": false, "cloud": false, "lab": false, "view": false,

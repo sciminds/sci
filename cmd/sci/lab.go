@@ -71,33 +71,37 @@ func labSetupCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "user", Aliases: []string{"u"}, Usage: "SSH username (required in --json mode)", Destination: &setupUser, Local: true},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			user := setupUser
-
-			if cmdutil.IsJSON(cmd) && user == "" {
-				return fmt.Errorf("--user is required in --json mode")
-			}
-
-			if user == "" {
-				if err := uikit.InputInto(&user, "SSH username", "Your UCSD username for "+lab.Host); err != nil {
-					return err
-				}
-			}
-			if err := lab.ValidateUser(user); err != nil {
-				return err
-			}
-
-			result, err := lab.Setup(user)
-			if err != nil {
-				return err
-			}
-			cmdutil.Output(cmd, result)
-			if result.OK {
-				uikit.NextStep("sci lab ls", "Browse lab storage")
-			}
-			return nil
-		},
+		Action: runLabSetup,
 	}
+}
+
+// runLabSetup is the lab setup flow, shared by `sci lab setup` and the
+// top-level `sci setup` menu so there is exactly one implementation.
+func runLabSetup(_ context.Context, cmd *cli.Command) error {
+	user := setupUser
+
+	if cmdutil.IsJSON(cmd) && user == "" {
+		return fmt.Errorf("--user is required in --json mode")
+	}
+
+	if user == "" {
+		if err := uikit.InputInto(&user, "SSH username", "Your UCSD username for "+lab.Host); err != nil {
+			return err
+		}
+	}
+	if err := lab.ValidateUser(user); err != nil {
+		return err
+	}
+
+	result, err := lab.Setup(user)
+	if err != nil {
+		return err
+	}
+	cmdutil.Output(cmd, result)
+	if result.OK {
+		uikit.NextStep("sci lab ls", "Browse lab storage")
+	}
+	return nil
 }
 
 func labLsCommand() *cli.Command {

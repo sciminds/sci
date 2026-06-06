@@ -5,14 +5,11 @@
 package lab
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 
-	"github.com/adrg/xdg"
+	"github.com/sciminds/cli/internal/sciconfig"
 )
 
 // Lab server connection defaults.
@@ -51,50 +48,21 @@ func (c *Config) SSHAlias() string {
 	return "scilab-" + c.User
 }
 
-// ConfigPath returns the config file path under the XDG config home
-// (typically $XDG_CONFIG_HOME/sci/lab.json or ~/.config/sci/lab.json).
-//
-// An empty XDG_CONFIG_HOME (set to "" in the shell, not just unset) is
-// treated as "use $HOME/.config" rather than trusting xdg.ConfigHome's
-// fallback — on darwin that fallback is ~/Library/Application Support,
-// which is not where our config files live.
-func ConfigPath() string {
-	if os.Getenv("XDG_CONFIG_HOME") == "" {
-		home, _ := os.UserHomeDir()
-		return filepath.Join(home, ".config", "sci", "lab.json")
-	}
-	return filepath.Join(xdg.ConfigHome, "sci", "lab.json")
-}
+// configFile is the typed handle to ~/.config/sci/lab.json. Path/load/save
+// mechanics (the XDG fallback dance, JSON marshal, 0600 perms) live in
+// sciconfig so every sci domain stores config the same way.
+var configFile = sciconfig.File[Config]{Name: "lab.json"}
+
+// ConfigPath returns the lab config file path (typically
+// $XDG_CONFIG_HOME/sci/lab.json or ~/.config/sci/lab.json).
+func ConfigPath() string { return configFile.Path() }
 
 // LoadConfig reads the lab config from disk.
 // Returns (nil, nil) if the file does not exist.
-func LoadConfig() (*Config, error) {
-	data, err := os.ReadFile(ConfigPath())
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("parse lab config: %w", err)
-	}
-	return &cfg, nil
-}
+func LoadConfig() (*Config, error) { return configFile.Load() }
 
 // SaveConfig writes the lab config to disk with restricted permissions.
-func SaveConfig(cfg *Config) error {
-	path := ConfigPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o600)
-}
+func SaveConfig(cfg *Config) error { return configFile.Save(cfg) }
 
 // RequireConfig loads config and returns an error if not configured.
 func RequireConfig() (*Config, error) {

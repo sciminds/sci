@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/adrg/xdg"
+	"github.com/sciminds/cli/internal/sciconfig"
 )
 
 // Config holds Zotero credentials and library targets.
@@ -34,20 +34,14 @@ type Config struct {
 	OpenAlexAPIKey  string `json:"openalex_api_key,omitempty"`
 }
 
-// ConfigPath returns the config file path under the XDG config home
-// (typically $XDG_CONFIG_HOME/sci/zot.json or ~/.config/sci/zot.json).
-//
-// An empty XDG_CONFIG_HOME (set to "" in the shell, not just unset) is
-// treated as "use $HOME/.config" rather than trusting xdg.ConfigHome's
-// fallback — on darwin that fallback is ~/Library/Application Support,
-// which is not where our config files live.
-func ConfigPath() string {
-	if os.Getenv("XDG_CONFIG_HOME") == "" {
-		home, _ := os.UserHomeDir()
-		return filepath.Join(home, ".config", "sci", "zot.json")
-	}
-	return filepath.Join(xdg.ConfigHome, "sci", "zot.json")
-}
+// configFile is the typed handle to ~/.config/sci/zot.json. Path/save/exists
+// mechanics live in sciconfig; LoadConfig layers schema migration on top (see
+// below), so it reads raw bytes rather than using sciconfig's typed Load.
+var configFile = sciconfig.File[Config]{Name: "zot.json"}
+
+// ConfigPath returns the zot config file path (typically
+// $XDG_CONFIG_HOME/sci/zot.json or ~/.config/sci/zot.json).
+func ConfigPath() string { return configFile.Path() }
 
 // LoadConfig reads the zot config from disk.
 // Returns (nil, nil) if the file does not exist.
@@ -56,14 +50,15 @@ func ConfigPath() string {
 // `library_id` instead of `user_id`. When we spot one we populate
 // the current field and rewrite the file in the new shape, so the
 // user sees "it just works" on the next run instead of a misleading
-// "not configured" error.
+// "not configured" error. The legacy detection needs the original
+// bytes, so this decodes raw rather than using sciconfig's typed Load.
 func LoadConfig() (*Config, error) {
-	data, err := os.ReadFile(ConfigPath())
+	data, err := configFile.LoadRaw()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
+	}
+	if data == nil {
+		return nil, nil
 	}
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
@@ -102,17 +97,7 @@ func migrateLegacyConfig(cfg *Config, raw []byte) bool {
 }
 
 // SaveConfig writes the zot config to disk with restricted permissions (0600).
-func SaveConfig(cfg *Config) error {
-	path := ConfigPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o600)
-}
+func SaveConfig(cfg *Config) error { return configFile.Save(cfg) }
 
 // RequireConfig loads config and errors if zot is not set up.
 func RequireConfig() (*Config, error) {
@@ -127,18 +112,10 @@ func RequireConfig() (*Config, error) {
 }
 
 // ConfigExists reports whether a saved zot config file is present on disk.
-func ConfigExists() bool {
-	_, err := os.Stat(ConfigPath())
-	return err == nil
-}
+func ConfigExists() bool { return configFile.Exists() }
 
 // ClearConfig removes the config file if it exists.
-func ClearConfig() error {
-	if err := os.Remove(ConfigPath()); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	return nil
-}
+func ClearConfig() error { return configFile.Clear() }
 
 // DefaultDataDir probes common Zotero data directory locations in order and
 // returns the first that contains a zotero.sqlite file. Returns "" if none

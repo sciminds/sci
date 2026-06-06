@@ -27,6 +27,18 @@
 
 commands:
 
+  # ── setup (top-level config menu) ────────────────────────────────────────────
+  setup:
+    file: cmd/sci/setup.go
+    prompts:
+      - id: setup-menu
+        type: uikit.Select
+        nth: 1
+        line: 161
+        description: "Top-level config menu — pick a tool to set up"
+        bypass: "--json (prints configuration status non-interactively)"
+        status: covered
+
   # ── doctor ─────────────────────────────────────────────────────────────────
   doctor:
     file: cmd/sci/doctor.go

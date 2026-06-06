@@ -51,6 +51,13 @@ func setupCommand() *cli.Command {
 	}
 }
 
+// RunSetup runs the interactive Zotero setup flow — the exact flow behind
+// `sci zot setup`. Exported so the top-level `sci setup` menu can delegate to
+// it: one implementation, two entry points.
+func RunSetup(ctx context.Context, cmd *cli.Command) error {
+	return runSetup(ctx, cmd)
+}
+
 func runSetup(ctx context.Context, cmd *cli.Command) error {
 	if setupLogout {
 		result, err := zot.Logout()
