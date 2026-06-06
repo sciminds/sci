@@ -21,7 +21,9 @@ linters:
           severity: warning
           arguments:
             - "checkPrivateReceivers"
-            - "sayRepetitiveInsteadOfStutters"
+            # Stutter (e.g. brew.BrewRunner) is a naming concern, not a doc one —
+            # keep this linter focused on doc-comment completeness.
+            - "disableStutteringCheck"
 
   exclusions:
     rules:

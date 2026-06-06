@@ -54,14 +54,17 @@ func newModel(p *app.Provider) model {
 	}
 }
 
+// Init implements tea.Model.
 func (m model) Init() tea.Cmd { return m.inner.Init() }
 
+// Update implements tea.Model.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.inner, cmd = m.inner.Update(msg)
 	return m, cmd
 }
 
+// View implements tea.Model.
 func (m model) View() tea.View {
 	v := tea.NewView(m.inner.View())
 	v.AltScreen = true

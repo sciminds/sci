@@ -39,6 +39,7 @@ type RowsResult struct {
 	Rows    []map[string]any `json:"rows"`
 }
 
+// JSON satisfies cmdutil.Result.
 func (r *RowsResult) JSON() any { return r }
 
 // GlimpseColumn is one row of a transposed glimpse view: a column with
@@ -57,6 +58,7 @@ type GlimpseResult struct {
 	Columns  []GlimpseColumn `json:"columns"`
 }
 
+// JSON satisfies cmdutil.Result.
 func (r *GlimpseResult) JSON() any { return r }
 
 // ShapeResult is the result of [Shape].
@@ -67,6 +69,7 @@ type ShapeResult struct {
 	Columns int    `json:"columns"`
 }
 
+// JSON satisfies cmdutil.Result.
 func (r *ShapeResult) JSON() any { return r }
 
 // SummarizeColumn is a per-column row of the SUMMARIZE table. Numeric
@@ -93,6 +96,7 @@ type SummarizeResult struct {
 	Columns []SummarizeColumn `json:"columns"`
 }
 
+// JSON satisfies cmdutil.Result.
 func (r *SummarizeResult) JSON() any { return r }
 
 // ConvertResult is the result of [Convert].
@@ -103,5 +107,8 @@ type ConvertResult struct {
 	humanText string
 }
 
-func (r *ConvertResult) JSON() any     { return r }
+// JSON satisfies cmdutil.Result.
+func (r *ConvertResult) JSON() any { return r }
+
+// Human satisfies cmdutil.Result.
 func (r *ConvertResult) Human() string { return r.humanText }

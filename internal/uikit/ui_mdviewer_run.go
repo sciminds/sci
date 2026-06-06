@@ -42,8 +42,10 @@ func newMdProgramFromFile(path string) (*mdProgram, error) {
 	return &mdProgram{viewer: v, name: name, path: path}, nil
 }
 
+// Init implements tea.Model.
 func (m *mdProgram) Init() tea.Cmd { return nil }
 
+// Update implements tea.Model.
 func (m *mdProgram) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -76,6 +78,7 @@ func (m *mdProgram) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View implements tea.Model.
 func (m *mdProgram) View() tea.View {
 	if m.quitting {
 		return tea.NewView("")

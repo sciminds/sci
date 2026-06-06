@@ -61,7 +61,7 @@ test-zot-real:
 
 test-all: test test-slow
 
-check: tidy fmt vet lint lint-style lint-guard test test-race build
+check: tidy fmt vet lint lint-style lint-docs lint-guard test test-race build
 
 # CI gate — verify-only (no file writes), no multi-arch build, no lint-style.
 # Mirrors `check` so the local and CI gates can't drift: add a step here and
@@ -80,6 +80,8 @@ check-ci:
     go vet ./internal/... ./cmd/...
     echo "==> lint"
     golangci-lint run ./internal/... ./cmd/...
+    echo "==> lint-docs"
+    golangci-lint run --config .golangci-docs.yml ./internal/...
     echo "==> lint-guard"
     ./scripts/lint-guard.sh
     echo "==> test -race"
@@ -90,14 +92,14 @@ ok: check
 
 # Like `ok` but skips lint-style (semgrep/ast-grep). Use when semgrep
 # rules are temporarily broken or being updated.
-ok-legacy: tidy fmt vet lint lint-guard test build
+ok-legacy: tidy fmt vet lint lint-docs lint-guard test build
     @echo "All checks (no semgrep) passed."
 
 # Like `ok` but also runs proj/new integration tests (SLOW=1).
 # Requires pixi, uv, quarto, marimo, typst, node on PATH.
 # Does NOT run test-canvas / test-zot-real — those need
 # credentials or live infra and stay opt-in.
-ok-slow: tidy fmt vet lint lint-style lint-guard test test-slow build
+ok-slow: tidy fmt vet lint lint-style lint-docs lint-guard test test-slow build
     @echo "All checks (incl. slow) passed."
 
 clean:
@@ -143,7 +145,7 @@ casts-gif FILTER='*':
     echo "rendered ${#casts[@]} gif(s) to docs/casts/"
 
 # Check Go doc comments (package-level + exported symbols) via revive.
-# Not part of `check`/`ok` gate — run manually or in doc-audit sessions.
+# Part of the `check`/`ok` gate; also runnable standalone for doc-audit sessions.
 lint-docs:
     golangci-lint run --config .golangci-docs.yml ./internal/...
 

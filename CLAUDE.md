@@ -25,7 +25,7 @@ Blocking: load the skill before you start, so you write it right the first time 
 
 - `just lint-style` — semgrep (`.semgrep/go-modern.yml`) rewrites `for`+`append` to `lo`; ast-grep bans inline `lipgloss.NewStyle()` (`rules/no-inline-newstyle.yml`) and hardcoded colors outside palette files.
 - `just lint-guard` — import boundaries, flag conventions, API rules. Rule 9 bans the legacy `sort` package (use `slices.Sort`/`SortFunc`/`SortStableFunc`/`BinarySearch`); rules 14–15 ban `huh` imports outside `internal/uikit/`.
-- `just lint-docs` — revive `package-comments` + `exported`: every package and every exported symbol gets a godoc comment **starting with its name**. Tests, `cmd/`, and `cli/` wiring are exempt. Warnings (not yet in `just ok`) — drive the count toward zero, and prefer enriching a symbol's godoc over re-explaining it in a CLAUDE.md.
+- `just lint-docs` — revive `package-comments` + `exported`: every package and every exported symbol gets a godoc comment **starting with its name**. Tests, `cmd/`, and `cli/` wiring are exempt; stutter-name checks are off (naming ≠ docs). **In the `just ok` gate** — prefer enriching a symbol's godoc over re-explaining it in a CLAUDE.md.
 
 ## Test recipes
 

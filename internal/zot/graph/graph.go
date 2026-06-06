@@ -52,6 +52,7 @@ type readerIndex struct{ r local.Reader }
 // on items they just created.
 func LocalIndex(r local.Reader) LibraryIndex { return readerIndex{r} }
 
+// LookupKeysByDOI implements [LibraryIndex].
 func (i readerIndex) LookupKeysByDOI(dois []string) (map[string]string, error) {
 	return i.r.ItemKeysByDOI(dois)
 }

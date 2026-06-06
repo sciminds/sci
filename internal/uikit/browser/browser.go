@@ -80,13 +80,13 @@ type RefreshMsg struct{}
 type StatusKind int
 
 const (
-	// StatusInfo: neutral progress text ("Deleting foo…").
+	// StatusInfo is neutral progress text ("Deleting foo…").
 	StatusInfo StatusKind = iota
-	// StatusSuccess: green pass styling ("Deleted foo").
+	// StatusSuccess is green pass styling ("Deleted foo").
 	StatusSuccess
-	// StatusWarn: yellow warning ("cannot delete folders").
+	// StatusWarn is yellow warning styling ("cannot delete folders").
 	StatusWarn
-	// StatusError: red failure ("Delete failed: timeout").
+	// StatusError is red failure styling ("Delete failed: timeout").
 	StatusError
 )
 

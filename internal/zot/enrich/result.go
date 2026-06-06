@@ -23,8 +23,10 @@ type FromMissingResult struct {
 	Applied bool         `json:"applied"` // true = --apply was set
 }
 
+// JSON satisfies cmdutil.Result.
 func (r FromMissingResult) JSON() any { return r }
 
+// Human satisfies cmdutil.Result.
 func (r FromMissingResult) Human() string {
 	var b strings.Builder
 

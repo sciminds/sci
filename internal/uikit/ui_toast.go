@@ -18,6 +18,7 @@ import (
 // ToastLevel represents the severity of a toast notification.
 type ToastLevel int
 
+// Toast severity levels, ordered least to most severe.
 const (
 	ToastInfo    ToastLevel = iota // informational
 	ToastSuccess                   // operation succeeded

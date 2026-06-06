@@ -42,10 +42,13 @@ type Work struct {
 	AbstractInvertedIndex        map[string][]int    `json:"abstract_inverted_index"`
 }
 
+// CitationPercentile holds a citation percentile value (0–100) from OpenAlex.
 type CitationPercentile struct {
 	Value float64 `json:"value"`
 }
 
+// Location is one host location for a work — a journal, repository, or landing
+// page — as it appears in OpenAlex's locations and best_oa_location.
 type Location struct {
 	Source         *SourceRef `json:"source"`
 	LandingPageURL *string    `json:"landing_page_url"`
@@ -54,6 +57,8 @@ type Location struct {
 	Version        *string    `json:"version"`
 }
 
+// SourceRef is the abbreviated source (journal/repository) reference embedded
+// in a [Location].
 type SourceRef struct {
 	ID                   string  `json:"id"`
 	DisplayName          string  `json:"display_name"`
@@ -63,12 +68,15 @@ type SourceRef struct {
 	HostOrganizationName *string `json:"host_organization_name"`
 }
 
+// OpenAccess is a work's open-access status block (the open_access field).
 type OpenAccess struct {
 	IsOA     bool    `json:"is_oa"`
 	OAStatus string  `json:"oa_status"`
 	OAURL    *string `json:"oa_url"`
 }
 
+// Authorship is one author's contribution to a work: position, affiliations,
+// and corresponding-author flag.
 type Authorship struct {
 	AuthorPosition        string        `json:"author_position"`
 	Author                AuthorRef     `json:"author"`
@@ -77,12 +85,14 @@ type Authorship struct {
 	RawAffiliationStrings []string      `json:"raw_affiliation_strings"`
 }
 
+// AuthorRef is the abbreviated author reference embedded in an [Authorship].
 type AuthorRef struct {
 	ID          string  `json:"id"`
 	DisplayName string  `json:"display_name"`
 	ORCID       *string `json:"orcid"`
 }
 
+// Institution is an affiliated institution, with optional ROR ID and country code.
 type Institution struct {
 	ID          string  `json:"id"`
 	DisplayName string  `json:"display_name"`
@@ -91,6 +101,8 @@ type Institution struct {
 	Type        *string `json:"type"`
 }
 
+// Topic is a classified research topic for a work, with its subfield/field/domain
+// hierarchy and score.
 type Topic struct {
 	ID          string    `json:"id"`
 	DisplayName string    `json:"display_name"`
@@ -100,17 +112,21 @@ type Topic struct {
 	Domain      *TopicRef `json:"domain"`
 }
 
+// TopicRef is the abbreviated topic reference used for a [Topic]'s subfield,
+// field, and domain.
 type TopicRef struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"display_name"`
 }
 
+// Keyword is a scored keyword extracted for a work.
 type Keyword struct {
 	ID          string  `json:"id"`
 	DisplayName string  `json:"display_name"`
 	Score       float64 `json:"score"`
 }
 
+// Mesh is a MeSH (Medical Subject Headings) descriptor assigned to a work.
 type Mesh struct {
 	DescriptorUI   string  `json:"descriptor_ui"`
 	DescriptorName string  `json:"descriptor_name"`
@@ -130,6 +146,8 @@ type Author struct {
 	LastKnownInstitutions []Institution `json:"last_known_institutions"`
 }
 
+// SummaryStats holds an author's or source's citation summary metrics
+// (h-index, i10-index).
 type SummaryStats struct {
 	HIndex   int `json:"h_index"`
 	I10Index int `json:"i10_index"`
@@ -160,6 +178,7 @@ type Results[T any] struct {
 	Results []T         `json:"results"`
 }
 
+// ResultsMeta is the pagination metadata in a [Results] response.
 type ResultsMeta struct {
 	Count      int     `json:"count"`
 	PerPage    int     `json:"per_page"`

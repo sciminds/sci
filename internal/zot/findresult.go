@@ -69,6 +69,8 @@ type FindWorkCompact struct {
 	LibraryKey   string   `json:"library_key,omitempty"`
 }
 
+// JSON satisfies cmdutil.Result; it emits the compact per-work shape unless
+// Verbose is set.
 func (r FindWorksResult) JSON() any {
 	if r.Verbose {
 		return r
@@ -82,6 +84,7 @@ func (r FindWorksResult) JSON() any {
 	}
 }
 
+// Human satisfies cmdutil.Result.
 func (r FindWorksResult) Human() string {
 	hits := r.LibraryHits
 	return renderFindPage(r.Query, r.Count, r.Total, r.NextCursor, r.Works, func(b *strings.Builder, w openalex.Work) {
@@ -161,6 +164,8 @@ type FindAuthorCompact struct {
 	Institution  string `json:"institution,omitempty"`
 }
 
+// JSON satisfies cmdutil.Result; it emits the compact per-author shape unless
+// Verbose is set.
 func (r FindAuthorsResult) JSON() any {
 	if r.Verbose {
 		return r
@@ -174,6 +179,7 @@ func (r FindAuthorsResult) JSON() any {
 	}
 }
 
+// Human satisfies cmdutil.Result.
 func (r FindAuthorsResult) Human() string {
 	return renderFindPage(r.Query, r.Count, r.Total, r.NextCursor, r.Authors, writeAuthorLine)
 }

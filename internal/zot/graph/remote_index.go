@@ -34,6 +34,7 @@ func RemoteIndex(ctx context.Context, c *api.Client) LibraryIndex {
 	return &remoteIndex{c: c, ctx: ctx}
 }
 
+// LookupKeysByDOI implements [LibraryIndex].
 func (r *remoteIndex) LookupKeysByDOI(dois []string) (map[string]string, error) {
 	r.once.Do(r.warm)
 	if r.err != nil {
