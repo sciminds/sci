@@ -21,6 +21,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/uikit/browser"
 )
 
@@ -100,7 +101,7 @@ func (p *Provider) Breadcrumb(path string) string {
 // emits a browser.ChildrenMsg. Errors surface as a status toast — the
 // previous listing stays in place per the browser primitive's contract.
 func (p *Provider) Children(path string) tea.Cmd {
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		des, err := os.ReadDir(path)
 		if err != nil {
 			return browser.ChildrenMsg{Path: path, Err: err}
@@ -134,5 +135,5 @@ func (p *Provider) Children(path string) tea.Cmd {
 			}
 		})
 		return browser.ChildrenMsg{Path: path, Entries: entries}
-	}
+	})
 }

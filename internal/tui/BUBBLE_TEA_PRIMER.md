@@ -59,17 +59,25 @@ A **command** (`tea.Cmd`) is a function that performs a side effect and
 returns a message:
 
 ```go
-// A Cmd that loads data from the database.
+// A Cmd that loads data from the database. Wrap the closure in
+// uikit.SafeCmd so a panic is recovered instead of crashing the command's
+// goroutine and wedging the terminal.
 func loadData(store *Store) tea.Cmd {
-    return func() tea.Msg {
+    return uikit.SafeCmd(func() tea.Msg {
         rows, err := store.Query("SELECT * FROM users")
         return dataLoadedMsg{rows: rows, err: err}
-    }
+    })
 }
 ```
 
 Commands run asynchronously. When they finish, Bubble Tea delivers the
 returned message to Update. This is how you do I/O without blocking the UI.
+
+In this project, **always** wrap a command closure in `uikit.SafeCmd` (or
+`uikit.AsyncCmd` / `uikit.AsyncCmdCtx` for the `(T, error)` shape). Bubble Tea
+does not recover panics that happen inside a command's goroutine, so an
+unguarded panic leaves the terminal in raw mode. `rules/recover-command-panic.yml`
+enforces this.
 
 ## How to Read the dbtui Code
 

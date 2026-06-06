@@ -614,11 +614,11 @@ func (m *Model) handleFTSTick(msg ftsTickMsg) tea.Cmd {
 	ds := m.store
 	name := tab.Name
 	seq := msg.Seq
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		groups := match.ParseClauses(query)
 		hits := buildFTSHitSet(groups, ds, name)
 		return ftsResultMsg{Seq: seq, Hits: hits}
-	}
+	})
 }
 
 // handleFTSResult processes the result of an async fulltext search. If the

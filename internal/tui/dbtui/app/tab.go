@@ -210,10 +210,10 @@ func (m *Model) triggerTabLoad(idx int) tea.Cmd {
 	tab.Loading = true
 	ds := m.store
 	name := tab.Name
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		t, err := buildTab(ds, name)
 		return tabLoadedMsg{idx: idx, tab: t, err: err}
-	}
+	})
 }
 
 // handleTabLoaded processes the result of an async tab load.

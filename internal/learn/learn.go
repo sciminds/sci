@@ -414,10 +414,10 @@ type exportedMsg struct {
 func (m *model) exportPage(entry Entry) tea.Cmd {
 	content := m.viewer.RawContent()
 	filename := entry.PageFile
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		err := os.WriteFile(filename, []byte(content), 0o644)
 		return exportedMsg{path: filename, err: err}
-	}
+	})
 }
 
 // preRenderPages returns a Cmd that renders all page-based entries in the
@@ -442,10 +442,10 @@ func (m *model) preRenderPages() tea.Cmd {
 		return nil
 	}
 
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		uikit.PreRenderMarkdown(docs, contentW)
 		return pagesWarmedMsg{}
-	}
+	})
 }
 
 // Run launches the interactive learn TUI with the given books.

@@ -34,6 +34,10 @@ type fakeBackend struct {
 	// screenDone before they ever observe screenTransfer. Default false
 	// preserves existing tests that expect natural completion.
 	holdUntilCancel bool
+
+	// transferPanic, when true, makes Transfer panic. Used to verify the
+	// transfer goroutine recovers instead of crashing the whole program.
+	transferPanic bool
 }
 
 func newFakeBackend() *fakeBackend {
@@ -94,7 +98,11 @@ func (f *fakeBackend) Transfer(ctx context.Context, remotePath, _ string, progre
 	frames := append([]lab.Progress(nil), f.progressFrames...)
 	err := f.transferErr
 	hold := f.holdUntilCancel
+	pan := f.transferPanic
 	f.mu.Unlock()
+	if pan {
+		panic("fake transfer panic")
+	}
 	for _, p := range frames {
 		select {
 		case <-ctx.Done():

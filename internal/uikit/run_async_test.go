@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 // ── AsyncCmd ──────────────────────────────────────────────────────────
@@ -92,5 +94,64 @@ func TestAsyncCmdCtxRespectsParent(t *testing.T) {
 	}
 	if r.Err == nil {
 		t.Error("expected canceled error, got nil")
+	}
+}
+
+// ── SafeCmd ───────────────────────────────────────────────────────────
+
+type stubMsg struct{ n int }
+
+func TestSafeCmdPassesThrough(t *testing.T) {
+	cmd := SafeCmd(func() tea.Msg { return stubMsg{n: 7} })
+	msg := cmd()
+	s, ok := msg.(stubMsg)
+	if !ok {
+		t.Fatalf("expected stubMsg, got %T", msg)
+	}
+	if s.n != 7 {
+		t.Errorf("n = %d, want 7", s.n)
+	}
+}
+
+func TestSafeCmdRecoversPanic(t *testing.T) {
+	cmd := SafeCmd(func() tea.Msg { panic("boom") })
+	msg := cmd()
+	cp, ok := msg.(CommandPanicMsg)
+	if !ok {
+		t.Fatalf("expected CommandPanicMsg, got %T", msg)
+	}
+	if cp.Value != "boom" {
+		t.Errorf("Value = %v, want boom", cp.Value)
+	}
+	if len(cp.Stack) == 0 {
+		t.Error("expected non-empty stack trace")
+	}
+}
+
+// ── AsyncCmd / AsyncCmdCtx panic recovery ─────────────────────────────
+
+func TestAsyncCmdRecoversPanic(t *testing.T) {
+	cmd := AsyncCmd(func() (int, error) { panic("kaboom") })
+	msg := cmd()
+	cp, ok := msg.(CommandPanicMsg)
+	if !ok {
+		t.Fatalf("expected CommandPanicMsg, got %T", msg)
+	}
+	if cp.Value != "kaboom" {
+		t.Errorf("Value = %v, want kaboom", cp.Value)
+	}
+}
+
+func TestAsyncCmdCtxRecoversPanic(t *testing.T) {
+	cmd := AsyncCmdCtx(context.Background(), time.Second, func(_ context.Context) (int, error) {
+		panic("ctx-boom")
+	})
+	msg := cmd()
+	cp, ok := msg.(CommandPanicMsg)
+	if !ok {
+		t.Fatalf("expected CommandPanicMsg, got %T", msg)
+	}
+	if cp.Value != "ctx-boom" {
+		t.Errorf("Value = %v, want ctx-boom", cp.Value)
 	}
 }

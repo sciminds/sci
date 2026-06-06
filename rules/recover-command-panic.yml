@@ -1,0 +1,22 @@
+id: recover-command-panic
+language: go
+rule:
+  pattern: func() tea.Msg { $$$BODY }
+  not:
+    inside:
+      kind: call_expression
+      stopBy: end
+      has:
+        field: function
+        regex: '(SafeCmd|AsyncCmdCtx|AsyncCmd)$'
+severity: error
+message: |
+  Raw `func() tea.Msg` command closures must go through uikit.SafeCmd (or
+  uikit.AsyncCmd / uikit.AsyncCmdCtx). Bubble Tea runs commands in their own
+  goroutine and does NOT recover panics there — an unguarded panic crashes the
+  process with the terminal left in raw mode (no cursor, no echo).
+  Wrap it: return uikit.SafeCmd(func() tea.Msg { ... }).
+  See internal/uikit/run_async.go and CLAUDE.md (TUI stack).
+ignores:
+  - "internal/uikit/*.go"
+  - "internal/uikit/**/*.go"

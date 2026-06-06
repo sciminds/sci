@@ -19,6 +19,7 @@ import (
 
 	"github.com/sciminds/cli/internal/cloud"
 	"github.com/sciminds/cli/internal/share"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/uikit/browser"
 )
 
@@ -38,7 +39,7 @@ func NewProvider(objects []cloud.ObjectInfo, client *cloud.Client) *Provider {
 // Children returns a tea.Cmd that snapshots the listing and emits a
 // browser.ChildrenMsg with the immediate children at path.
 func (p *Provider) Children(path string) tea.Cmd {
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		p.mu.Lock()
 		entries := share.ChildrenAt(p.objects, path)
 		p.mu.Unlock()
@@ -46,7 +47,7 @@ func (p *Provider) Children(path string) tea.Cmd {
 			return Entry{T: e}
 		})
 		return browser.ChildrenMsg{Path: path, Entries: items}
-	}
+	})
 }
 
 // Root is the bucket root ("").

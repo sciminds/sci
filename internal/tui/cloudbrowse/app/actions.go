@@ -22,6 +22,7 @@ import (
 	"github.com/atotto/clipboard"
 
 	"github.com/sciminds/cli/internal/cloud"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/uikit/browser"
 )
 
@@ -101,7 +102,7 @@ func deleteAction(p *Provider) browser.Action {
 // success it prunes every object with the matching prefix so the
 // subsequent RefreshMsg sees the new state.
 func doDeletePrefix(p *Provider, fullKey, displayName string) tea.Cmd {
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), folderDeleteTimeout)
 		defer cancel()
 		// Allowed gated this on owner == username, so the prefix
@@ -118,13 +119,13 @@ func doDeletePrefix(p *Provider, fullKey, displayName string) tea.Cmd {
 			Text: "Deleted " + displayName + "/",
 			Kind: browser.StatusSuccess,
 		}
-	}
+	})
 }
 
 // doDelete runs the network call. On success it prunes the provider's
 // listing so the subsequent RefreshMsg sees the new state.
 func doDelete(p *Provider, fullKey, displayName string) tea.Cmd {
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), deleteTimeout)
 		defer cancel()
 		// Delete takes the bucket-relative filename within the user's
@@ -142,7 +143,7 @@ func doDelete(p *Provider, fullKey, displayName string) tea.Cmd {
 			Text: "Deleted " + displayName,
 			Kind: browser.StatusSuccess,
 		}
-	}
+	})
 }
 
 // copyURLAction copies the bucket file's public URL. AppliesTo hides it
@@ -159,7 +160,7 @@ func copyURLAction() browser.Action {
 		},
 		Run: func(e browser.Entry) tea.Cmd {
 			ce := e.(Entry)
-			return func() tea.Msg {
+			return uikit.SafeCmd(func() tea.Msg {
 				if err := clipboard.WriteAll(ce.T.URL); err != nil {
 					return browser.StatusMsg{
 						Text: "Copy failed: " + err.Error(),
@@ -170,7 +171,7 @@ func copyURLAction() browser.Action {
 					Text: "Copied URL for " + ce.T.Name,
 					Kind: browser.StatusSuccess,
 				}
-			}
+			})
 		},
 	}
 }
@@ -208,7 +209,7 @@ func downloadAction(client *cloud.Client) browser.Action {
 
 func doDownload(client *cloud.Client, e Entry) tea.Cmd {
 	if e.T.IsDir {
-		return func() tea.Msg {
+		return uikit.SafeCmd(func() tea.Msg {
 			ctx, cancel := context.WithTimeout(context.Background(), folderTimeout)
 			defer cancel()
 			outDir := filepath.Base(e.T.Name)
@@ -222,9 +223,9 @@ func doDownload(client *cloud.Client, e Entry) tea.Cmd {
 				Text: "Downloaded " + outDir + "/",
 				Kind: browser.StatusSuccess,
 			}
-		}
+		})
 	}
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
 		defer cancel()
 		outPath := filepath.Base(e.T.Name)
@@ -246,7 +247,7 @@ func doDownload(client *cloud.Client, e Entry) tea.Cmd {
 			Text: "Downloaded " + outPath,
 			Kind: browser.StatusSuccess,
 		}
-	}
+	})
 }
 
 // notDir is the standard "file-only" AppliesTo predicate.

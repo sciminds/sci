@@ -209,10 +209,10 @@ func (m *Model) applySelected() tea.Cmd {
 	}
 
 	dir := m.dir
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		err := projnew.ApplyConfigFiles(dir, selected)
 		return applyDoneMsg{err: err}
-	}
+	})
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

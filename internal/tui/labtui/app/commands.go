@@ -2,10 +2,12 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/cli/internal/uikit"
 )
 
 // ── Messages ───────────────────────────────────────────────────────────────
@@ -36,17 +38,17 @@ type pendingLoadedMsg struct{ entries []lab.TransferEntry }
 // ── Cmd factories ──────────────────────────────────────────────────────────
 
 func loadDirCmd(b Backend, p string) tea.Cmd {
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		entries, err := b.List(context.Background(), p)
 		return listLoadedMsg{path: p, entries: entries, err: err}
-	}
+	})
 }
 
 func probeSizeCmd(b Backend, paths []string) tea.Cmd {
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		n, err := b.Size(context.Background(), paths)
 		return sizeProbedMsg{bytes: n, err: err}
-	}
+	})
 }
 
 // startTransferCmd kicks off rsync for one remotePath. The returned message
@@ -59,7 +61,7 @@ func probeSizeCmd(b Backend, paths []string) tea.Cmd {
 // transfers leave the started record in place so the next browse session
 // can offer to resume.
 func startTransferCmd(b Backend, remotePath, localDir string) tea.Cmd {
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		ctx, cancel := context.WithCancel(context.Background())
 
 		// Per-item size probe (one ssh roundtrip; cheap because the master
@@ -79,11 +81,26 @@ func startTransferCmd(b Backend, remotePath, localDir string) tea.Cmd {
 		done := make(chan error, 1)
 		go func() {
 			defer close(ch)
-			done <- b.Transfer(ctx, remotePath, localDir, ch)
+			done <- transferWithRecover(ctx, b, remotePath, localDir, ch)
 			close(done)
 		}()
 		return transferStartedMsg{ch: ch, done: done, cancel: cancel}
-	}
+	})
+}
+
+// transferWithRecover runs b.Transfer, converting a panic into an error. The
+// goroutine startTransferCmd spawns runs outside [uikit.SafeCmd]'s guard
+// (which only covers the command closure itself), so without this a panicking
+// Transfer would crash the process and wedge the terminal. Surfacing it as a
+// transfer error instead lets the failed transfer show in the UI while the
+// program keeps running.
+func transferWithRecover(ctx context.Context, b Backend, remotePath, localDir string, progress chan<- lab.Progress) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("transfer panicked: %v", r)
+		}
+	}()
+	return b.Transfer(ctx, remotePath, localDir, progress)
 }
 
 // localDestFor mirrors what rsync writes when given `alias:remote dest/`:
@@ -96,7 +113,7 @@ func localDestFor(localDir, remotePath string) string {
 // On error we surface an empty slice — the banner is a nice-to-have, not
 // load-bearing, so silent failure is better than blocking the TUI.
 func loadPendingCmd() tea.Cmd {
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		entries, err := lab.PendingTransfers()
 		if err != nil {
 			entries = []lab.TransferEntry{}
@@ -105,7 +122,7 @@ func loadPendingCmd() tea.Cmd {
 			entries = []lab.TransferEntry{}
 		}
 		return pendingLoadedMsg{entries: entries}
-	}
+	})
 }
 
 // waitProgressCmd reads the next progress event or transfer completion.
@@ -117,11 +134,11 @@ func loadPendingCmd() tea.Cmd {
 // transferDoneMsg. Selecting on done directly would race against buffered
 // progress frames and let the UI miss the final 100% tick.
 func waitProgressCmd(ch <-chan lab.Progress, done <-chan error) tea.Cmd {
-	return func() tea.Msg {
+	return uikit.SafeCmd(func() tea.Msg {
 		p, ok := <-ch
 		if ok {
 			return progressMsg{p: p}
 		}
 		return transferDoneMsg{err: <-done}
-	}
+	})
 }

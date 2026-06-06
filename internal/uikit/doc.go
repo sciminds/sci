@@ -87,8 +87,12 @@
 //
 // # Runtime (run_async.go, run_program.go, run_drain.go, run_quiet.go)
 //
-//   - [AsyncCmd] / [AsyncCmdCtx] — generic async tea.Cmd with [Result].
-//   - [Run] / [RunModel] — launch a Bubbletea program with stdin drain.
+//   - [AsyncCmd] / [AsyncCmdCtx] — generic async tea.Cmd with [Result];
+//     a panic in the wrapped fn becomes a [CommandPanicMsg].
+//   - [SafeCmd] — wrap a raw func() tea.Msg command so a panic becomes a
+//     [CommandPanicMsg] instead of crashing the goroutine and wedging the terminal.
+//   - [Run] / [RunModel] — launch a Bubbletea program with stdin drain; a
+//     command panic is surfaced as [ErrCommandPanic] with the terminal restored.
 //   - [DrainStdin] — flush stale terminal responses after tea.Program.Run().
 //   - [IsQuiet] / [SetQuiet] — global toggle for non-interactive (--json) mode.
 //

@@ -1,10 +1,14 @@
 package uikit
 
 import (
+	"errors"
 	"io"
+	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/exp/teatest/v2"
 )
 
 // testOpts returns ProgramOptions that bypass the TTY requirement so
@@ -69,3 +73,56 @@ type ptrQuitModel struct {
 func (m *ptrQuitModel) Init() tea.Cmd                       { return tea.Quit }
 func (m *ptrQuitModel) Update(tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
 func (m *ptrQuitModel) View() tea.View                      { return tea.NewView("") }
+
+// ── Command panic recovery ────────────────────────────────────────────
+
+// panicCmdModel emits a command that panics on Init, exercising the
+// runtime's panic guard (which should restore the terminal and surface
+// the panic as ErrCommandPanic rather than wedging the terminal).
+type panicCmdModel struct{}
+
+func (m panicCmdModel) Init() tea.Cmd {
+	return SafeCmd(func() tea.Msg { panic("cmd-boom") })
+}
+func (m panicCmdModel) Update(tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
+func (m panicCmdModel) View() tea.View                      { return tea.NewView("") }
+
+func TestRunSurfacesCommandPanic(t *testing.T) {
+	t.Parallel()
+	err := Run(panicCmdModel{}, testOpts()...)
+	if !errors.Is(err, ErrCommandPanic) {
+		t.Fatalf("Run() = %v, want ErrCommandPanic", err)
+	}
+	if !strings.Contains(err.Error(), "cmd-boom") {
+		t.Errorf("error %q does not mention the panic value", err)
+	}
+}
+
+func TestRunModelSurfacesCommandPanic(t *testing.T) {
+	t.Parallel()
+	_, err := RunModel(panicCmdModel{}, testOpts()...)
+	if !errors.Is(err, ErrCommandPanic) {
+		t.Fatalf("RunModel() = %v, want ErrCommandPanic", err)
+	}
+}
+
+// TestPanicGuardQuitsUnderTeatest exercises the guard through the teatest
+// harness, which drives the model directly and bypasses [Run]. It proves a
+// panicking command makes the guard quit on its own (capturing the panic)
+// instead of hanging or crashing the test binary.
+func TestPanicGuardQuitsUnderTeatest(t *testing.T) {
+	t.Parallel()
+	tm := teatest.NewTestModel(t,
+		panicGuard{inner: panicCmdModel{}},
+		teatest.WithInitialTermSize(40, 10),
+	)
+	t.Cleanup(func() { _ = tm.Quit() })
+
+	fm := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(panicGuard)
+	if fm.captured == nil {
+		t.Fatal("guard did not capture the command panic")
+	}
+	if fm.captured.Value != "cmd-boom" {
+		t.Errorf("captured.Value = %v, want cmd-boom", fm.captured.Value)
+	}
+}

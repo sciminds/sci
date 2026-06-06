@@ -65,9 +65,7 @@ func Run(ds store.DataStore, label string, opts ...RunOption) error {
 	fmt.Fprintf(os.Stderr, "\033[22;2t\033]2;%s\007", "sci")
 	defer fmt.Fprint(os.Stderr, "\033[23;2t")
 
-	p := tea.NewProgram(model)
-	_, runErr := p.Run()
-	uikit.DrainStdin()
+	runErr := uikit.Run(model)
 	if runErr != nil {
 		if errors.Is(runErr, tea.ErrInterrupted) {
 			return ErrInterrupted
