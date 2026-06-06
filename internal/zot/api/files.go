@@ -1,4 +1,4 @@
-// Package api — file upload flow (4-phase dance).
+// Attachment upload — Zotero's 4-phase file-upload dance.
 //
 // Zotero's attachment upload uses a 4-call sequence:
 //  1. POST /items — create the `imported_file` child attachment item (done

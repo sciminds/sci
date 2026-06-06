@@ -2,13 +2,11 @@
 
 VisiData-inspired SQLite + DuckDB viewer/editor. Mounted under `sci view <file>` and `sci db view <file>`.
 
-**Any new TUI work here must invoke the `bubbletea` skill** before designing layouts or adding mouse/keyboard handling. **Invoke the `lo` skill** before writing any slice/map/set transforms — see root `CLAUDE.md` § Modern Go style.
-
 ## Architecture
 
-- The data layer lives at `internal/store/` (interface) plus `internal/store/sqlite/` (SQLite impl, raw `database/sql` + modernc.org/sqlite) and `internal/store/duck/` (native DuckDB impl, backed by a long-running `duckdb -jsonlines` subprocess). DataStore is the interface dbtui programs against.
+- The data layer lives at `internal/store/` (interface) plus `internal/store/sqlite/` (SQLite, raw `database/sql` + modernc.org/sqlite) and `internal/store/duck/` (native DuckDB, a long-running `duckdb -jsonlines` subprocess). `store.DataStore` is the interface dbtui programs against — the same model drives either backend.
 - SQLite uses implicit `rowid` for all edits.
-- **duckdb files** open natively via `internal/store/duck/` and speak the same `store.DataStore` interface as the SQLite store. UpdateCell / DeleteRows / InsertRows work on tables with a PRIMARY KEY; PK-less tables surface as `tab.ReadOnly = true` via the optional `store.RowEditabilityChecker` interface. DDL (RenameTable, DropTable, CreateEmptyTable) and import (ImportCSV, AppendCSV, ImportFile) all work against the native backend. See `internal/db/CLAUDE.md` for the dual-backend dispatch.
+- **duckdb files** speak the same `store.DataStore`; row-edit/PK rules, read-only tabs (`store.RowEditabilityChecker`), DDL, and import are documented in `internal/store/duck/` godoc and `internal/db/CLAUDE.md` (dual-backend dispatch).
 
 ## Conventions
 

@@ -11,14 +11,6 @@ import (
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
-// withVersionRetry runs fn once, and if it returns a 412 Precondition Failed
-// error wrapped as *VersionConflictError, fetches the latest version via
-// getVersion and retries fn once. Any other error is returned as-is.
-//
-// This handles the "object version has advanced since we read it" case. The
-// middleware in retry.go intentionally does NOT handle 412 because recovering
-// from a version conflict requires re-building the request payload with the
-// new version — that's per-operation knowledge.
 // versionedDelete fetches the current version and runs a delete with one
 // 412-retry. Used by TrashItem and DeleteCollection — the two operations
 // whose scaffolding is structurally identical.
@@ -30,6 +22,19 @@ func versionedDelete(getVersion func() (int, error), apply func(ver int) error) 
 	return withVersionRetry(apply, getVersion, current)
 }
 
+// withVersionRetry runs fn once and, if it returns a 412 Precondition Failed
+// wrapped as *VersionConflictError, refreshes the version via getVersion and
+// retries fn exactly once. Any other error is returned as-is.
+//
+// Zotero uses optimistic concurrency: writes carry the object version (as the
+// If-Unmodified-Since-Version header or a `version` body field) and the API
+// returns 412 if the server copy advanced since we read it. Recovering requires
+// re-reading the object for the fresh version AND rebuilding the request
+// payload — per-operation knowledge — so the retry.go middleware deliberately
+// does NOT handle 412. Each write op instead supplies its own getVersion
+// closure, keeping the refresh path explicit at the call site. Only one retry
+// is attempted: a second conflict signals hot contention we would rather
+// surface than spin on.
 func withVersionRetry(fn func(version int) error, getVersion func() (int, error), initial int) error {
 	err := fn(initial)
 	if err == nil {

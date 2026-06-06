@@ -2,13 +2,7 @@
 
 Zotero library management, mounted under `sci zot`.
 
-**Before writing any slice/map/set transforms, invoke the `lo` skill** to pick the right `lo` or stdlib function. See root `CLAUDE.md` § Modern Go style.
-
-For the package layout, command tree, and type definitions, read the source — `cli/cli.go`, `result.go`, `hygiene/hygiene.go` are the entry points.
-
-## Command tree
-
-The full urfave/cli v3 tree lives in `internal/zot/cli.Commands()` and is mounted by `cmd/sci/zot.go`. The tree is its own package (rather than being inlined into `cmd/sci/zot.go` like simpler subcommands) because it's substantial — 20+ files of CLI glue — and benefits from a testable package boundary.
+For the package layout, command tree, and type definitions, read the source — `cli/cli.go`, `result.go`, `hygiene/hygiene.go` are the entry points. The CLI tree lives in `internal/zot/cli.Commands()` (its own package for a testable boundary), mounted by `cmd/sci/zot.go`.
 
 ## Reads local, writes cloud (load-bearing split)
 
@@ -35,19 +29,7 @@ Every zot command except `setup` and `info` **requires** `--library personal|sha
 
 ## Generated client (`client/`)
 
-Regenerate with `just zot-gen`. The recipe reads `~/Documents/webapps/apis/zotero/openapi.yaml` (OpenAPI 3.1), rewrites it to 3.0 on the fly because oapi-codegen v2 doesn't support 3.1 unions, pipes through `scripts/zotero-mirror-paths.yq` to duplicate every `/users/{userID}/…` path as a `/groups/{groupID}/…` twin, then runs `oapi-codegen` and gofmts. If the upstream spec grows new 3.1-isms or name collisions, extend the `sd` pipeline in the justfile rather than hand-editing.
-
-**Never hand-edit `zotero.gen.go`.** Any needed surface goes through `internal/zot/api`.
-
-**Extending to new endpoints:** add the path to the OpenAPI spec (e.g. the spec's `/users/{userID}/groups` → `listGroups`), regenerate, then add the wrapper in `internal/zot/api` that typed callers consume. The yq transform will auto-produce the group-path twin unless the path name suggests it shouldn't (see the `/users/{userID}/groups` skip list in the transform).
-
-## 412 Precondition Failed pattern
-
-Zotero uses optimistic concurrency: writes carry `If-Unmodified-Since-Version` (header) or `version` (body), and the API returns 412 if the target advanced.
-
-**Why it's not in middleware:** recovering from a 412 requires re-reading the object to get the fresh version AND rebuilding the request payload — `internal/zot/api/retry.go` only knows HTTP, not object semantics. So 412 recovery is per-operation.
-
-**The helper:** `withVersionRetry(fn, getVersion, initial)` in `items.go`. `fn(ver)` performs the write; on `*VersionConflictError`, `getVersion()` refreshes and `fn` is called once more. More than one retry would indicate a hot-contention loop and we'd rather surface it. Every write op owns its own `getVersion` closure so the refresh path is explicit at the call site.
+`internal/zot/client` is generated from the Zotero OpenAPI spec via `just zot-gen`. Provenance, the user→group path-mirroring transform, and the add-an-endpoint workflow are documented in `client/doc.go`. **Never hand-edit `zotero.gen.go`** — needed surface goes through `internal/zot/api`.
 
 ## Hygiene checks
 
@@ -89,33 +71,9 @@ The saved-search and keys-from paths use `api.ListItems` with the new `Tag`, `To
 
 Cache: scan results at `os.UserCacheDir()/sci/zot/pdffind/`. Survives across runs; `--refresh` re-queries, `--no-cache` disables the current run entirely. Cache key is `doi:<original-DOI>` (or `title:<title>`); after a `doctor dois --fix --apply` patches stored DOIs, stale `doi-normalized` entries should be invalidated so the rerun cache-hits land on the parent DOI under its new key.
 
-## Desktop connector path (`internal/zot/connector/`) — `zot import`
+## `zot import` — Zotero desktop connector (`internal/zot/connector/`)
 
-`zot import <path>` is the drag-drop equivalent: it POSTs to Zotero desktop's local server on `127.0.0.1:23119/connector/saveStandaloneAttachment`, then calls `/connector/getRecognizedItem` to await the same metadata-recognition pipeline desktop runs for drag-drop (first-page-text → Zotero recognizer service → CrossRef/arXiv → parent bib item). Requires desktop to be running; exempt from `--library` because desktop writes to whichever library is currently selected in its UI.
-
-Wire-format landmines learned the hard way (source: `chrome/content/zotero/xpcom/server/server_connector.js` on `zotero/zotero` main):
-
-- **saveStandaloneAttachment demands Content-Length.** Chunked transfer gets a 400 "Content-length not provided" back. Go's `http.NewRequest` only sets Content-Length automatically for `*bytes.Reader` / `*bytes.Buffer` / `*strings.Reader`; a `*os.File` body falls through to chunked. `SaveStandaloneAttachment` buffers the full body into `[]byte` + `bytes.NewReader` and sets `req.ContentLength` explicitly. PDFs are a few MB; streaming huge uploads would need a different approach.
-- **getRecognizedItem blocks server-side** on `await session.autoRecognizePromise`. It is NOT a polling endpoint — one synchronous call waits until recognition completes. A ctx deadline is the only timeout knob.
-- **getRecognizedItem returns only `{title, itemType}` on success.** The Zotero itemKey is stripped out by the handler (`jsonItem = {title: item.getDisplayTitle(), itemType: item.itemType}`). On "recognition finished with no match" it returns **204 No Content**. Surfacing the parent itemKey would require a separate library lookup (by title, or by querying items added since a pre-upload version snapshot); v1 doesn't do this — the user finds the created item via `zot search <title>` if they want the key.
-- **Browser-guard bypass.** `server.js` flags any `User-Agent: Mozilla/…` as a browser and demands additional CSRF headers (`server.js:407–424`). We send a non-Mozilla UA (`sci-zot-connector`) and also set `X-Zotero-Connector-API-Version: 3` for belt-and-suspenders — real browser connectors send the version header and it silences the guard.
-
-The endpoint is undocumented for third-party use. Zotero maintainers have called it "not really intended for external consumption" — treat it as tolerated-but-unofficial. If desktop changes `getRecognizedItem`'s response shape, the `TestGetRecognizedItem_*` tests in `connector/client_test.go` are the regression line.
-
-## Zotero file upload — 4-phase dance (`internal/zot/api/files.go`)
-
-Creating an `imported_file` attachment with actual bytes is a 4-call sequence. Canonical spec is the top-level description in `~/Documents/webapps/apis/zotero/openapi.yaml`.
-
-1. `CreateChildAttachment` — `POST /items` creating an `imported_file` child (reuses `CreateItem`).
-2. `requestUploadAuth` — `POST /items/{key}/file` form (`md5`, `filename`, `filesize`, `mtime` [epoch millis]) with `If-None-Match: *`. Response is either `UploadAuth` (pre-signed S3 params) OR `{"exists": 1}` (server-side dedup hit). The `oneOf` has no discriminator, so we peek at `exists` before decoding. The exists case returns the `errUploadExists` sentinel and skips phases 3–4.
-3. `uploadToS3` — multipart POST to `auth.URL` with `auth.Params` as form fields and a `file` field whose body is **`prefix + fileBytes + suffix`** with `Content-Type: auth.ContentType`. Plain `net/http.DefaultClient` — must NOT go through `retryDoer` (which injects Zotero auth headers and would collide with the pre-signed policy).
-4. `registerUpload` — `POST /items/{key}/file` form (`upload=<uploadKey>`) with `If-None-Match: *`. Expects **204 No Content**.
-
-**Union bypass:** the generated `UploadFileFormdataRequestBody` is a `union json.RawMessage` (oapi-codegen's rendering of the spec's `oneOf UploadAuthRequest | UploadRegisterRequest`), unusable without unsafe reflection. Both phases 2 and 4 call `UploadFileWithBody` directly with hand-encoded `application/x-www-form-urlencoded` bytes. Don't try to unwind the union — it'd be more code than the bypass.
-
-**Orchestrator** (`UploadAttachmentFile`) wires 2→4 and short-circuits on `errUploadExists`. On phase-3 failure, phase 4 is deliberately NOT called — the attachment item already exists on Zotero without bytes, and the caller's renderer reports "created, not uploaded" so the user can retry or clean up.
-
-**Buffering:** the whole file is read into `[]byte` before hashing. PDFs in practice are a few MB; revisit if a caller ever needs to stream multi-GB payloads.
+`zot import <path>` drag-drops a PDF into the running Zotero desktop via its local connector server (the metadata-recognition pipeline runs too). Exempt from `--library` — desktop writes to whichever library its UI has selected. The undocumented wire-format landmines (Content-Length vs chunked, the 204 "no match", the non-Mozilla UA that dodges the CSRF guard, the stripped item key) are documented on the `internal/zot/connector` package + `client.go` godoc — read that before touching it. `connector/client_test.go` is the regression line if desktop's response shape changes.
 
 ## Conventions
 
