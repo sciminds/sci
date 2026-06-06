@@ -112,7 +112,7 @@ func HighlightMatches(styled, query string) string {
 
 // HighlightMatchesTokens is like [HighlightMatches] but takes whitespace-split
 // tokens and highlights every occurrence of each token independently. Used by
-// overlays to share the row-search tokenizer ([match.MatchRow] semantics)
+// overlays to share the row-search tokenizer ([match.Row] semantics)
 // without re-implementing the AND-across-cells logic.
 func HighlightMatchesTokens(styled string, tokens []string) string {
 	if len(tokens) == 0 {

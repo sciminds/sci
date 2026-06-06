@@ -183,11 +183,11 @@ type Runner interface {
 	CaskAppPaths(names []string) (map[string][]string, error)
 }
 
-// BrewRunner shells out to brew.
-type BrewRunner struct{}
+// CLI shells out to brew.
+type CLI struct{}
 
 // Leaves implements Runner. Returns user-requested formulae (not deps).
-func (BrewRunner) Leaves() ([]string, error) {
+func (CLI) Leaves() ([]string, error) {
 	out, err := runBrewOutputLocal("leaves", "-r")
 	if err != nil {
 		return nil, err
@@ -197,7 +197,7 @@ func (BrewRunner) Leaves() ([]string, error) {
 
 // ListFormulae implements Runner. Returns all installed formulae (leaves + deps)
 // with full tap-qualified names (e.g. "oven-sh/bun/bun" not just "bun").
-func (BrewRunner) ListFormulae() ([]string, error) {
+func (CLI) ListFormulae() ([]string, error) {
 	out, err := runBrewOutputLocal("list", "--formula", "--full-name", "-1")
 	if err != nil {
 		return nil, err
@@ -206,7 +206,7 @@ func (BrewRunner) ListFormulae() ([]string, error) {
 }
 
 // ListCasks implements Runner. Returns all installed casks.
-func (BrewRunner) ListCasks() ([]string, error) {
+func (CLI) ListCasks() ([]string, error) {
 	out, err := runBrewOutputLocal("list", "--cask")
 	if err != nil {
 		return nil, err
@@ -215,7 +215,7 @@ func (BrewRunner) ListCasks() ([]string, error) {
 }
 
 // Taps implements Runner. Returns user-added taps.
-func (BrewRunner) Taps() ([]string, error) {
+func (CLI) Taps() ([]string, error) {
 	out, err := runBrewOutputLocal("tap")
 	if err != nil {
 		return nil, err
@@ -229,7 +229,7 @@ func (BrewRunner) Taps() ([]string, error) {
 // the user dragged in manually before sci managed it) is claimed by brew
 // instead of failing the install. --adopt is a no-op when the destination
 // is empty, so it's safe to pass unconditionally.
-func (BrewRunner) DirectInstall(pkg, pkgType string) error {
+func (CLI) DirectInstall(pkg, pkgType string) error {
 	switch pkgType {
 	case "", "formula", "brew":
 		_, err := runBrewLive("install", pkg)
@@ -252,7 +252,7 @@ func (BrewRunner) DirectInstall(pkg, pkgType string) error {
 }
 
 // DirectUninstall implements Runner. Uninstalls a single package by type.
-func (BrewRunner) DirectUninstall(pkg, pkgType string) error {
+func (CLI) DirectUninstall(pkg, pkgType string) error {
 	switch pkgType {
 	case "", "formula", "brew":
 		_, err := runBrewLive("uninstall", pkg)
@@ -275,7 +275,7 @@ func (BrewRunner) DirectUninstall(pkg, pkgType string) error {
 }
 
 // InstallFormulae implements Runner. Installs multiple formulae in one call.
-func (BrewRunner) InstallFormulae(names []string) error {
+func (CLI) InstallFormulae(names []string) error {
 	if len(names) == 0 {
 		return nil
 	}
@@ -290,7 +290,7 @@ func (BrewRunner) InstallFormulae(names []string) error {
 //
 // Errors are accumulated via errors.Join so the caller sees every failure
 // at once instead of just the first one.
-func (BrewRunner) InstallCasks(names []string) error {
+func (CLI) InstallCasks(names []string) error {
 	var errs []error
 	for _, name := range names {
 		if _, err := runBrewLive("install", "--cask", "--adopt", name); err != nil {
@@ -301,7 +301,7 @@ func (BrewRunner) InstallCasks(names []string) error {
 }
 
 // InstallUVTools implements Runner. Installs uv tools sequentially (no batch mode).
-func (BrewRunner) InstallUVTools(names []string) error {
+func (CLI) InstallUVTools(names []string) error {
 	for _, name := range names {
 		cmd := exec.Command("uv", "tool", "install", name)
 		cmd.Stdin = os.Stdin
@@ -315,7 +315,7 @@ func (BrewRunner) InstallUVTools(names []string) error {
 }
 
 // Info fetches descriptions for formulae or casks via brew info --json=v2.
-func (BrewRunner) Info(names []string, isCask bool) ([]PackageInfo, error) {
+func (CLI) Info(names []string, isCask bool) ([]PackageInfo, error) {
 	if len(names) == 0 {
 		return nil, nil
 	}
@@ -377,13 +377,13 @@ type OutdatedPackage struct {
 }
 
 // Update implements Runner.
-func (BrewRunner) Update() error {
+func (CLI) Update() error {
 	_, err := runBrewLive("update")
 	return err
 }
 
 // Outdated implements Runner.
-func (BrewRunner) Outdated() ([]OutdatedPackage, error) {
+func (CLI) Outdated() ([]OutdatedPackage, error) {
 	out, err := runBrewOutput("outdated", "--json=v2")
 	if err != nil {
 		return nil, err
@@ -392,13 +392,13 @@ func (BrewRunner) Outdated() ([]OutdatedPackage, error) {
 }
 
 // Upgrade implements Runner.
-func (BrewRunner) Upgrade() (string, error) {
+func (CLI) Upgrade() (string, error) {
 	return runBrewLive("upgrade")
 }
 
 // UVOutdated implements Runner. Returns empty if uv isn't installed
 // (same rationale as UVToolList).
-func (BrewRunner) UVOutdated() ([]OutdatedPackage, error) {
+func (CLI) UVOutdated() ([]OutdatedPackage, error) {
 	if _, err := exec.LookPath("uv"); err != nil {
 		return nil, nil
 	}
@@ -492,7 +492,7 @@ func filterUVUpgradable(candidates []OutdatedPackage, resolve func(spec, pkgName
 // extras like `marimo[recommended]` survive the reinstall instead of being
 // silently dropped. Continues past per-tool failures and joins errors at
 // the end so one bad tool doesn't block the rest.
-func (BrewRunner) UVUpgrade(specs []string) (string, error) {
+func (CLI) UVUpgrade(specs []string) (string, error) {
 	var errs []error
 	for _, spec := range specs {
 		cmd := exec.Command("uv", uvUpgradeArgs(spec)...)
@@ -517,7 +517,7 @@ func uvUpgradeArgs(spec string) []string {
 // yet be installed on a fresh machine. Every caller of SystemSnapshot
 // then sees "no uv tools installed," which is the correct interpretation
 // when uv itself is missing.
-func (BrewRunner) UVToolList() ([]string, error) {
+func (CLI) UVToolList() ([]string, error) {
 	if _, err := exec.LookPath("uv"); err != nil {
 		return nil, nil
 	}
@@ -531,7 +531,7 @@ func (BrewRunner) UVToolList() ([]string, error) {
 
 // CaskAppPaths implements Runner. Calls `brew info --cask --json=v2` for the
 // given casks and extracts the .app paths brew would install or remove.
-func (BrewRunner) CaskAppPaths(names []string) (map[string][]string, error) {
+func (CLI) CaskAppPaths(names []string) (map[string][]string, error) {
 	if len(names) == 0 {
 		return nil, nil
 	}

@@ -3,7 +3,7 @@
 // This package contains pure functions with no UI or framework dependencies.
 // It is used by the TUI's search bar and table-switcher overlay.
 //
-// [MatchRow] performs case-insensitive substring matching with token-AND
+// [Row] performs case-insensitive substring matching with token-AND
 // across row cells — the query is split on whitespace and every token must
 // appear in some cell. This mirrors Zotero's "All Fields & Tags" semantics
 // and is the right default for grid/table search.
@@ -21,7 +21,7 @@ import (
 	"github.com/samber/lo"
 )
 
-// MatchRow reports whether the given tokens all appear, as case-insensitive
+// Row reports whether the given tokens all appear, as case-insensitive
 // substrings, across the row's cells. Every token must hit at least one cell;
 // different tokens may land in different cells (Zotero-style "all fields"
 // AND semantics).
@@ -38,7 +38,7 @@ import (
 // viewer's mental model is "find rows containing these words", and scattered
 // per-cell fuzzy hits across long text are confusing. Overlay UIs that want
 // ranked fuzzy lists still use [Fuzzy] directly.
-func MatchRow(tokens, cells []string, scopedCol int) (map[int][]int, bool) {
+func Row(tokens, cells []string, scopedCol int) (map[int][]int, bool) {
 	if len(tokens) == 0 {
 		return nil, false
 	}
@@ -74,7 +74,7 @@ func MatchRow(tokens, cells []string, scopedCol int) (map[int][]int, bool) {
 
 // TokenSpansInText returns rune-index positions in text covered by
 // occurrences of any token. Case-insensitive; empty tokens skipped.
-// Used by overlays to reuse the same tokenizer as MatchRow so a row
+// Used by overlays to reuse the same tokenizer as Row so a row
 // matched by row-search highlights the same spans when opened in an
 // overlay preview.
 func TokenSpansInText(tokens []string, text string) []int {

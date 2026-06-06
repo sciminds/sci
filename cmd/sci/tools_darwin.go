@@ -217,7 +217,7 @@ func syncBrewfile(file string) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "  %s Ensuring Brewfile is up-to-date…\n", uikit.SymArrow)
-	result, err := brew.Sync(brew.BrewRunner{}, file)
+	result, err := brew.Sync(brew.CLI{}, file)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
 			uikit.SymWarn, uikit.TUI.Warn().Render("Could not sync Brewfile: "+err.Error()))
@@ -296,7 +296,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	runner := brew.BrewRunner{}
+	runner := brew.CLI{}
 
 	// With a package argument: update registry, install directly, sync Brewfile.
 	if cmd.NArg() > 0 {
@@ -374,7 +374,7 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "  Removing %s…\n", pkg)
-	result, rmErr := brew.Remove(brew.BrewRunner{}, file, pkg, resolveToolsPkgType())
+	result, rmErr := brew.Remove(brew.CLI{}, file, pkg, resolveToolsPkgType())
 	if rmErr != nil {
 		return rmErr
 	}
@@ -391,7 +391,7 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 
 	syncBrewfile(file)
 
-	runner := brew.BrewRunner{}
+	runner := brew.CLI{}
 
 	// Type-specific filter or --json: plain text list.
 	pkgType := resolveToolsPkgType()
@@ -431,7 +431,7 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	runner := brew.BrewRunner{}
+	runner := brew.CLI{}
 
 	fmt.Fprintf(os.Stderr, "  Updating package registry…\n")
 	result, err := brew.Update(runner, false)
@@ -456,7 +456,7 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	runner := brew.BrewRunner{}
+	runner := brew.CLI{}
 
 	fmt.Fprintf(os.Stderr, "  Checking for outdated packages…\n")
 	result, err := brew.Update(runner, true)
@@ -501,7 +501,7 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 }
 
 func runToolsReccs(_ context.Context, cmd *cli.Command, o reccsOpts, apps bool) error {
-	runner := brew.BrewRunner{}
+	runner := brew.CLI{}
 
 	include := splitCSV(o.includeCSV)
 	exclude := splitCSV(o.excludeCSV)

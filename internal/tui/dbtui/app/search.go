@@ -463,7 +463,7 @@ func matchANDGroup(row []cell, group resolvedGroup) (map[int][]int, bool) {
 func matchRow(row []cell, terms string, scopedCol int) (map[int][]int, bool) {
 	tokens := match.TokenTexts(match.Tokenize(terms))
 	cells := lo.Map(row, func(c cell, _ int) string { return firstLine(c.Value) })
-	return match.MatchRow(tokens, cells, scopedCol)
+	return match.Row(tokens, cells, scopedCol)
 }
 
 // openSearch activates the inline search bar.

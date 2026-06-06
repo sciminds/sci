@@ -231,11 +231,11 @@ func TestParseClausesBareHyphenNotNegate(t *testing.T) {
 }
 
 // ────────────────────────────────────────────────────
-// MatchRow tests — token-AND-across-row substring matching
+// Row tests — token-AND-across-row substring matching
 // ────────────────────────────────────────────────────
 
 func TestMatchRowSingleTokenSingleCell(t *testing.T) {
-	hl, ok := MatchRow([]string{"gossip"}, []string{"Gossip drives vicarious learning"}, -1)
+	hl, ok := Row([]string{"gossip"}, []string{"Gossip drives vicarious learning"}, -1)
 	if !ok {
 		t.Fatal("expected match")
 	}
@@ -252,7 +252,7 @@ func TestMatchRowSingleTokenSingleCell(t *testing.T) {
 }
 
 func TestMatchRowMultiTokenSameCell(t *testing.T) {
-	hl, ok := MatchRow(
+	hl, ok := Row(
 		[]string{"gossip", "drives"},
 		[]string{"Gossip drives vicarious learning"},
 		-1,
@@ -275,7 +275,7 @@ func TestMatchRowMultiTokenSameCell(t *testing.T) {
 
 func TestMatchRowMultiTokenCrossCell(t *testing.T) {
 	// Token "gossip" in cell 0, "drives" in cell 3. Should still match.
-	hl, ok := MatchRow(
+	hl, ok := Row(
 		[]string{"gossip", "drives"},
 		[]string{"A study of gossip", "", "", "what drives sharing"},
 		-1,
@@ -292,7 +292,7 @@ func TestMatchRowMultiTokenCrossCell(t *testing.T) {
 }
 
 func TestMatchRowMissingToken(t *testing.T) {
-	_, ok := MatchRow(
+	_, ok := Row(
 		[]string{"gossip", "nonexistent"},
 		[]string{"A study of gossip", "some other cell"},
 		-1,
@@ -303,7 +303,7 @@ func TestMatchRowMissingToken(t *testing.T) {
 }
 
 func TestMatchRowCaseInsensitive(t *testing.T) {
-	_, ok := MatchRow([]string{"GOSSIP"}, []string{"gossip drives"}, -1)
+	_, ok := Row([]string{"GOSSIP"}, []string{"gossip drives"}, -1)
 	if !ok {
 		t.Error("expected case-insensitive match")
 	}
@@ -312,11 +312,11 @@ func TestMatchRowCaseInsensitive(t *testing.T) {
 func TestMatchRowScopedColumn(t *testing.T) {
 	cells := []string{"gossip is the target", "drives", "ignored"}
 	// Scoped to col 1: "gossip" not present → no match.
-	if _, ok := MatchRow([]string{"gossip"}, cells, 1); ok {
+	if _, ok := Row([]string{"gossip"}, cells, 1); ok {
 		t.Error("scoped match should have failed — gossip is in col 0, not col 1")
 	}
 	// Scoped to col 0: "gossip" present → match.
-	hl, ok := MatchRow([]string{"gossip"}, cells, 0)
+	hl, ok := Row([]string{"gossip"}, cells, 0)
 	if !ok {
 		t.Fatal("expected scoped match in col 0")
 	}
@@ -329,17 +329,17 @@ func TestMatchRowScopedColumn(t *testing.T) {
 }
 
 func TestMatchRowEmptyTokens(t *testing.T) {
-	if _, ok := MatchRow(nil, []string{"anything"}, -1); ok {
+	if _, ok := Row(nil, []string{"anything"}, -1); ok {
 		t.Error("empty tokens should not match (caller's job to decide semantics)")
 	}
-	if _, ok := MatchRow([]string{}, []string{"anything"}, -1); ok {
+	if _, ok := Row([]string{}, []string{"anything"}, -1); ok {
 		t.Error("empty tokens should not match")
 	}
 }
 
 func TestMatchRowUnicodeRuneOffsets(t *testing.T) {
 	// "café" is 4 runes but 5 bytes ("é" = 2 bytes). Highlight must use rune indices.
-	hl, ok := MatchRow([]string{"fé"}, []string{"café latté"}, -1)
+	hl, ok := Row([]string{"fé"}, []string{"café latté"}, -1)
 	if !ok {
 		t.Fatal("expected match")
 	}
@@ -352,7 +352,7 @@ func TestMatchRowUnicodeRuneOffsets(t *testing.T) {
 
 func TestMatchRowMultipleOccurrencesSameCell(t *testing.T) {
 	// "ab" appears twice in "ababab" — both spans should be in highlights.
-	hl, ok := MatchRow([]string{"ab"}, []string{"ababab"}, -1)
+	hl, ok := Row([]string{"ab"}, []string{"ababab"}, -1)
 	if !ok {
 		t.Fatal("expected match")
 	}
@@ -371,7 +371,7 @@ func TestMatchRowMultipleOccurrencesSameCell(t *testing.T) {
 
 func TestMatchRowOverlappingTokensDeduped(t *testing.T) {
 	// Tokens "ab" and "abc" both hit "abcdef" — overlapping spans must be deduped and sorted.
-	hl, ok := MatchRow([]string{"ab", "abc"}, []string{"abcdef"}, -1)
+	hl, ok := Row([]string{"ab", "abc"}, []string{"abcdef"}, -1)
 	if !ok {
 		t.Fatal("expected match")
 	}
@@ -388,9 +388,9 @@ func TestMatchRowOverlappingTokensDeduped(t *testing.T) {
 }
 
 func TestMatchRowEmptyCellsNoPanic(t *testing.T) {
-	_, _ = MatchRow([]string{"x"}, []string{"", "", ""}, -1)
+	_, _ = Row([]string{"x"}, []string{"", "", ""}, -1)
 	// Just asserting no panic and no spurious match.
-	_, ok := MatchRow([]string{"x"}, []string{"", "", ""}, -1)
+	_, ok := Row([]string{"x"}, []string{"", "", ""}, -1)
 	if ok {
 		t.Error("empty cells should not match non-empty token")
 	}
@@ -398,7 +398,7 @@ func TestMatchRowEmptyCellsNoPanic(t *testing.T) {
 
 func TestMatchRowSubstringInMiddle(t *testing.T) {
 	// Substring match, not prefix: "idget" should hit "Widget".
-	hl, ok := MatchRow([]string{"idget"}, []string{"Widget"}, -1)
+	hl, ok := Row([]string{"idget"}, []string{"Widget"}, -1)
 	if !ok {
 		t.Fatal("expected substring match")
 	}
@@ -418,7 +418,7 @@ func TestMatchRowSubstringInMiddle(t *testing.T) {
 func TestMatchRowNonContiguousIsNOTMatched(t *testing.T) {
 	// Deliberate regression guard: fuzzy-style non-contiguous chars must NOT match
 	// under the new substring semantics. "gdrives" should miss "gossip drives".
-	if _, ok := MatchRow([]string{"gdrives"}, []string{"gossip drives"}, -1); ok {
+	if _, ok := Row([]string{"gdrives"}, []string{"gossip drives"}, -1); ok {
 		t.Error("substring match must not be fuzzy — 'gdrives' should not match 'gossip drives'")
 	}
 }

@@ -8,7 +8,7 @@ import (
 
 // Compile-time interface assertions.
 var (
-	_ Runner = BrewRunner{}
+	_ Runner = CLI{}
 	_ Runner = (*mockRunner)(nil)
 )
 

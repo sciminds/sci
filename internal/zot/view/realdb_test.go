@@ -130,7 +130,7 @@ func TestStore_RealLibrary_MultiTokenSearch(t *testing.T) {
 	tokens := strings.Fields("Gossip drives")
 	hitCount, targetMatched := 0, false
 	for i, row := range rows {
-		if _, ok := match.MatchRow(tokens, row, -1); ok {
+		if _, ok := match.Row(tokens, row, -1); ok {
 			hitCount++
 			if ids[i] == targetID {
 				targetMatched = true

@@ -24,7 +24,7 @@ func (t Token) IsPhrase() bool {
 }
 
 // TokenTexts extracts the Text field from each Token — useful when a caller
-// only needs substring values (e.g. [MatchRow] or [TokenSpansInText]) and
+// only needs substring values (e.g. [Row] or [TokenSpansInText]) and
 // doesn't care about the Quoted flag.
 func TokenTexts(tokens []Token) []string {
 	return lo.Map(tokens, func(t Token, _ int) string { return t.Text })

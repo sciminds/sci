@@ -23,7 +23,7 @@ import (
 )
 
 func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
-	runner := brew.BrewRunner{}
+	runner := brew.CLI{}
 	isJSON := cmdutil.IsJSON(cmd)
 
 	// ── Step 0: Apply git identity flags ────────────────────────────────

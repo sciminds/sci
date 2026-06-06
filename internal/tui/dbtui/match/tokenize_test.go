@@ -79,7 +79,7 @@ func TestTokenTexts(t *testing.T) {
 func TestMatchRow_QuotedPhrase_MatchesContiguous(t *testing.T) {
 	tokens := TokenTexts(Tokenize(`"gossip drives"`))
 	cells := []string{"gossip drives deposition"}
-	if _, ok := MatchRow(tokens, cells, -1); !ok {
+	if _, ok := Row(tokens, cells, -1); !ok {
 		t.Error("expected phrase to match contiguous run")
 	}
 }
@@ -87,7 +87,7 @@ func TestMatchRow_QuotedPhrase_MatchesContiguous(t *testing.T) {
 func TestMatchRow_QuotedPhrase_RejectsNonAdjacent(t *testing.T) {
 	tokens := TokenTexts(Tokenize(`"gossip drives"`))
 	cells := []string{"gossip about drives"}
-	if _, ok := MatchRow(tokens, cells, -1); ok {
+	if _, ok := Row(tokens, cells, -1); ok {
 		t.Error("phrase must not match non-adjacent words")
 	}
 }
@@ -95,7 +95,7 @@ func TestMatchRow_QuotedPhrase_RejectsNonAdjacent(t *testing.T) {
 func TestMatchRow_Unquoted_StillANDsScatteredWords(t *testing.T) {
 	tokens := TokenTexts(Tokenize("gossip drives"))
 	cells := []string{"gossip about drives"}
-	if _, ok := MatchRow(tokens, cells, -1); !ok {
+	if _, ok := Row(tokens, cells, -1); !ok {
 		t.Error("unquoted multi-token should AND-match scattered words")
 	}
 }
