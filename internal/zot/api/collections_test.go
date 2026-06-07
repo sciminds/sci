@@ -7,15 +7,20 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
-// collHandler is a tiny fake Zotero server for collection CRUD.
+// collHandler is a tiny fake Zotero server for collection CRUD. mu guards the
+// colls map and delete412Once: the httptest server runs ServeHTTP on its own
+// goroutine, and seed/get run on the test goroutine — matching the sync.Mutex
+// the package's other fake handlers use (the posts/deletes counters use atomics).
 type collHandler struct {
 	t             *testing.T
+	mu            sync.Mutex
 	colls         map[string]*fakeColl
 	delete412Once bool
 	posts         int32
@@ -32,6 +37,8 @@ func newCollHandler(t *testing.T) *collHandler {
 }
 
 func (h *collHandler) seed(key, name string, version int) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	d := client.CollectionData{Name: name}
 	k := key
 	d.Key = &k
@@ -39,7 +46,18 @@ func (h *collHandler) seed(key, name string, version int) {
 	h.colls[key] = &fakeColl{data: d, version: version}
 }
 
+// get returns the stored collection for key under the handler lock, for
+// assertions from the test goroutine.
+func (h *collHandler) get(key string) (*fakeColl, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	c, ok := h.colls[key]
+	return c, ok
+}
+
 func (h *collHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	switch {
 	case r.Method == http.MethodGet && r.URL.Path == "/users/42/collections":
 		// Library-wide collection list. Paginated by ?start&limit, but the
@@ -143,7 +161,7 @@ func TestCreateCollection_TopLevel(t *testing.T) {
 		t.Errorf("posts = %d, want 1", h.posts)
 	}
 	// Verify the collection was created with the right name.
-	stored, ok := h.colls["COLLNEW1"]
+	stored, ok := h.get("COLLNEW1")
 	if !ok {
 		t.Fatal("collection not stored")
 	}
@@ -164,7 +182,7 @@ func TestCreateCollection_WithParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stored := h.colls["COLLNEW1"]
+	stored, _ := h.get("COLLNEW1")
 	if stored.data.ParentCollection == nil {
 		t.Fatal("parent collection not set")
 	}
@@ -201,7 +219,7 @@ func TestDeleteCollection(t *testing.T) {
 	if err := c.DeleteCollection(context.Background(), "COLLXXX1"); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := h.colls["COLLXXX1"]; ok {
+	if _, ok := h.get("COLLXXX1"); ok {
 		t.Error("collection still present after delete")
 	}
 }
@@ -239,7 +257,7 @@ func TestDeleteCollection_VersionRetry(t *testing.T) {
 	if err := c.DeleteCollection(context.Background(), "COLLXXX1"); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := h.colls["COLLXXX1"]; ok {
+	if _, ok := h.get("COLLXXX1"); ok {
 		t.Error("collection still present after retry")
 	}
 	// Delete called twice: first 412, second succeeds.
