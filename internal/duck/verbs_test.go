@@ -310,6 +310,50 @@ func TestSummarize(t *testing.T) {
 	}
 }
 
+// TestSummarizeNaNInfDoesNotCrash: a float column holding NaN/±Infinity
+// previously crashed SUMMARIZE two ways — DuckDB's own "STDDEV_SAMP is out of
+// range!" while computing std, and (past that) a bare `NaN` token the struct
+// decode rejected. The verb now maps NaN/Inf to NULL before summarizing, so the
+// surviving values produce real stats.
+func TestSummarizeNaNInfDoesNotCrash(t *testing.T) {
+	requireDuck(t)
+	res, err := Summarize(nanCSV, "")
+	if err != nil {
+		t.Fatalf("Summarize on NaN/Inf column: %v", err)
+	}
+	var x SummarizeColumn
+	for _, c := range res.Columns {
+		if c.Name == "x" {
+			x = c
+		}
+	}
+	if x.Name == "" {
+		t.Fatalf("no x column in summary: %+v", res.Columns)
+	}
+	// The two finite values (1.0, 2.0) drive real avg/std; NaN/Inf are nulled,
+	// so neither stat is empty or the literal "NaN".
+	if x.Avg == "" || x.Avg == "NaN" {
+		t.Errorf("x.Avg = %q, want a real average (NaN/Inf nulled)", x.Avg)
+	}
+	if x.Std == "" || x.Std == "NaN" {
+		t.Errorf("x.Std = %q, want a real stddev (no out-of-range crash)", x.Std)
+	}
+}
+
+// TestGlimpseNaNInfDoesNotCrash is the companion regression for glimpse — it
+// samples the same NaN/Inf column without a JSON-decode crash (the bare tokens
+// are sanitized to text via the shared row decoder).
+func TestGlimpseNaNInfDoesNotCrash(t *testing.T) {
+	requireDuck(t)
+	res, err := Glimpse(nanCSV, "", 5)
+	if err != nil {
+		t.Fatalf("Glimpse on NaN/Inf column: %v", err)
+	}
+	if len(res.Columns) != 3 {
+		t.Fatalf("got %d glimpse columns, want 3", len(res.Columns))
+	}
+}
+
 func TestQueryReadOnly(t *testing.T) {
 	requireDuck(t)
 	res, err := Query(tinyCSV, "SELECT name FROM src WHERE id = 2")

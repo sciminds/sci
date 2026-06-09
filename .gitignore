@@ -20,6 +20,7 @@ plan.md
 !internal/store/sqlite/testdata/*.db
 !internal/tui/dbtui/test.db
 !internal/duck/testdata/tiny.csv
+!internal/duck/testdata/nan.csv
 !internal/proj/new/templates/python/code/bibliography.bib
 !internal/proj/new/templates/python/data/raw/penguins.csv
 !internal/proj/new/templates/writing/references.bib

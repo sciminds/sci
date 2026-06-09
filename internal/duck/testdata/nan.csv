@@ -1,0 +1,6 @@
+x,y,label
+1.0,10,a
+2.0,20,b
+NaN,30,c
+Infinity,40,d
+-Infinity,50,e

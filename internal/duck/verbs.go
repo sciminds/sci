@@ -10,7 +10,6 @@ package duck
 // Snapshot verbs only (one-shot CLI commands), not hot-loop operations.
 
 import (
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -148,7 +147,7 @@ func Shape(path, table string) (*ShapeResult, error) {
 		Rows int `json:"rows"`
 		Cols int `json:"cols"`
 	}
-	if err := json.Unmarshal(out, &rows); err != nil {
+	if err := unmarshalJSON(out, &rows); err != nil {
 		return nil, fmt.Errorf("parse shape: %w", err)
 	}
 	if len(rows) != 1 {
@@ -163,11 +162,17 @@ func Summarize(path, table string) (*SummarizeResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	psrc, _, err := promote(src)
+	psrc, typed, err := promote(src)
 	if err != nil {
 		return nil, err
 	}
-	sql := fmt.Sprintf("%s SUMMARIZE SELECT * FROM %s", psrc.Preamble, psrc.Expr)
+	// DuckDB's SUMMARIZE errors with "STDDEV_SAMP is out of range!" if any
+	// floating-point column contains NaN/±Infinity, and would otherwise emit
+	// those as bare JSON tokens. Map them to NULL up front (a no-op for clean
+	// columns) so the surviving values still produce real stats and special
+	// floats count as nulls rather than failing the whole summary.
+	sql := fmt.Sprintf("%s SUMMARIZE SELECT %s FROM %s",
+		psrc.Preamble, summarizeProjection(typed), psrc.Expr)
 
 	out, err := runJSON(sql)
 	if err != nil {
@@ -187,7 +192,7 @@ func Summarize(path, table string) (*SummarizeResult, error) {
 		Count          int    `json:"count"`
 		NullPercentage string `json:"null_percentage"`
 	}
-	if err := json.Unmarshal(out, &rows); err != nil {
+	if err := unmarshalJSON(out, &rows); err != nil {
 		return nil, fmt.Errorf("parse summarize: %w", err)
 	}
 	cols := lo.Map(rows, func(r struct {
@@ -212,6 +217,35 @@ func Summarize(path, table string) (*SummarizeResult, error) {
 		}
 	})
 	return &SummarizeResult{Path: path, Table: table, Columns: cols}, nil
+}
+
+// summarizeProjection builds the SELECT list for [Summarize], wrapping every
+// floating-point column in a CASE that nulls NaN/±Infinity (which DuckDB's
+// SUMMARIZE cannot aggregate) and passing all other columns through unchanged.
+// Falls back to "*" when the column types are unknown.
+func summarizeProjection(cols []ColumnInfo) string {
+	if len(cols) == 0 {
+		return "*"
+	}
+	items := lo.Map(cols, func(c ColumnInfo, _ int) string {
+		ident := quoteIdent(c.Name)
+		if isFloatType(c.Type) {
+			return fmt.Sprintf("CASE WHEN isnan(%[1]s) OR isinf(%[1]s) THEN NULL ELSE %[1]s END AS %[1]s", ident)
+		}
+		return ident
+	})
+	return strings.Join(items, ", ")
+}
+
+// isFloatType reports whether a duckdb column type can hold NaN/±Infinity — only
+// the binary floating-point types can (DECIMAL, HUGEINT, integers cannot).
+func isFloatType(duckType string) bool {
+	switch strings.ToUpper(strings.TrimSpace(duckType)) {
+	case "FLOAT", "DOUBLE", "REAL", "FLOAT4", "FLOAT8":
+		return true
+	default:
+		return false
+	}
 }
 
 // Query runs a user-supplied read-only SELECT against the file.
@@ -362,7 +396,7 @@ func countRows(src Source) (int, error) {
 	var counted []struct {
 		N int `json:"n"`
 	}
-	if err := json.Unmarshal(out, &counted); err != nil {
+	if err := unmarshalJSON(out, &counted); err != nil {
 		return 0, fmt.Errorf("parse count: %w", err)
 	}
 	if len(counted) == 0 {

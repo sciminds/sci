@@ -16,6 +16,7 @@ import (
 
 const (
 	tinyCSV     = "testdata/tiny.csv"
+	nanCSV      = "testdata/nan.csv" // float column with NaN/±Infinity (duckdb reads these as DOUBLE)
 	tinyJSON    = "testdata/tiny.json"
 	tinyXLSX    = "testdata/tiny.xlsx"
 	tinyParquet = "testdata/tiny.parquet"
