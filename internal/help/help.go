@@ -5,7 +5,6 @@ package help
 import (
 	"fmt"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/sciminds/cli/internal/uikit"
@@ -34,10 +33,7 @@ type model struct {
 }
 
 func newModel(groups []CommandGroup) *model {
-	lp := uikit.NewListPicker("Commands", uikit.Items(groups),
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
-		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
-	)
+	lp := uikit.NewListPicker("Commands", uikit.Items(groups))
 	return &model{groups: groups, commands: lp, level: levelCommands}
 }
 
@@ -105,24 +101,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // ── Level 0: command picker ────────────────────────────────────────────────
 
 func (m *model) updateCommands(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c":
+	// Navigation intent comes from the shared keymap, so enter/l/right all
+	// open and q/ctrl+c both quit — consistent with every other sci list.
+	switch m.commands.Classify(msg) {
+	case uikit.IntentQuit:
 		m.quitting = true
 		return m, tea.Quit
-	case "q":
-		if !m.commands.IsFiltering() {
-			m.quitting = true
-			return m, tea.Quit
+	case uikit.IntentOpen:
+		if g, ok := m.commands.SelectedItem().(CommandGroup); ok {
+			m.openGroup(g)
 		}
-	case "enter":
-		if m.commands.IsFiltering() {
-			break
-		}
-		g, ok := m.commands.SelectedItem().(CommandGroup)
-		if !ok {
-			break
-		}
-		m.openGroup(g)
+		return m, nil
+	case uikit.IntentBack:
+		// At the root there is nothing above to go back to.
 		return m, nil
 	}
 
@@ -133,10 +124,7 @@ func (m *model) updateCommands(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m *model) openGroup(g CommandGroup) {
 	m.group = &g
-	m.subs = uikit.NewListPicker(g.Name, uikit.Items(g.Subs),
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "play demo")),
-		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
-	)
+	m.subs = uikit.NewListPicker(g.Name, uikit.Items(g.Subs))
 	m.subs.SetSize(m.width, m.height-m.descHeight())
 	m.level = levelSubs
 }
@@ -144,22 +132,17 @@ func (m *model) openGroup(g CommandGroup) {
 // ── Level 1: subcommand list ───────────────────────────────────────────────
 
 func (m *model) updateSubs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c":
+	// ctrl+c hard-quits from any depth; q/esc/h here just step back up to
+	// the command list (IntentBack and the soft IntentQuit both mean "back"
+	// once we're nested).
+	if msg.String() == "ctrl+c" {
 		m.quitting = true
 		return m, tea.Quit
-	case "q":
-		if !m.subs.IsFiltering() {
-			return m.goBack()
-		}
-	case "esc":
-		if !m.subs.IsFiltering() {
-			return m.goBack()
-		}
-	case "enter":
-		if m.subs.IsFiltering() {
-			break
-		}
+	}
+	switch m.subs.Classify(msg) {
+	case uikit.IntentBack, uikit.IntentQuit:
+		return m.goBack()
+	case uikit.IntentOpen:
 		sub, ok := m.subs.SelectedItem().(SubCommand)
 		if !ok || sub.CastFile == "" {
 			m.subs.StatusMessage("no demo available")

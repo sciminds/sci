@@ -59,21 +59,26 @@ func TestZotSetupStatus(t *testing.T) {
 	}
 }
 
-func TestSetupOptions_ValuesAndDone(t *testing.T) {
+func TestMenuItems_CarriesKeyAndMark(t *testing.T) {
 	statuses := []domainStatus{
 		{Key: "lab", Title: "Lab storage", Configured: true, Summary: "user x"},
 		{Key: "zot", Title: "Zotero", Configured: false, Summary: "not configured"},
 	}
-	opts := setupOptions(statuses)
+	items := menuItems(statuses)
 
-	if len(opts) != len(statuses)+1 {
-		t.Fatalf("got %d options, want %d (domains + Done)", len(opts), len(statuses)+1)
+	if len(items) != len(statuses) {
+		t.Fatalf("got %d items, want %d (one per domain, no synthetic Done)", len(items), len(statuses))
 	}
-	// Option values map to keys in order, with Done last.
-	wantValues := []string{"lab", "zot", setupDoneValue}
-	for i, want := range wantValues {
-		if got := opts[i].Value; got != want {
-			t.Errorf("option[%d].Value = %q, want %q", i, got, want)
+	for i, want := range statuses {
+		mi, ok := items[i].(menuItem)
+		if !ok {
+			t.Fatalf("items[%d] is %T, want menuItem", i, items[i])
+		}
+		if mi.key != want.Key {
+			t.Errorf("items[%d].key = %q, want %q", i, mi.key, want.Key)
+		}
+		if mi.ok != want.Configured {
+			t.Errorf("items[%d].ok = %v, want %v", i, mi.ok, want.Configured)
 		}
 	}
 }

@@ -205,6 +205,36 @@ func TestHelpEnterGroup(t *testing.T) {
 	}
 }
 
+// TestHelpOpenGroupWithL proves the standardized keymap: `l` opens a group
+// just like Enter (it used to page the list — now it's consistent with cloud).
+func TestHelpOpenGroupWithL(t *testing.T) {
+	tm := startHelpTeatest(t)
+
+	tSendKey(tm, "l")
+	tWaitFor(t, tm, "one")
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelSubs {
+		t.Errorf("`l` should open the group (subs level), got %d", fm.level)
+	}
+}
+
+// TestHelpBackWithH proves `h` steps back up a level, like Esc.
+func TestHelpBackWithH(t *testing.T) {
+	tm := startHelpTeatest(t)
+
+	tSendSpecial(tm, tea.KeyEnter)
+	tWaitFor(t, tm, "one")
+
+	tSendKey(tm, "h")
+	tWaitFor(t, tm, "alpha")
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelCommands {
+		t.Errorf("`h` should go back to commands level, got %d", fm.level)
+	}
+}
+
 func TestHelpBackFromSubs(t *testing.T) {
 	tm := startHelpTeatest(t)
 

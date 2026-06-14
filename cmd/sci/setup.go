@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/lab"
@@ -84,21 +86,37 @@ func collectStatuses(entries []setupEntry) []domainStatus {
 	})
 }
 
-// setupDoneValue is the sentinel option value for the menu's "Done" entry.
-const setupDoneValue = "__done__"
+// menuItem is one row in the interactive `sci setup` menu. It implements
+// list.Item so it can live in the shared ListPicker, carrying the domain key
+// through to the selection handler.
+type menuItem struct {
+	key     string
+	title   string
+	summary string
+	ok      bool
+}
 
-// setupOptions builds the Select option list: one per domain (value == key)
-// plus a trailing Done. Kept separate from the interactive loop so it's unit-
-// testable without a TTY.
-func setupOptions(statuses []domainStatus) []uikit.Option[string] {
-	opts := lo.Map(statuses, func(s domainStatus, _ int) uikit.Option[string] {
-		mark := uikit.SymFail
-		if s.Configured {
-			mark = uikit.SymOK
-		}
-		return uikit.NewOption(fmt.Sprintf("%s  %s — %s", mark, s.Title, s.Summary), s.Key)
+// Title renders the row's headline: a ✓/✗ status mark plus the domain title.
+func (mi menuItem) Title() string {
+	mark := uikit.SymFail
+	if mi.ok {
+		mark = uikit.SymOK
+	}
+	return mark + "  " + mi.title
+}
+
+// Description renders the dimmed summary line under the title.
+func (mi menuItem) Description() string { return mi.summary }
+
+// FilterValue is what `/` filters against.
+func (mi menuItem) FilterValue() string { return mi.title }
+
+// menuItems builds the list rows from a status snapshot. Kept separate from
+// the model so it's unit-testable without a TTY.
+func menuItems(statuses []domainStatus) []list.Item {
+	return lo.Map(statuses, func(s domainStatus, _ int) list.Item {
+		return menuItem{key: s.Key, title: s.Title, summary: s.Summary, ok: s.Configured}
 	})
-	return append(opts, uikit.NewOption("Done", setupDoneValue))
 }
 
 // setupStatusResult is the --json payload for `sci setup`.
@@ -137,30 +155,24 @@ func runSetupMenu(ctx context.Context, cmd *cli.Command) error {
 	entries := setupRegistry()
 
 	// --json prints a status snapshot rather than launching the interactive
-	// menu — the non-interactive bypass for the uikit.Select below.
+	// menu — the non-interactive bypass for the list picker below.
 	if cmdutil.IsJSON(cmd) {
 		cmdutil.Output(cmd, setupStatusResult{Domains: collectStatuses(entries)})
 		return nil
 	}
 
 	for {
-		choice, err := uikit.Select(
-			"Configure sci — pick a tool to set up",
-			setupOptions(collectStatuses(entries)),
-		)
+		// Re-snapshot status each pass so a just-configured tool shows its ✓
+		// when the menu re-opens.
+		menu, err := uikit.RunModel(newSetupMenu(collectStatuses(entries)))
 		if err != nil {
-			// Aborting the menu (esc/q/ctrl+c) or running in quiet mode just
-			// exits cleanly — nothing was changed.
-			if errors.Is(err, uikit.ErrFormAborted) || errors.Is(err, uikit.ErrFormQuiet) {
-				return nil
-			}
 			return err
 		}
-		if choice == setupDoneValue {
-			return nil
+		if !menu.pickedOK {
+			return nil // q/esc — nothing changed
 		}
 
-		entry, ok := lo.Find(entries, func(e setupEntry) bool { return e.key == choice })
+		entry, ok := lo.Find(entries, func(e setupEntry) bool { return e.key == menu.picked })
 		if !ok {
 			continue
 		}
@@ -177,4 +189,64 @@ func runSetupMenu(ctx context.Context, cmd *cli.Command) error {
 			fmt.Fprintf(os.Stderr, "  %s %s\n", uikit.SymFail, err)
 		}
 	}
+}
+
+// setupMenuModel is the interactive `sci setup` menu — a thin tea.Model over
+// the shared ListPicker. It runs once per loop pass: opening a row records the
+// pick and quits so the caller can run that tool's setup, then re-launch.
+//
+// Svelte lens: a small component whose state is the embedded list plus the
+// user's pick; Update is its event handler, View its render.
+type setupMenuModel struct {
+	list     uikit.ListPicker
+	picked   string // domain key chosen via IntentOpen
+	pickedOK bool   // false when the user quit without choosing
+	quitting bool
+}
+
+// newSetupMenu builds the menu model from a status snapshot.
+func newSetupMenu(statuses []domainStatus) *setupMenuModel {
+	lp := uikit.NewListPicker("Configure sci — pick a tool to set up", menuItems(statuses))
+	return &setupMenuModel{list: lp}
+}
+
+// Init implements tea.Model.
+func (m *setupMenuModel) Init() tea.Cmd { return nil }
+
+// Update implements tea.Model, routing navigation through the shared keymap so
+// enter/l opens and q/esc exits — consistent with help, learn, and cloud.
+func (m *setupMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.list.SetSize(msg.Width, msg.Height)
+		return m, nil
+	case tea.KeyPressMsg:
+		switch m.list.Classify(msg) {
+		case uikit.IntentQuit, uikit.IntentBack:
+			m.quitting = true
+			return m, tea.Quit
+		case uikit.IntentOpen:
+			if it, ok := m.list.SelectedItem().(menuItem); ok {
+				m.picked = it.key
+				m.pickedOK = true
+				m.quitting = true
+				return m, tea.Quit
+			}
+			return m, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
+	return m, cmd
+}
+
+// View implements tea.Model.
+func (m *setupMenuModel) View() tea.View {
+	if m.quitting {
+		return tea.NewView("")
+	}
+	v := tea.NewView(m.list.View())
+	v.AltScreen = true
+	return v
 }

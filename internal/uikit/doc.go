@@ -53,7 +53,11 @@
 //     overlay's inner text width and scrolling-body line budget from its frame
 //     style plus measured chrome, so sizing tracks border/padding/chrome changes
 //     instead of drifting from hardcoded insets.
-//   - [ListPicker] — pre-styled filterable list with one-line construction.
+//   - [ListCore] — shared base for every list surface: owns the bubbles list,
+//     the one open/back/quit keymap, the help footer, and the filtering guard.
+//     [Classify] turns a key press into an [Intent] the parent acts on, so `l`
+//     means "open" everywhere (help, learn, setup, and browser.Model all embed it).
+//   - [ListPicker] — flat alias of [ListCore]: a filterable list, one-line construction.
 //   - [SelectList] — multi-select toggle list for wizard flows.
 //   - [Grid2D] — reusable 2-D cursor with move, clamp, and wrap.
 //   - [Screen] / [Router] — dispatch table that replaces repeated switch statements.

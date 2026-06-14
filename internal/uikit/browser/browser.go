@@ -155,32 +155,18 @@ type Config struct {
 	QuitKeys key.Binding
 }
 
-// navKeys are the built-in navigation bindings. Not configurable in v1.
-type navKeys struct {
-	open key.Binding
-	up   key.Binding
-}
-
-func newNavKeys() navKeys {
-	return navKeys{
-		open: key.NewBinding(
-			key.WithKeys("enter", "right", "l"),
-			key.WithHelp("enter", "open"),
-		),
-		up: key.NewBinding(
-			key.WithKeys("backspace", "left", "h"),
-			key.WithHelp("⌫", "up"),
-		),
-	}
-}
-
 // Model is the browser. It implements [tea.Model]. Callers either embed
 // it inside a larger TUI and route Update msgs through it, or run it
 // standalone via [Run].
+//
+// Svelte lens: Model is a component composed of a child component — the
+// embedded [uikit.ListCore], which owns the list, keymap, and help — plus
+// this layer's own state: the current path and an optional confirm modal.
+// Navigation keys come from the shared keymap via [uikit.ListCore.Classify],
+// so `l`/`h` mean the same here as in every other sci list.
 type Model struct {
 	cfg     Config
-	nav     navKeys
-	list    list.Model
+	list    uikit.ListCore
 	cwd     string
 	confirm *confirmState
 }
@@ -200,31 +186,12 @@ type confirmState struct {
 // [Model.Init] (or rely on the bubbletea program to do so) to kick off
 // the initial Provider.Children fetch.
 func New(cfg Config) Model {
-	delegate := uikit.NewListDelegate()
-	l := list.New(nil, delegate, 0, 0)
-	uikit.HardenListKeyMap(&l)
-	l.SetShowStatusBar(true)
-	l.SetFilteringEnabled(true)
-	l.Title = cfg.Title
-	l.Styles.Title = uikit.TUI.TextBlueBold()
-
-	// Surface action keys + quit in the list's short help.
-	nav := newNavKeys()
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		help := []key.Binding{nav.open, nav.up}
-		for _, a := range cfg.Actions {
-			help = append(help, a.Key)
-		}
-		if cfg.QuitKeys.Keys() != nil {
-			help = append(help, cfg.QuitKeys)
-		}
-		return help
-	}
-
+	// The shared list owns construction, styling, and the open/back/quit
+	// keymap; the action keys are appended to its footer as extra hints.
+	actionHints := lo.Map(cfg.Actions, func(a Action, _ int) key.Binding { return a.Key })
 	return Model{
 		cfg:  cfg,
-		nav:  nav,
-		list: l,
+		list: uikit.NewListPicker(cfg.Title, nil, actionHints...),
 		cwd:  cfg.Provider.Root(),
 	}
 }
@@ -274,42 +241,50 @@ func (m Model) handleChildren(msg ChildrenMsg) (Model, tea.Cmd) {
 	}
 	items := lo.Map(msg.Entries, func(e Entry, _ int) list.Item { return e })
 	m.list.SetItems(items)
-	m.list.Title = m.cfg.Provider.Breadcrumb(msg.Path)
+	m.list.SetTitle(m.cfg.Provider.Breadcrumb(msg.Path))
 	m.list.ResetSelected()
 	return m, nil
 }
 
-// handleKey dispatches a key press. While the filter input is active,
-// the list owns everything except quit. Modal routing happens upstream
-// in [Model.Update].
+// handleKey dispatches a key press. While the filter input is active, the
+// list owns everything except ctrl+c. Navigation comes from the shared
+// keymap via [uikit.ListCore.Classify]; modal routing happens upstream in
+// [Model.Update].
 func (m Model) handleKey(msg tea.KeyPressMsg) (Model, tea.Cmd) {
-	if m.list.FilterState() == list.Filtering {
+	intent := m.list.Classify(msg)
+
+	// While filtering, keys feed the filter input — except ctrl+c, which
+	// Classify still reports as IntentQuit so a filter can't trap you.
+	if m.list.IsFiltering() {
+		if intent == uikit.IntentQuit && m.cfg.QuitKeys.Keys() != nil && key.Matches(msg, m.cfg.QuitKeys) {
+			return m, tea.Quit
+		}
 		var cmd tea.Cmd
 		m.list, cmd = m.list.Update(msg)
 		return m, cmd
 	}
 
-	// Quit (only when configured — embedded models leave it to parent).
-	if m.cfg.QuitKeys.Keys() != nil && key.Matches(msg, m.cfg.QuitKeys) {
-		return m, tea.Quit
-	}
-
-	// Navigation.
-	switch {
-	case key.Matches(msg, m.nav.open):
-		if e, ok := m.list.SelectedItem().(Entry); ok && e.IsDir() {
-			m.cwd = e.Path()
-			return m, m.cfg.Provider.Children(m.cwd)
+	switch intent {
+	case uikit.IntentQuit:
+		// Quit only when configured — embedded models leave it to parent.
+		if m.cfg.QuitKeys.Keys() != nil && key.Matches(msg, m.cfg.QuitKeys) {
+			return m, tea.Quit
 		}
-		// Enter on a leaf falls through to action dispatch so a
-		// consumer can bind an Action to "enter" (e.g. fspicker's
-		// "pick file"). If no action matches, the key is inert.
-	case key.Matches(msg, m.nav.up):
+		return m, nil
+	case uikit.IntentBack:
 		if parent := m.cfg.Provider.Parent(m.cwd); parent != m.cwd {
 			m.cwd = parent
 			return m, m.cfg.Provider.Children(m.cwd)
 		}
 		return m, nil
+	case uikit.IntentOpen:
+		if e, ok := m.list.SelectedItem().(Entry); ok && e.IsDir() {
+			m.cwd = e.Path()
+			return m, m.cfg.Provider.Children(m.cwd)
+		}
+		// Open on a leaf falls through to action dispatch so a consumer
+		// can bind an Action to "enter" (e.g. fspicker's "pick file").
+		// If no action matches, the key is inert.
 	}
 
 	// Action dispatch.

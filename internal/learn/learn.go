@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/sciminds/cli/internal/uikit"
 )
@@ -41,10 +40,7 @@ type model struct {
 }
 
 func newModel(books []Book) *model {
-	lp := uikit.NewListPicker("Guides", uikit.Items(books),
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
-		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
-	)
+	lp := uikit.NewListPicker("Guides", uikit.Items(books))
 	return &model{allBooks: books, books: lp, level: levelBooks}
 }
 
@@ -129,24 +125,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) updateBooks(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c":
+	// Navigation intent comes from the shared keymap — enter/l/right open,
+	// q/ctrl+c quit — so books behave like every other sci list.
+	switch m.books.Classify(msg) {
+	case uikit.IntentQuit:
 		m.quitting = true
 		return m, tea.Quit
-	case "q":
-		if !m.books.IsFiltering() {
-			m.quitting = true
-			return m, tea.Quit
+	case uikit.IntentOpen:
+		if book, ok := m.books.SelectedItem().(Book); ok {
+			m.openBook(book)
 		}
-	case "enter":
-		if m.books.IsFiltering() {
-			break
-		}
-		book, ok := m.books.SelectedItem().(Book)
-		if !ok {
-			break
-		}
-		m.openBook(book)
+		return m, nil
+	case uikit.IntentBack:
+		// At the root there is nothing above to go back to.
 		return m, nil
 	}
 
@@ -156,33 +147,23 @@ func (m *model) updateBooks(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) openBook(book Book) {
-	m.entries = uikit.NewListPicker(book.Heading, uikit.Items(book.Entries),
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
-		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
-	)
+	m.entries = uikit.NewListPicker(book.Heading, uikit.Items(book.Entries))
 	m.entries.SetSize(m.width, m.height)
 	m.level = levelEntries
 }
 
 func (m *model) updateEntries(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "ctrl+c":
+	// ctrl+c hard-quits from any depth; q/esc/h here step back to the book
+	// list (IntentBack and the soft IntentQuit both mean "back" when nested).
+	if msg.String() == "ctrl+c" {
 		m.quitting = true
 		return m, tea.Quit
-	case "q":
-		if !m.entries.IsFiltering() {
-			m.level = levelBooks
-			return m, nil
-		}
-	case "esc":
-		if !m.entries.IsFiltering() {
-			m.level = levelBooks
-			return m, nil
-		}
-	case "enter":
-		if m.entries.IsFiltering() {
-			break
-		}
+	}
+	switch m.entries.Classify(msg) {
+	case uikit.IntentBack, uikit.IntentQuit:
+		m.level = levelBooks
+		return m, nil
+	case uikit.IntentOpen:
 		item, ok := m.entries.SelectedItem().(Entry)
 		if !ok {
 			break

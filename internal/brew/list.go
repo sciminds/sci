@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/uikit"
@@ -64,8 +63,8 @@ func newListModel(packages []PackageInfo) listModel {
 	}))
 
 	title := fmt.Sprintf("Brewfile — %d packages", len(packages))
-	qHint := key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit"))
-	return listModel{list: uikit.NewListPicker(title, items, qHint)}
+	// A read-only viewer: scroll/filter/quit, nothing to open.
+	return listModel{list: uikit.NewListViewer(title, items)}
 }
 
 // Init implements tea.Model.
@@ -77,11 +76,9 @@ func (m listModel) Init() tea.Cmd {
 func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		// Don't intercept keys while filtering.
-		if m.list.IsFiltering() {
-			break
-		}
-		if msg.String() == "q" || msg.String() == "ctrl+c" {
+		// A viewer: q/ctrl+c quit (the shared keymap's filter guard keeps
+		// those keys typed-into the filter while filtering, except ctrl+c).
+		if m.list.Classify(msg) == uikit.IntentQuit {
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:

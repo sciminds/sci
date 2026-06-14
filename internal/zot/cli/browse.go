@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
@@ -183,10 +182,7 @@ type browseModel struct {
 }
 
 func newBrowseModel(cfg *zot.Config, db local.Reader, src browseSource) *browseModel {
-	lp := uikit.NewListPicker(src.title, src.level0,
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "browse")),
-		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
-	)
+	lp := uikit.NewListPicker(src.title, src.level0)
 	return &browseModel{
 		cfg:    cfg,
 		db:     db,
@@ -236,19 +232,14 @@ func (m *browseModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // ── Level 0: tag/collection picker ───────────────────────────────────
 
 func (m *browseModel) updatePicker(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case uikit.KeyCtrlC:
+	switch m.picker.Classify(msg) {
+	case uikit.IntentQuit:
 		m.quitting = true
 		return m, tea.Quit
-	case uikit.KeyQ:
-		if !m.picker.IsFiltering() {
-			m.quitting = true
-			return m, tea.Quit
-		}
-	case uikit.KeyEnter:
-		if m.picker.IsFiltering() {
-			break
-		}
+	case uikit.IntentBack:
+		// At the root there is nothing above to go back to.
+		return m, nil
+	case uikit.IntentOpen:
 		sel := m.picker.SelectedItem()
 		if sel == nil {
 			break
@@ -262,10 +253,7 @@ func (m *browseModel) updatePicker(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		entries := uikit.Items(lo.Map(items, func(it local.Item, _ int) itemEntry {
 			return itemEntry{item: it}
 		}))
-		m.items = uikit.NewListPicker(title, entries,
-			key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "actions")),
-			key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
-		)
+		m.items = uikit.NewListPicker(title, entries)
 		m.items.SetSize(m.width, m.height)
 		m.level = browseL1
 		return m, nil
@@ -279,24 +267,16 @@ func (m *browseModel) updatePicker(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // ── Level 1: item list ───────────────────────────────────────────────
 
 func (m *browseModel) updateItems(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case uikit.KeyCtrlC:
+	// At this level q/ctrl+c quit the browser outright, while esc/h step back
+	// up to the tag/collection picker — so the two intents stay distinct here.
+	switch m.items.Classify(msg) {
+	case uikit.IntentQuit:
 		m.quitting = true
 		return m, tea.Quit
-	case uikit.KeyQ:
-		if !m.items.IsFiltering() {
-			m.quitting = true
-			return m, tea.Quit
-		}
-	case uikit.KeyEsc:
-		if !m.items.IsFiltering() {
-			m.level = browseL0
-			return m, nil
-		}
-	case uikit.KeyEnter:
-		if m.items.IsFiltering() {
-			break
-		}
+	case uikit.IntentBack:
+		m.level = browseL0
+		return m, nil
+	case uikit.IntentOpen:
 		ie, ok := m.items.SelectedItem().(itemEntry)
 		if !ok {
 			break

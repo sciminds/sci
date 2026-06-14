@@ -135,7 +135,7 @@ func TestChildrenMsg_PopulatesList(t *testing.T) {
 	if got := len(m.list.Items()); got != 2 {
 		t.Errorf("list size after ChildrenMsg = %d, want 2", got)
 	}
-	if got := m.list.Title; got != "/" {
+	if got := m.list.Title(); got != "/" {
 		t.Errorf("title = %q, want \"/\"", got)
 	}
 }
@@ -254,6 +254,35 @@ func TestDescend_OnDir_DoesNotFireEnterAction(t *testing.T) {
 	}
 	if m.Path() != "alice" {
 		t.Errorf("cwd = %q, want alice", m.Path())
+	}
+}
+
+// TestDescend_WithL confirms the shared keymap: `l` opens a dir just like
+// Enter (this used to page in help/learn — now it's consistent everywhere).
+func TestDescend_WithL(t *testing.T) {
+	t.Parallel()
+	p := newStubProvider()
+	m := New(Config{Provider: p})
+	m, _ = m.Update(ChildrenMsg{Path: "", Entries: p.tree[""]})
+
+	m.list.Select(0) // alice
+	m, _ = m.Update(keyPress('l'))
+
+	if m.Path() != "alice" {
+		t.Errorf("cwd after `l` = %q, want \"alice\"", m.Path())
+	}
+}
+
+// TestAscend_WithH confirms `h` goes up a level like Backspace.
+func TestAscend_WithH(t *testing.T) {
+	t.Parallel()
+	p := newStubProvider()
+	m := New(Config{Provider: p})
+	m.cwd = "ejolly/data"
+	m, _ = m.Update(keyPress('h'))
+
+	if m.Path() != "ejolly" {
+		t.Errorf("cwd after `h` = %q, want \"ejolly\"", m.Path())
 	}
 }
 

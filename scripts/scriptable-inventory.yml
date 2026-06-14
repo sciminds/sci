@@ -32,9 +32,9 @@ commands:
     file: cmd/sci/setup.go
     prompts:
       - id: setup-menu
-        type: uikit.Select
+        type: uikit.RunModel
         nth: 1
-        line: 161
+        line: 167
         description: "Top-level config menu — pick a tool to set up"
         bypass: "--json (prints configuration status non-interactively)"
         status: covered
