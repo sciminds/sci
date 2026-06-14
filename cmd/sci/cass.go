@@ -64,63 +64,70 @@ func cassSetupCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "token", Usage: "Canvas API token (required with --json)", Destination: &tokenFlag, Local: true},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			credPath := cass.CredentialsPath()
-
-			if cmdutil.IsJSON(cmd) {
-				if tokenFlag == "" {
-					return fmt.Errorf("--token is required in --json mode")
-				}
-				if len(tokenFlag) < 10 {
-					return fmt.Errorf("token too short")
-				}
-				if err := cass.SaveCanvasToken(credPath, tokenFlag); err != nil {
-					return err
-				}
-				result := &setupResult{Token: tokenFlag}
-				cmdutil.Output(cmd, result)
-				return nil
-			}
-
-			// Check for existing token.
-			existing, _ := cass.LoadCanvasToken(credPath)
-			if existing != "" {
-				fmt.Fprintf(os.Stderr, "  %s Canvas API token already configured.\n", uikit.SymOK)
-				if err := cmdutil.Confirm("Replace existing token?"); err != nil {
-					if errors.Is(err, cmdutil.ErrCancelled) {
-						uikit.Hint("cancelled")
-						return nil
-					}
-					return err
-				}
-			}
-
-			token := tokenFlag
-			if token == "" {
-				if err := uikit.InputInto(&token,
-					"Canvas API token",
-					"Paste the token from Canvas → Account → Settings → Approved Integrations",
-					uikit.WithPassword(),
-					uikit.WithValidation(func(s string) error {
-						if len(s) < 10 {
-							return fmt.Errorf("token too short")
-						}
-						return nil
-					}),
-				); err != nil {
-					return err
-				}
-			}
-
-			if err := cass.SaveCanvasToken(credPath, token); err != nil {
-				return err
-			}
-
-			result := &setupResult{Token: token}
-			cmdutil.Output(cmd, result)
-			return nil
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runCassSetup(ctx, cmd, tokenFlag)
 		},
 	}
+}
+
+// runCassSetup configures the Canvas API token. Shared by `sci cass setup` and
+// the top-level `sci setup` menu (which passes an empty tokenFlag, so the flow
+// is always interactive there). In --json mode tokenFlag is required.
+func runCassSetup(_ context.Context, cmd *cli.Command, tokenFlag string) error {
+	credPath := cass.CredentialsPath()
+
+	if cmdutil.IsJSON(cmd) {
+		if tokenFlag == "" {
+			return fmt.Errorf("--token is required in --json mode")
+		}
+		if len(tokenFlag) < 10 {
+			return fmt.Errorf("token too short")
+		}
+		if err := cass.SaveCanvasToken(credPath, tokenFlag); err != nil {
+			return err
+		}
+		result := &setupResult{Token: tokenFlag}
+		cmdutil.Output(cmd, result)
+		return nil
+	}
+
+	// Check for existing token.
+	existing, _ := cass.LoadCanvasToken(credPath)
+	if existing != "" {
+		fmt.Fprintf(os.Stderr, "  %s Canvas API token already configured.\n", uikit.SymOK)
+		if err := cmdutil.Confirm("Replace existing token?"); err != nil {
+			if errors.Is(err, cmdutil.ErrCancelled) {
+				uikit.Hint("cancelled")
+				return nil
+			}
+			return err
+		}
+	}
+
+	token := tokenFlag
+	if token == "" {
+		if err := uikit.InputInto(&token,
+			"Canvas API token",
+			"Paste the token from Canvas → Account → Settings → Approved Integrations",
+			uikit.WithPassword(),
+			uikit.WithValidation(func(s string) error {
+				if len(s) < 10 {
+					return fmt.Errorf("token too short")
+				}
+				return nil
+			}),
+		); err != nil {
+			return err
+		}
+	}
+
+	if err := cass.SaveCanvasToken(credPath, token); err != nil {
+		return err
+	}
+
+	result := &setupResult{Token: token}
+	cmdutil.Output(cmd, result)
+	return nil
 }
 
 type setupResult struct {
