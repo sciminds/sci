@@ -14,7 +14,7 @@ func helpCommand() *cli.Command {
 		Description: "$ sci help\n" +
 			"$ sci help cloud\n" +
 			"$ sci help zot",
-		Category:  "What Can I Do?",
+		Category:  "Getting Started",
 		Aliases:   []string{"h"},
 		ArgsUsage: "[command]",
 		Action: func(_ context.Context, cmd *cli.Command) error {

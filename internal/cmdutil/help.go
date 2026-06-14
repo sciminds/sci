@@ -19,7 +19,7 @@ import (
 )
 
 // categoryOrder defines the display order for command categories in root help.
-var categoryOrder = []string{"What Can I Do?", "Getting Started", "Commands", "Maintenance", "Experimental"}
+var categoryOrder = []string{"Getting Started", "Commands", "Maintenance", "Experimental"}
 
 var setupHelpOnce sync.Once
 

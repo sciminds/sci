@@ -46,7 +46,7 @@ func TestCommandTree(t *testing.T) {
 	// Categories
 	t.Run("categories", func(t *testing.T) {
 		cats := map[string][]string{
-			"Getting Started": {"learn"},
+			"Getting Started": {"learn", "setup", "help"},
 			"Commands":        {"cloud", "db", "lab", "proj", "py", "vid", "view"},
 			"Maintenance":     {"tools", "doctor", "update"},
 		}
