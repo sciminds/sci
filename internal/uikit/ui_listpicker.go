@@ -21,6 +21,16 @@ func NewListDelegate() list.DefaultDelegate {
 	return d
 }
 
+// NewCompactDelegate is [NewListDelegate] with descriptions turned off, so each
+// row is a single line. Reach for it when items have no useful second line (or
+// fold their detail into the title) and you want a denser list.
+func NewCompactDelegate() list.DefaultDelegate {
+	d := NewListDelegate()
+	d.ShowDescription = false
+	d.SetSpacing(0)
+	return d
+}
+
 // ── The one keymap (single source of truth) ───────────────────────────
 // Every list surface — flat [ListPicker] and hierarchical browser.Model —
 // reads these. Defining open/back here is what makes `l` mean the same
@@ -109,7 +119,19 @@ type ListCore struct {
 // surfaced in the footer *after* the standard open/back/quit keys — pass
 // action keys here (e.g. cloud's x→delete); navigation help is automatic.
 func NewListPicker(title string, items []list.Item, extraHints ...key.Binding) ListCore {
-	d := NewListDelegate()
+	return newListPicker(title, items, NewListDelegate(), extraHints...)
+}
+
+// NewCompactListPicker is [NewListPicker] with single-line rows (see
+// [NewCompactDelegate]) — for menus whose items carry no description, or fold
+// their detail into the title, e.g. the two-level `sci setup` menu.
+func NewCompactListPicker(title string, items []list.Item, extraHints ...key.Binding) ListCore {
+	return newListPicker(title, items, NewCompactDelegate(), extraHints...)
+}
+
+// newListPicker is the shared builder behind [NewListPicker] and
+// [NewCompactListPicker]; only the delegate differs.
+func newListPicker(title string, items []list.Item, d list.DefaultDelegate, extraHints ...key.Binding) ListCore {
 	l := list.New(items, d, 0, 0)
 	HardenListKeyMap(&l)
 	l.Title = title

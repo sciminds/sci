@@ -59,26 +59,27 @@ func TestZotSetupStatus(t *testing.T) {
 	}
 }
 
-func TestMenuItems_CarriesKeyAndMark(t *testing.T) {
-	statuses := []domainStatus{
-		{Key: "lab", Title: "Lab storage", Configured: true, Summary: "user x"},
-		{Key: "zot", Title: "Zotero", Configured: false, Summary: "not configured"},
+func TestToolItems_CarriesKeyAndMark(t *testing.T) {
+	entries := []setupEntry{
+		{key: "lab", title: "Lab storage", status: func() (bool, string) { return true, "user x" }},
+		{key: "zot", title: "Zotero", status: func() (bool, string) { return false, "not configured" }},
 	}
-	items := menuItems(statuses)
+	items := toolItems(entries)
 
-	if len(items) != len(statuses) {
-		t.Fatalf("got %d items, want %d (one per domain, no synthetic Done)", len(items), len(statuses))
+	if len(items) != len(entries) {
+		t.Fatalf("got %d items, want %d (one per domain, no synthetic Done)", len(items), len(entries))
 	}
-	for i, want := range statuses {
+	for i, want := range entries {
 		mi, ok := items[i].(menuItem)
 		if !ok {
 			t.Fatalf("items[%d] is %T, want menuItem", i, items[i])
 		}
-		if mi.key != want.Key {
-			t.Errorf("items[%d].key = %q, want %q", i, mi.key, want.Key)
+		if mi.key != want.key {
+			t.Errorf("items[%d].key = %q, want %q", i, mi.key, want.key)
 		}
-		if mi.ok != want.Configured {
-			t.Errorf("items[%d].ok = %v, want %v", i, mi.ok, want.Configured)
+		wantOK, _ := want.status()
+		if mi.ok != wantOK {
+			t.Errorf("items[%d].ok = %v, want %v", i, mi.ok, wantOK)
 		}
 	}
 }
@@ -99,7 +100,7 @@ func TestSetupStatusResult_JSONAndHuman(t *testing.T) {
 // wired (id, label, status fn, run fn) — a missing field would panic at menu time.
 func TestSetupRegistry_RunnableEntries(t *testing.T) {
 	for _, e := range setupRegistry() {
-		if e.key == "" || e.title == "" || e.status == nil || e.run == nil {
+		if e.key == "" || e.title == "" || e.status == nil || e.fields == nil || e.run == nil {
 			t.Errorf("incomplete setup entry: %+v", e)
 		}
 	}

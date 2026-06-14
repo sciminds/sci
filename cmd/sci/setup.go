@@ -27,7 +27,27 @@ type setupEntry struct {
 	key    string                                    // stable id, also the Select option value
 	title  string                                    // human label in the menu
 	status func() (configured bool, summary string)  // cheap, local (no-network) snapshot
+	fields func() []fieldRow                         // current config values, for the drill-in view
 	run    func(context.Context, *cli.Command) error // the domain's setup flow
+}
+
+// fieldRow is one configurable value shown when the user drills into a tool.
+// It is purely informational: the drill-in lists every settable item with its
+// current value so the user can eyeball the config at a glance. Selecting any
+// row launches the tool's full setup wizard (the values themselves are not
+// edited inline — provisioning and validation live in the wizard).
+type fieldRow struct {
+	label string // config key as the user knows it (e.g. "user", "api_key")
+	value string // current value, or "(not set)" when empty
+}
+
+// orNotSet renders an empty config value as a dim "(not set)" placeholder so
+// the drill-in never shows a blank line.
+func orNotSet(v string) string {
+	if v == "" {
+		return "(not set)"
+	}
+	return v
 }
 
 // setupRegistry lists every domain the top-level menu can configure. Adding a
@@ -36,8 +56,44 @@ type setupEntry struct {
 // re-reads current on-disk status.
 func setupRegistry() []setupEntry {
 	return []setupEntry{
-		{key: "lab", title: "Lab storage (SSH/SFTP)", status: labSetupStatus, run: runLabSetup},
-		{key: "zot", title: "Zotero library", status: zotSetupStatus, run: zotcli.RunSetup},
+		{key: "lab", title: "Lab storage (SSH/SFTP)", status: labSetupStatus, fields: labFields, run: runLabSetup},
+		{key: "zot", title: "Zotero library", status: zotSetupStatus, fields: zotFields, run: zotcli.RunSetup},
+	}
+}
+
+// labFields lists the lab storage config values for the drill-in view.
+func labFields() []fieldRow {
+	cfg, _ := lab.LoadConfig()
+	user := ""
+	if cfg != nil {
+		user = cfg.User
+	}
+	return []fieldRow{
+		{label: "user", value: orNotSet(user)},
+	}
+}
+
+// zotFields lists the Zotero config values for the drill-in view. Credentials
+// are shown in plaintext — this is a local, single-user config viewer and the
+// point is to read the values back quickly.
+func zotFields() []fieldRow {
+	cfg, _ := zot.LoadConfig()
+	if cfg == nil {
+		cfg = &zot.Config{}
+	}
+	sharedGroup := cfg.SharedGroupName
+	if sharedGroup != "" && cfg.SharedGroupID != "" {
+		sharedGroup += " (" + cfg.SharedGroupID + ")"
+	} else if sharedGroup == "" {
+		sharedGroup = cfg.SharedGroupID
+	}
+	return []fieldRow{
+		{label: "api_key", value: orNotSet(cfg.APIKey)},
+		{label: "user_id", value: orNotSet(cfg.UserID)},
+		{label: "shared_group", value: orNotSet(sharedGroup)},
+		{label: "data_dir", value: orNotSet(cfg.DataDir)},
+		{label: "openalex_email", value: orNotSet(cfg.OpenAlexEmail)},
+		{label: "openalex_api_key", value: orNotSet(cfg.OpenAlexAPIKey)},
 	}
 }
 
@@ -86,17 +142,18 @@ func collectStatuses(entries []setupEntry) []domainStatus {
 	})
 }
 
-// menuItem is one row in the interactive `sci setup` menu. It implements
-// list.Item so it can live in the shared ListPicker, carrying the domain key
-// through to the selection handler.
+// menuItem is one tool row in the top level of the interactive `sci setup`
+// menu. It implements list.Item so it can live in the shared ListPicker,
+// carrying the domain key through to the selection handler. The per-tool
+// summary that used to render under the title now lives one level down, in the
+// drill-in field list ([fieldItem]).
 type menuItem struct {
-	key     string
-	title   string
-	summary string
-	ok      bool
+	key   string
+	title string
+	ok    bool
 }
 
-// Title renders the row's headline: a ✓/✗ status mark plus the domain title.
+// Title renders the row: a ✓/✗ status mark plus the domain title.
 func (mi menuItem) Title() string {
 	mark := uikit.SymFail
 	if mi.ok {
@@ -105,17 +162,46 @@ func (mi menuItem) Title() string {
 	return mark + "  " + mi.title
 }
 
-// Description renders the dimmed summary line under the title.
-func (mi menuItem) Description() string { return mi.summary }
+// Description is empty — the top-level menu renders single-line rows via
+// [uikit.NewCompactListPicker], so there is no summary line under the title.
+func (mi menuItem) Description() string { return "" }
 
 // FilterValue is what `/` filters against.
 func (mi menuItem) FilterValue() string { return mi.title }
 
-// menuItems builds the list rows from a status snapshot. Kept separate from
-// the model so it's unit-testable without a TTY.
-func menuItems(statuses []domainStatus) []list.Item {
-	return lo.Map(statuses, func(s domainStatus, _ int) list.Item {
-		return menuItem{key: s.Key, title: s.Title, summary: s.Summary, ok: s.Configured}
+// toolItems builds the top-level tool rows from the registry, snapshotting each
+// tool's configured/not-configured state for the ✓/✗ mark.
+func toolItems(entries []setupEntry) []list.Item {
+	return lo.Map(entries, func(e setupEntry, _ int) list.Item {
+		ok, _ := e.status()
+		return menuItem{key: e.key, title: e.title, ok: ok}
+	})
+}
+
+// fieldItem is one config row in a tool's drill-in view: a label and its
+// current value. It is informational only — opening it (enter/l) launches the
+// tool's setup wizard, identified by toolKey.
+type fieldItem struct {
+	toolKey string
+	label   string
+	value   string
+}
+
+// Title renders the field as "label  value", with the value dimmed.
+func (fi fieldItem) Title() string {
+	return fmt.Sprintf("%-18s %s", fi.label, uikit.TUI.Dim().Render(fi.value))
+}
+
+// Description is empty — the drill-in renders single-line rows.
+func (fi fieldItem) Description() string { return "" }
+
+// FilterValue filters on the field label.
+func (fi fieldItem) FilterValue() string { return fi.label }
+
+// fieldItems builds the drill-in rows for one tool from its current config.
+func fieldItems(e setupEntry) []list.Item {
+	return lo.Map(e.fields(), func(f fieldRow, _ int) list.Item {
+		return fieldItem{toolKey: e.key, label: f.label, value: f.value}
 	})
 }
 
@@ -163,8 +249,9 @@ func runSetupMenu(ctx context.Context, cmd *cli.Command) error {
 
 	for {
 		// Re-snapshot status each pass so a just-configured tool shows its ✓
-		// when the menu re-opens.
-		menu, err := uikit.RunModel(newSetupMenu(collectStatuses(entries)))
+		// when the menu re-opens. A fresh model also reopens at the top
+		// (tool) level after a wizard runs, which is the natural place to land.
+		menu, err := uikit.RunModel(newSetupMenu(entries))
 		if err != nil {
 			return err
 		}
@@ -191,30 +278,46 @@ func runSetupMenu(ctx context.Context, cmd *cli.Command) error {
 	}
 }
 
+// menuLevel is which of the two-level `sci setup` menu the user is currently
+// looking at: the list of tools, or one tool's config fields.
+type menuLevel int
+
+const (
+	levelTools  menuLevel = iota // top: pick a tool to drill into
+	levelFields                  // inside a tool: view its config, pick any row to run setup
+)
+
 // setupMenuModel is the interactive `sci setup` menu — a thin tea.Model over
-// the shared ListPicker. It runs once per loop pass: opening a row records the
-// pick and quits so the caller can run that tool's setup, then re-launch.
+// the shared ListPicker with two levels. The top level lists tools; opening a
+// tool (enter/l) drills into a read-only view of its config fields; opening any
+// field records the tool pick and quits so the caller can run that tool's setup
+// wizard, then re-launch. esc/h backs out a level (or quits from the top).
 //
-// Svelte lens: a small component whose state is the embedded list plus the
-// user's pick; Update is its event handler, View its render.
+// Svelte lens: a small component whose state is the embedded list, the current
+// level, and the user's pick; Update is its event handler, View its render.
 type setupMenuModel struct {
+	entries  []setupEntry // registry, so a drill-in can build the field list
 	list     uikit.ListPicker
-	picked   string // domain key chosen via IntentOpen
+	level    menuLevel
+	picked   string // domain key chosen by opening a field row
 	pickedOK bool   // false when the user quit without choosing
 	quitting bool
 }
 
-// newSetupMenu builds the menu model from a status snapshot.
-func newSetupMenu(statuses []domainStatus) *setupMenuModel {
-	lp := uikit.NewListPicker("Configure sci — pick a tool to set up", menuItems(statuses))
-	return &setupMenuModel{list: lp}
+const setupTitle = "Configure sci — pick a tool"
+
+// newSetupMenu builds the menu model at the top (tool) level.
+func newSetupMenu(entries []setupEntry) *setupMenuModel {
+	lp := uikit.NewCompactListPicker(setupTitle, toolItems(entries))
+	return &setupMenuModel{entries: entries, list: lp}
 }
 
 // Init implements tea.Model.
 func (m *setupMenuModel) Init() tea.Cmd { return nil }
 
 // Update implements tea.Model, routing navigation through the shared keymap so
-// enter/l opens and q/esc exits — consistent with help, learn, and cloud.
+// enter/l opens and q/esc/h exits or backs out — consistent with help, learn,
+// and cloud.
 func (m *setupMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -222,23 +325,68 @@ func (m *setupMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyPressMsg:
 		switch m.list.Classify(msg) {
-		case uikit.IntentQuit, uikit.IntentBack:
+		case uikit.IntentQuit:
+			m.quitting = true
+			return m, tea.Quit
+		case uikit.IntentBack:
+			// esc/h backs out of a tool's fields to the tool list; from the
+			// top level it quits.
+			if m.level == levelFields {
+				m.showTools()
+				return m, nil
+			}
 			m.quitting = true
 			return m, tea.Quit
 		case uikit.IntentOpen:
-			if it, ok := m.list.SelectedItem().(menuItem); ok {
-				m.picked = it.key
-				m.pickedOK = true
-				m.quitting = true
-				return m, tea.Quit
-			}
-			return m, nil
+			return m.open()
 		}
 	}
 
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
+}
+
+// open handles enter/l: at the top level it drills into the highlighted tool's
+// fields; inside a tool it records the pick and quits so the caller runs that
+// tool's setup wizard.
+func (m *setupMenuModel) open() (tea.Model, tea.Cmd) {
+	if m.level == levelTools {
+		it, ok := m.list.SelectedItem().(menuItem)
+		if !ok {
+			return m, nil
+		}
+		entry, ok := lo.Find(m.entries, func(e setupEntry) bool { return e.key == it.key })
+		if !ok {
+			return m, nil
+		}
+		m.showFields(entry)
+		return m, nil
+	}
+	if fi, ok := m.list.SelectedItem().(fieldItem); ok {
+		m.picked = fi.toolKey
+		m.pickedOK = true
+		m.quitting = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+// showFields swaps the list into the tool's drill-in (config field) view.
+func (m *setupMenuModel) showFields(e setupEntry) {
+	m.level = levelFields
+	m.list.SetItems(fieldItems(e))
+	m.list.SetTitle(e.title + " — select any field to run setup")
+	m.list.ResetSelected()
+}
+
+// showTools swaps the list back to the top-level tool view, re-snapshotting
+// status so a just-changed tool shows the right ✓/✗ mark.
+func (m *setupMenuModel) showTools() {
+	m.level = levelTools
+	m.list.SetItems(toolItems(m.entries))
+	m.list.SetTitle(setupTitle)
+	m.list.ResetSelected()
 }
 
 // View implements tea.Model.
