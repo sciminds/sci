@@ -40,10 +40,26 @@ vet:
 test:
     go test ./... -count=1
 
+# Gate test pass — `-short` skips the cloud/network-gated command tests
+# (`sci cloud` / `sci lab`, marked with testing.Short()) so a flaky network
+# can't stall `just ok`. Run `just test` / `just test-cloud` for the full set.
+test-gate:
+    go test ./... -short -count=1
+
 # Race-detector pass. Slower than `test` so it lives on the pre-commit gate
 # (`just ok`) rather than the fast TDD loop (`just test` / `just test-pkg`).
 test-race:
     go test ./... -race -count=1
+
+# Gate race pass — same `-short` cloud exclusion under the race detector.
+test-race-gate:
+    go test ./... -short -race -count=1
+
+# The cloud/network-gated command tests the gate skips via -short. Run before
+# merging changes to `sci cloud` / `sci lab`. (CI runs the full suite, so these
+# are covered there regardless.)
+test-cloud:
+    go test ./cmd/sci -run 'TestCloud|TestLab' -count=1
 
 # Run tests for a single package (fast TDD iteration). `just test-pkg ./internal/zot`
 test-pkg PKG *ARGS:
@@ -63,12 +79,14 @@ test-zot-real:
 
 test-all: test test-slow
 
-check: tidy fmt vet lint lint-style lint-docs lint-guard test test-race build
+check: tidy fmt vet lint lint-style lint-docs lint-guard test-gate test-race-gate build
 
 # CI gate — verify-only (no file writes), no multi-arch build, no lint-style.
 # Mirrors `check` so the local and CI gates can't drift: add a step here and
 # .github/workflows/release.yml picks it up. Skips lint-style (semgrep +
 # ast-grep) to avoid the runner install; keeps lint-guard (pure bash + rg).
+# One intentional divergence: CI runs the FULL test suite (no -short) since it
+# has network, so the cloud/lab command tests the local gate skips stay covered.
 check-ci:
     #!/usr/bin/env bash
     set -euo pipefail

@@ -30,13 +30,23 @@ Blocking: load the skill before you start, so you write it right the first time 
 ## Test recipes
 
 ```
-just ok              # gate: fmt + vet + lint + test + build
+just ok              # gate: fmt + vet + lint + test + build (-short: skips cloud/lab command tests)
 just ok-slow         # gate + proj/new integration; before merging changes to sci proj new
+just test            # full suite, incl. the cloud/lab command tests the gate skips
+just test-cloud      # just the cloud/lab command tests (sci cloud / sci lab); before merging those
 just test-pkg PKG    # single-package fast TDD loop: just test-pkg ./internal/zot
 just test-slow       # proj/new integration (~2 min, SLOW=1; needs pixi/uv/quarto/marimo/typst/node)
 just test-canvas     # cass integration (needs CANVAS_TOKEN in .env + gh auth login)
 just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 ```
+
+The `just ok` gate runs tests with `-short`: tests guarded by `testing.Short()`
+(the `sci cloud` / `sci lab` command tests in `cmd/sci`, which drive the
+online-gated `Before` hooks) skip locally so a flaky network can't stall the
+gate. They still run via `just test` / `just test-cloud` and in CI (full suite,
+no `-short`). Mark a new test with `if testing.Short() { t.Skip(…) }` (or the
+`skipCloudShort` helper) only when it genuinely needs the network — most
+"cloud" tests use `httptest` and stay in the gate.
 
 ## Sub-CLAUDE pointers (read before editing these packages)
 

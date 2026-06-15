@@ -67,6 +67,7 @@ func TestCloud_SubcommandShape(t *testing.T) {
 // tailored "use sci cloud get instead" message, not the generic Levenshtein
 // suggestion (which used to surface "remove" — actively misleading).
 func TestCloud_BrowseRedirectsToGet(t *testing.T) {
+	skipCloudShort(t)
 	// netutil.Online runs in cloudCommand's Before, but RejectUnknownSubcommand
 	// is chained ahead of it via WireNamespaceDefaults, so the redirect short-
 	// circuits before any network probe. Stubbing online anyway keeps this

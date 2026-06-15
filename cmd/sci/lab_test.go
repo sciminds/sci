@@ -41,9 +41,36 @@ func startSSHBannerListener(t *testing.T) net.Listener {
 	return ln
 }
 
+// stubOnline points netutil.Online() at a live local server so labCommand's
+// Before passes its connectivity check without a real network probe. Without
+// it the probe blocks up to 2s — and hangs when the network/VPN is flaky.
+func stubOnline(t *testing.T) {
+	t.Helper()
+	probe := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(probe.Close)
+	netutil.SetProbeURL(probe.URL)
+	t.Cleanup(netutil.ResetProbeURL)
+}
+
+// skipCloudShort skips a network/cloud-gated command test under `-short`
+// (the `just ok` gate). Run the full set with `just test-cloud`.
+func skipCloudShort(t *testing.T) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("cloud/network-gated command test — run via `just test-cloud`")
+	}
+}
+
 func TestLabSetup_JSONRequiresUser(t *testing.T) {
+	skipCloudShort(t)
 	uikit.SetQuiet(false)
 	t.Cleanup(func() { uikit.SetQuiet(false) })
+
+	// labCommand's Before runs netutil.Online() before reaching the --user
+	// check; stub it so this test never makes a real network probe.
+	stubOnline(t)
 
 	ln := startSSHBannerListener(t)
 	lab.SetPreflightAddr(ln.Addr().String())
@@ -68,6 +95,7 @@ func TestLabSetup_JSONRequiresUser(t *testing.T) {
 // return a sentinel error and assert each command bails with that error —
 // proof it went through the warm step before reaching the real exec path.
 func TestLab_WarmsMasterBeforeSSH(t *testing.T) {
+	skipCloudShort(t)
 	uikit.SetQuiet(true)
 	t.Cleanup(func() { uikit.SetQuiet(false) })
 
@@ -81,12 +109,7 @@ func TestLab_WarmsMasterBeforeSSH(t *testing.T) {
 	}
 
 	// Pass labCommand.Before's two checks: netutil.Online() and lab.Preflight().
-	probe := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	t.Cleanup(probe.Close)
-	netutil.SetProbeURL(probe.URL)
-	t.Cleanup(netutil.ResetProbeURL)
+	stubOnline(t)
 
 	ln := startSSHBannerListener(t)
 	lab.SetPreflightAddr(ln.Addr().String())
@@ -131,16 +154,12 @@ func TestLab_WarmsMasterBeforeSSH(t *testing.T) {
 // tailored "use sci lab get instead" message, not the generic Levenshtein
 // suggestion (which used to surface "connect" — actively misleading).
 func TestLab_BrowseRedirectsToGet(t *testing.T) {
+	skipCloudShort(t)
 	// labCommand's Before probes netutil + lab.Preflight, but
 	// RejectUnknownSubcommand runs first in the chain, so the redirect fires
 	// before either probe. Stub both anyway so this test stays hermetic if
 	// the chain order ever flips.
-	probe := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	t.Cleanup(probe.Close)
-	netutil.SetProbeURL(probe.URL)
-	t.Cleanup(netutil.ResetProbeURL)
+	stubOnline(t)
 
 	ln := startSSHBannerListener(t)
 	lab.SetPreflightAddr(ln.Addr().String())
