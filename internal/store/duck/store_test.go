@@ -59,6 +59,7 @@ CREATE VIEW recent_scores AS SELECT name, score FROM people WHERE score IS NOT N
 // ---------- subprocess lifecycle ----------
 
 func TestOpenAndClose(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -74,6 +75,7 @@ func TestOpenAndClose(t *testing.T) {
 }
 
 func TestOpenMissingBinary(t *testing.T) {
+	t.Parallel()
 	// We can't easily un-install duckdb; instead, point the path at a
 	// non-existent file and check the resulting error doesn't crash.
 	requireDuck(t)
@@ -86,6 +88,7 @@ func TestOpenMissingBinary(t *testing.T) {
 // ---------- view detection (duck-specific: VIEW vs TABLE in information_schema) ----------
 
 func TestTableNamesAndViews(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -113,6 +116,7 @@ func TestTableNamesAndViews(t *testing.T) {
 // TestTableColumns asserts duck-specific column types (BIGINT/VARCHAR/DOUBLE)
 // surface via the information_schema-backed describeColumns path.
 func TestTableColumns(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -141,6 +145,7 @@ func TestTableColumns(t *testing.T) {
 // ---------- IsRowEditable (duck-specific: PK presence gates row mutations) ----------
 
 func TestIsRowEditable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -168,6 +173,7 @@ func TestIsRowEditable(t *testing.T) {
 // ---------- view querying (duck-specific code path) ----------
 
 func TestQueryTableView(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -192,6 +198,7 @@ func TestQueryTableView(t *testing.T) {
 // or ORDER BY — naive `query + " LIMIT 200"` produces `SELECT … LIMIT 1
 // LIMIT 200`, which duckdb rejects as a parse error.
 func TestReadOnlyQueryWithUserLimit(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -211,6 +218,7 @@ func TestReadOnlyQueryWithUserLimit(t *testing.T) {
 // ---------- rename: duck-specific rowEditable cache invalidation ----------
 
 func TestRenameTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -256,6 +264,7 @@ func TestRenameTable(t *testing.T) {
 // transition (carol's NULL score → 9.9) that the contract test doesn't
 // cover.
 func TestUpdateCell(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -290,6 +299,7 @@ func TestUpdateCell(t *testing.T) {
 }
 
 func TestUpdateCellEscapesSingleQuote(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -316,6 +326,7 @@ func TestUpdateCellEscapesSingleQuote(t *testing.T) {
 // TestInsertRows asserts duck-specific quote round-tripping and the
 // empty-string→NULL semantics during multi-row INSERT.
 func TestInsertRows(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -358,6 +369,7 @@ func TestInsertRows(t *testing.T) {
 }
 
 func TestInsertRowsEmpty(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -371,6 +383,7 @@ func TestInsertRowsEmpty(t *testing.T) {
 }
 
 func TestInsertRowsIntoNoPKTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -393,6 +406,7 @@ func TestInsertRowsIntoNoPKTable(t *testing.T) {
 }
 
 func TestDeleteRowsRejectsNoPKTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -409,6 +423,7 @@ func TestDeleteRowsRejectsNoPKTable(t *testing.T) {
 }
 
 func TestUpdateCellRejectsNoPKTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -434,6 +449,7 @@ func TestUpdateCellRejectsNoPKTable(t *testing.T) {
 // ---------- export / import (duck-specific behaviours) ----------
 
 func TestExportCSV(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -455,6 +471,7 @@ func TestExportCSV(t *testing.T) {
 }
 
 func TestImportCSVQuotedPath(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -484,6 +501,7 @@ func TestImportCSVQuotedPath(t *testing.T) {
 // backend supports beyond the contract suite's csv/json/jsonl (TSV and
 // NDJSON, both routed via `read_csv_auto` / `read_json_auto`).
 func TestImportFileDuckFormats(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	cases := []struct {
 		name     string
@@ -573,6 +591,7 @@ INSERT INTO vecs VALUES
 // rewrite — heavy columns come back as short typed placeholders instead
 // of the full JSON-serialised payload.
 func TestQueryTableHeavyTypesEmitPlaceholders(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeHeavyFixture(t))
 	if err != nil {
@@ -636,6 +655,7 @@ func TestQueryTableHeavyTypesEmitPlaceholders(t *testing.T) {
 // of a heavy cell (the placeholder shown in the table) by resolving the
 // synthetic rowID back to the PK via the rowKeys cache.
 func TestFetchCellRoundTrip(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeHeavyFixture(t))
 	if err != nil {
@@ -688,6 +708,7 @@ func TestFetchCellRoundTrip(t *testing.T) {
 // FetchCell needs cached PK values built by QueryTable, and a table
 // without a PK leaves rowKeys empty.
 func TestFetchCellNoPKReturnsError(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {
@@ -708,6 +729,7 @@ func TestFetchCellNoPKReturnsError(t *testing.T) {
 // no-op on schemas without any heavy columns — the existing fixture's
 // people table still returns numeric / string values verbatim.
 func TestQueryTableNonHeavyUntouched(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	s, err := duck.Open(makeFixture(t))
 	if err != nil {

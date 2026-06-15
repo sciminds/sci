@@ -12,6 +12,7 @@ import (
 // duckdb's box-mode formatter; we verify it ran and produced output).
 
 func TestColsCSV(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Cols(tinyCSV, "")
 	if err != nil {
@@ -35,6 +36,7 @@ func TestColsCSV(t *testing.T) {
 }
 
 func TestColsParquet(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Cols(tinyParquet, "")
 	if err != nil {
@@ -46,6 +48,7 @@ func TestColsParquet(t *testing.T) {
 }
 
 func TestColsXLSXMultiSheetRequiresTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	if _, err := Cols(tinyXLSX, ""); err == nil {
 		t.Error("expected error for multi-sheet xlsx without --table")
@@ -60,6 +63,7 @@ func TestColsXLSXMultiSheetRequiresTable(t *testing.T) {
 }
 
 func TestColsSQLite(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Cols(tinyDB, "people")
 	if err != nil {
@@ -75,6 +79,7 @@ func TestColsSQLite(t *testing.T) {
 // cell. The promotion layer wraps the read in TRY_CAST so "" → NULL and the
 // column comes through as its declared type.
 func TestHeadSQLiteMixedTypes(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	if _, err := os.Stat(mixedDB); err != nil {
 		t.Skipf("mixed_types.db fixture not generated (sqlite3 missing?): %v", err)
@@ -100,6 +105,7 @@ func TestHeadSQLiteMixedTypes(t *testing.T) {
 // promotes to BIGINT (NULLIF eats the empty). Cols explain shows the
 // declared type alongside the resolved type, with no fallback note.
 func TestColsSQLiteMixedTypesPromoted(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	if _, err := os.Stat(mixedDB); err != nil {
 		t.Skipf("mixed_types.db fixture not generated (sqlite3 missing?): %v", err)
@@ -131,6 +137,7 @@ func TestColsSQLiteMixedTypesPromoted(t *testing.T) {
 // (a genuinely non-castable cell) must fall back to VARCHAR so the original
 // value is preserved. Cols explain reports the failing-cell count.
 func TestColsSQLiteDirtyTypesFallback(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	if _, err := os.Stat(dirtyDB); err != nil {
 		t.Skipf("dirty_types.db fixture not generated (sqlite3 missing?): %v", err)
@@ -158,6 +165,7 @@ func TestColsSQLiteDirtyTypesFallback(t *testing.T) {
 // TestHeadSQLiteDirtyTypesPreservesCell: the "abc" must come through
 // verbatim — that's the no-data-loss promise.
 func TestHeadSQLiteDirtyTypesPreservesCell(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	if _, err := os.Stat(dirtyDB); err != nil {
 		t.Skipf("dirty_types.db fixture not generated (sqlite3 missing?): %v", err)
@@ -174,6 +182,7 @@ func TestHeadSQLiteDirtyTypesPreservesCell(t *testing.T) {
 // TestSummarizeSQLitePromotedNumeric: after promotion, SUMMARIZE produces
 // real numeric stats (avg, std, quartiles) on the BIGINT column.
 func TestSummarizeSQLitePromotedNumeric(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	if _, err := os.Stat(mixedDB); err != nil {
 		t.Skipf("mixed_types.db fixture not generated (sqlite3 missing?): %v", err)
@@ -199,6 +208,7 @@ func TestSummarizeSQLitePromotedNumeric(t *testing.T) {
 // TestColsCSVStillTwoColumnBox: non-sqlite sources continue to show the
 // simple 2-column box; declared/note fields are empty.
 func TestColsCSVStillTwoColumnBox(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Cols(tinyCSV, "")
 	if err != nil {
@@ -212,6 +222,7 @@ func TestColsCSVStillTwoColumnBox(t *testing.T) {
 }
 
 func TestHeadDefault(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Head(tinyCSV, "", 0) // 0 → default 10; tiny.csv only has 3 rows
 	if err != nil {
@@ -229,6 +240,7 @@ func TestHeadDefault(t *testing.T) {
 }
 
 func TestHeadLimitN(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Head(tinyCSV, "", 2)
 	if err != nil {
@@ -240,6 +252,7 @@ func TestHeadLimitN(t *testing.T) {
 }
 
 func TestTail(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Tail(tinyCSV, "", 2)
 	if err != nil {
@@ -254,6 +267,7 @@ func TestTail(t *testing.T) {
 }
 
 func TestGlimpse(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Glimpse(tinyCSV, "", 5)
 	if err != nil {
@@ -273,6 +287,7 @@ func TestGlimpse(t *testing.T) {
 }
 
 func TestShape(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Shape(tinyCSV, "")
 	if err != nil {
@@ -284,6 +299,7 @@ func TestShape(t *testing.T) {
 }
 
 func TestShapeMultiTableSQLite(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Shape(tinyDB, "extras")
 	if err != nil {
@@ -295,6 +311,7 @@ func TestShapeMultiTableSQLite(t *testing.T) {
 }
 
 func TestSummarize(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Summarize(tinyCSV, "")
 	if err != nil {
@@ -316,6 +333,7 @@ func TestSummarize(t *testing.T) {
 // decode rejected. The verb now maps NaN/Inf to NULL before summarizing, so the
 // surviving values produce real stats.
 func TestSummarizeNaNInfDoesNotCrash(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Summarize(nanCSV, "")
 	if err != nil {
@@ -344,6 +362,7 @@ func TestSummarizeNaNInfDoesNotCrash(t *testing.T) {
 // samples the same NaN/Inf column without a JSON-decode crash (the bare tokens
 // are sanitized to text via the shared row decoder).
 func TestGlimpseNaNInfDoesNotCrash(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Glimpse(nanCSV, "", 5)
 	if err != nil {
@@ -355,6 +374,7 @@ func TestGlimpseNaNInfDoesNotCrash(t *testing.T) {
 }
 
 func TestQueryReadOnly(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	res, err := Query(tinyCSV, "SELECT name FROM src WHERE id = 2")
 	if err != nil {
@@ -369,6 +389,7 @@ func TestQueryReadOnly(t *testing.T) {
 }
 
 func TestQueryDuckDBRealTableNames(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	// tiny.duckdb has 3 tables (people, extras); the user references one
 	// by its real name rather than `src`. This must not demand --table.
@@ -394,6 +415,7 @@ func TestQueryDuckDBRealTableNames(t *testing.T) {
 }
 
 func TestQuerySQLiteRealTableNames(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	// Multi-table SQLite (people, extras) — same contract as DuckDB.
 	res, err := Query(tinyDB, "SELECT name FROM people WHERE id = 3")
@@ -413,6 +435,7 @@ func TestQuerySQLiteRealTableNames(t *testing.T) {
 // duckdb "Mismatch Type Error"; Query must instead retry with everything as
 // VARCHAR so the query succeeds and the offending cell survives as text.
 func TestQuerySQLiteDirtyTypesFallback(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	if _, err := os.Stat(dirtyDB); err != nil {
 		t.Skipf("dirty_types.db fixture not generated (sqlite3 missing?): %v", err)
@@ -434,6 +457,7 @@ func TestQuerySQLiteDirtyTypesFallback(t *testing.T) {
 // string "" placeholder in a numeric column (e.g. missing ages). Must not
 // error.
 func TestQuerySQLiteEmptyStringFallback(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	if _, err := os.Stat(mixedDB); err != nil {
 		t.Skipf("mixed_types.db fixture not generated (sqlite3 missing?): %v", err)
@@ -451,6 +475,7 @@ func TestQuerySQLiteEmptyStringFallback(t *testing.T) {
 }
 
 func TestConvertCSVToParquet(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.parquet")
@@ -480,6 +505,7 @@ func TestConvertCSVToParquet(t *testing.T) {
 }
 
 func TestConvertCSVToJSON(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.json")
@@ -496,6 +522,7 @@ func TestConvertCSVToJSON(t *testing.T) {
 }
 
 func TestConvertUnsupportedTarget(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	if _, err := Convert(tinyCSV, "", filepath.Join(dir, "out.bogus"), ""); err == nil {
@@ -504,6 +531,7 @@ func TestConvertUnsupportedTarget(t *testing.T) {
 }
 
 func TestConvertCSVToSQLite(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.db")
@@ -525,6 +553,7 @@ func TestConvertCSVToSQLite(t *testing.T) {
 }
 
 func TestConvertCSVToDuckDB(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.duckdb")
@@ -545,6 +574,7 @@ func TestConvertCSVToDuckDB(t *testing.T) {
 }
 
 func TestConvertDestTableOverride(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.db")
@@ -561,6 +591,7 @@ func TestConvertDestTableOverride(t *testing.T) {
 }
 
 func TestConvertSQLiteToCSV(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.csv")
@@ -581,6 +612,7 @@ func TestConvertSQLiteToCSV(t *testing.T) {
 }
 
 func TestConvertSQLiteToDuckDB(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "cross.duckdb")
@@ -600,6 +632,7 @@ func TestConvertSQLiteToDuckDB(t *testing.T) {
 // converting between databases without --as, the destination table
 // keeps the source table's name (not the source file's basename).
 func TestConvertDestTableDefaultsToSrcTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "cross.duckdb")
@@ -612,6 +645,7 @@ func TestConvertDestTableDefaultsToSrcTable(t *testing.T) {
 }
 
 func TestConvertMultiTableSourceWithoutTableErrors(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	if _, err := Convert(tinyDB, "", filepath.Join(dir, "out.csv"), ""); err == nil {
@@ -620,6 +654,7 @@ func TestConvertMultiTableSourceWithoutTableErrors(t *testing.T) {
 }
 
 func TestConvertUnsafeDestTableRejected(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out.db")

@@ -7,6 +7,7 @@ import (
 )
 
 func TestErrNotInstalledMessageMentionsDoctor(t *testing.T) {
+	t.Parallel()
 	msg := ErrNotInstalled.Error()
 	if !strings.Contains(msg, "sci doctor") {
 		t.Errorf("ErrNotInstalled.Error() = %q, want it to mention `sci doctor`", msg)
@@ -14,6 +15,7 @@ func TestErrNotInstalledMessageMentionsDoctor(t *testing.T) {
 }
 
 func TestRunJSONBasic(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	out, err := runJSON("SELECT 1 AS x")
 	if err != nil {
@@ -26,6 +28,7 @@ func TestRunJSONBasic(t *testing.T) {
 }
 
 func TestRunJSONSyntaxError(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	if _, err := runJSON("THIS IS NOT SQL"); err == nil {
 		t.Error("expected error for invalid SQL, got nil")
@@ -33,6 +36,7 @@ func TestRunJSONSyntaxError(t *testing.T) {
 }
 
 func TestRunJSONNotInstalledReturnsSentinel(t *testing.T) {
+	t.Parallel()
 	if Available() {
 		t.Skip("duckdb is on PATH; cannot test the not-installed path here")
 	}

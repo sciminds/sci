@@ -5,6 +5,7 @@ import "testing"
 // TestInfoDuckDBMulti checks that Info enumerates every base table in a
 // duckdb file and returns the right row + column counts.
 func TestInfoDuckDBMulti(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	entries, err := Info(tinyDuck)
 	if err != nil {
@@ -29,6 +30,7 @@ func TestInfoDuckDBMulti(t *testing.T) {
 
 // TestInfoDuckDBSingle confirms Info works on a single-table file.
 func TestInfoDuckDBSingle(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	entries, err := Info(singleDuck)
 	if err != nil {

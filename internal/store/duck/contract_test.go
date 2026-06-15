@@ -38,5 +38,6 @@ INSERT INTO extras VALUES ('a', 1), ('b', 2);
 }
 
 func TestStoreContract(t *testing.T) {
+	t.Parallel()
 	contracttest.Run(t, setupContract)
 }

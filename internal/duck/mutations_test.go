@@ -11,6 +11,7 @@ import (
 // duckdb binary; the suite skips when it's not on PATH via requireDuck.
 
 func TestCreateEmpty(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fresh.duckdb")
@@ -30,6 +31,7 @@ func TestCreateEmpty(t *testing.T) {
 }
 
 func TestCreateEmptyRefusesExisting(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "exists.duckdb")
@@ -46,6 +48,7 @@ func TestCreateEmptyRefusesExisting(t *testing.T) {
 }
 
 func TestReset(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "reset.duckdb")
@@ -70,6 +73,7 @@ func TestReset(t *testing.T) {
 }
 
 func TestResetOnMissingFile(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "ghost.duckdb")
@@ -83,6 +87,7 @@ func TestResetOnMissingFile(t *testing.T) {
 }
 
 func TestDropTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "drop.duckdb")
@@ -106,6 +111,7 @@ func TestDropTable(t *testing.T) {
 }
 
 func TestDropTableMissing(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "drop.duckdb")
@@ -118,6 +124,7 @@ func TestDropTableMissing(t *testing.T) {
 }
 
 func TestRenameTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "rename.duckdb")
@@ -140,6 +147,7 @@ func TestRenameTable(t *testing.T) {
 }
 
 func TestRenameTableCollision(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "rename.duckdb")
@@ -158,6 +166,7 @@ func TestRenameTableCollision(t *testing.T) {
 }
 
 func TestImportCSVSingle(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "imp.duckdb")
@@ -174,6 +183,7 @@ func TestImportCSVSingle(t *testing.T) {
 }
 
 func TestImportCSVWithTableOverride(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "imp.duckdb")
@@ -190,6 +200,7 @@ func TestImportCSVWithTableOverride(t *testing.T) {
 }
 
 func TestImportCSVMultiple(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	// Two CSVs in different basenames so default naming yields distinct tables.
@@ -214,6 +225,7 @@ func TestImportCSVMultiple(t *testing.T) {
 }
 
 func TestImportCSVCollisionErrors(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "imp.duckdb")
@@ -233,6 +245,7 @@ func TestImportCSVCollisionErrors(t *testing.T) {
 }
 
 func TestImportCSVRejectsUnsafeTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "imp.duckdb")
@@ -245,6 +258,7 @@ func TestImportCSVRejectsUnsafeTable(t *testing.T) {
 }
 
 func TestImportCSVMultiWithTableOverrideErrors(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "imp.duckdb")
@@ -258,6 +272,7 @@ func TestImportCSVMultiWithTableOverrideErrors(t *testing.T) {
 }
 
 func TestAppendCSV(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "app.duckdb")
@@ -284,6 +299,7 @@ func TestAppendCSV(t *testing.T) {
 }
 
 func TestAppendCSVMissingTable(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "app.duckdb")
@@ -325,6 +341,7 @@ func seedDuckDBWithView(t *testing.T, dir string) string {
 }
 
 func TestDropTableHandlesView(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := seedDuckDBWithView(t, dir)
@@ -341,6 +358,7 @@ func TestDropTableHandlesView(t *testing.T) {
 }
 
 func TestDropTableMissingErrorMentionsFile(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "drop.duckdb")
@@ -364,6 +382,7 @@ func TestDropTableMissingErrorMentionsFile(t *testing.T) {
 }
 
 func TestRenameTableHandlesView(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := seedDuckDBWithView(t, dir)
@@ -387,6 +406,7 @@ func TestRenameTableHandlesView(t *testing.T) {
 }
 
 func TestAppendCSVOntoViewErrors(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 	dir := t.TempDir()
 	path := seedDuckDBWithView(t, dir)

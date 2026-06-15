@@ -9,6 +9,7 @@ import (
 // tokens become quoted text, that occurrences inside string values are left
 // alone, and that input without them is returned unchanged.
 func TestSanitizeSpecialFloats(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		in   string
@@ -36,6 +37,7 @@ func TestSanitizeSpecialFloats(t *testing.T) {
 // mutate its argument (callers pass the same buffer to decodeRows and
 // columnOrder).
 func TestSanitizeSpecialFloatsLeavesInputIntact(t *testing.T) {
+	t.Parallel()
 	in := []byte(`{"x":NaN}`)
 	orig := string(in)
 	_ = SanitizeSpecialFloats(in)
@@ -48,6 +50,7 @@ func TestSanitizeSpecialFloatsLeavesInputIntact(t *testing.T) {
 // chokes on NaN/Infinity rows (the bug: "invalid character 'N'") and renders
 // them as text distinct from JSON null.
 func TestDecodeRowsHandlesSpecialFloats(t *testing.T) {
+	t.Parallel()
 	data := []byte(`[{"g":"b","x":NaN},{"g":"c","x":Infinity},{"g":"d","x":-Infinity},{"g":"e","x":null}]`)
 	rows, err := decodeRows(data)
 	if err != nil {
@@ -70,6 +73,7 @@ func TestDecodeRowsHandlesSpecialFloats(t *testing.T) {
 // TestColumnOrderHandlesSpecialFloats confirms the key-order scan also tolerates
 // special-float values (it tokenizes the same bytes).
 func TestColumnOrderHandlesSpecialFloats(t *testing.T) {
+	t.Parallel()
 	data := []byte(`[{"g":"b","x":NaN}]`)
 	cols, err := columnOrder(data)
 	if err != nil {

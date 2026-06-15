@@ -12,6 +12,7 @@ var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 func stripANSI(s string) string { return ansiRE.ReplaceAllString(s, "") }
 
 func TestGlimpseHumanDplyrStyle(t *testing.T) {
+	t.Parallel()
 	r := &GlimpseResult{
 		RowCount: 42,
 		Columns: []GlimpseColumn{
@@ -28,6 +29,7 @@ func TestGlimpseHumanDplyrStyle(t *testing.T) {
 }
 
 func TestRowsHumanPreservesColumnOrder(t *testing.T) {
+	t.Parallel()
 	r := &RowsResult{
 		Columns: []string{"zeta", "alpha"}, // not alphabetical — must be honored
 		Rows: []map[string]any{
@@ -42,6 +44,7 @@ func TestRowsHumanPreservesColumnOrder(t *testing.T) {
 }
 
 func TestFormatCellExactNumbers(t *testing.T) {
+	t.Parallel()
 	// json.Number preserves duckdb's exact text (no float64 rounding).
 	if got := formatCell(json.Number("100000000000000001")); got != "100000000000000001" {
 		t.Errorf("formatCell(big int) = %q, want exact text", got)
@@ -55,6 +58,7 @@ func TestFormatCellExactNumbers(t *testing.T) {
 }
 
 func TestColumnOrderFromJSON(t *testing.T) {
+	t.Parallel()
 	// Nested STRUCT value must not derail key-order recovery.
 	data := []byte(`[{"b":1,"nested":{"x":1,"y":2},"a":"hi"},{"b":2,"nested":{},"a":"yo"}]`)
 	cols, err := columnOrder(data)

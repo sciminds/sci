@@ -10,6 +10,7 @@ import (
 // duckdb binary: csv/tsv/json/jsonl/parquet (pure SQL string assembly) and
 // xlsx (sheet listing via Go zip parser).
 func TestResolveStateless(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		path        string
@@ -124,6 +125,7 @@ func TestResolveStateless(t *testing.T) {
 // TestResolveXLSXEscapesQuotes confirms single quotes in sheet names or paths
 // are escaped (xlsx allows quotes in sheet names; SQL-injection risk).
 func TestResolveXLSXEscapesQuotes(t *testing.T) {
+	t.Parallel()
 	// We don't have a quoted-name fixture; just unit-test the escaper directly.
 	if got := sqlEscape("a'b"); got != "a''b" {
 		t.Errorf("sqlEscape(\"a'b\") = %q, want %q", got, "a''b")
@@ -153,6 +155,7 @@ func TestQuoteIdent(t *testing.T) {
 // TestResolveSQLite covers the sqlite branch which needs the duckdb binary
 // to enumerate tables via ATTACH + SHOW TABLES.
 func TestResolveSQLite(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 
 	t.Run("single-table auto-pick", func(t *testing.T) {
@@ -224,6 +227,7 @@ func TestResolveSQLite(t *testing.T) {
 
 // TestResolveDuckDB exercises the duckdb-file branch (.duckdb extension).
 func TestResolveDuckDB(t *testing.T) {
+	t.Parallel()
 	requireDuck(t)
 
 	t.Run("single-table auto-pick", func(t *testing.T) {

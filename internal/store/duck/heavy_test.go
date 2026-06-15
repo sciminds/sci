@@ -6,6 +6,7 @@ import (
 )
 
 func TestIsHeavyType(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		typ  string
 		want bool
@@ -51,6 +52,7 @@ func TestIsHeavyType(t *testing.T) {
 // stable (the col name is double-quoted, the type name appears as a
 // literal, NULL handling is wired in).
 func TestHeavyPlaceholderExprShape(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		col, typ string
 		wantSubs []string
@@ -79,12 +81,14 @@ func TestHeavyPlaceholderExprShape(t *testing.T) {
 }
 
 func TestHeavyPlaceholderExprRejectsUnsafeColumn(t *testing.T) {
+	t.Parallel()
 	if _, err := heavyPlaceholderExpr(`weird"; DROP TABLE x; --`, "FLOAT[]"); err == nil {
 		t.Fatalf("expected error for unsafe column name")
 	}
 }
 
 func TestArrayBaseLabel(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		in, want string
 	}{

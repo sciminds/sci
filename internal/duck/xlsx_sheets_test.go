@@ -7,6 +7,7 @@ import (
 )
 
 func TestListSheetsMultiSheet(t *testing.T) {
+	t.Parallel()
 	got, err := listSheets("testdata/tiny.xlsx")
 	if err != nil {
 		t.Fatalf("listSheets: %v", err)
@@ -23,6 +24,7 @@ func TestListSheetsMultiSheet(t *testing.T) {
 }
 
 func TestListSheetsSingleSheet(t *testing.T) {
+	t.Parallel()
 	got, err := listSheets("testdata/single_sheet.xlsx")
 	if err != nil {
 		t.Fatalf("listSheets: %v", err)
@@ -33,6 +35,7 @@ func TestListSheetsSingleSheet(t *testing.T) {
 }
 
 func TestListSheetsNotXLSX(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	plain := filepath.Join(dir, "plain.txt")
 	if err := os.WriteFile(plain, []byte("not a zip"), 0o644); err != nil {
@@ -44,6 +47,7 @@ func TestListSheetsNotXLSX(t *testing.T) {
 }
 
 func TestListSheetsMissingWorkbookXML(t *testing.T) {
+	t.Parallel()
 	// A valid zip with no xl/workbook.xml entry should error cleanly.
 	// We reuse a fixture that is a real zip but contains no workbook.xml
 	// by using a small in-memory archive.

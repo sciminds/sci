@@ -46,14 +46,11 @@ test:
 test-gate:
     go test ./... -short -count=1
 
-# Race-detector pass. Slower than `test` so it lives on the pre-commit gate
-# (`just ok`) rather than the fast TDD loop (`just test` / `just test-pkg`).
+# Race-detector pass. ~2x slower than `test` (re-instruments the whole tree),
+# so it's CI-only (check-ci runs it on every push) and NOT on the local `just
+# ok` gate. Run it by hand before merging concurrency-sensitive changes.
 test-race:
     go test ./... -race -count=1
-
-# Gate race pass — same `-short` cloud exclusion under the race detector.
-test-race-gate:
-    go test ./... -short -race -count=1
 
 # The cloud/network-gated command tests the gate skips via -short. Run before
 # merging changes to `sci cloud` / `sci lab`. (CI runs the full suite, so these
@@ -79,7 +76,9 @@ test-zot-real:
 
 test-all: test test-slow
 
-check: tidy fmt vet lint lint-style lint-docs lint-guard test-gate test-race-gate build
+# Local pre-commit gate. No -race here (CI's check-ci covers it) so the loop
+# stays fast; see test-race. Run `just ok`, not `check`, day to day.
+check: tidy fmt vet lint lint-style lint-docs lint-guard test-gate build
 
 # CI gate — verify-only (no file writes), no multi-arch build, no lint-style.
 # Mirrors `check` so the local and CI gates can't drift: add a step here and

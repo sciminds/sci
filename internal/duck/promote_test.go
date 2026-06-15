@@ -3,6 +3,7 @@ package duck
 import "testing"
 
 func TestValidDuckType(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in   string
 		want bool
