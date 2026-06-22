@@ -68,6 +68,44 @@ func Open(path string) (*Store, error) {
 	return &Store{proc: p, path: path}, nil
 }
 
+// OpenFileView opens a flat data file for read-only viewing through an
+// in-memory duckdb subprocess, exposing it as a VIEW named after the
+// file stem via duckdb's native reader (see [duckReaderExpr]). It exists
+// for columnar formats the pure-Go SQLite file view can't parse —
+// Parquet in particular — so `sci view data.parquet` is browsable in the
+// TUI. The view carries no primary key, so it surfaces as read-only and
+// row-level mutations are rejected like any PK-less duckdb table. Returns
+// [duckcli.ErrNotInstalled] when duckdb is not on PATH and
+// [store.ErrImportNotSupported] for an unreadable extension.
+func OpenFileView(path string) (*Store, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, fmt.Errorf("open %s: %w", path, err)
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve path: %w", err)
+	}
+	readerExpr, err := duckReaderExpr(absPath)
+	if err != nil {
+		return nil, err
+	}
+	name := store.TableNameFromFile(path)
+	if !store.IsSafeIdentifier(name) {
+		return nil, fmt.Errorf("invalid view name %q derived from %s", name, filepath.Base(path))
+	}
+
+	p, err := startSubproc(":memory:")
+	if err != nil {
+		return nil, err
+	}
+	createSQL := fmt.Sprintf(`CREATE VIEW "%s" AS SELECT * FROM %s`, name, readerExpr)
+	if _, err := p.query(createSQL); err != nil {
+		_ = p.close()
+		return nil, fmt.Errorf("open %s: %w", path, err)
+	}
+	return &Store{proc: p, path: absPath}, nil
+}
+
 // Close shuts the subprocess down. Idempotent.
 func (s *Store) Close() error {
 	return s.proc.close()
@@ -876,6 +914,8 @@ func duckReaderExpr(filePath string) (string, error) {
 		return fmt.Sprintf("read_json_auto(%s)", sqlQuote(filePath)), nil
 	case ".jsonl", ".ndjson":
 		return fmt.Sprintf(`read_json_auto(%s, format='newline_delimited')`, sqlQuote(filePath)), nil
+	case ".parquet":
+		return fmt.Sprintf("read_parquet(%s)", sqlQuote(filePath)), nil
 	default:
 		return "", store.ErrImportNotSupported
 	}

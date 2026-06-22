@@ -13,6 +13,7 @@ package duck_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -545,6 +546,91 @@ func TestImportFileDuckFormats(t *testing.T) {
 				t.Errorf("rowcount = %d; want %d", n, tc.wantRows)
 			}
 		})
+	}
+}
+
+// makeParquetFixture writes a small Parquet file (the columnar binary
+// format the pure-Go SQLite path can't parse) via duckdb's COPY ... TO
+// and returns its path. The table is metrics(id, name, score) with three
+// rows, one NULL score.
+func makeParquetFixture(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "metrics.parquet")
+	script := fmt.Sprintf(
+		`COPY (SELECT * FROM (VALUES (1, 'alice', 3.14), (2, 'bob', 2.72), (3, 'carol', NULL)) AS t(id, name, score)) TO '%s' (FORMAT PARQUET);`,
+		path)
+	cmd := exec.Command("duckdb", ":memory:")
+	cmd.Stdin = strings.NewReader(script)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("create parquet fixture: %v\n%s", err, out)
+	}
+	return path
+}
+
+// TestOpenFileViewParquet covers viewing a Parquet file: it opens through
+// an in-memory duckdb subprocess as a read-only VIEW named after the file
+// stem, with its rows queryable.
+func TestOpenFileViewParquet(t *testing.T) {
+	t.Parallel()
+	requireDuck(t)
+	s, err := duck.OpenFileView(makeParquetFixture(t))
+	if err != nil {
+		t.Fatalf("OpenFileView: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	names, err := s.TableNames()
+	if err != nil {
+		t.Fatalf("TableNames: %v", err)
+	}
+	if want := []string{"metrics"}; !reflect.DeepEqual(names, want) {
+		t.Fatalf("TableNames = %v, want %v", names, want)
+	}
+	if !s.IsView("metrics") {
+		t.Error("IsView(metrics) = false; want true (parquet file view is read-only)")
+	}
+	n, err := s.TableRowCount("metrics")
+	if err != nil {
+		t.Fatalf("TableRowCount: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("rowcount = %d; want 3", n)
+	}
+}
+
+// TestOpenFileViewRejectsUnsupported asserts OpenFileView returns
+// ErrImportNotSupported for a format duckdb's reader dispatch doesn't
+// cover (here .xlsx, which the duck store import path doesn't handle).
+func TestOpenFileViewRejectsUnsupported(t *testing.T) {
+	t.Parallel()
+	requireDuck(t)
+	path := writeTempFile(t, ".xlsx", "not really a spreadsheet")
+	_, err := duck.OpenFileView(path)
+	if !errors.Is(err, store.ErrImportNotSupported) {
+		t.Fatalf("OpenFileView(.xlsx) error = %v; want ErrImportNotSupported", err)
+	}
+}
+
+// TestImportFileParquet covers importing a Parquet file as a new table in
+// an existing duckdb store via the read_parquet reader.
+func TestImportFileParquet(t *testing.T) {
+	t.Parallel()
+	requireDuck(t)
+	s, err := duck.Open(makeFixture(t))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	if err := s.ImportFile(makeParquetFixture(t), "from_parquet"); err != nil {
+		t.Fatalf("ImportFile(parquet): %v", err)
+	}
+	n, err := s.TableRowCount("from_parquet")
+	if err != nil {
+		t.Fatalf("TableRowCount: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("rowcount = %d; want 3", n)
 	}
 }
 

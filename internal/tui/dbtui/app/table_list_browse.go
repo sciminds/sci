@@ -1,8 +1,9 @@
 package app
 
 // table_list_browse.go — file browser sub-feature of the table list overlay.
-// Lets the user navigate the filesystem and select a CSV/TSV to import as a
-// new table.
+// Lets the user navigate the filesystem and select a CSV/TSV/Parquet file to
+// import as a new table. Parquet imports only succeed against a duckdb-backed
+// store; the SQLite file view reports it as unsupported.
 
 import (
 	"cmp"
@@ -20,7 +21,7 @@ import (
 )
 
 // importableExts lists file extensions shown in the file browser.
-var importableExts = map[string]bool{".csv": true, ".tsv": true}
+var importableExts = map[string]bool{".csv": true, ".tsv": true, ".parquet": true}
 
 // tableListAdd opens the file browser so the user can select a CSV to import.
 func (m *Model) tableListAdd() tea.Cmd {
@@ -242,7 +243,7 @@ func (m *Model) buildAddFileOverlay(contentW, innerW int) string {
 		"  " + m.styles.HeaderHint().Render(dirLabel) + "\n\n"
 
 	// Suffix: status line (always reserved) + action hints.
-	status := m.styles.HeaderHint().Render("Select a CSV or TSV file")
+	status := m.styles.HeaderHint().Render("Select a CSV, TSV, or Parquet file")
 	if tl.Status != "" {
 		status = m.styles.Info().Render(tl.Status)
 	}

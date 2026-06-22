@@ -5,6 +5,7 @@ package app
 // teatests live alongside their respective Phase 3 commits.
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -117,6 +118,56 @@ func TestDuckHeavyColumnPlaceholderAndPreview(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("fetched embedding = %q; missing %q", got, want)
 		}
+	}
+}
+
+// makeParquetFixture writes a small Parquet file via duckdb's COPY ... TO
+// and returns its path: metrics(id, name, score) with two rows.
+func makeParquetFixture(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "metrics.parquet")
+	script := fmt.Sprintf(
+		`COPY (SELECT * FROM (VALUES (1, 'alice', 3.14), (2, 'bob', 2.72)) AS t(id, name, score)) TO '%s' (FORMAT PARQUET);`,
+		path)
+	cmd := exec.Command("duckdb", ":memory:")
+	cmd.Stdin = strings.NewReader(script)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("create parquet fixture: %v\n%s", err, out)
+	}
+	return path
+}
+
+// TestDuckParquetFileViewReadOnly verifies that a Parquet file opens in
+// dbtui through duck.OpenFileView as a single read-only tab named after
+// the file stem, with its rows loaded.
+func TestDuckParquetFileViewReadOnly(t *testing.T) {
+	requireDuck(t)
+	s, err := duck.OpenFileView(makeParquetFixture(t))
+	if err != nil {
+		t.Fatalf("duck.OpenFileView: %v", err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	m, err := NewModel(s, "metrics.parquet", false)
+	if err != nil {
+		t.Fatalf("NewModel: %v", err)
+	}
+	if len(m.tabs) != 1 || m.tabs[0].Name != "metrics" {
+		t.Fatalf("tabs = %v; want single tab %q", m.tabs, "metrics")
+	}
+
+	tab, err := buildTab(s, "metrics")
+	if err != nil {
+		t.Fatalf("buildTab: %v", err)
+	}
+	if m.shouldForceTabReadOnly(tab.Name) {
+		tab.ReadOnly = true
+	}
+	if !tab.ReadOnly {
+		t.Error("parquet file view tab should open read-only (view has no PK)")
+	}
+	if len(tab.CellRows) != 2 {
+		t.Errorf("CellRows = %d; want 2", len(tab.CellRows))
 	}
 }
 

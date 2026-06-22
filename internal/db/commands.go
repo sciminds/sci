@@ -25,6 +25,13 @@ func isDuckDB(path string) bool {
 	return strings.EqualFold(filepath.Ext(path), ".duckdb")
 }
 
+// isParquet reports whether path is a Parquet file. Parquet is columnar
+// binary, so it routes through the duckdb store (which reads it natively)
+// rather than the pure-Go SQLite file view.
+func isParquet(path string) bool {
+	return strings.EqualFold(filepath.Ext(path), ".parquet")
+}
+
 // ---------------------------------------------------------------------------
 // Info
 // ---------------------------------------------------------------------------
@@ -380,11 +387,12 @@ func Reset(dbPath string) (*MutationResult, error) {
 // ---------------------------------------------------------------------------
 
 // RunTUI launches the interactive database viewer.
-// Flat files (CSV, JSON, etc.) are opened read-only via a file-aware store;
-// SQLite databases are opened directly. .duckdb files open through a
-// native subprocess-backed [duckstore.Store] in read-only mode. If
-// initialTab is non-empty the viewer opens on that tab instead of the
-// first one.
+// Flat files (CSV, JSON, etc.) are opened via the pure-Go SQLite file
+// view; Parquet routes through a native duckdb file view (columnar binary
+// the SQLite path can't parse) and opens read-only. SQLite databases are
+// opened directly. .duckdb files open through a native subprocess-backed
+// [duckstore.Store]. If initialTab is non-empty the viewer opens on that
+// tab instead of the first one.
 func RunTUI(dbPath string, initialTab string) error {
 	if _, err := os.Stat(dbPath); err != nil {
 		return err
@@ -394,6 +402,12 @@ func RunTUI(dbPath string, initialTab string) error {
 	switch {
 	case isDuckDB(dbPath):
 		s, err := duckstore.Open(dbPath)
+		if err != nil {
+			return err
+		}
+		ds = s
+	case isParquet(dbPath):
+		s, err := duckstore.OpenFileView(dbPath)
 		if err != nil {
 			return err
 		}
