@@ -82,9 +82,13 @@ func TestTeatest_Navigate_DescendAndAscend(t *testing.T) {
 	waitOutput(t, tm, "ejolly")   // root: alice/, ejolly/
 	sendSpecial(tm, tea.KeyDown)  // cursor alice → ejolly
 	sendSpecial(tm, tea.KeyEnter) // descend into ejolly
-	waitOutput(t, tm, "python-tutorials")
-	sendSpecial(tm, tea.KeyEnter)     // descend into python-tutorials (idx 0)
-	waitOutput(t, tm, "notebooks")    // data/, notebooks/
+	// Gate on the breadcrumb path, not a list item: the breadcrumb is set
+	// atomically with the listing + cursor reset in handleChildren, so it's
+	// an authoritative "level loaded and ready for the next key" signal that
+	// no transient frame can spoof.
+	waitOutput(t, tm, "/ ejolly")
+	sendSpecial(tm, tea.KeyEnter) // descend into python-tutorials (idx 0)
+	waitOutput(t, tm, "/ python-tutorials")
 	sendSpecial(tm, tea.KeyBackspace) // ascend back to ejolly
 
 	fm := finalModel(t, tm)
@@ -98,8 +102,8 @@ func TestTeatest_DeleteForeignFile_Rejected(t *testing.T) {
 
 	waitOutput(t, tm, "ejolly")
 	sendSpecial(tm, tea.KeyEnter) // cursor on alice/ (idx 0) → descend
-	waitOutput(t, tm, "results.csv")
-	sendKey(tm, "x") // alice's file → Allowed rejects before any network
+	waitOutput(t, tm, "/ alice")  // breadcrumb: descended into alice
+	sendKey(tm, "x")              // alice's file → Allowed rejects before any network
 	waitOutput(t, tm, "cannot delete @alice")
 
 	_ = finalModel(t, tm)
@@ -114,9 +118,9 @@ func TestTeatest_DeleteOwnFile_ConfirmThenAbortKeepsObject(t *testing.T) {
 	waitOutput(t, tm, "ejolly")
 	sendSpecial(tm, tea.KeyDown)  // cursor alice → ejolly
 	sendSpecial(tm, tea.KeyEnter) // descend into ejolly
-	waitOutput(t, tm, "pyproject.toml")
-	sendSpecial(tm, tea.KeyDown) // cursor python-tutorials → pyproject.toml
-	sendKey(tm, "x")             // own file → confirm modal opens
+	waitOutput(t, tm, "/ ejolly") // breadcrumb: descended; cursor reset to idx 0
+	sendSpecial(tm, tea.KeyDown)  // cursor python-tutorials → pyproject.toml
+	sendKey(tm, "x")              // own file → confirm modal opens
 	waitOutput(t, tm, "Are you sure you want to delete pyproject.toml")
 	sendSpecial(tm, tea.KeyEscape) // abort the modal (synchronous; Run never fires)
 

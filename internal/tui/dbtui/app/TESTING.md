@@ -18,6 +18,7 @@ Do NOT use teatest to re-test pure logic already covered by unit tests in
 - [ ] Write teatest covering key → state change (full loop)
 - [ ] Use `finalModel` for state, `WaitFor` for async/output, golden for visuals
 - [ ] No `time.Sleep` — use `WaitFor` for async, nothing for sync key messages
+- [ ] `WaitFor`/output assertions go through `tuitest.WaitFor` (strips ANSI) or `ansi.Strip` first — never raw `bytes.Contains` on alt-screen output (cursor-diff repaints fragment words → `-race`-only timeouts); gate on level-unique tokens (a breadcrumb path), not list items that flicker through transient frames
 - [ ] DB mutations verified by querying store directly
 - [ ] Read-only variant tested if feature should be blocked on RO tables
 - [ ] Test placed in correct file by feature area

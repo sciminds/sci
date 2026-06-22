@@ -8,11 +8,12 @@
 package tuitest
 
 import (
-	"bytes"
+	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 )
 
@@ -36,10 +37,21 @@ func SendSpecial(tm *teatest.TestModel, code rune) {
 // WaitFor blocks until tm.Output() contains substr, polling at high
 // frequency so tests don't pay 50ms+ per assertion. Fails the test if
 // wait elapses without a match.
+//
+// Output is matched after stripping ANSI via [ansi.Strip]. Alt-screen
+// models repaint by cursor-diffing (and teatest wraps the program in
+// tea.WithANSICompressor), so a target word can be split by escape
+// sequences across frames — e.g. "python\x1b[4h-tutorials/". A raw
+// bytes.Contains then misses a word that's plainly on screen, which under
+// -race (different goroutine timing) turns into a flaky WaitFor timeout.
+// Stripping first recovers the visible text and makes the match
+// timing-independent. Prefer level-unique tokens (a breadcrumb path like
+// "ejolly / python-tutorials") over list items that flicker through
+// transient frames.
 func WaitFor(t *testing.T, tm *teatest.TestModel, substr string, wait time.Duration) {
 	t.Helper()
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
-		return bytes.Contains(out, []byte(substr))
+		return strings.Contains(ansi.Strip(string(out)), substr)
 	}, teatest.WithDuration(wait), teatest.WithCheckInterval(time.Millisecond))
 }
 

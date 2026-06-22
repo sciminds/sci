@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"io"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/sciminds/cli/internal/store/sqlite"
+	"github.com/sciminds/cli/internal/tuitest"
 )
 
 const (
@@ -145,17 +148,16 @@ func finalModel(t *testing.T, tm *teatest.TestModel) *Model {
 // waitForTable waits until the output contains "products" (rendered after init).
 func waitForTable(t *testing.T, tm *teatest.TestModel) {
 	t.Helper()
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("products"))
-	}, teatest.WithDuration(testWait), teatest.WithCheckInterval(time.Millisecond))
+	tuitest.WaitFor(t, tm, "products", testWait)
 }
 
 // waitForOutput waits for substr to appear in the test model's output.
+// Delegates to tuitest.WaitFor, which strips ANSI before matching so a
+// cursor-diff repaint can't fragment substr across escape sequences (the
+// source of -race-only WaitFor timeouts on alt-screen models).
 func waitForOutput(t *testing.T, tm *teatest.TestModel, substr string) {
 	t.Helper()
-	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return bytes.Contains(bts, []byte(substr))
-	}, teatest.WithDuration(testWait), teatest.WithCheckInterval(time.Millisecond))
+	tuitest.WaitFor(t, tm, substr, testWait)
 }
 
 // startTeatest is a convenience that creates a model + test model + waits for render.
@@ -188,7 +190,7 @@ func TestTeatestBasicRender(t *testing.T) {
 	var transcript bytes.Buffer
 	tee := io.TeeReader(tm.Output(), &transcript)
 	teatest.WaitFor(t, tee, func(bts []byte) bool {
-		return bytes.Contains(bts, []byte("products"))
+		return strings.Contains(ansi.Strip(string(bts)), "products")
 	}, teatest.WithDuration(testWait), teatest.WithCheckInterval(time.Millisecond))
 
 	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -198,13 +200,17 @@ func TestTeatestBasicRender(t *testing.T) {
 	}
 	transcript.Write(rest)
 
+	// Strip ANSI before asserting: lipgloss/termenv emit equivalent-but-
+	// different escape sequences across environments and cursor-diff repaints
+	// can split a word with escape codes, so match the visible text only.
+	screen := ansi.Strip(transcript.String())
 	for _, want := range []string{
 		"products", "users", "teatest.db",
 		"id", "title", "price",
 		"Widget", "Gadget", "Doohickey",
 		"3 rows", "NAV",
 	} {
-		if !bytes.Contains(transcript.Bytes(), []byte(want)) {
+		if !strings.Contains(screen, want) {
 			t.Errorf("transcript missing %q", want)
 		}
 	}
