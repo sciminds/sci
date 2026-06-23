@@ -227,11 +227,23 @@ func Sync(r Runner, path string) (SyncResult, error) {
 		return SyncResult{}, err
 	}
 
+	// setKey builds the comparison key for a (type, name) pair. Brew formulae
+	// are normalized to their bare name (see [shortFormula]) so a tap-qualified
+	// Brewfile entry like "oven-sh/bun/bun" matches however Homebrew reports the
+	// formula — full name on 5.x, bare name on 6.x — and is neither stripped nor
+	// duplicated on sync.
+	setKey := func(typ, name string) string {
+		if typ == "brew" {
+			name = shortFormula(name)
+		}
+		return typ + "\t" + name
+	}
+
 	// addSet: packages eligible to be added to the Brewfile (leaves only for
 	// brew formulae — we don't auto-add transitive deps).
 	nameToEntry := func(typ string) func(string) (string, BrewfileEntry) {
 		return func(name string) (string, BrewfileEntry) {
-			return typ + "\t" + name, BrewfileEntry{Type: typ, Name: name, Line: fmt.Sprintf("%s %q", typ, name)}
+			return setKey(typ, name), BrewfileEntry{Type: typ, Name: name, Line: fmt.Sprintf("%s %q", typ, name)}
 		}
 	}
 	addSet := lo.Assign(
@@ -248,7 +260,7 @@ func Sync(r Runner, path string) (SyncResult, error) {
 	// installed manually (drag-to-Applications, vendor .pkg, etc.).
 	toKey := func(typ string) func(string) (string, bool) {
 		return func(name string) (string, bool) {
-			return typ + "\t" + name, true
+			return setKey(typ, name), true
 		}
 	}
 	installedSet := lo.Assign(
@@ -260,7 +272,7 @@ func Sync(r Runner, path string) (SyncResult, error) {
 	)
 
 	brewfileSet := lo.SliceToMap(ParseBrewfileEntries(string(existing)), func(e BrewfileEntry) (string, bool) {
-		return e.Type + "\t" + e.Name, true
+		return setKey(e.Type, e.Name), true
 	})
 
 	// Compute additions: in addSet but not in Brewfile.
@@ -279,7 +291,7 @@ func Sync(r Runner, path string) (SyncResult, error) {
 	// Compute removals: in Brewfile but not installed (scannable types only).
 	// Uses the full installedSet so dep-only formulae aren't incorrectly removed.
 	toRemove := lo.Filter(ParseBrewfileEntries(string(existing)), func(e BrewfileEntry, _ int) bool {
-		return scannableTypes[e.Type] && !installedSet[e.Type+"\t"+e.Name]
+		return scannableTypes[e.Type] && !installedSet[setKey(e.Type, e.Name)]
 	})
 
 	var result SyncResult

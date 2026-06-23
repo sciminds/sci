@@ -249,6 +249,35 @@ func TestSync_KeepsTapFormulae(t *testing.T) {
 	}
 }
 
+func TestSync_KeepsTapFormulae_Homebrew6(t *testing.T) {
+	t.Parallel()
+	// Homebrew 6.x drops tap formulae from `brew leaves` and reports them by
+	// bare name in `brew list --formula` (here: "bun", not "oven-sh/bun/bun").
+	// Sync must still recognize the tap-qualified Brewfile entry as installed
+	// and neither strip nor duplicate it.
+	bf := brewfile(t, "brew \"oven-sh/bun/bun\"\n")
+	m := &mockRunner{
+		leavesResult:       []string{},      // 6.x omits the tap formula
+		listFormulaeResult: []string{"bun"}, // reported under its bare name
+	}
+
+	result, err := Sync(m, bf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Removed != 0 {
+		t.Errorf("expected 0 removed, got %d", result.Removed)
+	}
+	if result.Added != 0 {
+		t.Errorf("expected 0 added, got %d", result.Added)
+	}
+
+	got, _ := os.ReadFile(bf)
+	if !strings.Contains(string(got), "oven-sh/bun/bun") {
+		t.Errorf("Brewfile should still contain oven-sh/bun/bun:\n%s", got)
+	}
+}
+
 func TestRemoveEntries_HappyPath(t *testing.T) {
 	t.Parallel()
 	bf := brewfile(t, "brew \"htop\"\ncask \"firefox\"\nbrew \"curl\"\nuv \"ruff\"\n")

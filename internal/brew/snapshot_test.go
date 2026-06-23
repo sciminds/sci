@@ -110,6 +110,25 @@ func TestSystemSnapshot_IsInstalled(t *testing.T) {
 	}
 }
 
+func TestSystemSnapshot_IsInstalled_ShortTapName(t *testing.T) {
+	t.Parallel()
+	// Homebrew 6.x reports tap formulae by their bare name in
+	// `brew list --formula` (e.g. "bun", not "oven-sh/bun/bun") and omits
+	// them entirely from `brew list --full-name`. A tap-qualified Brewfile
+	// entry must still match the bare installed name, so doctor doesn't
+	// nag to reinstall an already-installed tap formula.
+	snap := SystemSnapshot{
+		Formulae: []string{"git", "bun"}, // bun installed under its bare name
+	}
+
+	if !snap.IsInstalled("brew", "oven-sh/bun/bun") {
+		t.Errorf("IsInstalled(brew, oven-sh/bun/bun) = false, want true (matches bare %q)", "bun")
+	}
+	if snap.IsInstalled("brew", "oven-sh/other/node") {
+		t.Errorf("IsInstalled(brew, oven-sh/other/node) = true, want false (node not installed)")
+	}
+}
+
 func TestExpandPath(t *testing.T) {
 	t.Parallel()
 	home, err := os.UserHomeDir()

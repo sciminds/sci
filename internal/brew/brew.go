@@ -48,7 +48,7 @@ type PackageInfo struct {
 // Used by Sync, RunToolChecks, and Install to avoid redundant subprocess calls.
 type SystemSnapshot struct {
 	Leaves   []string // brew leaves -r (user-requested formulae)
-	Formulae []string // brew list --formula --full-name (all installed, incl. deps)
+	Formulae []string // brew list --formula (all installed by bare name, incl. deps)
 	Casks    []string // brew list --cask
 	Taps     []string // brew tap
 	UVTools  []string // uv tool list
@@ -85,14 +85,32 @@ func CollectSnapshot(r Runner) (SystemSnapshot, error) {
 	return snap, nil
 }
 
+// shortFormula strips a tap prefix from a formula name, returning the bare
+// name after the last "/". Homebrew 5.x reports tap formulae with their full
+// tap-qualified name (e.g. "oven-sh/bun/bun") in `brew list`, while Homebrew
+// 6.x reports the bare name ("bun") and drops them from `brew list --full-name`
+// entirely. Normalizing both the Brewfile entry and the installed name to the
+// bare form makes detection match across either Homebrew version.
+func shortFormula(name string) string {
+	if i := strings.LastIndexByte(name, '/'); i >= 0 {
+		return name[i+1:]
+	}
+	return name
+}
+
 // IsInstalled reports whether a (type, name) pair is present in the snapshot.
 // Uses the Formulae list (all installed, including deps) for brew entries.
-// For casks, also returns true when the app exists on disk but brew didn't
-// track it (see [SystemSnapshot.ExternalCasks]).
+// Brew formulae match by bare name (see [shortFormula]) so a tap-qualified
+// Brewfile entry like "oven-sh/bun/bun" matches however Homebrew reports the
+// installed formula. For casks, also returns true when the app exists on disk
+// but brew didn't track it (see [SystemSnapshot.ExternalCasks]).
 func (s SystemSnapshot) IsInstalled(typ, name string) bool {
 	switch typ {
 	case "brew":
-		return slices.Contains(s.Formulae, name)
+		bare := shortFormula(name)
+		return slices.ContainsFunc(s.Formulae, func(f string) bool {
+			return shortFormula(f) == bare
+		})
 	case "cask":
 		return slices.Contains(s.Casks, name) || slices.Contains(s.ExternalCasks, name)
 	case "tap":
@@ -196,9 +214,13 @@ func (CLI) Leaves() ([]string, error) {
 }
 
 // ListFormulae implements Runner. Returns all installed formulae (leaves + deps)
-// with full tap-qualified names (e.g. "oven-sh/bun/bun" not just "bun").
+// by their bare names. We deliberately avoid `--full-name`: Homebrew 6.x drops
+// tap formulae (e.g. bun from oven-sh/bun) from `--full-name` output entirely,
+// so a tap-qualified package would look uninstalled. The plain list reads the
+// Cellar and is complete on every Homebrew version; callers match by bare name
+// via [shortFormula].
 func (CLI) ListFormulae() ([]string, error) {
-	out, err := runBrewOutputLocal("list", "--formula", "--full-name", "-1")
+	out, err := runBrewOutputLocal("list", "--formula", "-1")
 	if err != nil {
 		return nil, err
 	}
