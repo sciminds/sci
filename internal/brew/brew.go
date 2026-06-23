@@ -404,9 +404,12 @@ func (CLI) Outdated() ([]OutdatedPackage, error) {
 	return parseOutdated(out)
 }
 
-// Upgrade implements Runner.
+// Upgrade implements Runner. Runs non-interactively (detached stdin +
+// NONINTERACTIVE=1) so it doesn't re-prompt for confirmations — sci already
+// asked the user before calling this. sudo password prompts still reach the
+// user via /dev/tty, so casks needing root aren't silently skipped.
 func (CLI) Upgrade() (string, error) {
-	return runBrewLive("upgrade")
+	return runBrewLiveWithEnv(noninteractiveEnv(), false, "upgrade")
 }
 
 // UVOutdated implements Runner. Returns empty if uv isn't installed
@@ -717,6 +720,15 @@ func offlineEnv() []string {
 	)
 }
 
+// noninteractiveEnv returns the process environment plus NONINTERACTIVE=1, the
+// var standard Homebrew honors to skip confirmation prompts (CI mode). Homebrew
+// 6.x ignores it and instead decides from whether stdin is a TTY, so callers
+// must also detach stdin (runBrewLiveWithEnv with interactive=false). Setting
+// both makes the upgrade non-interactive across Homebrew versions.
+func noninteractiveEnv() []string {
+	return append(os.Environ(), "NONINTERACTIVE=1")
+}
+
 // runBrewOutputLocal is like runBrewOutput but suppresses brew's auto-update.
 // Use for commands that only read local state (list, info, outdated).
 func runBrewOutputLocal(args ...string) (string, error) {
@@ -733,16 +745,21 @@ func runBrewOutputLocal(args ...string) (string, error) {
 
 // runBrewLive runs a brew command with a PTY for stdout/stderr so output
 // streams in real-time with line buffering. Stdin remains the real terminal
-// so sudo password prompts work via /dev/tty.
+// so brew's interactive prompts and sudo password entry work.
 func runBrewLive(args ...string) (string, error) {
-	return runBrewLiveWithEnv(nil, args...)
+	return runBrewLiveWithEnv(nil, true, args...)
 }
 
-func runBrewLiveWithEnv(env []string, args ...string) (string, error) {
+// runBrewLiveWithEnv runs brew with a custom environment and streamed PTY
+// output. When interactive is false, stdin is left detached (the child gets
+// /dev/null) so brew runs non-interactively and skips its y/N confirmation
+// prompts — brew decides interactivity from whether stdin is a TTY. A nil env
+// makes the child inherit the parent environment.
+func runBrewLiveWithEnv(env []string, interactive bool, args ...string) (string, error) {
 	ptmx, pts, err := pty.Open()
 	if err != nil {
 		// Fallback: direct passthrough if PTY unavailable.
-		return runBrewDirect(args...)
+		return runBrewDirect(env, interactive, args...)
 	}
 	defer func() { _ = ptmx.Close() }()
 
@@ -750,7 +767,9 @@ func runBrewLiveWithEnv(env []string, args ...string) (string, error) {
 	cmd.Env = env
 	cmd.Stdout = pts
 	cmd.Stderr = pts
-	cmd.Stdin = os.Stdin
+	if interactive {
+		cmd.Stdin = os.Stdin
+	}
 
 	if err := cmd.Start(); err != nil {
 		_ = pts.Close()
@@ -769,9 +788,13 @@ func runBrewLiveWithEnv(env []string, args ...string) (string, error) {
 
 // runBrewDirect runs a brew command with direct terminal access (no PTY).
 // Used as a fallback and for commands that don't need real-time output.
-func runBrewDirect(args ...string) (string, error) {
+// A nil env inherits the parent environment; interactive=false detaches stdin.
+func runBrewDirect(env []string, interactive bool, args ...string) (string, error) {
 	cmd := exec.Command("brew", args...)
-	cmd.Stdin = os.Stdin
+	cmd.Env = env
+	if interactive {
+		cmd.Stdin = os.Stdin
+	}
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	return "", cmd.Run()
