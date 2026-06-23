@@ -47,7 +47,7 @@ type PackageInfo struct {
 // SystemSnapshot captures the installed state of the system at a point in time.
 // Used by Sync, RunToolChecks, and Install to avoid redundant subprocess calls.
 type SystemSnapshot struct {
-	Leaves   []string // brew leaves -r (user-requested formulae)
+	Leaves   []string // requested-leaf formulae, from Cellar install receipts (see leaves.go)
 	Formulae []string // brew list --formula (all installed by bare name, incl. deps)
 	Casks    []string // brew list --cask
 	Taps     []string // brew tap
@@ -203,15 +203,6 @@ type Runner interface {
 
 // CLI shells out to brew.
 type CLI struct{}
-
-// Leaves implements Runner. Returns user-requested formulae (not deps).
-func (CLI) Leaves() ([]string, error) {
-	out, err := runBrewOutputLocal("leaves", "-r")
-	if err != nil {
-		return nil, err
-	}
-	return splitLines(out), nil
-}
 
 // ListFormulae implements Runner. Returns all installed formulae (leaves + deps)
 // by their bare names. We deliberately avoid `--full-name`: Homebrew 6.x drops
