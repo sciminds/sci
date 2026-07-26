@@ -31,9 +31,10 @@ var (
 	readRemote bool
 	readDOI    string
 
-	searchLimit  int
-	searchRemote bool
-	searchFull   bool
+	searchLimit    int
+	searchRemote   bool
+	searchFull     bool
+	searchFulltext bool
 
 	exportFormat string
 	exportOut    string
@@ -129,28 +130,31 @@ func localSelectorFor(cfg *zot.Config, ref zot.LibraryRef) (local.LibrarySelecto
 func searchCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "search",
-		Usage: "Search your library by title, DOI, publication, or @field: clauses",
-		Description: "Free text searches title/DOI/publication/creators. Prefix a\n" +
-			"clause with @field: to scope it — fields: author, title, doi,\n" +
-			"pub, tag, type, year. Clauses AND by default; `|` separates OR\n" +
+		Usage: "Search your library by title, DOI, publication, cite-key, or @field: clauses",
+		Description: "Free text searches title/DOI/publication/creators/cite-keys,\n" +
+			"ranked by title relevance (then year). Prefix a clause with\n" +
+			"@field: to scope it — fields: author, title, doi, pub, tag,\n" +
+			"type, year, citekey. Clauses AND by default; `|` separates OR\n" +
 			"groups; a leading `-` in the value negates the clause.\n\n" +
 			"$ sci zot search \"large language models\"\n" +
 			"$ sci zot search --limit 100 neuroimaging\n" +
 			"$ sci zot search '@tag: Generative_Agents'      # items carrying this tag\n" +
 			"$ sci zot search '@author: saxe @year: 2022'    # ANDed clauses\n" +
 			"$ sci zot search '@type: book | @type: thesis'  # OR across clauses\n" +
+			"$ sci zot search '@citekey: saxe2022-ment'      # which paper is this key?\n" +
+			"$ sci zot search cortical --fulltext            # also match PDF text (local index)\n" +
 			"$ sci zot search attention --export --out hits.bib\n" +
 			"$ sci zot search llm --remote   # Zotero Web API fulltext search (title + creators + year + abstract + notes + PDFs)",
 		ArgsUsage: "<query>",
 		Flags: []cli.Flag{
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max results", Destination: &searchLimit, Local: true},
 			// --export routes the hit list through the same pipeline as
-			// `zot export`. Bool flag — always emits bibtex, which is
-			// the format this feature exists to serve. Users who want
-			// CSL-JSON should use the top-level `zot export` command.
-			&cli.BoolFlag{Name: "export", Usage: "emit results as bibtex instead of the normal hit list", Destination: &searchExport, Local: true},
+			// `zot export`.
+			&cli.BoolFlag{Name: "export", Usage: "emit results as a bibliography instead of the normal hit list", Destination: &searchExport, Local: true},
+			&cli.StringFlag{Name: "format", Usage: "with --export, output format: bibtex, csl-json", Value: "bibtex", Destination: &searchExportFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
 			&cli.BoolFlag{Name: "notes", Usage: "only show items that have docling extraction notes (local only)", Destination: &searchNotes, Local: true},
+			&cli.BoolFlag{Name: "fulltext", Usage: "also match free-text terms against the local PDF fulltext word index", Destination: &searchFulltext, Local: true},
 			&cli.BoolFlag{Name: "remote", Usage: "hit the Zotero Web API with qmode=everything (matches abstract + fulltext + notes)", Destination: &searchRemote, Local: true},
 			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "hydrate each hit with abstract + citekey + authors (one extra local read per hit)", Destination: &searchFull, Local: true},
 		},
@@ -166,6 +170,9 @@ func searchCommand() *cli.Command {
 			}
 			if searchRemote && searchNotes {
 				return cmdutil.UsageErrorf(cmd, "--notes is local-only; drop it or drop --remote")
+			}
+			if searchRemote && searchFulltext {
+				return cmdutil.UsageErrorf(cmd, "--fulltext is local-only (--remote already matches PDF fulltext server-side)")
 			}
 			if searchFull && searchExport {
 				return cmdutil.UsageErrorf(cmd, "--full and --export are mutually exclusive (use one or the other)")
@@ -220,7 +227,7 @@ func searchCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			items, err := db.Search(query, searchLimit)
+			items, err := db.SearchWith(query, searchLimit, local.SearchOptions{Fulltext: searchFulltext})
 			if err != nil {
 				return err
 			}
@@ -240,7 +247,7 @@ func searchCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				res, err := runLibraryExport(hydrated, "bibtex", searchExportOut)
+				res, err := runLibraryExport(hydrated, searchExportFormat, searchExportOut)
 				if err != nil {
 					return err
 				}
@@ -262,8 +269,8 @@ func searchCommand() *cli.Command {
 					Library: db.LibraryID(),
 				}
 				if len(briefs) == 0 {
-					bres.Scope = "title, DOI, publication, creators (local)"
-					bres.Hint = "try --remote to also match abstract, fulltext, and notes"
+					bres.Scope = localSearchScope(searchFulltext)
+					bres.Hint = localSearchHint(searchFulltext)
 				}
 				outputScoped(ctx, cmd, bres)
 				return nil
@@ -275,8 +282,8 @@ func searchCommand() *cli.Command {
 				Library: db.LibraryID(),
 			}
 			if len(items) == 0 {
-				res.Scope = "title, DOI, publication, creators (local)"
-				res.Hint = "try --remote to also match abstract, fulltext, and notes"
+				res.Scope = localSearchScope(searchFulltext)
+				res.Hint = localSearchHint(searchFulltext)
 			}
 			outputScoped(ctx, cmd, res)
 			return nil
@@ -284,21 +291,25 @@ func searchCommand() *cli.Command {
 	}
 }
 
-// hydrateSearchHits re-reads each search hit through db.Read to pull the
-// full Fields map and Creator list. Search() intentionally returns a
-// lightweight list-view row — exporting requires the full item. For a
-// typical search (≤50 hits) this is ~50 round-trips, cheap enough not to
-// warrant a dedicated bulk ListAll-by-id path.
+// hydrateSearchHits re-reads the search hits through one batched ListAll
+// call to pull the full Fields map and Creator list. Search() intentionally
+// returns a lightweight list-view row — exporting requires the full item.
+// The batch keeps hit (relevance) order; ListAll's own ordering is
+// discarded by reindexing on key.
 func hydrateSearchHits(db local.Reader, hits []local.Item) ([]local.Item, error) {
-	out := make([]local.Item, 0, len(hits))
-	for _, h := range hits {
-		full, err := db.Read(h.Key)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, *full)
+	if len(hits) == 0 {
+		return nil, nil
 	}
-	return out, nil
+	keys := lo.Map(hits, func(h local.Item, _ int) string { return h.Key })
+	full, err := db.ListAll(local.ListFilter{Keys: keys})
+	if err != nil {
+		return nil, err
+	}
+	byKey := lo.KeyBy(full, func(it local.Item) string { return it.Key })
+	return lo.FilterMap(hits, func(h local.Item, _ int) (local.Item, bool) {
+		it, ok := byKey[h.Key]
+		return it, ok
+	}), nil
 }
 
 func readCommand() *cli.Command {
@@ -789,4 +800,22 @@ func openCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// localSearchScope describes which fields a local search matched against,
+// shown on empty results so users know what was (and wasn't) searched.
+func localSearchScope(fulltext bool) string {
+	if fulltext {
+		return "title, DOI, publication, creators, citekey + PDF fulltext (local)"
+	}
+	return "title, DOI, publication, creators, citekey (local)"
+}
+
+// localSearchHint suggests the next-wider search when a local query comes
+// back empty.
+func localSearchHint(fulltext bool) string {
+	if fulltext {
+		return "try --remote to also match abstract and notes"
+	}
+	return "try --fulltext to also match PDF text, or --remote for abstract + notes"
 }

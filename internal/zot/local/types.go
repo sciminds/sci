@@ -10,10 +10,12 @@ import "strconv"
 // `Key: Value` lines there — OpenAlex IDs, BBT citation keys, ORCID, …).
 // Surfaced as a typed field so agents don't need to grep Fields["extra"].
 //
-// Citekey is the resolved BibTeX cite-key (Zotero 7 native field, BBT
-// `Citation Key:` line in Extra, or our synthesized fallback). Set by
-// callers via citekey.Enrich after Read / ItemFromClient — the local
-// package can't import citekey (cycle). Empty when not enriched.
+// Citekey is the BibTeX cite-key. List/Search/Read rows populate it with
+// the native Zotero 7 citationKey field when one is stored (pinned keys);
+// full resolution — BBT `Citation Key:` line in Extra, synthesized
+// fallback — happens via citekey.Enrich, which callers apply after Read /
+// ItemFromClient (the local package can't import citekey: cycle). Empty
+// when the key is neither stored nor enriched.
 type Item struct {
 	ID           int64             `json:"id"`
 	Key          string            `json:"key"`
@@ -91,9 +93,13 @@ type ListFilter struct {
 	ItemType      string // e.g. "journalArticle"
 	CollectionKey string
 	Tag           string
-	Limit         int // 0 → default 50
-	Offset        int
-	OrderBy       OrderBy
+	// Keys restricts results to these 8-char Zotero item keys. Used by
+	// bulk hydration paths (search --export, zot bib) to avoid per-item
+	// Read round-trips.
+	Keys    []string
+	Limit   int // 0 → default 50
+	Offset  int
+	OrderBy OrderBy
 }
 
 // OrderBy selects the sort order for listings.

@@ -1,0 +1,150 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+
+	"github.com/samber/lo"
+	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/cli/internal/zot/bib"
+	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/urfave/cli/v3"
+)
+
+// Bib-command flag destinations.
+var (
+	bibFormat    string
+	bibOut       string
+	bibRecursive bool
+)
+
+// bibDocExts are the file extensions `zot bib` scans when given a
+// directory: markdown (vault notes) and Quarto manuscripts.
+var bibDocExts = []string{".md", ".markdown", ".qmd"}
+
+func bibCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "bib",
+		Usage: "Build a bibliography from the citations in a document or folder",
+		Description: "Scans markdown / Quarto text for citation references —\n" +
+			"pandoc @citekeys, [[wikilinks]], DOIs, arXiv ids, URLs — resolves\n" +
+			"each against your library, and emits a bibliography of exactly\n" +
+			"the cited items. References that don't resolve to exactly one\n" +
+			"item are always listed, never silently dropped.\n\n" +
+			"$ sci zot bib paper.qmd --out refs.bib\n" +
+			"$ sci zot bib notes/ --recursive --format csl-json --out refs.json\n" +
+			"$ sci zot bib draft.md            # bibtex to stdout",
+		ArgsUsage: "<file-or-dir>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "bibtex", Usage: "output format: bibtex, csl-json", Destination: &bibFormat, Local: true},
+			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file (enables drift-detection keymap sidecar)", Destination: &bibOut, Local: true},
+			&cli.BoolFlag{Name: "recursive", Aliases: []string{"r"}, Usage: "with a directory, descend into subdirectories", Destination: &bibRecursive, Local: true},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if cmd.Args().Len() != 1 {
+				return cmdutil.UsageErrorf(cmd, "expected exactly one file or directory")
+			}
+			files, err := collectBibTargets(cmd.Args().First(), bibRecursive)
+			if err != nil {
+				return err
+			}
+			if len(files) == 0 {
+				return fmt.Errorf("no %s files found under %s", strings.Join(bibDocExts, "/"), cmd.Args().First())
+			}
+
+			var refs []bib.Ref
+			for _, f := range files {
+				raw, err := os.ReadFile(f)
+				if err != nil {
+					return err
+				}
+				refs = append(refs, bib.ScanText(string(raw))...)
+			}
+			// Cross-file dedup: ScanText already dedups within one file.
+			refs = lo.UniqBy(refs, func(r bib.Ref) string {
+				return string(r.Kind) + "\x00" + strings.ToLower(r.Value)
+			})
+
+			_, db, err := openLocalDB(ctx)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = db.Close() }()
+
+			items, err := db.ListAll(local.ListFilter{})
+			if err != nil {
+				return err
+			}
+			resolved, unresolved := bib.Resolve(refs, items)
+
+			export, err := runLibraryExport(resolved, bibFormat, bibOut)
+			if err != nil {
+				return err
+			}
+			outputScoped(ctx, cmd, zot.BibResult{
+				Export:     export,
+				Files:      files,
+				References: len(refs),
+				Resolved:   len(resolved),
+				Unresolved: unresolved,
+			})
+			return nil
+		},
+	}
+}
+
+// collectBibTargets expands a path argument into the ordered list of
+// document files to scan. A file argument is taken as-is (any extension —
+// the user knows what they're pointing at); a directory collects
+// markdown/Quarto files, sorted for determinism, descending only when
+// recursive is set. Hidden directories (.obsidian, .git, …) are skipped.
+func collectBibTargets(path string, recursive bool) ([]string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return []string{path}, nil
+	}
+
+	var files []string
+	if recursive {
+		err = filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				if p != path && strings.HasPrefix(d.Name(), ".") {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if slices.Contains(bibDocExts, filepath.Ext(p)) {
+				files = append(files, p)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return nil, err
+		}
+		files = lo.FilterMap(entries, func(e fs.DirEntry, _ int) (string, bool) {
+			if e.IsDir() || !slices.Contains(bibDocExts, filepath.Ext(e.Name())) {
+				return "", false
+			}
+			return filepath.Join(path, e.Name()), true
+		})
+	}
+	slices.Sort(files)
+	return files, nil
+}

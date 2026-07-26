@@ -42,7 +42,12 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Find papers in my library on a topic",
 						Cmd:  "sci zot search \"large language models\" --library personal",
-						Note: "Local title/DOI/publication/creators; add --remote for Zotero Web fulltext (matches abstract + notes + PDFs). --library can go in any position — `sci zot --library personal search ...` works equivalently.",
+						Note: "Local title/DOI/publication/creators/citekey, ranked by title relevance then year. Add --fulltext to also match PDF text (local word index), or --remote for the Zotero Web fulltext (abstract + notes + PDFs). --library can go in any position — `sci zot --library personal search ...` works equivalently.",
+					},
+					{
+						Goal: "Which paper is this cite-key / Zotero key?",
+						Cmd:  "sci zot search '@citekey: saxe2022-ment'",
+						Note: "Matches the stored citationKey and the 8-char Zotero key; a whole synthesized key resolves via its -ZOTKEY suffix even if the prefix drifted.",
 					},
 					{
 						Goal: "Find papers I don't have yet (OpenAlex)",
@@ -113,6 +118,21 @@ func guideContent() zot.GuideResult {
 						Goal: "Attach a child note (markdown or HTML)",
 						Cmd:  "sci zot item note add ABC12345 --body \"my thoughts\"",
 						Note: "Tag with --tag. For docling extractions use `sci zot extract` instead.",
+					},
+				},
+			},
+			{
+				Title: "Bibliography",
+				Entries: []zot.GuideEntry{
+					{
+						Goal: "Export the whole library (or a slice) to BibTeX / CSL-JSON",
+						Cmd:  "sci zot export --out refs.bib",
+						Note: "Filter with --collection / --tag / --type; --format csl-json for a processor-friendly dump. With --out, writes a .zotero-citekeymap.json sidecar so drifted synthesized keys get a biblatex `ids = {oldkey}` alias next run.",
+					},
+					{
+						Goal: "Build a .bib of exactly what a manuscript cites",
+						Cmd:  "sci zot bib paper.qmd --out refs.bib",
+						Note: "Scans markdown/Quarto for @citekeys, [[wikilinks]], DOIs, arXiv ids, URLs; resolves each against the library. Point at a folder (+ --recursive) to scan many. Refs matching 0 or >1 items are listed as unresolved, never guessed. --format csl-json supported.",
 					},
 				},
 			},

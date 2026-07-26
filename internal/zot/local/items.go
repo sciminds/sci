@@ -1,8 +1,10 @@
 package local
 
 import (
+	"cmp"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -25,7 +27,7 @@ const fieldValueSubquery = `
 // baseSelect returns a SELECT that pulls common display columns for a list
 // of items. The result row order is:
 //
-//	itemID, key, typeName, version, dateAdded, dateModified, title, date, DOI, publicationTitle
+//	itemID, key, typeName, version, dateAdded, dateModified, title, date, DOI, publicationTitle, citationKey
 //
 // Callers append WHERE/ORDER BY/LIMIT.
 func baseSelect() string {
@@ -34,7 +36,8 @@ SELECT i.itemID, i.key, it.typeName, i.version, i.dateAdded, i.clientDateModifie
 	` + fieldValueSubquery + ` AS title,
 	` + fieldValueSubquery + ` AS date,
 	` + fieldValueSubquery + ` AS doi,
-	` + fieldValueSubquery + ` AS pub
+	` + fieldValueSubquery + ` AS pub,
+	` + fieldValueSubquery + ` AS citekey
 FROM items i
 JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
 LEFT JOIN deletedItems di ON i.itemID = di.itemID
@@ -44,10 +47,10 @@ LEFT JOIN deletedItems di ON i.itemID = di.itemID
 // scanListRow scans a baseSelect() row into an Item.
 func scanListRow(rows *sql.Rows) (Item, error) {
 	var it Item
-	var title, date, doi, pub sql.NullString
+	var title, date, doi, pub, citekey sql.NullString
 	if err := rows.Scan(
 		&it.ID, &it.Key, &it.Type, &it.Version, &it.DateAdded, &it.DateModified,
-		&title, &date, &doi, &pub,
+		&title, &date, &doi, &pub, &citekey,
 	); err != nil {
 		return it, err
 	}
@@ -56,12 +59,13 @@ func scanListRow(rows *sql.Rows) (Item, error) {
 	it.Year = ParseYear(it.Date)
 	it.DOI = doi.String
 	it.Publication = pub.String
+	it.Citekey = citekey.String
 	return it, nil
 }
 
-// listArgs returns the 4 field-name params baseSelect() expects for its
+// listArgs returns the 5 field-name params baseSelect() expects for its
 // correlated subqueries (one per fieldValueSubquery occurrence).
-func listArgs() []any { return []any{"title", "date", "DOI", "publicationTitle"} }
+func listArgs() []any { return []any{"title", "date", "DOI", "publicationTitle", "citationKey"} }
 
 // List returns items matching the filter, with metadata but no creators/tags/
 // collections/attachments (use Read for those).
@@ -104,6 +108,11 @@ func (d *DB) List(f ListFilter) ([]Item, error) {
 			WHERE tg.name = ?
 		) `)
 		args = append(args, f.Tag)
+	}
+	if len(f.Keys) > 0 {
+		ph, keyArgs := inClauseStrings(f.Keys)
+		where.WriteString(" AND i.key IN (" + ph + ") ")
+		args = append(args, keyArgs...)
 	}
 
 	order := " ORDER BY i.dateAdded DESC "
@@ -177,6 +186,11 @@ func (d *DB) ListAll(f ListFilter) ([]Item, error) {
 			WHERE tg.name = ?
 		) `)
 		args = append(args, f.Tag)
+	}
+	if len(f.Keys) > 0 {
+		ph, keyArgs := inClauseStrings(f.Keys)
+		where.WriteString(" AND i.key IN (" + ph + ") ")
+		args = append(args, keyArgs...)
 	}
 
 	q := baseSelect() + where.String() + " ORDER BY i.itemID ASC "
@@ -437,20 +451,40 @@ WHERE i.libraryID = ?
 	return out, rows.Err()
 }
 
-// Search returns items matching the query. The query is parsed by
+// SearchOptions tunes SearchWith behavior beyond the query string.
+type SearchOptions struct {
+	// Fulltext additionally matches free-text terms against Zotero's PDF
+	// fulltext word index (prefix match, AND across words). Field-scoped
+	// and negated clauses never consult the index.
+	Fulltext bool
+}
+
+// Search returns items matching the query, ranked by title relevance.
+// Shorthand for [DB.SearchWith] with zero options.
+func (d *DB) Search(query string, limit int) ([]Item, error) {
+	return d.SearchWith(query, limit, SearchOptions{})
+}
+
+// SearchWith returns items matching the query. The query is parsed by
 // [match.ParseClauses], which supports:
 //
-//   - free text:        "neuroimaging"           (matches title/doi/pub/creator)
+//   - free text:        "neuroimaging"           (matches title/doi/pub/creator/citekey)
 //   - field scope:      "@author: jolly"
 //   - AND clauses:      "@author: jolly @title: gossip"   (comma optional)
 //   - OR groups:        "@type: book | @type: thesis"
 //   - negation:         "@author: -smith"
 //
 // Recognized fields: author/creator, title, doi, pub/publication, tag, type/
-// itemType, year. Smartcase applies per-clause: an all-lowercase needle is
-// matched case-insensitively, any uppercase flips it to case-sensitive.
-// Zotero has no FTS on EAV metadata — every clause is a table scan.
-func (d *DB) Search(query string, limit int) ([]Item, error) {
+// itemType, year, citekey/key. Smartcase applies per-clause: an all-lowercase
+// needle is matched case-insensitively, any uppercase flips it to
+// case-sensitive. Zotero has no FTS on EAV metadata — every clause is a
+// table scan.
+//
+// Results are ordered by title relevance (how many positive query words
+// appear in the title), then year descending, then dateAdded descending;
+// limit applies after ranking so a broad query can't crowd out the most
+// relevant hit.
+func (d *DB) SearchWith(query string, limit int, opts SearchOptions) ([]Item, error) {
 	if limit == 0 {
 		limit = 50
 	}
@@ -462,9 +496,19 @@ func (d *DB) Search(query string, limit int) ([]Item, error) {
 	var orParts []string
 	var clauseArgs []any
 	for _, group := range groups {
+		var ftIDs []int64
+		if opts.Fulltext {
+			if words := bareSearchWords(group); len(words) > 0 {
+				ids, err := d.SearchFulltext(words, false)
+				if err != nil {
+					return nil, err
+				}
+				ftIDs = ids
+			}
+		}
 		var andParts []string
 		for _, c := range group {
-			frag, fa, err := buildClauseSQL(c)
+			frag, fa, err := buildClauseSQL(c, ftIDs)
 			if err != nil {
 				return nil, err
 			}
@@ -483,7 +527,9 @@ func (d *DB) Search(query string, limit int) ([]Item, error) {
 	}
 
 	// Use a CTE so clause fragments can reference the pulled title/doi/pub/
-	// date/typeName columns directly via the `b` alias.
+	// date/typeName columns directly via the `b` alias. No SQL LIMIT — all
+	// matches are fetched so ranking sees the full candidate set; the
+	// dateAdded ordering is the stable tiebreak the ranker preserves.
 	q := `
 WITH base AS (` + baseSelect() + `
 	WHERE i.libraryID = ? AND di.itemID IS NULL ` + contentItemTypeFilter + `
@@ -491,12 +537,10 @@ WITH base AS (` + baseSelect() + `
 SELECT b.* FROM base b
 WHERE ` + strings.Join(orParts, " OR ") + `
 ORDER BY b.dateAdded DESC
-LIMIT ?
 `
 	args := listArgs()
 	args = append(args, d.libraryID)
 	args = append(args, clauseArgs...)
-	args = append(args, limit)
 
 	rows, err := d.db.Query(q, args...)
 	if err != nil {
@@ -512,15 +556,83 @@ LIMIT ?
 		}
 		out = append(out, it)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	ranked := rankSearchResults(out, groups)
+	return ranked[:min(limit, len(ranked))], nil
 }
+
+// bareSearchWords collects the whitespace-split words of every positive
+// free-text clause in a group, lowercased, for fulltext-index lookup.
+func bareSearchWords(group []match.Clause) []string {
+	positive := lo.Filter(group, func(c match.Clause, _ int) bool {
+		return c.Column == "" && !c.Negate && c.Terms != ""
+	})
+	words := lo.FlatMap(positive, func(c match.Clause, _ int) []string {
+		return strings.Fields(strings.ToLower(c.Terms))
+	})
+	return lo.Uniq(words)
+}
+
+// rankSearchResults orders hits by title relevance: the count of distinct
+// positive query words appearing in the title (case-insensitive), then year
+// descending. The sort is stable, so equal-rank items keep the caller's
+// dateAdded-descending order.
+func rankSearchResults(items []Item, groups [][]match.Clause) []Item {
+	words := positiveQueryWords(groups)
+	if len(words) == 0 {
+		return items
+	}
+	scores := lo.Map(items, func(it Item, _ int) int {
+		title := strings.ToLower(it.Title)
+		return lo.CountBy(words, func(w string) bool {
+			return strings.Contains(title, w)
+		})
+	})
+	idx := make([]int, len(items))
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortStableFunc(idx, func(a, b int) int {
+		return cmp.Or(
+			cmp.Compare(scores[b], scores[a]),
+			cmp.Compare(items[b].Year, items[a].Year),
+		)
+	})
+	return lo.Map(idx, func(i int, _ int) Item { return items[i] })
+}
+
+// positiveQueryWords flattens every non-negated clause value across all OR
+// groups into lowercase words. Field names don't matter for scoring — a
+// term the user typed anywhere counts when it shows up in a title.
+func positiveQueryWords(groups [][]match.Clause) []string {
+	clauses := lo.Filter(lo.Flatten(groups), func(c match.Clause, _ int) bool {
+		return !c.Negate && c.Terms != ""
+	})
+	words := lo.FlatMap(clauses, func(c match.Clause, _ int) []string {
+		return strings.Fields(strings.ToLower(c.Terms))
+	})
+	return lo.Uniq(words)
+}
+
+// synthKeySuffixRe extracts the trailing 8-char Zotero key from a pasted
+// synthesized cite-key ({author}{year}-{words}-{ZOTKEY}) so whole-key
+// lookups resolve even though synthesized keys are never stored in the DB.
+// Case-insensitive: users may paste a lowercased key.
+var synthKeySuffixRe = regexp.MustCompile(`(?i)-([a-z0-9]{8})$`)
 
 // buildClauseSQL converts a single parsed clause into a SQL WHERE fragment
 // (with `?` placeholders) and the args to bind. The fragment is meant to be
 // composed under `SELECT b.* FROM base b` — column references go through the
 // `b` alias. Returns an error for unknown field names so typos surface
 // instead of silently expanding the result set.
-func buildClauseSQL(c match.Clause) (string, []any, error) {
+//
+// ftIDs, when non-empty, are fulltext-index hits that widen positive
+// free-text clauses: the clause also matches any item whose itemID is in
+// the set. Field-scoped and negated clauses ignore it.
+func buildClauseSQL(c match.Clause, ftIDs []int64) (string, []any, error) {
 	if c.Terms == "" {
 		if c.Column == "" {
 			return "", nil, nil
@@ -552,8 +664,15 @@ func buildClauseSQL(c match.Clause) (string, []any, error) {
 		frag = "(instr(" + fold("b.title") + ", ?) > 0" +
 			" OR instr(" + fold("b.doi") + ", ?) > 0" +
 			" OR instr(" + fold("b.pub") + ", ?) > 0" +
-			" OR " + creatorExists + ")"
-		args = []any{needle, needle, needle, needle}
+			" OR instr(" + fold("COALESCE(b.citekey, '')") + ", ?) > 0" +
+			" OR " + creatorExists
+		args = []any{needle, needle, needle, needle, needle}
+		if !c.Negate && len(ftIDs) > 0 {
+			ph, ftArgs := inClause(ftIDs)
+			frag += " OR b.itemID IN (" + ph + ")"
+			args = append(args, ftArgs...)
+		}
+		frag += ")"
 	case "title":
 		frag = "instr(" + fold("b.title") + ", ?) > 0"
 		args = []any{needle}
@@ -571,6 +690,21 @@ func buildClauseSQL(c match.Clause) (string, []any, error) {
 			" JOIN tags tg ON ity.tagID = tg.tagID" +
 			" WHERE ity.itemID = b.itemID AND instr(" + fold("tg.name") + ", ?) > 0)"
 		args = []any{needle}
+	case "citekey", "key":
+		// Matches the stored Zotero 7 citationKey field and the 8-char
+		// Zotero item key (every synthesized cite-key embeds the latter
+		// as its suffix). COALESCE keeps NULL citationKeys from poisoning
+		// negated clauses (NOT(NULL) is NULL, which silently drops rows).
+		frag = "(instr(" + fold("COALESCE(b.citekey, '')") + ", ?) > 0" +
+			" OR instr(" + fold("b.key") + ", ?) > 0"
+		args = []any{needle, needle}
+		// A pasted whole synthesized key is longer than anything stored —
+		// resolve it via its -ZOTKEY suffix instead.
+		if m := synthKeySuffixRe.FindStringSubmatch(c.Terms); m != nil {
+			frag += " OR b.key = ?"
+			args = append(args, strings.ToUpper(m[1]))
+		}
+		frag += ")"
 	case "type", "itemtype":
 		// Type names are stable lowercase identifiers (journalArticle, book…);
 		// equality reads better than substring and avoids `book` matching
@@ -585,7 +719,7 @@ func buildClauseSQL(c match.Clause) (string, []any, error) {
 		args = []any{c.Terms}
 	default:
 		return "", nil, fmt.Errorf(
-			"unknown search field %q (valid: author, title, doi, pub, tag, type, year)",
+			"unknown search field %q (valid: author, title, doi, pub, tag, type, year, citekey)",
 			c.Column,
 		)
 	}
@@ -607,10 +741,10 @@ LIMIT 1
 `
 	row := d.db.QueryRow(q, args...)
 	var it Item
-	var title, date, doi, pub sql.NullString
+	var title, date, doi, pub, citekey sql.NullString
 	if err := row.Scan(
 		&it.ID, &it.Key, &it.Type, &it.Version, &it.DateAdded, &it.DateModified,
-		&title, &date, &doi, &pub,
+		&title, &date, &doi, &pub, &citekey,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("item %s not found", key)
@@ -622,6 +756,7 @@ LIMIT 1
 	it.Year = ParseYear(it.Date)
 	it.DOI = doi.String
 	it.Publication = pub.String
+	it.Citekey = citekey.String
 
 	// Pull all fields into the Fields map.
 	fields, err := d.itemFields(it.ID)

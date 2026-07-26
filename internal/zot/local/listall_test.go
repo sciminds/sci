@@ -72,3 +72,28 @@ func TestListAll_RespectsCollectionFilter(t *testing.T) {
 		t.Errorf("len = %d, want 2", len(items))
 	}
 }
+
+func TestListAll_FilterByKeys(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+	items, err := db.ListAll(ListFilter{Keys: []string{"AAAA1111", "GGGG7777"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("len = %d, want 2: %v", len(items), keysOf(items))
+	}
+	got := map[string]bool{}
+	for _, it := range items {
+		got[it.Key] = true
+	}
+	if !got["AAAA1111"] || !got["GGGG7777"] {
+		t.Errorf("keys filter = %v, want AAAA1111+GGGG7777", keysOf(items))
+	}
+	// Full hydration must still apply on the keys path.
+	for _, it := range items {
+		if it.Key == "AAAA1111" && len(it.Creators) != 2 {
+			t.Errorf("AAAA1111 creators = %d, want 2", len(it.Creators))
+		}
+	}
+}

@@ -104,6 +104,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	search  <query>             cross-field search (supports --export, --notes)
 //	find    <subcommand>        OpenAlex paper/author lookup (works/authors)
 //	export                      full-library BibTeX / CSL-JSON export
+//	bib     <file-or-dir>       bibliography of exactly the items a document cites
 //	import  <path>              drag-drop import via Zotero desktop (metadata recognition)
 //	item    <subcommand>        per-item ops (read/add/update/delete/list/open/export)
 //	collection <subcommand>     collections (list/create/delete/add/remove)
@@ -130,6 +131,7 @@ func Commands() []*cli.Command {
 		searchCommand(),
 		findCommand(),
 		libraryExportCommand(),
+		bibCommand(),
 		importCommand(),
 		itemCommand(),
 		collectionCommand(),
