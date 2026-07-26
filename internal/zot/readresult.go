@@ -16,12 +16,14 @@ import (
 // can tell WHY a search missed and adjust. Hint is a free-form follow-up
 // suggestion shown alongside Scope. Both are elided from JSON when empty.
 type ListResult struct {
-	Query   string       `json:"query,omitempty"`
-	Count   int          `json:"count"`
-	Items   []local.Item `json:"items"`
-	Library int64        `json:"library_id"`
-	Scope   string       `json:"searched,omitempty"`
-	Hint    string       `json:"hint,omitempty"`
+	Query     string       `json:"query,omitempty"`
+	Count     int          `json:"count"`
+	Total     int          `json:"total,omitempty"`     // pre-limit match count; 0 = unknown
+	Truncated bool         `json:"truncated,omitempty"` // true when Count < Total
+	Items     []local.Item `json:"items"`
+	Library   int64        `json:"library_id"`
+	Scope     string       `json:"searched,omitempty"`
+	Hint      string       `json:"hint,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -36,7 +38,11 @@ func (r ListResult) Human() string {
 	for _, it := range r.Items {
 		writeItemLine(&b, it)
 	}
-	fmt.Fprintf(&b, "\n  %s %d item(s)\n", uikit.SymArrow, r.Count)
+	if r.Truncated {
+		fmt.Fprintf(&b, "\n  %s showing %d of %d — raise --limit to see more\n", uikit.SymArrow, r.Count, r.Total)
+	} else {
+		fmt.Fprintf(&b, "\n  %s %d item(s)\n", uikit.SymArrow, r.Count)
+	}
 	return b.String()
 }
 

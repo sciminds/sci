@@ -67,19 +67,15 @@ func scanListRow(rows *sql.Rows) (Item, error) {
 // correlated subqueries (one per fieldValueSubquery occurrence).
 func listArgs() []any { return []any{"title", "date", "DOI", "publicationTitle", "citationKey"} }
 
-// List returns items matching the filter, with metadata but no creators/tags/
-// collections/attachments (use Read for those).
-func (d *DB) List(f ListFilter) ([]Item, error) {
-	limit := f.Limit
-	if limit == 0 {
-		limit = 50
-	}
-
+// listWhere builds the shared WHERE fragment for List / ListAll / CountList
+// from a filter. The returned args start at the libraryID parameter — callers
+// whose SELECT uses baseSelect() must prepend listArgs() for its correlated
+// subqueries.
+func (d *DB) listWhere(f ListFilter) (string, []any) {
 	var (
 		where strings.Builder
 		args  []any
 	)
-	args = append(args, listArgs()...)
 	where.WriteString(" WHERE i.libraryID = ? AND di.itemID IS NULL ")
 	args = append(args, d.libraryID)
 	// Skip the blanket note/attachment exclusion when the caller explicitly
@@ -114,6 +110,36 @@ func (d *DB) List(f ListFilter) ([]Item, error) {
 		where.WriteString(" AND i.key IN (" + ph + ") ")
 		args = append(args, keyArgs...)
 	}
+	return where.String(), args
+}
+
+// CountList returns the total number of items matching the filter, ignoring
+// Limit/Offset — the honest denominator for a truncated List page.
+func (d *DB) CountList(f ListFilter) (int, error) {
+	where, args := d.listWhere(f)
+	q := `
+SELECT COUNT(*)
+FROM items i
+JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
+LEFT JOIN deletedItems di ON i.itemID = di.itemID
+` + where
+	var n int
+	if err := d.db.QueryRow(q, args...).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count items: %w", err)
+	}
+	return n, nil
+}
+
+// List returns items matching the filter, with metadata but no creators/tags/
+// collections/attachments (use Read for those).
+func (d *DB) List(f ListFilter) ([]Item, error) {
+	limit := f.Limit
+	if limit == 0 {
+		limit = 50
+	}
+
+	where, whereArgs := d.listWhere(f)
+	args := append(listArgs(), whereArgs...)
 
 	order := " ORDER BY i.dateAdded DESC "
 	switch f.OrderBy {
@@ -124,7 +150,7 @@ func (d *DB) List(f ListFilter) ([]Item, error) {
 		order = " ORDER BY title IS NULL, title COLLATE NOCASE ASC "
 	}
 
-	q := baseSelect() + where.String() + order + " LIMIT ? OFFSET ? "
+	q := baseSelect() + where + order + " LIMIT ? OFFSET ? "
 	args = append(args, limit, f.Offset)
 
 	rows, err := d.db.Query(q, args...)
@@ -153,47 +179,10 @@ func (d *DB) List(f ListFilter) ([]Item, error) {
 // one per batch for creators), not per-item round-trips. On the live 7300-
 // item library this keeps the whole export under a second.
 func (d *DB) ListAll(f ListFilter) ([]Item, error) {
-	var (
-		where strings.Builder
-		args  []any
-	)
-	args = append(args, listArgs()...)
-	where.WriteString(" WHERE i.libraryID = ? AND di.itemID IS NULL ")
-	args = append(args, d.libraryID)
-	// Skip the blanket note/attachment exclusion when the caller explicitly
-	// asked for one of those types — otherwise the two clauses contradict
-	// each other and we silently return zero rows.
-	if !isExcludedContentType(f.ItemType) {
-		where.WriteString(contentItemTypeFilter)
-	}
+	where, whereArgs := d.listWhere(f)
+	args := append(listArgs(), whereArgs...)
 
-	if f.ItemType != "" {
-		where.WriteString(" AND it.typeName = ? ")
-		args = append(args, f.ItemType)
-	}
-	if f.CollectionKey != "" {
-		where.WriteString(` AND i.itemID IN (
-			SELECT ci.itemID FROM collectionItems ci
-			JOIN collections c ON ci.collectionID = c.collectionID
-			WHERE c.key = ? AND c.libraryID = ?
-		) `)
-		args = append(args, f.CollectionKey, d.libraryID)
-	}
-	if f.Tag != "" {
-		where.WriteString(` AND i.itemID IN (
-			SELECT it2.itemID FROM itemTags it2
-			JOIN tags tg ON it2.tagID = tg.tagID
-			WHERE tg.name = ?
-		) `)
-		args = append(args, f.Tag)
-	}
-	if len(f.Keys) > 0 {
-		ph, keyArgs := inClauseStrings(f.Keys)
-		where.WriteString(" AND i.key IN (" + ph + ") ")
-		args = append(args, keyArgs...)
-	}
-
-	q := baseSelect() + where.String() + " ORDER BY i.itemID ASC "
+	q := baseSelect() + where + " ORDER BY i.itemID ASC "
 	if f.Limit > 0 {
 		q += " LIMIT ? "
 		args = append(args, f.Limit)
@@ -485,12 +474,19 @@ func (d *DB) Search(query string, limit int) ([]Item, error) {
 // limit applies after ranking so a broad query can't crowd out the most
 // relevant hit.
 func (d *DB) SearchWith(query string, limit int, opts SearchOptions) ([]Item, error) {
+	items, _, err := d.SearchWithTotal(query, limit, opts)
+	return items, err
+}
+
+// SearchWithTotal is [DB.SearchWith] plus the pre-limit match count, so
+// callers can report "showing N of M" instead of silently truncating.
+func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Item, int, error) {
 	if limit == 0 {
 		limit = 50
 	}
 	groups := match.ParseClauses(query)
 	if len(groups) == 0 {
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	var orParts []string
@@ -501,7 +497,7 @@ func (d *DB) SearchWith(query string, limit int, opts SearchOptions) ([]Item, er
 			if words := bareSearchWords(group); len(words) > 0 {
 				ids, err := d.SearchFulltext(words, false)
 				if err != nil {
-					return nil, err
+					return nil, 0, err
 				}
 				ftIDs = ids
 			}
@@ -510,7 +506,7 @@ func (d *DB) SearchWith(query string, limit int, opts SearchOptions) ([]Item, er
 		for _, c := range group {
 			frag, fa, err := buildClauseSQL(c, ftIDs)
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			if frag == "" {
 				continue
@@ -523,7 +519,7 @@ func (d *DB) SearchWith(query string, limit int, opts SearchOptions) ([]Item, er
 		}
 	}
 	if len(orParts) == 0 {
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	// Use a CTE so clause fragments can reference the pulled title/doi/pub/
@@ -544,7 +540,7 @@ ORDER BY b.dateAdded DESC
 
 	rows, err := d.db.Query(q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("search items: %w", err)
+		return nil, 0, fmt.Errorf("search items: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -552,16 +548,16 @@ ORDER BY b.dateAdded DESC
 	for rows.Next() {
 		it, err := scanListRow(rows)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		out = append(out, it)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	ranked := rankSearchResults(out, groups)
-	return ranked[:min(limit, len(ranked))], nil
+	return ranked[:min(limit, len(ranked))], len(ranked), nil
 }
 
 // bareSearchWords collects the whitespace-split words of every positive

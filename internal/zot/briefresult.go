@@ -74,12 +74,14 @@ func ToBrief(it *local.Item) ItemBrief {
 // single call (abstract + citekey inlined) instead of N round-trips
 // through `item read`.
 type ListBriefResult struct {
-	Query   string      `json:"query,omitempty"`
-	Count   int         `json:"count"`
-	Items   []ItemBrief `json:"items"`
-	Library int64       `json:"library_id"`
-	Scope   string      `json:"searched,omitempty"`
-	Hint    string      `json:"hint,omitempty"`
+	Query     string      `json:"query,omitempty"`
+	Count     int         `json:"count"`
+	Total     int         `json:"total,omitempty"`     // pre-limit match count; 0 = unknown
+	Truncated bool        `json:"truncated,omitempty"` // true when Count < Total
+	Items     []ItemBrief `json:"items"`
+	Library   int64       `json:"library_id"`
+	Scope     string      `json:"searched,omitempty"`
+	Hint      string      `json:"hint,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -96,7 +98,11 @@ func (r ListBriefResult) Human() string {
 	for _, it := range r.Items {
 		writeBriefLine(&b, it)
 	}
-	fmt.Fprintf(&b, "\n  %s %d item(s)\n", uikit.SymArrow, r.Count)
+	if r.Truncated {
+		fmt.Fprintf(&b, "\n  %s showing %d of %d — raise --limit to see more\n", uikit.SymArrow, r.Count, r.Total)
+	} else {
+		fmt.Fprintf(&b, "\n  %s %d item(s)\n", uikit.SymArrow, r.Count)
+	}
 	return b.String()
 }
 

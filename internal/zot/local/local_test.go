@@ -663,3 +663,60 @@ func TestLastSync_ReadsVersionRow(t *testing.T) {
 		t.Errorf("LastSync = %d, want 1700000000", last.Unix())
 	}
 }
+
+func TestCountList_MatchesUnpagedTotal(t *testing.T) {
+	db := openFixture(t)
+	all, err := db.ListAll(ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := db.CountList(ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(all) {
+		t.Errorf("CountList = %d, ListAll = %d — must agree", n, len(all))
+	}
+	if n == 0 {
+		t.Fatal("fixture should have items")
+	}
+}
+
+func TestCountList_HonorsFilters(t *testing.T) {
+	db := openFixture(t)
+	typed, err := db.ListAll(ListFilter{ItemType: "journalArticle"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := db.CountList(ListFilter{ItemType: "journalArticle"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(typed) {
+		t.Errorf("CountList(journalArticle) = %d, want %d", n, len(typed))
+	}
+}
+
+func TestSearchWithTotal_TotalSurvivesLimit(t *testing.T) {
+	db := openFixture(t)
+	all, total, err := db.SearchWithTotal("@type: journalArticle", 100, SearchOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != len(all) {
+		t.Fatalf("unlimited: total %d != len %d", total, len(all))
+	}
+	if total < 2 {
+		t.Skipf("fixture has %d journalArticles; need ≥2 for the slice check", total)
+	}
+	page, total2, err := db.SearchWithTotal("@type: journalArticle", 1, SearchOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page) != 1 {
+		t.Errorf("limit 1 returned %d items", len(page))
+	}
+	if total2 != total {
+		t.Errorf("total changed under limit: %d vs %d", total2, total)
+	}
+}

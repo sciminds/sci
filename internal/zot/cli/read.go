@@ -231,7 +231,7 @@ func searchCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			items, err := db.SearchWith(query, searchLimit, local.SearchOptions{Fulltext: searchFulltext})
+			items, total, err := db.SearchWithTotal(query, searchLimit, local.SearchOptions{Fulltext: searchFulltext})
 			if err != nil {
 				return err
 			}
@@ -271,10 +271,12 @@ func searchCommand() *cli.Command {
 					return zot.ToBrief(&it)
 				})
 				bres := zot.ListBriefResult{
-					Query:   query,
-					Count:   len(briefs),
-					Items:   briefs,
-					Library: db.LibraryID(),
+					Query:     query,
+					Count:     len(briefs),
+					Total:     total,
+					Truncated: len(briefs) < total,
+					Items:     briefs,
+					Library:   db.LibraryID(),
 				}
 				if len(briefs) == 0 {
 					bres.Scope = localSearchScope(searchFulltext)
@@ -284,10 +286,12 @@ func searchCommand() *cli.Command {
 				return nil
 			}
 			res := zot.ListResult{
-				Query:   query,
-				Count:   len(items),
-				Items:   items,
-				Library: db.LibraryID(),
+				Query:     query,
+				Count:     len(items),
+				Total:     total,
+				Truncated: len(items) < total,
+				Items:     items,
+				Library:   db.LibraryID(),
 			}
 			if len(items) == 0 {
 				res.Scope = localSearchScope(searchFulltext)
@@ -510,10 +514,19 @@ func listCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			// Honest denominator: never let a LIMITed page read as the whole
+			// library. CountList failure degrades to Total=0 (unknown), never
+			// an error — the listing itself succeeded.
+			total, cerr := db.CountList(filter)
+			if cerr != nil {
+				total = 0
+			}
 			result := zot.ListResult{
-				Count:   len(items),
-				Items:   items,
-				Library: db.LibraryID(),
+				Count:     len(items),
+				Total:     total,
+				Truncated: total > listOffset+len(items),
+				Items:     items,
+				Library:   db.LibraryID(),
 			}
 			// Empty-result heuristic: if the user asked for a specific
 			// collection that the local DB doesn't know about, the most
