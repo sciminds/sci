@@ -652,3 +652,14 @@ func keysOf(items []Item) []string {
 	}
 	return out
 }
+
+func TestLastSync_ReadsVersionRow(t *testing.T) {
+	db := openFixture(t)
+	last, ok := db.LastSync()
+	if !ok {
+		t.Fatal("fixture seeds a lastsync row; ok should be true")
+	}
+	if last.Unix() != 1700000000 {
+		t.Errorf("LastSync = %d, want 1700000000", last.Unix())
+	}
+}

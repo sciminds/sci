@@ -235,6 +235,10 @@ func searchCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			// Freshness caveat rides every local hit list; the fix is the
+			// same command against API ground truth (except --export, whose
+			// pipeline is local-only).
+			staleWarns := staleLocalWarning(db, remoteRerunFix(os.Args))
 			if searchNotes {
 				hasNotes, err := db.ParentsWithDoclingNotes()
 				if err != nil {
@@ -255,7 +259,7 @@ func searchCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				outputScoped(ctx, cmd, res)
+				outputScoped(ctx, cmd, cmdutil.WithWarnings(res, staleLocalWarning(db, "")...))
 				return nil
 			}
 			if searchFull {
@@ -276,7 +280,7 @@ func searchCommand() *cli.Command {
 					bres.Scope = localSearchScope(searchFulltext)
 					bres.Hint = localSearchHint(searchFulltext)
 				}
-				outputScoped(ctx, cmd, bres)
+				outputScoped(ctx, cmd, cmdutil.WithWarnings(bres, staleWarns...))
 				return nil
 			}
 			res := zot.ListResult{
@@ -289,7 +293,7 @@ func searchCommand() *cli.Command {
 				res.Scope = localSearchScope(searchFulltext)
 				res.Hint = localSearchHint(searchFulltext)
 			}
-			outputScoped(ctx, cmd, res)
+			outputScoped(ctx, cmd, cmdutil.WithWarnings(res, staleWarns...))
 			return nil
 		},
 	}
@@ -402,7 +406,8 @@ func readCommand() *cli.Command {
 				return itemNotFoundErr(ctx, key, err)
 			}
 			citekey.Enrich(it)
-			outputScoped(ctx, cmd, zot.ItemResult{Item: *it})
+			outputScoped(ctx, cmd, cmdutil.WithWarnings(zot.ItemResult{Item: *it},
+				staleLocalWarning(db, remoteRerunFix(os.Args))...))
 			return nil
 		},
 	}
@@ -520,7 +525,7 @@ func listCommand() *cli.Command {
 					result.Hint = "collection " + listCollection + " not found locally; pass --remote to fetch from the Zotero Web API (items just created may not be synced yet)"
 				}
 			}
-			outputScoped(ctx, cmd, result)
+			outputScoped(ctx, cmd, cmdutil.WithWarnings(result, staleLocalWarning(db, remoteRerunFix(os.Args))...))
 			return nil
 		},
 	}

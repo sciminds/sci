@@ -145,6 +145,7 @@ func seedFixture(dir string) error {
 	// Seed data.
 	seed := []string{
 		`INSERT INTO version VALUES ('userdata', 125)`,
+		`INSERT INTO version VALUES ('lastsync', 1700000000)`,
 		`INSERT INTO libraries VALUES (1, 'user', 1000), (2, 'group', 500)`,
 		// Group membership — local libraryID=2 corresponds to the Zotero
 		// Web API groupID 6506098 (sciminds in the real install). Used by

@@ -87,13 +87,15 @@ func bibCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			outputScoped(ctx, cmd, zot.BibResult{
+			res := zot.BibResult{
 				Export:     export,
 				Files:      files,
 				References: len(refs),
 				Resolved:   len(resolved),
 				Unresolved: unresolved,
-			})
+			}
+			warns := append(staleLocalWarning(db, ""), bibQualityWarning(resolved, scopeFromCtx(ctx))...)
+			outputScoped(ctx, cmd, cmdutil.WithWarnings(res, warns...))
 			return nil
 		},
 	}

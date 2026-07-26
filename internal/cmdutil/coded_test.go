@@ -280,6 +280,46 @@ func TestOutput_HumanRendersWarnings(t *testing.T) {
 	}
 }
 
+// --- WithWarnings ---
+
+func TestWithWarnings_NoWarningsReturnsSameResult(t *testing.T) {
+	t.Parallel()
+	r := stubResult{data: 1, human: "x"}
+	if got := WithWarnings(r); got != Result(r) {
+		t.Error("WithWarnings with no warnings should return the result unchanged")
+	}
+}
+
+func TestWithWarnings_AttachesToPlainResult(t *testing.T) {
+	t.Parallel()
+	w := Warning{Code: CodeStaleLocal, Message: "old"}
+	wrapped := WithWarnings(stubResult{data: 1, human: "x"}, w)
+	warner, ok := wrapped.(Warner)
+	if !ok {
+		t.Fatal("wrapped result should implement Warner")
+	}
+	warns := warner.Warnings()
+	if len(warns) != 1 || warns[0].Message != "old" {
+		t.Errorf("warnings = %+v", warns)
+	}
+	if wrapped.Human() != "x" {
+		t.Errorf("Human() should delegate, got %q", wrapped.Human())
+	}
+}
+
+func TestWithWarnings_MergesInnerWarnings(t *testing.T) {
+	t.Parallel()
+	inner := warnResult{
+		stubResult: stubResult{data: 1},
+		warns:      []Warning{{Code: CodeStaleLocal, Message: "inner"}},
+	}
+	wrapped := WithWarnings(inner, Warning{Code: CodeStaleLocal, Message: "extra"})
+	warns := wrapped.(Warner).Warnings()
+	if len(warns) != 2 || warns[0].Message != "inner" || warns[1].Message != "extra" {
+		t.Errorf("merged warnings = %+v, want inner then extra", warns)
+	}
+}
+
 // --- UsageErrorf returns a coded error ---
 
 func TestUsageErrorf_ReturnsUsageCode(t *testing.T) {

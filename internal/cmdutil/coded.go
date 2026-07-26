@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/sciminds/cli/internal/uikit"
 )
@@ -96,6 +97,33 @@ type Warning struct {
 // implementing the interface at all.
 type Warner interface {
 	Warnings() []Warning
+}
+
+// WithWarnings attaches warnings to any Result without touching its type.
+// The wrapper delegates JSON/Human to r and concatenates r's own warnings
+// (when it implements [Warner]) with the extra ones. Passing no warnings
+// returns r unchanged, so call sites can wrap unconditionally:
+//
+//	cmdutil.Output(cmd, cmdutil.WithWarnings(res, staleWarning(db)...))
+func WithWarnings(r Result, warns ...Warning) Result {
+	if len(warns) == 0 {
+		return r
+	}
+	return warnedResult{Result: r, extra: warns}
+}
+
+// warnedResult is the wrapper type behind [WithWarnings].
+type warnedResult struct {
+	Result
+	extra []Warning
+}
+
+// Warnings returns the wrapped Result's warnings followed by the extras.
+func (w warnedResult) Warnings() []Warning {
+	if inner, ok := w.Result.(Warner); ok {
+		return append(slices.Clone(inner.Warnings()), w.extra...)
+	}
+	return w.extra
 }
 
 // errorBody is the error half of the --json envelope.

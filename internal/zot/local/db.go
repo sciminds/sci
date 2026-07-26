@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -103,4 +104,17 @@ func (d *DB) SchemaVersion() int { return d.schemaVer }
 // this package has been tested against. Callers should warn but not abort.
 func (d *DB) SchemaOutOfRange() bool {
 	return d.schemaVer < MinTestedSchemaVersion || d.schemaVer > MaxTestedSchemaVersion
+}
+
+// LastSync returns when Zotero last synced this database (the version
+// table's 'lastsync' row, unix seconds). ok is false when the row is absent
+// (never-synced library, pre-sync Zotero, synthetic fixture) — callers must
+// fail open: no timestamp means no staleness claim, never a warning.
+func (d *DB) LastSync() (time.Time, bool) {
+	var unix int64
+	err := d.db.QueryRow("SELECT version FROM version WHERE schema='lastsync'").Scan(&unix)
+	if err != nil || unix <= 0 {
+		return time.Time{}, false
+	}
+	return time.Unix(unix, 0), true
 }

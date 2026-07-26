@@ -131,10 +131,7 @@ func resolveCiteKeyArg(ctx context.Context, arg string) string {
 // need: resubmit with --remote (sync lag — items just created via the API
 // aren't in the local mirror yet), or search for the right key.
 func itemNotFoundErr(ctx context.Context, key string, err error) error {
-	scope := "personal"
-	if h := libraryHolderFromCtx(ctx); h != nil && h.Resolved != nil {
-		scope = string(h.Resolved.Scope)
-	}
+	scope := scopeFromCtx(ctx)
 	return cmdutil.Coded(cmdutil.CodeNotFound, "%v", err).
 		WithFix(fmt.Sprintf("sci zot --library %s item read %s --remote", scope, key)).
 		WithTry(fmt.Sprintf("if the key came from a search elsewhere, re-find it: sci zot --library %s search <title words> (cite keys also work as the positional)", scope))

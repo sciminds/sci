@@ -1,6 +1,9 @@
 package local
 
-import "io"
+import (
+	"io"
+	"time"
+)
 
 // Reader is the read-only contract for the local Zotero database.
 //
@@ -19,6 +22,7 @@ type Reader interface {
 	LibraryID() int64
 	SchemaVersion() int
 	SchemaOutOfRange() bool
+	LastSync() (time.Time, bool)
 
 	// Items
 	List(f ListFilter) ([]Item, error)
