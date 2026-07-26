@@ -53,7 +53,7 @@ func TestGuide_JSON_MachineReadable(t *testing.T) {
 	raw := read()
 
 	var result zot.GuideResult
-	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+	if err := json.Unmarshal(unwrapData(t, []byte(raw)), &result); err != nil {
 		t.Fatalf("decode: %v\nraw: %s", err, raw)
 	}
 	if len(result.Sections) < 3 {

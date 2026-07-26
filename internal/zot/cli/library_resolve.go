@@ -184,11 +184,12 @@ func resolveScopeWithProbe(ctx context.Context, cfg *zot.Config, scope zot.Libra
 // the active library on every leaf's output.
 //
 //   - Human mode: prepends a one-line "Library: <scope> — <name>" header.
-//   - JSON mode:  injects a top-level `"library": "<scope>"` key into the
-//     result object. Existing keys win (we never clobber a Result that
-//     already declared a library field). For the rare result whose JSON()
-//     is not a JSON object (slice/scalar), we fall through to the unwrapped
-//     cmdutil.Output rather than rewrap and break consumers.
+//   - JSON mode:  injects a `"library": "<scope>"` key into the result's
+//     data object, then hands off to cmdutil.Output so the {ok,data,...}
+//     envelope has exactly one home. Existing keys win (we never clobber a
+//     Result that already declared a library field). For the rare result
+//     whose JSON() is not a JSON object (slice/scalar), we fall through to
+//     plain cmdutil.Output rather than rewrap and break consumers.
 //
 // Leaves that don't carry library scope (setup, info, find, guide) keep
 // using cmdutil.Output directly — outputScoped no-ops gracefully when the
@@ -214,16 +215,7 @@ func outputScoped(ctx context.Context, cmd *cli.Command, r cmdutil.Result) {
 			cmdutil.Output(cmd, r)
 			return
 		}
-		// Pretty-print: re-encode through json.Indent so output matches
-		// cmdutil.Output's formatting.
-		var pretty bytes.Buffer
-		if err := json.Indent(&pretty, merged, "", "  "); err != nil {
-			_, _ = os.Stdout.Write(merged)
-			_, _ = os.Stdout.Write([]byte{'\n'})
-			return
-		}
-		_, _ = os.Stdout.Write(pretty.Bytes())
-		_, _ = os.Stdout.Write([]byte{'\n'})
+		cmdutil.Output(cmd, scopedResult{data: merged, inner: r})
 		return
 	}
 
@@ -237,7 +229,29 @@ func outputScoped(ctx context.Context, cmd *cli.Command, r cmdutil.Result) {
 		uikit.TUI.Dim().Render(name),
 	)
 	_, _ = os.Stdout.WriteString(header)
-	fmt.Print(r.Human())
+	cmdutil.Output(cmd, r)
+}
+
+// scopedResult carries the library-injected raw JSON while delegating the
+// human rendering and any warnings to the wrapped Result, so outputScoped
+// stays inside cmdutil.Output's envelope contract.
+type scopedResult struct {
+	data  json.RawMessage
+	inner cmdutil.Result
+}
+
+// JSON returns the library-injected object verbatim.
+func (s scopedResult) JSON() any { return s.data }
+
+// Human delegates to the wrapped Result.
+func (s scopedResult) Human() string { return s.inner.Human() }
+
+// Warnings forwards the wrapped Result's warnings when it carries any.
+func (s scopedResult) Warnings() []cmdutil.Warning {
+	if w, ok := s.inner.(cmdutil.Warner); ok {
+		return w.Warnings()
+	}
+	return nil
 }
 
 // jsonMarshal is json.Marshal with HTML escaping disabled, matching

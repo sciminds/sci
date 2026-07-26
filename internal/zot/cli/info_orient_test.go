@@ -6,7 +6,6 @@ package cli
 // richer fixture.
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -178,13 +177,9 @@ func TestInfo_OrientFlag_PopulatesAllFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("info --orient: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON in output: %q", string(out))
-	}
 	var result zot.StatsResult
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
-		t.Fatalf("parse: %v\n%s", err, string(out[jsonStart:]))
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse: %v\n%s", err, string(out))
 	}
 
 	// Extraction coverage: 2/4 = 50%.
@@ -243,15 +238,11 @@ func TestInfo_NoOrientFlag_OmitsOrientFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("info: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON: %q", string(out))
-	}
 
 	// Don't unmarshal into StatsResult — that would silently set fields to
 	// zero/nil regardless. Inspect the raw object instead.
 	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(out[jsonStart:], &raw); err != nil {
+	if err := json.Unmarshal(unwrapData(t, out), &raw); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	for _, key := range []string{"extraction_coverage", "top_tags", "top_collections", "recent_added"} {
@@ -269,12 +260,8 @@ func TestInfo_OrientFlag_NoLibraryFlag_PopulatesEachLibrary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("info --orient: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON: %q", string(out))
-	}
 	var result zot.MultiStatsResult
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	if len(result.PerLibrary) != 2 {

@@ -68,13 +68,9 @@ func TestItemRead_ByDOI_ResolvesToKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("item read --doi: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON: %q", string(out))
-	}
 	var result local.Item
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
-		t.Fatalf("parse: %v\n%s", err, string(out[jsonStart:]))
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse: %v\n%s", err, string(out))
 	}
 	if result.Key != "KEY1" {
 		t.Errorf("Key = %q, want KEY1 (the item carrying DOI 10.1038/nature12373)", result.Key)
@@ -99,12 +95,8 @@ func TestItemRead_ByDOI_NormalizesPrefixes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("item read --doi %q: %v\n%s", in, err, string(out))
 		}
-		jsonStart := bytes.IndexByte(out, '{')
-		if jsonStart < 0 {
-			t.Fatalf("no JSON for %q: %q", in, string(out))
-		}
 		var result local.Item
-		if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
+		if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
 			t.Fatalf("parse %q: %v", in, err)
 		}
 		if result.Key != "KEY1" {
@@ -141,12 +133,8 @@ func TestItemRead_ByDOI_CaseInsensitive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("item read --doi (uppercase): %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON: %q", string(out))
-	}
 	var result local.Item
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	if result.Key != "KEY1" {
@@ -236,12 +224,8 @@ func TestItemRead_ByPositionalKey_StillWorks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("item read KEY3: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON: %q", string(out))
-	}
 	var result local.Item
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	if result.Key != "KEY3" {

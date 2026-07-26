@@ -4,6 +4,20 @@
 // representations. The [Output] function routes to the correct format based on
 // the --json flag.
 //
+// # The --json contract (agent-facing)
+//
+// Under --json, sci speaks one stream (stdout) and one shape:
+//
+//	{"ok": true,  "data": {...}, "warnings": [{"code","message","fix"}]}  // success
+//	{"ok": false, "error": {"code","message","fix","try"}}                // failure
+//
+// Failures carry a [Code] from a closed vocabulary plus, where the correction
+// is unambiguous, a Fix command to resubmit verbatim ([CodedError]). Exit
+// codes partition by remediation: 2 = rewrite the command line and retry
+// (usage/conflict), 1 = everything else. Successful results may volunteer
+// [Warning] values (data-quality and freshness caveats) via [Warner] —
+// agents should act on warnings before trusting the data.
+//
 // Confirmation prompts are available in three flavors:
 //
 //   - [Confirm] prompts with [y/N] (default no)
@@ -28,6 +42,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 
@@ -49,17 +64,42 @@ func IsJSON(cmd *cli.Command) bool {
 	return cmd.Bool("json")
 }
 
-// Output writes a Result as JSON or human-readable text depending on the --json flag.
+// Output writes a Result as JSON or human-readable text depending on the
+// --json flag.
+//
+// JSON mode wraps every result in the success envelope
+//
+//	{"ok": true, "data": <r.JSON()>, "warnings": [...]}
+//
+// so agents always parse one shape; failures emit the matching
+// {"ok":false,"error":{...}} envelope via [HandleError]. Results that
+// implement [Warner] get their warnings merged into the envelope (JSON) or
+// appended as ⚠ lines (human) — warnings never change the exit code.
 func Output(cmd *cli.Command, r Result) {
+	var warnings []Warning
+	if w, ok := r.(Warner); ok {
+		warnings = w.Warnings()
+	}
 	if IsJSON(cmd) {
+		env := struct {
+			OK       bool      `json:"ok"`
+			Data     any       `json:"data"`
+			Warnings []Warning `json:"warnings,omitempty"`
+		}{OK: true, Data: r.JSON(), Warnings: warnings}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		// CLI output isn't embedded in HTML; keep `<>&` literal so note
 		// bodies and abstracts don't turn every tag into `<…` noise.
 		enc.SetEscapeHTML(false)
-		_ = enc.Encode(r.JSON())
+		_ = enc.Encode(env)
 	} else {
 		fmt.Print(r.Human())
+		for _, w := range warnings {
+			fmt.Printf("\n  %s %s\n", uikit.SymWarn, w.Message)
+			if w.Fix != "" {
+				fmt.Printf("    %s fix: %s\n", uikit.SymArrow, w.Fix)
+			}
+		}
 	}
 }
 
@@ -81,13 +121,14 @@ func UsageErrorf(cmd *cli.Command, format string, args ...any) error {
 	msg := fmt.Sprintf(format, args...)
 	if cmd.Args().Len() == 0 && !IsJSON(cmd) {
 		_ = cli.ShowSubcommandHelp(cmd)
-		return fmt.Errorf("%s", msg)
+		return Coded(CodeUsage, "%s", msg)
 	}
 	usage := cmd.FullName()
 	if au := cmd.ArgsUsage; au != "" {
 		usage += " " + au
 	}
-	return fmt.Errorf("%s\n\n  Usage: %s\n  Run '%s --help' for details", msg, usage, cmd.FullName())
+	return Coded(CodeUsage, "%s", msg).
+		WithTry(fmt.Sprintf("usage: %s — run '%s --help' for details", usage, cmd.FullName()))
 }
 
 // ExitCode returns 0 if ok is true, 1 otherwise.

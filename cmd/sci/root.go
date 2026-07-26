@@ -102,7 +102,6 @@ func main() {
 		if errors.Is(err, dbtui.ErrInterrupted) {
 			os.Exit(130)
 		}
-		fmt.Fprintf(os.Stderr, "  %s %s\n", uikit.SymFail, err)
-		os.Exit(1)
+		os.Exit(cmdutil.HandleError(err, jsonOutput))
 	}
 }

@@ -4,7 +4,6 @@ package cli
 // narrowed output when --library is supplied.
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -153,13 +152,9 @@ func TestInfo_NoLibraryFlag_SummarizesBoth(t *testing.T) {
 	// JSON output is the MultiStatsResult shape.
 	// Trim any leading non-JSON bytes (progress output) the same way
 	// cmdutil does before returning the payload.
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON object in output: %q", string(out))
-	}
 	var result zot.MultiStatsResult
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
-		t.Fatalf("parse MultiStatsResult: %v\nraw: %s", err, string(out[jsonStart:]))
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse MultiStatsResult: %v\nraw: %s", err, string(out))
 	}
 	if len(result.PerLibrary) != 2 {
 		t.Errorf("per_library len = %d, want 2 (personal + shared)", len(result.PerLibrary))
@@ -187,13 +182,9 @@ func TestInfo_WithLibraryFlag_NarrowsToScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("info --library personal: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON in output: %q", string(out))
-	}
 	var result zot.StatsResult
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
-		t.Fatalf("parse StatsResult: %v\nraw: %s", err, string(out[jsonStart:]))
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse StatsResult: %v\nraw: %s", err, string(out))
 	}
 	if result.Library != "personal" {
 		t.Errorf("Library = %q, want personal", result.Library)
@@ -215,12 +206,8 @@ func TestInfo_SharedScope_EmitsGroupID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("info --library shared: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON in output: %q", string(out))
-	}
 	var result zot.StatsResult
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
 		t.Fatalf("parse StatsResult: %v", err)
 	}
 	if result.Scope != "shared" {
@@ -240,12 +227,8 @@ func TestInfo_SharedNotConfigured_PersonalOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("info: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON in output: %q", string(out))
-	}
 	var result zot.MultiStatsResult
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
 		t.Fatalf("parse MultiStatsResult: %v", err)
 	}
 	if len(result.PerLibrary) != 1 {

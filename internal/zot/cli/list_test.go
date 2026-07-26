@@ -6,7 +6,6 @@ package cli
 // Zotero desktop hasn't synced yet).
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -76,13 +75,9 @@ func TestItemList_MissingCollection_HintsAboutRemote(t *testing.T) {
 	if err != nil {
 		t.Fatalf("item list: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON in output: %q", string(out))
-	}
 	var result zot.ListResult
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
-		t.Fatalf("parse ListResult: %v\nraw: %s", err, string(out[jsonStart:]))
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse ListResult: %v\nraw: %s", err, string(out))
 	}
 	if result.Count != 0 {
 		t.Fatalf("Count = %d, want 0", result.Count)
@@ -107,12 +102,8 @@ func TestItemList_NoCollectionFilter_NoHint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("item list: %v\n%s", err, string(out))
 	}
-	jsonStart := bytes.IndexByte(out, '{')
-	if jsonStart < 0 {
-		t.Fatalf("no JSON in output: %q", string(out))
-	}
 	var result zot.ListResult
-	if err := json.Unmarshal(out[jsonStart:], &result); err != nil {
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
 		t.Fatalf("parse ListResult: %v", err)
 	}
 	if result.Hint != "" {

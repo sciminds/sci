@@ -127,12 +127,18 @@ func TestOutput_JSONMode(t *testing.T) {
 	if strings.Contains(got, "should not appear") {
 		t.Error("JSON mode should not print the human string")
 	}
-	var decoded map[string]string
+	var decoded struct {
+		OK   bool              `json:"ok"`
+		Data map[string]string `json:"data"`
+	}
 	if err := json.Unmarshal([]byte(got), &decoded); err != nil {
 		t.Fatalf("JSON output not valid JSON: %v\noutput: %q", err, got)
 	}
-	if decoded["key"] != "value" {
-		t.Errorf("JSON field 'key': got %q, want %q", decoded["key"], "value")
+	if !decoded.OK {
+		t.Error("envelope ok should be true")
+	}
+	if decoded.Data["key"] != "value" {
+		t.Errorf("JSON field 'data.key': got %q, want %q", decoded.Data["key"], "value")
 	}
 }
 
@@ -159,8 +165,18 @@ func TestOutput_JSONMode_NilData(t *testing.T) {
 		Output(cmd, r)
 	})
 
-	if strings.TrimSpace(got) != "null" {
-		t.Errorf("expected 'null' for nil data, got %q", got)
+	var decoded struct {
+		OK   bool `json:"ok"`
+		Data any  `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(got), &decoded); err != nil {
+		t.Fatalf("envelope not valid JSON: %v\noutput: %q", err, got)
+	}
+	if !decoded.OK || decoded.Data != nil {
+		t.Errorf("expected {ok:true, data:null}, got %q", got)
+	}
+	if !strings.Contains(got, `"data"`) {
+		t.Errorf("data key should be present even when nil, got %q", got)
 	}
 }
 
@@ -262,15 +278,18 @@ func TestUsageErrorf_NonEmptyArgs_KeepsTerseUsage(t *testing.T) {
 	if captured == nil {
 		t.Fatal("UsageErrorf should have returned an error")
 	}
-	errStr := captured.Error()
-	if !strings.Contains(errStr, "--remote and --export are mutually exclusive") {
+	if !strings.Contains(captured.Error(), "--remote and --export are mutually exclusive") {
 		t.Errorf("error should contain the message, got: %v", captured)
 	}
-	if !strings.Contains(errStr, "Usage: sci search <query>") {
-		t.Errorf("non-empty args should include the terse usage line, got: %v", captured)
+	coded, ok := errors.AsType[*CodedError](captured)
+	if !ok {
+		t.Fatal("UsageErrorf should return a *CodedError")
 	}
-	if !strings.Contains(errStr, "Run 'sci search --help' for details") {
-		t.Errorf("non-empty args should include the --help hint, got: %v", captured)
+	if !strings.Contains(coded.Try, "usage: sci search <query>") {
+		t.Errorf("non-empty args should carry the terse usage line in Try, got: %q", coded.Try)
+	}
+	if !strings.Contains(coded.Try, "run 'sci search --help' for details") {
+		t.Errorf("non-empty args should carry the --help hint in Try, got: %q", coded.Try)
 	}
 
 	if strings.Contains(buf.String(), "Search library") {
@@ -306,9 +325,13 @@ func TestUsageErrorf_JSONMode_SuppressesHelp(t *testing.T) {
 	if captured == nil {
 		t.Fatal("UsageErrorf should have returned an error")
 	}
-	// JSON mode: terse usage line stays (machine-readable consumer, no styled help).
-	if !strings.Contains(captured.Error(), "Run 'sci import --help'") {
-		t.Errorf("JSON mode should keep the terse --help hint, got: %v", captured)
+	// JSON mode: terse usage hint stays on Try (machine-readable consumer, no styled help).
+	coded, ok := errors.AsType[*CodedError](captured)
+	if !ok {
+		t.Fatal("UsageErrorf should return a *CodedError")
+	}
+	if !strings.Contains(coded.Try, "run 'sci import --help'") {
+		t.Errorf("JSON mode should keep the terse --help hint in Try, got: %q", coded.Try)
 	}
 	if strings.Contains(buf.String(), "Import local PDFs") {
 		t.Errorf("JSON mode should NOT dump styled help to the writer, got:\n%s", buf.String())

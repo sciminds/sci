@@ -38,6 +38,27 @@ type stubResultWithLibrary struct {
 func (s stubResultWithLibrary) JSON() any     { return s }
 func (s stubResultWithLibrary) Human() string { return s.Key }
 
+// unwrapData extracts the data payload from cmdutil's {ok,data,...} --json
+// envelope, tolerating any pre-JSON progress bytes before the envelope opens.
+func unwrapData(t *testing.T, out []byte) []byte {
+	t.Helper()
+	jsonStart := bytes.IndexByte(out, '{')
+	if jsonStart < 0 {
+		t.Fatalf("no JSON object in output: %q", string(out))
+	}
+	var env struct {
+		OK   bool            `json:"ok"`
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(out[jsonStart:], &env); err != nil {
+		t.Fatalf("parse envelope: %v\nraw: %s", err, string(out[jsonStart:]))
+	}
+	if !env.OK {
+		t.Fatalf("envelope ok=false: %s", string(out[jsonStart:]))
+	}
+	return env.Data
+}
+
 // captureStdout swaps os.Stdout for a pipe and returns whatever was written
 // up until restore() is called. Tests pair it with a defer.
 func captureStdout(t *testing.T) (read func() string, restore func()) {
@@ -295,7 +316,7 @@ func TestOutputScoped_JSON_InjectsLibrary(t *testing.T) {
 	got := read()
 
 	var decoded map[string]any
-	if err := json.Unmarshal([]byte(got), &decoded); err != nil {
+	if err := json.Unmarshal(unwrapData(t, []byte(got)), &decoded); err != nil {
 		t.Fatalf("unmarshal: %v\nraw: %q", err, got)
 	}
 	if decoded["library"] != "personal" {
