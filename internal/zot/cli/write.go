@@ -63,12 +63,13 @@ var (
 // via ensureLibraryScope (auto-select / prompt / error per the holder set up
 // by ValidateLibraryBefore).
 func requireAPIClient(ctx context.Context) (*api.Client, error) {
-	cfg, err := zot.RequireConfig()
+	cfg, err := requireConfigCoded()
 	if err != nil {
 		return nil, err
 	}
 	if !netutil.Online() {
-		return nil, fmt.Errorf("no internet connection — zot writes require network access")
+		return nil, cmdutil.Coded(cmdutil.CodeOffline, "no internet connection — zot writes require network access").
+			WithTry("re-run when online; local reads (search, item read/list, bib, export) work offline")
 	}
 	ref, err := ensureLibraryScope(ctx, cfg)
 	if err != nil {

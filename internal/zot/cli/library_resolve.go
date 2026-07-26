@@ -93,7 +93,7 @@ func withLibraryHolder(ctx context.Context, h *libraryHolder) context.Context {
 func ensureLibraryScope(ctx context.Context, cfg *zot.Config) (zot.LibraryRef, error) {
 	h := libraryHolderFromCtx(ctx)
 	if h == nil {
-		return zot.LibraryRef{}, fmt.Errorf("--library is required (values: personal, shared)")
+		return zot.LibraryRef{}, cmdutil.Coded(cmdutil.CodeUsage, "--library is required (values: personal, shared)")
 	}
 	if h.Resolved != nil {
 		return *h.Resolved, nil
@@ -152,16 +152,7 @@ func autoOrPromptScope(ctx context.Context, cfg *zot.Config, jsonMode bool) (zot
 // position. Showing two placements (post-`zot` and post-leaf) breaks
 // the false constraint.
 func errLibraryRequired(reason string) error {
-	// Trailing newline is intentional — terminal renderers append a single
-	// "\n" after error messages, so the help block below stays attached.
-	// staticcheck ST1005 flags trailing newlines; suppressed at a function
-	// boundary (multi-line error string) where readability beats the rule.
-	//nolint:staticcheck // ST1005 — multi-line error strings need newlines.
-	return fmt.Errorf("--library is required (values: personal, shared) — both libraries are configured; %s\n"+
-		"  Add --library anywhere in the command. Both forms work:\n"+
-		"    sci zot --library personal <subcommand> [args...]\n"+
-		"    sci zot <subcommand> [args...] --library personal\n"+
-		"  Use 'shared' to target the group library instead", reason)
+	return errLibraryRequiredArgs(reason, os.Args)
 }
 
 // resolveScopeWithProbe wraps cfg.ResolveWithProbe with the standard

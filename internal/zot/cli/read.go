@@ -45,7 +45,7 @@ var (
 // zotero.sqlite scoped accordingly, and warns if the schema version is
 // outside the tested range.
 func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
-	cfg, err := zot.RequireConfig()
+	cfg, err := requireConfigCoded()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -166,16 +166,20 @@ func searchCommand() *cli.Command {
 				return cmdutil.UsageErrorf(cmd, "--out requires --export")
 			}
 			if searchRemote && searchExport {
-				return cmdutil.UsageErrorf(cmd, "--remote and --export are mutually exclusive (export needs full local hydration)")
+				return cmdutil.Coded(cmdutil.CodeConflict, "--remote and --export are mutually exclusive (export needs full local hydration)").
+					WithTry("drop --remote; export always hydrates from the local library")
 			}
 			if searchRemote && searchNotes {
-				return cmdutil.UsageErrorf(cmd, "--notes is local-only; drop it or drop --remote")
+				return cmdutil.Coded(cmdutil.CodeConflict, "--notes is local-only").
+					WithTry("drop --notes or drop --remote (--remote already matches note text server-side)")
 			}
 			if searchRemote && searchFulltext {
-				return cmdutil.UsageErrorf(cmd, "--fulltext is local-only (--remote already matches PDF fulltext server-side)")
+				return cmdutil.Coded(cmdutil.CodeConflict, "--fulltext is local-only").
+					WithTry("drop --fulltext; --remote already matches PDF fulltext server-side")
 			}
 			if searchFull && searchExport {
-				return cmdutil.UsageErrorf(cmd, "--full and --export are mutually exclusive (use one or the other)")
+				return cmdutil.Coded(cmdutil.CodeConflict, "--full and --export are mutually exclusive").
+					WithTry("use --full for reading hits inline, --export for generating a bibliography")
 			}
 			// Join all positional args so unquoted multi-clause queries
 			// like `zot search @author: jolly @title: gossip` work without
@@ -364,6 +368,15 @@ func readCommand() *cli.Command {
 				key = resolved
 			}
 
+			// A positional that isn't an 8-char Zotero key is very likely a
+			// cite key (agents paste them from bibliographies) — absorb it
+			// by resolving against the local library instead of erroring.
+			if readDOI == "" && !zoteroKeyRE.MatchString(key) {
+				if resolved := resolveCiteKeyArg(ctx, key); resolved != "" {
+					key = resolved
+				}
+			}
+
 			if readRemote {
 				c, err := requireAPIClient(ctx)
 				if err != nil {
@@ -386,7 +399,7 @@ func readCommand() *cli.Command {
 
 			it, err := db.Read(key)
 			if err != nil {
-				return fmt.Errorf("%w (pass --remote to bypass local sqlite if the item was just created)", err)
+				return itemNotFoundErr(ctx, key, err)
 			}
 			citekey.Enrich(it)
 			outputScoped(ctx, cmd, zot.ItemResult{Item: *it})
@@ -527,7 +540,7 @@ func infoCommand() *cli.Command {
 			&cli.BoolFlag{Name: "orient", Usage: "include top tags + top collections + recent items + has-markdown extraction coverage", Destination: &infoOrient, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			cfg, err := zot.RequireConfig()
+			cfg, err := requireConfigCoded()
 			if err != nil {
 				return err
 			}

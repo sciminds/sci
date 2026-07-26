@@ -9,6 +9,7 @@ package zot
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -99,6 +100,11 @@ func migrateLegacyConfig(cfg *Config, raw []byte) bool {
 // SaveConfig writes the zot config to disk with restricted permissions (0600).
 func SaveConfig(cfg *Config) error { return configFile.Save(cfg) }
 
+// ErrNotConfigured is the sentinel wrapped by [RequireConfig] when no usable
+// zot config exists. The CLI layer matches it with errors.Is to attach the
+// setup command as a machine-actionable fix.
+var ErrNotConfigured = errors.New("zot not configured")
+
 // RequireConfig loads config and errors if zot is not set up.
 func RequireConfig() (*Config, error) {
 	cfg, err := LoadConfig()
@@ -106,7 +112,7 @@ func RequireConfig() (*Config, error) {
 		return nil, err
 	}
 	if cfg == nil || cfg.APIKey == "" || cfg.UserID == "" {
-		return nil, fmt.Errorf("zot not configured — run 'sci zot setup' first")
+		return nil, fmt.Errorf("%w — run 'sci zot setup' first", ErrNotConfigured)
 	}
 	return cfg, nil
 }

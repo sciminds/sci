@@ -95,7 +95,8 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 		if cfg == nil {
-			return fmt.Errorf("zot not configured — run 'sci zot setup' first")
+			return cmdutil.Coded(cmdutil.CodeNotConfigured, "zot not configured").
+				WithTry("run 'sci zot setup' interactively, or pass --api and --user-id in --json mode")
 		}
 		cmdutil.Output(cmd, cfg)
 		return nil

@@ -152,17 +152,15 @@ func TestEnsureLibraryScope_NoFlag_BothConfigured_JSONMode_Errors(t *testing.T) 
 	if !strings.Contains(strings.ToLower(msg), "library") || !strings.Contains(strings.ToLower(msg), "json") {
 		t.Errorf("err=%v, want mention of --library and --json", err)
 	}
-	// Placement teaching: both forms of --library should appear so an agent
-	// hitting this error learns the flag is positionally flexible. Without
-	// these the agent's natural mental model is "must go before subcommand"
-	// (the false constraint we're trying to break).
-	wantBefore := "sci zot --library personal <subcommand>"
-	wantAfter := "sci zot <subcommand> [args...] --library personal"
-	if !strings.Contains(msg, wantBefore) {
-		t.Errorf("err missing pre-subcommand example %q:\n%s", wantBefore, msg)
+	// Placement teaching moved to the coded channels: Try tells the agent
+	// the flag goes anywhere; Fix (when os.Args has a zot token) is the
+	// rebuilt command with the flag inserted.
+	coded := mustCoded(t, err)
+	if coded.Code != cmdutil.CodeUsage {
+		t.Errorf("Code = %q, want usage", coded.Code)
 	}
-	if !strings.Contains(msg, wantAfter) {
-		t.Errorf("err missing post-subcommand example %q:\n%s", wantAfter, msg)
+	if !strings.Contains(coded.Try, "anywhere in the command") {
+		t.Errorf("Try should teach flexible flag placement, got %q", coded.Try)
 	}
 }
 
@@ -231,9 +229,9 @@ func TestEnsureLibraryScope_NoFlag_BothConfigured_NonTTY_Errors(t *testing.T) {
 	if !strings.Contains(strings.ToLower(msg), "stdin is not a terminal") {
 		t.Errorf("err should explain *why* we won't prompt:\n%s", msg)
 	}
-	// Same placement teaching as JSON mode.
-	if !strings.Contains(msg, "sci zot --library personal <subcommand>") {
-		t.Errorf("err missing pre-subcommand example:\n%s", msg)
+	// Same placement teaching as JSON mode, now via the coded Try channel.
+	if try := mustCoded(t, err).Try; !strings.Contains(try, "anywhere in the command") {
+		t.Errorf("Try should teach flexible flag placement, got %q", try)
 	}
 }
 

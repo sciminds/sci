@@ -412,11 +412,13 @@ func resolveCollectionKey(db local.Reader, input string) (key, displayName strin
 	})
 	switch len(matches) {
 	case 0:
-		return "", "", fmt.Errorf("collection %q not found (use 'sci zot collection list' to see names)", input)
+		return "", "", notFoundCollectionErr(input, cols)
 	case 1:
 		return matches[0].Key, matches[0].Name, nil
 	default:
 		keys := lo.Map(matches, func(c local.Collection, _ int) string { return c.Key })
-		return "", "", fmt.Errorf("collection name %q is ambiguous — multiple matches: %s (pass --collection <key> instead)", input, strings.Join(keys, ", "))
+		return "", "", cmdutil.Coded(cmdutil.CodeAmbiguous,
+			"collection name %q is ambiguous — multiple matches: %s", input, strings.Join(keys, ", ")).
+			WithTry("pass one of the 8-char keys instead of the name")
 	}
 }
