@@ -12,7 +12,8 @@ func zotCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "zot",
 		Usage: "Manage your Zotero library (local reads, web API writes)",
-		Description: "$ sci zot guide                       # task-oriented cheat sheet (search, extraction, agent workflows)\n" +
+		Description: "# agents: run `sci zot guide --json` once before driving zot — it teaches the command surface and the --json envelope/fix/warnings contract\n" +
+			"$ sci zot guide                       # task-oriented cheat sheet (search, extraction, agent workflows)\n" +
 			"$ sci zot setup\n" +
 			"$ sci zot --library personal item list",
 		Category: "Experimental",

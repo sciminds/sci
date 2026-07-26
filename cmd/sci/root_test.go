@@ -194,3 +194,17 @@ func TestRootBefore_EmptyCacheIsNoop(t *testing.T) {
 		t.Errorf("stderr contains notice with no cache: %q", stderr)
 	}
 }
+
+// TestRoot_AgentPointerInHelp is the drift fence for the agent-delivery
+// pointer: `sci --help` must teach the --json envelope and point Zotero
+// work at `sci zot guide --json` (the binary is self-contained — help IS
+// the distribution channel for agent docs).
+func TestRoot_AgentPointerInHelp(t *testing.T) {
+	root := buildRoot()
+	if !strings.Contains(root.Description, "sci zot guide --json") {
+		t.Errorf("root Description should point agents at the zot guide:\n%s", root.Description)
+	}
+	if !strings.Contains(root.Description, "error.fix") {
+		t.Errorf("root Description should teach the fix-resubmit rule:\n%s", root.Description)
+	}
+}

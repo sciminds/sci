@@ -23,10 +23,15 @@ type GuideSection struct {
 	Entries []GuideEntry `json:"entries"`
 }
 
-// GuideResult is returned by `sci zot guide`. Token-budgeted to ~50 lines
-// of human output / ~2KB JSON so an agent can pull it once at session
-// start without bloating context.
+// GuideResult is returned by `sci zot guide`. Token-budgeted (size ceiling
+// enforced in guide_test.go) so an agent can pull it once at session start
+// without bloating context.
 type GuideResult struct {
+	// Contract states the machine rules for driving zot under --json: the
+	// envelope shape and what to do with fix / warnings / truncated fields.
+	// Rendered first — an agent that reads nothing else should still absorb
+	// these.
+	Contract []string       `json:"contract,omitempty"`
 	Sections []GuideSection `json:"sections"`
 	Tip      string         `json:"tip,omitempty"`
 }
@@ -38,6 +43,17 @@ func (r GuideResult) JSON() any { return r }
 func (r GuideResult) Human() string {
 	var b strings.Builder
 	b.WriteByte('\n')
+	if len(r.Contract) > 0 {
+		b.WriteString("  ")
+		b.WriteString(uikit.TUI.Bold().Render("Machine contract (--json)"))
+		b.WriteString("\n\n")
+		for _, line := range r.Contract {
+			b.WriteString("    ")
+			b.WriteString(uikit.TUI.Dim().Render("· " + line))
+			b.WriteByte('\n')
+		}
+		b.WriteByte('\n')
+	}
 	for _, sec := range r.Sections {
 		b.WriteString("  ")
 		b.WriteString(uikit.TUI.Bold().Render(sec.Title))

@@ -179,3 +179,57 @@ func TestGuide_GuideCommandRegistered(t *testing.T) {
 		t.Fatal("guide command not registered in Commands()")
 	}
 }
+
+// TestGuide_ContractTeachesTheEnvelope pins the machine-contract section: an
+// agent that reads nothing else must still learn the envelope shape and what
+// to do with fix / warnings / truncated.
+func TestGuide_ContractTeachesTheEnvelope(t *testing.T) {
+	t.Parallel()
+	guide := guideContent()
+	if len(guide.Contract) == 0 {
+		t.Fatal("guide must carry a machine contract")
+	}
+	joined := strings.Join(guide.Contract, " ")
+	for _, must := range []string{
+		"fix",       // resubmit-verbatim rule
+		"warnings",  // act-before-trusting rule
+		"truncated", // raise --limit rule
+		`{ok:true`,  // success envelope shape
+		`{ok:false`, // error envelope shape
+		"Exit 2",    // remediation partition
+		"cite keys", // absorption
+		"--library", // flag placement
+		"not-found", // code vocabulary present
+	} {
+		if !strings.Contains(joined, must) {
+			t.Errorf("contract missing %q:\n%s", must, joined)
+		}
+	}
+}
+
+// TestGuide_SizeBudget is the terse-beats-thorough fence: the JSON pack must
+// stay small enough to pull into an agent's context at session start. Raise
+// this ceiling only with a reason — every sentence costs reliability.
+func TestGuide_SizeBudget(t *testing.T) {
+	t.Parallel()
+	raw, err := json.Marshal(guideContent().JSON())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const budget = 10 * 1024
+	if len(raw) > budget {
+		t.Errorf("guide JSON is %d bytes, over the %d budget — trim before growing", len(raw), budget)
+	}
+}
+
+// TestGuide_PointersInFirstContactErrors verifies the delivery channel: the
+// errors an unconfigured or library-less agent hits first must point at the
+// guide, because the error channel is the only surface that reaches an agent
+// with zero prior context.
+func TestGuide_PointersInFirstContactErrors(t *testing.T) {
+	t.Parallel()
+	lib := mustCoded(t, errLibraryRequiredArgs("reason", []string{"sci", "zot", "search", "x"}))
+	if !strings.Contains(lib.Try, "sci zot guide --json") {
+		t.Errorf("library-required Try should point at the guide, got %q", lib.Try)
+	}
+}

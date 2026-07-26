@@ -60,7 +60,7 @@ func shellQuote(arg string) string {
 func errLibraryRequiredArgs(reason string, argv []string) error {
 	coded := cmdutil.Coded(cmdutil.CodeUsage,
 		"--library is required (values: personal, shared) — both libraries are configured; %s", reason).
-		WithTry("add --library personal (or shared for the group library) anywhere in the command")
+		WithTry("add --library personal (or shared for the group library) anywhere in the command; full agent cheat sheet: sci zot guide --json")
 	if fix := insertLibraryFix(argv); fix != "" {
 		coded = coded.WithFix(fix)
 	}
@@ -74,7 +74,8 @@ func requireConfigCoded() (*zot.Config, error) {
 	if err != nil {
 		if errors.Is(err, zot.ErrNotConfigured) {
 			return nil, cmdutil.Coded(cmdutil.CodeNotConfigured, "%v", err).
-				WithFix("sci zot setup")
+				WithFix("sci zot setup").
+				WithTry("after setup, run 'sci zot guide --json' for the agent cheat sheet")
 		}
 		return nil, err
 	}

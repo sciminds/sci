@@ -25,6 +25,14 @@ import (
 //   - Notes call out tradeoffs, gotchas, or compose-with hints.
 func guideContent() zot.GuideResult {
 	return zot.GuideResult{
+		Contract: []string{
+			"Every command accepts --json: one stream (stdout), one shape. Success: {ok:true, data, warnings}. Failure: {ok:false, error:{code, message, fix, try}} on a single line.",
+			"error.fix is a complete corrected command — resubmit it verbatim. error.try is prose guidance. error.code is a closed vocabulary (usage, conflict, not-found, ambiguous, offline, not-configured, runtime).",
+			"Exit 2 means rewrite the command line and retry; exit 1 means the work itself failed.",
+			"Act on warnings[] before trusting data — stale-local means the local mirror lags Zotero sync (warning carries the --remote resubmit); bib-quality means entries will be incomplete.",
+			"truncated:true means count < total — raise --limit to see the rest.",
+			"item read accepts cite keys as positionals, not just 8-char Zotero keys. --library personal|shared goes anywhere in the command.",
+		},
 		Sections: []zot.GuideSection{
 			{
 				Title: "Bootstrap",
