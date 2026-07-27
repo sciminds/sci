@@ -131,6 +131,19 @@ func seedFixture(dir string) error {
 			title TEXT
 		)`,
 
+		// Relations. Zotero registers three predicates; only dc:relation
+		// ("related items") is user-facing and the only one sci writes.
+		`CREATE TABLE relationPredicates (
+			predicateID INTEGER PRIMARY KEY,
+			predicate TEXT UNIQUE
+		)`,
+		`CREATE TABLE itemRelations (
+			itemID INTEGER,
+			predicateID INTEGER,
+			object TEXT,
+			PRIMARY KEY (itemID, predicateID, object)
+		)`,
+
 		// Fulltext index tables (Zotero's manual word-level FTS).
 		`CREATE TABLE fulltextWords (wordID INTEGER PRIMARY KEY, word TEXT UNIQUE)`,
 		`CREATE TABLE fulltextItemWords (wordID INT, itemID INT, PRIMARY KEY (wordID, itemID))`,
@@ -282,6 +295,16 @@ func seedFixture(dir string) error {
 		// DoclingNoteKeys).
 		`INSERT INTO itemTags VALUES (90,5,0)`,
 		`INSERT INTO tags VALUES (5,'docling',0)`,
+
+		// Relations: the standalone note ORPHNNOTE (70) is related to the
+		// paper BBBB2222 (20), written on both sides the way Zotero's UI
+		// does. Item 10 carries a Zotero-generated owl:sameAs that sci must
+		// read but never write.
+		`INSERT INTO relationPredicates VALUES (1,'owl:sameAs'),(2,'dc:replaces'),(3,'dc:relation')`,
+		`INSERT INTO itemRelations VALUES
+			(70,3,'http://zotero.org/users/1/items/BBBB2222'),
+			(20,3,'http://zotero.org/users/1/items/ORPHNNOTE'),
+			(10,1,'http://zotero.org/groups/6506098/items/GRPCOPY1')`,
 
 		// has-markdown is auto-applied by `sci zot extract` to the parent
 		// item when a docling extraction child note is created. The orient

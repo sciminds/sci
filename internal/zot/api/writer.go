@@ -31,6 +31,11 @@ type Writer interface {
 	AddTagToItem(ctx context.Context, itemKey, tag string) error
 	RemoveTagFromItem(ctx context.Context, itemKey, tag string) error
 
+	// Item relations. Both write BOTH directions — Zotero maintains
+	// dc:relation reciprocity in the client, not the server.
+	LinkItems(ctx context.Context, aKey, bKey string) error
+	UnlinkItems(ctx context.Context, aKey, bKey string) error
+
 	// Notes
 	CreateChildNote(ctx context.Context, parentKey, htmlBody string, tags []string) (string, error)
 	UpdateChildNote(ctx context.Context, noteKey, htmlBody string) error

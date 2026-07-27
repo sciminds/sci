@@ -55,6 +55,7 @@ type Reader interface {
 	ListAllDoclingNotes() ([]DoclingNoteSummary, error)
 	ListNotes() ([]NoteSummary, error)
 	ReadNote(noteKey string) (*NoteDetail, error)
+	ItemRelations(itemKey string) (ItemRelationSet, error)
 
 	// PDF Resolution
 	ResolvePDFAttachment(parentKey string) (*PDFAttachment, error)

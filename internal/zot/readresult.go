@@ -566,3 +566,18 @@ func (r MultiStatsResult) Human() string {
 	}
 	return b.String()
 }
+
+// NoteLabel is a display name for a note. Notes have an optional title and
+// often no title at all, so this falls back to a snippet of the body —
+// which, for an extraction, is the paper's opening prose rather than sci's
+// provenance header (see noteSnippet).
+//
+// Exported because a note showing up as the far end of a relation needs a
+// name: an 8-char key on its own tells the reader nothing about whether the
+// link is the one they meant.
+func NoteLabel(title, body string) string {
+	if title != "" {
+		return title
+	}
+	return noteSnippet(body)
+}
