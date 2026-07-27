@@ -23,15 +23,33 @@ func linkCommand() *cli.Command {
 		Description: "Zotero's \"related items\" (dc:relation), the link its desktop UI\n" +
 			"shows in the Related pane. Relations are bidirectional: linking\n" +
 			"writes both sides, so the pair shows up on each item.\n\n" +
-			"$ sci zot link NOTEKEY1 PAPERKEY1     # relate a note to the paper it discusses\n" +
-			"$ sci zot link list NOTEKEY1          # what is this related to?\n" +
-			"$ sci zot link rm NOTEKEY1 PAPERKEY1  # remove the relation (both sides)",
-		ArgsUsage: "<key-a> <key-b>",
+			"$ sci zot link add NOTEKEY1 PAPERKEY1  # relate a note to the paper it discusses\n" +
+			"$ sci zot link list NOTEKEY1           # what is this related to?\n" +
+			"$ sci zot link rm NOTEKEY1 PAPERKEY1   # remove the relation (both sides)",
 		Commands: []*cli.Command{
+			linkAddCommand(),
 			linkListCommand(),
 			linkRmCommand(),
 		},
-		Action: linkAddAction,
+	}
+}
+
+// The pair-relating verb is `add` rather than a bare `zot link A B`
+// because a namespace parent can't also take positionals: every parent
+// goes through cmdutil.WireNamespaceDefaults, which rejects an unknown
+// child, so the first key would be read as a misspelled subcommand.
+// `link add` also matches the add/rm shape of `item note add` and
+// `collection add`.
+func linkAddCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "add",
+		Usage: "Relate two items",
+		Description: "$ sci zot link add NOTEKEY1 PAPERKEY1\n\n" +
+			"Writes both directions, so the relation shows on each item in\n" +
+			"Zotero. Re-running is a no-op per side, so a retry after a\n" +
+			"partial failure repairs the missing half.",
+		ArgsUsage: "<key-a> <key-b>",
+		Action:    linkAddAction,
 	}
 }
 
