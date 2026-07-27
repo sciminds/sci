@@ -180,6 +180,9 @@ func seedFixture(dir string) error {
 			(80, 1, 1, 'GGGG7777', 5,  '2024-06-01 10:00:00', '2024-06-01 10:00:00', '2024-06-01 10:00:00'),
 			(81, 3, 1, 'HHHH8888', 4,  '2024-06-01 10:05:00', '2024-06-01 10:05:00', '2024-06-01 10:05:00'),
 			(90, 4, 1, 'NOTECH10', 6,  '2024-01-02 10:00:00', '2024-01-02 10:00:00', '2024-01-02 10:00:00'),
+			-- Note 91 carries a realistic Zotero note wrapper so the note-search
+			-- tests can prove markup words ("div", "znv1") never match as content.
+			(91, 4, 1, 'NOTECH11', 7,  '2024-01-03 10:00:00', '2024-01-03 10:00:00', '2024-01-03 10:00:00'),
 			-- Group-library items (libraryID=2) seed the dual-scope tests.
 			-- Keys use a distinct prefix so leak assertions are easy to read.
 			(200, 1, 2, 'GRPITEM01', 1, '2024-07-01 10:00:00', '2024-07-01 10:00:00', '2024-07-01 10:00:00'),
@@ -258,7 +261,8 @@ func seedFixture(dir string) error {
 		// Item 90 is a note child of item 10 (tagged "docling").
 		`INSERT INTO itemNotes VALUES
 			(70,NULL,'<p>Loose thoughts on attention.</p>','Attention Notes'),
-			(90,10,'<p>Extracted via docling.</p>','Extraction Note')`,
+			(90,10,'<p>Extracted via docling.</p>','Extraction Note'),
+			(91,20,'<div class="zotero-note znv1"><h1>Successor Representations</h1><p>The successor representation factorizes graph communicability &amp; predictive maps.</p></div>','SR Note')`,
 
 		// Fulltext index: words linked to PDF attachment items.
 		// Attachment 40 (parent 10): "neuroimaging", "brain", "network", "analysis"

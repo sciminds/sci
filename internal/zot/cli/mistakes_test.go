@@ -287,3 +287,16 @@ func mustCoded(t *testing.T, err error) *cmdutil.CodedError {
 	}
 	return coded
 }
+
+// TestNoteTextIsLocalOnly — --note-text and --remote both search note
+// content; combining them is a contradiction, not a widening.
+func TestNoteTextIsLocalOnly(t *testing.T) {
+	t.Parallel()
+	_, err := runItemRead(t, "--json", "--library", "personal", "search", "--note-text", "--remote", "foo")
+	if err == nil {
+		t.Fatal("want a conflict error")
+	}
+	if !strings.Contains(err.Error(), "--note-text is local-only") {
+		t.Errorf("err = %v", err)
+	}
+}

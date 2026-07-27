@@ -53,8 +53,9 @@ func TestListChildren_NoChildren(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 
-	// Item 20 has no children.
-	got, err := db.ListChildren("BBBB2222")
+	// Item 30 has no children. (Item 20 carries note 91, the note-search
+	// fixture, so it is no longer the childless one.)
+	got, err := db.ListChildren("CCCC3333")
 	if err != nil {
 		t.Fatal(err)
 	}

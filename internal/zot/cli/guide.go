@@ -50,7 +50,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Find papers in my library on a topic",
 						Cmd:  "sci zot search \"large language models\" --library personal",
-						Note: "Local title/DOI/publication/creators/citekey, ranked by title relevance then year. Add --fulltext to also match PDF text (local word index), or --remote for the Zotero Web fulltext (abstract + notes + PDFs). --library can go in any position — `sci zot --library personal search ...` works equivalently.",
+						Note: "Local title/DOI/publication/creators/citekey, ranked by title relevance then year. Add --fulltext to also match PDF text (local word index), --note-text to also match note content (extraction + standalone notes), or --remote for the Zotero Web fulltext (abstract + notes + PDFs). Note --notes is a different flag: it FILTERS to items that have notes rather than searching inside them. Matching is substring, so short terms hit word interiors (\"div\" matches \"individual\"). --library can go in any position — `sci zot --library personal search ...` works equivalently.",
 					},
 					{
 						Goal: "Which paper is this cite-key / Zotero key?",

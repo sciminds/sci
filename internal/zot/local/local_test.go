@@ -93,10 +93,11 @@ func TestList_FilterByType_Note(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Fixture has one standalone note (key ORPHNNOTE) and one child note
-	// (key NOTECH10). Both should surface when the user asks for notes.
+	// Fixture has one standalone note (key ORPHNNOTE) and two child notes
+	// (NOTECH10, and NOTECH11 for the note-search tests). All should surface
+	// when the user asks for notes.
 	got := keysOf(items)
-	wantSet := map[string]bool{"ORPHNNOTE": true, "NOTECH10": true}
+	wantSet := map[string]bool{"ORPHNNOTE": true, "NOTECH10": true, "NOTECH11": true}
 	for _, k := range got {
 		if !wantSet[k] {
 			t.Errorf("unexpected key in type=note results: %q", k)

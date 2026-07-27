@@ -35,6 +35,7 @@ var (
 	searchRemote   bool
 	searchFull     bool
 	searchFulltext bool
+	searchNoteText bool
 
 	exportFormat string
 	exportOut    string
@@ -143,6 +144,7 @@ func searchCommand() *cli.Command {
 			"$ sci zot search '@type: book | @type: thesis'  # OR across clauses\n" +
 			"$ sci zot search '@citekey: saxe2022-ment'      # which paper is this key?\n" +
 			"$ sci zot search cortical --fulltext            # also match PDF text (local index)\n" +
+			"$ sci zot search 'successor representation' --note-text  # also match note content\n" +
 			"$ sci zot search attention --export --out hits.bib\n" +
 			"$ sci zot search llm --remote   # Zotero Web API fulltext search (title + creators + year + abstract + notes + PDFs)",
 		ArgsUsage: "<query>",
@@ -153,8 +155,9 @@ func searchCommand() *cli.Command {
 			&cli.BoolFlag{Name: "export", Usage: "emit results as a bibliography instead of the normal hit list", Destination: &searchExport, Local: true},
 			&cli.StringFlag{Name: "format", Usage: "with --export, output format: bibtex, csl-json", Value: "bibtex", Destination: &searchExportFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
-			&cli.BoolFlag{Name: "notes", Usage: "only show items that have docling extraction notes (local only)", Destination: &searchNotes, Local: true},
+			&cli.BoolFlag{Name: "notes", Usage: "filter to items that HAVE docling extraction notes (see --note-text to search inside them)", Destination: &searchNotes, Local: true},
 			&cli.BoolFlag{Name: "fulltext", Usage: "also match free-text terms against the local PDF fulltext word index", Destination: &searchFulltext, Local: true},
+			&cli.BoolFlag{Name: "note-text", Usage: "also match free-text terms against note content (extraction notes, standalone notes) — local only", Destination: &searchNoteText, Local: true},
 			&cli.BoolFlag{Name: "remote", Usage: "hit the Zotero Web API with qmode=everything (matches abstract + fulltext + notes)", Destination: &searchRemote, Local: true},
 			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "hydrate each hit with abstract + citekey + authors (one extra local read per hit)", Destination: &searchFull, Local: true},
 		},
@@ -176,6 +179,10 @@ func searchCommand() *cli.Command {
 			if searchRemote && searchFulltext {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--fulltext is local-only").
 					WithTry("drop --fulltext; --remote already matches PDF fulltext server-side")
+			}
+			if searchRemote && searchNoteText {
+				return cmdutil.Coded(cmdutil.CodeConflict, "--note-text is local-only").
+					WithTry("drop --note-text; --remote already matches note content server-side")
 			}
 			if searchFull && searchExport {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--full and --export are mutually exclusive").
@@ -231,7 +238,7 @@ func searchCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			items, total, err := db.SearchWithTotal(query, searchLimit, local.SearchOptions{Fulltext: searchFulltext})
+			items, total, err := db.SearchWithTotal(query, searchLimit, local.SearchOptions{Fulltext: searchFulltext, Notes: searchNoteText})
 			if err != nil {
 				return err
 			}
@@ -279,8 +286,8 @@ func searchCommand() *cli.Command {
 					Library:   db.LibraryID(),
 				}
 				if len(briefs) == 0 {
-					bres.Scope = localSearchScope(searchFulltext)
-					bres.Hint = localSearchHint(searchFulltext)
+					bres.Scope = localSearchScope(searchFulltext, searchNoteText)
+					bres.Hint = localSearchHint(searchFulltext, searchNoteText)
 				}
 				outputScoped(ctx, cmd, cmdutil.WithWarnings(bres, staleWarns...))
 				return nil
@@ -294,8 +301,8 @@ func searchCommand() *cli.Command {
 				Library:   db.LibraryID(),
 			}
 			if len(items) == 0 {
-				res.Scope = localSearchScope(searchFulltext)
-				res.Hint = localSearchHint(searchFulltext)
+				res.Scope = localSearchScope(searchFulltext, searchNoteText)
+				res.Hint = localSearchHint(searchFulltext, searchNoteText)
 			}
 			outputScoped(ctx, cmd, cmdutil.WithWarnings(res, staleWarns...))
 			return nil
@@ -835,18 +842,27 @@ func openCommand() *cli.Command {
 
 // localSearchScope describes which fields a local search matched against,
 // shown on empty results so users know what was (and wasn't) searched.
-func localSearchScope(fulltext bool) string {
+func localSearchScope(fulltext, noteText bool) string {
+	scope := "title, DOI, publication, creators, citekey"
 	if fulltext {
-		return "title, DOI, publication, creators, citekey + PDF fulltext (local)"
+		scope += " + PDF fulltext"
 	}
-	return "title, DOI, publication, creators, citekey (local)"
+	if noteText {
+		scope += " + note content"
+	}
+	return scope + " (local)"
 }
 
 // localSearchHint suggests the next-wider search when a local query comes
 // back empty.
-func localSearchHint(fulltext bool) string {
-	if fulltext {
-		return "try --remote to also match abstract and notes"
+func localSearchHint(fulltext, noteText bool) string {
+	var wider []string
+	if !fulltext {
+		wider = append(wider, "--fulltext to also match PDF text")
 	}
-	return "try --fulltext to also match PDF text, or --remote for abstract + notes"
+	if !noteText {
+		wider = append(wider, "--note-text to also match note content")
+	}
+	wider = append(wider, "--remote for the Zotero Web index (abstract + notes + PDFs)")
+	return "try " + strings.Join(wider, ", or ")
 }

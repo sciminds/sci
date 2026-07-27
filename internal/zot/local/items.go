@@ -446,6 +446,11 @@ type SearchOptions struct {
 	// fulltext word index (prefix match, AND across words). Field-scoped
 	// and negated clauses never consult the index.
 	Fulltext bool
+	// Notes additionally matches free-text terms against note content — the
+	// rendered text, not the stored HTML (see [DB.SearchNotes]). A child
+	// note's hit surfaces its parent item; a standalone note surfaces
+	// itself. Like Fulltext, it widens only positive free-text clauses.
+	Notes bool
 }
 
 // Search returns items matching the query, ranked by title relevance.
@@ -492,15 +497,25 @@ func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Ite
 	var orParts []string
 	var clauseArgs []any
 	for _, group := range groups {
+		// Both widenings feed the same "also match these item IDs" set that
+		// buildClauseSQL ORs into positive free-text clauses.
 		var ftIDs []int64
-		if opts.Fulltext {
-			if words := bareSearchWords(group); len(words) > 0 {
+		if words := bareSearchWords(group); len(words) > 0 {
+			if opts.Fulltext {
 				ids, err := d.SearchFulltext(words, false)
 				if err != nil {
 					return nil, 0, err
 				}
-				ftIDs = ids
+				ftIDs = append(ftIDs, ids...)
 			}
+			if opts.Notes {
+				ids, err := d.SearchNotes(words)
+				if err != nil {
+					return nil, 0, err
+				}
+				ftIDs = append(ftIDs, ids...)
+			}
+			ftIDs = lo.Uniq(ftIDs)
 		}
 		var andParts []string
 		for _, c := range group {
