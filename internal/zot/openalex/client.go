@@ -56,6 +56,25 @@ func NewClient(email, apiKey string) *Client {
 	}
 }
 
+// StatusError is a non-2xx response from the OpenAlex API. Callers that need
+// to distinguish "the index says no such work" (404) from "we couldn't ask"
+// (429, 5xx, transport) should match on this with [errors.AsType] rather than
+// sniff the message — `zot bib --verify` reports a 404 as a probably-invented
+// citation, so that verdict has to rest on the status code.
+//
+// The rendered message keeps its historical `openalex <path>: <code> — <body>`
+// shape; pdffind's is404 still matches on it.
+type StatusError struct {
+	Path string
+	Code int
+	Body string
+}
+
+// Error implements error.
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("openalex %s: %d — %s", e.Path, e.Code, e.Body)
+}
+
 // Get performs a GET request and decodes the JSON response into dst.
 func (c *Client) Get(ctx context.Context, path string, params url.Values, dst any) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.buildURL(path, params), nil)
@@ -81,7 +100,7 @@ func (c *Client) Get(ctx context.Context, path string, params url.Values, dst an
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("openalex %s: %d — %s", path, resp.StatusCode, strings.TrimSpace(string(body)))
+		return &StatusError{Path: path, Code: resp.StatusCode, Body: strings.TrimSpace(string(body))}
 	}
 	if dst != nil {
 		if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {

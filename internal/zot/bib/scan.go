@@ -69,6 +69,30 @@ var (
 // punctuation that the greedy character classes swallow.
 const trailingPunct = ".,;:!?"
 
+// trimRefTail strips the sentence punctuation and wrapping parentheses a
+// greedy match drags in, without damaging identifiers that legitimately
+// contain them.
+//
+// Parentheses need the balance check because both forms are real: prose
+// writes "(doi:10.1038/xyz)" and Wiley's SICI DOIs are literally
+// "10.1002/(SICI)1097-0258(19980815)". Trimming every trailing ")" would
+// corrupt the second; trimming none leaves the first unresolvable — and
+// under `bib --verify` an unresolvable DOI reads as a fabricated citation,
+// so this is a correctness fix, not cosmetics.
+func trimRefTail(s string) string {
+	for {
+		trimmed := strings.TrimRight(s, trailingPunct)
+		if strings.HasSuffix(trimmed, ")") &&
+			strings.Count(trimmed, ")") > strings.Count(trimmed, "(") {
+			trimmed = trimmed[:len(trimmed)-1]
+		}
+		if trimmed == s {
+			return s
+		}
+		s = trimmed
+	}
+}
+
 // span is a half-open matched region [start, end) used to keep later
 // passes from re-matching text a higher-precedence pass already claimed.
 type span struct{ start, end int }
@@ -116,7 +140,7 @@ func ScanText(text string) []Ref {
 			continue
 		}
 		claimed = append(claimed, span{m[0], m[1]})
-		raw := strings.TrimRight(text[m[0]:m[1]], trailingPunct)
+		raw := trimRefTail(text[m[0]:m[1]])
 		switch {
 		case doiURLRe.MatchString(raw):
 			doi := doiURLRe.FindStringSubmatch(raw)[1]
@@ -134,7 +158,7 @@ func ScanText(text string) []Ref {
 			continue
 		}
 		claimed = append(claimed, span{m[0], m[1]})
-		doi := strings.TrimRight(text[m[0]:m[1]], trailingPunct)
+		doi := trimRefTail(text[m[0]:m[1]])
 		add(m[0], Ref{Raw: doi, Kind: KindDOI, Value: doi})
 	}
 

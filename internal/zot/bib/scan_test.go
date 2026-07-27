@@ -93,3 +93,41 @@ func TestScanText_DOIInsideURLNotDoubleCounted(t *testing.T) {
 		t.Errorf("refs = %v, want %v", refStrings(refs), want)
 	}
 }
+
+// TestScanText_TrimsUnbalancedClosingParen — a DOI written inside prose
+// parentheses, "(doi:10.1038/s41562-024-98765-4)", swallowed the closing
+// paren. With --verify that turns a real DOI into a 404 and a real citation
+// into an accusation, so the trim has to happen at scan time.
+func TestScanText_TrimsUnbalancedClosingParen(t *testing.T) {
+	t.Parallel()
+	refs := ScanText("Compositional social prediction (doi:10.1038/s41562-024-98765-4).")
+	if len(refs) != 1 {
+		t.Fatalf("refs = %+v", refs)
+	}
+	if refs[0].Value != "10.1038/s41562-024-98765-4" {
+		t.Errorf("value = %q", refs[0].Value)
+	}
+}
+
+// TestScanText_KeepsBalancedParensInDOI — Wiley's old SICI DOIs genuinely
+// contain parentheses; trimming them unconditionally would break real keys.
+func TestScanText_KeepsBalancedParensInDOI(t *testing.T) {
+	t.Parallel()
+	refs := ScanText("See 10.1002/(SICI)1097-0258(19980815) for the method.")
+	if len(refs) != 1 {
+		t.Fatalf("refs = %+v", refs)
+	}
+	if refs[0].Value != "10.1002/(SICI)1097-0258(19980815)" {
+		t.Errorf("value = %q", refs[0].Value)
+	}
+}
+
+// TestScanText_TrimsParenAfterSentencePunctuation covers the two trims
+// composing: "(10.1000/abc.)" has both a period and an unbalanced paren.
+func TestScanText_TrimsParenAfterSentencePunctuation(t *testing.T) {
+	t.Parallel()
+	refs := ScanText("As shown (10.1000/abc.)")
+	if len(refs) != 1 || refs[0].Value != "10.1000/abc" {
+		t.Fatalf("refs = %+v", refs)
+	}
+}

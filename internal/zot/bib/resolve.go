@@ -3,6 +3,7 @@ package bib
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -22,6 +23,11 @@ type Unresolved struct {
 	Ref
 	// Reason explains the failure: "no match" or "ambiguous (N candidates)".
 	Reason string `json:"reason"`
+	// Candidates names the competing Zotero item keys when the reference was
+	// ambiguous, sorted for stable output. Empty for a no-match — an empty
+	// list would read as "we found something", which inverts the honesty
+	// contract. Callers turn these into a disambiguation fix.
+	Candidates []string `json:"candidates,omitempty"`
 }
 
 // zotKeySuffixRe extracts the trailing 8-char Zotero key from a
@@ -57,10 +63,10 @@ func Resolve(refs []Ref, items []local.Item) ([]local.Item, []Unresolved) {
 		it, candidates := idx.lookup(ref)
 		if it == nil {
 			reason := "no match"
-			if candidates > 1 {
-				reason = fmt.Sprintf("ambiguous (%d candidates)", candidates)
+			if len(candidates) > 1 {
+				reason = fmt.Sprintf("ambiguous (%d candidates)", len(candidates))
 			}
-			unresolved = append(unresolved, Unresolved{Ref: ref, Reason: reason})
+			unresolved = append(unresolved, Unresolved{Ref: ref, Reason: reason, Candidates: candidates})
 			continue
 		}
 		if !seen[it.Key] {
@@ -99,9 +105,9 @@ func buildIndex(items []local.Item) *libraryIndex {
 	return idx
 }
 
-// lookup resolves one reference. Returns the single match, or nil plus
-// the number of distinct candidates (0 = no match, >1 = ambiguous).
-func (idx *libraryIndex) lookup(ref Ref) (*local.Item, int) {
+// lookup resolves one reference. Returns the single match, or nil plus the
+// distinct candidate keys (empty = no match, >1 = ambiguous).
+func (idx *libraryIndex) lookup(ref Ref) (*local.Item, []string) {
 	switch ref.Kind {
 	case KindCitekey:
 		return idx.lookupCitekey(ref.Value)
@@ -137,31 +143,37 @@ func (idx *libraryIndex) lookup(ref Ref) (*local.Item, int) {
 				(strings.Contains(it.URL, ref.Value) || strings.Contains(ref.Value, it.URL))
 		}))
 	default:
-		return nil, 0
+		return nil, nil
 	}
 }
 
-func (idx *libraryIndex) lookupCitekey(value string) (*local.Item, int) {
+func (idx *libraryIndex) lookupCitekey(value string) (*local.Item, []string) {
 	if cands := idx.byCitekey[strings.ToLower(value)]; len(cands) > 0 {
 		return unique(cands)
 	}
 	// A synthesized key whose prefix drifted still carries the Zotero key.
 	if m := zotKeySuffixRe.FindStringSubmatch(strings.ToUpper(value)); m != nil {
 		if it, ok := idx.byZotKey[m[1]]; ok {
-			return it, 1
+			return it, nil
 		}
 	}
-	return nil, 0
+	return nil, nil
 }
 
-// unique returns the single distinct item in cands, or nil plus the
-// distinct-candidate count when there isn't exactly one.
-func unique(cands []*local.Item) (*local.Item, int) {
+// unique returns the single distinct item in cands. When there isn't exactly
+// one it returns nil plus the distinct Zotero keys, sorted — empty for no
+// match, the competing keys for an ambiguity.
+func unique(cands []*local.Item) (*local.Item, []string) {
 	distinct := lo.UniqBy(cands, func(it *local.Item) string { return it.Key })
-	if len(distinct) == 1 {
-		return distinct[0], 1
+	switch len(distinct) {
+	case 0:
+		return nil, nil
+	case 1:
+		return distinct[0], nil
 	}
-	return nil, len(distinct)
+	keys := lo.Map(distinct, func(it *local.Item, _ int) string { return it.Key })
+	slices.Sort(keys)
+	return nil, keys
 }
 
 // normalizeDOI lowercases a DOI and strips resolver-URL and "doi:"

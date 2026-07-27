@@ -142,6 +142,11 @@ func guideContent() zot.GuideResult {
 						Cmd:  "sci zot bib paper.qmd --out refs.bib",
 						Note: "Scans markdown/Quarto for @citekeys, [[wikilinks]], DOIs, arXiv ids, URLs; resolves each against the library. Point at a folder (+ --recursive) to scan many. Refs matching 0 or >1 items are listed as unresolved, never guessed. --format csl-json supported.",
 					},
+					{
+						Goal: "Check a draft's citations are real before you submit it",
+						Cmd:  "sci zot bib draft.md --verify",
+						Note: "Classifies every unresolved ref: external (real work, missing from the library — carries a runnable `item add --openalex` fix), not-found (no citation index AND no DOI registry has it — the fabricated-citation signal), ambiguous (>1 library match, fix shows the candidates), unchecked (cite-key/wikilink/URL — no identifier to verify, decide by hand), error (lookup failed, standing unknown). Needs network. Retracted works are flagged on the match.",
+					},
 				},
 			},
 			{

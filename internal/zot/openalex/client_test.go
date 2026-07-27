@@ -3,6 +3,7 @@ package openalex
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -200,5 +201,36 @@ func TestClient_Get_surfaces4xxError(t *testing.T) {
 	err := c.Get(context.Background(), "/works/Wnope", nil, new(Work))
 	if err == nil || !strings.Contains(err.Error(), "404") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// TestClient_Get_statusErrorIsTyped — `bib --verify` reports a 404 as
+// "this citation resolves nowhere", which is an accusation. That verdict has
+// to rest on the HTTP status code, not on sniffing "404" out of a message
+// that a DOI containing the digits 404 would also satisfy.
+func TestClient_Get_statusErrorIsTyped(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "Not Found", http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	c := NewClient("", "")
+	c.BaseURL = srv.URL
+
+	err := c.Get(context.Background(), "/works/doi:10.1/nope", nil, &Work{})
+	serr, ok := errors.AsType[*StatusError](err)
+	if !ok {
+		t.Fatalf("err = %v (%T), want *StatusError", err, err)
+	}
+	if serr.Code != http.StatusNotFound {
+		t.Errorf("code = %d, want 404", serr.Code)
+	}
+	if serr.Path != "/works/doi:10.1/nope" {
+		t.Errorf("path = %q", serr.Path)
+	}
+	// pdffind's is404 sniffs the rendered message; keep the format stable.
+	if !strings.Contains(err.Error(), "404") || !strings.HasPrefix(err.Error(), "openalex ") {
+		t.Errorf("message format changed: %q", err.Error())
 	}
 }

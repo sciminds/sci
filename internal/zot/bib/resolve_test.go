@@ -202,3 +202,48 @@ func keysOf(items []local.Item) []string {
 	}
 	return out
 }
+
+// TestResolve_AmbiguousReportsCandidates pins the disambiguation payload:
+// when a reference matches more than one item the resolver refuses to guess
+// (existing contract) AND names the competing Zotero keys, so the caller can
+// emit an actionable fix instead of "ambiguous (2 candidates)" and nothing
+// to act on. Eshin's hand-written case: "Carey 2009" matching two records.
+func TestResolve_AmbiguousReportsCandidates(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		{
+			Key: "DDDD4444", Type: "book", Title: "The Origin of Concepts",
+			Year: 2009, Creators: []local.Creator{{Type: "author", Last: "Carey"}},
+		},
+		{
+			Key: "EEEE5555", Type: "journalArticle", Title: "The Origin of Concepts (article)",
+			Year: 2009, Creators: []local.Creator{{Type: "author", Last: "Carey"}},
+		},
+	}
+	_, unresolved := Resolve([]Ref{{Kind: KindWikilink, Value: "Carey 2009"}}, items)
+	if len(unresolved) != 1 {
+		t.Fatalf("unresolved = %d, want 1", len(unresolved))
+	}
+	u := unresolved[0]
+	if u.Reason != "ambiguous (2 candidates)" {
+		t.Errorf("reason = %q", u.Reason)
+	}
+	want := []string{"DDDD4444", "EEEE5555"}
+	if !slices.Equal(u.Candidates, want) {
+		t.Errorf("candidates = %v, want %v", u.Candidates, want)
+	}
+}
+
+// TestResolve_NoMatchHasNoCandidates keeps Candidates empty (and omitted
+// from JSON) when nothing matched — an empty list would read as "we found
+// something", which is the opposite of the honesty contract.
+func TestResolve_NoMatchHasNoCandidates(t *testing.T) {
+	t.Parallel()
+	_, unresolved := Resolve([]Ref{{Kind: KindDOI, Value: "10.9999/nope"}}, testItems())
+	if len(unresolved) != 1 {
+		t.Fatalf("unresolved = %d, want 1", len(unresolved))
+	}
+	if unresolved[0].Candidates != nil {
+		t.Errorf("candidates = %v, want nil", unresolved[0].Candidates)
+	}
+}

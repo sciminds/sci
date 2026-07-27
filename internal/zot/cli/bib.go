@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,9 +14,12 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/bib"
+	"github.com/sciminds/cli/internal/zot/doiorg"
 	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/cli/internal/zot/openalex"
 	"github.com/urfave/cli/v3"
 )
 
@@ -22,7 +28,97 @@ var (
 	bibFormat    string
 	bibOut       string
 	bibRecursive bool
+	bibVerify    bool
 )
+
+// workResolver is the one openalex.Client method the verification lookup
+// needs — narrowed so the adapter is testable without HTTP.
+type workResolver interface {
+	ResolveWork(ctx context.Context, identifier string) (*openalex.Work, error)
+}
+
+// openAlexLookup adapts the OpenAlex client to [bib.Lookup]: it turns a
+// citation reference into an upstream identifier, and a non-2xx response into
+// the right kind of failure. A 404 becomes [bib.ErrNotFound] (evidence the
+// citation is invented); everything else stays an error (evidence only that
+// the network misbehaved).
+type openAlexLookup struct{ c workResolver }
+
+func (l openAlexLookup) ResolveRef(ctx context.Context, ref bib.Ref) (*bib.Match, error) {
+	id := ref.Value
+	if ref.Kind == bib.KindArxiv {
+		// A bare "1706.03762" reads as an arXiv id to NormalizeID only by
+		// pattern; saying so explicitly keeps the lookup deterministic.
+		id = "arxiv:" + id
+	}
+	w, err := l.c.ResolveWork(ctx, id)
+	if err != nil {
+		if serr, ok := errors.AsType[*openalex.StatusError](err); ok && serr.Code == http.StatusNotFound {
+			return nil, bib.ErrNotFound
+		}
+		return nil, err
+	}
+	return matchFromWork(w), nil
+}
+
+// doiResolver is the one doiorg.Client method the registry lookup needs.
+type doiResolver interface {
+	Resolve(ctx context.Context, doi string) (*doiorg.Record, error)
+}
+
+// registryLookup adapts the doi.org registry to [bib.Lookup]. It is the
+// authoritative leg of the verification chain: doi.org fronts every
+// registrar, so its 404 is the only sound basis for calling a citation
+// invented. It carries less metadata than a citation index and — notably —
+// knows nothing about retractions, so it never sets that flag.
+type registryLookup struct{ c doiResolver }
+
+func (l registryLookup) ResolveRef(ctx context.Context, ref bib.Ref) (*bib.Match, error) {
+	target := ref.Value
+	if ref.Kind == bib.KindArxiv {
+		// arXiv registers a DataCite DOI per preprint, which puts preprints
+		// on the same registry path as everything else.
+		target = doiorg.ArxivDOI(ref.Value)
+	}
+	rec, err := l.c.Resolve(ctx, target)
+	if err != nil {
+		if errors.Is(err, doiorg.ErrNotFound) {
+			return nil, bib.ErrNotFound
+		}
+		return nil, err
+	}
+	return &bib.Match{
+		DOI:   cmp.Or(rec.DOI, target),
+		Title: rec.Title,
+		Year:  rec.Year,
+		Venue: rec.Venue,
+	}, nil
+}
+
+// matchFromWork projects an OpenAlex work onto the compact [bib.Match],
+// stripping the URL wrappers OpenAlex puts on ids so both the DOI and the
+// short id can be pasted straight into `item add --openalex`.
+func matchFromWork(w *openalex.Work) *bib.Match {
+	m := &bib.Match{
+		OpenAlexID: strings.TrimPrefix(strings.TrimPrefix(w.ID, "https://"), "openalex.org/"),
+		Retracted:  w.IsRetracted,
+	}
+	if w.DOI != nil {
+		m.DOI = strings.TrimPrefix(strings.TrimPrefix(*w.DOI, "https://"), "doi.org/")
+	}
+	if w.Title != nil {
+		m.Title = *w.Title
+	} else if w.DisplayName != nil {
+		m.Title = *w.DisplayName
+	}
+	if w.PublicationYear != nil {
+		m.Year = *w.PublicationYear
+	}
+	if w.PrimaryLocation != nil && w.PrimaryLocation.Source != nil {
+		m.Venue = w.PrimaryLocation.Source.DisplayName
+	}
+	return m
+}
 
 // bibDocExts are the file extensions `zot bib` scans when given a
 // directory: markdown (vault notes) and Quarto manuscripts.
@@ -39,12 +135,14 @@ func bibCommand() *cli.Command {
 			"item are always listed, never silently dropped.\n\n" +
 			"$ sci zot bib paper.qmd --out refs.bib\n" +
 			"$ sci zot bib notes/ --recursive --format csl-json --out refs.json\n" +
-			"$ sci zot bib draft.md            # bibtex to stdout",
+			"$ sci zot bib draft.md            # bibtex to stdout\n" +
+			"$ sci zot bib draft.md --verify   # also: which unresolved refs are real?",
 		ArgsUsage: "<file-or-dir>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "bibtex", Usage: "output format: bibtex, csl-json", Destination: &bibFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file (enables drift-detection keymap sidecar)", Destination: &bibOut, Local: true},
 			&cli.BoolFlag{Name: "recursive", Aliases: []string{"r"}, Usage: "with a directory, descend into subdirectories", Destination: &bibRecursive, Local: true},
+			&cli.BoolFlag{Name: "verify", Usage: "check unresolved DOIs / arXiv ids against OpenAlex: real-but-missing vs. resolves-nowhere (needs network)", Destination: &bibVerify, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
@@ -94,11 +192,41 @@ func bibCommand() *cli.Command {
 				Resolved:   len(resolved),
 				Unresolved: unresolved,
 			}
+			if bibVerify && len(unresolved) > 0 {
+				res.Verified, err = verifyUnresolved(ctx, unresolved, scopeFromCtx(ctx))
+				if err != nil {
+					return err
+				}
+			}
 			warns := append(staleLocalWarning(db, ""), bibQualityWarning(resolved, scopeFromCtx(ctx))...)
 			outputScoped(ctx, cmd, cmdutil.WithWarnings(res, warns...))
 			return nil
 		},
 	}
+}
+
+// verifyUnresolved classifies the references that didn't resolve locally
+// against OpenAlex and attaches a runnable fix to each verdict that has one.
+// Requires the network — the whole point is asking an index we don't hold.
+func verifyUnresolved(ctx context.Context, unresolved []bib.Unresolved, scope string) ([]bib.Verified, error) {
+	if !netutil.Online() {
+		return nil, cmdutil.Coded(cmdutil.CodeOffline,
+			"--verify needs network access to reach OpenAlex").
+			WithTry("drop --verify to get the unresolved list without upstream classification")
+	}
+	client, err := openalexClient()
+	if err != nil {
+		return nil, err
+	}
+	// Citation index first (rich metadata, retraction flags), DOI registry
+	// second (authoritative existence). Only when both miss is a reference
+	// reported as resolving nowhere.
+	lookup := bib.ChainLookup{openAlexLookup{client}, registryLookup{doiorg.New()}}
+	verified := bib.Verify(ctx, unresolved, lookup)
+	for i := range verified {
+		verified[i].Fix = bib.FixCommand(verified[i], scope)
+	}
+	return verified, nil
 }
 
 // collectBibTargets expands a path argument into the ordered list of
