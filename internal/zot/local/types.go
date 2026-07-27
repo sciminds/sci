@@ -41,6 +41,13 @@ type Item struct {
 	// when items come from the Zotero Web API (`meta.numChildren`). Local DB
 	// queries leave it zero — the local path doesn't filter on it.
 	NumChildren int `json:"num_children,omitempty"`
+	// Relations is the item's related items (Zotero's dc:relation) plus the
+	// predicates Zotero maintains itself. Intrinsic to the item, like Tags
+	// and Attachments, and populated by the same reads that populate those
+	// — Read and api.ItemFromClient — never by List/Search. A pointer so an
+	// item with no relations omits the key entirely rather than emitting an
+	// empty object.
+	Relations *ItemRelationSet `json:"relations,omitempty"`
 }
 
 // Creator holds one author/editor/etc. fieldMode=1 indicates a single-name

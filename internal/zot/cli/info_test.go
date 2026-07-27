@@ -83,6 +83,8 @@ func seedMinimalDB(t *testing.T, dir, sharedGroupID string) {
 		`CREATE TABLE collectionItems (collectionID INTEGER, itemID INTEGER, PRIMARY KEY (collectionID, itemID))`,
 		`CREATE TABLE itemAttachments (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, linkMode INTEGER, contentType TEXT, path TEXT)`,
 		`CREATE TABLE itemNotes (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, note TEXT, title TEXT)`,
+		`CREATE TABLE relationPredicates (predicateID INTEGER PRIMARY KEY, predicate TEXT UNIQUE)`,
+		`CREATE TABLE itemRelations (itemID INTEGER, predicateID INTEGER, object TEXT, PRIMARY KEY (itemID, predicateID, object))`,
 		`INSERT INTO version VALUES ('userdata', 125)`,
 		`INSERT INTO libraries VALUES (1, 'user', 1)`,
 		`INSERT INTO itemTypes VALUES (1, 'journalArticle')`,

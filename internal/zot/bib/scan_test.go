@@ -1,6 +1,7 @@
 package bib
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 )
@@ -129,5 +130,81 @@ func TestScanText_TrimsParenAfterSentencePunctuation(t *testing.T) {
 	refs := ScanText("As shown (10.1000/abc.)")
 	if len(refs) != 1 || refs[0].Value != "10.1000/abc" {
 		t.Fatalf("refs = %+v", refs)
+	}
+}
+
+// ── zotero:// item URIs ──────────────────────────────────────────────
+
+// A standalone note that discusses papers cites them the way Zotero's own
+// UI writes links: `zotero://select/...`. Both the personal-library and
+// group forms occur, bare and wrapped in a markdown link.
+func TestScanText_ZoteroURIs(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		text string
+		want []Ref
+	}{
+		{
+			name: "bare personal-library URI",
+			text: "see zotero://select/library/items/ABCD1234 for the argument",
+			want: []Ref{{Raw: "zotero://select/library/items/ABCD1234", Kind: KindZoteroKey, Value: "ABCD1234"}},
+		},
+		{
+			name: "inside a markdown link",
+			text: "[Ho 2022](zotero://select/library/items/ABCD1234) shows this",
+			want: []Ref{{Raw: "zotero://select/library/items/ABCD1234", Kind: KindZoteroKey, Value: "ABCD1234"}},
+		},
+		{
+			name: "group library form",
+			text: "[Ho 2022](zotero://select/groups/6506098/items/WXYZ9876)",
+			want: []Ref{{Raw: "zotero://select/groups/6506098/items/WXYZ9876", Kind: KindZoteroKey, Value: "WXYZ9876"}},
+		},
+		{
+			name: "without the select segment",
+			text: "zotero://library/items/ABCD1234",
+			want: []Ref{{Raw: "zotero://library/items/ABCD1234", Kind: KindZoteroKey, Value: "ABCD1234"}},
+		},
+		{
+			name: "several in one note, document order, deduped",
+			text: "first zotero://select/library/items/AAAA1111, then " +
+				"zotero://select/library/items/BBBB2222, then AAAA1111 again: " +
+				"zotero://select/library/items/AAAA1111",
+			want: []Ref{
+				{Raw: "zotero://select/library/items/AAAA1111", Kind: KindZoteroKey, Value: "AAAA1111"},
+				{Raw: "zotero://select/library/items/BBBB2222", Kind: KindZoteroKey, Value: "BBBB2222"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := ScanText(tt.text)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ScanText(%q) =\n  %+v\nwant\n  %+v", tt.text, got, tt.want)
+			}
+		})
+	}
+}
+
+// A zotero:// URI claims its span before the URL, DOI and citekey passes
+// run, so nothing inside it gets double-counted as another kind of ref.
+func TestScanText_ZoteroURIClaimsItsSpan(t *testing.T) {
+	t.Parallel()
+	got := ScanText("[Ho 2022](zotero://select/groups/6506098/items/ABCD1234)")
+	if len(got) != 1 {
+		t.Fatalf("ScanText = %+v, want exactly one ref", got)
+	}
+	if got[0].Kind != KindZoteroKey {
+		t.Errorf("Kind = %q, want %q", got[0].Kind, KindZoteroKey)
+	}
+}
+
+// A wikilink wins over anything nested inside it, same as every other pass.
+func TestScanText_WikilinkStillOutranksZoteroURI(t *testing.T) {
+	t.Parallel()
+	got := ScanText("[[zotero://select/library/items/ABCD1234]]")
+	if len(got) != 1 || got[0].Kind != KindWikilink {
+		t.Errorf("ScanText = %+v, want a single wikilink", got)
 	}
 }

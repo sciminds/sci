@@ -79,7 +79,46 @@ func ItemFromClient(it *client.Item) local.Item {
 	if it.Meta != nil && it.Meta.NumChildren != nil {
 		out.NumChildren = *it.Meta.NumChildren
 	}
+	out.Relations = relationSetFromClient(d.Relations)
 	return out
+}
+
+// relationSetFromClient maps the GET payload's relations into the same
+// split-by-owner shape the local reader produces, with BARE item keys on
+// both sides so `item read` renders identically with and without --remote.
+// It costs no extra HTTP — relations already ride in the item payload.
+//
+// Titles are left empty — naming a far end needs the local DB, which this
+// package deliberately doesn't touch. The CLI fills them in afterwards
+// (labelRemoteRelations): the RELATION is what's too new to be local, not
+// the papers it points at. Returns nil for a relation-free item so the JSON
+// key stays absent.
+func relationSetFromClient(m *map[string]client.ItemData_Relations_AdditionalProperties) *local.ItemRelationSet {
+	if m == nil {
+		return nil
+	}
+	out := local.ItemRelationSet{}
+	for pred, uris := range decodeRelations(*m) {
+		keys := lo.FilterMap(uris, func(uri string, _ int) (string, bool) {
+			k := keyFromURI(uri)
+			return k, k != ""
+		})
+		if len(keys) == 0 {
+			continue
+		}
+		if pred == RelatedPredicate {
+			out.Related = keys
+			continue
+		}
+		if out.Other == nil {
+			out.Other = map[string][]string{}
+		}
+		out.Other[pred] = keys
+	}
+	if len(out.Related) == 0 && len(out.Other) == 0 {
+		return nil
+	}
+	return &out
 }
 
 func creatorFromClient(c client.Creator, idx int) local.Creator {

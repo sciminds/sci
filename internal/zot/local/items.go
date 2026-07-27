@@ -845,6 +845,25 @@ LIMIT 1
 	}
 	it.Attachments = atts
 
+	// Relations stay nil when there are none, so the JSON shape of an
+	// unrelated item is byte-identical to what it was before relations
+	// existed. Labels come from one batched query, not one per far end.
+	rels, err := d.ItemRelations(it.Key)
+	if err != nil {
+		return nil, err
+	}
+	if len(rels.Related) > 0 || len(rels.Other) > 0 {
+		titles, err := d.ItemLabels(append(slices.Clone(rels.Related),
+			lo.Flatten(lo.Values(rels.Other))...))
+		if err != nil {
+			return nil, err
+		}
+		if len(titles) > 0 {
+			rels.Titles = titles
+		}
+		it.Relations = &rels
+	}
+
 	return &it, nil
 }
 

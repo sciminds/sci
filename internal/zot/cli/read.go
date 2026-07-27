@@ -433,6 +433,7 @@ func readCommand() *cli.Command {
 				}
 				it := api.ItemFromClient(raw)
 				citekey.Enrich(&it)
+				labelRemoteRelations(ctx, &it)
 				outputScoped(ctx, cmd, zot.ItemResult{Item: it})
 				return nil
 			}
@@ -451,6 +452,25 @@ func readCommand() *cli.Command {
 				staleLocalWarning(db, remoteRerunFix(os.Args))...))
 			return nil
 		},
+	}
+}
+
+// labelRemoteRelations names the far ends of an item fetched over the Web
+// API, best-effort, from the local mirror.
+//
+// The API knows the relation but not what it points at, and `--remote` is
+// exactly the flag you reach for right after `link add` — when the RELATION
+// is too new for the local DB but the papers on the other end have been in
+// it for months. Failures are swallowed: a bare key still identifies the
+// item, and a read that succeeded must not fail over decoration.
+func labelRemoteRelations(ctx context.Context, it *local.Item) {
+	if it.Relations == nil {
+		return
+	}
+	referenced := lo.Uniq(append(
+		lo.Flatten(lo.Values(it.Relations.Other)), it.Relations.Related...))
+	if labels := linkTitles(ctx, referenced...); len(labels) > 0 {
+		it.Relations.Titles = labels
 	}
 }
 

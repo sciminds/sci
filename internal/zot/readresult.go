@@ -2,6 +2,8 @@ package zot
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -159,7 +161,34 @@ func (r ItemResult) Human() string {
 			fmt.Fprintf(&b, "    %s  %s\n", uikit.TUI.TextBlue().Render(a.Key), a.Filename)
 		}
 	}
+	writeRelationsBlock(&b, it.Relations)
 	return b.String() + "\n"
+}
+
+// writeRelationsBlock renders an item's related items under its
+// attachments, so what a paper is linked to is visible where you already
+// look for its tags — without having to know `zot link list` exists.
+//
+// Predicate handling mirrors LinkListResult.Human: dc:relation renders as
+// "related" (it is the user's own link), and Zotero's own predicates render
+// last, under their real names, so nothing invites `link rm` to touch them.
+func writeRelationsBlock(b *strings.Builder, rels *local.ItemRelationSet) {
+	if rels == nil {
+		return
+	}
+	if len(rels.Related) > 0 {
+		fmt.Fprintf(b, "\n  %s\n", uikit.TUI.Dim().Render("related:"))
+		for _, k := range rels.Related {
+			writeLinkRow(b, "    ", k, rels.Titles[k])
+		}
+	}
+	for _, pred := range slices.Sorted(maps.Keys(rels.Other)) {
+		fmt.Fprintf(b, "\n  %s %s\n", uikit.TUI.Dim().Render(pred+":"),
+			uikit.TUI.Dim().Render("(Zotero-managed)"))
+		for _, k := range rels.Other[pred] {
+			writeLinkRow(b, "    ", k, rels.Titles[k])
+		}
+	}
 }
 
 // cleanDate returns just the sortable portion of a Zotero date string.
@@ -565,19 +594,4 @@ func (r MultiStatsResult) Human() string {
 		fmt.Fprintf(&b, "  %s %s\n", uikit.SymFail, e)
 	}
 	return b.String()
-}
-
-// NoteLabel is a display name for a note. Notes have an optional title and
-// often no title at all, so this falls back to a snippet of the body —
-// which, for an extraction, is the paper's opening prose rather than sci's
-// provenance header (see noteSnippet).
-//
-// Exported because a note showing up as the far end of a relation needs a
-// name: an 8-char key on its own tells the reader nothing about whether the
-// link is the one they meant.
-func NoteLabel(title, body string) string {
-	if title != "" {
-		return title
-	}
-	return noteSnippet(body)
 }

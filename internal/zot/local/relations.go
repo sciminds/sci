@@ -1,8 +1,14 @@
 package local
 
 import (
+	"cmp"
+	"database/sql"
 	"fmt"
 	"regexp"
+	"slices"
+	"strings"
+
+	"github.com/samber/lo"
 )
 
 // RelatedPredicate is Zotero's predicate for user-facing "related items" —
@@ -23,6 +29,12 @@ type ItemRelationSet struct {
 	Related []string `json:"related,omitempty"`
 	// Other is every remaining predicate → object keys.
 	Other map[string][]string `json:"other,omitempty"`
+	// Titles maps every key named above to a display label, where one was
+	// resolvable. A relation is only meaningful if you can tell what is on
+	// the other end, and an 8-char key doesn't tell you. Keys pointing into
+	// another library (what owl:sameAs is for) have no local row and are
+	// simply absent.
+	Titles map[string]string `json:"titles,omitempty"`
 }
 
 // relationURIRe extracts the item key from a Zotero item URI. The library
@@ -78,4 +90,75 @@ ORDER BY p.predicate, r.object
 		out.Other[predicate] = append(out.Other[predicate], key)
 	}
 	return out, rows.Err()
+}
+
+// relationLabelMax bounds a body-derived label. Long enough to recognize a
+// note by its opening sentence, short enough to sit on one terminal line
+// beside the key.
+const relationLabelMax = 60
+
+// ItemLabels resolves keys to display labels in ONE query.
+//
+// Both ends of a relation can be either a regular item or a note, and the
+// two store their name differently — an item's title is an EAV field, a
+// note's is the line Zotero derives from its first paragraph. This returns
+// whichever applies, so callers don't have to try Read then ReadNote per
+// key (which is O(n) round-trips and picks the wrong error to swallow).
+//
+// Keys with no row in this library are omitted rather than mapped to "":
+// an absent label means "render the bare key", and a relation pointing at
+// another library's item is normal, not an error.
+func (d *DB) ItemLabels(keys []string) (map[string]string, error) {
+	keys = lo.Uniq(lo.Filter(keys, func(k string, _ int) bool { return k != "" }))
+	if len(keys) == 0 {
+		return map[string]string{}, nil
+	}
+
+	q := `
+SELECT i.key, ` + fieldValueSubquery + ` AS title, n.title, n.note
+FROM items i
+LEFT JOIN itemNotes n ON n.itemID = i.itemID
+LEFT JOIN deletedItems di ON di.itemID = i.itemID
+WHERE i.libraryID = ? AND di.itemID IS NULL
+  AND i.key IN (` + strings.TrimSuffix(strings.Repeat("?,", len(keys)), ",") + `)
+`
+	args := slices.Concat([]any{"title", d.libraryID}, lo.ToAnySlice(keys))
+	rows, err := d.db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("item labels: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := map[string]string{}
+	for rows.Next() {
+		var key string
+		var itemTitle, noteTitle, noteBody sql.NullString
+		if err := rows.Scan(&key, &itemTitle, &noteTitle, &noteBody); err != nil {
+			return nil, fmt.Errorf("scan item label: %w", err)
+		}
+		if label := relationLabel(cmp.Or(itemTitle.String, noteTitle.String), noteBody.String); label != "" {
+			out[key] = label
+		}
+	}
+	return out, rows.Err()
+}
+
+// relationLabel picks one item's display label: its title when it has one,
+// otherwise a snippet of the note body.
+//
+// The fallback matters because a standalone note is the far end sci links
+// most often, and Zotero only derives a note title on save — a note posted
+// through the Web API can arrive with none. The snippet is plain text via
+// [NoteText], so a docling extraction's YAML provenance header would show
+// through; that is accepted rather than fixed here, because stripping it
+// lives in internal/zot/content, which imports this package.
+func relationLabel(title, noteBody string) string {
+	if title != "" {
+		return title
+	}
+	s := NoteText(UnwrapZoteroDiv(noteBody))
+	if len(s) > relationLabelMax {
+		s = s[:relationLabelMax-3] + "..."
+	}
+	return s
 }

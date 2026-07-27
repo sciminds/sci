@@ -1,6 +1,7 @@
 package api
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -175,5 +176,58 @@ func TestCollectionFromClient_MapsNameAndCount(t *testing.T) {
 	got := CollectionFromClient(c)
 	if got.Key != "COLL0001" || got.Name != "My Papers" || got.ItemCount != 12 {
 		t.Errorf("got %+v", got)
+	}
+}
+
+// Relations ride along on the --remote path as BARE KEYS, matching what the
+// local reader produces, so `item read` renders the same block either way.
+// The GET payload already carries them — mapping them costs no extra HTTP.
+func TestItemFromClient_MapsRelationsToBareKeys(t *testing.T) {
+	t.Parallel()
+
+	rels := map[string][]string{
+		RelatedPredicate: {
+			"http://zotero.org/users/17450224/items/PAPER001",
+			"http://zotero.org/users/17450224/items/PAPER002",
+		},
+		"owl:sameAs":  {"http://zotero.org/groups/6506098/items/GRPCOPY1"},
+		"dc:isPartOf": {"http://example.org/not-an-item"},
+	}
+	encoded := encodeRelations(rels)
+	it := &client.Item{
+		Key:  "NOTE0001",
+		Data: client.ItemData{ItemType: "note", Relations: &encoded},
+	}
+
+	got := ItemFromClient(it)
+
+	if got.Relations == nil {
+		t.Fatal("Relations = nil, want the dc:relation pair")
+	}
+	if want := []string{"PAPER001", "PAPER002"}; !slices.Equal(got.Relations.Related, want) {
+		t.Errorf("Related = %v, want %v", got.Relations.Related, want)
+	}
+	if want := []string{"GRPCOPY1"}; !slices.Equal(got.Relations.Other["owl:sameAs"], want) {
+		t.Errorf("Other[owl:sameAs] = %v, want %v", got.Relations.Other["owl:sameAs"], want)
+	}
+	// A relation object that isn't a Zotero item URI drops out entirely
+	// rather than leaving an empty predicate behind.
+	if _, ok := got.Relations.Other["dc:isPartOf"]; ok {
+		t.Errorf("Other[dc:isPartOf] = %v, want absent", got.Relations.Other["dc:isPartOf"])
+	}
+}
+
+func TestItemFromClient_NoRelationsLeavesFieldNil(t *testing.T) {
+	t.Parallel()
+
+	got := ItemFromClient(&client.Item{Key: "ABC12345", Data: client.ItemData{ItemType: "book"}})
+	if got.Relations != nil {
+		t.Errorf("Relations = %+v, want nil", got.Relations)
+	}
+
+	empty := encodeRelations(map[string][]string{})
+	got = ItemFromClient(&client.Item{Key: "ABC12345", Data: client.ItemData{ItemType: "book", Relations: &empty}})
+	if got.Relations != nil {
+		t.Errorf("Relations = %+v, want nil for an empty relations object", got.Relations)
 	}
 }

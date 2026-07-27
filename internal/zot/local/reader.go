@@ -56,6 +56,7 @@ type Reader interface {
 	ListNotes() ([]NoteSummary, error)
 	ReadNote(noteKey string) (*NoteDetail, error)
 	ItemRelations(itemKey string) (ItemRelationSet, error)
+	ItemLabels(keys []string) (map[string]string, error)
 
 	// PDF Resolution
 	ResolvePDFAttachment(parentKey string) (*PDFAttachment, error)

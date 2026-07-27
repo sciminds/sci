@@ -36,6 +36,9 @@ const (
 	KindArxiv RefKind = "arxiv"
 	// KindURL is any other http(s) URL.
 	KindURL RefKind = "url"
+	// KindZoteroKey is a zotero:// item URI — the link form Zotero's own UI
+	// writes and `item note add` documents — normalized to the 8-char key.
+	KindZoteroKey RefKind = "zotero-key"
 )
 
 // Ref is one citation reference found in a document.
@@ -51,8 +54,13 @@ type Ref struct {
 
 var (
 	wikilinkRe = regexp.MustCompile(`(!?)\[\[([^\[\]]+)\]\]`)
-	urlRe      = regexp.MustCompile(`https?://[^\s<>"'\)\]]+`)
-	doiRe      = regexp.MustCompile(`\b10\.\d{4,9}/[^\s"'<>\[\]]+`)
+	// zoteroURIRe matches Zotero's own item-link scheme. Both library forms
+	// occur — `library/items/KEY` in a personal library, `groups/<id>/items/KEY`
+	// in a shared one — and `select/` is optional because the desktop app
+	// accepts either. urlRe can't help here: it is anchored to https?://.
+	zoteroURIRe = regexp.MustCompile(`zotero://(?:select/)?(?:library|groups/\d+)/items/([A-Z0-9]{8})`)
+	urlRe       = regexp.MustCompile(`https?://[^\s<>"'\)\]]+`)
+	doiRe       = regexp.MustCompile(`\b10\.\d{4,9}/[^\s"'<>\[\]]+`)
 	// arxivTextRe matches the textual arXiv:NNNN.NNNNN form; ids inside
 	// arxiv.org URLs are extracted by arxivURLRe during the URL pass.
 	arxivTextRe = regexp.MustCompile(`(?i)\barxiv:\s*(\d{4}\.\d{4,5})`)
@@ -111,7 +119,8 @@ type positioned struct {
 }
 
 // ScanText extracts every citation reference from a document. Passes run
-// in precedence order (wikilinks, URLs, bare DOIs, arXiv ids, citekeys) so
+// in precedence order (wikilinks, zotero:// URIs, URLs, bare DOIs, arXiv
+// ids, citekeys) so
 // nested forms — a DOI inside a doi.org URL, a citekey inside a wikilink —
 // are claimed once by the outermost form. Embeds (![[...]]) are skipped.
 // Results are in document order, deduplicated by kind + case-insensitive
@@ -133,6 +142,17 @@ func ScanText(text string) []Ref {
 		if target = strings.TrimSpace(target); target != "" {
 			add(m[0], Ref{Raw: text[m[0]:m[1]], Kind: KindWikilink, Value: target})
 		}
+	}
+
+	// Runs before the URL/DOI/citekey passes so a zotero:// link is claimed
+	// whole — bare or wrapped in `[Ho 2022](zotero://…)` — rather than being
+	// picked apart by them.
+	for _, m := range zoteroURIRe.FindAllStringSubmatchIndex(text, -1) {
+		if overlaps(claimed, m[0], m[1]) {
+			continue
+		}
+		claimed = append(claimed, span{m[0], m[1]})
+		add(m[0], Ref{Raw: text[m[0]:m[1]], Kind: KindZoteroKey, Value: text[m[2]:m[3]]})
 	}
 
 	for _, m := range urlRe.FindAllStringIndex(text, -1) {

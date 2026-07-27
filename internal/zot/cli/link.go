@@ -2,18 +2,28 @@ package cli
 
 import (
 	"context"
+	"fmt"
+	"slices"
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/cli/internal/zot/bib"
+	"github.com/sciminds/cli/internal/zot/extract"
+	"github.com/sciminds/cli/internal/zot/link"
 	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/cli/internal/zot/notemd"
 	"github.com/urfave/cli/v3"
 )
 
 // link-command flag destinations (package-scoped).
 var (
-	linkListRemote bool
-	linkRmYes      bool
+	linkListRemote    bool
+	linkRmYes         bool
+	linkSuggestAply   bool
+	linkSuggestYes    bool
+	linkSuggestRemote bool
 )
 
 func linkCommand() *cli.Command {
@@ -25,11 +35,13 @@ func linkCommand() *cli.Command {
 			"writes both sides, so the pair shows up on each item.\n\n" +
 			"$ sci zot link add NOTEKEY1 PAPERKEY1  # relate a note to the paper it discusses\n" +
 			"$ sci zot link list NOTEKEY1           # what is this related to?\n" +
-			"$ sci zot link rm NOTEKEY1 PAPERKEY1   # remove the relation (both sides)",
+			"$ sci zot link rm NOTEKEY1 PAPERKEY1   # remove the relation (both sides)\n" +
+			"$ sci zot link suggest NOTEKEY1        # derive the links from the note's own references",
 		Commands: []*cli.Command{
 			linkAddCommand(),
 			linkListCommand(),
 			linkRmCommand(),
+			linkSuggestCommand(),
 		},
 	}
 }
@@ -136,11 +148,11 @@ func linkListCommand() *cli.Command {
 			}
 			referenced := lo.Uniq(append(
 				lo.Flatten(lo.Values(rels.Other)), rels.Related...))
+			rels.Titles = linkTitles(ctx, referenced...)
 
 			outputScoped(ctx, cmd, zot.LinkListResult{
 				Key:       key,
 				Relations: rels,
-				Titles:    linkTitles(ctx, referenced...),
 				Remote:    linkListRemote,
 			})
 			return nil
@@ -160,7 +172,13 @@ func readRelations(ctx context.Context, key string) (local.ItemRelationSet, erro
 		defer func() { _ = db.Close() }()
 		return db.ItemRelations(key)
 	}
+	return remoteRelations(ctx, key)
+}
 
+// remoteRelations reads an item's relations from the Zotero Web API,
+// normalizing the predicate map into the local reader's shape. This is
+// ground truth — the local mirror only catches up when Zotero desktop syncs.
+func remoteRelations(ctx context.Context, key string) (local.ItemRelationSet, error) {
 	apiClient, err := requireAPIClient(ctx)
 	if err != nil {
 		return local.ItemRelationSet{}, err
@@ -182,13 +200,160 @@ func readRelations(ctx context.Context, key string) (local.ItemRelationSet, erro
 	return out, nil
 }
 
-// linkTitles resolves item keys to titles for display, best-effort.
+func linkSuggestCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "suggest",
+		Usage: "Derive a note's links from the items it references",
+		Description: "$ sci zot link suggest NOTEKEY1           # dry-run: what would be linked\n" +
+			"$ sci zot link suggest NOTEKEY1 --apply   # write the relations\n" +
+			"$ sci zot link suggest NOTEKEY1 --apply --yes\n" +
+			"$ sci zot link suggest NOTEKEY1 --remote  # existing links live from Zotero\n\n" +
+			"Reads the note, resolves every reference in it — zotero:// item\n" +
+			"links, @citekeys, DOIs, arXiv ids, [[wikilinks]] — against the\n" +
+			"library, and proposes a relation per item. References that already\n" +
+			"have one are reported, not rewritten; references that match no item\n" +
+			"(or more than one) are listed rather than guessed at.\n\n" +
+			"--remote reads the note's CURRENT relations from the Zotero Web API\n" +
+			"instead of the local mirror. Pass it after a recent `link add`: the\n" +
+			"mirror lags until Zotero desktop syncs, so a stale read re-proposes\n" +
+			"links that already exist.\n\n" +
+			"For notes YOU wrote. A docling extraction is the paper's own text,\n" +
+			"so its references are the paper's bibliography — see `zot content`.",
+		ArgsUsage: "<note-key>",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "apply", Usage: "write the proposed relations (default is a dry run)", Destination: &linkSuggestAply, Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &linkSuggestYes, Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "read the note's existing relations from the Zotero Web API instead of the local mirror", Destination: &linkSuggestRemote, Local: true},
+		},
+		Action: linkSuggestAction,
+	}
+}
+
+func linkSuggestAction(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		return cmdutil.UsageErrorf(cmd, "expected exactly one note key")
+	}
+	noteKey := cmd.Args().First()
+
+	suggestions, err := planLinkSuggestions(ctx, noteKey)
+	if err != nil {
+		return err
+	}
+
+	// An empty plan still renders, so a --json caller always gets a shape
+	// rather than having to distinguish "no output" from "nothing to do".
+	if !linkSuggestAply || len(suggestions) == 0 {
+		outputScoped(ctx, cmd, zot.LinkSuggestResult{Result: link.DryRun(noteKey, suggestions)})
+		return nil
+	}
+
+	proposed := lo.CountBy(suggestions, func(s link.Suggestion) bool {
+		return s.Status == link.StatusProposed
+	})
+	if proposed == 0 {
+		outputScoped(ctx, cmd, zot.LinkSuggestResult{Result: link.DryRun(noteKey, suggestions)})
+		return nil
+	}
+
+	prompt := fmt.Sprintf("relate %s to %d item(s) via the Zotero Web API?", noteKey, proposed)
+	if done, err := cmdutil.ConfirmOrSkip(linkSuggestYes, prompt); done || err != nil {
+		return err
+	}
+
+	apiClient, err := requireAPIClient(ctx)
+	if err != nil {
+		return err
+	}
+
+	var res *link.Result
+	err = uikit.RunWithProgress("Linking", func(t *uikit.ProgressTracker) error {
+		t.SetTotal(proposed)
+		var applyErr error
+		res, applyErr = link.Apply(ctx, apiClient, noteKey, suggestions, link.ApplyOptions{
+			OnProgress: func(_, _ int) { t.Advance("linked", "") },
+		})
+		return applyErr
+	})
+	if err != nil {
+		return err
+	}
+
+	outputScoped(ctx, cmd, zot.LinkSuggestResult{Result: res})
+	return nil
+}
+
+// planLinkSuggestions does every read the plan needs — the note body, the
+// whole library, the note's current relations — and hands them to the pure
+// planner. Local-only: nothing here writes.
+func planLinkSuggestions(ctx context.Context, noteKey string) ([]link.Suggestion, error) {
+	_, db, err := openLocalDB(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = db.Close() }()
+
+	nd, err := db.ReadNote(noteKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := refuseDoclingExtraction(nd); err != nil {
+		return nil, err
+	}
+
+	// HTMLToMarkdown, not local.NoteText: the latter deletes anchors
+	// outright, which takes the zotero:// URI with them — it is the
+	// indexing path, not a display renderer.
+	body, err := notemd.HTMLToMarkdown(nd.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	items, err := db.ListAll(local.ListFilter{})
+	if err != nil {
+		return nil, err
+	}
+	matches, unresolved := bib.ResolveRefs(bib.ScanText(body), items)
+
+	// Which relations already exist is the one input the local mirror can be
+	// wrong about — a link written minutes ago lives only on the server until
+	// Zotero desktop syncs it back, and reading the stale copy makes `suggest`
+	// re-propose ten links that are already there.
+	existing, err := existingRelations(ctx, db, noteKey)
+	if err != nil {
+		return nil, err
+	}
+	return link.PlanSuggest(noteKey, matches, unresolved, existing), nil
+}
+
+func existingRelations(ctx context.Context, db local.Reader, noteKey string) (local.ItemRelationSet, error) {
+	if linkSuggestRemote {
+		return remoteRelations(ctx, noteKey)
+	}
+	return db.ItemRelations(noteKey)
+}
+
+// refuseDoclingExtraction stops `suggest` on a note that is a paper's own
+// text rather than one the user wrote.
+//
+// Scanning an extraction would walk the PAPER's bibliography — hundreds of
+// references, mostly not in the library and none of them the user's own
+// curation — and propose relations from all of it. The noun split holds
+// here: an extraction is the paper, so it belongs to `zot content`.
+func refuseDoclingExtraction(nd *local.NoteDetail) error {
+	if !slices.Contains(nd.Tags, extract.DoclingTag) {
+		return nil
+	}
+	return cmdutil.Coded(cmdutil.CodeUsage,
+		"%s is a docling extraction — the paper's own text, not a note you wrote", nd.Key).
+		WithTry("`link suggest` derives links from the references YOU cited; an extraction's references are the paper's bibliography. Read it with `sci zot content read " + nd.Key + "`.")
+}
+
+// linkTitles resolves item keys to display labels, best-effort.
 //
 // A relation is only meaningful if you can tell what is on the other end,
-// and an 8-char key doesn't tell you. Failures are swallowed: a title is
+// and an 8-char key doesn't tell you. Failures are swallowed: a label is
 // decoration, and a link that succeeded must not report an error because
-// the local DB couldn't name one side. Notes have no title field, so they
-// fall back to their body snippet.
+// the local DB couldn't name one side.
 func linkTitles(ctx context.Context, keys ...string) map[string]string {
 	if len(keys) == 0 {
 		return nil
@@ -199,15 +364,9 @@ func linkTitles(ctx context.Context, keys ...string) map[string]string {
 	}
 	defer func() { _ = db.Close() }()
 
-	out := map[string]string{}
-	for _, k := range keys {
-		if it, err := db.Read(k); err == nil && it.Title != "" {
-			out[k] = it.Title
-			continue
-		}
-		if nd, err := db.ReadNote(k); err == nil {
-			out[k] = zot.NoteLabel(nd.Title, nd.Body)
-		}
+	labels, err := db.ItemLabels(keys)
+	if err != nil {
+		return nil
 	}
-	return out
+	return labels
 }

@@ -247,3 +247,57 @@ func TestResolve_NoMatchHasNoCandidates(t *testing.T) {
 		t.Errorf("candidates = %v, want nil", unresolved[0].Candidates)
 	}
 }
+
+// ── zotero:// item keys ──────────────────────────────────────────────
+
+func TestResolve_ZoteroKey(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		{Key: "AAAA1111", Title: "Deep Learning for Neuroimaging"},
+		{Key: "BBBB2222", Title: "Transformers in fMRI Analysis"},
+	}
+	refs := ScanText("as argued in [Ho 2022](zotero://select/library/items/BBBB2222)")
+
+	resolved, unresolved := Resolve(refs, items)
+	if len(unresolved) != 0 {
+		t.Fatalf("unresolved = %+v, want none", unresolved)
+	}
+	if len(resolved) != 1 || resolved[0].Key != "BBBB2222" {
+		t.Errorf("resolved = %+v, want just BBBB2222", resolved)
+	}
+}
+
+// A key that no longer exists surfaces as unresolved rather than being
+// trusted — the same honesty gate every other ref kind gets.
+func TestResolve_DanglingZoteroKey(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{{Key: "AAAA1111", Title: "Deep Learning for Neuroimaging"}}
+	refs := ScanText("zotero://select/library/items/ZZZZ9999")
+
+	resolved, unresolved := Resolve(refs, items)
+	if len(resolved) != 0 {
+		t.Errorf("resolved = %+v, want none", resolved)
+	}
+	if len(unresolved) != 1 || unresolved[0].Reason != "no match" {
+		t.Fatalf("unresolved = %+v, want one 'no match'", unresolved)
+	}
+	if unresolved[0].Kind != KindZoteroKey || unresolved[0].Value != "ZZZZ9999" {
+		t.Errorf("unresolved ref = %+v, want the zotero-key ZZZZ9999", unresolved[0].Ref)
+	}
+}
+
+// The same paper cited both ways is ONE resolved item — Resolve dedupes by
+// Zotero key, which is what lets `link suggest` merge a URI and a DOI.
+func TestResolve_ZoteroKeyAndDOIDedupe(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{{Key: "AAAA1111", Title: "Paper", DOI: "10.1000/abc123"}}
+	refs := ScanText("zotero://select/library/items/AAAA1111 and also 10.1000/abc123")
+
+	resolved, unresolved := Resolve(refs, items)
+	if len(unresolved) != 0 {
+		t.Fatalf("unresolved = %+v, want none", unresolved)
+	}
+	if len(resolved) != 1 {
+		t.Errorf("resolved = %+v, want one deduplicated item", resolved)
+	}
+}

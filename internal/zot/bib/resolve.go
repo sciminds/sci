@@ -45,20 +45,27 @@ type libraryIndex struct {
 	byAuthorYear map[string][]*local.Item // normalized "{lastname}{year}"
 }
 
-// Resolve matches each reference against the library and returns the
-// resolved items (deduplicated by Zotero key, in first-appearance order)
-// plus every reference that didn't resolve. A reference matching more
-// than one distinct item is unresolved — the resolver never guesses.
+// RefMatch pairs one reference with the library item it resolved to.
+// (Not Match — that name belongs to verify.go's upstream-index hit.)
+type RefMatch struct {
+	Ref  Ref        `json:"ref"`
+	Item local.Item `json:"item"`
+}
+
+// ResolveRefs matches each reference against the library, keeping the
+// per-reference mapping: one RefMatch per reference that resolved, in
+// document order, plus every reference that didn't. Not deduplicated — the
+// same paper cited twice yields two matches.
 //
-// Cite-keys resolve through the same policy as export ([citekey.Resolve]:
-// native Zotero 7 field, BBT extra line, synthesized fallback), so a key
-// produced by `zot export` always round-trips.
-func Resolve(refs []Ref, items []local.Item) ([]local.Item, []Unresolved) {
+// [Resolve] is the deduplicated view of this same walk and is what a
+// bibliography wants. Callers that need to know WHICH reference produced an
+// item — to report that a paper was cited both as a zotero:// link and as a
+// DOI — use this instead.
+func ResolveRefs(refs []Ref, items []local.Item) ([]RefMatch, []Unresolved) {
 	idx := buildIndex(items)
 
-	var resolved []local.Item
+	var matches []RefMatch
 	var unresolved []Unresolved
-	seen := map[string]bool{}
 	for _, ref := range refs {
 		it, candidates := idx.lookup(ref)
 		if it == nil {
@@ -69,12 +76,28 @@ func Resolve(refs []Ref, items []local.Item) ([]local.Item, []Unresolved) {
 			unresolved = append(unresolved, Unresolved{Ref: ref, Reason: reason, Candidates: candidates})
 			continue
 		}
-		if !seen[it.Key] {
-			seen[it.Key] = true
-			resolved = append(resolved, *it)
-		}
+		matches = append(matches, RefMatch{Ref: ref, Item: *it})
 	}
-	return resolved, unresolved
+	return matches, unresolved
+}
+
+// Resolve matches each reference against the library and returns the
+// resolved items (deduplicated by Zotero key, in first-appearance order)
+// plus every reference that didn't resolve. A reference matching more
+// than one distinct item is unresolved — the resolver never guesses.
+//
+// Cite-keys resolve through the same policy as export ([citekey.Resolve]:
+// native Zotero 7 field, BBT extra line, synthesized fallback), so a key
+// produced by `zot export` always round-trips.
+func Resolve(refs []Ref, items []local.Item) ([]local.Item, []Unresolved) {
+	matches, unresolved := ResolveRefs(refs, items)
+	deduped := lo.UniqBy(matches, func(m RefMatch) string { return m.Item.Key })
+	if len(deduped) == 0 {
+		// A nil slice, not an empty one: callers (and their golden JSON)
+		// have always seen `null` here for a document that cites nothing.
+		return nil, unresolved
+	}
+	return lo.Map(deduped, func(m RefMatch, _ int) local.Item { return m.Item }), unresolved
 }
 
 func buildIndex(items []local.Item) *libraryIndex {
@@ -120,6 +143,15 @@ func (idx *libraryIndex) lookup(ref Ref) (*local.Item, []string) {
 			return unique(cands)
 		}
 		return unique(idx.byAuthorYear[normalize(ref.Value)])
+	case KindZoteroKey:
+		// The key IS the item id, so there is nothing to guess — but it
+		// still goes through the index rather than being trusted, which is
+		// what turns a stale link in an old note into an honest
+		// "no match" instead of a dangling relation.
+		if it, ok := idx.byZotKey[ref.Value]; ok {
+			return it, nil
+		}
+		return nil, nil
 	case KindDOI:
 		return unique(idx.byDOI[normalizeDOI(ref.Value)])
 	case KindArxiv:

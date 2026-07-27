@@ -150,6 +150,11 @@ func TestItemResult_Human(t *testing.T) {
 		Tags:        []string{"ml"},
 		Collections: []string{"COLLAAA1"},
 		Attachments: []local.Attachment{{Key: "ATT1", Filename: "p.pdf"}},
+		Relations: &local.ItemRelationSet{
+			Related: []string{"NOTE0001"},
+			Other:   map[string][]string{"owl:sameAs": {"GRPCOPY1"}},
+			Titles:  map[string]string{"NOTE0001": "Reading notes on prediction"},
+		},
 	}}
 	out := r.Human()
 	for _, want := range []string{
@@ -158,6 +163,12 @@ func TestItemResult_Human(t *testing.T) {
 		"2024-03-15", // cleaned
 		"10.1/abc", "NeuroImage", "Hello.",
 		"ml", "COLLAAA1", "p.pdf",
+		// Related items render like tags/attachments do: you should not
+		// have to know `link list` exists to see what an item is related to.
+		"related", "NOTE0001", "Reading notes on prediction",
+		// Zotero's own predicates keep their real names so nothing suggests
+		// `link rm` should be pointed at them.
+		"owl:sameAs", "GRPCOPY1",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
@@ -166,6 +177,38 @@ func TestItemResult_Human(t *testing.T) {
 	// dual-encoded original text must NOT leak into display.
 	if strings.Contains(out, "March 15, 2024") {
 		t.Errorf("original date text leaked into display:\n%s", out)
+	}
+}
+
+// Relations hang off local.Item, not off ItemResult, precisely so they
+// survive JSON() returning the bare item. Pin both halves of that.
+func TestItemResult_JSONCarriesRelationsAtTopLevel(t *testing.T) {
+	t.Parallel()
+	r := ItemResult{Item: local.Item{
+		Key:       "ABC12345",
+		Relations: &local.ItemRelationSet{Related: []string{"NOTE0001"}},
+	}}
+	b, _ := json.Marshal(r.JSON())
+	if !strings.Contains(string(b), `"relations":{"related":["NOTE0001"]}`) {
+		t.Errorf("relations not at the top level of the item JSON: %s", b)
+	}
+}
+
+// An item with no relations emits no `relations` key at all — every
+// existing agent's parse of `item read --json` stays byte-identical.
+func TestItemResult_JSONOmitsAbsentRelations(t *testing.T) {
+	t.Parallel()
+	b, _ := json.Marshal(ItemResult{Item: local.Item{Key: "ABC12345"}}.JSON())
+	if strings.Contains(string(b), "relations") {
+		t.Errorf("relations key present on a relation-free item: %s", b)
+	}
+}
+
+func TestItemResult_HumanWithoutRelations(t *testing.T) {
+	t.Parallel()
+	out := ItemResult{Item: local.Item{Key: "ABC12345", Title: "A Paper"}}.Human()
+	if strings.Contains(out, "related") {
+		t.Errorf("related block rendered for a relation-free item:\n%s", out)
 	}
 }
 
