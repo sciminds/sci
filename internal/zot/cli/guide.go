@@ -106,8 +106,8 @@ func guideContent() zot.GuideResult {
 					},
 					{
 						Goal: "Extract a PDF I haven't extracted yet (auto-applies the has-markdown tag)",
-						Cmd:  "sci zot extract ABC12345",
-						Note: "Runs docling, attaches result as a child markdown note. Bulk: `sci zot extract-lib`.",
+						Cmd:  "sci zot content extract ABC12345 --apply",
+						Note: "Runs docling and posts the paper's text. Dry-runs without --apply. Re-extract in place with `content refresh`, remove with `content drop`, list what has one with `content list`. Bulk: `sci zot extract-lib`.",
 					},
 				},
 			},
@@ -127,7 +127,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Attach a child note (markdown or HTML)",
 						Cmd:  "sci zot item note add ABC12345 --body \"my thoughts\"",
-						Note: "Tag with --tag. For docling extractions use `sci zot extract` instead.",
+						Note: "Tag with --tag. This is for notes YOU write; paper text goes through `sci zot content extract`.",
 					},
 				},
 			},

@@ -25,18 +25,26 @@ var (
 func contentCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "content",
-		Usage: "Manage the full-text index over paper content",
-		Description: "The content index makes the TEXT of your papers searchable — the\n" +
-			"docling extraction when one exists, Zotero's own extracted text\n" +
-			"otherwise. It is a rebuildable cache under your user cache dir;\n" +
-			"zotero.sqlite is never written.\n\n" +
-			"$ sci zot content build          # create or refresh the index\n" +
-			"$ sci zot content stats          # coverage, size, staleness\n" +
-			"$ sci zot content read AAAA1111  # the indexed text of one paper",
+		Usage: "Paper text end to end — extract it, list it, read it, index it",
+		Description: "An extraction is the PAPER, not a note. This namespace owns the\n" +
+			"text of your papers from the docling run that produces it through\n" +
+			"the searchable index built over it. `zot notes` means the notes\n" +
+			"YOU wrote.\n\n" +
+			"$ sci zot content extract AAAA1111 --apply  # run docling, post the text\n" +
+			"$ sci zot content refresh AAAA1111          # re-extract in place\n" +
+			"$ sci zot content list                      # items that have an extraction\n" +
+			"$ sci zot content read AAAA1111             # the text of one paper\n" +
+			"$ sci zot content drop AAAA1111             # trash its extraction\n" +
+			"$ sci zot content build                     # create or refresh the index\n" +
+			"$ sci zot content stats                     # coverage, size, staleness",
 		Commands: []*cli.Command{
+			contentExtractCommand(),
+			contentRefreshCommand(),
+			contentListCommand(),
+			contentReadCommand(),
+			contentDropCommand(),
 			contentBuildCommand(),
 			contentStatsCommand(),
-			contentReadCommand(),
 		},
 	}
 }

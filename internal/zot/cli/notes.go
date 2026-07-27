@@ -26,13 +26,6 @@ var (
 	notesListLimit  int
 	notesListOffset int
 
-	notesAddForce      bool
-	notesAddReextract  bool
-	notesAddHTML       bool
-	notesAddDevice     string
-	notesAddNumThreads int
-	notesAddYes        bool
-
 	notesUpdateReextract  bool
 	notesUpdateHTML       bool
 	notesUpdateDevice     string
@@ -40,24 +33,38 @@ var (
 	notesUpdateYes        bool
 )
 
+// extractionMoved is the shared explanation on every retired verb: one
+// sentence on what changed and why, so the error teaches the model rather
+// than just redirecting.
+const extractionMoved = "an extraction is the paper's text, not a note — the extraction verbs " +
+	"now live under `zot content`, and `zot notes` means the notes you wrote"
+
 func notesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "notes",
 		Aliases: []string{"note"},
-		Usage:   "Manage docling extraction notes (list, read, add, update, delete)",
-		Description: "$ sci zot notes list\n" +
-			"$ sci zot notes list AAAA1111\n" +
-			"$ sci zot notes read NOTECH10\n" +
-			"$ sci zot notes add AAAA1111\n" +
-			"$ sci zot notes update AAAA1111\n" +
-			"$ sci zot notes delete AAAA1111\n" +
-			"$ sci zot notes delete --all",
+		Usage:   "The notes YOU wrote (list, read)",
+		Description: "Notes you authored — not docling extractions. Extractions are the\n" +
+			"paper's text and live under `zot content`.\n\n" +
+			"$ sci zot notes list              # your notes, attached and standalone\n" +
+			"$ sci zot notes read NOTECH11     # one note's body\n" +
+			"$ sci zot notes read NOTECH11 --md --json   # markdown, for piping",
 		Commands: []*cli.Command{
 			notesListCommand(),
 			notesReadCommand(),
-			notesAddCommand(),
-			notesUpdateCommand(),
-			notesDeleteCommand(),
+
+			// The moved verbs stay registered so they can explain
+			// themselves; urfave would otherwise answer with a bare
+			// "command not found".
+			retiredCommand("add", "moved to `zot content extract`",
+				[]string{"notes", "add"}, []string{"content", "extract"},
+				extractionMoved, "--apply"),
+			retiredCommand("update", "moved to `zot content refresh`",
+				[]string{"notes", "update"}, []string{"content", "refresh"},
+				extractionMoved),
+			retiredCommand("delete", "moved to `zot content drop`",
+				[]string{"notes", "delete"}, []string{"content", "drop"},
+				extractionMoved),
 		},
 	}
 }
@@ -65,11 +72,47 @@ func notesCommand() *cli.Command {
 func notesListCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "list",
-		Usage: "List docling extraction notes",
-		Description: "$ sci zot notes list                          # first 50 docling notes (default cap)\n" +
-			"$ sci zot notes list --limit 0                # all docling notes (warning: thousands on real libraries)\n" +
-			"$ sci zot notes list --limit 25 --offset 50   # paginate\n" +
-			"$ sci zot notes list AAAA1111                 # docling notes for one item",
+		Usage: "List the notes you wrote",
+		Description: "$ sci zot notes list                 # your notes (attached + standalone)\n" +
+			"$ sci zot notes list --limit 0       # all of them\n" +
+			"$ sci zot notes list --limit 25 --offset 50   # paginate\n\n" +
+			"Docling extractions are excluded — they are the paper's text, not\n" +
+			"a note. List those with `sci zot content list`.",
+		Flags: []cli.Flag{
+			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max notes to surface (0 = unlimited)", Destination: &notesListLimit, Local: true},
+			&cli.IntFlag{Name: "offset", Value: 0, Usage: "pagination offset", Destination: &notesListOffset, Local: true},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			_, db, err := openLocalDB(ctx)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = db.Close() }()
+
+			notes, err := db.ListNotes()
+			if err != nil {
+				return err
+			}
+			page := paginate(notes, notesListOffset, notesListLimit)
+			outputScoped(ctx, cmd, zot.RealNotesListResult{
+				Count:  len(page),
+				Total:  len(notes),
+				Offset: notesListOffset,
+				Notes:  page,
+			})
+			return nil
+		},
+	}
+}
+
+func contentListCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "list",
+		Usage: "List items that have a docling extraction",
+		Description: "$ sci zot content list                          # first 50 extractions (default cap)\n" +
+			"$ sci zot content list --limit 0                # all (warning: thousands on real libraries)\n" +
+			"$ sci zot content list --limit 25 --offset 50   # paginate\n" +
+			"$ sci zot content list AAAA1111                 # extractions for one item",
 		ArgsUsage: "[parent-item-key]",
 		Flags: []cli.Flag{
 			// Default 50 because real libraries have thousands of notes
@@ -189,148 +232,12 @@ func notesReadCommand() *cli.Command {
 	}
 }
 
-func notesAddCommand() *cli.Command {
+func contentRefreshCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "add",
-		Usage: "Extract a PDF and create a docling note",
-		Description: "$ sci zot notes add AAAA1111               # extract + create note\n" +
-			"$ sci zot notes add AAAA1111 --force        # even if docling note exists\n" +
-			"$ sci zot notes add AAAA1111 --html          # rendered HTML instead of raw markdown",
-		ArgsUsage: "<parent-item-key>",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "force", Usage: "create a new note even if a docling note already exists", Destination: &notesAddForce, Local: true},
-			&cli.BoolFlag{Name: "reextract", Usage: "discard cached docling output and re-run", Destination: &notesAddReextract, Local: true},
-			&cli.BoolFlag{Name: "html", Usage: "render markdown as HTML before posting", Destination: &notesAddHTML, Local: true},
-			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "mps", Destination: &notesAddDevice, Local: true},
-			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = default)", Destination: &notesAddNumThreads, Local: true},
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &notesAddYes, Local: true},
-		},
-		Action: notesAddAction,
-	}
-}
-
-func notesAddAction(ctx context.Context, cmd *cli.Command) error {
-	if cmd.Args().Len() != 1 {
-		return cmdutil.UsageErrorf(cmd, "expected exactly one parent item key")
-	}
-	parentKey := cmd.Args().First()
-
-	cfg, db, err := openLocalDB(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = db.Close() }()
-
-	att, err := db.ResolvePDFAttachment(parentKey)
-	if err != nil {
-		return err
-	}
-
-	pdfPath := filepath.Join(cfg.DataDir, "storage", att.Key, att.Filename)
-	if _, err := os.Stat(pdfPath); err != nil {
-		return fmt.Errorf("PDF attachment %s missing on disk at %s: %w", att.Key, pdfPath, err)
-	}
-
-	hash, err := extract.HashPDF(pdfPath)
-	if err != nil {
-		return fmt.Errorf("hash PDF: %w", err)
-	}
-
-	hasExisting, err := db.ParentsWithDoclingNotes()
-	if err != nil {
-		return err
-	}
-
-	plan := extract.PlanExtract(extract.PlanRequest{
-		ParentKey: parentKey,
-		PDFKey:    att.Key,
-		PDFName:   att.Title,
-		PDFHash:   hash,
-		DOI:       att.DOI,
-		Force:     notesAddForce,
-	}, hasExisting[parentKey])
-
-	if plan.Action == extract.ActionSkip {
-		outputScoped(ctx, cmd, zot.NoteAddResult{
-			ParentKey: parentKey,
-			PDFName:   att.Title,
-			Action:    zot.ActionLabel(plan.Action),
-		})
-		return nil
-	}
-
-	verb := zot.ActionLabel(plan.Action)
-	if done, err := cmdutil.ConfirmOrSkip(notesAddYes,
-		fmt.Sprintf("%s note for %s (%s)?", verb, att.Title, plan.Reason)); done || err != nil {
-		return err
-	}
-
-	// Set up cache for crash-resume.
-	cacheDir, err := extract.DefaultCacheDir()
-	if err != nil {
-		return err
-	}
-	cache := &extract.MarkdownCache{Dir: cacheDir}
-	if notesAddReextract {
-		cache.Delete(att.Key, hash)
-	}
-
-	apiClient, err := requireAPIClient(ctx)
-	if err != nil {
-		return err
-	}
-
-	ex, err := extract.NewDoclingExtractor()
-	if err != nil {
-		return err
-	}
-
-	tmp, err := os.MkdirTemp("", "sci-extract-*")
-	if err != nil {
-		return fmt.Errorf("mkdir temp: %w", err)
-	}
-	defer func() { _ = os.RemoveAll(tmp) }()
-
-	opts := extract.ZoteroDefaults()
-	if notesAddDevice != "" {
-		opts.Device = notesAddDevice
-	}
-	opts.NumThreads = notesAddNumThreads
-
-	result, err := extract.Execute(ctx, extract.ExecuteInput{
-		Plan:        plan,
-		Extractor:   ex,
-		Writer:      apiClient,
-		PDFPath:     pdfPath,
-		OutputDir:   tmp,
-		ExtractOpts: opts,
-		Cache:       cache,
-		RenderHTML:  notesAddHTML,
-	})
-	if err != nil {
-		return err
-	}
-
-	out := zot.NoteAddResult{
-		ParentKey: parentKey,
-		PDFName:   att.Title,
-		NoteKey:   result.NoteKey,
-		Action:    zot.ActionLabel(plan.Action),
-	}
-	if result.Extraction != nil {
-		out.ToolVersion = result.Extraction.ToolVersion
-		out.Duration = result.Extraction.Duration
-	}
-	outputScoped(ctx, cmd, out)
-	return nil
-}
-
-func notesUpdateCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "update",
-		Usage: "Re-extract and update an existing docling note in place",
-		Description: "$ sci zot notes update AAAA1111\n" +
-			"$ sci zot notes update AAAA1111 --reextract  # force re-run docling",
+		Name:  "refresh",
+		Usage: "Re-extract a paper and update its text in place",
+		Description: "$ sci zot content refresh AAAA1111\n" +
+			"$ sci zot content refresh AAAA1111 --reextract  # force re-run docling",
 		ArgsUsage: "<parent-item-key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "reextract", Usage: "discard cached docling output and re-run", Destination: &notesUpdateReextract, Local: true},
@@ -455,17 +362,17 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func notesDeleteCommand() *cli.Command {
+func contentDropCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "delete",
-		Aliases: []string{"trash"},
-		Usage:   "Trash docling extraction notes",
-		Description: "$ sci zot notes delete AAAA1111            # trash docling notes for one item\n" +
-			"$ sci zot notes delete --all                # trash ALL docling notes in library\n" +
-			"$ sci zot notes delete AAAA1111 --yes       # skip confirmation",
+		Name:    "drop",
+		Aliases: []string{"delete", "trash"},
+		Usage:   "Trash the docling extraction(s) for an item",
+		Description: "$ sci zot content drop AAAA1111            # trash extractions for one item\n" +
+			"$ sci zot content drop --all                # trash ALL extractions in library\n" +
+			"$ sci zot content drop AAAA1111 --yes       # skip confirmation",
 		ArgsUsage: "[parent-item-key]",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "all", Usage: "trash all docling notes in the entire library", Destination: &notesDeleteAll, Local: true},
+			&cli.BoolFlag{Name: "all", Usage: "trash all extractions in the entire library", Destination: &notesDeleteAll, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &notesDeleteYes, Local: true},
 		},
 		Action: notesDeleteAction,

@@ -142,7 +142,9 @@ func Commands() []*cli.Command {
 		llmCommand(),
 		doctorCommand(),
 		graphCommand(),
-		extractCommand(),
+		retiredCommand("extract", "moved to `zot content extract`",
+			[]string{"extract"}, []string{"content", "extract"},
+			extractionMoved),
 		extractLibCommand(),
 	}
 }

@@ -39,18 +39,18 @@ func (r NotesListResult) Human() string {
 	}
 	if r.Count == 0 {
 		if r.ParentKey != "" {
-			return fmt.Sprintf("  %s no docling notes for %s\n", uikit.SymArrow, r.ParentKey)
+			return fmt.Sprintf("  %s no extraction for %s\n", uikit.SymArrow, r.ParentKey)
 		}
-		return fmt.Sprintf("  %s no docling notes in library\n", uikit.SymArrow)
+		return fmt.Sprintf("  %s no extractions in library\n", uikit.SymArrow)
 	}
 	var b strings.Builder
 	if r.ParentKey != "" {
 		fmt.Fprintf(&b, "\n  %s %s\n\n",
-			uikit.TUI.Dim().Render("docling notes for"),
+			uikit.TUI.Dim().Render("extractions for"),
 			uikit.TUI.TextBlue().Render(r.ParentKey),
 		)
 	} else {
-		fmt.Fprintf(&b, "\n  %s\n\n", uikit.TUI.Dim().Render("docling notes"))
+		fmt.Fprintf(&b, "\n  %s\n\n", uikit.TUI.Dim().Render("extractions"))
 	}
 	for _, n := range r.Notes {
 		snippet := noteSnippet(n.Body)
@@ -228,6 +228,61 @@ func (r NoteDeleteResult) Human() string {
 	}
 	if len(r.UntaggedParents) > 0 {
 		fmt.Fprintf(&b, "  %s removed has-markdown from %d parent(s)\n", uikit.SymArrow, len(r.UntaggedParents))
+	}
+	return b.String()
+}
+
+// RealNotesListResult is returned by `zot notes list` — the notes the user
+// wrote, as distinct from [NotesListResult], which lists docling
+// extractions under `zot content list`.
+//
+// The two are separate result types rather than one with a flag because
+// they answer different questions and their empty states must not be
+// confusable: "no notes in library" and "no extractions in library" are
+// very different facts about a library, and on the live one the counts
+// differ by two orders of magnitude.
+type RealNotesListResult struct {
+	Count  int                 `json:"count"`
+	Total  int                 `json:"total"`
+	Offset int                 `json:"offset,omitempty"`
+	Notes  []local.NoteSummary `json:"notes"`
+}
+
+// JSON implements cmdutil.Result.
+func (r RealNotesListResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
+func (r RealNotesListResult) Human() string {
+	if r.Count == 0 {
+		return fmt.Sprintf("  %s no notes of your own in this library\n"+
+			"    %s docling extractions live under `sci zot content list`\n",
+			uikit.SymArrow, uikit.SymArrow)
+	}
+	total := max(r.Total, r.Count)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n  %s\n\n", uikit.TUI.Dim().Render("your notes"))
+	for _, n := range r.Notes {
+		fmt.Fprintf(&b, "  %s", uikit.TUI.TextBlue().Render(n.NoteKey))
+		if n.ParentKey == "" {
+			fmt.Fprintf(&b, "  %s", uikit.TUI.Dim().Render("(standalone)"))
+		} else {
+			fmt.Fprintf(&b, "  %s", uikit.TUI.Dim().Render(n.ParentKey))
+			if n.ParentTitle != "" {
+				fmt.Fprintf(&b, "  %s", n.ParentTitle)
+			}
+		}
+		fmt.Fprintln(&b)
+		if snippet := noteSnippet(n.Body); snippet != "" {
+			fmt.Fprintf(&b, "    %s\n", uikit.TUI.Dim().Render(snippet))
+		}
+	}
+	if total > r.Offset+r.Count {
+		fmt.Fprintf(&b, "\n  %s showing %d-%d of %d  (pass --limit 0 for all, --offset %d for next page)\n",
+			uikit.SymArrow, r.Offset+1, r.Offset+r.Count, total, r.Offset+r.Count,
+		)
+	} else {
+		fmt.Fprintf(&b, "\n  %s %d note(s)\n", uikit.SymArrow, r.Count)
 	}
 	return b.String()
 }

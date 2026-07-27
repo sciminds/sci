@@ -21,7 +21,9 @@ func TestNotesListResult_HumanEmpty(t *testing.T) {
 	t.Parallel()
 	r := NotesListResult{Count: 0}
 	h := r.Human()
-	if !strings.Contains(h, "no docling notes") {
+	// "extractions", not "notes": this result now backs `zot content list`,
+	// and its empty state must not read like `zot notes list`'s.
+	if !strings.Contains(h, "no extractions") {
 		t.Errorf("expected empty message; got: %s", h)
 	}
 }

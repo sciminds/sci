@@ -45,6 +45,17 @@ Four checks (`invalid`, `missing`, `orphans`, `duplicates`) live as sub-commands
 
 **Opt-in sub-checks** (in `AllOrphanKinds`, not `defaultOrphanKinds`): `orphans --kind uncollected-item`, `orphans --kind missing-file --check-files`.
 
+## `content` vs `notes` — an extraction is the paper, not a note
+
+The noun split is load-bearing and the verbs move with it. **`zot content` owns paper text end to end** (`extract`, `refresh`, `list`, `read`, `drop`, `build`, `stats`); **`zot notes` means the notes the user wrote** (`list`, `read`).
+
+Why: extractions are notes only in Zotero's storage sense. Live counts — personal 4,719 notes of which 4,710 are docling; group 421 of which 388. So the old `zot notes list` was a listing of extractions with 9 real notes lost inside it, and `notes delete --all` reached 4,710 things a user would never call notes.
+
+- **Re-scoping the noun without moving the verbs would have been worse than leaving it alone** — `list` showing 42 while `delete --all` still trashed 4,710 is a footgun, not a fix. That's why this landed as one change.
+- `local.ListNotes` is the inverse of `local.ListAllDoclingNotes` (`NOT EXISTS` on the docling tag); the two partition the library's notes. It **LEFT-joins the parent** where the docling query inner-joins — standalone notes have no parent and are exactly the ones worth surfacing.
+- `DoclingNoteSummary` and `NoteSummary` stay distinct types despite identical fields: the docling shape's `parent_key`/`parent_title` are always present, a real note's are `omitempty`. `queryNoteSummaries` shares the scan so the duplication is in the SQL only.
+- Retired paths (`zot extract`, `zot notes add|update|delete`) stay **registered** as `retiredCommand` stubs — urfave would otherwise answer with a bare "command not found", which teaches nothing. Each returns a `CodeUsage` error carrying a rewritten, resubmittable `Fix` via `rewriteCommandFix`. `notes add` → `content extract` appends `--apply`, because `notes add` posted immediately and `content extract` dry-runs by default.
+
 ## PDF extraction (`internal/zot/extract/`)
 
 Same reads-local / writes-cloud split. See `cli/extract.go`, `cli/notes.go`, `extract/extract.go`. Bulk extraction caches resumable state at `os.UserCacheDir()/sci/zot/extract/`.

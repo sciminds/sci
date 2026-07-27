@@ -53,6 +53,7 @@ type Reader interface {
 	// Notes (docling extraction notes)
 	ListDoclingNotes(parentKey string) ([]ChildItem, error)
 	ListAllDoclingNotes() ([]DoclingNoteSummary, error)
+	ListNotes() ([]NoteSummary, error)
 	ReadNote(noteKey string) (*NoteDetail, error)
 
 	// PDF Resolution

@@ -27,20 +27,20 @@ var (
 	extractNumThreads int
 )
 
-func extractCommand() *cli.Command {
+func contentExtractCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "extract",
 		Usage: experimental + " Run the docling PDF extraction pipeline",
-		Description: "$ sci zot extract 6R45EVSB                           # dry-run preview\n" +
-			"$ sci zot extract 6R45EVSB --apply                    # post markdown note to Zotero\n" +
-			"$ sci zot extract 6R45EVSB --html --apply             # post rendered HTML note\n" +
-			"$ sci zot extract 6R45EVSB --out ./vault/ckd --apply  # full extraction + note\n" +
-			"$ sci zot extract 6R45EVSB --out ./vault/ckd --no-note --apply  # artifacts only\n" +
+		Description: "$ sci zot content extract 6R45EVSB                           # dry-run preview\n" +
+			"$ sci zot content extract 6R45EVSB --apply                    # post markdown to Zotero\n" +
+			"$ sci zot content extract 6R45EVSB --html --apply             # post rendered HTML\n" +
+			"$ sci zot content extract 6R45EVSB --out ./vault/ckd --apply  # full extraction + post\n" +
+			"$ sci zot content extract 6R45EVSB --out ./vault/ckd --no-note --apply  # artifacts only\n" +
 			"\n" +
 			"Zotero mode (default): raw markdown with YAML frontmatter posted as a child note (--html for rendered HTML).\n" +
 			"Full mode (--out):     md + json + referenced PNGs + CSV tables written to DIR.\n" +
 			"\n" +
-			"To manage existing notes, use `sci zot notes` (list, read, add, update, delete).\n" +
+			"Re-extract in place with `content refresh`; remove with `content drop`.\n" +
 			"Uses the existing PDF attachment's contentType + path from the local zotero.sqlite.\n" +
 			"The Plan step is pure (no docling run); pass --apply to actually extract and post.",
 		ArgsUsage: "<parent-item-key>",
