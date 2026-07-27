@@ -214,12 +214,14 @@ func outputScoped(ctx context.Context, cmd *cli.Command, r cmdutil.Result) {
 	if name == "" {
 		name = string(ref.Scope)
 	}
-	header := fmt.Sprintf("  %s Library: %s — %s\n",
+	// stderr, not stdout: this line says which library answered, not what the
+	// answer was. Keeping it off stdout is what lets a human-mode result be
+	// piped (`… content read KEY | llm`) without the consumer parsing chrome.
+	_, _ = fmt.Fprintf(cmdutil.HumanErrWriter(), "  %s Library: %s — %s\n",
 		uikit.SymArrow,
 		uikit.TUI.TextBlue().Render(string(ref.Scope)),
 		uikit.TUI.Dim().Render(name),
 	)
-	_, _ = os.Stdout.WriteString(header)
 	cmdutil.Output(cmd, r)
 }
 

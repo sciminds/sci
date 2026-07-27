@@ -93,11 +93,12 @@ func Output(cmd *cli.Command, r Result) {
 		enc.SetEscapeHTML(false)
 		_ = enc.Encode(env)
 	} else {
-		fmt.Print(r.Human())
+		out := HumanWriter()
+		_, _ = fmt.Fprint(out, r.Human())
 		for _, w := range warnings {
-			fmt.Printf("\n  %s %s\n", uikit.SymWarn, w.Message)
+			_, _ = fmt.Fprintf(out, "\n  %s %s\n", uikit.SymWarn, w.Message)
 			if w.Fix != "" {
-				fmt.Printf("    %s fix: %s\n", uikit.SymArrow, w.Fix)
+				_, _ = fmt.Fprintf(out, "    %s fix: %s\n", uikit.SymArrow, w.Fix)
 			}
 		}
 	}

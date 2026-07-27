@@ -84,6 +84,31 @@ func captureStdout(t *testing.T) (read func() string, restore func()) {
 	return read, restore
 }
 
+// captureStderr is [captureStdout] for os.Stderr — diagnostics (the library
+// banner) go there, so tests that assert the stdout/stderr split need both.
+func captureStderr(t *testing.T) (read func() string, restore func()) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stderr = w
+	done := make(chan []byte, 1)
+	go func() {
+		buf, _ := io.ReadAll(r)
+		done <- buf
+	}()
+	read = func() string {
+		_ = w.Close()
+		return string(<-done)
+	}
+	restore = func() {
+		os.Stderr = old
+	}
+	return read, restore
+}
+
 // ensureScopeCfg builds the minimal Config most ensureLibraryScope tests
 // need. UserID is always set; SharedGroupID controls the "both libraries
 // configured" branch.
@@ -384,29 +409,34 @@ func TestOutputScoped_JSON_NoHolder_Passthrough(t *testing.T) {
 	}
 }
 
-func TestOutputScoped_Human_PrependsLibraryHeader(t *testing.T) {
+// The "Library: …" line is a diagnostic — which library answered — not part
+// of the result. It goes to stderr so `sci zot content read KEY | llm` pipes
+// the paper and nothing else, while a human at a terminal still sees both
+// streams interleaved exactly as before.
+func TestOutputScoped_Human_LibraryHeaderGoesToStderr(t *testing.T) {
 	cmd := &cli.Command{} // no --json
 	holder := &libraryHolder{Resolved: &zot.LibraryRef{Scope: zot.LibPersonal, Name: "Personal"}}
 	ctx := withLibraryHolder(context.Background(), holder)
 
-	read, restore := captureStdout(t)
-	defer restore()
+	readOut, restoreOut := captureStdout(t)
+	defer restoreOut()
+	readErr, restoreErr := captureStderr(t)
+	defer restoreErr()
+
 	outputScoped(ctx, cmd, stubResult{Key: "ABC", Title: "T"})
-	got := read()
 
 	// Strip ANSI for assertions — colors aren't load-bearing here.
-	got = stripANSI(got)
-	if !strings.Contains(got, "Library: personal") {
-		t.Errorf("missing 'Library: personal' header:\n%s", got)
+	gotOut := stripANSI(readOut())
+	gotErr := stripANSI(readErr())
+
+	if !strings.Contains(gotErr, "Library: personal") {
+		t.Errorf("stderr missing 'Library: personal' header:\n%s", gotErr)
 	}
-	if !strings.Contains(got, "ABC") {
-		t.Errorf("missing inner result body:\n%s", got)
+	if strings.Contains(gotOut, "Library:") {
+		t.Errorf("library header leaked into stdout (breaks piping):\n%s", gotOut)
 	}
-	// Header must come before body.
-	libIdx := strings.Index(got, "Library:")
-	bodyIdx := strings.Index(got, "ABC")
-	if libIdx < 0 || bodyIdx < 0 || libIdx > bodyIdx {
-		t.Errorf("header should precede body:\n%s", got)
+	if !strings.Contains(gotOut, "ABC") {
+		t.Errorf("stdout missing inner result body:\n%s", gotOut)
 	}
 }
 
