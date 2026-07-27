@@ -9,6 +9,7 @@ import (
 
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/cli/internal/zot/notemd"
 )
 
 // NotesListResult is returned by `zot notes list [parent-key]`.
@@ -78,10 +79,26 @@ func (r NotesListResult) Human() string {
 // NoteReadResult is returned by `zot notes read <note-key>`.
 type NoteReadResult struct {
 	Note local.NoteDetail `json:"note"`
+	// Markdown is the body converted out of Zotero's HTML, set by --md.
+	// Opt-in: adding it unconditionally would change the --json shape under
+	// every existing agent, and double the payload on a 485KB note.
+	Markdown string `json:"markdown,omitempty"`
+}
+
+// noteReadJSON is the --md shape: the note's own fields, promoted by
+// embedding, plus the converted body.
+type noteReadJSON struct {
+	local.NoteDetail
+	Markdown string `json:"markdown"`
 }
 
 // JSON implements cmdutil.Result.
-func (r NoteReadResult) JSON() any { return r.Note }
+func (r NoteReadResult) JSON() any {
+	if r.Markdown == "" {
+		return r.Note
+	}
+	return noteReadJSON{NoteDetail: r.Note, Markdown: r.Markdown}
+}
 
 // Human implements cmdutil.Result.
 func (r NoteReadResult) Human() string {
@@ -100,32 +117,27 @@ func (r NoteReadResult) Human() string {
 		fmt.Fprintf(&b, "  %s %s\n", uikit.TUI.Dim().Render("tags:"), strings.Join(r.Note.Tags, ", "))
 	}
 	fmt.Fprintln(&b)
-	// Strip HTML for terminal display.
-	body := stripHTML(r.Note.Body)
-	if body != "" {
+	if body := noteBodyForDisplay(r.Note.Body); body != "" {
 		fmt.Fprintf(&b, "%s\n", body)
 	}
 	return b.String()
 }
 
-// stripHTML is a simple tag stripper for terminal display of note
-// bodies. Not a full parser — good enough for CLI output.
-func stripHTML(s string) string {
-	var b strings.Builder
-	inTag := false
-	for _, r := range s {
-		switch {
-		case r == '<':
-			inTag = true
-		case r == '>':
-			inTag = false
-		case inTag:
-			// skip
-		default:
-			b.WriteRune(r)
-		}
+// noteBodyForDisplay renders a note body for the terminal.
+//
+// Markdown, not stripped tags: a bare tag stripper flattens every heading,
+// list marker and link, which for a 20-page extraction note discards most of
+// the structure. [notemd.HTMLToMarkdown] also knows that the overwhelming
+// majority of notes are already markdown and leaves those alone.
+//
+// Falls back to the raw body if conversion fails — showing something is
+// better than showing nothing, and a display path shouldn't error.
+func noteBodyForDisplay(body string) string {
+	md, err := notemd.HTMLToMarkdown(body)
+	if err != nil {
+		return strings.TrimSpace(body)
 	}
-	return strings.TrimSpace(b.String())
+	return md
 }
 
 // NoteAddResult is returned by `zot notes add <parent-key>`.

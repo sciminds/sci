@@ -95,7 +95,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Read full markdown content of one or more papers",
 						Cmd:  "sci zot llm read ABC12345 DEF67890",
-						Note: "Returns the docling note body verbatim. Use after `llm catalog` to pick keys.",
+						Note: "Returns the docling note body verbatim. Use after `llm catalog` to pick keys. For a single note by note-key rather than parent-key, `sci zot notes read <note-key> --md` adds a `markdown` field (works for HTML notes too, not just extractions).",
 					},
 					{
 						Goal: "Query specific section across many papers (mq pipeline)",

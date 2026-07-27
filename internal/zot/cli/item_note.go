@@ -46,6 +46,7 @@ var (
 // Flag destinations for `item note read`.
 var (
 	noteReadHTML bool
+	noteReadMD   bool
 )
 
 // itemNoteCommand is the `zot item note` subcommand tree. Registered from
@@ -217,10 +218,11 @@ func itemNoteReadCommand() *cli.Command {
 		Usage:     "Show a note item's body, parent, tags, and collections",
 		ArgsUsage: "<key>",
 		Description: "$ sci zot item note read NOTE1234\n" +
-			"$ sci zot item note read NOTE1234 --html       # raw HTML\n" +
-			"$ sci zot item note read NOTE1234 --json       # structured, incl. HTML body",
+			"$ sci zot item note read NOTE1234 --html       # raw stored body\n" +
+			"$ sci zot item note read NOTE1234 --md --json  # structured, plus a markdown field",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "html", Usage: "show raw HTML instead of stripping tags (human mode only)", Destination: &noteReadHTML, Local: true},
+			&cli.BoolFlag{Name: "html", Usage: "show the raw stored body instead of rendering markdown (human mode only)", Destination: &noteReadHTML, Local: true},
+			&cli.BoolFlag{Name: "md", Usage: "also emit the body converted to markdown (--json adds a `markdown` field)", Destination: &noteReadMD, Local: true},
 		},
 		Action: runItemNoteRead,
 	}
@@ -242,7 +244,15 @@ func runItemNoteRead(ctx context.Context, cmd *cli.Command) error {
 	if err := assertNoteType(string(it.Data.ItemType)); err != nil {
 		return err
 	}
-	outputScoped(ctx, cmd, noteReadResultFromItem(it, noteReadHTML))
+	res := noteReadResultFromItem(it, noteReadHTML)
+	if noteReadMD {
+		md, err := notemd.HTMLToMarkdown(res.Body)
+		if err != nil {
+			return err
+		}
+		res.Markdown = md
+	}
+	outputScoped(ctx, cmd, res)
 	return nil
 }
 

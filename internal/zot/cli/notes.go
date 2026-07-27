@@ -12,11 +12,14 @@ import (
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/extract"
 	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/cli/internal/zot/notemd"
 	"github.com/urfave/cli/v3"
 )
 
 // notes-command flag destinations (package-scoped).
 var (
+	notesReadMD bool
+
 	notesDeleteAll bool
 	notesDeleteYes bool
 
@@ -149,10 +152,14 @@ func notesListAll(ctx context.Context, cmd *cli.Command, db local.Reader) error 
 
 func notesReadCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "read",
-		Usage:       "Show the full body of a note",
-		Description: "$ sci zot notes read NOTECH10",
-		ArgsUsage:   "<note-key>",
+		Name:  "read",
+		Usage: "Show the full body of a note",
+		Description: "$ sci zot notes read NOTECH10\n" +
+			"$ sci zot notes read NOTECH10 --md --json   # body as markdown, for piping into a model",
+		ArgsUsage: "<note-key>",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "md", Usage: "also emit the body converted to markdown (--json adds a `markdown` field)", Destination: &notesReadMD, Local: true},
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected a note key")
@@ -168,7 +175,15 @@ func notesReadCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			outputScoped(ctx, cmd, zot.NoteReadResult{Note: *nd})
+			res := zot.NoteReadResult{Note: *nd}
+			if notesReadMD {
+				md, err := notemd.HTMLToMarkdown(nd.Body)
+				if err != nil {
+					return err
+				}
+				res.Markdown = md
+			}
+			outputScoped(ctx, cmd, res)
 			return nil
 		},
 	}

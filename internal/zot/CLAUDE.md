@@ -157,3 +157,18 @@ Local workaround — callers must pre-escape or pass `Name` without commas.
   - `Unresolved.Candidates` carries the competing Zotero keys on an ambiguity so the fix can name them; `bib.FixCommand` emits an OR-group `search "@key:A | @key:B"` (because `item read` takes one key) and `item add --openalex <doi|W-id>` for externals. No fix for `not-found`/`unchecked` — those need judgement, and the contract reserves `Fix` for verbatim-runnable commands.
   - `bib.trimRefTail` balance-trims a trailing `)` (prose `(doi:10.x/y)` vs. Wiley SICI `10.1002/(SICI)…(19980815)`). Unbalanced parens made real DOIs 404 — under `--verify` that's a false accusation, not a cosmetic bug.
 - **`zot find` JSON shape**: `FindWorksResult` / `FindAuthorsResult` emit a **compact** per-entity shape by default — ~12 flat fields per work (openalex_id, doi, title, year, authors[], venue, cited_by_count, oa_status, pdf_url, …) instead of the raw `openalex.Work` which drags full authorships/institutions/ROR graphs. `--verbose` flips `Verbose=true` on the result struct to pass through the raw record. The shape is agent-facing: default to "just enough to rank and pick", opt in to the firehose.
+
+## Reading notes back out (`notemd.HTMLToMarkdown`)
+
+`notemd` is now bidirectional. Without the reverse direction Zotero was a **write-only store** — sci could post a literature note and never cleanly recover it, which blocks every downstream consumer (an agent re-reading its own note, an external index, a bibliography pass). `--md` on `zot notes read` and `zot item note read` adds a `markdown` field; it is **opt-in** so the default `--json` shape stays byte-stable for existing agents (and a 485KB note doesn't double). Human output on both now renders markdown instead of the old tag-stripper, which used to flatten every heading, list marker and link.
+
+**`IsHTMLNote` is the load-bearing part — don't simplify it to "convert everything".** In the live library **5,098 of 5,140 notes are raw markdown inside Zotero's wrapper div**, not HTML: the docling extraction path posts markdown by default (`--html` is opt-in), and Zotero just wraps whatever it's given. Running those through an HTML→markdown converter is destructive — HTML collapses whitespace, so the YAML provenance block at the top of every extraction note becomes one unparseable line, and `zotero_key` comes back `zotero\_key`.
+
+Detection defaults to HTML (that's what Zotero declares the field to be) and escapes to markdown only on positive evidence, in order:
+
+1. A block-level tag **opening** the body → HTML. Testing what opens it, not what appears anywhere, is deliberate: docling markdown embeds HTML tables mid-document and is still markdown.
+2. Otherwise markdown only if a markdown block construct is present (frontmatter fence, ATX heading, list, code fence). Without this a body of inline-only HTML (`<b>bold</b> and <i>italic</i>`) has no leading block tag and would pass through as raw tags.
+
+Round trip is pinned over exactly the sanitizer's tag vocabulary, plus `zotero://select/...` URIs (Zotero's item-link form — losing those would silently break note→item links). Converter is `html-to-markdown/v2` with base+commonmark only, horizontal rule configured to `---` to match what `MarkdownToHTML` round-trips from.
+
+Note the two `local` helpers that predate this and still have their own jobs: `local.UnwrapZoteroDiv` (wrapper strip for the mq/`llm read` path) and `local.NoteText` (tags→text for note *search*, not display).

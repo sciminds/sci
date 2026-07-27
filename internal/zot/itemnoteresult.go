@@ -8,16 +8,19 @@ import (
 )
 
 // NoteItemReadResult is returned by `zot item note read KEY`. Body is the
-// raw HTML as stored in Zotero; Human output strips tags to plain text for
+// note exactly as stored in Zotero; Human output renders it as markdown for
 // terminal readability unless ShowHTML is set (from the --html flag).
 type NoteItemReadResult struct {
-	Key          string   `json:"key"`
-	ParentItem   string   `json:"parent_item,omitempty"`
-	Collections  []string `json:"collections,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	Body         string   `json:"body"`
-	DateAdded    string   `json:"date_added,omitempty"`
-	DateModified string   `json:"date_modified,omitempty"`
+	Key         string   `json:"key"`
+	ParentItem  string   `json:"parent_item,omitempty"`
+	Collections []string `json:"collections,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Body        string   `json:"body"`
+	// Markdown is the body converted out of Zotero's HTML, set by --md.
+	// Opt-in so the default --json shape stays stable for existing agents.
+	Markdown     string `json:"markdown,omitempty"`
+	DateAdded    string `json:"date_added,omitempty"`
+	DateModified string `json:"date_modified,omitempty"`
 
 	// ShowHTML flips Human output from stripped-text to raw HTML. Not
 	// JSON-serialized — it's a display knob, not part of the payload.
@@ -49,7 +52,7 @@ func (r NoteItemReadResult) Human() string {
 	fmt.Fprintln(&b)
 	body := r.Body
 	if !r.ShowHTML {
-		body = stripHTML(body)
+		body = noteBodyForDisplay(body)
 	}
 	if body != "" {
 		fmt.Fprintf(&b, "%s\n", body)
