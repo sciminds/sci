@@ -323,9 +323,10 @@ func RunWithSpinner(title string, fn func() error) error {
 
 // RunWithSpinnerStatus shows an inline spinner while fn runs, with a
 // status callback for updating detail text. Returns fn's error.
-// In quiet mode, prints the title to stderr and skips the TUI.
+// In quiet mode or without a terminal on stderr (see [interactive]),
+// prints the title to stderr and skips the TUI.
 func RunWithSpinnerStatus(title string, fn func(setStatus func(string)) error) error {
-	if IsQuiet() {
+	if !interactive() {
 		fmt.Fprintf(os.Stderr, "%s\n", title)
 		return fn(func(string) {})
 	}
@@ -333,25 +334,28 @@ func RunWithSpinnerStatus(title string, fn func(setStatus func(string)) error) e
 	m := newRunnerModel(title, false)
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 
+	workErr := make(chan error, 1)
 	go func() {
 		err := fn(func(s string) { p.Send(statusMsg(s)) })
+		workErr <- err
 		p.Send(doneMsg{err: err})
 	}()
 
 	result, runErr := p.Run()
 	DrainStdin()
 	if runErr != nil {
-		return runErr
+		return reportDisplayFailure(title, runErr, workErr)
 	}
 	return result.(runnerModel).err
 }
 
 // RunWithProgress shows an inline progress display while fn runs. The
 // callback receives a ProgressTracker whose methods update the view in
-// real-time. In quiet mode, prints the title to stderr and runs fn
-// with a no-op tracker.
+// real-time. In quiet mode or without a terminal on stderr (see
+// [interactive]), prints the title to stderr and runs fn with a no-op
+// tracker.
 func RunWithProgress(title string, fn func(t *ProgressTracker) error) error {
-	if IsQuiet() {
+	if !interactive() {
 		fmt.Fprintf(os.Stderr, "%s\n", title)
 		tracker := &ProgressTracker{}
 		return fn(tracker)
@@ -361,15 +365,31 @@ func RunWithProgress(title string, fn func(t *ProgressTracker) error) error {
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	tracker := &ProgressTracker{p: p}
 
+	workErr := make(chan error, 1)
 	go func() {
 		err := fn(tracker)
+		workErr <- err
 		p.Send(doneMsg{err: err})
 	}()
 
 	result, runErr := p.Run()
 	DrainStdin()
 	if runErr != nil {
-		return runErr
+		return reportDisplayFailure(title, runErr, workErr)
 	}
 	return result.(runnerModel).err
+}
+
+// reportDisplayFailure handles a bubbletea program that failed to run. The work
+// goroutine is unaffected by that failure and keeps going, so its outcome — not
+// the display error — is what the caller must report; returning runErr here is
+// what made a successful --apply look like a failure. The TUI error is demoted
+// to a stderr diagnostic and the work's own error is returned.
+//
+// Waiting on workErr cannot deadlock: [tea.Program.Run] cancels the program
+// context before returning, which unblocks any [tea.Program.Send] the work
+// goroutine is sitting in.
+func reportDisplayFailure(title string, runErr error, workErr <-chan error) error {
+	fmt.Fprintf(os.Stderr, "%s\n(progress display unavailable: %v)\n", title, runErr)
+	return <-workErr
 }
