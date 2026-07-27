@@ -285,7 +285,7 @@ const MetaFormat = "format"
 // owes a rebuild.
 //
 // 1: raw note text, provenance header included.
-// 2: provenance header stripped (see stripProvenance).
+// 2: provenance header stripped (see StripProvenance).
 const IndexFormat = 2
 
 // SetMeta stores a key/value pair alongside the index.

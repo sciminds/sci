@@ -22,7 +22,7 @@ generated: 2026-04-22
 Alyssa H. Sinclair, Grace M. Manalili`
 
 func TestStripProvenanceRemovesTheBlock(t *testing.T) {
-	got := stripProvenance(sampleProvenance)
+	got := StripProvenance(sampleProvenance)
 
 	for _, gone := range []string{"zotero_key", "pdf_key", "docling (cached)", "2074691", "generated"} {
 		if strings.Contains(got, gone) {
@@ -48,7 +48,7 @@ func TestStripProvenanceLeavesForeignBlocksAlone(t *testing.T) {
 		"empty":                      "",
 	}
 	for name, text := range cases {
-		if got := stripProvenance(text); got != text {
+		if got := StripProvenance(text); got != text {
 			t.Errorf("%s: text was modified\n got: %q\nwant: %q", name, got, text)
 		}
 	}
@@ -65,7 +65,7 @@ func TestStripProvenanceRequiresTheMarkerNearTheTop(t *testing.T) {
 	b.WriteString("zotero_key: AAAA1111\n---\n\nBody.")
 
 	text := b.String()
-	if got := stripProvenance(text); got != text {
+	if got := StripProvenance(text); got != text {
 		t.Error("stripped a block whose marker was past the provenance-block size")
 	}
 }
@@ -74,7 +74,7 @@ func TestStripProvenanceRequiresTheMarkerNearTheTop(t *testing.T) {
 // nothing that looks like it should be touched.
 func TestStripProvenanceIsANoOpForZoteroCacheText(t *testing.T) {
 	text := "Prediction Errors Disrupt Hippocampal Representations\nAlyssa H. Sinclair"
-	if got := stripProvenance(text); got != text {
+	if got := StripProvenance(text); got != text {
 		t.Errorf("plain text was modified: %q", got)
 	}
 }

@@ -71,14 +71,14 @@ func ZoteroLoader(lib Library, dataDir string) LoadFunc {
 			//
 			//  1. UnwrapZoteroDiv drops Zotero's wrapper but keeps the
 			//     markdown's line structure.
-			//  2. stripProvenance drops sci's own header, which is
+			//  2. StripProvenance drops sci's own header, which is
 			//     metadata about the extraction rather than the paper.
 			//     It has to run here, before step 3: NoteText joins on
 			//     whitespace, which flattens the YAML block into one
 			//     line and leaves nothing to recognize.
 			//  3. NoteText renders to plain text, so the wrapper's own
 			//     markup ("div", "znv1") never becomes a searchable term.
-			return local.NoteText(stripProvenance(local.UnwrapZoteroDiv(body))), nil
+			return local.NoteText(StripProvenance(local.UnwrapZoteroDiv(body))), nil
 		case SourceZotero:
 			return readFTCache(dataDir, c.AttachmentKey)
 		default:

@@ -12,7 +12,7 @@ const maxProvenanceLines = 12
 // note, and the positive evidence that a leading YAML block is ours.
 const provenanceMarker = "zotero_key:"
 
-// stripProvenance removes the YAML provenance block that sci's own
+// StripProvenance removes the YAML provenance block that sci's own
 // extraction notes carry (see extract.MarkdownToNoteRaw), returning the
 // paper's text alone.
 //
@@ -36,7 +36,7 @@ const provenanceMarker = "zotero_key:"
 // writes its provenance as a heading plus an italic line instead, which
 // this does not detect. That is deliberate: it has no unambiguous marker,
 // and in the live library essentially every extraction is markdown.
-func stripProvenance(text string) string {
+func StripProvenance(text string) string {
 	rest, ok := strings.CutPrefix(text, "---\n")
 	if !ok {
 		return text

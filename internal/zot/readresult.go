@@ -6,6 +6,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/cli/internal/zot/content"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -258,10 +259,18 @@ func childTypeLabel(t string) string {
 // noteSnippet returns a ~60-char preview of a note body with HTML
 // tags stripped. Good enough for CLI display — full parsing lives
 // in MarkdownToNoteHTML's inverse, which we don't need here.
+//
+// sci's own provenance header comes off first, for the same reason the
+// content index strips it: the block is metadata about the extraction, so
+// a preview that keeps it shows `--- zotero_key: … title: "…" source…`
+// instead of the paper's first sentence. Order matters — the tag-strip
+// below collapses newlines to spaces, which flattens the YAML into one
+// unrecognizable line. Detection is positive-evidence gated, so a note
+// without a provenance block passes through untouched.
 func noteSnippet(html string) string {
 	var b strings.Builder
 	inTag := false
-	for _, r := range html {
+	for _, r := range content.StripProvenance(local.UnwrapZoteroDiv(html)) {
 		switch {
 		case r == '<':
 			inTag = true
