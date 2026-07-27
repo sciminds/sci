@@ -69,6 +69,18 @@ func (p Plan) Empty() bool { return p.Total() == 0 }
 // is an upgrade even when the new note's version number is lower than
 // the Zotero attachment it replaces.
 func NewPlan(candidates []Candidate, indexed map[string]DocState) Plan {
+	return newPlan(candidates, indexed, false)
+}
+
+// NewRebuildPlan is [NewPlan] with every indexed item forced to Update.
+// It is what an [IndexFormat] bump calls for: the versions still match,
+// but the text behind them was normalized by rules this code no longer
+// uses, so "unchanged version" no longer means "unchanged text".
+func NewRebuildPlan(candidates []Candidate, indexed map[string]DocState) Plan {
+	return newPlan(candidates, indexed, true)
+}
+
+func newPlan(candidates []Candidate, indexed map[string]DocState, rebuild bool) Plan {
 	var p Plan
 	seen := make(map[string]bool, len(candidates))
 
@@ -87,7 +99,7 @@ func NewPlan(candidates []Candidate, indexed map[string]DocState) Plan {
 		switch {
 		case !indexedNow:
 			p.Add = append(p.Add, c)
-		case prior.Source != source || prior.Version != version:
+		case rebuild || prior.Source != source || prior.Version != version:
 			p.Update = append(p.Update, c)
 		default:
 			p.Unchanged++
@@ -193,10 +205,30 @@ func Build(ix *Index, p Plan, load LoadFunc, opts Options) (Result, error) {
 			continue
 		}
 		if strings.TrimSpace(body) == "" {
-			// A scanned PDF with no OCR, or a truncated cache file.
-			// Indexing an empty document just adds a row that can never
-			// match; leave it out so coverage stats stay honest.
+			// A scanned PDF with no OCR, a truncated cache file, or an
+			// extraction note that is nothing but its provenance header.
+			//
+			// Record it as an empty document rather than skipping the
+			// write. Two things depend on that. It replaces whatever the
+			// item used to say, so a paper whose text disappears stops
+			// matching what it no longer has. And it stamps the version,
+			// so the next plan sees the item as up to date instead of
+			// re-planning it forever — an item that can never be indexed
+			// must not report itself as pending work on every run.
+			//
+			// Coverage stays honest because [Index.Stats] counts only
+			// rows that have text.
+			batch = append(batch, Doc{
+				ItemKey: w.cand.ItemKey,
+				Source:  source,
+				Version: version,
+			})
 			res.Skipped++
+			if len(batch) >= batchSize {
+				if err := flush(); err != nil {
+					return res, err
+				}
+			}
 			continue
 		}
 

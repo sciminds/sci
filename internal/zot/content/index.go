@@ -265,11 +265,28 @@ func (ix *Index) State() (map[string]DocState, error) {
 	return out, rows.Err()
 }
 
-// MetaSignature is the key under which [Sync] records the library
+// MetaSignature is the key under which [RecordBuilt] records the library
 // fingerprint the index was built from. Comparing it to the library's
 // current fingerprint is how a search detects a stale index without
 // paying for a full plan.
 const MetaSignature = "signature"
+
+// MetaFormat is the key under which [RecordBuilt] records the document
+// format the index's text was normalized with.
+const MetaFormat = "format"
+
+// IndexFormat is the current normalization format of indexed text —
+// which parts of a source become searchable body and which are dropped.
+//
+// Bump it whenever that changes. Nothing in a Zotero library moves when
+// sci's own indexing rules do, so the library fingerprint behind
+// [Stale] cannot see it: this version is the only signal that an
+// existing index holds text the current code would never produce, and
+// owes a rebuild.
+//
+// 1: raw note text, provenance header included.
+// 2: provenance header stripped (see stripProvenance).
+const IndexFormat = 2
 
 // SetMeta stores a key/value pair alongside the index.
 func (ix *Index) SetMeta(key, value string) error {
@@ -395,10 +412,14 @@ func (ix *Index) Snippets(query string, keys []string) (map[string]string, error
 // Body returns the indexed text for one item, and whether it is present.
 // This is what makes the index dual-purpose: having stored the text to
 // serve snippets, handing the whole paper to a model costs nothing extra.
+//
+// An item recorded with no text reports absent, same as one that was
+// never indexed: to a reader they are the same answer, "there is no text
+// for this paper".
 func (ix *Index) Body(itemKey string) (string, Source, bool, error) {
 	var body, source string
 	err := ix.db.QueryRow(
-		`SELECT body, source FROM docs WHERE item_key = ?`, itemKey).Scan(&body, &source)
+		`SELECT body, source FROM docs WHERE item_key = ? AND body <> ''`, itemKey).Scan(&body, &source)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", "", false, nil
 	}
@@ -409,8 +430,12 @@ func (ix *Index) Body(itemKey string) (string, Source, bool, error) {
 }
 
 // Stats summarizes index coverage and on-disk size.
+//
+// Rows with no text are excluded: [Build] records those to remember that
+// an item was examined and had nothing to index, which is bookkeeping,
+// not coverage.
 func (ix *Index) Stats() (Stats, error) {
-	rows, err := ix.db.Query(`SELECT source, COUNT(*) FROM docs GROUP BY source`)
+	rows, err := ix.db.Query(`SELECT source, COUNT(*) FROM docs WHERE body <> '' GROUP BY source`)
 	if err != nil {
 		return Stats{}, fmt.Errorf("index stats: %w", err)
 	}

@@ -120,6 +120,12 @@ func contentBuildAction(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 	}
+	// Stamp what this index now reflects. Without it the index carries no
+	// fingerprint, content.Stale reads that as "never built", and the
+	// staleness warning on `search --content` can never fire.
+	if err := content.RecordBuilt(ix, db); err != nil {
+		return err
+	}
 
 	res.Added, res.Updated, res.Deleted = built.Added, built.Updated, built.Deleted
 	res.Skipped, res.Failed = built.Skipped, built.Failed

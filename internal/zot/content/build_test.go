@@ -228,9 +228,51 @@ func TestBuildSkipsBlankBodies(t *testing.T) {
 	if res.Added != 1 {
 		t.Errorf("Added = %d, want 1", res.Added)
 	}
+	// It does not count as coverage and has no readable text…
+	stats, err := ix.Stats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Total != 1 {
+		t.Errorf("Stats.Total = %d, want 1 — a blank row is not coverage", stats.Total)
+	}
+	if _, _, ok, _ := ix.Body("BLANKITM"); ok {
+		t.Error("Body reported text for a blank item")
+	}
+	// …but its version is on record, so the next plan leaves it alone
+	// instead of re-planning an item that can never be indexed.
 	st, _ := ix.State()
-	if _, ok := st["BLANKITM"]; ok {
-		t.Error("blank body was indexed, want it skipped")
+	if _, ok := st["BLANKITM"]; !ok {
+		t.Error("blank item was not recorded; it would be re-planned forever")
+	}
+}
+
+// An item whose text goes blank on reindex — a failed extraction, or a
+// note that was nothing but the provenance header — must lose its row,
+// not keep serving what it used to say.
+func TestBuildPurgesItemsWhoseTextWentBlank(t *testing.T) {
+	ix := openTestIndex(t)
+	mustUpsert(t, ix, Doc{ItemKey: "WENTBLNK", Source: SourceDocling, Version: 1,
+		Body: "text that is about to disappear"})
+
+	p := Plan{Update: []Candidate{{ItemKey: "WENTBLNK", DoclingNoteID: 1, DoclingVersion: 2}}}
+	res, err := Build(ix, p, func(Candidate, Source) (string, error) { return "  \n ", nil }, Options{})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if res.Skipped != 1 {
+		t.Errorf("Skipped = %d, want 1", res.Skipped)
+	}
+	hits, _ := ix.Search(Query{Text: "disappear", Limit: 10})
+	if len(hits) != 0 {
+		t.Errorf("stale text still matches: %+v", hits)
+	}
+	if _, _, ok, _ := ix.Body("WENTBLNK"); ok {
+		t.Error("Body still returns text the item no longer has")
+	}
+	st, _ := ix.State()
+	if got := st["WENTBLNK"].Version; got != 2 {
+		t.Errorf("recorded version = %d, want 2 (the version that came back blank)", got)
 	}
 }
 

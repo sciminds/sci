@@ -893,6 +893,21 @@ func localSearchHint(contentSearch bool) string {
 // codeContentStale labels the stale-content-index warning.
 const codeContentStale cmdutil.Code = "content-stale"
 
+// staleContentMessage explains a stale index in terms of what the user
+// would have to do differently. The two causes are not the same story:
+// one means their library moved, the other means sci's own indexing
+// changed and nothing they did is wrong.
+func staleContentMessage(reason content.StaleReason) string {
+	switch reason {
+	case content.StaleFormat:
+		return "the content index was built by an older version of sci — its text still " +
+			"includes each extraction's provenance header, which skews ranking and snippets"
+	default:
+		return "the content index is out of date — papers extracted since the last " +
+			"build are not searchable"
+	}
+}
+
 // contentSearch is the search command's handle on the paper-text index:
 // the widening hook [local.SearchOptions] calls while searching, the
 // snippet lookup for the hits that survive, and the warnings and closer
@@ -929,17 +944,16 @@ func contentWidener(ctx context.Context, db local.Reader) (*contentSearch, error
 	}
 
 	var warns []cmdutil.Warning
-	stale, err := content.Stale(ix, db)
+	reason, err := content.Stale(ix, db)
 	if err != nil {
 		closer()
 		return nil, err
 	}
-	if stale {
+	if reason != content.StaleFresh {
 		warns = append(warns, cmdutil.Warning{
-			Code: codeContentStale,
-			Message: "the content index is out of date — papers extracted since the last " +
-				"build are not searchable",
-			Fix: "sci zot content build --library " + scopeFromCtx(ctx),
+			Code:    codeContentStale,
+			Message: staleContentMessage(reason),
+			Fix:     "sci zot content build --library " + scopeFromCtx(ctx),
 		})
 	}
 

@@ -83,6 +83,27 @@ func TestLoaderStripsNoteMarkup(t *testing.T) {
 	}
 }
 
+// The loader is where provenance stripping has to happen: every reader
+// of the index (search, snippets, `content read`) then sees the paper's
+// text and nothing sci wrote about it.
+func TestLoaderStripsProvenanceFromExtractionNotes(t *testing.T) {
+	lib := fakeLibrary{bodies: map[int64]string{
+		90: `<div class="zotero-note znv1">` + sampleProvenance + `</div>`,
+	}}
+	load := ZoteroLoader(lib, t.TempDir())
+
+	body, err := load(Candidate{ItemKey: "5ABS8B8G", DoclingNoteID: 90}, SourceDocling)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if strings.Contains(body, "zotero_key") || strings.Contains(body, "docling (cached)") {
+		t.Errorf("provenance survived into the indexed body: %q", body)
+	}
+	if !strings.Contains(body, "Alyssa H. Sinclair") {
+		t.Errorf("paper text was lost: %q", body)
+	}
+}
+
 // Heading text and the paragraph after it must not weld into one token,
 // or a query matches a word that was never written.
 func TestLoaderSeparatesAdjacentTags(t *testing.T) {
@@ -236,6 +257,82 @@ func TestSyncReindexesOnVersionBump(t *testing.T) {
 	}
 	if hits, _ := ix.Search(Query{Text: "revised", Limit: 10}); len(hits) != 1 {
 		t.Error("revised text is not searchable")
+	}
+}
+
+// An index built by an older normalization holds text this code would
+// never write, and no library change can reveal that — so the format
+// stamp has to force the reindex on its own.
+func TestPlanSyncRebuildsWhenTheFormatIsOld(t *testing.T) {
+	lib := fakeLibrary{
+		sources: []local.ContentSource{{ItemKey: "AAAA1111", DoclingNoteID: 90, DoclingVersion: 6}},
+		bodies:  map[int64]string{90: "<p>stable text</p>"},
+	}
+	ix := openTestIndex(t)
+	if _, err := Sync(ix, lib, t.TempDir(), Options{}); err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+
+	// Nothing in the library moved, so this is the no-work case…
+	plan, err := PlanSync(ix, lib)
+	if err != nil {
+		t.Fatalf("PlanSync: %v", err)
+	}
+	if !plan.Empty() {
+		t.Fatalf("plan = %+v, want empty when nothing changed", plan)
+	}
+
+	// …until the index turns out to predate the current format.
+	if err := ix.SetMeta(MetaFormat, "1"); err != nil {
+		t.Fatal(err)
+	}
+	plan, err = PlanSync(ix, lib)
+	if err != nil {
+		t.Fatalf("PlanSync after format bump: %v", err)
+	}
+	if len(plan.Update) != 1 || plan.Unchanged != 0 {
+		t.Errorf("plan = %+v, want the indexed item forced to Update", plan)
+	}
+
+	reason, err := Stale(ix, lib)
+	if err != nil {
+		t.Fatalf("Stale: %v", err)
+	}
+	if reason != StaleFormat {
+		t.Errorf("Stale = %q, want %q — the search would never warn", reason, StaleFormat)
+	}
+}
+
+// A build that does not stamp its fingerprint reports itself fresh
+// forever: Stale reads a missing signature as "never built".
+func TestSyncRecordsFingerprintAndFormat(t *testing.T) {
+	lib := fakeLibrary{
+		sources:   []local.ContentSource{{ItemKey: "AAAA1111", DoclingNoteID: 90, DoclingVersion: 6}},
+		bodies:    map[int64]string{90: "<p>stable text</p>"},
+		signature: "v1:1:6:0",
+	}
+	ix := openTestIndex(t)
+	if _, err := Sync(ix, lib, t.TempDir(), Options{}); err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+
+	for key, want := range map[string]string{MetaSignature: "v1:1:6:0", MetaFormat: "2"} {
+		got, err := ix.GetMeta(key)
+		if err != nil {
+			t.Fatalf("GetMeta(%q): %v", key, err)
+		}
+		if got != want {
+			t.Errorf("meta[%q] = %q, want %q", key, got, want)
+		}
+	}
+
+	lib.signature = "v1:2:9:0" // the library moved on
+	reason, err := Stale(ix, lib)
+	if err != nil {
+		t.Fatalf("Stale: %v", err)
+	}
+	if reason != StaleLibrary {
+		t.Errorf("Stale = %q, want %q after the library changed", reason, StaleLibrary)
 	}
 }
 

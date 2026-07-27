@@ -66,11 +66,19 @@ func ZoteroLoader(lib Library, dataDir string) LoadFunc {
 			if err != nil {
 				return "", err
 			}
-			// Notes are stored as HTML-wrapped markdown. Index the
-			// rendered text so the wrapper's own markup ("div", "znv1")
-			// never becomes a searchable term — the same reason
-			// NoteText exists for note search.
-			return local.NoteText(body), nil
+			// Notes are stored as HTML-wrapped markdown, so three steps
+			// in a fixed order:
+			//
+			//  1. UnwrapZoteroDiv drops Zotero's wrapper but keeps the
+			//     markdown's line structure.
+			//  2. stripProvenance drops sci's own header, which is
+			//     metadata about the extraction rather than the paper.
+			//     It has to run here, before step 3: NoteText joins on
+			//     whitespace, which flattens the YAML block into one
+			//     line and leaves nothing to recognize.
+			//  3. NoteText renders to plain text, so the wrapper's own
+			//     markup ("div", "znv1") never becomes a searchable term.
+			return local.NoteText(stripProvenance(local.UnwrapZoteroDiv(body))), nil
 		case SourceZotero:
 			return readFTCache(dataDir, c.AttachmentKey)
 		default:
@@ -114,12 +122,18 @@ func Sync(ix *Index, lib Library, dataDir string, opts Options) (Result, error) 
 	if err != nil {
 		return res, err
 	}
-	return res, RecordSignature(ix, lib)
+	return res, RecordBuilt(ix, lib)
 }
 
-// RecordSignature stamps the index with the library fingerprint it now
-// reflects, so [Stale] can answer cheaply.
-func RecordSignature(ix *Index, lib Library) error {
+// RecordBuilt stamps the index with the library fingerprint and the
+// document format it now reflects, so [Stale] and [PlanSync] can answer
+// cheaply. Every path that finishes a build must call it — an index that
+// never records its fingerprint reports itself fresh forever, because
+// [Stale] reads a missing signature as "never built".
+func RecordBuilt(ix *Index, lib Library) error {
+	if err := ix.SetMeta(MetaFormat, strconv.Itoa(IndexFormat)); err != nil {
+		return err
+	}
 	sig, err := lib.ContentSignature()
 	if err != nil {
 		return err
@@ -127,8 +141,39 @@ func RecordSignature(ix *Index, lib Library) error {
 	return ix.SetMeta(MetaSignature, sig)
 }
 
+// formatOutdated reports whether the index's text was normalized under a
+// different [IndexFormat] than this code produces — including an index
+// built before formats were recorded, which reads as format 0.
+func formatOutdated(ix *Index) (bool, error) {
+	recorded, err := ix.GetMeta(MetaFormat)
+	if err != nil {
+		return false, err
+	}
+	return recorded != strconv.Itoa(IndexFormat), nil
+}
+
+// StaleReason says why an index no longer reflects what a search would
+// need — and, because the two causes call for different explanations to
+// the user, which one it is.
+type StaleReason string
+
+const (
+	// StaleFresh means the index is up to date. It is the zero value, so
+	// `if reason != "" ` reads as "is it stale".
+	StaleFresh StaleReason = ""
+	// StaleLibrary means the library moved: papers were added, extracted
+	// or removed since the build.
+	StaleLibrary StaleReason = "library"
+	// StaleFormat means sci's indexing rules changed, so the text on disk
+	// is not what this version would produce. Nothing about the user's
+	// library is wrong; the index is simply older than the code.
+	StaleFormat StaleReason = "format"
+)
+
 // Stale reports whether the library has changed since the index was
 // built.
+//
+// The returned [StaleReason] is [StaleFresh] when it has not.
 //
 // It compares fingerprints rather than computing a [Plan], because a
 // plan has to enumerate every item's sources — around half a second on a
@@ -139,21 +184,33 @@ func RecordSignature(ix *Index, lib Library) error {
 // leaves the counts and versions identical. This drives a warning, never
 // a correctness decision — `zot content build` always computes the real
 // diff.
-func Stale(ix *Index, lib Library) (bool, error) {
+func Stale(ix *Index, lib Library) (StaleReason, error) {
+	// An indexer-format change is staleness the library fingerprint can
+	// never show: the text on disk is not what this code would write.
+	outdated, err := formatOutdated(ix)
+	if err != nil {
+		return StaleFresh, err
+	}
+	if outdated {
+		return StaleFormat, nil
+	}
 	recorded, err := ix.GetMeta(MetaSignature)
 	if err != nil {
-		return false, err
+		return StaleFresh, err
 	}
 	if recorded == "" {
 		// Never built, or built before signatures existed. An empty
 		// index is reported by its own emptiness, not as staleness.
-		return false, nil
+		return StaleFresh, nil
 	}
 	current, err := lib.ContentSignature()
 	if err != nil {
-		return false, err
+		return StaleFresh, err
 	}
-	return current != recorded, nil
+	if current != recorded {
+		return StaleLibrary, nil
+	}
+	return StaleFresh, nil
 }
 
 // PlanSync computes what a [Sync] would do without doing it — the shape
@@ -166,6 +223,13 @@ func PlanSync(ix *Index, lib Library) (Plan, error) {
 	indexed, err := ix.State()
 	if err != nil {
 		return Plan{}, err
+	}
+	outdated, err := formatOutdated(ix)
+	if err != nil {
+		return Plan{}, err
+	}
+	if outdated {
+		return NewRebuildPlan(cands, indexed), nil
 	}
 	return NewPlan(cands, indexed), nil
 }
