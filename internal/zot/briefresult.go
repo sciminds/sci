@@ -82,6 +82,9 @@ type ListBriefResult struct {
 	Library   int64       `json:"library_id"`
 	Scope     string      `json:"searched,omitempty"`
 	Hint      string      `json:"hint,omitempty"`
+	// Snippets is [ListResult.Snippets] — the matched excerpt from each
+	// paper's text, keyed by item key.
+	Snippets map[string]string `json:"snippets,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -97,6 +100,7 @@ func (r ListBriefResult) Human() string {
 	var b strings.Builder
 	for _, it := range r.Items {
 		writeBriefLine(&b, it)
+		writeSnippetLine(&b, r.Snippets[it.Key])
 	}
 	if r.Truncated {
 		fmt.Fprintf(&b, "\n  %s showing %d of %d — raise --limit to see more\n", uikit.SymArrow, r.Count, r.Total)

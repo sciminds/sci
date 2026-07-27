@@ -24,6 +24,12 @@ type ListResult struct {
 	Library   int64        `json:"library_id"`
 	Scope     string       `json:"searched,omitempty"`
 	Hint      string       `json:"hint,omitempty"`
+	// Snippets carries the matched excerpt from the paper's text, keyed
+	// by item key, for the hits that `search --content` matched on
+	// content rather than metadata. Absent for every other search — it
+	// rides beside Items rather than inside local.Item so the item shape
+	// stays the same one every other command emits.
+	Snippets map[string]string `json:"snippets,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -37,6 +43,7 @@ func (r ListResult) Human() string {
 	var b strings.Builder
 	for _, it := range r.Items {
 		writeItemLine(&b, it)
+		writeSnippetLine(&b, r.Snippets[it.Key])
 	}
 	if r.Truncated {
 		fmt.Fprintf(&b, "\n  %s showing %d of %d — raise --limit to see more\n", uikit.SymArrow, r.Count, r.Total)
@@ -63,6 +70,19 @@ func renderEmptyListHuman(query, scope, hint string) string {
 		fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("hint:"), hint)
 	}
 	return b.String()
+}
+
+// writeSnippetLine renders one hit's content excerpt under its metadata,
+// or nothing when the hit matched on metadata alone. Shared by ListResult
+// and ListBriefResult so `--full` doesn't lose the evidence.
+func writeSnippetLine(b *strings.Builder, snippet string) {
+	if snippet == "" {
+		return
+	}
+	// FTS5 hands back the excerpt with the document's own newlines; a hit
+	// list needs one line per hit.
+	flat := strings.Join(strings.Fields(snippet), " ")
+	fmt.Fprintf(b, "    %s\n", uikit.TUI.Dim().Render(flat))
 }
 
 func writeItemLine(b *strings.Builder, it local.Item) {

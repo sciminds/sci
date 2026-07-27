@@ -136,7 +136,8 @@ func searchCommand() *cli.Command {
 		Name:  "search",
 		Usage: "Search your library by title, DOI, publication, cite-key, or @field: clauses",
 		Description: "Free text searches title/DOI/publication/creators/cite-keys,\n" +
-			"ranked by title relevance (then year). Prefix a clause with\n" +
+			"ranked by title relevance, then (with --content) how well the\n" +
+			"paper's text matches, then year. Prefix a clause with\n" +
 			"@field: to scope it — fields: author, title, doi, pub, tag,\n" +
 			"type, year, citekey. Clauses AND by default; `|` separates OR\n" +
 			"groups; a leading `-` in the value negates the clause.\n\n" +
@@ -246,13 +247,14 @@ func searchCommand() *cli.Command {
 
 			var opts local.SearchOptions
 			var contentWarns []cmdutil.Warning
+			var csearch *contentSearch
 			if searchContent {
-				widen, warns, closeIndex, err := contentWidener(ctx, db)
+				csearch, err = contentWidener(ctx, db)
 				if err != nil {
 					return err
 				}
-				defer closeIndex()
-				opts.Content, contentWarns = widen, warns
+				defer csearch.close()
+				opts.Content, contentWarns = csearch.widen, csearch.warns
 			}
 
 			items, total, err := db.SearchWithTotal(query, searchLimit, opts)
@@ -286,6 +288,14 @@ func searchCommand() *cli.Command {
 				outputScoped(ctx, cmd, cmdutil.WithWarnings(res, staleLocalWarning(db, "")...))
 				return nil
 			}
+			// Excerpts are fetched only for the hits that survived ranking
+			// and filtering — building one reads the paper's whole body.
+			var snippets map[string]string
+			if csearch != nil {
+				snippets = csearch.snippets(query, lo.Map(items, func(it local.Item, _ int) string {
+					return it.Key
+				}))
+			}
 			if searchFull {
 				hydrated, err := hydrateSearchHits(db, items)
 				if err != nil {
@@ -301,6 +311,7 @@ func searchCommand() *cli.Command {
 					Truncated: len(briefs) < total,
 					Items:     briefs,
 					Library:   db.LibraryID(),
+					Snippets:  snippets,
 				}
 				if len(briefs) == 0 {
 					bres.Scope = localSearchScope(searchContent)
@@ -316,6 +327,7 @@ func searchCommand() *cli.Command {
 				Truncated: len(items) < total,
 				Items:     items,
 				Library:   db.LibraryID(),
+				Snippets:  snippets,
 			}
 			if len(items) == 0 {
 				res.Scope = localSearchScope(searchContent)
@@ -881,28 +893,37 @@ func localSearchHint(contentSearch bool) string {
 // codeContentStale labels the stale-content-index warning.
 const codeContentStale cmdutil.Code = "content-stale"
 
-// contentWidener opens the content index and returns the widening hook
-// for [local.SearchOptions], any warnings to ride along with the result,
-// and a closer.
+// contentSearch is the search command's handle on the paper-text index:
+// the widening hook [local.SearchOptions] calls while searching, the
+// snippet lookup for the hits that survive, and the warnings and closer
+// that come with holding the index open.
+type contentSearch struct {
+	widen    func(text string) (map[string]float64, error)
+	snippets func(query string, keys []string) map[string]string
+	warns    []cmdutil.Warning
+	close    func()
+}
+
+// contentWidener opens the content index and wires up [contentSearch].
 //
 // A missing index is an error with a runnable fix rather than a silent
 // build: indexing a real library takes about a minute, which is not
 // something to spring on someone who typed a search.
-func contentWidener(ctx context.Context, db local.Reader) (func(string) ([]int64, error), []cmdutil.Warning, func(), error) {
+func contentWidener(ctx context.Context, db local.Reader) (*contentSearch, error) {
 	ix, err := openContentIndex(db)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	closer := func() { _ = ix.Close() }
 
 	st, err := ix.Stats()
 	if err != nil {
 		closer()
-		return nil, nil, nil, err
+		return nil, err
 	}
 	if st.Total == 0 {
 		closer()
-		return nil, nil, nil, cmdutil.Coded(cmdutil.CodeNotFound,
+		return nil, cmdutil.Coded(cmdutil.CodeNotFound,
 			"no content index for this library").
 			WithFix("sci zot content build --library " + scopeFromCtx(ctx))
 	}
@@ -911,7 +932,7 @@ func contentWidener(ctx context.Context, db local.Reader) (func(string) ([]int64
 	stale, err := content.Stale(ix, db)
 	if err != nil {
 		closer()
-		return nil, nil, nil, err
+		return nil, err
 	}
 	if stale {
 		warns = append(warns, cmdutil.Warning{
@@ -922,8 +943,8 @@ func contentWidener(ctx context.Context, db local.Reader) (func(string) ([]int64
 		})
 	}
 
-	widen := func(text string) ([]int64, error) {
-		keys, err := ix.Keys(text)
+	widen := func(text string) (map[string]float64, error) {
+		scores, err := ix.Scores(text)
 		if err != nil {
 			// A query with no indexable terms (all punctuation) widens
 			// nothing; the metadata clauses still stand on their own.
@@ -932,9 +953,22 @@ func contentWidener(ctx context.Context, db local.Reader) (func(string) ([]int64
 			}
 			return nil, err
 		}
-		return db.ItemIDsForKeys(keys)
+		return scores, nil
 	}
-	return widen, warns, closer, nil
+	// Snippets are cosmetic: a hit list that loses them is still correct,
+	// so a failed excerpt lookup drops the excerpts instead of the search.
+	snippets := func(query string, keys []string) map[string]string {
+		text := local.QueryFreeText(query)
+		if text == "" || len(keys) == 0 {
+			return nil
+		}
+		snips, err := ix.Snippets(text, keys)
+		if err != nil {
+			return nil
+		}
+		return snips
+	}
+	return &contentSearch{widen: widen, snippets: snippets, warns: warns, close: closer}, nil
 }
 
 // retiredSearchFlagError turns a removed flag into a message that names

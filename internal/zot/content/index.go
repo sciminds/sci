@@ -1,11 +1,13 @@
 package content
 
 import (
+	"cmp"
 	"database/sql"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/samber/lo"
 	_ "modernc.org/sqlite" // registers the "sqlite" driver (pure Go, no CGO)
@@ -53,8 +55,19 @@ type Hit struct {
 // Query parameterizes a search.
 type Query struct {
 	// Text is the user's raw query, translated by [MatchExpr].
-	Text  string
-	Limit int // <= 0 means DefaultLimit
+	Text string
+	// Keys restricts the search to these item keys; empty searches the
+	// whole index. This is how the second, snippet-fetching pass narrows
+	// to the items that will actually be displayed.
+	Keys []string
+	// Limit caps the hit count: zero means [DefaultLimit], [AllHits]
+	// means every match.
+	Limit int
+	// Snippets requests a matched excerpt per hit. It is opt-in because
+	// building one reads the item's body out of the docs table — free
+	// for the dozens of hits a user sees, expensive for the thousands a
+	// broad term matches.
+	Snippets bool
 	// SnippetOpen and SnippetClose wrap each matched term inside the
 	// returned snippet. Both empty (the default) yields plain text.
 	SnippetOpen, SnippetClose string
@@ -62,6 +75,11 @@ type Query struct {
 
 // DefaultLimit caps an unbounded search.
 const DefaultLimit = 50
+
+// AllHits is the [Query.Limit] that returns every match. The metadata search
+// wants it: it merges content hits with its own before deciding a top N,
+// so a limit applied here would silently drop candidates.
+const AllHits = -1
 
 // snippetTokens is how many tokens of context a snippet carries. FTS5
 // caps this at 64.
@@ -286,24 +304,41 @@ func (ix *Index) Search(q Query) ([]Hit, error) {
 	if expr == "" {
 		return nil, ErrNoTerms
 	}
-	limit := q.Limit
-	if limit <= 0 {
-		limit = DefaultLimit
+
+	// Placeholders bind in statement order, so the args are assembled in
+	// the same order the clauses are: SELECT list, then WHERE, then LIMIT.
+	var args []any
+	snippetExpr := `''`
+	if q.Snippets {
+		snippetExpr = `snippet(docs_fts, 0, ?, ?, '…', ?)`
+		args = append(args, q.SnippetOpen, q.SnippetClose, snippetTokens)
+	}
+
+	where := `docs_fts MATCH ?`
+	args = append(args, expr)
+	if len(q.Keys) > 0 {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(q.Keys)), ",")
+		where += ` AND d.item_key IN (` + placeholders + `)`
+		args = append(args, lo.ToAnySlice(q.Keys)...)
+	}
+
+	limitClause := ""
+	if q.Limit >= 0 {
+		limitClause = "\nLIMIT ?"
+		args = append(args, cmp.Or(q.Limit, DefaultLimit))
 	}
 
 	// bm25() returns a negative number that gets *smaller* as relevance
 	// rises, so ordering is ascending and the exposed Score is negated
 	// to restore the obvious "higher is better".
-	const sqlText = `
-SELECT d.item_key, d.source, bm25(docs_fts), snippet(docs_fts, 0, ?, ?, '…', ?)
+	sqlText := `
+SELECT d.item_key, d.source, bm25(docs_fts), ` + snippetExpr + `
 FROM docs_fts
 JOIN docs d ON d.rowid = docs_fts.rowid
-WHERE docs_fts MATCH ?
-ORDER BY bm25(docs_fts)
-LIMIT ?`
+WHERE ` + where + `
+ORDER BY bm25(docs_fts)` + limitClause
 
-	rows, err := ix.db.Query(sqlText,
-		q.SnippetOpen, q.SnippetClose, snippetTokens, expr, limit)
+	rows, err := ix.db.Query(sqlText, args...)
 	if err != nil {
 		return nil, fmt.Errorf("search content index: %w", err)
 	}
@@ -324,32 +359,37 @@ LIMIT ?`
 	return out, rows.Err()
 }
 
-// Keys returns just the item keys matching a query, unranked and
-// unlimited — the shape the metadata search wants when it widens a
-// clause with content matches.
-func (ix *Index) Keys(query string) ([]string, error) {
-	expr := MatchExpr(query)
-	if expr == "" {
-		return nil, ErrNoTerms
-	}
-	rows, err := ix.db.Query(`
-SELECT d.item_key
-FROM docs_fts JOIN docs d ON d.rowid = docs_fts.rowid
-WHERE docs_fts MATCH ?`, expr)
+// Scores returns the relevance score of every item whose text matches,
+// keyed by item key — the shape the metadata search wants when it widens
+// a clause with content matches and then has to rank the union.
+//
+// No snippets and no limit: this is ranking input, so it must cover the
+// whole match set and must not read bodies.
+func (ix *Index) Scores(query string) (map[string]float64, error) {
+	hits, err := ix.Search(Query{Text: query, Limit: AllHits})
 	if err != nil {
-		return nil, fmt.Errorf("search content index: %w", err)
+		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
+	return lo.SliceToMap(hits, func(h Hit) (string, float64) {
+		return h.ItemKey, h.Score
+	}), nil
+}
 
-	var out []string
-	for rows.Next() {
-		var k string
-		if err := rows.Scan(&k); err != nil {
-			return nil, err
-		}
-		out = append(out, k)
+// Snippets returns a matched excerpt for each of the given item keys,
+// omitting keys the query does not match. Split from [Index.Scores]
+// because a snippet costs a body read: pay it for the handful of hits
+// that get displayed, not the thousands a broad term matches.
+func (ix *Index) Snippets(query string, keys []string) (map[string]string, error) {
+	if len(keys) == 0 {
+		return nil, nil
 	}
-	return out, rows.Err()
+	hits, err := ix.Search(Query{Text: query, Keys: keys, Limit: AllHits, Snippets: true})
+	if err != nil {
+		return nil, err
+	}
+	return lo.SliceToMap(hits, func(h Hit) (string, string) {
+		return h.ItemKey, h.Snippet
+	}), nil
 }
 
 // Body returns the indexed text for one item, and whether it is present.

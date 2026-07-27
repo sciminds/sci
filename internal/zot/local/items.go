@@ -444,7 +444,13 @@ WHERE i.libraryID = ?
 type SearchOptions struct {
 	// Content, when non-nil, widens positive free-text clauses with the
 	// items whose paper text matches — see internal/zot/content. It is
-	// called once per OR group and returns local item IDs.
+	// called once per OR group and returns each matching item key with
+	// its relevance score (higher is better).
+	//
+	// The scores are not decoration: content hits carry no title
+	// relevance, so without them the whole tail of a broad search ties
+	// and falls back to year — newest-wins, which answers a different
+	// question than the one that was asked.
 	//
 	// It receives the group's free text verbatim, quotes and all, rather
 	// than a word list: the content index understands "quoted phrases"
@@ -453,7 +459,7 @@ type SearchOptions struct {
 	//
 	// Field-scoped and negated clauses never consult it, matching how
 	// the metadata search treats them.
-	Content func(text string) ([]int64, error)
+	Content func(text string) (map[string]float64, error)
 }
 
 // Search returns items matching the query, ranked by title relevance.
@@ -478,9 +484,10 @@ func (d *DB) Search(query string, limit int) ([]Item, error) {
 // table scan.
 //
 // Results are ordered by title relevance (how many positive query words
-// appear in the title), then year descending, then dateAdded descending;
-// limit applies after ranking so a broad query can't crowd out the most
-// relevant hit.
+// appear in the title), then by content relevance when
+// [SearchOptions.Content] supplied scores, then year descending, then
+// dateAdded descending; limit applies after ranking so a broad query
+// can't crowd out the most relevant hit.
 func (d *DB) SearchWith(query string, limit int, opts SearchOptions) ([]Item, error) {
 	items, _, err := d.SearchWithTotal(query, limit, opts)
 	return items, err
@@ -499,13 +506,26 @@ func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Ite
 
 	var orParts []string
 	var clauseArgs []any
+	// contentScores accumulates every group's hits so the ranker can see
+	// them all; an item matched by two OR groups keeps its best score.
+	contentScores := map[string]float64{}
 	for _, group := range groups {
 		// Content matches feed an "also match these item IDs" set that
 		// buildClauseSQL ORs into positive free-text clauses.
 		var ftIDs []int64
 		if opts.Content != nil {
 			if text := bareSearchText(group); text != "" {
-				ids, err := opts.Content(text)
+				scored, err := opts.Content(text)
+				if err != nil {
+					return nil, 0, err
+				}
+				for key, score := range scored {
+					contentScores[key] = max(contentScores[key], score)
+				}
+				// The index knows keys; the clause SQL matches on item
+				// IDs, and resolving the two is this package's job —
+				// the hook stays a pure "what matched, how well".
+				ids, err := d.ItemIDsForKeys(lo.Keys(scored))
 				if err != nil {
 					return nil, 0, err
 				}
@@ -566,8 +586,22 @@ ORDER BY b.dateAdded DESC
 		return nil, 0, err
 	}
 
-	ranked := rankSearchResults(out, groups)
+	ranked := rankSearchResults(out, groups, contentScores)
 	return ranked[:min(limit, len(ranked))], len(ranked), nil
+}
+
+// QueryFreeText returns the positive free-text of a query — every clause
+// that is neither field-scoped nor negated — joined across OR groups,
+// quoting preserved. It is "what the content index was asked", exposed so
+// a caller that has already searched can ask the index a second question
+// (snippets for the hits it decided to show) without re-parsing clauses.
+// A query made only of field clauses returns "".
+func QueryFreeText(query string) string {
+	texts := lo.FilterMap(match.ParseClauses(query), func(group []match.Clause, _ int) (string, bool) {
+		text := bareSearchText(group)
+		return text, text != ""
+	})
+	return strings.Join(texts, " ")
 }
 
 // bareSearchText joins a group's positive free-text clauses back into
@@ -586,11 +620,19 @@ func bareSearchText(group []match.Clause) string {
 	return strings.TrimSpace(strings.Join(terms, " "))
 }
 
-// rankSearchResults orders hits by title relevance: the count of distinct
-// positive query words appearing in the title (case-insensitive), then year
-// descending. The sort is stable, so equal-rank items keep the caller's
-// dateAdded-descending order.
-func rankSearchResults(items []Item, groups [][]match.Clause) []Item {
+// rankSearchResults orders hits by title relevance (the count of distinct
+// positive query words appearing in the title, case-insensitive), then by
+// content relevance, then year descending. The sort is stable, so
+// equal-rank items keep the caller's dateAdded-descending order.
+//
+// Title before content is deliberate. A title match is the strongest
+// evidence a library holds about what a paper is *about*, and items with
+// no extraction have no content score at all — leading with bm25 would
+// bury the paper the user named under every paper that mentions it in
+// passing. Content relevance decides the long tail underneath, which is
+// exactly where every hit ties at zero title words and the old fallback
+// to year meant "newest wins".
+func rankSearchResults(items []Item, groups [][]match.Clause, contentScores map[string]float64) []Item {
 	words := positiveQueryWords(groups)
 	if len(words) == 0 {
 		return items
@@ -608,6 +650,7 @@ func rankSearchResults(items []Item, groups [][]match.Clause) []Item {
 	slices.SortStableFunc(idx, func(a, b int) int {
 		return cmp.Or(
 			cmp.Compare(scores[b], scores[a]),
+			cmp.Compare(contentScores[items[b].Key], contentScores[items[a].Key]),
 			cmp.Compare(items[b].Year, items[a].Year),
 		)
 	})

@@ -1,6 +1,7 @@
 package content
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -108,7 +109,7 @@ func TestSnippetHighlightsTheMatch(t *testing.T) {
 			"the crucial gossip mechanism follows. " +
 			strings.Repeat("more filler. ", 40)})
 
-	hits, err := ix.Search(Query{Text: "gossip", Limit: 10})
+	hits, err := ix.Search(Query{Text: "gossip", Limit: 10, Snippets: true})
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
@@ -161,6 +162,70 @@ func TestLimitCapsResults(t *testing.T) {
 	}
 	if len(hits) != 2 {
 		t.Errorf("got %d hits, want 2", len(hits))
+	}
+}
+
+// Snippets read the matched document's body, so they cost real I/O on a
+// 390MB index. A search that only needs ranking must not pay for them.
+func TestSearchOmitsSnippetsUnlessAsked(t *testing.T) {
+	ix := openTestIndex(t)
+	mustUpsert(t, ix, Doc{ItemKey: "SNIPTEST", Source: SourceDocling, Version: 1,
+		Body: "the crucial gossip mechanism follows"})
+
+	hits, err := ix.Search(Query{Text: "gossip", Limit: 10})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("got %d hits, want 1", len(hits))
+	}
+	if hits[0].Snippet != "" {
+		t.Errorf("Snippet = %q, want empty without Query.Snippets", hits[0].Snippet)
+	}
+}
+
+// The search path ranks the whole match set before it decides its own
+// top N, so it must be able to ask for every hit.
+func TestSearchAllHitsIgnoresTheDefaultLimit(t *testing.T) {
+	ix := openTestIndex(t)
+	docs := make([]Doc, 0, DefaultLimit+5)
+	for i := range DefaultLimit + 5 {
+		docs = append(docs, Doc{
+			ItemKey: fmt.Sprintf("KEY%05d", i),
+			Source:  SourceDocling, Version: 1, Body: "gossip",
+		})
+	}
+	mustUpsert(t, ix, docs...)
+
+	hits, err := ix.Search(Query{Text: "gossip", Limit: AllHits})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(hits) != len(docs) {
+		t.Errorf("got %d hits, want all %d", len(hits), len(docs))
+	}
+}
+
+// Snippets are fetched for the handful of items that will actually be
+// displayed, which means restricting a second search to those keys.
+func TestSearchRestrictsToRequestedKeys(t *testing.T) {
+	ix := openTestIndex(t)
+	mustUpsert(t, ix,
+		Doc{ItemKey: "WANTED01", Source: SourceDocling, Version: 1, Body: "gossip here"},
+		Doc{ItemKey: "IGNORED1", Source: SourceDocling, Version: 1, Body: "gossip there"},
+	)
+
+	hits, err := ix.Search(Query{
+		Text: "gossip", Limit: AllHits, Keys: []string{"WANTED01"}, Snippets: true,
+	})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(hits) != 1 || hits[0].ItemKey != "WANTED01" {
+		t.Fatalf("got %+v, want only WANTED01", hits)
+	}
+	if !strings.Contains(hits[0].Snippet, "gossip") {
+		t.Errorf("snippet %q does not contain the matched term", hits[0].Snippet)
 	}
 }
 

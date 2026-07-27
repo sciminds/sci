@@ -97,6 +97,30 @@ func TestListResult_Populated(t *testing.T) {
 	}
 }
 
+// A content hit's snippet is the evidence for why the item matched — it
+// is the only thing in the hit list that comes from the paper itself.
+func TestListResult_RendersContentSnippets(t *testing.T) {
+	t.Parallel()
+	r := ListResult{
+		Count: 2,
+		Items: []local.Item{
+			{Key: "AAAA1111", Title: "Deep Learning", Type: "journalArticle"},
+			{Key: "BBBB2222", Title: "A Book About Cats", Type: "book"},
+		},
+		Snippets: map[string]string{
+			"AAAA1111": "…the norm prediction error and the variance…",
+		},
+	}
+	out := r.Human()
+	if !strings.Contains(out, "the norm prediction error") {
+		t.Errorf("snippet not rendered:\n%s", out)
+	}
+	// The item with no content hit gets no empty snippet line.
+	if strings.Count(out, "…") != 2 { // both ellipses come from the one snippet
+		t.Errorf("unexpected snippet lines:\n%s", out)
+	}
+}
+
 func TestListResult_JSONRoundTrip(t *testing.T) {
 	t.Parallel()
 	r := ListResult{Count: 1, Library: 42, Items: []local.Item{{Key: "X"}}}
