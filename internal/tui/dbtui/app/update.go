@@ -2,6 +2,8 @@ package app
 
 // update.go — Bubble Tea Update() dispatch: routes messages to the correct
 // handler based on type (window resize, async tab load, key, mouse, tick).
+// Update() is a thin shell around dispatch() that also runs the status
+// line's expiry bookkeeping (see status.go).
 
 import (
 	"fmt"
@@ -12,7 +14,28 @@ import (
 )
 
 // Update implements tea.Model.
+//
+// It wraps [Model.dispatch] with the status line's expiry bookkeeping:
+// whenever a handler posts an info message, Update schedules the tick that
+// retires it. Doing it here — one choke point — means the dozens of
+// setStatusInfo call sites stay plain statements and don't have to thread a
+// tea.Cmd back out (many are in handlers that return a bool, not a Cmd).
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if expired, ok := msg.(statusExpiredMsg); ok {
+		m.handleStatusExpired(expired)
+		return m, nil
+	}
+
+	prevSeq := m.statusSeq
+	model, cmd := m.dispatch(msg)
+	if expiry := m.statusExpiryCmd(prevSeq); expiry != nil {
+		return model, tea.Batch(cmd, expiry)
+	}
+	return model, cmd
+}
+
+// dispatch routes a message to the correct handler based on its type.
+func (m *Model) dispatch(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -107,7 +130,7 @@ func (m *Model) handleKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.mode = modeNormal
 			return m, nil
 		}
-		m.status = statusMsg{}
+		m.clearStatus()
 		return m, nil
 	}
 
@@ -158,6 +181,13 @@ func (m *Model) handleKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case keySlash:
 		m.openSearch()
 		return m, nil
+	// Copy to the system clipboard (shared by normal and edit mode).
+	case keyY:
+		m.yankCell()
+		return m, nil
+	case keyShiftY:
+		m.yankRow()
+		return m, nil
 	// Column navigation (shared by normal and edit mode).
 	case keyH, keyLeft:
 		m.colLeft(tab)
@@ -204,11 +234,19 @@ func (m *Model) dispatchOverlayKey(key tea.KeyPressMsg) (bool, tea.Cmd) {
 		return true, m.handleCellEditorKey(key)
 	}
 	if m.notePreview != nil {
-		// When the overlay's /‑search is active, let it handle esc/q so the
-		// user can exit search without closing the overlay.
-		if !m.notePreview.Overlay.Searching() && (key.String() == keyEsc || key.String() == keyQ) {
-			m.notePreview = nil
-			return true, nil
+		// When the overlay's /‑search is active, let it handle esc/q/y so the
+		// user can exit search — or type a "y" — without closing the overlay
+		// or copying.
+		if !m.notePreview.Overlay.Searching() {
+			switch key.String() {
+			case keyEsc, keyQ:
+				m.notePreview = nil
+				return true, nil
+			case keyY:
+				// Text is the refetched/full body, not the placeholder.
+				m.yankText(cellCopyLabel(m.notePreview.Text), m.notePreview.Text)
+				return true, nil
+			}
 		}
 		var cmd tea.Cmd
 		m.notePreview.Overlay, cmd = m.notePreview.Overlay.UpdateOverlay(key)

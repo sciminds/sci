@@ -148,3 +148,24 @@ func TestTeatestCellEditorSaveEmpty(t *testing.T) {
 		t.Errorf("expected NULL flag for row 0 col 1, got value %q", rows[0][1])
 	}
 }
+
+// TestTeatestYankCellInEditMode verifies y copies the focused cell from
+// edit mode too, without dropping back to nav mode.
+// Not t.Parallel — captureClipboard swaps a uikit package global.
+func TestTeatestYankCellInEditMode(t *testing.T) {
+	got := captureClipboard(t)
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "i")
+	sendKey(tm, "y")
+	waitForOutput(t, tm, "Copied cell")
+
+	fm := finalModel(t, tm)
+
+	if got() != "Widget" {
+		t.Errorf("clipboard = %q, want %q", got(), "Widget")
+	}
+	if fm.mode != modeEdit {
+		t.Errorf("mode = %d, want modeEdit (%d) — copying must not exit edit mode", fm.mode, modeEdit)
+	}
+}

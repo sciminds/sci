@@ -119,6 +119,23 @@ func TestDuckHeavyColumnPlaceholderAndPreview(t *testing.T) {
 			t.Errorf("fetched embedding = %q; missing %q", got, want)
 		}
 	}
+
+	// y copies the same refetched payload, not the `<FLOAT[4]>` placeholder.
+	clip := captureClipboard(t)
+	m.active = indexOf(m.tabs, "vecs")
+	m.tabs[m.active].ColCursor = 2
+	m.tabs[m.active].Table.SetCursor(0)
+
+	m.yankCell()
+
+	if clip() == "<FLOAT[4]>" {
+		t.Error("y copied the placeholder; want the full FLOAT[] payload")
+	}
+	for _, want := range []string{"0.1", "0.2", "0.3", "0.4"} {
+		if !strings.Contains(clip(), want) {
+			t.Errorf("clipboard = %q; missing %q", clip(), want)
+		}
+	}
 }
 
 // makeParquetFixture writes a small Parquet file via duckdb's COPY ... TO

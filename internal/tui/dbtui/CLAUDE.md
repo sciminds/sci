@@ -13,6 +13,7 @@ VisiData-inspired SQLite + DuckDB viewer/editor. Mounted under `sci view <file>`
 - **Styles**: all styles via `uikit.TUI`, including modal-editor cell styles (`CursorBlue`, `CursorOrange`, `CursorPink`, `SelectPink`, `HeaderGreenBg`, `CursorRaised`). No package-local style files.
 - **Zones**: all clickable elements must be zone-marked. IDs: `tab-N`, `col-N`, `row-N`, `hint-ID`.
 - **SQL safety**: always validate identifiers with `store.IsSafeIdentifier` before interpolation. Cache invalidation goes through `tab.invalidateVP()`, not direct `cachedVP = nil`.
+- **Clipboard**: every system-clipboard write goes through `uikit.Copy` (`y`/`Y` in `app/yank.go`, visual mode's `Y`/`C`) — never a package-local `pbcopy`/`xclip` shell-out. Same rule as styles: the platform dispatch lives in `uikit`.
 
 ## Testing
 

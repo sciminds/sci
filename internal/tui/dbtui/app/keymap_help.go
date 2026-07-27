@@ -25,6 +25,7 @@ type navKeyMap struct {
 	InvertFilt key.Binding
 	ClearPins  key.Binding
 	Preview    key.Binding
+	Yank       key.Binding
 	Visual     key.Binding
 	Edit       key.Binding
 	TableMgr   key.Binding
@@ -49,6 +50,7 @@ func newNavKeyMap() navKeyMap {
 		InvertFilt: key.NewBinding(key.WithKeys("!"), key.WithHelp("!", "invert filter")),
 		ClearPins:  key.NewBinding(key.WithKeys("shift+space"), key.WithHelp("shift+space", "clear pins")),
 		Preview:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "preview")),
+		Yank:       key.NewBinding(key.WithKeys("y", "Y"), key.WithHelp("y/Y", "copy cell/row")),
 		Visual:     key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "visual mode")),
 		Edit:       key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "edit mode")),
 		TableMgr:   key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "table manager")),
@@ -67,7 +69,7 @@ func (k navKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Rows, k.Cols, k.TopBottom, k.FirstLast, k.HalfPage, k.Tabs},
 		{k.Sort, k.Search, k.ToggleCol, k.ExpandCol, k.Space, k.Filter, k.InvertFilt, k.ClearPins},
-		{k.Preview, k.Visual, k.Edit, k.TableMgr, k.Help, k.Quit},
+		{k.Preview, k.Yank, k.Visual, k.Edit, k.TableMgr, k.Help, k.Quit},
 	}
 }
 

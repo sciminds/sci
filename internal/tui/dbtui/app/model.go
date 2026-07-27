@@ -70,13 +70,17 @@ type Model struct {
 	columnRename *columnRenameState
 
 	// ── Layout & Rendering ───────────────────────────────
-	width   int
-	height  int
-	zones   *zone.Manager
-	styles  *uikit.Styles
-	status  statusMsg
-	help    help.Model
-	spinner spinner.Model
+	width  int
+	height int
+	zones  *zone.Manager
+	styles *uikit.Styles
+	// status is the message line above the hints; statusSeq identifies the
+	// current message so a stale expiry tick can't retire a newer one
+	// (see status.go).
+	status    statusMsg
+	statusSeq int
+	help      help.Model
+	spinner   spinner.Model
 }
 
 // NewModel creates the TUI model by introspecting the database schema.
@@ -332,10 +336,5 @@ func (m *Model) concreteStore() *sqlite.Store {
 	return s
 }
 
-func (m *Model) setStatusInfo(text string) {
-	m.status = statusMsg{Text: text, Kind: statusInfo}
-}
-
-func (m *Model) setStatusError(text string) {
-	m.status = statusMsg{Text: text, Kind: statusError}
-}
+// The status-line setters (setStatusInfo / setStatusError / clearStatus)
+// live in status.go, next to the expiry machinery they feed.

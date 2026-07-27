@@ -721,3 +721,89 @@ func TestTeatestColumnPickerNavigateAndUnhide(t *testing.T) {
 		t.Errorf("hidden columns = %d, want 1 (one of two was unhidden)", hiddenCount)
 	}
 }
+
+// ── Yank to system clipboard (y / Y) ────────────────────────────────────
+//
+// These are deliberately NOT t.Parallel: captureClipboard swaps a package
+// global in uikit, and Go runs non-parallel tests before the parallel ones
+// resume, so keeping them sequential keeps that swap race-free.
+
+// TestTeatestYankCell verifies y copies the focused cell to the system
+// clipboard and reports it on the status line.
+func TestTeatestYankCell(t *testing.T) {
+	got := captureClipboard(t)
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "y")
+	waitForOutput(t, tm, "Copied cell")
+
+	fm := finalModel(t, tm)
+
+	// Tab 0 is "products"; cursor starts on row 0, col 1 (title) → "Widget".
+	if got() != "Widget" {
+		t.Errorf("clipboard = %q, want %q", got(), "Widget")
+	}
+	if fm.status.Kind != statusInfo {
+		t.Errorf("status kind = %v, want statusInfo (text %q)", fm.status.Kind, fm.status.Text)
+	}
+}
+
+// TestTeatestYankRow verifies Y copies the whole focused row as TSV,
+// header line included.
+func TestTeatestYankRow(t *testing.T) {
+	got := captureClipboard(t)
+	tm, _ := startTeatest(t)
+
+	sendKey(tm, "Y")
+	waitForOutput(t, tm, "Copied row")
+
+	_ = finalModel(t, tm)
+
+	want := "id\ttitle\tprice\n1\tWidget\t9.99\n"
+	if got() != want {
+		t.Errorf("clipboard = %q, want %q", got(), want)
+	}
+}
+
+// TestTeatestYankPreviewBody verifies y inside the Enter-preview overlay
+// copies the previewed body and leaves the overlay open.
+func TestTeatestYankPreviewBody(t *testing.T) {
+	got := captureClipboard(t)
+	tm, _ := startTeatest(t)
+
+	sendSpecial(tm, tea.KeyEnter) // open preview on "Widget"
+	sendKey(tm, "y")
+	waitForOutput(t, tm, "Copied cell")
+
+	fm := finalModel(t, tm)
+
+	if got() != "Widget" {
+		t.Errorf("clipboard = %q, want %q", got(), "Widget")
+	}
+	if fm.notePreview == nil {
+		t.Error("preview overlay should stay open after copying")
+	}
+}
+
+// TestTeatestYankPreviewSearchTypesY verifies y typed into the preview
+// overlay's /-search is text, not a copy command.
+func TestTeatestYankPreviewSearchTypesY(t *testing.T) {
+	got := captureClipboard(t)
+	tm, _ := startTeatest(t)
+
+	sendSpecial(tm, tea.KeyEnter) // open preview
+	sendKey(tm, "/")              // start the overlay's search
+	sendKey(tm, "y")              // should type into the search bar
+
+	fm := finalModel(t, tm)
+
+	if got() != "" {
+		t.Errorf("clipboard = %q, want it untouched while searching", got())
+	}
+	if fm.notePreview == nil {
+		t.Fatal("preview overlay should still be open")
+	}
+	if !fm.notePreview.Overlay.Searching() {
+		t.Error("overlay should still be in search mode after typing y")
+	}
+}

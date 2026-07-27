@@ -79,6 +79,7 @@ func (m *Model) normalModeHints(modeBadge string) []statusHint {
 		statusHint{ID: "hide", Full: m.helpItem(keyC, "hide col"), Compact: m.renderKeys(keyC), Priority: 3},
 		statusHint{ID: "rename", Full: m.helpItem(keyR, "rename"), Compact: m.renderKeys(keyR), Priority: 3},
 		statusHint{ID: "tables", Full: m.helpItem(keyT, "tables"), Compact: m.renderKeys(keyT), Priority: 3},
+		statusHint{ID: "yank", Full: m.helpItem(keyY, "copy"), Compact: m.renderKeys(keyY), Priority: 3},
 	)
 
 	// Always last — escape hatch.
