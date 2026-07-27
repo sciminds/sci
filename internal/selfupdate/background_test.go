@@ -44,12 +44,20 @@ func withCache(t *testing.T) string {
 	return path
 }
 
-// withCommit pins version.Commit for the test and restores on cleanup.
+// withCommit pins version.Commit for the test and restores on cleanup. It
+// also pins version.Dev to "false": these tests are about what a *released*
+// binary tells the user, and a dev build is silent by design (a locally built
+// tree is usually ahead of the release, so the notice would be a downgrade).
+// The suppression itself is covered by TestReadCachedNotice_DevBuildSilent.
 func withCommit(t *testing.T, sha string) {
 	t.Helper()
 	old := version.Commit
 	version.Commit = sha
 	t.Cleanup(func() { version.Commit = old })
+
+	oldDev := version.Dev
+	version.Dev = "false"
+	t.Cleanup(func() { version.Dev = oldDev })
 }
 
 // withClock pins the package clock to a fixed time so time-dependent
@@ -94,6 +102,30 @@ func TestReadCachedNotice_UpToDate(t *testing.T) {
 
 	if msg := ReadCachedNotice(); msg != "" {
 		t.Errorf("msg = %q, want empty when up-to-date", msg)
+	}
+}
+
+// A dev build stays silent even with an update genuinely cached. `just build`
+// stamps a real SHA, so commit inequality — the only signal the checker has —
+// fires on every working-tree build and would advise "updating" to the older
+// published release.
+func TestReadCachedNotice_DevBuildSilent(t *testing.T) {
+	path := withCache(t)
+	withCommit(t, "aaaaaaa1111111")
+
+	oldDev := version.Dev
+	version.Dev = "true"
+	t.Cleanup(func() { version.Dev = oldDev })
+
+	data, _ := json.Marshal(CheckResult{
+		Available:     true,
+		LatestSHA:     "bbbbbbb2222222",
+		LastCheckedAt: time.Now(),
+	})
+	_ = os.WriteFile(path, data, 0o644)
+
+	if msg := ReadCachedNotice(); msg != "" {
+		t.Errorf("dev build got notice %q, want silence", msg)
 	}
 }
 

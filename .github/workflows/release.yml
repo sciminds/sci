@@ -95,7 +95,9 @@ jobs:
       - name: Build
         run: |
           COMMIT="${GITHUB_SHA}"
-          LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT}"
+          # Dev=false marks this as the released build — the only one allowed
+          # to tell users an update is available (see internal/version).
+          LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT} -X github.com/sciminds/cli/internal/version.Dev=false"
 
           mkdir -p dist
 

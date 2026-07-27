@@ -34,6 +34,12 @@ func setupNoticeEnv(t *testing.T) string {
 	version.Commit = "aaaaaaa1111111"
 	t.Cleanup(func() { version.Commit = origCommit })
 
+	// Notice tests are about released binaries; the dev-build suppression
+	// gets its own test below.
+	origDev := version.Dev
+	version.Dev = "false"
+	t.Cleanup(func() { version.Dev = origDev })
+
 	// SpawnDetachedRefresh checks this env var first and bails — exactly
 	// what we want in tests, where exec'ing the test binary as a refresh
 	// child would re-run the suite recursively.
@@ -82,6 +88,33 @@ func captureStderr(t *testing.T, fn func()) string {
 	_ = w.Close()
 	<-done
 	return buf.String()
+}
+
+// A binary built from the working tree must never be told to "update" to the
+// published release. `just build` stamps a real commit SHA, so the notice's
+// only guard — commit inequality — fires on every dev build and advises a
+// downgrade to whatever was released last. That is exactly backwards while
+// dogfooding unreleased work.
+func TestRootBefore_DevBuildSuppressesNotice(t *testing.T) {
+	path := setupNoticeEnv(t)
+
+	origDev := version.Dev
+	version.Dev = "true"
+	t.Cleanup(func() { version.Dev = origDev })
+
+	writeNoticeCache(t, path, selfupdate.CheckResult{
+		Available:     true,
+		LatestSHA:     "bbbbbbb2222222",
+		LastCheckedAt: time.Now(),
+	})
+
+	stderr := captureStderr(t, func() {
+		_ = buildRoot().Run(context.Background(), []string{"sci"})
+	})
+
+	if strings.Contains(stderr, "Update available") {
+		t.Errorf("dev build was told to update (would be a downgrade):\n%s", stderr)
+	}
 }
 
 // TestRootBefore_RendersNoticeAndMarks verifies the load-bearing path: a

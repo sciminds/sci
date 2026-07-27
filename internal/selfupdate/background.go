@@ -63,7 +63,7 @@ func defaultCacheFile() string {
 // returned message so subsequent invocations stay quiet until the next
 // refresh cycle.
 func ReadCachedNotice() string {
-	if version.Commit == "unknown" {
+	if version.IsDev() {
 		return ""
 	}
 	if os.Getenv("SCI_NO_UPDATE_CHECK") != "" {
