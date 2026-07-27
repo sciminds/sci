@@ -200,6 +200,7 @@ func TestGuide_ContractTeachesTheEnvelope(t *testing.T) {
 		"cite keys", // absorption
 		"--library", // flag placement
 		"not-found", // code vocabulary present
+		"snippets",  // the side-map join for --content match evidence
 	} {
 		if !strings.Contains(joined, must) {
 			t.Errorf("contract missing %q:\n%s", must, joined)
