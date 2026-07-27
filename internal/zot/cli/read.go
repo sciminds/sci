@@ -295,6 +295,7 @@ func searchCommand() *cli.Command {
 				snippets = csearch.snippets(query, lo.Map(items, func(it local.Item, _ int) string {
 					return it.Key
 				}))
+				snippets = dropTitleEchoes(snippets, items)
 			}
 			if searchFull {
 				hydrated, err := hydrateSearchHits(db, items)
@@ -983,6 +984,26 @@ func contentWidener(ctx context.Context, db local.Reader) (*contentSearch, error
 		return snips
 	}
 	return &contentSearch{widen: widen, snippets: snippets, warns: warns, close: closer}, nil
+}
+
+// dropTitleEchoes removes excerpts that only restate the hit's own title.
+//
+// The snippet line is there to add evidence beyond what the reader can
+// already see. When a query matches on the title, the highest-scoring span in
+// the body is usually the title again (docling opens each extraction with it
+// as a heading), so the line costs a row and returns nothing. Dropping it is
+// safe: [zot.ListResult] and [zot.ListBriefResult] both render snippets by
+// map lookup, and a missing key renders no line at all.
+func dropTitleEchoes(snippets map[string]string, items []local.Item) map[string]string {
+	if len(snippets) == 0 {
+		return snippets
+	}
+	titles := lo.SliceToMap(items, func(it local.Item) (string, string) {
+		return it.Key, it.Title
+	})
+	return lo.OmitBy(snippets, func(key, snippet string) bool {
+		return content.EchoesTitle(snippet, titles[key])
+	})
 }
 
 // retiredSearchFlagError turns a removed flag into a message that names
