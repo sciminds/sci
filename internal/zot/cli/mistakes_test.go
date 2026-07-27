@@ -95,10 +95,10 @@ func TestSearch_RemoteExport_CodeConflict(t *testing.T) {
 	}
 }
 
-func TestSearch_FulltextRemote_CodeConflict(t *testing.T) {
+func TestSearch_ContentRemote_CodeConflict(t *testing.T) {
 	withOrientConfig(t)
 
-	_, err := runItemRead(t, "--json", "--library", "personal", "search", "--fulltext", "--remote", "foo")
+	_, err := runItemRead(t, "--json", "--library", "personal", "search", "--content", "--remote", "foo")
 	coded, ok := errors.AsType[*cmdutil.CodedError](err)
 	if !ok {
 		t.Fatalf("want CodedError, got %T: %v", err, err)
@@ -288,15 +288,54 @@ func mustCoded(t *testing.T, err error) *cmdutil.CodedError {
 	return coded
 }
 
-// TestNoteTextIsLocalOnly — --note-text and --remote both search note
-// content; combining them is a contradiction, not a widening.
-func TestNoteTextIsLocalOnly(t *testing.T) {
-	t.Parallel()
-	_, err := runItemRead(t, "--json", "--library", "personal", "search", "--note-text", "--remote", "foo")
-	if err == nil {
-		t.Fatal("want a conflict error")
+// TestRetiredSearchFlagsNameTheirReplacement — --fulltext and
+// --note-text were two half-answers to "search inside my papers";
+// --content is the whole one. An agent with the old flag baked into its
+// prompt must be told what to use, not just that the flag is gone.
+func TestRetiredSearchFlagsNameTheirReplacement(t *testing.T) {
+	for _, retired := range []string{"--fulltext", "--note-text"} {
+		t.Run(retired, func(t *testing.T) {
+			_, err := runItemRead(t, "--json", "--library", "personal", "search", retired, "foo")
+			coded, ok := errors.AsType[*cmdutil.CodedError](err)
+			if !ok {
+				t.Fatalf("want CodedError, got %T: %v", err, err)
+			}
+			if coded.Code != cmdutil.CodeUsage {
+				t.Errorf("Code = %q, want usage", coded.Code)
+			}
+			if !strings.Contains(coded.Error(), retired) {
+				t.Errorf("error does not name the retired flag: %v", coded)
+			}
+			if !strings.Contains(coded.Error(), "--content") {
+				t.Errorf("error does not name the replacement: %v", coded)
+			}
+			if !strings.Contains(coded.Try, "--content") {
+				t.Errorf("Try does not explain the replacement: %q", coded.Try)
+			}
+		})
 	}
-	if !strings.Contains(err.Error(), "--note-text is local-only") {
-		t.Errorf("err = %v", err)
+}
+
+// The Fix must be the user's own command line with the flag swapped, so
+// it can be resubmitted verbatim.
+func TestRewriteFlagFix(t *testing.T) {
+	t.Parallel()
+	argv := []string{"sci", "zot", "--library", "personal", "search", "--note-text", "gossip reputation"}
+
+	got := rewriteFlagFix(argv, "--note-text", "--content")
+	want := `sci zot --library personal search --content 'gossip reputation'`
+	if got != want {
+		t.Errorf("rewriteFlagFix = %q, want %q", got, want)
+	}
+}
+
+// Under `go test` os.Args is the test binary's. A Fix must be a real
+// command or absent — never a nonsense one.
+func TestRewriteFlagFixDeclinesNonZotArgv(t *testing.T) {
+	t.Parallel()
+	argv := []string{"/tmp/go-build/cli.test", "-test.timeout=10m0s"}
+
+	if got := rewriteFlagFix(argv, "--note-text", "--content"); got != "" {
+		t.Errorf("rewriteFlagFix = %q, want empty for a non-zot argv", got)
 	}
 }

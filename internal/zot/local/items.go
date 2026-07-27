@@ -442,15 +442,18 @@ WHERE i.libraryID = ?
 
 // SearchOptions tunes SearchWith behavior beyond the query string.
 type SearchOptions struct {
-	// Fulltext additionally matches free-text terms against Zotero's PDF
-	// fulltext word index (prefix match, AND across words). Field-scoped
-	// and negated clauses never consult the index.
-	Fulltext bool
-	// Notes additionally matches free-text terms against note content — the
-	// rendered text, not the stored HTML (see [DB.SearchNotes]). A child
-	// note's hit surfaces its parent item; a standalone note surfaces
-	// itself. Like Fulltext, it widens only positive free-text clauses.
-	Notes bool
+	// Content, when non-nil, widens positive free-text clauses with the
+	// items whose paper text matches — see internal/zot/content. It is
+	// called once per OR group and returns local item IDs.
+	//
+	// It receives the group's free text verbatim, quotes and all, rather
+	// than a word list: the content index understands "quoted phrases"
+	// and prefix*, and splitting the query into words here would throw
+	// that away before the index ever saw it.
+	//
+	// Field-scoped and negated clauses never consult it, matching how
+	// the metadata search treats them.
+	Content func(text string) ([]int64, error)
 }
 
 // Search returns items matching the query, ranked by title relevance.
@@ -497,25 +500,17 @@ func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Ite
 	var orParts []string
 	var clauseArgs []any
 	for _, group := range groups {
-		// Both widenings feed the same "also match these item IDs" set that
+		// Content matches feed an "also match these item IDs" set that
 		// buildClauseSQL ORs into positive free-text clauses.
 		var ftIDs []int64
-		if words := bareSearchWords(group); len(words) > 0 {
-			if opts.Fulltext {
-				ids, err := d.SearchFulltext(words, false)
+		if opts.Content != nil {
+			if text := bareSearchText(group); text != "" {
+				ids, err := opts.Content(text)
 				if err != nil {
 					return nil, 0, err
 				}
-				ftIDs = append(ftIDs, ids...)
+				ftIDs = lo.Uniq(ids)
 			}
-			if opts.Notes {
-				ids, err := d.SearchNotes(words)
-				if err != nil {
-					return nil, 0, err
-				}
-				ftIDs = append(ftIDs, ids...)
-			}
-			ftIDs = lo.Uniq(ftIDs)
 		}
 		var andParts []string
 		for _, c := range group {
@@ -575,16 +570,20 @@ ORDER BY b.dateAdded DESC
 	return ranked[:min(limit, len(ranked))], len(ranked), nil
 }
 
-// bareSearchWords collects the whitespace-split words of every positive
-// free-text clause in a group, lowercased, for fulltext-index lookup.
-func bareSearchWords(group []match.Clause) []string {
+// bareSearchText joins a group's positive free-text clauses back into
+// one string, preserving the user's quoting.
+//
+// Handing the content index a word list instead would silently downgrade
+// `"prediction error"` from a phrase to two ANDed terms — the index does
+// its own parsing, and phrases are most of why it exists.
+// (positiveQueryWords, further down, does split into words: title
+// ranking counts word hits, so there the word is the unit.)
+func bareSearchText(group []match.Clause) string {
 	positive := lo.Filter(group, func(c match.Clause, _ int) bool {
 		return c.Column == "" && !c.Negate && c.Terms != ""
 	})
-	words := lo.FlatMap(positive, func(c match.Clause, _ int) []string {
-		return strings.Fields(strings.ToLower(c.Terms))
-	})
-	return lo.Uniq(words)
+	terms := lo.Map(positive, func(c match.Clause, _ int) string { return c.Terms })
+	return strings.TrimSpace(strings.Join(terms, " "))
 }
 
 // rankSearchResults orders hits by title relevance: the count of distinct

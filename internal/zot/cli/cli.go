@@ -138,6 +138,7 @@ func Commands() []*cli.Command {
 		savedSearchCommand(),
 		tagsCommand(),
 		notesCommand(),
+		contentCommand(),
 		llmCommand(),
 		doctorCommand(),
 		graphCommand(),

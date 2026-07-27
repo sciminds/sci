@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/cli/internal/zot/content"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/urfave/cli/v3"
 )
@@ -34,8 +36,9 @@ var (
 	searchLimit    int
 	searchRemote   bool
 	searchFull     bool
-	searchFulltext bool
-	searchNoteText bool
+	searchContent  bool
+	searchFulltext bool // retired — see retiredSearchFlagError
+	searchNoteText bool // retired — see retiredSearchFlagError
 
 	exportFormat string
 	exportOut    string
@@ -143,8 +146,8 @@ func searchCommand() *cli.Command {
 			"$ sci zot search '@author: saxe @year: 2022'    # ANDed clauses\n" +
 			"$ sci zot search '@type: book | @type: thesis'  # OR across clauses\n" +
 			"$ sci zot search '@citekey: saxe2022-ment'      # which paper is this key?\n" +
-			"$ sci zot search cortical --fulltext            # also match PDF text (local index)\n" +
-			"$ sci zot search 'successor representation' --note-text  # also match note content\n" +
+			"$ sci zot search cortical --content             # also match the text of your papers\n" +
+			"$ sci zot search '\"prediction error\"' --content  # quoted = phrase, not two words\n" +
 			"$ sci zot search attention --export --out hits.bib\n" +
 			"$ sci zot search llm --remote   # Zotero Web API fulltext search (title + creators + year + abstract + notes + PDFs)",
 		ArgsUsage: "<query>",
@@ -155,9 +158,13 @@ func searchCommand() *cli.Command {
 			&cli.BoolFlag{Name: "export", Usage: "emit results as a bibliography instead of the normal hit list", Destination: &searchExport, Local: true},
 			&cli.StringFlag{Name: "format", Usage: "with --export, output format: bibtex, csl-json", Value: "bibtex", Destination: &searchExportFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
-			&cli.BoolFlag{Name: "notes", Usage: "filter to items that HAVE docling extraction notes (see --note-text to search inside them)", Destination: &searchNotes, Local: true},
-			&cli.BoolFlag{Name: "fulltext", Usage: "also match free-text terms against the local PDF fulltext word index", Destination: &searchFulltext, Local: true},
-			&cli.BoolFlag{Name: "note-text", Usage: "also match free-text terms against note content (extraction notes, standalone notes) — local only", Destination: &searchNoteText, Local: true},
+			&cli.BoolFlag{Name: "notes", Usage: "filter to items that HAVE a docling extraction", Destination: &searchNotes, Local: true},
+			&cli.BoolFlag{Name: "content", Usage: "also match free-text terms against the full text of your papers (needs `sci zot content build`) — local only", Destination: &searchContent, Local: true},
+			// Retired in favor of --content, which subsumes both. Kept as
+			// hidden flags purely so the error can name the replacement
+			// instead of urfave's bare "flag provided but not defined".
+			&cli.BoolFlag{Name: "fulltext", Hidden: true, Destination: &searchFulltext, Local: true},
+			&cli.BoolFlag{Name: "note-text", Hidden: true, Destination: &searchNoteText, Local: true},
 			&cli.BoolFlag{Name: "remote", Usage: "hit the Zotero Web API with qmode=everything (matches abstract + fulltext + notes)", Destination: &searchRemote, Local: true},
 			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "hydrate each hit with abstract + citekey + authors (one extra local read per hit)", Destination: &searchFull, Local: true},
 		},
@@ -176,13 +183,12 @@ func searchCommand() *cli.Command {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--notes is local-only").
 					WithTry("drop --notes or drop --remote (--remote already matches note text server-side)")
 			}
-			if searchRemote && searchFulltext {
-				return cmdutil.Coded(cmdutil.CodeConflict, "--fulltext is local-only").
-					WithTry("drop --fulltext; --remote already matches PDF fulltext server-side")
+			if err := retiredSearchFlagError(); err != nil {
+				return err
 			}
-			if searchRemote && searchNoteText {
-				return cmdutil.Coded(cmdutil.CodeConflict, "--note-text is local-only").
-					WithTry("drop --note-text; --remote already matches note content server-side")
+			if searchRemote && searchContent {
+				return cmdutil.Coded(cmdutil.CodeConflict, "--content is local-only").
+					WithTry("drop --content; --remote already matches PDF text and notes server-side")
 			}
 			if searchFull && searchExport {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--full and --export are mutually exclusive").
@@ -238,14 +244,25 @@ func searchCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			items, total, err := db.SearchWithTotal(query, searchLimit, local.SearchOptions{Fulltext: searchFulltext, Notes: searchNoteText})
+			var opts local.SearchOptions
+			var contentWarns []cmdutil.Warning
+			if searchContent {
+				widen, warns, closeIndex, err := contentWidener(ctx, db)
+				if err != nil {
+					return err
+				}
+				defer closeIndex()
+				opts.Content, contentWarns = widen, warns
+			}
+
+			items, total, err := db.SearchWithTotal(query, searchLimit, opts)
 			if err != nil {
 				return err
 			}
 			// Freshness caveat rides every local hit list; the fix is the
 			// same command against API ground truth (except --export, whose
 			// pipeline is local-only).
-			staleWarns := staleLocalWarning(db, remoteRerunFix(os.Args))
+			staleWarns := append(staleLocalWarning(db, remoteRerunFix(os.Args)), contentWarns...)
 			if searchNotes {
 				hasNotes, err := db.ParentsWithDoclingNotes()
 				if err != nil {
@@ -286,8 +303,8 @@ func searchCommand() *cli.Command {
 					Library:   db.LibraryID(),
 				}
 				if len(briefs) == 0 {
-					bres.Scope = localSearchScope(searchFulltext, searchNoteText)
-					bres.Hint = localSearchHint(searchFulltext, searchNoteText)
+					bres.Scope = localSearchScope(searchContent)
+					bres.Hint = localSearchHint(searchContent)
 				}
 				outputScoped(ctx, cmd, cmdutil.WithWarnings(bres, staleWarns...))
 				return nil
@@ -301,8 +318,8 @@ func searchCommand() *cli.Command {
 				Library:   db.LibraryID(),
 			}
 			if len(items) == 0 {
-				res.Scope = localSearchScope(searchFulltext, searchNoteText)
-				res.Hint = localSearchHint(searchFulltext, searchNoteText)
+				res.Scope = localSearchScope(searchContent)
+				res.Hint = localSearchHint(searchContent)
 			}
 			outputScoped(ctx, cmd, cmdutil.WithWarnings(res, staleWarns...))
 			return nil
@@ -842,27 +859,124 @@ func openCommand() *cli.Command {
 
 // localSearchScope describes which fields a local search matched against,
 // shown on empty results so users know what was (and wasn't) searched.
-func localSearchScope(fulltext, noteText bool) string {
+func localSearchScope(contentSearch bool) string {
 	scope := "title, DOI, publication, creators, citekey"
-	if fulltext {
-		scope += " + PDF fulltext"
-	}
-	if noteText {
-		scope += " + note content"
+	if contentSearch {
+		scope += " + paper full text"
 	}
 	return scope + " (local)"
 }
 
 // localSearchHint suggests the next-wider search when a local query comes
 // back empty.
-func localSearchHint(fulltext, noteText bool) string {
+func localSearchHint(contentSearch bool) string {
 	var wider []string
-	if !fulltext {
-		wider = append(wider, "--fulltext to also match PDF text")
-	}
-	if !noteText {
-		wider = append(wider, "--note-text to also match note content")
+	if !contentSearch {
+		wider = append(wider, "--content to also match the text of your papers")
 	}
 	wider = append(wider, "--remote for the Zotero Web index (abstract + notes + PDFs)")
 	return "try " + strings.Join(wider, ", or ")
+}
+
+// codeContentStale labels the stale-content-index warning.
+const codeContentStale cmdutil.Code = "content-stale"
+
+// contentWidener opens the content index and returns the widening hook
+// for [local.SearchOptions], any warnings to ride along with the result,
+// and a closer.
+//
+// A missing index is an error with a runnable fix rather than a silent
+// build: indexing a real library takes about a minute, which is not
+// something to spring on someone who typed a search.
+func contentWidener(ctx context.Context, db local.Reader) (func(string) ([]int64, error), []cmdutil.Warning, func(), error) {
+	ix, err := openContentIndex(db)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	closer := func() { _ = ix.Close() }
+
+	st, err := ix.Stats()
+	if err != nil {
+		closer()
+		return nil, nil, nil, err
+	}
+	if st.Total == 0 {
+		closer()
+		return nil, nil, nil, cmdutil.Coded(cmdutil.CodeNotFound,
+			"no content index for this library").
+			WithFix("sci zot content build --library " + scopeFromCtx(ctx))
+	}
+
+	var warns []cmdutil.Warning
+	stale, err := content.Stale(ix, db)
+	if err != nil {
+		closer()
+		return nil, nil, nil, err
+	}
+	if stale {
+		warns = append(warns, cmdutil.Warning{
+			Code: codeContentStale,
+			Message: "the content index is out of date — papers extracted since the last " +
+				"build are not searchable",
+			Fix: "sci zot content build --library " + scopeFromCtx(ctx),
+		})
+	}
+
+	widen := func(text string) ([]int64, error) {
+		keys, err := ix.Keys(text)
+		if err != nil {
+			// A query with no indexable terms (all punctuation) widens
+			// nothing; the metadata clauses still stand on their own.
+			if errors.Is(err, content.ErrNoTerms) {
+				return nil, nil
+			}
+			return nil, err
+		}
+		return db.ItemIDsForKeys(keys)
+	}
+	return widen, warns, closer, nil
+}
+
+// retiredSearchFlagError turns a removed flag into a message that names
+// its replacement. --fulltext (Zotero's PDF word index) and --note-text
+// (a substring scan over note bodies) were two half-answers to one
+// question; --content is the whole answer, and consults both sources
+// through a single index.
+func retiredSearchFlagError() error {
+	retired, replacement := "", "--content"
+	switch {
+	case searchFulltext:
+		retired = "--fulltext"
+	case searchNoteText:
+		retired = "--note-text"
+	default:
+		return nil
+	}
+	err := cmdutil.Coded(cmdutil.CodeUsage,
+		"%s has been replaced by %s", retired, replacement).
+		WithTry("--content searches the full text of your papers (docling extractions, " +
+			"falling back to Zotero's own text); build it once with `sci zot content build`")
+	if fix := rewriteFlagFix(os.Args, retired, replacement); fix != "" {
+		err = err.WithFix(fix)
+	}
+	return err
+}
+
+// rewriteFlagFix rebuilds the user's command line with one flag swapped
+// for another, so a retired flag yields a Fix they can resubmit verbatim.
+//
+// Returns "" when argv is not a recognizable `sci … zot …` invocation —
+// under `go test` os.Args belongs to the test binary, and a Fix must be
+// a real command or nothing at all.
+func rewriteFlagFix(argv []string, retired, replacement string) string {
+	if len(argv) < 2 || !lo.Contains(argv[1:], "zot") {
+		return ""
+	}
+	parts := lo.Map(argv[1:], func(arg string, _ int) string {
+		if arg == retired {
+			return replacement
+		}
+		return shellQuote(arg)
+	})
+	return "sci " + strings.Join(parts, " ")
 }

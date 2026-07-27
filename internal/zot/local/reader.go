@@ -70,6 +70,12 @@ type Reader interface {
 	// Fulltext search (Zotero's word-level PDF content index)
 	SearchFulltext(words []string, exact bool) ([]int64, error)
 
+	// Content index sources (see internal/zot/content)
+	ContentSources() ([]ContentSource, error)
+	NoteBodyByID(noteID int64) (string, error)
+	ContentSignature() (string, error)
+	ItemIDsForKeys(keys []string) ([]int64, error)
+
 	// Hygiene Scans
 	ScanFieldPresence() ([]ItemFieldPresence, error)
 	ScanDuplicateCandidates() ([]DuplicateCandidate, error)
