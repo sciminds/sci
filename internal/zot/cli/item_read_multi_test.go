@@ -81,3 +81,66 @@ func TestItemRead_MultipleKeys_DOIConflictErrors(t *testing.T) {
 		t.Errorf("err should explain the mutex: %v", err)
 	}
 }
+
+func TestItemRead_MissingOK_PartialWithReport(t *testing.T) {
+	withOrientConfig(t)
+	t.Cleanup(func() { readMissingOK = false })
+
+	out, err := runItemRead(t, "--json", "--library", "personal", "item", "read", "--missing-ok", "KEY1", "MISSING1", "KEY3")
+	if err != nil {
+		t.Fatalf("item read --missing-ok: %v\n%s", err, string(out))
+	}
+	var result struct {
+		Count   int          `json:"count"`
+		Items   []local.Item `json:"items"`
+		Missing []string     `json:"missing"`
+	}
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse: %v\n%s", err, string(out))
+	}
+	if result.Count != 2 || len(result.Items) != 2 {
+		t.Fatalf("count = %d, want the 2 found items\n%s", result.Count, string(out))
+	}
+	if result.Items[0].Key != "KEY1" || result.Items[1].Key != "KEY3" {
+		t.Errorf("found keys = [%q, %q], want request order minus the missing", result.Items[0].Key, result.Items[1].Key)
+	}
+	// The report half of partial-with-report: the miss is data, not just
+	// a warning an agent might drop.
+	if len(result.Missing) != 1 || result.Missing[0] != "MISSING1" {
+		t.Errorf("missing = %v, want [MISSING1]", result.Missing)
+	}
+	// And it also rides warnings[] so envelope-level tooling sees it.
+	if !strings.Contains(string(out), `"warnings"`) || !strings.Contains(string(out), "MISSING1") {
+		t.Errorf("expected a warning naming the missing key:\n%s", string(out))
+	}
+}
+
+func TestItemRead_MissingOK_SingleKeyKeepsWrapper(t *testing.T) {
+	withOrientConfig(t)
+	t.Cleanup(func() { readMissingOK = false })
+
+	// Under --missing-ok the wrapper shape is unconditional — the flag is
+	// the shape signal, so a batch caller never has to branch on arity.
+	out, err := runItemRead(t, "--json", "--library", "personal", "item", "read", "--missing-ok", "MISSING1")
+	if err != nil {
+		t.Fatalf("item read --missing-ok MISSING1: %v\n%s", err, string(out))
+	}
+	var result struct {
+		Count   int      `json:"count"`
+		Missing []string `json:"missing"`
+	}
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse: %v\n%s", err, string(out))
+	}
+	if result.Count != 0 || len(result.Missing) != 1 {
+		t.Errorf("count=%d missing=%v, want an empty wrapper reporting the miss", result.Count, result.Missing)
+	}
+}
+
+func TestItemRead_WithoutMissingOK_StillHardFails(t *testing.T) {
+	withOrientConfig(t)
+
+	if _, err := runItemRead(t, "--library", "personal", "item", "read", "KEY1", "MISSING1"); err == nil {
+		t.Fatal("default batch semantics stay all-or-error; --missing-ok is the opt-in")
+	}
+}

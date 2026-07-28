@@ -173,6 +173,12 @@ func (r ItemResult) Human() string {
 type ItemsResult struct {
 	Count int          `json:"count"`
 	Items []local.Item `json:"items"`
+	// Missing lists requested keys that resolved to nothing — populated
+	// only under `item read --missing-ok`, where a partial result is the
+	// contract and the misses are data (agents batch against this; a
+	// warning alone could be dropped). Without the flag a missing key
+	// fails the whole read instead.
+	Missing []string `json:"missing,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -183,7 +189,11 @@ func (r ItemsResult) Human() string {
 	blocks := lo.Map(r.Items, func(it local.Item, _ int) string {
 		return ItemResult{Item: it}.Human()
 	})
-	return strings.Join(blocks, "")
+	out := strings.Join(blocks, "")
+	if len(r.Missing) > 0 {
+		out += fmt.Sprintf("\n  %s not found: %s\n", uikit.SymFail, strings.Join(r.Missing, ", "))
+	}
+	return out
 }
 
 // writeRelationsBlock renders an item's related items under its

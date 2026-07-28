@@ -30,8 +30,9 @@ var (
 	listOrder      string
 	listRemote     bool
 
-	readRemote bool
-	readDOI    string
+	readRemote    bool
+	readDOI       string
+	readMissingOK bool
 
 	searchLimit    int
 	searchRemote   bool
@@ -450,6 +451,7 @@ func readCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (for items not yet synced)", Destination: &readRemote, Local: true},
 			&cli.StringFlag{Name: "doi", Usage: "look up the item by DOI instead of key (case-insensitive; accepts bare 10.x/y, https://doi.org/..., or doi:... forms; local-only — try `find works <doi>` for OpenAlex)", Destination: &readDOI, Local: true},
+			&cli.BoolFlag{Name: "missing-ok", Usage: "return the items that exist and report the rest in data.missing instead of failing the whole batch; always emits the {count, items} wrapper", Destination: &readMissingOK, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			keys := cmd.Args().Slice()
@@ -504,18 +506,36 @@ func readCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				items, err := lo.MapErr(keys, func(key string, _ int) (local.Item, error) {
+				// Only a genuine 404 is a collectible miss under --missing-ok;
+				// a transport failure aborts the batch — reporting it as
+				// "missing" would launder an outage into data.
+				var missing []string
+				var callErr error
+				items := lo.FilterMap(keys, func(key string, _ int) (local.Item, bool) {
+					if callErr != nil {
+						return local.Item{}, false
+					}
 					raw, err := c.GetItem(ctx, key)
-					if err != nil {
-						return local.Item{}, err
+					switch {
+					case readMissingOK && errors.Is(err, api.ErrNotFound):
+						missing = append(missing, key)
+						return local.Item{}, false
+					case err != nil:
+						callErr = err
+						return local.Item{}, false
 					}
 					it := api.ItemFromClient(raw)
 					citekey.Enrich(&it)
 					labelRemoteRelations(ctx, &it)
-					return it, nil
+					return it, true
 				})
-				if err != nil {
-					return err
+				if callErr != nil {
+					return callErr
+				}
+				if readMissingOK {
+					res := zot.ItemsResult{Count: len(items), Items: items, Missing: missing}
+					outputScoped(ctx, cmd, cmdutil.WithWarnings(res, missingKeysWarning(missing)...))
+					return nil
 				}
 				outputScoped(ctx, cmd, readResultFor(items))
 				return nil
@@ -543,6 +563,15 @@ func readCommand() *cli.Command {
 				return *it, true
 			})
 			switch {
+			case readMissingOK:
+				// Partial-with-report: the found items ship, the misses are
+				// data (data.missing) AND a warning, and the wrapper shape is
+				// unconditional so batch callers never branch on arity.
+				res := zot.ItemsResult{Count: len(items), Items: items, Missing: missing}
+				warns := append(staleLocalWarning(db, remoteRerunFix(os.Args)),
+					missingKeysWarning(missing)...)
+				outputScoped(ctx, cmd, cmdutil.WithWarnings(res, warns...))
+				return nil
 			case len(missing) > 0 && len(keys) == 1:
 				return itemNotFoundErr(ctx, keys[0], readErr)
 			case len(missing) > 0:
@@ -553,6 +582,19 @@ func readCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// missingKeysWarning surfaces `--missing-ok` misses on the envelope's
+// warnings[] as well as data.missing — belt and braces for tooling that
+// only inspects one of the two. Empty misses emit nothing.
+func missingKeysWarning(missing []string) []cmdutil.Warning {
+	if len(missing) == 0 {
+		return nil
+	}
+	return []cmdutil.Warning{{
+		Code:    cmdutil.CodeNotFound,
+		Message: fmt.Sprintf("%d key(s) not found: %s", len(missing), strings.Join(missing, ", ")),
+	}}
 }
 
 // readResultFor picks the result shape by request arity: one key keeps the

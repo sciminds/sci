@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -10,6 +11,12 @@ import (
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/client"
 )
+
+// ErrNotFound marks a 404 on a single-object GET: the object does not
+// exist in the targeted library. Callers use errors.Is to tell a genuine
+// miss (data — e.g. `item read --missing-ok` collects it) from a
+// transport failure (an error, never a miss).
+var ErrNotFound = errors.New("not found")
 
 // versionedDelete fetches the current version and runs a delete with one
 // 412-retry. Used by TrashItem and DeleteCollection — the two operations
@@ -130,7 +137,8 @@ func (c *Client) getItemRaw(ctx context.Context, key string) (*client.Item, erro
 		status, statusLine, json200 = r.StatusCode(), r.Status(), r.JSON200
 	}
 	if status == http.StatusNotFound {
-		return nil, fmt.Errorf("item %s not found", key)
+		// Renders identically to the old plain error; %w adds the sentinel.
+		return nil, fmt.Errorf("item %s %w", key, ErrNotFound)
 	}
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("GET /items/%s: %s", key, statusLine)
