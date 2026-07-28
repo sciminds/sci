@@ -246,3 +246,23 @@ func TestVerifyChain_CoverageGapIsNotFabrication(t *testing.T) {
 		t.Errorf("invented DOI: status = %q, want %q", got[1].Status, bib.StatusNotFound)
 	}
 }
+
+func TestCollectBibTargets_RMarkdownAndCase(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	// R Markdown conventionally capitalizes the extension (.Rmd); the
+	// sweep must be case-insensitive so neither casing is skipped.
+	writeFiles(t, dir, "analysis.Rmd", "notes.rmd", "PAPER.MD", "skip.txt")
+	got, err := collectBibTargets(dir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		filepath.Join(dir, "PAPER.MD"),
+		filepath.Join(dir, "analysis.Rmd"),
+		filepath.Join(dir, "notes.rmd"),
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}

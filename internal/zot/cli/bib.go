@@ -121,8 +121,15 @@ func matchFromWork(w *openalex.Work) *bib.Match {
 }
 
 // bibDocExts are the file extensions `zot bib` scans when given a
-// directory: markdown (vault notes) and Quarto manuscripts.
-var bibDocExts = []string{".md", ".markdown", ".qmd"}
+// directory: markdown (vault notes), Quarto, and R Markdown manuscripts.
+// Matched case-insensitively via bibDocExt — R Markdown conventionally
+// capitalizes its extension (.Rmd).
+var bibDocExts = []string{".md", ".markdown", ".qmd", ".rmd"}
+
+// bibDocExt reports whether path carries one of bibDocExts, ignoring case.
+func bibDocExt(path string) bool {
+	return slices.Contains(bibDocExts, strings.ToLower(filepath.Ext(path)))
+}
 
 func bibCommand() *cli.Command {
 	return &cli.Command{
@@ -260,7 +267,7 @@ func collectBibTargets(path string, recursive bool) ([]string, error) {
 				}
 				return nil
 			}
-			if slices.Contains(bibDocExts, filepath.Ext(p)) {
+			if bibDocExt(p) {
 				files = append(files, p)
 			}
 			return nil
@@ -274,7 +281,7 @@ func collectBibTargets(path string, recursive bool) ([]string, error) {
 			return nil, err
 		}
 		files = lo.FilterMap(entries, func(e fs.DirEntry, _ int) (string, bool) {
-			if e.IsDir() || !slices.Contains(bibDocExts, filepath.Ext(e.Name())) {
+			if e.IsDir() || !bibDocExt(e.Name()) {
 				return "", false
 			}
 			return filepath.Join(path, e.Name()), true
