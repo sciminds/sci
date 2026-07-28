@@ -219,6 +219,55 @@ func TestExecute_Create(t *testing.T) {
 	}
 }
 
+// TestExecute_TagsParentWithMarkdownTag: creating a note must also mark
+// the parent has-markdown, the way the bulk path does — that tag is what
+// `content list` and the saved-search workflow key off, and the guide
+// documents `content extract --apply` as auto-applying it. Best-effort:
+// a tag failure must not fail the extraction, since the note itself was
+// created successfully.
+func TestExecute_TagsParentWithMarkdownTag(t *testing.T) {
+	t.Parallel()
+	mkPlan := func() *Plan {
+		return &Plan{
+			Request: PlanRequest{ParentKey: "PARENT01", PDFKey: "PDF1", PDFName: "paper.pdf", PDFHash: "abc123"},
+			Action:  ActionCreate,
+		}
+	}
+
+	in := baseInput(t, mkPlan())
+	if _, err := Execute(context.Background(), in); err != nil {
+		t.Fatal(err)
+	}
+	w := in.Writer.(*fakeNoteWriter)
+	if len(w.tagged) != 1 || w.tagged[0].item != "PARENT01" || w.tagged[0].tag != MarkdownTag {
+		t.Errorf("tagged = %+v, want one %s on PARENT01", w.tagged, MarkdownTag)
+	}
+
+	// A tag failure is a diagnostic, not a failed extraction.
+	in = baseInput(t, mkPlan())
+	in.Writer = &fakeNoteWriter{tagErr: errors.New("transient 412")}
+	res, err := Execute(context.Background(), in)
+	if err != nil {
+		t.Fatalf("tag failure must not fail the run: %v", err)
+	}
+	if res.NoteKey == "" {
+		t.Error("note key lost when tagging failed")
+	}
+
+	// Updating an existing note doesn't re-tag: the parent already
+	// carries it from the original create.
+	updPlan := mkPlan()
+	in = baseInput(t, updPlan)
+	in.UpdateNoteKey = "NOTE0001"
+	in.Updater = &fakeNoteUpdater{}
+	if _, err := Execute(context.Background(), in); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(in.Writer.(*fakeNoteWriter).tagged); n != 0 {
+		t.Errorf("update path tagged %d times, want 0", n)
+	}
+}
+
 // TestExecute_Skip: ActionSkip must short-circuit — no extractor run,
 // no writer calls.
 func TestExecute_Skip(t *testing.T) {

@@ -205,6 +205,15 @@ func Execute(ctx context.Context, in ExecuteInput) (*ExecuteResult, error) {
 			return nil, fmt.Errorf("execute: create note: %w", err)
 		}
 		result.NoteKey = key
+
+		// Mark the parent has-markdown so `content list` and the
+		// saved-search workflow can find it — the same invariant
+		// ExecuteBatch maintains. Best-effort for the same reason:
+		// the note was created, so failing the run over a tag glitch
+		// (e.g. a transient 412) would misreport the outcome, and the
+		// next --apply's backfill sweep re-adds it. Update-in-place
+		// doesn't tag: the parent already carries it from the create.
+		_ = in.Writer.AddTagToItem(ctx, in.Plan.Request.ParentKey, MarkdownTag)
 	}
 	return result, nil
 }
