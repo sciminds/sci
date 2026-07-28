@@ -1,6 +1,7 @@
 package zot
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/sciminds/cli/internal/uikit"
@@ -27,6 +28,12 @@ type GuideSection struct {
 // enforced in guide_test.go) so an agent can pull it once at session start
 // without bloating context.
 type GuideResult struct {
+	// ContractVersion is the integer version of the machine contract —
+	// the envelope shape, error vocabulary, and the extraction-layout
+	// format. External consumers that drive sci as a subprocess (zen)
+	// probe it before delegating. Additive changes don't bump it;
+	// breaking ones do.
+	ContractVersion int `json:"contract_version"`
 	// Contract states the machine rules for driving zot under --json: the
 	// envelope shape and what to do with fix / warnings / truncated fields.
 	// Rendered first — an agent that reads nothing else should still absorb
@@ -45,7 +52,11 @@ func (r GuideResult) Human() string {
 	b.WriteByte('\n')
 	if len(r.Contract) > 0 {
 		b.WriteString("  ")
-		b.WriteString(uikit.TUI.Bold().Render("Machine contract (--json)"))
+		title := "Machine contract (--json)"
+		if r.ContractVersion > 0 {
+			title = fmt.Sprintf("Machine contract v%d (--json)", r.ContractVersion)
+		}
+		b.WriteString(uikit.TUI.Bold().Render(title))
 		b.WriteString("\n\n")
 		for _, line := range r.Contract {
 			b.WriteString("    ")

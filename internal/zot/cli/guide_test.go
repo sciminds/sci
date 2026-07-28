@@ -68,6 +68,39 @@ func TestGuide_JSON_MachineReadable(t *testing.T) {
 	}
 }
 
+// TestGuide_ContractVersion: `zot guide --json` carries the integer
+// contract_version external consumers (zen) probe before delegating to
+// sci. It only ever moves forward, and additive changes don't bump it —
+// so the pin here is exact: bumping it is a decision, not a side effect.
+func TestGuide_ContractVersion(t *testing.T) {
+	root := &cli.Command{
+		Name: "zot",
+		Flags: append([]cli.Flag{
+			cmdutil.JSONFlag(new(bool)),
+		}, PersistentFlags()...),
+		Before:   ValidateLibraryBefore,
+		Commands: Commands(),
+	}
+	read, restore := captureStdout(t)
+	defer restore()
+	if err := root.Run(context.Background(), []string{"zot", "--json", "guide"}); err != nil {
+		t.Fatalf("guide --json: %v", err)
+	}
+	raw := read()
+
+	// Assert on the wire field name, not just the struct round-trip —
+	// zen reads `.data.contract_version`.
+	var wire struct {
+		ContractVersion int `json:"contract_version"`
+	}
+	if err := json.Unmarshal(unwrapData(t, []byte(raw)), &wire); err != nil {
+		t.Fatalf("decode: %v\nraw: %s", err, raw)
+	}
+	if wire.ContractVersion != 1 {
+		t.Errorf("contract_version = %d, want 1", wire.ContractVersion)
+	}
+}
+
 // TestGuide_ReferencedCommandsExist is the drift fence: it parses every
 // `sci zot …` example in the guide and walks the command tree to verify
 // the path resolves. Renaming a command without updating the guide

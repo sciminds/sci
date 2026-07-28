@@ -25,7 +25,10 @@ import (
 //   - Notes call out tradeoffs, gotchas, or compose-with hints.
 func guideContent() zot.GuideResult {
 	return zot.GuideResult{
+		ContractVersion: 1,
 		Contract: []string{
+			"Driving sci as a subprocess? Probe data.contract_version from `sci zot guide --json` first — it bumps only on breaking changes to this contract or the extraction layout.",
+			"With extract.dir configured in zot.json, extractions also land as <extract.dir>/<KEY>/ dirs: KEY.md, KEY.json (DoclingDocument), KEY_artifacts/, tables/*.csv, result.json, .done (completion marker). extract.runner=ssh runs docling on extract.host transparently.",
 			"Every command accepts --json: one stream (stdout), one shape. Success: {ok:true, data, warnings}. Failure: {ok:false, error:{code, message, fix, try}} on a single line.",
 			"error.fix is a complete corrected command — resubmit it verbatim. error.try is prose guidance. error.code is a closed vocabulary (usage, conflict, not-found, ambiguous, offline, not-configured, runtime).",
 			"Exit 2 means rewrite the command line and retry; exit 1 means the work itself failed.",
