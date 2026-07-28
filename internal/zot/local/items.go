@@ -635,7 +635,113 @@ ORDER BY b.dateAdded DESC
 	}
 
 	ranked := rankSearchResults(out, groups, contentScores)
-	return ranked[:min(limit, len(ranked))], len(ranked), nil
+	top := ranked[:min(limit, len(ranked))]
+	// Only the hits that survived ranking and the limit get enriched —
+	// three batched IN queries over ≤limit rows, never the whole
+	// candidate set.
+	if err := d.enrichListRows(top); err != nil {
+		return nil, 0, err
+	}
+	return top, len(ranked), nil
+}
+
+// enrichListRows adds Creators, Tags, and URL to list-view rows in place,
+// via one batched query per facet. Search rows carry these so consumers
+// can render authorship without an N+1 Read per hit; the heavyweight
+// remainder (Abstract, the Fields map, attachments, relations) stays
+// Read-only territory. Ordering matches Read: creators by orderIndex,
+// tags by name.
+func (d *DB) enrichListRows(items []Item) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := lo.Map(items, func(it Item, _ int) int64 { return it.ID })
+	ph, args := inClause(ids)
+	byID := lo.SliceToMap(lo.Range(len(items)), func(i int) (int64, *Item) {
+		return items[i].ID, &items[i]
+	})
+
+	creatorRows, err := d.db.Query(`
+		SELECT ic.itemID, ct.creatorType, c.firstName, c.lastName, c.fieldMode, ic.orderIndex
+		FROM itemCreators ic
+		JOIN creators c ON ic.creatorID = c.creatorID
+		JOIN creatorTypes ct ON ic.creatorTypeID = ct.creatorTypeID
+		WHERE ic.itemID IN (`+ph+`)
+		ORDER BY ic.itemID, ic.orderIndex
+	`, args...)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = creatorRows.Close() }()
+	for creatorRows.Next() {
+		var itemID int64
+		var cr Creator
+		var first, last sql.NullString
+		var mode int
+		if err := creatorRows.Scan(&itemID, &cr.Type, &first, &last, &mode, &cr.OrderIdx); err != nil {
+			return err
+		}
+		if mode == 1 {
+			cr.Name = last.String // single-name creators live in lastName
+		} else {
+			cr.First = first.String
+			cr.Last = last.String
+		}
+		if it, ok := byID[itemID]; ok {
+			it.Creators = append(it.Creators, cr)
+		}
+	}
+	if err := creatorRows.Err(); err != nil {
+		return err
+	}
+
+	tagRows, err := d.db.Query(`
+		SELECT ity.itemID, tg.name
+		FROM itemTags ity
+		JOIN tags tg ON ity.tagID = tg.tagID
+		WHERE ity.itemID IN (`+ph+`)
+		ORDER BY ity.itemID, tg.name
+	`, args...)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tagRows.Close() }()
+	for tagRows.Next() {
+		var itemID int64
+		var name string
+		if err := tagRows.Scan(&itemID, &name); err != nil {
+			return err
+		}
+		if it, ok := byID[itemID]; ok {
+			it.Tags = append(it.Tags, name)
+		}
+	}
+	if err := tagRows.Err(); err != nil {
+		return err
+	}
+
+	urlRows, err := d.db.Query(`
+		SELECT id.itemID, idv.value
+		FROM itemData id
+		JOIN fields f ON id.fieldID = f.fieldID
+		JOIN itemDataValues idv ON id.valueID = idv.valueID
+		WHERE f.fieldName = 'url' AND id.itemID IN (`+ph+`)
+	`, args...)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = urlRows.Close() }()
+	for urlRows.Next() {
+		var itemID int64
+		var url string
+		if err := urlRows.Scan(&itemID, &url); err != nil {
+			return err
+		}
+		if it, ok := byID[itemID]; ok {
+			it.URL = url
+		}
+	}
+	return urlRows.Err()
 }
 
 // QueryFreeText returns the positive free-text of a query — every clause
