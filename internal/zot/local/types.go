@@ -17,8 +17,14 @@ import "strconv"
 // ItemFromClient (the local package can't import citekey: cycle). Empty
 // when the key is neither stored nor enriched.
 type Item struct {
-	ID           int64             `json:"id"`
-	Key          string            `json:"key"`
+	ID  int64  `json:"id"`
+	Key string `json:"key"`
+	// Library names the library scope this row came from — "personal" or
+	// "shared", the same vocabulary as the --library flag. Stamped by
+	// every local read; load-bearing under --library all, a constant
+	// otherwise. Items built from the Web API leave it empty (the caller
+	// asked a single library by construction).
+	Library      string            `json:"library,omitempty"`
 	Type         string            `json:"type"`
 	Version      int               `json:"version"`
 	Title        string            `json:"title,omitempty"`

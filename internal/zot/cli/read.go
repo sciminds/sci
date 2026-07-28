@@ -49,6 +49,19 @@ var (
 // zotero.sqlite scoped accordingly, and warns if the schema version is
 // outside the tested range.
 func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
+	return openLocalDBScoped(ctx, false)
+}
+
+// openLocalDBAllowAll is openLocalDB for the commands that opted into
+// the merged --library all pool (search, bib). Everything else goes
+// through openLocalDB, which rejects `all` with the rewrite hint —
+// their query paths still bind a single libraryID and would silently
+// answer personal-only.
+func openLocalDBAllowAll(ctx context.Context) (*zot.Config, local.Reader, error) {
+	return openLocalDBScoped(ctx, true)
+}
+
+func openLocalDBScoped(ctx context.Context, allowAll bool) (*zot.Config, local.Reader, error) {
 	cfg, err := requireConfigCoded()
 	if err != nil {
 		return nil, nil, err
@@ -56,6 +69,11 @@ func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
 	ref, err := ensureLibraryScope(ctx, cfg)
 	if err != nil {
 		return nil, nil, err
+	}
+	if ref.Scope == zot.LibAll && !allowAll {
+		return nil, nil, cmdutil.Coded(cmdutil.CodeUsage,
+			"--library all is supported by search and bib only (so far) — this command reads a single library").
+			WithTry("re-run with --library personal or --library shared")
 	}
 	sel, err := localSelectorFor(cfg, ref)
 	if err != nil {
@@ -99,6 +117,12 @@ func tryOpenLocalDB(ctx context.Context) (local.Reader, bool) {
 	if err != nil {
 		return nil, false
 	}
+	// The opportunistic callers behind this helper still bind a single
+	// libraryID — under a merged scope, skipping the enrichment honestly
+	// beats silently enriching against the personal library only.
+	if ref.Scope == zot.LibAll {
+		return nil, false
+	}
 	sel, err := localSelectorFor(cfg, ref)
 	if err != nil {
 		return nil, false
@@ -126,6 +150,15 @@ func localSelectorFor(cfg *zot.Config, ref zot.LibraryRef) (local.LibrarySelecto
 			return local.LibrarySelector{}, fmt.Errorf("parse SharedGroupID %q: %w", cfg.SharedGroupID, err)
 		}
 		return local.ForGroupByAPIID(apiID), nil
+	case zot.LibAll:
+		if cfg.SharedGroupID == "" {
+			return local.LibrarySelector{}, fmt.Errorf("--library all: SharedGroupID is empty (run 'sci zot setup' to auto-detect)")
+		}
+		apiID, err := strconv.ParseInt(cfg.SharedGroupID, 10, 64)
+		if err != nil {
+			return local.LibrarySelector{}, fmt.Errorf("parse SharedGroupID %q: %w", cfg.SharedGroupID, err)
+		}
+		return local.ForAll(apiID), nil
 	default:
 		return local.LibrarySelector{}, fmt.Errorf("unknown library scope %q", ref.Scope)
 	}
@@ -194,6 +227,9 @@ func searchCommand() *cli.Command {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--content is local-only").
 					WithTry("drop --content; --remote already matches PDF text and notes server-side")
 			}
+			if err := searchAllConflicts(ctx); err != nil {
+				return err
+			}
 			if searchFull && searchExport {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--full and --export are mutually exclusive").
 					WithTry("use --full for reading hits inline, --export for generating a bibliography")
@@ -202,6 +238,7 @@ func searchCommand() *cli.Command {
 			// like `zot search @author: jolly @title: gossip` work without
 			// requiring the user to wrap the whole thing in shell quotes.
 			query := strings.Join(cmd.Args().Slice(), " ")
+			mergedScope := requestedScopeIsAll(ctx)
 
 			if searchRemote {
 				c, err := requireAPIClient(ctx)
@@ -242,7 +279,7 @@ func searchCommand() *cli.Command {
 				return nil
 			}
 
-			_, db, err := openLocalDB(ctx)
+			_, db, err := openLocalDBAllowAll(ctx)
 			if err != nil {
 				return err
 			}
@@ -266,8 +303,13 @@ func searchCommand() *cli.Command {
 			}
 			// Freshness caveat rides every local hit list; the fix is the
 			// same command against API ground truth (except --export, whose
-			// pipeline is local-only).
-			staleWarns := append(staleLocalWarning(db, remoteRerunFix(os.Args)), contentWarns...)
+			// pipeline is local-only, and --library all, where --remote
+			// would conflict — a Fix must be resubmittable verbatim).
+			rerunFix := remoteRerunFix(os.Args)
+			if mergedScope {
+				rerunFix = ""
+			}
+			staleWarns := append(staleLocalWarning(db, rerunFix), contentWarns...)
 			if searchNotes {
 				hasNotes, err := db.ParentsWithDoclingNotes()
 				if err != nil {
@@ -341,6 +383,35 @@ func searchCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// requestedScopeIsAll reports whether this invocation asked for the
+// merged --library all pool. Read off the pre-resolution holder so
+// conflict checks can fire before any config or DB work.
+func requestedScopeIsAll(ctx context.Context) bool {
+	ref, ok := LibraryFromContext(ctx)
+	return ok && ref.Scope == zot.LibAll
+}
+
+// searchAllConflicts rejects the search flags that cannot honestly serve
+// a merged pool — each would silently answer against a single library
+// (or none), which is worse than an error that names the limitation.
+func searchAllConflicts(ctx context.Context) error {
+	if !requestedScopeIsAll(ctx) {
+		return nil
+	}
+	switch {
+	case searchContent:
+		return cmdutil.Coded(cmdutil.CodeConflict, "--content is per-library (each library has its own text index) and cannot serve --library all").
+			WithTry("run --content against one library at a time, or drop --content")
+	case searchRemote:
+		return cmdutil.Coded(cmdutil.CodeConflict, "--remote has no merged endpoint — the Zotero Web API serves one library per call").
+			WithTry("fan out --remote per library, or drop --remote")
+	case searchNotes:
+		return cmdutil.Coded(cmdutil.CodeConflict, "--notes filters per-library and cannot serve --library all yet").
+			WithTry("run --notes against one library at a time, or drop --notes")
+	}
+	return nil
 }
 
 // hydrateSearchHits re-reads the search hits through one batched ListAll

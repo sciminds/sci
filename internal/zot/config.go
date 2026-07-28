@@ -252,11 +252,19 @@ const (
 	LibPersonal LibraryScope = "personal"
 	// LibShared is the Zotero group library configured as the shared target.
 	LibShared LibraryScope = "shared"
+	// LibAll is the merged read pool: personal plus the shared group in
+	// one call, per-row provenance in Item.Library. Local-read-only —
+	// requireAPIClient rejects it (there is no merged API path), and only
+	// commands that opted into multi-library handles accept it (search,
+	// bib); the rest error with the per-library rewrite.
+	LibAll LibraryScope = "all"
 )
 
 // ValidLibraryScopes is the canonical list used by flag validation and
 // error messages. Keep in sync with the LibraryScope constants above.
-var ValidLibraryScopes = []LibraryScope{LibPersonal, LibShared}
+// LibAll passes flag validation like the others but is additionally
+// gated per command — only search and bib accept a merged scope today.
+var ValidLibraryScopes = []LibraryScope{LibPersonal, LibShared, LibAll}
 
 // ValidateLibraryScope reports whether s matches one of the known scope
 // values. Values are case-sensitive to keep flag parsing predictable.
@@ -324,6 +332,21 @@ func (c *Config) Resolve(scope LibraryScope) (LibraryRef, error) {
 			Scope:   LibShared,
 			APIPath: "groups/" + c.SharedGroupID,
 			Name:    name,
+		}, nil
+	case LibAll:
+		// Both member libraries must resolve — a merged pool that quietly
+		// lost one would answer a different question than the one asked.
+		// APIPath stays empty on purpose: no single path serves a merged
+		// scope, and an empty path is what keeps api.New unreachable.
+		if _, err := c.Resolve(LibPersonal); err != nil {
+			return LibraryRef{}, err
+		}
+		if _, err := c.Resolve(LibShared); err != nil {
+			return LibraryRef{}, err
+		}
+		return LibraryRef{
+			Scope: LibAll,
+			Name:  "All libraries",
 		}, nil
 	default:
 		return LibraryRef{}, fmt.Errorf("unknown library scope %q", scope)

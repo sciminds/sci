@@ -75,6 +75,11 @@ func requireAPIClient(ctx context.Context) (*api.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	if ref.Scope == zot.LibAll {
+		return nil, cmdutil.Coded(cmdutil.CodeUsage,
+			"--library all is local-read-only — API operations target one library").
+			WithTry("re-run with --library personal or --library shared")
+	}
 	return api.New(cfg, api.WithLibrary(ref))
 }
 

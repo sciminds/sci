@@ -154,7 +154,7 @@ ORDER BY i.dateAdded DESC
 
 	var out []Item
 	for rows.Next() {
-		it, err := scanListRow(rows)
+		it, err := d.scanListRow(rows)
 		if err != nil {
 			return nil, err
 		}

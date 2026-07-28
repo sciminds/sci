@@ -32,7 +32,7 @@ const fieldValueSubquery = `
 // Callers append WHERE/ORDER BY/LIMIT.
 func baseSelect() string {
 	return `
-SELECT i.itemID, i.key, it.typeName, i.version, i.dateAdded, i.clientDateModified,
+SELECT i.itemID, i.key, i.libraryID, it.typeName, i.version, i.dateAdded, i.clientDateModified,
 	` + fieldValueSubquery + ` AS title,
 	` + fieldValueSubquery + ` AS date,
 	` + fieldValueSubquery + ` AS doi,
@@ -44,16 +44,20 @@ LEFT JOIN deletedItems di ON i.itemID = di.itemID
 `
 }
 
-// scanListRow scans a baseSelect() row into an Item.
-func scanListRow(rows *sql.Rows) (Item, error) {
+// scanListRow scans a baseSelect() row into an Item, stamping Library
+// from the row's own libraryID — under a merged (ForAll) handle that is
+// the row's provenance; under a single-library handle it's a constant.
+func (d *DB) scanListRow(rows *sql.Rows) (Item, error) {
 	var it Item
+	var libID int64
 	var title, date, doi, pub, citekey sql.NullString
 	if err := rows.Scan(
-		&it.ID, &it.Key, &it.Type, &it.Version, &it.DateAdded, &it.DateModified,
+		&it.ID, &it.Key, &libID, &it.Type, &it.Version, &it.DateAdded, &it.DateModified,
 		&title, &date, &doi, &pub, &citekey,
 	); err != nil {
 		return it, err
 	}
+	it.Library = d.scopeLabel(libID)
 	it.Title = title.String
 	it.Date = date.String
 	it.Year = ParseYear(it.Date)
@@ -76,8 +80,9 @@ func (d *DB) listWhere(f ListFilter) (string, []any) {
 		where strings.Builder
 		args  []any
 	)
-	where.WriteString(" WHERE i.libraryID = ? AND di.itemID IS NULL ")
-	args = append(args, d.libraryID)
+	libFrag, libArgs := d.libIn("i")
+	where.WriteString(" WHERE " + libFrag + " AND di.itemID IS NULL ")
+	args = append(args, libArgs...)
 	// Skip the blanket note/attachment exclusion when the caller explicitly
 	// asked for one of those types — otherwise the two clauses contradict
 	// each other and we silently return zero rows.
@@ -90,12 +95,14 @@ func (d *DB) listWhere(f ListFilter) (string, []any) {
 		args = append(args, f.ItemType)
 	}
 	if f.CollectionKey != "" {
+		colFrag, colArgs := d.libIn("c")
 		where.WriteString(` AND i.itemID IN (
 			SELECT ci.itemID FROM collectionItems ci
 			JOIN collections c ON ci.collectionID = c.collectionID
-			WHERE c.key = ? AND c.libraryID = ?
+			WHERE c.key = ? AND ` + colFrag + `
 		) `)
-		args = append(args, f.CollectionKey, d.libraryID)
+		args = append(args, f.CollectionKey)
+		args = append(args, colArgs...)
 	}
 	if f.Tag != "" {
 		where.WriteString(` AND i.itemID IN (
@@ -161,7 +168,7 @@ func (d *DB) List(f ListFilter) ([]Item, error) {
 
 	var out []Item
 	for rows.Next() {
-		it, err := scanListRow(rows)
+		it, err := d.scanListRow(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +204,7 @@ func (d *DB) ListAll(f ListFilter) ([]Item, error) {
 	var out []Item
 	idIndex := map[int64]int{}
 	for rows.Next() {
-		it, err := scanListRow(rows)
+		it, err := d.scanListRow(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -604,16 +611,17 @@ func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Ite
 	// date/typeName columns directly via the `b` alias. No SQL LIMIT — all
 	// matches are fetched so ranking sees the full candidate set; the
 	// dateAdded ordering is the stable tiebreak the ranker preserves.
+	libFrag, libArgs := d.libIn("i")
 	q := `
 WITH base AS (` + baseSelect() + `
-	WHERE i.libraryID = ? AND di.itemID IS NULL ` + contentItemTypeFilter + `
+	WHERE ` + libFrag + ` AND di.itemID IS NULL ` + contentItemTypeFilter + `
 )
 SELECT b.* FROM base b
 WHERE ` + strings.Join(orParts, " OR ") + `
 ORDER BY b.dateAdded DESC
 `
 	args := listArgs()
-	args = append(args, d.libraryID)
+	args = append(args, libArgs...)
 	args = append(args, clauseArgs...)
 
 	rows, err := d.db.Query(q, args...)
@@ -624,7 +632,7 @@ ORDER BY b.dateAdded DESC
 
 	var out []Item
 	for rows.Next() {
-		it, err := scanListRow(rows)
+		it, err := d.scanListRow(rows)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -940,17 +948,20 @@ func buildClauseSQL(c match.Clause, ftIDs []int64) (string, []any, error) {
 // Read returns a single item by 8-char Zotero key, fully hydrated with
 // creators, tags, collections, and attachments.
 func (d *DB) Read(key string) (*Item, error) {
+	libFrag, libArgs := d.libIn("i")
 	args := listArgs()
-	args = append(args, d.libraryID, key)
+	args = append(args, libArgs...)
+	args = append(args, key)
 	q := baseSelect() + `
-WHERE i.libraryID = ? AND di.itemID IS NULL AND i.key = ?
+WHERE ` + libFrag + ` AND di.itemID IS NULL AND i.key = ?
 LIMIT 1
 `
 	row := d.db.QueryRow(q, args...)
 	var it Item
+	var libID int64
 	var title, date, doi, pub, citekey sql.NullString
 	if err := row.Scan(
-		&it.ID, &it.Key, &it.Type, &it.Version, &it.DateAdded, &it.DateModified,
+		&it.ID, &it.Key, &libID, &it.Type, &it.Version, &it.DateAdded, &it.DateModified,
 		&title, &date, &doi, &pub, &citekey,
 	); err != nil {
 		if err == sql.ErrNoRows {
@@ -958,6 +969,7 @@ LIMIT 1
 		}
 		return nil, err
 	}
+	it.Library = d.scopeLabel(libID)
 	it.Title = title.String
 	it.Date = date.String
 	it.Year = ParseYear(it.Date)

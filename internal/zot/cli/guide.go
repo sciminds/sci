@@ -27,15 +27,16 @@ func guideContent() zot.GuideResult {
 	return zot.GuideResult{
 		ContractVersion: 1,
 		Contract: []string{
-			"Driving sci as a subprocess? Probe data.contract_version from `sci zot guide --json` first — it bumps only on breaking changes to this contract or the extraction layout.",
-			"With extract.dir configured in zot.json, extractions also land as <extract.dir>/<KEY>/ dirs: KEY.md, KEY.json (DoclingDocument), KEY_artifacts/, tables/*.csv, result.json, .done (completion marker). extract.runner=ssh runs docling on extract.host transparently.",
+			"Probe data.contract_version first — it bumps only on breaking changes to this contract or the extraction layout.",
+			"With extract.dir set in zot.json, extractions also land as <extract.dir>/<KEY>/ dirs: KEY.md, KEY.json (DoclingDocument), KEY_artifacts/, tables/*.csv, result.json, .done (written last). extract.runner=ssh delegates docling to extract.host.",
 			"Every command accepts --json: one stream (stdout), one shape. Success: {ok:true, data, warnings}. Failure: {ok:false, error:{code, message, fix, try}} on a single line.",
 			"error.fix is a complete corrected command — resubmit it verbatim. error.try is prose guidance. error.code is a closed vocabulary (usage, conflict, not-found, ambiguous, offline, not-configured, runtime).",
 			"Exit 2 means rewrite the command line and retry; exit 1 means the work itself failed.",
 			"Act on warnings[] before trusting data — stale-local means the local mirror lags Zotero sync (warning carries the --remote resubmit); bib-quality means entries will be incomplete.",
 			"truncated:true means count < total — raise --limit to see the rest.",
 			"Search field clauses work bare: tag:read = @tag: read, and -tag:read excludes the tag.",
-			"item read accepts cite keys as positionals, not just 8-char Zotero keys. --library personal|shared goes anywhere in the command.",
+			"--library all (search+bib only) merges personal+shared into one ranked pool; each row's library field is its provenance (library_id reads 0).",
+			"item read accepts cite keys as positionals, not just 8-char Zotero keys. --library goes anywhere in the command.",
 			"With --content, match evidence rides in data.snippets — a map keyed by item key, not a field on each item. Join it yourself: data.snippets[item.key]. A key is absent when the excerpt would only restate the item's own title.",
 			"Human output is for terminals; pipe --json instead. Full paper text is data.body from `content read --json`, never the human stream.",
 		},
@@ -56,7 +57,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Find papers in my library on a topic",
 						Cmd:  "sci zot search \"large language models\" --library personal",
-						Note: "Local title/DOI/publication/creators/citekey, ranked by title relevance then year; matching there is substring. Add --content to also match the full TEXT of your papers, or --remote for the Zotero Web fulltext (abstract + notes + PDFs). --content needs a one-time `sci zot content build` and matches whole words with stemming, so quote a phrase to require adjacency: '\"prediction error\"' is far narrower than prediction error. Note --notes is a different flag: it FILTERS to items that have an extraction rather than searching inside them.",
+						Note: "Local metadata substring match (title/DOI/pub/creators/citekey), ranked by title relevance then year. Add --content to also match the full TEXT of your papers, or --remote for the Zotero Web fulltext (abstract + notes + PDFs). --content needs a one-time `sci zot content build` and matches whole words with stemming, so quote a phrase to require adjacency: '\"prediction error\"' is far narrower than prediction error. --notes instead FILTERS to items that have an extraction (no searching inside).",
 					},
 					{
 						Goal: "Which paper is this cite-key / Zotero key?",

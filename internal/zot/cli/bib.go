@@ -169,7 +169,12 @@ func bibCommand() *cli.Command {
 				return string(r.Kind) + "\x00" + strings.ToLower(r.Value)
 			})
 
-			_, db, err := openLocalDB(ctx)
+			// bib opts into --library all: a manuscript's refs legitimately
+			// cross libraries, and resolving against the merged ListAll pool
+			// is exactly the one-pass resolution zen deleted its own copy of.
+			// Cross-library duplicates surface through the existing honesty
+			// gate — >1 distinct match is ambiguous, never a guess.
+			_, db, err := openLocalDBAllowAll(ctx)
 			if err != nil {
 				return err
 			}

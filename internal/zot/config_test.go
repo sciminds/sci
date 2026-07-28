@@ -337,3 +337,32 @@ func TestValidateDataDir(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
+
+// --- LibAll scope ---
+
+func TestValidateLibraryScope_AcceptsAll(t *testing.T) {
+	if err := ValidateLibraryScope("all"); err != nil {
+		t.Errorf("ValidateLibraryScope(all): %v", err)
+	}
+}
+
+func TestResolve_All(t *testing.T) {
+	cfg := &Config{UserID: "12345", SharedGroupID: "6506098", SharedGroupName: "sciminds"}
+	ref, err := cfg.Resolve(LibAll)
+	if err != nil {
+		t.Fatalf("Resolve(all): %v", err)
+	}
+	if ref.Scope != LibAll {
+		t.Errorf("Scope = %q, want all", ref.Scope)
+	}
+	if ref.APIPath != "" {
+		t.Errorf("APIPath = %q — a merged scope has no single API path; it must stay empty so an API client can never be built from it", ref.APIPath)
+	}
+}
+
+func TestResolve_All_RequiresSharedGroup(t *testing.T) {
+	cfg := &Config{UserID: "12345"}
+	if _, err := cfg.Resolve(LibAll); err == nil {
+		t.Fatal("Resolve(all) without a shared group must error, not degrade to personal-only")
+	}
+}

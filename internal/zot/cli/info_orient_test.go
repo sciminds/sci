@@ -64,7 +64,8 @@ func seedOrientDB(t *testing.T, dataDir string) {
 		`CREATE TABLE itemRelations (itemID INTEGER, predicateID INTEGER, object TEXT, PRIMARY KEY (itemID, predicateID, object))`,
 
 		`INSERT INTO version VALUES ('userdata', 125)`,
-		`INSERT INTO libraries VALUES (1, 'user', 1)`,
+		`INSERT INTO libraries VALUES (1, 'user', 1), (2, 'group', 1)`,
+		`INSERT INTO groups VALUES (2, 777, 'sciminds-test')`,
 		`INSERT INTO itemTypes VALUES (1, 'journalArticle'), (2, 'note')`,
 		`INSERT INTO fields VALUES (1, 'title'), (2, 'date'), (3, 'DOI'), (4, 'publicationTitle')`,
 		`INSERT INTO itemDataValues VALUES
@@ -74,7 +75,9 @@ func seedOrientDB(t *testing.T, dataDir string) {
 			(4, 'Paper Four'),
 			(5, '2024-01-15'),
 			(6, '10.1038/nature12373'),
-			(7, '10.1000/key2')`,
+			(7, '10.1000/key2'),
+			(8, 'Shared Cortex Paper'),
+			(9, '10.1000/shared1')`,
 
 		`INSERT INTO items (itemID, itemTypeID, libraryID, key, version, dateAdded, dateModified, clientDateModified) VALUES
 			(1, 1, 1, 'KEY1', 1, '2024-01-01 10:00:00', '2024-01-01 10:00:00', '2024-01-01 10:00:00'),
@@ -84,13 +87,16 @@ func seedOrientDB(t *testing.T, dataDir string) {
 			-- NOTE0001 is a standalone note the user wrote; DOCL0001 is a
 			-- docling extraction (a paper's own text) hanging off KEY1.
 			(5, 2, 1, 'NOTE0001', 1, '2024-05-01 10:00:00', '2024-05-01 10:00:00', '2024-05-01 10:00:00'),
-			(6, 2, 1, 'DOCL0001', 1, '2024-05-02 10:00:00', '2024-05-02 10:00:00', '2024-05-02 10:00:00')`,
+			(6, 2, 1, 'DOCL0001', 1, '2024-05-02 10:00:00', '2024-05-02 10:00:00', '2024-05-02 10:00:00'),
+			-- Group-library item (libraryID=2) for the --library all tests.
+			(7, 1, 2, 'GRPKEY01', 1, '2024-06-01 10:00:00', '2024-06-01 10:00:00', '2024-06-01 10:00:00')`,
 
 		`INSERT INTO itemData VALUES
 			(1, 1, 1), (1, 2, 5), (1, 3, 6),
 			(2, 1, 2), (2, 3, 7),
 			(3, 1, 3),
-			(4, 1, 4)`,
+			(4, 1, 4),
+			(7, 1, 8), (7, 3, 9)`,
 
 		// Tag taxonomy:
 		// "ml"          → 3 items (1, 2, 3)   — top user tag

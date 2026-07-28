@@ -36,9 +36,18 @@ const (
 
 // DB is a read-only handle to a zotero.sqlite file, pinned to a libraryID.
 type DB struct {
-	db        *sql.DB
+	db *sql.DB
+	// libraryID is the primary (first-resolved) library. The ~40 legacy
+	// single-library query sites bind it directly; they are correct for
+	// every selector but ForAll, whose handles the CLI only hands to the
+	// converted paths (Search, List*, Read) — those go through libIn.
 	libraryID int64
-	schemaVer int
+	// libraryIDs is every library the handle spans; len>1 only for ForAll.
+	libraryIDs []int64
+	// userLibraryID backs scopeLabel — the one libraries row with
+	// type='user', resolved at init regardless of selector.
+	userLibraryID int64
+	schemaVer     int
 
 	// Fulltext table detection (lazy, cached).
 	ftsOnce sync.Once
@@ -82,20 +91,62 @@ func (d *DB) init(sel LibrarySelector) error {
 	}
 	d.schemaVer = ver
 
-	// 2. Resolve the target library via the selector.
-	libID, err := sel.resolve(d.db)
+	// 2. Resolve the target library (or libraries) via the selector.
+	libIDs, err := sel.resolve(d.db)
 	if err != nil {
 		return err
 	}
-	d.libraryID = libID
+	if len(libIDs) == 0 {
+		return fmt.Errorf("selector %s resolved no libraries", sel.label)
+	}
+	d.libraryIDs = libIDs
+	d.libraryID = libIDs[0]
+
+	// 3. Pin the user library's ID so every row can be stamped with its
+	// scope label ("personal" vs "shared") regardless of selector mode.
+	// Every Zotero database has exactly one user library.
+	if err := d.db.QueryRow("SELECT libraryID FROM libraries WHERE type='user' LIMIT 1").
+		Scan(&d.userLibraryID); err != nil {
+		return fmt.Errorf("resolve user library ID: %w", err)
+	}
 	return nil
 }
 
 // Close releases the database handle.
 func (d *DB) Close() error { return d.db.Close() }
 
-// LibraryID returns the pinned library ID selected at Open time.
-func (d *DB) LibraryID() int64 { return d.libraryID }
+// LibraryID returns the pinned library ID selected at Open time, or 0
+// for a multi-library handle (ForAll) — no single library owns a merged
+// pool, so result shells emitting a top-level library_id read 0 and
+// per-row [Item.Library] is the provenance that matters.
+func (d *DB) LibraryID() int64 {
+	if len(d.libraryIDs) > 1 {
+		return 0
+	}
+	return d.libraryID
+}
+
+// libIn returns a SQL fragment filtering alias.libraryID to the handle's
+// resolved libraries, plus its bind args. The single-library form stays
+// `= ?` so query plans (and EXPLAIN output) are unchanged for the common
+// case.
+func (d *DB) libIn(alias string) (string, []any) {
+	if len(d.libraryIDs) == 1 {
+		return alias + ".libraryID = ?", []any{d.libraryID}
+	}
+	ph, args := inClause(d.libraryIDs)
+	return alias + ".libraryID IN (" + ph + ")", args
+}
+
+// scopeLabel names the library a row belongs to: "personal" for the user
+// library, "shared" for any group. The vocabulary matches the --library
+// flag so agents can round-trip a row's provenance into a scoped call.
+func (d *DB) scopeLabel(libraryID int64) string {
+	if libraryID == d.userLibraryID {
+		return "personal"
+	}
+	return "shared"
+}
 
 // SchemaVersion returns the userdata schema version from the version table.
 func (d *DB) SchemaVersion() int { return d.schemaVer }
