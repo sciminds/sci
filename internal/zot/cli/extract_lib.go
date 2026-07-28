@@ -80,6 +80,10 @@ func (noopNoteWriter) AddTagToItem(context.Context, string, string) error {
 }
 
 func extractLibAction(ctx context.Context, cmd *cli.Command) error {
+	if handled, err := maybeDelegateExtract(cmd); handled {
+		return err
+	}
+
 	cfg, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err

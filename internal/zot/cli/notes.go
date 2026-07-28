@@ -256,6 +256,10 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	parentKey := cmd.Args().First()
 
+	if handled, err := maybeDelegateExtract(cmd); handled {
+		return err
+	}
+
 	cfg, db, err := openLocalDB(ctx)
 	if err != nil {
 		return err
