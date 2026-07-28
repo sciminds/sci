@@ -8,6 +8,7 @@
 package zot
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,13 +27,69 @@ import (
 // chosen (via setup or lazy probe) as the "shared" target surfaced by
 // --library shared. Multi-group support is a future extension.
 type Config struct {
-	APIKey          string `json:"api_key"`
-	UserID          string `json:"user_id"`                     // numeric Zotero user ID
-	SharedGroupID   string `json:"shared_group_id,omitempty"`   // numeric Zotero group ID for --library shared
-	SharedGroupName string `json:"shared_group_name,omitempty"` // human-readable group name (display only)
-	DataDir         string `json:"data_dir"`
-	OpenAlexEmail   string `json:"openalex_email,omitempty"`
-	OpenAlexAPIKey  string `json:"openalex_api_key,omitempty"`
+	APIKey          string        `json:"api_key"`
+	UserID          string        `json:"user_id"`                     // numeric Zotero user ID
+	SharedGroupID   string        `json:"shared_group_id,omitempty"`   // numeric Zotero group ID for --library shared
+	SharedGroupName string        `json:"shared_group_name,omitempty"` // human-readable group name (display only)
+	DataDir         string        `json:"data_dir"`
+	OpenAlexEmail   string        `json:"openalex_email,omitempty"`
+	OpenAlexAPIKey  string        `json:"openalex_api_key,omitempty"`
+	Extract         ExtractConfig `json:"extract,omitzero"`
+}
+
+// ExtractConfig configures where and how docling PDF extraction runs.
+// The zero value means "local extraction, no persistent artifact dir" —
+// the behavior every config had before this section existed, so the
+// section is purely additive (omitzero keeps it off disk until used).
+type ExtractConfig struct {
+	// Runner selects the extraction backend: RunnerLocal (default)
+	// shells out to docling on this machine; RunnerSSH re-invokes
+	// `sci zot …` on Host, which resolves its own config there (the
+	// Zotero data_dir differs per machine even when Zotero desktop
+	// sync keeps the libraries identical).
+	Runner string `json:"runner,omitempty"`
+	// Host is the ssh destination for RunnerSSH (alias or host name,
+	// resolved by the user's ssh config).
+	Host string `json:"host,omitempty"`
+	// Dir, when set, is the persistent extract_dir: bulk and single
+	// extractions write the full per-parent-key artifact layout
+	// (KEY/KEY.md + KEY.json + images + tables) there, the shape
+	// downstream consumers like zen read.
+	Dir string `json:"dir,omitempty"`
+}
+
+// Extraction runner backends for [ExtractConfig.Runner].
+const (
+	// RunnerLocal runs docling on this machine (the default).
+	RunnerLocal = "local"
+	// RunnerSSH delegates the whole command to ExtractConfig.Host over ssh.
+	RunnerSSH = "ssh"
+)
+
+// EnvExtractRunner overrides ExtractConfig.Runner when set. The ssh
+// delegation path injects it (set to RunnerLocal) into the remote
+// command line so a remote config that itself says runner=ssh can't
+// recurse forever.
+const EnvExtractRunner = "SCI_ZOT_RUNNER"
+
+// ExtractRunner resolves the effective extraction backend: environment
+// (EnvExtractRunner) beats config, and empty means RunnerLocal. For
+// RunnerSSH the configured Host is returned and required. Errors name
+// the bad value so `sci zot` surfaces a fixable message rather than
+// silently running locally.
+func (c *Config) ExtractRunner() (runner, host string, err error) {
+	runner = cmp.Or(os.Getenv(EnvExtractRunner), c.Extract.Runner, RunnerLocal)
+	switch runner {
+	case RunnerLocal:
+		return RunnerLocal, "", nil
+	case RunnerSSH:
+		if c.Extract.Host == "" {
+			return "", "", fmt.Errorf("extract.runner is %q but extract.host is empty — set it in %s", RunnerSSH, ConfigPath())
+		}
+		return RunnerSSH, c.Extract.Host, nil
+	default:
+		return "", "", fmt.Errorf("unknown extract runner %q (expected %q or %q) — check %s and $%s", runner, RunnerLocal, RunnerSSH, ConfigPath(), EnvExtractRunner)
+	}
 }
 
 // configFile is the typed handle to ~/.config/sci/zot.json. Path/save/exists

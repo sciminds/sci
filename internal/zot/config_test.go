@@ -166,6 +166,79 @@ func TestLoadConfig_MigratesLegacyLibraryID(t *testing.T) {
 	}
 }
 
+func TestExtractConfig_RoundTrip(t *testing.T) {
+	withXDGConfigHome(t)
+
+	cfg := &Config{
+		APIKey:  "abc123",
+		UserID:  "7654321",
+		DataDir: "/tmp/z",
+		Extract: ExtractConfig{Runner: RunnerSSH, Host: "mbp", Dir: "/tmp/extracts"},
+	}
+	if err := SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Extract != cfg.Extract {
+		t.Errorf("Extract = %+v, want %+v", loaded.Extract, cfg.Extract)
+	}
+}
+
+// TestExtractConfig_OmittedFromDisk guards the additive-schema promise: a
+// config that never touched the extract section must not grow an "extract"
+// key on disk, so student configs stay minimal and hand-readable.
+func TestExtractConfig_OmittedFromDisk(t *testing.T) {
+	withXDGConfigHome(t)
+	if err := SaveConfig(&Config{APIKey: "k", UserID: "1"}); err != nil {
+		t.Fatal(err)
+	}
+	onDisk, err := os.ReadFile(ConfigPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(onDisk), `"extract"`) {
+		t.Errorf("zero-valued extract section serialized to disk: %s", onDisk)
+	}
+}
+
+func TestExtractRunner(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfg      ExtractConfig
+		env      string
+		wantRun  string
+		wantHost string
+		wantErr  bool
+	}{
+		{name: "default local", wantRun: RunnerLocal},
+		{name: "explicit local", cfg: ExtractConfig{Runner: RunnerLocal}, wantRun: RunnerLocal},
+		{name: "ssh with host", cfg: ExtractConfig{Runner: RunnerSSH, Host: "mbp"}, wantRun: RunnerSSH, wantHost: "mbp"},
+		{name: "ssh without host", cfg: ExtractConfig{Runner: RunnerSSH}, wantErr: true},
+		{name: "unknown runner", cfg: ExtractConfig{Runner: "carrier-pigeon"}, wantErr: true},
+		{name: "env forces local over ssh", cfg: ExtractConfig{Runner: RunnerSSH, Host: "mbp"}, env: RunnerLocal, wantRun: RunnerLocal},
+		{name: "env invalid", cfg: ExtractConfig{}, env: "warp", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(EnvExtractRunner, tt.env)
+			cfg := &Config{Extract: tt.cfg}
+			run, host, err := cfg.ExtractRunner()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if run != tt.wantRun || host != tt.wantHost {
+				t.Errorf("ExtractRunner = (%q, %q), want (%q, %q)", run, host, tt.wantRun, tt.wantHost)
+			}
+		})
+	}
+}
+
 func TestClearConfig(t *testing.T) {
 	withXDGConfigHome(t)
 	if err := SaveConfig(&Config{APIKey: "k", UserID: "1"}); err != nil {
