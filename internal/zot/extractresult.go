@@ -156,6 +156,13 @@ type ExtractLibResult struct {
 	// BackfillFailed counts parents the sweep tried to tag but failed
 	// (e.g. transient API error). The next --apply run retries.
 	BackfillFailed int `json:"backfill_failed,omitempty"`
+
+	// LayoutDir is the extract_dir this run wrote per-key artifact
+	// layouts into. Empty when layout mode was off.
+	LayoutDir string `json:"layout_dir,omitempty"`
+	// LayoutWritten counts key dirs finalized by this run (dirs that
+	// were already complete are not re-written and not counted).
+	LayoutWritten int `json:"layout_written,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -173,6 +180,9 @@ func (r ExtractLibResult) Human() string {
 	}
 	if r.Failed > 0 {
 		fmt.Fprintf(&b, "      %s failed:  %d\n", uikit.SymFail, r.Failed)
+	}
+	if r.LayoutDir != "" {
+		fmt.Fprintf(&b, "      layout:   %d key dir(s) → %s\n", r.LayoutWritten, r.LayoutDir)
 	}
 	if r.BackfilledTags > 0 || r.BackfillFailed > 0 {
 		fmt.Fprintf(&b, "      backfilled has-markdown tag: %d", r.BackfilledTags)

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -160,6 +161,168 @@ func TestExecuteBatch_HappyPath(t *testing.T) {
 	// Cache populated for the non-skip item.
 	if _, ok := cache.Get("PDFA", "ha"); !ok {
 		t.Error("cache missing PDFA")
+	}
+}
+
+// TestExecuteBatch_LayoutMode is the end-to-end contract of persistent
+// layout mode:
+//   - PA (Create, no layout): extracted via a staged KEY.pdf symlink,
+//     layout dir written, note posted.
+//   - PB (Skip — existing Zotero note — but no layout): still extracted
+//     so the corpus gets its dir, but NO note posted.
+//   - PC (Create, layout already Done): no extraction; the note body is
+//     served from the layout markdown.
+func TestExecuteBatch_LayoutMode(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	layout := &KeyLayout{Dir: filepath.Join(dir, "extracts")}
+	if err := os.MkdirAll(layout.Dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pre-build PC's completed layout dir with distinctive markdown.
+	staging := writeStagedOutputs(t, t.TempDir(), "PC")
+	if _, err := layout.Finalize("PC", staging, "/old/pc.pdf", 1); err != nil {
+		t.Fatal(err)
+	}
+
+	var items []BatchItem
+	for _, k := range []string{"PA", "PB", "PC"} {
+		pdf := filepath.Join(dir, strings.ToLower(k)+".pdf")
+		writeStubPDF(t, pdf, k)
+		action := ActionCreate
+		if k == "PB" {
+			action = ActionSkip
+		}
+		items = append(items, mkBatchItem(k, "PDF"+k, k+".pdf", pdf, "h"+k, action))
+	}
+
+	ex := &fakeExtractor{md: "# fresh\n", version: "docling 2.86.0", full: true}
+	w := &fakeNoteWriter{}
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: ex,
+		Writer:    w,
+		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
+		Layout:    layout,
+		Now:       func() time.Time { return time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Extraction ran over staged key-named symlinks for PA + PB only.
+	if n := atomic.LoadInt32(&ex.calls); n != 1 {
+		t.Errorf("extractor calls = %d, want 1", n)
+	}
+	var stems []string
+	for _, batch := range ex.batches {
+		for _, p := range batch {
+			stems = append(stems, stemFor(p))
+		}
+	}
+	slices.Sort(stems)
+	if want := []string{"PA", "PB"}; !slices.Equal(stems, want) {
+		t.Errorf("extracted stems = %v, want %v (staged as KEY.pdf)", stems, want)
+	}
+
+	// PA and PB have complete layout dirs; PC's pre-built dir survives.
+	for _, k := range []string{"PA", "PB", "PC"} {
+		if !layout.Done(k) {
+			t.Errorf("layout %s not Done", k)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(layout.KeyDir("PA"), "tables", "table-001.csv")); err != nil {
+		t.Errorf("PA tables missing: %v", err)
+	}
+
+	// Notes: PA (fresh) + PC (from layout md). PB skipped.
+	if len(w.created) != 2 {
+		t.Fatalf("created notes = %+v, want 2 (PA + PC)", w.created)
+	}
+	bodies := map[string]string{}
+	for _, c := range w.created {
+		bodies[c.parent] = c.body
+	}
+	if !strings.Contains(bodies["PA"], "# fresh") {
+		t.Errorf("PA note body not from fresh extraction: %q", bodies["PA"])
+	}
+	if !strings.Contains(bodies["PC"], "# Title") {
+		t.Errorf("PC note body not from layout markdown: %q", bodies["PC"])
+	}
+
+	// Outcome bookkeeping: layout written for PA + PB, PC served from disk.
+	byKey := map[string]BatchOutcome{}
+	for _, o := range res.Outcomes {
+		byKey[o.Item.Request.ParentKey] = o
+	}
+	if !byKey["PA"].LayoutWritten || !byKey["PB"].LayoutWritten {
+		t.Errorf("LayoutWritten: PA=%v PB=%v, want true/true", byKey["PA"].LayoutWritten, byKey["PB"].LayoutWritten)
+	}
+	if byKey["PC"].LayoutWritten {
+		t.Error("PC re-wrote a Done layout")
+	}
+	if !byKey["PC"].FromCache {
+		t.Error("PC not marked FromCache (served from layout)")
+	}
+}
+
+// TestExecuteBatch_LayoutNotePostRetry: a failed note post after a
+// successful extraction must not cost a re-extract — the layout dir is
+// Done, so the retry run goes straight to posting.
+func TestExecuteBatch_LayoutNotePostRetry(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	layout := &KeyLayout{Dir: filepath.Join(dir, "extracts")}
+	pdf := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdf, "a")
+	mkItems := func() []BatchItem {
+		return []BatchItem{mkBatchItem("PA", "PDFA", "a.pdf", pdf, "ha", ActionCreate)}
+	}
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+	now := func() time.Time { return time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC) }
+
+	// Run 1: extraction succeeds, posting fails.
+	ex := &fakeExtractor{md: "# body\n", version: "docling 2.86.0", full: true}
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     mkItems(),
+		Extractor: ex,
+		Writer:    &fakeNoteWriter{createErr: errors.New("zotero 500")},
+		Cache:     cache,
+		Layout:    layout,
+		Now:       now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Outcomes[0].Err == nil {
+		t.Fatal("run 1: expected posting error")
+	}
+	if !layout.Done("PA") {
+		t.Fatal("run 1: layout not Done despite successful extraction")
+	}
+
+	// Run 2: no extraction, note posted.
+	w := &fakeNoteWriter{}
+	res, err = ExecuteBatch(context.Background(), BatchInput{
+		Items:     mkItems(),
+		Extractor: ex,
+		Writer:    w,
+		Cache:     cache,
+		Layout:    layout,
+		Now:       now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Outcomes[0].Err != nil {
+		t.Fatalf("run 2: %v", res.Outcomes[0].Err)
+	}
+	if n := atomic.LoadInt32(&ex.calls); n != 1 {
+		t.Errorf("extractor ran again on retry (calls = %d, want 1)", n)
+	}
+	if len(w.created) != 1 || w.created[0].parent != "PA" {
+		t.Errorf("run 2 notes = %+v, want one for PA", w.created)
 	}
 }
 

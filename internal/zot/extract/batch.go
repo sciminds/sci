@@ -116,6 +116,15 @@ type BatchInput struct {
 	// OutputDir is where docling writes all its output for the batch.
 	// ExecuteBatch creates this if needed.
 	OutputDir string
+	// Layout, when non-nil, activates persistent per-key artifact mode:
+	// every extraction runs in md+json+referenced-image form over a
+	// staged KEY.pdf symlink and is finalized into Layout's per-parent-key
+	// dirs. Resume is driven by Layout.Done (not the markdown cache,
+	// which can't reproduce the DoclingDocument JSON), and items whose
+	// Plan says Skip (existing Zotero note) are STILL extracted when
+	// their layout dir is missing — the note and the layout are
+	// independent stores. Nil means classic behavior.
+	Layout *KeyLayout
 	// Now is injected for tests. Nil → time.Now.
 	Now func() time.Time
 	// OnProgress fires for each docling log event during extraction.
@@ -151,6 +160,10 @@ type BatchOutcome struct {
 	FromCache bool
 	Duration  time.Duration
 	Err       error
+	// LayoutWritten is true when this run finalized the item's
+	// per-key layout dir (layout mode only; false for dirs that
+	// were already Done).
+	LayoutWritten bool
 }
 
 // BatchResult is the full return value of ExecuteBatch. Outcomes is
@@ -235,10 +248,44 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 
 		outcomes[i].Action = item.Plan.Action
 
-		if item.Plan.Action == ActionSkip {
+		layoutDone := in.Layout != nil && in.Layout.Done(item.Request.ParentKey)
+
+		// A Skip plan (existing Zotero note) only ends the item's journey
+		// when there is no layout to fill: in layout mode a missing dir
+		// still needs the extraction, just not the note.
+		if item.Plan.Action == ActionSkip && (in.Layout == nil || layoutDone) {
 			if in.OnItemDone != nil {
 				in.OnItemDone(i, outcomes[i])
 			}
+			continue
+		}
+
+		if in.Layout != nil {
+			if layoutDone {
+				// Note needed, extraction already on disk — serve the
+				// note body from the layout markdown via the cache the
+				// posting phase reads.
+				if _, ok := in.Cache.Get(item.Request.PDFKey, item.Hash); !ok {
+					md, err := os.ReadFile(in.Layout.MarkdownPath(item.Request.ParentKey))
+					if err == nil {
+						_, err = in.Cache.Put(item.Request.PDFKey, item.Hash, md)
+					}
+					if err != nil {
+						outcomes[i].Err = fmt.Errorf("read layout markdown for %s: %w", item.Request.ParentKey, err)
+						if in.OnItemDone != nil {
+							in.OnItemDone(i, outcomes[i])
+						}
+						continue
+					}
+				}
+				outcomes[i].FromCache = true
+				continue
+			}
+			// The markdown cache is deliberately NOT consulted here: a
+			// cached placeholder-mode markdown can't produce the
+			// DoclingDocument JSON the layout requires.
+			needExtract = append(needExtract, i)
+			pdfPaths = append(pdfPaths, item.Request.PDFPath)
 			continue
 		}
 
@@ -293,6 +340,37 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 			outputDir = tmp
 		}
 
+		// Layout mode: extract in full form (markdown + DoclingDocument
+		// + referenced images) over KEY.pdf symlinks so every docling
+		// output comes out key-named. Tables are NOT requested here —
+		// Finalize derives tables/ from the JSON itself.
+		extractOpts := in.ExtractOpts
+		if in.Layout != nil {
+			extractOpts.Formats = []OutputFormat{FormatMarkdown, FormatJSON}
+			extractOpts.ImageMode = ImageReferenced
+			extractOpts.TablesAsCSV = false
+
+			stagingDir := filepath.Join(outputDir, "staging")
+			if err := os.MkdirAll(stagingDir, 0o755); err != nil {
+				return nil, fmt.Errorf("batch: mkdir staging: %w", err)
+			}
+			keptIdx := needExtract[:0]
+			keptPaths := pdfPaths[:0]
+			for pi, idx := range needExtract {
+				staged, err := StageKeyPDF(stagingDir, in.Items[idx].Request.ParentKey, pdfPaths[pi])
+				if err != nil {
+					outcomes[idx].Err = err
+					if in.OnItemDone != nil {
+						in.OnItemDone(idx, outcomes[idx])
+					}
+					continue
+				}
+				keptIdx = append(keptIdx, idx)
+				keptPaths = append(keptPaths, staged)
+			}
+			needExtract, pdfPaths = keptIdx, keptPaths
+		}
+
 		// Build a pdfPath→needExtract index for result matching.
 		pdfToIdx := make(map[string]int, len(pdfPaths))
 		for pi, idx := range needExtract {
@@ -338,7 +416,7 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 						chunkResults[ci] = chunkResult{chunk: chunk, err: ctx.Err()}
 						return
 					}
-					opts := in.ExtractOpts
+					opts := extractOpts
 					jobDir := filepath.Join(outputDir, fmt.Sprintf("batch-%d-job-%d", batchNum, ci))
 					opts.OutputDir = jobDir
 
@@ -403,6 +481,12 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 				for _, pdf := range cr.chunk {
 					idx := pdfToIdx[pdf]
 					item := in.Items[idx]
+
+					if in.Layout != nil {
+						finalizeLayoutItem(in, idx, pdf, cr.res, outcomes)
+						continue
+					}
+
 					// Already cached by the progress callback?
 					if _, ok := in.Cache.Get(item.Request.PDFKey, item.Hash); ok {
 						continue
@@ -453,6 +537,54 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	}
 
 	return result, nil
+}
+
+// finalizeLayoutItem completes one freshly-extracted item in layout
+// mode: makes sure the markdown is in the cache (the posting phase
+// reads it from there, and Finalize is about to move the staging file),
+// then finalizes the per-key dir. Skip-action items end their journey
+// here — the posting phase won't touch them — so their OnItemDone fires
+// now; Create items report when their note posts.
+func finalizeLayoutItem(in BatchInput, idx int, pdf string, batchRes *BatchExtractResult, outcomes []BatchOutcome) {
+	item := in.Items[idx]
+	fail := func(err error) {
+		outcomes[idx].Err = err
+		if in.OnItemDone != nil {
+			in.OnItemDone(idx, outcomes[idx])
+		}
+	}
+
+	res, ok := batchRes.Results[pdf]
+	if !ok {
+		fail(fmt.Errorf("docling produced no output for %s", item.Request.PDFName))
+		return
+	}
+
+	if _, ok := in.Cache.Get(item.Request.PDFKey, item.Hash); !ok {
+		md, err := os.ReadFile(res.MarkdownPath)
+		if err == nil {
+			_, err = in.Cache.Put(item.Request.PDFKey, item.Hash, md)
+		}
+		if err != nil {
+			fail(fmt.Errorf("cache %s: %w", item.Request.PDFName, err))
+			return
+		}
+	}
+
+	if _, err := in.Layout.Finalize(
+		item.Request.ParentKey,
+		filepath.Dir(res.MarkdownPath),
+		item.Request.PDFPath,
+		res.Duration.Seconds(),
+	); err != nil {
+		fail(err)
+		return
+	}
+	outcomes[idx].LayoutWritten = true
+
+	if item.Plan.Action == ActionSkip && in.OnItemDone != nil {
+		in.OnItemDone(idx, outcomes[idx])
+	}
 }
 
 // postNote reads the cached markdown for a single item, renders the

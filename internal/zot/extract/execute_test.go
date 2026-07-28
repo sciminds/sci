@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -20,7 +22,42 @@ type fakeExtractor struct {
 	md      string
 	version string
 	err     error
+	full    bool  // also write <stem>.json + <stem>_artifacts/ like a md+json run
 	calls   int32 // use atomic ops
+
+	mu      sync.Mutex
+	batches [][]string // pdf paths of every ExtractBatch call
+}
+
+// fakeDoclingJSON is the DoclingDocument the full-mode fake writes:
+// 1 table, 2 pictures, 3 pages — distinct counts so manifest assertions
+// can't pass by accident.
+const fakeDoclingJSON = `{
+  "tables": [{"data": {"num_rows": 1, "num_cols": 2, "grid": [[{"text": "a"}, {"text": "b"}]]}}],
+  "pictures": [{}, {}],
+  "pages": {"1": {}, "2": {}, "3": {}}
+}`
+
+// writeOutputs drops the fake docling outputs for one input into dir
+// and returns the markdown path.
+func (f *fakeExtractor) writeOutputs(dir, stem string) (string, error) {
+	mdPath := filepath.Join(dir, stem+".md")
+	if err := os.WriteFile(mdPath, []byte(f.md), 0o644); err != nil {
+		return "", err
+	}
+	if f.full {
+		if err := os.WriteFile(filepath.Join(dir, stem+".json"), []byte(fakeDoclingJSON), 0o644); err != nil {
+			return "", err
+		}
+		artDir := filepath.Join(dir, stem+"_artifacts")
+		if err := os.MkdirAll(artDir, 0o755); err != nil {
+			return "", err
+		}
+		if err := os.WriteFile(filepath.Join(artDir, "image_000000.png"), []byte("png"), 0o644); err != nil {
+			return "", err
+		}
+	}
+	return mdPath, nil
 }
 
 func (f *fakeExtractor) Extract(_ context.Context, opts ExtractOptions) (*ExtractResult, error) {
@@ -31,9 +68,8 @@ func (f *fakeExtractor) Extract(_ context.Context, opts ExtractOptions) (*Extrac
 	if err := os.MkdirAll(opts.OutputDir, 0o755); err != nil {
 		return nil, err
 	}
-	stem := stemFor(opts.PDFPath)
-	mdPath := filepath.Join(opts.OutputDir, stem+".md")
-	if err := os.WriteFile(mdPath, []byte(f.md), 0o644); err != nil {
+	mdPath, err := f.writeOutputs(opts.OutputDir, stemFor(opts.PDFPath))
+	if err != nil {
 		return nil, err
 	}
 	return &ExtractResult{
@@ -45,6 +81,9 @@ func (f *fakeExtractor) Extract(_ context.Context, opts ExtractOptions) (*Extrac
 
 func (f *fakeExtractor) ExtractBatch(_ context.Context, opts ExtractOptions, pdfs []string, onProgress ProgressFunc) (*BatchExtractResult, error) {
 	atomic.AddInt32(&f.calls, 1)
+	f.mu.Lock()
+	f.batches = append(f.batches, slices.Clone(pdfs))
+	f.mu.Unlock()
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -54,8 +93,8 @@ func (f *fakeExtractor) ExtractBatch(_ context.Context, opts ExtractOptions, pdf
 	results := make(map[string]*ExtractResult, len(pdfs))
 	for _, pdf := range pdfs {
 		stem := stemFor(pdf)
-		mdPath := filepath.Join(opts.OutputDir, stem+".md")
-		if err := os.WriteFile(mdPath, []byte(f.md), 0o644); err != nil {
+		mdPath, err := f.writeOutputs(opts.OutputDir, stem)
+		if err != nil {
 			return nil, err
 		}
 		results[pdf] = &ExtractResult{

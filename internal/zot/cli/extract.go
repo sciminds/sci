@@ -102,6 +102,14 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	// Layout mode: a configured extract.dir routes single extractions
+	// into the persistent per-key layout (unless --out redirects to an
+	// explicit flat dir, which keeps its historical meaning).
+	var layout *extract.KeyLayout
+	if extractOut == "" && cfg.Extract.Dir != "" {
+		layout = &extract.KeyLayout{Dir: cfg.Extract.Dir}
+	}
+
 	// Resolve the output directory.
 	outputDir := extractOut
 	cleanup := func() {}
@@ -115,9 +123,10 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	defer cleanup()
 
-	// Option set: FullDefaults for --out, ZoteroDefaults otherwise.
+	// Option set: full artifacts for --out and layout mode,
+	// ZoteroDefaults otherwise.
 	var opts extract.ExtractOptions
-	if extractOut != "" {
+	if extractOut != "" || layout != nil {
 		opts = extract.FullDefaults()
 	} else {
 		opts = extract.ZoteroDefaults()
@@ -143,6 +152,10 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 
 	// Dry-run: print the plan and stop.
 	if !extractApply {
+		planOut := outputDir
+		if layout != nil {
+			planOut = layout.KeyDir(parentKey)
+		}
 		outputScoped(ctx, cmd, zot.ExtractPlanResult{
 			ParentKey: plan.Request.ParentKey,
 			PDFKey:    plan.Request.PDFKey,
@@ -150,10 +163,14 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 			PDFHash:   plan.Request.PDFHash,
 			Action:    zot.ActionLabel(plan.Action),
 			Reason:    plan.Reason,
-			OutputDir: outputDir,
-			FullMode:  extractOut != "",
+			OutputDir: planOut,
+			FullMode:  extractOut != "" || layout != nil,
 		})
 		return nil
+	}
+
+	if layout != nil {
+		return runExtractLayout(ctx, cmd, plan, att, pdfPath, outputDir, opts, layout)
 	}
 
 	// Apply path — confirm.
@@ -223,6 +240,165 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		apply.JSONDoc = result.Extraction.JSONPath
 		apply.Images = result.Extraction.ImagePaths
 		apply.Tables = result.Extraction.TablePaths
+	}
+	outputScoped(ctx, cmd, apply)
+	return nil
+}
+
+// runExtractLayout handles the --apply path when a persistent extract
+// dir is configured: extraction runs in full form over a staged KEY.pdf
+// symlink and lands in the per-key layout, independent of the Zotero
+// note. The two stores compose:
+//
+//   - note missing, layout Done  → note posted from the layout markdown,
+//     no docling run
+//   - note missing, layout stale → docling once, layout finalized, note posted
+//   - note exists,  layout stale → docling once, layout finalized, no note
+//   - note exists,  layout Done  → nothing to do
+//
+// The markdown cache is only consulted when the layout is Done (a cached
+// placeholder-mode markdown can't produce the DoclingDocument JSON).
+func runExtractLayout(
+	ctx context.Context,
+	cmd *cli.Command,
+	plan *extract.Plan,
+	att *local.PDFAttachment,
+	pdfPath, outputDir string,
+	opts extract.ExtractOptions,
+	layout *extract.KeyLayout,
+) error {
+	parentKey := plan.Request.ParentKey
+	if extractReextract {
+		_ = os.Remove(filepath.Join(layout.KeyDir(parentKey), ".done"))
+	}
+	done := layout.Done(parentKey)
+
+	// Nothing missing anywhere.
+	if plan.Action == extract.ActionSkip && done {
+		outputScoped(ctx, cmd, zot.ExtractApplyResult{
+			ParentKey: parentKey,
+			PDFKey:    plan.Request.PDFKey,
+			PDFName:   plan.Request.PDFName,
+			Action:    zot.ActionLabel(plan.Action),
+			Reason:    plan.Reason + "; layout dir complete",
+			OutputDir: layout.KeyDir(parentKey),
+		})
+		return nil
+	}
+
+	verb := zot.ActionLabel(plan.Action)
+	if plan.Action == extract.ActionSkip {
+		verb = "extract artifacts (no note)"
+	}
+	if ok, err := cmdutil.ConfirmOrSkip(extractYes,
+		fmt.Sprintf("%s for %s → %s?", verb, att.Title, layout.KeyDir(parentKey))); ok || err != nil {
+		return err
+	}
+
+	// Note exists, layout missing: docling for the artifacts only.
+	if plan.Action == extract.ActionSkip {
+		ex, err := extract.NewDoclingExtractor()
+		if err != nil {
+			return err
+		}
+		staged, err := extract.StageKeyPDF(outputDir, parentKey, pdfPath)
+		if err != nil {
+			return err
+		}
+		opts.PDFPath = staged
+		opts.OutputDir = outputDir
+		res, err := ex.Extract(ctx, opts)
+		if err != nil {
+			return err
+		}
+		if _, err := layout.Finalize(parentKey, outputDir, pdfPath, res.Duration.Seconds()); err != nil {
+			return err
+		}
+		outputScoped(ctx, cmd, zot.ExtractArtifactResult{
+			ParentKey:   parentKey,
+			PDFKey:      att.Key,
+			PDFName:     att.Title,
+			OutputDir:   layout.KeyDir(parentKey),
+			Markdown:    layout.MarkdownPath(parentKey),
+			JSONDoc:     layout.JSONPath(parentKey),
+			ToolVersion: res.ToolVersion,
+			Duration:    res.Duration,
+		})
+		return nil
+	}
+
+	// Note needed. When the layout is already Done, serve its markdown
+	// through the cache so Execute posts without a docling run.
+	var cache *extract.MarkdownCache
+	execPDFPath := pdfPath
+	if done {
+		cacheDir, err := extract.DefaultCacheDir()
+		if err != nil {
+			return err
+		}
+		cache = &extract.MarkdownCache{Dir: cacheDir}
+		if _, ok := cache.Get(att.Key, plan.Request.PDFHash); !ok {
+			md, err := os.ReadFile(layout.MarkdownPath(parentKey))
+			if err != nil {
+				return fmt.Errorf("read layout markdown: %w", err)
+			}
+			if _, err := cache.Put(att.Key, plan.Request.PDFHash, md); err != nil {
+				return err
+			}
+		}
+	} else {
+		staged, err := extract.StageKeyPDF(outputDir, parentKey, pdfPath)
+		if err != nil {
+			return err
+		}
+		execPDFPath = staged
+	}
+
+	apiClient, err := requireAPIClient(ctx)
+	if err != nil {
+		return err
+	}
+	ex, err := extract.NewDoclingExtractor()
+	if err != nil {
+		return err
+	}
+	result, err := extract.Execute(ctx, extract.ExecuteInput{
+		Plan:        plan,
+		Extractor:   ex,
+		Writer:      apiClient,
+		PDFPath:     execPDFPath,
+		OutputDir:   outputDir,
+		ExtractOpts: opts,
+		Cache:       cache,
+		RenderHTML:  extractHTML,
+	})
+	if err != nil {
+		return err
+	}
+	if !done {
+		secs := 0.0
+		if result.Extraction != nil {
+			secs = result.Extraction.Duration.Seconds()
+		}
+		if _, err := layout.Finalize(parentKey, outputDir, pdfPath, secs); err != nil {
+			return err
+		}
+	}
+
+	apply := zot.ExtractApplyResult{
+		ParentKey: parentKey,
+		PDFKey:    plan.Request.PDFKey,
+		PDFName:   plan.Request.PDFName,
+		Action:    zot.ActionLabel(plan.Action),
+		Reason:    plan.Reason,
+		NoteKey:   result.NoteKey,
+		OutputDir: layout.KeyDir(parentKey),
+		Markdown:  layout.MarkdownPath(parentKey),
+		JSONDoc:   layout.JSONPath(parentKey),
+	}
+	if result.Extraction != nil {
+		apply.ToolVersion = result.Extraction.ToolVersion
+		apply.Duration = result.Extraction.Duration
 	}
 	outputScoped(ctx, cmd, apply)
 	return nil

@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -26,6 +28,7 @@ var (
 	extractLibLimit      int
 	extractLibApply      bool
 	extractLibHTML       bool
+	extractLibOut        string
 )
 
 func extractLibCommand() *cli.Command {
@@ -57,6 +60,7 @@ func extractLibCommand() *cli.Command {
 			&cli.BoolFlag{Name: "reextract", Usage: "discard cached docling output and re-run extraction from scratch", Destination: &extractLibReextract, Local: true},
 			&cli.IntFlag{Name: "limit", Usage: "extract at most N items (for smoke testing)", Destination: &extractLibLimit, Local: true},
 			&cli.BoolFlag{Name: "html", Usage: "render markdown as HTML before posting (default is raw markdown)", Destination: &extractLibHTML, Local: true},
+			&cli.StringFlag{Name: "out", Usage: "extract_dir for per-key artifact layouts (KEY/KEY.md + KEY.json + images + tables); defaults to extract.dir from zot.json", Destination: &extractLibOut, Local: true},
 		},
 		Action: extractLibAction,
 	}
@@ -97,9 +101,22 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	// Filter out items that already have a docling note in Zotero.
+	// Layout mode (persistent per-key artifact dirs): --out beats the
+	// configured extract.dir; empty means classic Zotero-note-only mode.
+	var layout *extract.KeyLayout
+	if dir := cmp.Or(extractLibOut, cfg.Extract.Dir); dir != "" {
+		layout = &extract.KeyLayout{Dir: dir}
+	}
+
+	// Filter out items that are fully handled. Classic mode: a docling
+	// note in Zotero settles it. Layout mode: the note AND the key dir
+	// must both exist — either one missing keeps the item in the run
+	// (the batch layer extracts and/or posts exactly what's absent).
 	if !extractLibForce {
 		all = lo.Reject(all, func(p local.PDFParent, _ int) bool {
+			if layout != nil {
+				return hasExisting[p.ParentKey] && layout.Done(p.ParentKey)
+			}
 			return hasExisting[p.ParentKey]
 		})
 	}
@@ -173,8 +190,12 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	// In --apply mode cached items are kept (they still need posting)
 	// and tracked in cachedIdx so the confirm prompt can distinguish
 	// "needs new extraction" from "already cached, only needs posting".
+	//
+	// Layout mode skips this entirely: the markdown cache can't stand
+	// in for a key dir (no DoclingDocument JSON), so "already handled"
+	// was decided above via layout.Done and the batch layer.
 	cachedIdx := make(map[int]bool)
-	if !extractLibReextract {
+	if !extractLibReextract && layout == nil {
 		filtered := items[:0]
 		for _, it := range items {
 			if it.Err != nil || it.Plan.Action == extract.ActionSkip {
@@ -206,8 +227,26 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Tally the plan for confirmation. nFresh = needs new extraction,
-	// nCachedPost = already cached, only needs posting (--apply only).
-	var nCreate, nSkip, nErr, nFresh, nCachedPost int
+	// --reextract: clear cache entries so docling re-runs from scratch.
+	// In layout mode also drop the .done markers — Finalize then rebuilds
+	// each selected key dir wholesale. Runs before the tally so the counts
+	// reflect the work the batch will actually do.
+	if extractLibReextract {
+		for _, it := range items {
+			if it.Err == nil && it.Hash != "" {
+				cache.Delete(it.Request.PDFKey, it.Hash)
+			}
+			if layout != nil && it.Err == nil {
+				_ = os.Remove(filepath.Join(layout.KeyDir(it.Request.ParentKey), ".done"))
+			}
+		}
+	}
+
+	// Tally the plan for confirmation. nFresh = needs new extraction,
+	// nCachedPost = already cached, only needs posting (--apply only),
+	// nLayoutOnly = existing note but missing key dir (layout mode) —
+	// extraction runs for the artifacts, no note is posted.
+	var nCreate, nSkip, nErr, nFresh, nCachedPost, nLayoutOnly int
 	for i, it := range items {
 		if it.Err != nil {
 			nErr++
@@ -222,27 +261,26 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 				nFresh++
 			}
 		case extract.ActionSkip:
-			nSkip++
-		}
-	}
-
-	// --reextract: clear cache entries so docling re-runs from scratch.
-	if extractLibReextract {
-		for _, it := range items {
-			if it.Err == nil && it.Hash != "" {
-				cache.Delete(it.Request.PDFKey, it.Hash)
+			if layout != nil && !layout.Done(it.Request.ParentKey) {
+				nLayoutOnly++
+			} else {
+				nSkip++
 			}
 		}
 	}
 
 	// Check if there's anything to do.
-	if nCreate == 0 && nErr == 0 {
-		outputScoped(ctx, cmd, zot.ExtractLibResult{
+	if nCreate == 0 && nLayoutOnly == 0 && nErr == 0 {
+		result := zot.ExtractLibResult{
 			Total:          len(items),
 			Skipped:        nSkip,
 			BackfilledTags: backfillTagged,
 			BackfillFailed: backfillFailed,
-		})
+		}
+		if layout != nil {
+			result.LayoutDir = layout.Dir
+		}
+		outputScoped(ctx, cmd, result)
 		return nil
 	}
 
@@ -259,10 +297,16 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		msg = fmt.Sprintf("Extract %d items (%d create, %d skip",
 			len(items), nCreate, nSkip)
 	}
+	if nLayoutOnly > 0 {
+		msg += fmt.Sprintf(", %d artifacts-only", nLayoutOnly)
+	}
 	if nErr > 0 {
 		msg += fmt.Sprintf(", %d plan errors", nErr)
 	}
 	msg += fmt.Sprintf(")%s?", mode)
+	if layout != nil {
+		msg = fmt.Sprintf("%s\n  artifacts → %s", msg, layout.Dir)
+	}
 	if done, err := cmdutil.ConfirmOrSkip(extractLibYes, msg); done || err != nil {
 		return err
 	}
@@ -277,7 +321,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	err = uikit.RunWithProgress("Planning...", func(t *uikit.ProgressTracker) error {
-		t.SetTotal(nCreate)
+		t.SetTotal(nCreate + nLayoutOnly)
 
 		var curPhase extract.BatchPhase
 
@@ -291,6 +335,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			ExtractOpts: opts,
 			Jobs:        extractLibJobs,
 			RenderHTML:  extractLibHTML,
+			Layout:      layout,
 			OnPhase: func(phase extract.BatchPhase, count int) {
 				curPhase = phase
 				switch phase {
@@ -351,6 +396,12 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		Duration:       time.Since(started),
 		BackfilledTags: backfillTagged,
 		BackfillFailed: backfillFailed,
+	}
+	if layout != nil {
+		result.LayoutDir = layout.Dir
+		result.LayoutWritten = lo.CountBy(batchResult.Outcomes, func(o extract.BatchOutcome) bool {
+			return o.LayoutWritten
+		})
 	}
 	if failed > 0 {
 		result.Errors = make(map[string]string)

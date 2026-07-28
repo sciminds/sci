@@ -323,6 +323,26 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	opts.NumThreads = notesUpdateNumThreads
 
+	// A configured extract.dir makes refresh rebuild both stores: the
+	// run goes full-form over a staged KEY.pdf symlink, bypasses the
+	// markdown cache (a cached body can't produce the DoclingDocument
+	// JSON the layout needs), and re-finalizes the key dir below.
+	var layout *extract.KeyLayout
+	execPDFPath := pdfPath
+	execCache := cache
+	if cfg.Extract.Dir != "" {
+		layout = &extract.KeyLayout{Dir: cfg.Extract.Dir}
+		opts.Formats = []extract.OutputFormat{extract.FormatMarkdown, extract.FormatJSON}
+		opts.ImageMode = extract.ImageReferenced
+		staged, err := extract.StageKeyPDF(tmp, parentKey, pdfPath)
+		if err != nil {
+			return err
+		}
+		execPDFPath = staged
+		execCache = nil
+		cache.Delete(att.Key, hash) // drop any stale pre-layout entry
+	}
+
 	// Force=true so PlanExtract returns ActionCreate (we want to re-extract).
 	plan := extract.PlanExtract(extract.PlanRequest{
 		ParentKey: parentKey,
@@ -337,16 +357,25 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 		Plan:          plan,
 		Extractor:     ex,
 		Writer:        apiClient, // still needed for the interface, but won't be called
-		PDFPath:       pdfPath,
+		PDFPath:       execPDFPath,
 		OutputDir:     tmp,
 		ExtractOpts:   opts,
-		Cache:         cache,
+		Cache:         execCache,
 		RenderHTML:    notesUpdateHTML,
 		UpdateNoteKey: existingKey,
 		Updater:       apiClient,
 	})
 	if err != nil {
 		return err
+	}
+	if layout != nil {
+		secs := 0.0
+		if result.Extraction != nil {
+			secs = result.Extraction.Duration.Seconds()
+		}
+		if _, err := layout.Finalize(parentKey, tmp, pdfPath, secs); err != nil {
+			return err
+		}
 	}
 
 	out := zot.NoteUpdateResult{
