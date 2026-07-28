@@ -138,6 +138,18 @@ func itemNotFoundErr(ctx context.Context, key string, err error) error {
 		WithTry(fmt.Sprintf("if the key came from a search elsewhere, re-find it: sci zot --library %s search <title words> (cite keys also work as the positional)", scope))
 }
 
+// itemsNotFoundErr is itemNotFoundErr's batch sibling: a multi-key read
+// with any missing key fails whole, naming every straggler — a partial
+// result would be the same silent drop the multi-key form exists to fix.
+// The Fix resubmits ALL requested keys with --remote, not just the missing
+// ones, so the agent gets one coherent result instead of stitching two.
+func itemsNotFoundErr(ctx context.Context, requested, missing []string) error {
+	scope := scopeFromCtx(ctx)
+	return cmdutil.Coded(cmdutil.CodeNotFound, "item(s) not found: %s", strings.Join(missing, ", ")).
+		WithFix(fmt.Sprintf("sci zot --library %s item read %s --remote", scope, strings.Join(requested, " "))).
+		WithTry(fmt.Sprintf("if a key came from a search elsewhere, re-find it: sci zot --library %s search <title words> (cite keys also work as positionals)", scope))
+}
+
 // notFoundCollectionErr builds the coded not-found error for a collection
 // name, with a did-you-mean Try when the library has something close.
 func notFoundCollectionErr(input string, cols []local.Collection) error {

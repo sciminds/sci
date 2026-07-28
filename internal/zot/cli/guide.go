@@ -73,6 +73,11 @@ func guideContent() zot.GuideResult {
 						Note: "Shows tags, collections, attachments, and related items (data.relations — `related` is the user's own dc:relation links, `other` is Zotero-managed owl:sameAs/dc:replaces, `titles` names each far end). Add --remote when the local DB may be stale: a link written seconds ago lives only on the server until Zotero desktop syncs it back, so a fresh `link add` won't show locally (the stale-local warning carries the resubmit).",
 					},
 					{
+						Goal: "Read several items in one call",
+						Cmd:  "sci zot item read ABC12345 DEF67890",
+						Note: "N>1 keys emit {count, items} in request order, fully hydrated; a missing key fails the whole batch naming it.",
+					},
+					{
 						Goal: "Lookup an item by DOI",
 						Cmd:  "sci zot item read --doi 10.1038/nature12373",
 						Note: "Local, case-insensitive. Errors point at `find works <doi>` when the DOI isn't in the library.",

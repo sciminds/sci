@@ -165,6 +165,27 @@ func (r ItemResult) Human() string {
 	return b.String() + "\n"
 }
 
+// ItemsResult is returned for `zot item read` with more than one key —
+// every requested item, fully hydrated, in request order. The single-key
+// form keeps emitting the bare item via ItemResult, so existing consumers
+// see a byte-identical shape; the wrapper appears only when the request
+// itself was plural.
+type ItemsResult struct {
+	Count int          `json:"count"`
+	Items []local.Item `json:"items"`
+}
+
+// JSON implements cmdutil.Result.
+func (r ItemsResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
+func (r ItemsResult) Human() string {
+	blocks := lo.Map(r.Items, func(it local.Item, _ int) string {
+		return ItemResult{Item: it}.Human()
+	})
+	return strings.Join(blocks, "")
+}
+
 // writeRelationsBlock renders an item's related items under its
 // attachments, so what a paper is linked to is visible where you already
 // look for its tags — without having to know `zot link list` exists.

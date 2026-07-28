@@ -364,25 +364,26 @@ func hydrateSearchHits(db local.Reader, hits []local.Item) ([]local.Item, error)
 func readCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "read",
-		Usage: "Show full details of a single item by key or DOI",
-		Description: "$ sci zot item read ABC12345\n" +
+		Usage: "Show full details of one or more items by key or DOI",
+		Description: "One key returns the bare item; several keys return\n" +
+			"{count, items} in request order. A missing key fails the whole\n" +
+			"read naming it — never a silent partial result.\n\n" +
+			"$ sci zot item read ABC12345\n" +
+			"$ sci zot item read ABC12345 DEF67890 GHI13579   # batch read\n" +
 			"$ sci zot item read --doi 10.1038/nature12373\n" +
 			"$ sci zot item read ABC12345 --remote   # bypass local SQLite, hit the Zotero Web API",
-		ArgsUsage: "<key>",
+		ArgsUsage: "<key> [key...]",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (for items not yet synced)", Destination: &readRemote, Local: true},
 			&cli.StringFlag{Name: "doi", Usage: "look up the item by DOI instead of key (case-insensitive; accepts bare 10.x/y, https://doi.org/..., or doi:... forms; local-only — try `find works <doi>` for OpenAlex)", Destination: &readDOI, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			argKey := ""
-			if cmd.Args().Len() > 0 {
-				argKey = cmd.Args().First()
-			}
+			keys := cmd.Args().Slice()
 			switch {
-			case readDOI != "" && argKey != "":
-				return cmdutil.UsageErrorf(cmd, "pass either a key positional or --doi, not both")
-			case readDOI == "" && argKey == "":
-				return cmdutil.UsageErrorf(cmd, "expected an item key or --doi <doi>")
+			case readDOI != "" && len(keys) > 0:
+				return cmdutil.UsageErrorf(cmd, "pass either key positionals or --doi, not both")
+			case readDOI == "" && len(keys) == 0:
+				return cmdutil.UsageErrorf(cmd, "expected one or more item keys or --doi <doi>")
 			}
 
 			// DOI lookup is always local-first: ItemKeysByDOI hits SQLite,
@@ -391,7 +392,6 @@ func readCommand() *cli.Command {
 			// data. Resolving DOI → key remotely (search the API by DOI)
 			// would be a different feature; the agent UX win is "I have
 			// the DOI, give me the key + body" without a manual search step.
-			key := argKey
 			if readDOI != "" {
 				normDOI := normalizeDOI(readDOI)
 				if normDOI == "" {
@@ -410,31 +410,40 @@ func readCommand() *cli.Command {
 				if !ok {
 					return fmt.Errorf("no item with DOI %q in library — use `sci zot find works %q` to look it up on OpenAlex", normDOI, normDOI)
 				}
-				key = resolved
+				keys = []string{resolved}
 			}
 
 			// A positional that isn't an 8-char Zotero key is very likely a
 			// cite key (agents paste them from bibliographies) — absorb it
 			// by resolving against the local library instead of erroring.
-			if readDOI == "" && !zoteroKeyRE.MatchString(key) {
-				if resolved := resolveCiteKeyArg(ctx, key); resolved != "" {
-					key = resolved
+			keys = lo.Map(keys, func(key string, _ int) string {
+				if !zoteroKeyRE.MatchString(key) {
+					if resolved := resolveCiteKeyArg(ctx, key); resolved != "" {
+						return resolved
+					}
 				}
-			}
+				return key
+			})
 
 			if readRemote {
 				c, err := requireAPIClient(ctx)
 				if err != nil {
 					return err
 				}
-				raw, err := c.GetItem(ctx, key)
+				items, err := lo.MapErr(keys, func(key string, _ int) (local.Item, error) {
+					raw, err := c.GetItem(ctx, key)
+					if err != nil {
+						return local.Item{}, err
+					}
+					it := api.ItemFromClient(raw)
+					citekey.Enrich(&it)
+					labelRemoteRelations(ctx, &it)
+					return it, nil
+				})
 				if err != nil {
 					return err
 				}
-				it := api.ItemFromClient(raw)
-				citekey.Enrich(&it)
-				labelRemoteRelations(ctx, &it)
-				outputScoped(ctx, cmd, zot.ItemResult{Item: it})
+				outputScoped(ctx, cmd, readResultFor(items))
 				return nil
 			}
 			_, db, err := openLocalDB(ctx)
@@ -443,16 +452,44 @@ func readCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			it, err := db.Read(key)
-			if err != nil {
-				return itemNotFoundErr(ctx, key, err)
+			// A missing key fails the whole batch, naming every straggler —
+			// a partial result would be the same silent drop the multi-key
+			// form exists to fix. readErr keeps the single-key error shape
+			// (it wraps the underlying DB error) byte-compatible.
+			var missing []string
+			var readErr error
+			items := lo.FilterMap(keys, func(key string, _ int) (local.Item, bool) {
+				it, err := db.Read(key)
+				if err != nil {
+					missing = append(missing, key)
+					readErr = err
+					return local.Item{}, false
+				}
+				citekey.Enrich(it)
+				return *it, true
+			})
+			switch {
+			case len(missing) > 0 && len(keys) == 1:
+				return itemNotFoundErr(ctx, keys[0], readErr)
+			case len(missing) > 0:
+				return itemsNotFoundErr(ctx, keys, missing)
 			}
-			citekey.Enrich(it)
-			outputScoped(ctx, cmd, cmdutil.WithWarnings(zot.ItemResult{Item: *it},
+			outputScoped(ctx, cmd, cmdutil.WithWarnings(readResultFor(items),
 				staleLocalWarning(db, remoteRerunFix(os.Args))...))
 			return nil
 		},
 	}
+}
+
+// readResultFor picks the result shape by request arity: one key keeps the
+// bare-item ItemResult (pinned — existing consumers parse it), several get
+// the {count, items} wrapper. The shape follows what was ASKED, so an agent
+// scripting `item read $KEYS` can branch on its own argument count.
+func readResultFor(items []local.Item) cmdutil.Result {
+	if len(items) == 1 {
+		return zot.ItemResult{Item: items[0]}
+	}
+	return zot.ItemsResult{Count: len(items), Items: items}
 }
 
 // labelRemoteRelations names the far ends of an item fetched over the Web
