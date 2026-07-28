@@ -472,10 +472,12 @@ func (d *DB) Search(query string, limit int) ([]Item, error) {
 // [match.ParseClauses], which supports:
 //
 //   - free text:        "neuroimaging"           (matches title/doi/pub/creator/citekey)
-//   - field scope:      "@author: jolly"
+//   - field scope:      "@author: jolly"          (bare "author: jolly" works too)
 //   - AND clauses:      "@author: jolly @title: gossip"   (comma optional)
 //   - OR groups:        "@type: book | @type: thesis"
-//   - negation:         "@author: -smith"
+//   - negation:         "@author: -smith"         (bare "-author:smith" works too)
+//
+// The bare forms are rewritten by [NormalizeQuery] before parsing.
 //
 // Recognized fields: author/creator, title, doi, pub/publication, tag, type/
 // itemType, year, citekey/key. Smartcase applies per-clause: an all-lowercase
@@ -493,13 +495,59 @@ func (d *DB) SearchWith(query string, limit int, opts SearchOptions) ([]Item, er
 	return items, err
 }
 
+// bareFieldTokenRe matches a query token carrying a recognized field
+// prefix without the @ sigil — `tag:cats`, `-year:2023` — including the
+// bare `tag:` form whose value is the following token. The field list
+// mirrors buildClauseSQL's switch exactly; an unrecognized prefix
+// (`re:thinking`) stays free text instead of erroring, because bare
+// syntax has no sigil declaring "I meant a field".
+var bareFieldTokenRe = regexp.MustCompile(`(?i)^(-?)(author|creator|title|doi|pub|publication|tag|type|itemtype|year|citekey|key):(.*)$`)
+
+// NormalizeQuery rewrites bare field prefixes into the @field: form
+// [match.ParseClauses] understands: `tag:cats` → `@tag: cats`, and a
+// clause-leading `-tag:cats` → `@tag: -cats`, where applyNegate already
+// picks the `-` up off the value. This is the compatibility shim that
+// makes sci the single owner of the search DSL — downstream consumers
+// (zen) write the bare form, and the two dialects were always
+// semantically identical where their syntax overlapped.
+//
+// Quoted spans are opaque: a colon inside `"attention: review"` is
+// prose, not a field. A detached `-tag:` (negation with the value in the
+// next token) has nowhere to hang the `-` and passes through as free
+// text. Inter-token whitespace is collapsed to single spaces — the
+// clause splitter never depended on it.
+func NormalizeQuery(query string) string {
+	inQuote := false
+	toks := lo.Map(strings.Fields(query), func(tok string, _ int) string {
+		rewritten := tok
+		if !inQuote {
+			if m := bareFieldTokenRe.FindStringSubmatch(tok); m != nil {
+				neg, field, val := m[1], m[2], m[3]
+				switch {
+				case val == "" && neg == "-":
+					// nowhere to hang the negation — leave as free text
+				case val == "":
+					rewritten = "@" + field + ":"
+				default:
+					rewritten = "@" + field + ": " + neg + val
+				}
+			}
+		}
+		if strings.Count(tok, `"`)%2 == 1 {
+			inQuote = !inQuote
+		}
+		return rewritten
+	})
+	return strings.Join(toks, " ")
+}
+
 // SearchWithTotal is [DB.SearchWith] plus the pre-limit match count, so
 // callers can report "showing N of M" instead of silently truncating.
 func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Item, int, error) {
 	if limit == 0 {
 		limit = 50
 	}
-	groups := match.ParseClauses(query)
+	groups := match.ParseClauses(NormalizeQuery(query))
 	if len(groups) == 0 {
 		return nil, 0, nil
 	}
@@ -597,7 +645,7 @@ ORDER BY b.dateAdded DESC
 // (snippets for the hits it decided to show) without re-parsing clauses.
 // A query made only of field clauses returns "".
 func QueryFreeText(query string) string {
-	texts := lo.FilterMap(match.ParseClauses(query), func(group []match.Clause, _ int) (string, bool) {
+	texts := lo.FilterMap(match.ParseClauses(NormalizeQuery(query)), func(group []match.Clause, _ int) (string, bool) {
 		text := bareSearchText(group)
 		return text, text != ""
 	})

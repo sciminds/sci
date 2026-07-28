@@ -422,3 +422,57 @@ func TestMatchRowNonContiguousIsNOTMatched(t *testing.T) {
 		t.Error("substring match must not be fuzzy — 'gdrives' should not match 'gossip drives'")
 	}
 }
+
+// --- leading free text mixed with column clauses ---
+
+func TestParseClausesFreeTextThenColumn(t *testing.T) {
+	clauses := firstGroup(t, ParseClauses("cortex @tag: cats"))
+	if len(clauses) != 2 {
+		t.Fatalf("expected 2 clauses, got %d: %+v", len(clauses), clauses)
+	}
+	if clauses[0].Column != "" || clauses[0].Terms != "cortex" {
+		t.Errorf("free clause = %+v, want {Terms:cortex}", clauses[0])
+	}
+	if clauses[1].Column != "tag" || clauses[1].Terms != "cats" {
+		t.Errorf("column clause = %+v, want {Column:tag Terms:cats}", clauses[1])
+	}
+}
+
+func TestParseClausesFreeTextThenNegatedColumn(t *testing.T) {
+	clauses := firstGroup(t, ParseClauses("cortex @tag: -cats"))
+	if len(clauses) != 2 {
+		t.Fatalf("expected 2 clauses, got %d: %+v", len(clauses), clauses)
+	}
+	if !clauses[1].Negate || clauses[1].Terms != "cats" {
+		t.Errorf("negated clause = %+v, want {Column:tag Terms:cats Negate:true}", clauses[1])
+	}
+}
+
+func TestParseClausesFreeTextCommaColumn(t *testing.T) {
+	clauses := firstGroup(t, ParseClauses("cortex, @tag: cats"))
+	if len(clauses) != 2 {
+		t.Fatalf("expected 2 clauses, got %d: %+v", len(clauses), clauses)
+	}
+	if clauses[0].Terms != "cortex" {
+		t.Errorf("free clause should shed the clause-boundary comma: %+v", clauses[0])
+	}
+}
+
+func TestParseClausesNegatedFreeTextThenColumn(t *testing.T) {
+	clauses := firstGroup(t, ParseClauses("-smith @tag: cats"))
+	if len(clauses) != 2 {
+		t.Fatalf("expected 2 clauses, got %d: %+v", len(clauses), clauses)
+	}
+	if !clauses[0].Negate || clauses[0].Terms != "smith" {
+		t.Errorf("negated free clause = %+v, want {Terms:smith Negate:true}", clauses[0])
+	}
+}
+
+func TestParseClausesFreeTextOnlyUnchanged(t *testing.T) {
+	// No " @" boundary → the whole group stays one free-text clause,
+	// including strings that merely contain a bare @.
+	clauses := firstGroup(t, ParseClauses("email me @ noon"))
+	if len(clauses) != 1 {
+		t.Fatalf("expected 1 clause, got %d: %+v", len(clauses), clauses)
+	}
+}

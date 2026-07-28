@@ -178,9 +178,29 @@ func ParseClauses(query string) [][]Clause {
 }
 
 // parseAndGroup parses a single OR branch into AND-clauses.
+//
+// A branch may open with free text and continue into column clauses —
+// "cortex @tag: cats" is the free clause "cortex" ANDed with the tag
+// scope, not a search for the literal string. The mixed path is taken
+// only when the tail actually parses into column clauses, so free text
+// that merely contains a bare @ ("email me @ noon") stays one clause.
 func parseAndGroup(q string) []Clause {
 	if q[0] == '@' && len(q) >= 2 {
 		return parseColumnClauses(q)
+	}
+	if idx := strings.Index(q, " @"); idx > 0 {
+		cols := parseColumnClauses(q[idx+1:])
+		if lo.SomeBy(cols, func(c Clause) bool { return c.Column != "" }) {
+			// The clause boundary is " @" or ", @" — shed the comma the
+			// way splitClauses does between column clauses.
+			free := strings.TrimSuffix(strings.TrimSpace(q[:idx]), ",")
+			c := Clause{Terms: strings.TrimSpace(free)}
+			applyNegate(&c)
+			if c.Terms == "" {
+				return cols
+			}
+			return slices.Insert(cols, 0, c)
+		}
 	}
 	c := Clause{Terms: q}
 	applyNegate(&c)

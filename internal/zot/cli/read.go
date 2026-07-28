@@ -139,8 +139,11 @@ func searchCommand() *cli.Command {
 			"ranked by title relevance, then (with --content) how well the\n" +
 			"paper's text matches, then year. Prefix a clause with\n" +
 			"@field: to scope it — fields: author, title, doi, pub, tag,\n" +
-			"type, year, citekey. Clauses AND by default; `|` separates OR\n" +
-			"groups; a leading `-` in the value negates the clause.\n\n" +
+			"type, year, citekey. Bare prefixes work too: tag:read means\n" +
+			"@tag: read, and -tag:read negates it. Clauses AND by default;\n" +
+			"`|` separates OR groups; a leading `-` in the value negates\n" +
+			"the clause.\n\n" +
+			"$ sci zot search 'cortex -tag:to-read'           # free text minus a tag\n" +
 			"$ sci zot search \"large language models\"\n" +
 			"$ sci zot search --limit 100 neuroimaging\n" +
 			"$ sci zot search '@tag: Generative_Agents'      # items carrying this tag\n" +
