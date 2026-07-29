@@ -18,12 +18,16 @@
 // [Warning] values (data-quality and freshness caveats) via [Warner] —
 // agents should act on warnings before trusting the data.
 //
-// Confirmation prompts are available in three flavors:
+// Confirmation prompts are available in four flavors:
 //
 //   - [Confirm] prompts with [y/N] (default no)
 //   - [ConfirmYes] prompts with [Y/n] (default yes)
+//   - [ConfirmRequired] prompts default-yes with an emphasized
+//     "Yes (required)" label for prerequisites the user almost certainly wants
 //   - [ConfirmOrSkip] wraps Confirm with a skip flag and "cancelled" output,
 //     eliminating boilerplate in commands with a --yes flag
+//
+// SCI_ASSUME=yes|no answers all confirmations non-interactively.
 //
 // Usage:
 //

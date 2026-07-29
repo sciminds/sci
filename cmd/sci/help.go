@@ -10,7 +10,7 @@ import (
 func helpCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "help",
-		Usage: "Get-to-know what each sci command(s) does",
+		Usage: "Learn what each sci command does",
 		Description: "$ sci help\n" +
 			"$ sci help cloud\n" +
 			"$ sci help zot",

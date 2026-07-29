@@ -42,7 +42,7 @@
 // Center, Pad, Fit, FitHeight, WordWrap, PageLayout, SummaryLine, FooterBar,
 // StatusRow) complete the layout layer.
 //
-// # UI Components (ui_chrome.go, ui_overlay.go, ui_overlaybox.go, ui_listpicker.go, ui_grid2d.go, ui_screen.go, ui_selectlist.go, ui_spinner.go)
+// # UI Components (ui_chrome.go, ui_overlay.go, ui_overlay_iface.go, ui_overlaybox.go, ui_listpicker.go, ui_grid2d.go, ui_screen.go, ui_selectlist.go, ui_spinner.go, ui_actionmenu.go, ui_castplayer.go, ui_mdviewer.go, ui_splitview.go, ui_toast.go)
 //
 //   - [Chrome] — title / body / status vertical layout with automatic height math.
 //   - [Overlay] — scrollable modal panel with compositing helpers.
@@ -55,7 +55,7 @@
 //     instead of drifting from hardcoded insets.
 //   - [ListCore] — shared base for every list surface: owns the bubbles list,
 //     the one open/back/quit keymap, the help footer, and the filtering guard.
-//     [Classify] turns a key press into an [Intent] the parent acts on, so `l`
+//     [ListCore.Classify] turns a key press into an [Intent] the parent acts on, so `l`
 //     means "open" everywhere (help, learn, setup, and browser.Model all embed it).
 //   - [ListPicker] — flat alias of [ListCore]: a filterable list, one-line construction.
 //   - [SelectList] — multi-select toggle list for wizard flows.
@@ -71,7 +71,8 @@
 //
 // # Forms (ui_form.go)
 //
-// uikit owns huh; no other package imports it. Single prompts:
+// uikit (and its subpackages) own huh — nothing outside internal/uikit/
+// imports it. Single prompts:
 //
 //   - [Input] / [InputInto] — single text input prompt.
 //   - [Select] / [MultiSelect] — single / multi choice prompt.
@@ -93,7 +94,11 @@
 //
 //   - [LineEditor] — single-line rune buffer with cursor for overlay text inputs.
 //
-// # Runtime (run_async.go, run_program.go, run_drain.go, run_quiet.go, run_debug.go)
+// # Clipboard (clipboard.go)
+//
+//   - [Copy] — cross-platform clipboard write used by dbtui yank.
+//
+// # Runtime (run_async.go, run_program.go, run_drain_bsd.go, run_drain_linux.go, run_quiet.go, run_debug.go)
 //
 //   - [AsyncCmd] / [AsyncCmdCtx] — generic async tea.Cmd with [Result];
 //     a panic in the wrapped fn becomes a [CommandPanicMsg].

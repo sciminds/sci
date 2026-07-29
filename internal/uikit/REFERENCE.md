@@ -73,7 +73,6 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `MaxDividerWidth` | const | MaxDividerWidth is the maximum width for horizontal dividers in TUI views. |
 | `MinUsableHeight` | const | MinUsableHeight is the minimum usable body height. Below this we |
 | `MinUsableWidth` | const | MinUsableWidth is the minimum terminal width we try to render for. |
-| `OverlayBoxPadding` | const | OverlayBoxPadding is the total horizontal chrome of OverlayBox: |
 | `OverlayChromeLines` | const | OverlayChromeLines is the vertical overhead of the overlay frame: |
 | `OverlayMargin` | const | OverlayMargin is the horizontal margin from terminal edges for overlays. |
 | `OverlayMaxW` | const | OverlayMaxW is the maximum overlay width. |
@@ -96,7 +95,9 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `CastTickMsg` | type | CastTickMsg advances playback to the given event index. |
 | `Chrome` | type | Chrome renders a three-part vertical layout: title bar, body, and |
 | `Grid2D` | type | Grid2D is a 2-D cursor for grid-like layouts (table columns × rows, |
-| `ListPicker` | type | ListPicker wraps [list.Model] with the standard project styling: |
+| `Intent` | type | Intent is what a key press means once the filtering guard is applied — |
+| `ListCore` | type | ListCore is the shared base every uikit list surface is built from: the |
+| `ListPicker` | type | ListPicker is the flat list surface (no hierarchy, no actions) used by |
 | `MarkdownOverlay` | type | MarkdownOverlay is a scrollable content panel that renders markdown via |
 | `MdViewer` | type | MdViewer is a scrollable, searchable markdown viewer sub-model. Embed in |
 | `Overlay` | type | Overlay is a scrollable content panel rendered as a modal over other content. |
@@ -107,6 +108,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `SelectList` | type | SelectList is a reusable Bubble Tea model for a toggle-select list. |
 | `SelectListKeys` | type | SelectListKeys is the help.KeyMap for the selecting phase. |
 | `SplitView` | type | SplitView composes two ScrollPanels into a responsive layout: side-by-side |
+| `TableOptions` | type | TableOptions tunes [RenderTable]. |
 | `Toast` | type | Toast is a single notification. It is a plain value — the ToastModel |
 | `ToastLevel` | type | ToastLevel represents the severity of a toast notification. |
 | `ToastModel` | type | ToastModel manages a stack of auto-dismissing toast notifications. |
@@ -119,12 +121,15 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `CenterOverlay` | func | CenterOverlay composites fg centered over bg. Both are newline-delimited |
 | `Compose` | func | Compose is a convenience for CenterOverlay(CancelFaint(fg), DimBackground(bg)). |
 | `DimBackground` | func | DimBackground applies faint (SGR 2) to every line of s. |
-| `HardenListKeyMap` | func | HardenListKeyMap frees the vim half-page keys (d/u/b/f) from the list's |
+| `HardenListKeyMap` | func | HardenListKeyMap reserves the keys the shared keymap owns at the model |
 | `Items` | func | Items converts a typed slice to []list.Item so callers don't need to |
 | `NewActionMenu` | func | NewActionMenu creates an action menu. The cursor starts on the first |
 | `NewCastPlayer` | func | NewCastPlayer creates a player for the given cast recording. |
+| `NewCompactDelegate` | func | NewCompactDelegate is [NewListDelegate] with descriptions turned off, so each |
+| `NewCompactListPicker` | func | NewCompactListPicker is [NewListPicker] with single-line rows (see |
 | `NewListDelegate` | func | NewListDelegate returns a list.DefaultDelegate styled to match the TUI theme. |
-| `NewListPicker` | func | NewListPicker creates a pre-styled filterable list. The hints (if |
+| `NewListPicker` | func | NewListPicker creates a pre-styled filterable list. extraHints are |
+| `NewListViewer` | func | NewListViewer creates a pre-styled filterable list for *non-navigable* |
 | `NewMarkdownOverlay` | func | NewMarkdownOverlay creates an auto-sized markdown overlay. The content is |
 | `NewMdViewer` | func | NewMdViewer creates a viewer for a single markdown document. |
 | `NewOverlay` | func | NewOverlay creates an auto-sized overlay. The viewport height shrinks to |
@@ -133,17 +138,28 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `NewSelectListKeys` | func | NewSelectListKeys returns the default key map for a select list. |
 | `NewSplitView` | func | NewSplitView creates a split view titled with the given string. Left is |
 | `NewToastModel` | func | NewToastModel returns an empty toast manager showing up to 5 toasts. |
+| `OverlayBodyBudget` | func | OverlayBodyBudget returns how many body lines fit inside an overlay rendered |
+| `OverlayContentWidth` | func | OverlayContentWidth returns the inner text width of a default-bounded overlay |
+| `OverlayInnerWidth` | func | OverlayInnerWidth returns the inner content width inside an overlay frame: |
 | `OverlayWidth` | func | OverlayWidth computes the overlay content width given terminal width and |
 | `ParseCast` | func | ParseCast parses asciicast v2 format (JSON-lines: header object + event arrays). |
 | `RenderSelectItemLine` | func | RenderSelectItemLine renders the cursor/marker/name skeleton common to all |
+| `RenderTable` | func | RenderTable renders headers + rows as a bordered table using the shared |
 | `RunMdViewer` | func | RunMdViewer launches a full-screen markdown viewer for the file at path. |
 | `RunWithProgress` | func | RunWithProgress shows an inline progress display while fn runs. The |
 | `RunWithSpinner` | func | RunWithSpinner shows an inline spinner while fn runs. Returns fn's error. |
 | `RunWithSpinnerStatus` | func | RunWithSpinnerStatus shows an inline spinner while fn runs, with a |
+| `TermWidth` | func | TermWidth reports the width of the controlling terminal in cells, or 0 when |
+| `TokenizeQuery` | func | TokenizeQuery splits a query into substring tokens, preserving quoted |
 | `WithHeading` | func | WithHeading sets the heading displayed above the list. |
 | `WithInitialQuery` | func | WithInitialQuery seeds the overlay's /-search with the given query so the |
 | `WithRenderItem` | func | WithRenderItem sets a custom item renderer. |
 | `WithSelected` | func | WithSelected sets the initial selection state for each item by index. |
+| `IntentBack` | const | IntentBack is esc / h / left: go back / up one level. |
+| `IntentNone` | const | IntentNone means "not a nav key" — forward it to the list so it |
+| `IntentOpen` | const | IntentOpen is enter / l / right: open or descend into the selection. |
+| `IntentQuit` | const | IntentQuit is q / ctrl+c: leave the list. |
+| `ToastInfo, ToastSuccess, ToastWarning, ToastError` | const | Toast severity levels, ordered least to most severe. |
 
 ## Markdown
 
@@ -190,10 +206,18 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `LineEditor` | type | LineEditor is a reusable single-line rune buffer with cursor management. |
 | `NewLineEditor` | func | NewLineEditor creates a LineEditor pre-filled with text and the cursor at the end. |
 
+## Clipboard
+
+| Symbol | Kind | Description |
+|---|---|---|
+| `Copy` | func | Copy writes s to the system clipboard. Tries each platform-specific tool |
+| `SetClipboardRunnerForTest` | func | SetClipboardRunnerForTest replaces the clipboardCmd runner with a fake |
+
 ## Runtime
 
 | Symbol | Kind | Description |
 |---|---|---|
+| `CommandPanicMsg` | type | CommandPanicMsg is emitted by [SafeCmd], [AsyncCmd], and [AsyncCmdCtx] |
 | `Result` | type | Result is a generic outcome from an async command. Use in a type switch |
 | `AsyncCmd` | func | AsyncCmd wraps a fallible function into a tea.Cmd that returns |
 | `AsyncCmdCtx` | func | AsyncCmdCtx wraps a context-aware function with a timeout into a |
@@ -202,5 +226,8 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `IsQuiet` | func | IsQuiet reports whether quiet mode is active. |
 | `Run` | func | Run launches a Bubbletea program and returns its error. It drains |
 | `RunModel` | func | RunModel launches a Bubbletea program and returns the final model |
+| `SafeCmd` | func | SafeCmd wraps a command closure so a panic inside it becomes a |
 | `SetQuiet` | func | SetQuiet enables or disables quiet (non-interactive) mode. |
+| `ErrCommandPanic` | var | ErrCommandPanic is returned by [Run] and [RunModel] when a command wrapped |
+| `TUIDebugEnv` | const | TUIDebugEnv is the environment variable that turns on the message dump: set it |
 

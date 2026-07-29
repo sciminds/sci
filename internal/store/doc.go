@@ -1,14 +1,14 @@
 // Package store defines the DataStore interface that abstracts all
 // database access for sci's TUI and CLI verbs, plus the SQLite and
-// (later) DuckDB implementations under [store/sqlite] and [store/duck].
+// DuckDB implementations under [store/sqlite] and [store/duck].
 //
 // # DataStore
 //
 // [DataStore] is implemented by both backends. SQLite uses
 // modernc.org/sqlite (pure Go, no CGO); DuckDB shells out to the duckdb
-// CLI via [internal/duck]. Callers pick an implementation by file
-// extension via [Open] or by direct constructor (e.g.
-// [sqlite.Open], [sqlite.OpenFileView]).
+// CLI via [internal/duck]. Callers construct an implementation directly
+// (e.g. [sqlite.Open], [sqlite.OpenFileView]); file-extension dispatch
+// between the backends lives in internal/db (RunTUI's file-type switch).
 //
 // # SQL safety
 //

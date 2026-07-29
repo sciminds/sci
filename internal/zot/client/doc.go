@@ -1,8 +1,8 @@
 // Package client contains the generated Zotero Web API client.
 //
 // DO NOT EDIT zotero.gen.go by hand — regenerate with `just zot-gen`. That
-// recipe preprocesses the OpenAPI 3.1 spec at
-// /Users/esh/Documents/webapps/apis/zotero/openapi.yaml into the 3.0 form
+// recipe preprocesses the OpenAPI 3.1 spec pointed at by the justfile's
+// `zot-spec` variable into the 3.0 form
 // oapi-codegen v2 understands, pipes it through scripts/zotero-mirror-paths.yq
 // to duplicate every /users/{userID}/… path as a parallel /groups/{groupID}/…
 // twin (the personal-vs-shared library split depends on this; the sole

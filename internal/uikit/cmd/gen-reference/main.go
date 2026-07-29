@@ -2,8 +2,9 @@
 // internal/uikit/REFERENCE.md — a
 // categorized quick-reference table of every exported top-level symbol
 // in package uikit. Symbols are grouped by category derived from their
-// source file prefix (color_*, input_*, layout_*, ui_*, render_md*,
-// line_editor*, run_*). Descriptions come from the first line of each
+// source file prefix (color_*, input_*, layout_*, ui_*, table*, tokenize*,
+// render_md*, line_editor*, clipboard*, run_*). Descriptions come from the
+// first line of each
 // symbol's godoc comment.
 //
 // Run via: just docs-uikit
@@ -41,6 +42,9 @@ var categoryRules = []struct {
 	{"input_", category{"Input", 20}},
 	{"layout_", category{"Layout", 30}},
 	{"ui_", category{"Components", 40}},
+	{"table", category{"Components", 40}},
+	{"tokenize", category{"Components", 40}},
+	{"clipboard", category{"Clipboard", 75}},
 	{"run_", category{"Runtime", 80}},
 }
 

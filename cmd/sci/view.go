@@ -15,8 +15,8 @@ import (
 func viewCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "view",
-		Usage:       "Interactively browse data files (CSV, JSON, Parquet, SQLite) or markdown documents",
-		Description: "$ sci view data.csv\n$ sci view results.json\n$ sci view metrics.parquet\n$ sci view experiment.db\n$ sci view notes.md",
+		Usage:       "Interactively browse data files (CSV, JSON, Parquet, SQLite, DuckDB) or markdown documents",
+		Description: "$ sci view data.csv\n$ sci view results.json\n$ sci view metrics.parquet\n$ sci view experiment.db\n$ sci view analysis.duckdb\n$ sci view notes.md",
 		ArgsUsage:   "<file>",
 		Category:    "Commands",
 		Action:      viewAction,

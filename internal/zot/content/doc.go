@@ -37,4 +37,10 @@
 // object version of whatever produced its text, so [Plan] can diff the
 // index against the library cheaply (no bodies read) and reindex only
 // what drifted.
+//
+// The library fingerprint cannot see changes to sci's own indexing
+// rules, so [IndexFormat] versions them separately: bumping it forces a
+// full rebuild of any index built under an older format. The index
+// location ([DefaultPath]) is per-library — personal and group
+// libraries each get their own index.
 package content

@@ -37,7 +37,7 @@ func PersistentFlags() []cli.Flag {
 		// lint:no-local — persistent flag intentionally cascades to subcommands.
 		&cli.StringFlag{
 			Name:  "library",
-			Usage: "Zotero library to target: personal or shared (required)",
+			Usage: "Zotero library to target: personal, shared, or all (auto-selected or prompted when omitted)",
 		},
 	}
 }
@@ -111,13 +111,15 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	collection <subcommand>     collections (list/create/delete/add/remove)
 //	saved-search <subcommand>   saved searches (list/show/create/update/delete)
 //	tags    <subcommand>        tags (list/add/remove/delete)
-//	notes   <subcommand>        docling extraction notes (list/read/add/update/delete)
-//	llm     <subcommand>        [experimental] LLM-agent tools for querying docling notes
+//	notes   <subcommand>        the notes YOU wrote (list/read)
+//	link    <subcommand>        relate items via dc:relation (add/list/suggest)
+//	content <subcommand>        paper text end to end (extract/refresh/list/read/drop/build/stats)
+//	llm     <subcommand>        [experimental] LLM-agent tools for querying paper content
 //	                            llm {catalog,read,query}
 //	doctor  [subcommand]        hygiene: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates}
 //	graph   <subcommand>        traverse citation relationships (library + OpenAlex)
-//	extract <parent-key>        [experimental] run docling PDF extraction pipeline
+//	extract <parent-key>        retired stub — rewrites to `content extract`
 //	extract-lib                 [experimental] bulk extract every PDF → child note (via docling)
 //
 // `item`, `collection`, and `tags` all reuse the leaf commands defined in

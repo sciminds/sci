@@ -12,4 +12,16 @@
 // DB). Execute runs the converter and posts via a narrow NoteWriter
 // interface. NoteWriter is satisfied by *api.Client but tests use fakes
 // so the package has no HTTP dep.
+//
+// Beyond single items: [ExecuteBatch] (batch.go) drives bulk extraction,
+// resuming across runs via [MarkdownCache] (cache.go). [KeyLayout]
+// (layout.go) persists a per-key artifact directory (config extract_dir)
+// that is independent of the Zotero note — either store can exist
+// without the other, and neither gates the other. Every path that posts
+// an extraction note tags the parent [MarkdownTag] ("has-markdown");
+// content listing keys off that tag, so a create path that skips it
+// makes the extraction invisible. When config extract.runner=ssh
+// (zot.Config.ExtractRunner), the whole command is delegated to the
+// remote host before any local DB or docling work — see
+// internal/zot/cli/remote.go.
 package extract

@@ -66,7 +66,8 @@
 //
 // # Overlays
 //
-// Each overlay (help, cell editor, search bar, table list, column picker) is a
+// Each overlay (help, cell editor, search bar, table list, column picker,
+// column rename, note preview) is a
 // pointer field on Model. A nil pointer means the overlay is closed; non-nil
 // means it is open. At most one overlay is active at a time. Overlay state
 // types are defined in overlay_state.go.
@@ -108,7 +109,7 @@
 //	app
 //	  ├── tabstate  (Tab types, sort, filter — no tea.Cmd/tea.Msg)
 //	  ├── match     (fuzzy/substring matching — no UI deps)
-//	  ├── data      (DataStore interface, SQLite backend)
-//	  ├── ui        (lipgloss styles, layout constants)
+//	  ├── internal/store  (DataStore interface, SQLite + DuckDB backends)
+//	  ├── internal/uikit  (lipgloss styles, layout constants)
 //	  └── bubbletea + bubbles (framework)
 package app
