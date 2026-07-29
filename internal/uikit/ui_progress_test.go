@@ -1,9 +1,12 @@
 package uikit
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 // ── Model unit tests ──────────────────────────────────────��─────────────────
@@ -220,5 +223,96 @@ func TestRunWithProgress_QuietPrintsTitleToStderr(t *testing.T) {
 
 	if !strings.Contains(out, "Extracting library…") {
 		t.Errorf("stderr should contain title, got %q", out)
+	}
+}
+
+// ── Interrupt (ctrl+c) tests ────────────────────────────────────────────────
+
+func ctrlC() tea.KeyPressMsg { return tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl} }
+
+func TestProgressModel_CtrlCWithoutCancelQuitsImmediately(t *testing.T) {
+	t.Parallel()
+	m := newRunnerModel("Working…", true)
+	updated, cmd := m.Update(ctrlC())
+	rm := updated.(runnerModel)
+
+	if !rm.done {
+		t.Error("uncancellable model should quit on ctrl+c")
+	}
+	if !errors.Is(rm.err, ErrInterrupted) {
+		t.Errorf("err = %v, want ErrInterrupted", rm.err)
+	}
+	if cmd == nil {
+		t.Error("expected quit Cmd")
+	}
+}
+
+func TestProgressModel_CtrlCWithCancelCancelsAndWaits(t *testing.T) {
+	t.Parallel()
+	canceled := false
+	m := newRunnerModel("Extracting…", true)
+	m.cancelWork = func() { canceled = true }
+
+	updated, cmd := m.Update(ctrlC())
+	rm := updated.(runnerModel)
+
+	if !canceled {
+		t.Error("first ctrl+c must cancel the work context")
+	}
+	if rm.done || cmd != nil {
+		t.Error("first ctrl+c must NOT quit — the display waits for the work to stop")
+	}
+	if !rm.interrupted {
+		t.Error("model should record the interrupt")
+	}
+	if v := rm.View(); !strings.Contains(v.Content, "interrupting") {
+		t.Errorf("view should announce the interrupt, got %q", v.Content)
+	}
+
+	// The work goroutine winds down and reports in — now we quit.
+	updated, cmd = rm.Update(doneMsg{err: errors.New("context canceled")})
+	rm = updated.(runnerModel)
+	if !rm.done || cmd == nil {
+		t.Error("doneMsg after interrupt should quit the display")
+	}
+}
+
+func TestProgressModel_SecondCtrlCAbandons(t *testing.T) {
+	t.Parallel()
+	m := newRunnerModel("Extracting…", true)
+	m.cancelWork = func() {}
+
+	updated, _ := m.Update(ctrlC())
+	rm := updated.(runnerModel)
+	updated, cmd := rm.Update(ctrlC())
+	rm = updated.(runnerModel)
+
+	if !rm.done {
+		t.Error("second ctrl+c should abandon the wait")
+	}
+	if !errors.Is(rm.err, ErrInterrupted) {
+		t.Errorf("err = %v, want ErrInterrupted", rm.err)
+	}
+	if cmd == nil {
+		t.Error("expected quit Cmd")
+	}
+}
+
+func TestRunWithProgressCtx_QuietDerivesFromParent(t *testing.T) {
+	SetQuiet(true)
+	defer SetQuiet(false)
+
+	parent, cancel := context.WithCancel(context.Background())
+	cancel()
+	var got error
+	err := RunWithProgressCtx(parent, "extracting…", func(ctx context.Context, _ *ProgressTracker) error {
+		got = ctx.Err()
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got == nil {
+		t.Error("fn's ctx should derive from (and be canceled with) the parent")
 	}
 }

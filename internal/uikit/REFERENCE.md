@@ -147,6 +147,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `RenderTable` | func | RenderTable renders headers + rows as a bordered table using the shared |
 | `RunMdViewer` | func | RunMdViewer launches a full-screen markdown viewer for the file at path. |
 | `RunWithProgress` | func | RunWithProgress shows an inline progress display while fn runs. The |
+| `RunWithProgressCtx` | func | RunWithProgressCtx is [RunWithProgress] for cancellable work: fn receives |
 | `RunWithSpinner` | func | RunWithSpinner shows an inline spinner while fn runs. Returns fn's error. |
 | `RunWithSpinnerStatus` | func | RunWithSpinnerStatus shows an inline spinner while fn runs, with a |
 | `TermWidth` | func | TermWidth reports the width of the controlling terminal in cells, or 0 when |
@@ -155,6 +156,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `WithInitialQuery` | func | WithInitialQuery seeds the overlay's /-search with the given query so the |
 | `WithRenderItem` | func | WithRenderItem sets a custom item renderer. |
 | `WithSelected` | func | WithSelected sets the initial selection state for each item by index. |
+| `ErrInterrupted` | var | ErrInterrupted is returned by the spinner/progress runners when the user |
 | `IntentBack` | const | IntentBack is esc / h / left: go back / up one level. |
 | `IntentNone` | const | IntentNone means "not a nav key" — forward it to the list so it |
 | `IntentOpen` | const | IntentOpen is enter / l / right: open or descend into the selection. |

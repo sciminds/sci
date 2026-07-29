@@ -3,6 +3,7 @@ package cli
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -315,6 +316,11 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	// From here on every "please stop" (signal, ssh drop, TUI ctrl+c)
+	// must land as a ctx cancel so the docling process group dies with us.
+	ctx, stop := extractContext(ctx)
+	defer stop()
+
 	// Execute phase — progress display.
 	started := time.Now()
 	var batchResult *extract.BatchResult
@@ -324,7 +330,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	err = uikit.RunWithProgress("Planning...", func(t *uikit.ProgressTracker) error {
+	err = uikit.RunWithProgressCtx(ctx, "Planning...", func(ctx context.Context, t *uikit.ProgressTracker) error {
 		t.SetTotal(nCreate + nLayoutOnly)
 
 		var curPhase extract.BatchPhase
@@ -386,6 +392,13 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		batchResult = res
 		return batchErr
 	})
+	// An interrupted run (TUI ctrl+c returns ErrInterrupted; a signal or
+	// stdin-EOF cancel may instead surface as a nil/err result with the
+	// command ctx canceled) reports as one clean "interrupted" error, not
+	// a result full of per-item context-canceled noise.
+	if errors.Is(err, uikit.ErrInterrupted) || ctx.Err() != nil {
+		return errExtractInterrupted()
+	}
 	if err != nil {
 		return err
 	}

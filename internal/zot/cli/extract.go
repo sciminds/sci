@@ -211,6 +211,10 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	// Ctrl-C / SIGTERM / ssh drop must cancel ctx so the docling process
+	// group dies with us instead of orphaning.
+	ctx, stop := extractContext(ctx)
+	defer stop()
 	result, err := extract.Execute(ctx, extract.ExecuteInput{
 		Plan:        plan,
 		Extractor:   ex,
@@ -221,6 +225,9 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		Cache:       cache,
 		RenderHTML:  extractHTML,
 	})
+	if ctx.Err() != nil {
+		return errExtractInterrupted()
+	}
 	if err != nil {
 		return err
 	}
@@ -299,6 +306,11 @@ func runExtractLayout(
 		return err
 	}
 
+	// Ctrl-C / SIGTERM / ssh drop must cancel ctx so the docling process
+	// group dies with us instead of orphaning.
+	ctx, stop := extractContext(ctx)
+	defer stop()
+
 	// Note exists, layout missing: docling for the artifacts only.
 	if plan.Action == extract.ActionSkip {
 		ex, err := extract.NewDoclingExtractor()
@@ -312,6 +324,9 @@ func runExtractLayout(
 		opts.PDFPath = staged
 		opts.OutputDir = outputDir
 		res, err := ex.Extract(ctx, opts)
+		if ctx.Err() != nil {
+			return errExtractInterrupted()
+		}
 		if err != nil {
 			return err
 		}
@@ -376,6 +391,9 @@ func runExtractLayout(
 		Cache:       cache,
 		RenderHTML:  extractHTML,
 	})
+	if ctx.Err() != nil {
+		return errExtractInterrupted()
+	}
 	if err != nil {
 		return err
 	}

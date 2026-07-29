@@ -357,6 +357,11 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 		Force:     true,
 	}, true) // hasExisting=true, Force=true → ActionCreate
 
+	// Ctrl-C / SIGTERM / ssh drop must cancel ctx so the docling process
+	// group dies with us instead of orphaning.
+	ctx, stop := extractContext(ctx)
+	defer stop()
+
 	result, err := extract.Execute(ctx, extract.ExecuteInput{
 		Plan:          plan,
 		Extractor:     ex,
@@ -369,6 +374,9 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 		UpdateNoteKey: existingKey,
 		Updater:       apiClient,
 	})
+	if ctx.Err() != nil {
+		return errExtractInterrupted()
+	}
 	if err != nil {
 		return err
 	}

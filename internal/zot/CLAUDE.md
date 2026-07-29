@@ -87,6 +87,8 @@ Same reads-local / writes-cloud split. See `cli/extract.go`, `cli/notes.go`, `ex
 
 **`extract.runner=ssh`** delegates the whole command to `extract.host` via `syscall.Exec` (`cli/remote.go`) *before* any local DB or docling work. The remote resolves its own config — per-machine `data_dir` and `extract.dir` — so nothing path-like may cross. Results return through the stores themselves, not the pipe.
 
+**Cancellation contract: docling dies by ctx cancel, never by sci's death.** Docling runs in its own process group (`extract/procgroup.go`), so any exit path that skips context cancellation orphans it mid-batch. Every docling command therefore wires `extractContext` (`cli/interrupt.go` — signals + the remote stdin-EOF watchdog) **after its confirmation prompt**, and the batch TUI goes through `uikit.RunWithProgressCtx` so a raw-mode ctrl+c cancels the work and waits for teardown instead of quitting the display. A new docling call path must join this wiring — a bare `exec.CommandContext` under `context.Background()` reintroduces the orphan. Interrupted runs return `errExtractInterrupted()`, not per-item context-canceled noise.
+
 ## PDF discovery & attach (`internal/zot/pdffind/`)
 
 OpenAlex-led lookup for Zotero items missing their PDFs. Lives under `zot doctor pdfs`. Read-only by default; `--download` and `--attach` are opt-in writes.

@@ -6,6 +6,8 @@ package uikit
 
 import (
 	"cmp"
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -15,6 +17,11 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 )
+
+// ErrInterrupted is returned by the spinner/progress runners when the user
+// aborts with ctrl+c. Callers that can distinguish "the work failed" from
+// "the user stopped it" should errors.Is against this.
+var ErrInterrupted = errors.New("interrupted")
 
 // ── Messages ────────────────────────────────────────────────────────────────
 
@@ -146,6 +153,14 @@ type runnerModel struct {
 	done      bool
 	err       error
 	width     int
+
+	// cancelWork, when non-nil, makes ctrl+c cancel the work's context and
+	// keep the display alive until the work goroutine reports done —
+	// quitting immediately would exit the process while the (canceled but
+	// still winding down) work's subprocesses get reaped. Nil keeps the
+	// legacy behavior: quit the display, work keeps running.
+	cancelWork  func()
+	interrupted bool
 }
 
 func newRunnerModel(title string, progress bool) runnerModel {
@@ -202,8 +217,18 @@ func (m runnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
+			if m.cancelWork != nil && !m.interrupted {
+				// First ctrl+c in cancellable mode: cancel the work and
+				// wait for its doneMsg instead of quitting. Context
+				// cancellation is goroutine-safe and non-blocking, so
+				// calling it inline beats a Cmd — the kill must not wait
+				// on the event loop's scheduling.
+				m.interrupted = true
+				m.cancelWork()
+				return m, nil
+			}
 			m.done = true
-			m.err = fmt.Errorf("interrupted")
+			m.err = ErrInterrupted
 			return m, tea.Quit
 		}
 	}
@@ -230,6 +255,12 @@ func (m runnerModel) View() tea.View {
 		b.WriteString(TUI.Dim().Render("  " + m.status))
 	}
 	b.WriteByte('\n')
+
+	if m.interrupted {
+		b.WriteString("  ")
+		b.WriteString(TUI.Fail().Render("interrupting — waiting for the current job to stop (ctrl+c again to abandon)"))
+		b.WriteByte('\n')
+	}
 
 	if m.progress {
 		m.viewProgress(&b)
@@ -354,20 +385,49 @@ func RunWithSpinnerStatus(title string, fn func(setStatus func(string)) error) e
 // real-time. In quiet mode or without a terminal on stderr (see
 // [interactive]), prints the title to stderr and runs fn with a no-op
 // tracker.
+//
+// ctrl+c quits the *display* only — the work keeps running to completion.
+// When the work can honor cancellation, use [RunWithProgressCtx] instead
+// so ctrl+c actually stops it.
 func RunWithProgress(title string, fn func(t *ProgressTracker) error) error {
+	return runProgress(context.Background(), title, func(_ context.Context, t *ProgressTracker) error {
+		return fn(t)
+	}, false)
+}
+
+// RunWithProgressCtx is [RunWithProgress] for cancellable work: fn receives
+// a context derived from ctx, and ctrl+c cancels it. The display then stays
+// up ("interrupting…") until fn returns — so any subprocess teardown wired
+// to the context (e.g. docling's process-group kill) completes before the
+// command exits; a second ctrl+c abandons the wait. Returns
+// [ErrInterrupted] when the user aborted, whatever fn returned otherwise.
+func RunWithProgressCtx(ctx context.Context, title string, fn func(ctx context.Context, t *ProgressTracker) error) error {
+	return runProgress(ctx, title, fn, true)
+}
+
+// runProgress is the shared body of RunWithProgress (cancellable=false:
+// ctrl+c quits the display, work keeps running) and RunWithProgressCtx
+// (cancellable=true: ctrl+c cancels the derived context and waits for fn).
+func runProgress(ctx context.Context, title string, fn func(ctx context.Context, t *ProgressTracker) error, cancellable bool) error {
+	var cancel context.CancelFunc
+	if cancellable {
+		ctx, cancel = context.WithCancel(ctx)
+		defer cancel()
+	}
+
 	if !interactive() {
 		fmt.Fprintf(os.Stderr, "%s\n", title)
-		tracker := &ProgressTracker{}
-		return fn(tracker)
+		return fn(ctx, &ProgressTracker{})
 	}
 
 	m := newRunnerModel(title, true)
+	m.cancelWork = cancel // nil under RunWithProgress
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	tracker := &ProgressTracker{p: p}
 
 	workErr := make(chan error, 1)
 	go func() {
-		err := fn(tracker)
+		err := fn(ctx, tracker)
 		workErr <- err
 		p.Send(doneMsg{err: err})
 	}()
@@ -377,7 +437,13 @@ func RunWithProgress(title string, fn func(t *ProgressTracker) error) error {
 	if runErr != nil {
 		return reportDisplayFailure(title, runErr, workErr)
 	}
-	return result.(runnerModel).err
+	rm := result.(runnerModel)
+	if rm.interrupted {
+		// fn's own error (if any) is cancellation fallout — the user's
+		// abort is the story worth reporting.
+		return ErrInterrupted
+	}
+	return rm.err
 }
 
 // reportDisplayFailure handles a bubbletea program that failed to run. The work
