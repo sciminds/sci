@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/tui/dbtui/match"
@@ -484,13 +485,20 @@ func (d *DB) Search(query string, limit int) ([]Item, error) {
 //   - OR groups:        "@type: book | @type: thesis"
 //   - negation:         "@author: -smith"         (bare "-author:smith" works too)
 //
-// The bare forms are rewritten by [NormalizeQuery] before parsing.
+// The bare forms are rewritten by [NormalizeQuery] before parsing, and
+// positive free text is word-ANDed by [expandFreeText]: each word must
+// match SOME field, so "jolly 2021" finds a 2021 paper by Jolly even
+// though no single column contains that string. A bare 1500-2099 token
+// means the publication year; a "quoted phrase" stays one literal
+// substring (and quoting is how a year-like title such as "2001" stays
+// text). Negated free text is NOT split — it excludes the phrase as
+// typed.
 //
 // Recognized fields: author/creator, title, doi, pub/publication, tag, type/
-// itemType, year, citekey/key. Smartcase applies per-clause: an all-lowercase
-// needle is matched case-insensitively, any uppercase flips it to
-// case-sensitive. Zotero has no FTS on EAV metadata — every clause is a
-// table scan.
+// itemType, year, citekey/key. Smartcase applies per-clause — after word
+// splitting, that means per word: an all-lowercase needle is matched
+// case-insensitively, any uppercase flips it to case-sensitive. Zotero
+// has no FTS on EAV metadata — every clause is a table scan.
 //
 // Results are ordered by title relevance (how many positive query words
 // appear in the title), then by content relevance when
@@ -558,6 +566,9 @@ func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Ite
 	if len(groups) == 0 {
 		return nil, 0, nil
 	}
+	groups = lo.Map(groups, func(g []match.Clause, _ int) []match.Clause {
+		return expandFreeText(g)
+	})
 
 	var orParts []string
 	var clauseArgs []any
@@ -760,10 +771,86 @@ func (d *DB) enrichListRows(items []Item) error {
 // A query made only of field clauses returns "".
 func QueryFreeText(query string) string {
 	texts := lo.FilterMap(match.ParseClauses(NormalizeQuery(query)), func(group []match.Clause, _ int) (string, bool) {
-		text := bareSearchText(group)
+		// The same expansion SearchWithTotal applies, so the snippet
+		// query and the widening query ask the index one question:
+		// year tokens are metadata filters, not paper-text evidence.
+		text := bareSearchText(expandFreeText(group))
 		return text, text != ""
 	})
 	return strings.Join(texts, " ")
+}
+
+// bareYearRe recognizes a free-text token that can only plausibly mean
+// a publication year (1500-2099). Quoted tokens never reach this test —
+// quoting is the escape hatch for titles like "2001".
+var bareYearRe = regexp.MustCompile(`^(1[5-9]\d{2}|20\d{2})$`)
+
+// expandFreeText rewrites each positive free-text clause in an AND
+// group into per-token clauses: words must each match SOME field
+// (creator + title + year can cooperate on "jolly 2021"), a bare year
+// token becomes an @year: clause, and a quoted phrase stays one clause
+// with its quotes preserved (buildClauseSQL strips them for the
+// substring match; bareSearchText keeps them for the content index).
+//
+// Negated free text passes through unsplit on purpose: NOT("deep
+// learning") excludes items containing the phrase, while splitting
+// would exclude items containing either word — a different question.
+// Field-scoped clauses are untouched; their value is a single needle.
+func expandFreeText(group []match.Clause) []match.Clause {
+	return lo.FlatMap(group, func(c match.Clause, _ int) []match.Clause {
+		if c.Column != "" || c.Negate {
+			return []match.Clause{c}
+		}
+		toks := splitFreeTextTokens(c.Terms)
+		if len(toks) == 0 {
+			return []match.Clause{c}
+		}
+		return lo.Map(toks, func(tok string, _ int) match.Clause {
+			if bareYearRe.MatchString(tok) {
+				return match.Clause{Column: "year", Terms: tok}
+			}
+			return match.Clause{Terms: tok}
+		})
+	})
+}
+
+// splitFreeTextTokens splits free text on whitespace, keeping a quoted
+// span as one token (quotes included). An unterminated quote swallows
+// the rest of the string — the user is mid-typing, not writing a
+// program, so tolerance beats an error.
+func splitFreeTextTokens(s string) []string {
+	var toks []string
+	var cur strings.Builder
+	inQuote := false
+	flush := func() {
+		if cur.Len() > 0 {
+			toks = append(toks, cur.String())
+			cur.Reset()
+		}
+	}
+	for _, r := range s {
+		switch {
+		case r == '"':
+			inQuote = !inQuote
+			cur.WriteRune(r)
+		case !inQuote && unicode.IsSpace(r):
+			flush()
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	flush()
+	return toks
+}
+
+// stripOuterQuotes removes one matched pair of surrounding double
+// quotes: the pair marks a phrase, and the quote characters themselves
+// can never appear in the metadata being substring-matched.
+func stripOuterQuotes(s string) string {
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		return s[1 : len(s)-1]
+	}
+	return s
 }
 
 // bareSearchText joins a group's positive free-text clauses back into
@@ -829,6 +916,12 @@ func positiveQueryWords(groups [][]match.Clause) []string {
 	words := lo.FlatMap(clauses, func(c match.Clause, _ int) []string {
 		return strings.Fields(strings.ToLower(c.Terms))
 	})
+	// Quote characters glue themselves to a phrase's words; titles
+	// contain the words, never the quotes.
+	words = lo.FilterMap(words, func(w string, _ int) (string, bool) {
+		w = strings.Trim(w, `"`)
+		return w, w != ""
+	})
 	return lo.Uniq(words)
 }
 
@@ -855,7 +948,10 @@ func buildClauseSQL(c match.Clause, ftIDs []int64) (string, []any, error) {
 		return "", nil, fmt.Errorf("empty value for field %q", c.Column)
 	}
 
-	needle := c.Terms
+	// Quotes mark a phrase; the characters themselves would poison a
+	// substring match. Stripped here (not in the parser) so
+	// bareSearchText still hands the content index the quoted form.
+	needle := stripOuterQuotes(c.Terms)
 	smartcase := needle == strings.ToLower(needle)
 	if smartcase {
 		needle = strings.ToLower(needle)

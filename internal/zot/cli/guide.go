@@ -57,7 +57,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Find papers in my library on a topic",
 						Cmd:  "sci zot search \"large language models\" --library personal",
-						Note: "Local metadata substring match (title/DOI/pub/creators/citekey), ranked by title relevance then year. Add --content to also match the full TEXT of your papers, or --remote for the Zotero Web fulltext (abstract + notes + PDFs). --content needs a one-time `sci zot content build` and matches whole words with stemming, so quote a phrase to require adjacency: '\"prediction error\"' is far narrower than prediction error. --notes instead FILTERS to items that have an extraction (no searching inside).",
+						Note: "Local metadata match over title/DOI/pub/creators/citekey, ranked by title relevance then year. Bare words AND across fields ('jolly 2021' = creator + year; a bare 1500-2099 token means the year); quotes make a literal phrase. --content also matches the full TEXT of your papers (one-time `sci zot content build`; quote phrases there too), --remote the Zotero Web fulltext (abstract + notes + PDFs). --notes instead FILTERS to items that have an extraction (no searching inside).",
 					},
 					{
 						Goal: "Which paper is this cite-key / Zotero key?",
