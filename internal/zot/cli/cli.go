@@ -102,6 +102,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	info                        library summary (alias: stats)
 //	view                        interactive read-only table viewer
 //	search  <query>             cross-field search (supports --export, --notes)
+//	browse                      interactive search-and-open REPL (PDFs open in the system viewer)
 //	find    <subcommand>        OpenAlex paper/author lookup (works/authors)
 //	export                      full-library BibTeX / CSL-JSON export
 //	bib     <file-or-dir>       bibliography of exactly the items a document cites
@@ -129,6 +130,7 @@ func Commands() []*cli.Command {
 		infoCommand(),
 		viewCommand(),
 		searchCommand(),
+		browseCommand(),
 		findCommand(),
 		libraryExportCommand(),
 		bibCommand(),
