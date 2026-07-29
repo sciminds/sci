@@ -4,6 +4,23 @@ ldflags := "-s -w -X github.com/sciminds/cli/internal/version.Commit=" + commit
 build:
     go build -ldflags="{{ldflags}}" -o sci ./cmd/sci
 
+# A symlink, not a copy, is what makes every rebuild land instantly:
+# `go build` writes a fresh inode each time, so macOS never sees a
+# mutated ad-hoc signature (the exit-137 SIGKILL that forces zen's
+# install-to-temp-and-rename dance).
+#
+# `sci update` un-installs this, by design and harmlessly: os.Executable
+# returns the SYMLINK path on darwin, so a release binary replaces
+# ~/.local/bin/sci itself and the repo build is left alone. Re-run
+# `just install` to get back into dev mode.
+#
+# Dev mode: symlink the repo build onto PATH (so `just build` IS the installed sci)
+install: build
+    mkdir -p ~/.local/bin
+    ln -sf "{{justfile_directory()}}/sci" ~/.local/bin/sci
+    @~/.local/bin/sci >/dev/null
+    @echo "sci -> $(readlink ~/.local/bin/sci) ({{commit}})"
+
 tidy:
     go mod tidy
 

@@ -30,6 +30,7 @@ Blocking: load the skill before you start, so you write it right the first time 
 ## Test recipes
 
 ```
+just install         # dev mode: symlink the repo build to ~/.local/bin/sci (see below)
 just ok              # gate: fmt + vet + lint + test + build (-short: skips cloud/lab command tests)
 just ok-slow         # gate + proj/new integration; before merging changes to sci proj new
 just test            # full suite, incl. the cloud/lab command tests the gate skips
@@ -39,6 +40,15 @@ just test-slow       # proj/new integration (~2 min, SLOW=1; needs pixi/uv/quart
 just test-canvas     # cass integration (needs CANVAS_TOKEN in .env + gh auth login)
 just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
 ```
+
+**`just install` = dev mode.** It symlinks `./sci` (the repo build) to
+`~/.local/bin/sci`, so from then on every `just build` / `just ok` immediately
+*is* the installed `sci` — that's the co-develop loop before a `[release]` push
+publishes a real build. A symlink rather than a copy because `go build` writes a
+fresh inode, so macOS never SIGKILLs a mutated ad-hoc signature. `sci update`
+takes the machine back out of dev mode harmlessly (on darwin `os.Executable`
+returns the symlink path, so the release binary replaces the *link*, never the
+repo build) — re-run `just install` to return.
 
 The `just ok` gate runs tests with `-short`: tests guarded by `testing.Short()`
 (the `sci cloud` / `sci lab` command tests in `cmd/sci`, which drive the
