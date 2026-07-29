@@ -89,6 +89,49 @@ func TestListAllPDFAttachments(t *testing.T) {
 	}
 }
 
+// TestResolvePDFAttachment_AllScope proves the resolver honors a merged
+// (ForAll) handle: a personal parent and a group parent must both
+// resolve, and the group resolution must not silently answer from the
+// personal library only (the pre-libIn behavior).
+func TestResolvePDFAttachment_AllScope(t *testing.T) {
+	t.Parallel()
+	db := openFixtureAll(t)
+
+	att, err := db.ResolvePDFAttachment("AAAA1111")
+	if err != nil {
+		t.Fatalf("personal parent under ForAll: %v", err)
+	}
+	if att.Key != "DDDD4444" {
+		t.Errorf("personal Key = %q, want DDDD4444", att.Key)
+	}
+
+	att, err = db.ResolvePDFAttachment("GRPITEM01")
+	if err != nil {
+		t.Fatalf("group parent under ForAll: %v", err)
+	}
+	if att.Key != "GRPATT01" {
+		t.Errorf("group Key = %q, want GRPATT01", att.Key)
+	}
+	if att.Filename != "shared.pdf" {
+		t.Errorf("group Filename = %q, want shared.pdf", att.Filename)
+	}
+	if att.Title != "Shared Paper One" {
+		t.Errorf("group Title = %q, want parent title 'Shared Paper One'", att.Title)
+	}
+}
+
+// TestResolvePDFAttachment_SingleScopeStaysScoped proves a personal-only
+// handle cannot resolve a group parent — scope narrowing is the contract
+// the CLI's --library flag relies on.
+func TestResolvePDFAttachment_SingleScopeStaysScoped(t *testing.T) {
+	t.Parallel()
+	db := openFixture(t)
+
+	if _, err := db.ResolvePDFAttachment("GRPITEM01"); err == nil {
+		t.Fatal("personal-scoped handle resolved a group parent; want error")
+	}
+}
+
 func TestResolvePDFAttachment_TrashedParent(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)

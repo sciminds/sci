@@ -34,12 +34,16 @@ type PDFAttachment struct {
 //
 // Ordering: oldest-first (ch.dateAdded ASC) so repeat calls are stable
 // across library state that doesn't change.
+//
+// Honors the handle's library scope: a merged (ForAll) handle resolves
+// parents in any of its libraries; a single-library handle stays scoped.
 func (d *DB) ResolvePDFAttachment(parentKey string) (*PDFAttachment, error) {
 	// Title lookup is a correlated subquery against the PARENT item,
 	// not the attachment. Zotero stores canonical bibliographic titles
 	// on the parent; the attachment's own title is an import-time
 	// artifact (often a source URL for scraped PDFs).
-	const q = `
+	libFrag, libArgs := d.libIn("p")
+	q := `
 SELECT ch.key, COALESCE(ia.path, ''),
        COALESCE((
          SELECT idv.value
@@ -60,7 +64,7 @@ JOIN itemAttachments ia ON ia.parentItemID = p.itemID
 JOIN items ch ON ch.itemID = ia.itemID
 LEFT JOIN deletedItems pdi ON pdi.itemID = p.itemID
 LEFT JOIN deletedItems cdi ON cdi.itemID = ch.itemID
-WHERE p.libraryID = ?
+WHERE ` + libFrag + `
   AND p.key = ?
   AND pdi.itemID IS NULL
   AND cdi.itemID IS NULL
@@ -70,7 +74,7 @@ ORDER BY ch.dateAdded
 LIMIT 1
 `
 	var key, path, title, doi string
-	err := d.db.QueryRow(q, d.libraryID, parentKey).Scan(&key, &path, &title, &doi)
+	err := d.db.QueryRow(q, append(libArgs, parentKey)...).Scan(&key, &path, &title, &doi)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("no PDF attachment for parent %s (parent may be missing, trashed, or have no PDF child)", parentKey)

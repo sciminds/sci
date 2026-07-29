@@ -199,7 +199,10 @@ func seedFixture(dir string) error {
 			-- Group-library items (libraryID=2) seed the dual-scope tests.
 			-- Keys use a distinct prefix so leak assertions are easy to read.
 			(200, 1, 2, 'GRPITEM01', 1, '2024-07-01 10:00:00', '2024-07-01 10:00:00', '2024-07-01 10:00:00'),
-			(210, 1, 2, 'GRPITEM02', 1, '2024-07-02 10:00:00', '2024-07-02 10:00:00', '2024-07-02 10:00:00')`,
+			(210, 1, 2, 'GRPITEM02', 1, '2024-07-02 10:00:00', '2024-07-02 10:00:00', '2024-07-02 10:00:00'),
+			-- Group-library PDF attachment child of GRPITEM01 — exercises
+			-- PDF resolution across the merged (ForAll) scope.
+			(220, 3, 2, 'GRPATT01', 1, '2024-07-01 10:05:00', '2024-07-01 10:05:00', '2024-07-01 10:05:00')`,
 
 		// Item 50 is trashed.
 		`INSERT INTO deletedItems VALUES (50)`,
@@ -268,7 +271,8 @@ func seedFixture(dir string) error {
 		`INSERT INTO itemAttachments VALUES
 			(40,10,1,'application/pdf','storage:deeplearning.pdf'),
 			(60,NULL,1,'application/pdf','storage:standalone.pdf'),
-			(81,80,1,'application/pdf','storage:transformers.pdf')`,
+			(81,80,1,'application/pdf','storage:transformers.pdf'),
+			(220,200,1,'application/pdf','storage:shared.pdf')`,
 
 		// Item 70 is a standalone note with no parent.
 		// Item 90 is a note child of item 10 (tagged "docling").
