@@ -3,7 +3,7 @@
 ```
 ┌──────────────────────┐         ┌──────────────────────┐
 │   local.Reader       │         │   api.Writer         │
-│   (31 query methods) │         │   (13 write methods) │
+│   (every read query) │         │   (every write op)   │
 │                      │         │                      │
 │   *DB satisfies it   │         │   *Client satisfies  │
 │   mode=ro+immutable  │         │   HTTP-only, no DB   │
@@ -27,7 +27,4 @@
        └───────────────────────────────────────────────────┘
 ```
 
-Reads go through `local.Reader` against the local `zotero.sqlite` (immutable, read-only).
-Writes go through `api.Writer` against the Zotero Web API (HTTP-only, no local DB access).
-Agent/verification flows opt in to API-side reads via exported `*Client` methods.
 See `CLAUDE.md` for full details.

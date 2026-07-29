@@ -1,18 +1,27 @@
 # CLAUDE.md — internal/db
 
-`sci db` verbs and the dbtui-launching `view` command.
+The `sci db` verbs that need dual-backend dispatch (`create`, `reset`, `info`,
+`add`, `append`, `delete`, `rename`) and the dbtui-launching `view` command.
+The read-only inspection verbs (`query`, `table`, `cols`, `head`, `tail`,
+`glimpse`, `shape`, `summarize`, `convert`) live in `cmd/sci/db.go` and dispatch
+straight to `internal/duck` — they never enter this package.
 
 ## Dual-backend dispatch (load-bearing)
 
 Every public verb in `commands.go` (`Info`, `Create`, `Reset`, `AddCSV`,
-`AppendCSV`, `DeleteTable`, `RenameTable`, `RunTUI`) calls `isDuckDB(path)`
-first and routes to one of two paths that **share result types** (`InfoResult`,
-`MutationResult`, `TableEntry`) but **not** implementations:
+`AppendCSV`, `DeleteTable`, `RenameTable`) routes on `isDuckDB(path)` to one of
+two paths that **share result types** (`InfoResult`, `MutationResult`,
+`TableEntry`) but **not** implementations:
 
 - **SQLite** — `sqlite.Open` (`internal/store/sqlite/`, raw `database/sql` over
   modernc.org/sqlite).
 - **duckdb** — `internal/duck`, which shells out to the `duckdb` CLI (a
   **required** dep, in `internal/doctor/Brewfile`).
+
+`RunTUI` is the exception: a **four-way** switch — `isDuckDB` →
+`duckstore.Open`, `isParquet` → `duckstore.OpenFileView`,
+`sqlite.IsViewableFile` (CSV/TSV/JSON/JSONL) → `sqlite.OpenFileView`, default →
+`sqlite.Open`. See its godoc.
 
 There is deliberately **no `Backend` interface** — each verb's lifecycle is
 one-shot and the dispatch is ~5 lines. Don't add one.
@@ -28,9 +37,3 @@ one-shot and the dispatch is ~5 lines. Don't add one.
   flat files exposed as the `src` CTE, plus the SQLite `sqlite_all_varchar`
   type-mismatch retry — are documented on `Query` / `queryAttached` /
   `attachForQuery` in `internal/duck/verbs.go`.
-
-## Collision semantics
-
-`AddCSV` errors when a target table already exists (pointing at `sci db
-append`); `AppendCSV` errors when the table doesn't exist. Identical on both
-backends — see `collisionErr` in `commands.go`.

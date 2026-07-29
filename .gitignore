@@ -1,6 +1,4 @@
 /sci
-/dbtui
-/zot
 *.duckdb
 *.db
 *.db-*
@@ -15,10 +13,7 @@ plan.md
 /tutorials/
 
 # Allow test fixtures and embedded template data
-!internal/db/data/testdata/*.duckdb
-!internal/db/data/testdata/*.db
 !internal/store/sqlite/testdata/*.db
-!internal/tui/dbtui/test.db
 !internal/duck/testdata/tiny.csv
 !internal/duck/testdata/nan.csv
 !internal/proj/new/templates/python/code/bibliography.bib

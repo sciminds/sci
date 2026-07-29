@@ -37,7 +37,8 @@ Written in Go because:
 
 | Command | What it does |
 |---------|--------------|
-| [`sci doctor`](#sci-doctor) | Check that your Mac is set up correctly |
+| [`sci doctor`](#sci-doctor) | Check that your system is set up correctly |
+| `sci setup` | Configure any sci tool (zot, lab, cass, …) from one menu |
 | `sci update` | Update sci to the latest version |
 | `sci help` | Interactive TUI with demos for any command |
 | `sci learn` | Interactive TUI to learn common terminal commands |
@@ -65,6 +66,8 @@ Written in Go because:
 Setup your Mac for scientific work — installs Homebrew if missing, walks you through `hf auth login` / `gh auth login`, and reports anything that needs attention.
 
 <details>
+<summary><b>demo</b> — click to expand</summary>
+
 ![sci doctor](docs/casts/doctor.gif)
 </details>
 
@@ -73,6 +76,8 @@ Setup your Mac for scientific work — installs Homebrew if missing, walks you t
 Self-update the `sci` binary in place. Downloads the latest release asset for your OS/arch, verifies its SHA256 against the release notes, and replaces the running binary atomically.
 
 <details>
+<summary><b>demo</b> — click to expand</summary>
+
 ![sci update](docs/casts/update.gif)
 </details>
 
@@ -81,6 +86,8 @@ Self-update the `sci` binary in place. Downloads the latest release asset for yo
 Interactive TUI for common terminal/git/Python commands — pick a topic, watch a rendered asciicast, repeat. Browses the casts under `internal/learn/casts/`.
 
 <details>
+<summary><b>demo</b> — click to expand</summary>
+
 ![sci learn](docs/casts/learn.gif)
 </details>
 
@@ -119,7 +126,7 @@ Scaffold and manage Python data-analysis and writing projects.
 | `sci proj render` | Build documents into HTML or PDF |
 | `sci proj run` | Run a project task |
 
-`sci proj new` supports `--pkg-manager pixi|uv`, `--doc-system quarto|myst|none`, and `--template lab|default|<myst-template>` for picking a Typst flavor up front.
+`sci proj new` supports `--pkg-manager pixi|uv`, `--doc-system quarto|myst|none`, `--md-layout single-file|composed`, and `--template lab|default|<myst-template>` for picking a Typst flavor up front.
 
 ![sci proj](docs/casts/proj-new.gif)
 </details>
@@ -170,7 +177,7 @@ Work with SQLite/DuckDB databases and tabular files (CSV, JSON, Parquet). Verbs 
 | `sci db shape` | Report (rows, cols) |
 | `sci db glimpse` | Transposed preview — one row per column with sample values |
 | `sci db summarize` | Per-column statistics (min/max/avg/std/quartiles/null %) |
-| `sci db query` | Run a read-only SELECT against a file (refer to it as `src`) |
+| `sci db query` | Run a read-only SELECT (databases: real table names; flat files: refer to the file as `src`) |
 
 **Import / convert**
 
@@ -305,7 +312,7 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 <details>
 <summary><b>sub-commands</b> — click to expand</summary>
 
-**Library scope.** Every zot command (except `setup`, `info`, `import`, `guide`, and `view`) requires `--library personal` or `--library shared`. Personal is your own Zotero user library; shared is a Zotero group library auto-detected at setup time. `sci zot info` without the flag summarizes both libraries side-by-side. Examples below include `--library personal` for the common case.
+**Library scope.** Every zot command (except `setup`, `info`, `find`, `import`, and `guide`) runs against `--library personal` or `--library shared`. Personal is your own Zotero user library; shared is a Zotero group library auto-detected at setup time. When the flag is omitted, sci auto-selects the only configured library, or prompts when both are configured. `search`, `bib`, and `browse` also accept `--library all` — a merged read pool across both libraries with per-row provenance. `sci zot info` without the flag summarizes both libraries side-by-side. Examples below include `--library personal` for the common case.
 
 **Setup & overview**
 
@@ -320,8 +327,10 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 
 | Command | What it does |
 |---------|--------------|
-| [`sci zot --library personal search <query>`](#search--export) | Search the local library (`@field:` clauses for author/title/doi/pub/tag/type/year; `--remote` hits the Zotero Web API for fulltext + notes) |
+| [`sci zot --library personal search <query>`](#search--export) | Search the local library — free-text words AND across metadata fields; `@field:` clauses for author/title/doi/pub/tag/type/year/citekey; a bare year like `2021` filters by year; `--content` widens into extracted paper text (bm25 + snippets); `--remote` hits the Zotero Web API instead |
+| [`sci zot browse`](#search--export) | Interactive search REPL — type to search, type a hit number to open its PDF |
 | [`sci zot --library personal search <q> --export -o hits.bib`](#search--export) | Route search results through the export pipeline |
+| [`sci zot --library personal bib <file-or-dir>`](#search--export) | Build a bibliography from the `@citekeys`, DOIs, and links cited in markdown/Quarto files (`--recursive`, `--verify`) |
 | [`sci zot --library personal export -o refs.bib`](#search--export) | Full-library BibTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
 | [`sci zot --library personal find works <query>`](#search--export) | Look up papers on OpenAlex (no library round-trip) |
 | [`sci zot --library personal find authors <query>`](#search--export) | Look up authors on OpenAlex |
@@ -332,7 +341,7 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 
 | Command | What it does |
 |---------|--------------|
-| [`sci zot --library personal item read <key>`](#items) | Show full metadata for an item |
+| [`sci zot --library personal item read <key>...`](#items) | Show full metadata for one or more items (`--missing-ok` reports not-founds instead of failing the batch) |
 | [`sci zot --library personal item list`](#items) | List items with optional filters |
 | [`sci zot --library personal item children <key>`](#items) | List child attachments + notes of an item |
 | [`sci zot --library personal item export <key>`](#items) | Export a single item to CSL-JSON or BibTeX |
@@ -340,17 +349,20 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 | [`sci zot --library personal item attach <key> <path>`](#items) | Upload a local file as a new child attachment |
 | [`sci zot --library shared item add` / `update` / `delete`](#items) | Create / patch / trash items via the Zotero Web API |
 | [`sci zot --library personal item note add\|read\|list\|update`](#items) | Create and manage Zotero note items |
-| [`sci zot import <path>`](#import-desktop-assisted-with-metadata-recognition) | Drag-drop equivalent via Zotero desktop: upload + auto-recognize metadata (CrossRef/arXiv) |
+| [`sci zot --library personal link add\|list\|rm\|suggest`](#items) | Manage "related items" relations; `suggest` proposes links from a note's own citations |
+| [`sci zot import <path>...`](#import-desktop-assisted-with-metadata-recognition) | Drag-drop equivalent via Zotero desktop: upload + auto-recognize metadata (CrossRef/arXiv); folders recurse |
 
-**PDF extraction (docling)**
+**Paper content (docling extraction + search index)**
 
 | Command | What it does |
 |---------|--------------|
-| [`sci zot --library personal extract <key>`](#extraction--llm-workflows) | Convert the item's PDF into a Zotero child note (default is dry-run; `--apply` to post) |
-| [`sci zot --library personal extract <key> --out DIR --apply`](#extraction--llm-workflows) | Full extraction: md + json + referenced PNGs + CSV tables to `DIR` |
+| [`sci zot --library personal content extract <key>`](#extraction--llm-workflows) | Convert the item's PDF into markdown paper text (default is dry-run; `--apply` to post as a child note) |
+| [`sci zot --library personal content extract <key> --out DIR --apply`](#extraction--llm-workflows) | Full extraction: md + json + referenced PNGs + CSV tables to `DIR` |
+| [`sci zot --library personal content list\|read\|refresh\|drop`](#extraction--llm-workflows) | Manage extracted paper text (`drop` is the surgical undo) |
+| [`sci zot --library personal content build\|stats`](#extraction--llm-workflows) | Build/inspect the local full-text index behind `search --content` |
 | [`sci zot --library personal extract-lib`](#extraction--llm-workflows) | Bulk-extract every PDF in the library (default is cache-only; `--apply` to post notes; parallelizable with `-j`) |
-| [`sci zot --library personal notes list\|read\|add\|update\|delete`](#extraction--llm-workflows) | Manage docling extraction notes |
-| [`sci zot --library personal llm catalog\|query\|read`](#extraction--llm-workflows) | LLM-agent tools for querying docling notes |
+| [`sci zot --library personal notes list\|read`](#extraction--llm-workflows) | The notes *you* wrote (extractions live under `content`) |
+| [`sci zot --library personal llm catalog\|query\|read`](#extraction--llm-workflows) | LLM-agent tools for querying extracted paper content |
 
 **Organize**
 
@@ -371,7 +383,7 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 
 `sci zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` picks the group automatically when the account belongs to exactly one, or accepts `--shared-group-id` when multiple groups exist.
 
-**PDF → child note extraction.** `sci zot extract <KEY>` pipes the item's PDF attachment through [`docling`](https://github.com/DS4SD/docling) and posts the markdown as a child note on the parent — tagged `docling` and stamped with a sentinel comment so re-runs dedupe by sha256. Default is dry-run; pass `--apply` to actually create the note (`--html` posts rendered HTML instead of raw markdown). `--out DIR` switches to full extraction (md + json + referenced PNGs + CSV tables per `docling`'s always-on TableFormer) persisted for Obsidian-style vault exports; `--no-note` skips the Zotero post entirely. Identical re-runs skip; PDF updates PATCH-in-place so the note key stays stable. `sci zot notes delete` is the surgical undo — matches notes by their embedded sentinel (not tag). Requires `docling` on PATH (`sci doctor` installs it via `uv`).
+**PDF → paper text extraction.** `sci zot content extract <KEY>` pipes the item's PDF attachment through [`docling`](https://github.com/DS4SD/docling) and posts the markdown as a child note on the parent — tagged `docling` and stamped with a sentinel comment so re-runs dedupe by sha256. Default is dry-run; pass `--apply` to actually create the note (`--html` posts rendered HTML instead of raw markdown). `--out DIR` switches to full extraction (md + json + referenced PNGs + CSV tables per `docling`'s always-on TableFormer) persisted for Obsidian-style vault exports; `--no-note` skips the Zotero post entirely. Identical re-runs skip; PDF updates PATCH-in-place so the note key stays stable. `sci zot content drop` is the surgical undo — matches extractions by their embedded sentinel (not tag). Requires `docling` on PATH (`sci doctor` installs it via `uv`).
 
 For the bulk pipeline, `sci zot extract-lib` runs docling on every PDF in the library and **caches results locally without posting** by default — pass `--apply` to create the child notes. Cached output is reused on re-runs, so a failed run resumes where it left off; `--reextract` discards the cache.
 
@@ -435,7 +447,7 @@ Binaries are named `sci-{os}-{arch}` (e.g. `sci-darwin-arm64`, `sci-linux-amd64`
 
 Prerequisites: [Go 1.26+](https://go.dev/dl/) and [just](https://github.com/casey/just) (`brew install just`).
 
-You'll also need [`asciicinema`](https://docs.asciinema.org/manual/cli/quick-start/#__tabbed_1_3) to create new terminal "casts". Place sci command demos in `internal/help/casts/` and general terminal/git/python tutorials in `internal/learn/casts/`.
+You'll also need [`asciinema`](https://docs.asciinema.org/manual/cli/quick-start/#__tabbed_1_3) to create new terminal "casts". Place sci command demos in `internal/help/casts/` and general terminal/git/python tutorials in `internal/learn/casts/`.
 
 *This is also set up as a git pre-commit hook:*
 
@@ -456,6 +468,8 @@ To try commands during development:
 just run doctor       # same as: go run ./cmd/sci doctor
 just run proj new     # etc.
 ```
+
+For a longer co-develop loop, `just install` symlinks the repo build to `~/.local/bin/sci`, so every `just build` / `just ok` immediately *is* the installed `sci`. `sci update` harmlessly takes the machine back out of dev mode (it replaces the symlink, never the repo build); re-run `just install` to return.
 
 ### CI commit-message triggers
 

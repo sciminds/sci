@@ -6,6 +6,7 @@
 - **`just ok` is the gate** — run after every change. Never call `go build` / `go test` / `gofmt` / `golangci-lint` directly; always go through `justfile` recipes. Need a recipe that doesn't exist? Add it.
 - **TDD by default.** Write the failing test first, then make it pass. Skip only for trivial edits (typos, docs, one-line refactors).
 - **All work on `main`.**
+- **CI mirrors `just check-ci`** — add a gate step there and `.github/workflows/release.yml` picks it up. One intentional divergence: CI runs the full suite (no `-short`).
 - **CI commit-message triggers** — bracket markers (not UPPERCASE prose, so describing them doesn't fire them): `[release]` publishes the build to the `latest` GitHub release; `[scenarios]` runs the brew/doctor matrix (otherwise weekly cron); combine for both. Every push/PR runs the gate + cross-compile regardless.
 
 ## Skills — invoke BEFORE the work, not after
@@ -23,40 +24,31 @@ Blocking: load the skill before you start, so you write it right the first time 
 
 ## Lint enforcement (don't create new debt)
 
-- `just lint-style` — semgrep (`.semgrep/go-modern.yml`) rewrites `for`+`append` to `lo`; ast-grep bans inline `lipgloss.NewStyle()` (`rules/no-inline-newstyle.yml`), hardcoded colors outside palette files, and manual `m.width`/`m.height` literal arithmetic outside `internal/uikit/` (`rules/no-manual-dimension-math.yml` — derive from the style/measure instead). `sg test` (in the recipe) validates each ast-grep rule against `rule-tests/`.
-- `just lint-guard` — import boundaries, flag conventions, API rules. Rule 9 bans the legacy `sort` package (use `slices.Sort`/`SortFunc`/`SortStableFunc`/`BinarySearch`); rules 14–15 ban `huh` imports outside `internal/uikit/`.
+- `just lint-style` — semgrep (`.semgrep/go-modern.yml`) bans `for`+`append` in favor of `lo`; ast-grep bans inline `lipgloss.NewStyle()` outside `internal/uikit/` (`rules/no-inline-newstyle.yml`), hardcoded colors outside palette files, manual `m.width`/`m.height` literal arithmetic outside `internal/uikit/` (`rules/no-manual-dimension-math.yml` — derive from the style/measure instead), nonzero literal sizes in `list.New` (pass `0, 0` and size on `WindowSizeMsg`), and raw `func() tea.Msg` closures (wrap in `uikit.SafeCmd` / `AsyncCmd`). `sg test` validates the rules that have fixtures in `rule-tests/`.
+- `just lint-guard` — import boundaries, flag conventions, API rules (`scripts/lint-guard.sh`, numbered). Highlights: rule 9 bans the legacy `sort` package (use `slices.Sort`/`SortFunc`/`SortStableFunc`/`BinarySearch`); rule 13 requires every new `huh` prompt / TUI launch to be registered in `scripts/scriptable-inventory.yml` (hard gate, hand-maintained YAML); rule 14 bans raw `huh` `.Run()` (use `uikit.RunForm`); rule 15 bans `huh` imports outside `internal/uikit/`.
 - `just lint-docs` — revive `package-comments` + `exported`: every package and every exported symbol gets a godoc comment **starting with its name**, and no stuttering names (`brew.CLI`, not `brew.BrewRunner`). Tests, `cmd/`, and `cli/` wiring are exempt. **In the `just ok` gate** — prefer enriching a symbol's godoc over re-explaining it in a CLAUDE.md.
 
-## Test recipes
+## Test & dev recipes
 
 ```
-just install         # dev mode: symlink the repo build to ~/.local/bin/sci (see below)
+just bootstrap       # once after cloning: install the pinned dev tools (goimports, golangci-lint, …)
+just install         # dev mode: symlink ./sci to ~/.local/bin/sci (rationale in the justfile comment)
 just ok              # gate: fmt + vet + lint + test + build (-short: skips cloud/lab command tests)
 just ok-slow         # gate + proj/new integration; before merging changes to sci proj new
 just test            # full suite, incl. the cloud/lab command tests the gate skips
 just test-cloud      # just the cloud/lab command tests (sci cloud / sci lab); before merging those
 just test-pkg PKG    # single-package fast TDD loop: just test-pkg ./internal/zot
-just test-slow       # proj/new integration (~2 min, SLOW=1; needs pixi/uv/quarto/marimo/typst/node)
+just test-race       # race pass; run before merging concurrency-sensitive changes
+just test-slow       # proj/new integration (SLOW=1, 10m timeout; needs pixi/uv/quarto/marimo/typst/node)
 just test-canvas     # cass integration (needs CANVAS_TOKEN in .env + gh auth login)
-just test-zot-real   # opt-in real-Zotero-DB smoke (reads ./zotero.sqlite)
+just test-zot-real   # opt-in real-Zotero-DB smoke over ./zotero.sqlite or $ZOT_REAL_DB
+just docs-uikit      # regenerate internal/uikit/REFERENCE.md — run after touching uikit godoc
+just zot-gen         # regenerate internal/zot/client/zotero.gen.go — never hand-edit it
 ```
 
-**`just install` = dev mode.** It symlinks `./sci` (the repo build) to
-`~/.local/bin/sci`, so from then on every `just build` / `just ok` immediately
-*is* the installed `sci` — that's the co-develop loop before a `[release]` push
-publishes a real build. A symlink rather than a copy because `go build` writes a
-fresh inode, so macOS never SIGKILLs a mutated ad-hoc signature. `sci update`
-takes the machine back out of dev mode harmlessly (on darwin `os.Executable`
-returns the symlink path, so the release binary replaces the *link*, never the
-repo build) — re-run `just install` to return.
-
-The `just ok` gate runs tests with `-short`: tests guarded by `testing.Short()`
-(the `sci cloud` / `sci lab` command tests in `cmd/sci`, which drive the
-online-gated `Before` hooks) skip locally so a flaky network can't stall the
-gate. They still run via `just test` / `just test-cloud` and in CI (full suite,
-no `-short`). Mark a new test with `if testing.Short() { t.Skip(…) }` (or the
-`skipCloudShort` helper) only when it genuinely needs the network — most
-"cloud" tests use `httptest` and stay in the gate.
+- The `-short` gate: tests marked `testing.Short()` (the `sci cloud` / `sci lab` command tests in `cmd/sci`, which drive the online-gated `Before` hooks) skip locally so a flaky network can't stall the gate; they still run in `just test` / `just test-cloud` and CI. Mark a new test short (via the `skipCloudShort` helper) only when it genuinely needs the network — most "cloud" tests use `httptest` and stay in the gate.
+- `SCI_ASSUME=yes|no` answers every `cmdutil.Confirm*` non-interactively — use it when driving confirmation-gated commands from scripts or agents.
+- `just modernize-*` recipes stage Go `go fix` rewrites — read their justfile comments before running.
 
 ## Sub-CLAUDE pointers (read before editing these packages)
 
@@ -65,7 +57,9 @@ no `-short`). Mark a new test with `if testing.Short() { t.Skip(…) }` (or the
 | `internal/tui/dbtui/` (SQLite/DuckDB browser) | `internal/tui/dbtui/CLAUDE.md` + `app/TESTING.md` |
 | `internal/db/` (`sci db` verbs, dual-backend dispatch) | `internal/db/CLAUDE.md` |
 | `internal/zot/` (Zotero CLI + hygiene) | `internal/zot/CLAUDE.md` |
-| `internal/uikit/` (shared TUI + styling foundation) | `internal/uikit/doc.go` |
+| `internal/uikit/` (shared TUI + styling foundation) | `internal/uikit/doc.go` (catalog); generated `REFERENCE.md` for the full API |
+
+`templates/` and `scripts/zot-graph/` are gitignored sibling projects staged in this tree — each carries its own CLAUDE.md when present locally.
 
 **Where knowledge lives** (route by scope, so docs don't drift):
 - Signatures, types, call-flow → **read the code.** Never restate structure in prose. `go doc ./...` is the tour (there is no `ARCHITECTURE.md`).
@@ -75,35 +69,34 @@ no `-short`). Mark a new test with `if testing.Short() { t.Skip(…) }` (or the
 ## Cross-cutting design rules
 
 - **Streams:** stdout carries the *answer*, stderr carries *diagnostics* (library banner, update notices, error envelopes under human mode). Human output goes through `cmdutil.HumanWriter()` — an `os.Stdout` wrapped in a `colorprofile.Writer` — so ANSI is stripped when the destination isn't a terminal and `NO_COLOR`/`CLICOLOR_FORCE` are honored. Never `fmt.Print` styled output straight to `os.Stdout`; piping (`sci zot content read KEY | llm`) is a first-class use.
-- **`cmdutil.Result`:** every command returns `JSON() any` + `Human() string`; emit via `cmdutil.Output(cmd, result)`. Under `--json` everything speaks one stream (stdout) and one shape: `{ok, data, warnings}` on success, `{ok:false, error:{code, message, fix, try}}` on failure (rendered by `cmdutil.HandleError` in `main()` — never hand-emit an envelope). Failures carry a closed-vocabulary `cmdutil.Code`; attach a `Fix` (complete command, resubmit verbatim) only when unambiguous, else `Try` prose. Exit codes partition by remediation: 2 = rewrite the command line (usage/conflict), 1 = everything else. Results opt into success-path warnings via `cmdutil.Warner`. Contract details: `internal/cmdutil/output.go` package godoc.
+- **`cmdutil.Result`:** every command returns `JSON() any` + `Human() string`; emit via `cmdutil.Output(cmd, result)`. Failures render through `cmdutil.HandleError` in `main()` — never hand-emit a `--json` envelope. Envelope shape, the closed `cmdutil.Code` vocabulary, `Fix` vs `Try`, exit-code partition, and `Warner`: `internal/cmdutil/output.go` package godoc.
 - **CLI:** urfave/cli v3; all flags `Local: true` — *except* slice flags, which corrupt under `Local` (waiver + reason in `internal/zot/CLAUDE.md`).
-- **Config storage:** per-domain files at `~/.config/sci/<name>.json` via `internal/sciconfig`. Declare `var configFile = sciconfig.File[Config]{Name: "<name>.json"}` and delegate `ConfigPath`/`Load`/`Save`/`Exists`/`Clear` to it — don't re-roll the XDG fallback, JSON marshal, or `0600` write. Domain logic (validation, schema migration via `LoadRaw`, defaulting) layers on top. `sci setup` (`cmd/sci/setup.go`) is a hub/menu router; register a tool by adding a `setupEntry`, don't reimplement setup.
+- **Config storage:** per-domain files at `~/.config/sci/<name>.json` via `internal/sciconfig`. Declare `var configFile = sciconfig.File[Config]{Name: "<name>.json"}` and delegate `Path`/`Load`/`Save`/`Exists`/`Clear` to it — don't re-roll the XDG fallback, JSON marshal, or `0600` write. Domain logic (validation, schema migration via `LoadRaw`, defaulting) layers on top. `sci setup` (`cmd/sci/setup.go`) is a hub/menu router; register a tool by adding a `setupEntry`, don't reimplement setup.
 - **SQLite:** pure Go (`modernc.org/sqlite`), no CGO. Canonical store at `internal/store/sqlite/` (raw `database/sql`; used by `sci db`, `sci view`, dbtui). `internal/zot/local/` keeps its own connection (read-only immutable mode on `zotero.sqlite`).
 - **DuckDB:** shell out to the `duckdb` CLI via `internal/duck/` (required dep in `internal/doctor/Brewfile`). `sci view foo.duckdb` opens the native subprocess store at `internal/store/duck/`. Details: `internal/db/CLAUDE.md`.
-- **TUI stack:** Bubble Tea v2 + Bubbles v2 + Lip Gloss v2 only — no v1 imports. No inline `lipgloss.NewStyle()` outside `internal/uikit/` (lint-enforced) — use `uikit.TUI` accessors / `uikit.TUI.Base()`. Reach for `uikit` first (catalog in `internal/uikit/doc.go`); extend it when a pattern recurs in ≥ 2 TUIs.
+- **TUI stack:** Bubble Tea v2 + Bubbles v2 + Lip Gloss v2 only — module paths are `charm.land/*` (`charm.land/bubbletea/v2`, …), **not** `github.com/charmbracelet/*`; both v1 and github-path imports fail lint-guard. No inline `lipgloss.NewStyle()` outside `internal/uikit/` (lint-enforced) — use `uikit.TUI` accessors / `uikit.TUI.Base()`. Reach for `uikit` first; extend it when a pattern recurs in ≥ 2 TUIs.
 - **Layout sizing — derive, don't hardcode:** no manual `m.width`/`m.height` literal arithmetic in `View()`/render code outside `internal/uikit/` (lint-enforced). Subtract a *measured* size (`lipgloss.Width`/`Height`, `style.Get*FrameSize`) or use `uikit.Box` / `VStack` / `OverlayInnerWidth` / `OverlayBodyBudget`. Overlay bodies must size from the live frame + measured chrome so adding a line or changing the border can't silently drift them. A named reserve const is the escape hatch when a fixed inset is genuinely needed.
-- **Forms/prompts:** `uikit` owns `huh` — no other package imports it. Single prompts → `uikit.Input`/`InputInto`/`Select`/`MultiSelect`; multi-field forms → `uikit.NewForm(uikit.FormGroup(...))`; confirmations → `cmdutil.Confirm`/`ConfirmYes`/`ConfirmRequired`. Full wrapper catalog in `internal/uikit/doc.go`.
+- **Forms/prompts:** `uikit` owns `huh` — nothing outside `internal/uikit/` imports it. Single prompts → `uikit.Input`/`InputInto`/`Select`/`MultiSelect`; multi-field forms → `uikit.NewForm(uikit.FormGroup(...))`; confirmations → `cmdutil.Confirm`/`ConfirmYes`/`ConfirmRequired`. Full wrapper catalog in `internal/uikit/doc.go`.
 - **Process-replacing exec** (REPL, marimo, quarto) via `syscall.Exec`, not `exec.Command`. Export `Build*Args` helpers for tests.
 - **New TUI apps** go under `internal/tui/<name>/` with an `app/` subpackage (model/update/view/keys/run) and a root entry calling `uikit.Run`/`RunModel`. Styles from `uikit` — no per-TUI `ui/` package.
-- **Subcommands:** large trees (e.g. `zot`) live in `internal/<pkg>/cli.Commands()`, mounted via `cmd/sci/<pkg>.go`; small ones are declared directly in `cmd/sci/<pkg>.go`. No standalone binaries — everything is `sci <cmd>`. Namespace parents reject unknown children via `cmdutil.WireNamespaceDefaults(root)` (called once in `cmd/sci/root.go:buildRoot()`); don't wire per-command (and add a test if you ever disable it).
+- **Subcommands:** large trees (e.g. `zot`) live in `internal/<pkg>/cli.Commands()`, mounted via `cmd/sci/<pkg>.go`; small ones are declared directly in `cmd/sci/<pkg>.go`. No standalone user-facing binaries — everything ships as `sci <cmd>` (in-repo codegen tools like `internal/uikit/cmd/gen-reference` are fine). Namespace parents reject unknown children via `cmdutil.WireNamespaceDefaults(root)` (called once in `cmd/sci/root.go:buildRoot()`); don't wire per-command (and add a test if you ever disable it).
 
 ## Testing rules
 
 - **teatest** for every Bubble Tea model — full key→Update→View loop. Protocol: `internal/tui/dbtui/app/TESTING.md`.
 - Verify DB mutations by querying the store directly, not by inspecting model state.
-- No `time.Sleep` — use `teatest.WaitFor`.
-- Golden updates: `go test ./path -run TestName -update` (the only sanctioned raw `go test` — `-update` isn't wired through `just`).
+- No `time.Sleep` — use `teatest.WaitFor` (lint-guard-enforced).
 
 ## Debugging a live TUI
 
 When a TUI misbehaves and you need to *see the message stream* (which `tea.Msg` drives an overlay/mode transition, why a key seems ignored), run it with `SCI_TUI_DEBUG` pointed at a file and `tail -f` that file in another pane:
 
 ```
-SCI_TUI_DEBUG=/tmp/sci-tui.log sci view data.db   # any of the four TUIs
+SCI_TUI_DEBUG=/tmp/sci-tui.log sci view data.db   # works for every sci TUI
 tail -f /tmp/sci-tui.log                           # other pane: every tea.Msg, pretty-printed
 ```
 
-Every message reaching the program is dumped via go-spew (sequence #, time, concrete type, fields), truncated per run. It's tapped in `uikit.panicGuard`, so all four TUIs (`uikit.Run`/`RunModel`) get it. **Dev/debugging only** — off by default (no env var = nil dumper, zero overhead), suppressed under `--json`; never wire it into shipping code paths. Mechanism: `internal/uikit/run_debug.go` ([TUIDebugEnv] in godoc). Fastest debugger for dbtui's overlay stack.
+Every message reaching the program is dumped via go-spew, truncated per run. It's tapped in `uikit.panicGuard`, so every `uikit.Run`/`RunModel` program gets it. **Dev/debugging only** — off by default, suppressed under `--json`; never wire it into shipping code paths. Mechanism: `internal/uikit/run_debug.go` ([TUIDebugEnv] in godoc). Fastest debugger for dbtui's overlay stack.
 
 ## Gotchas
 

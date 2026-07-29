@@ -12,19 +12,23 @@ cover the **full message loop**: key → Update() → state change → View().
 Do NOT use teatest to re-test pure logic already covered by unit tests in
 `app_test.go`, `visual_test.go`, or `tabstate/tabstate_test.go`.
 
+Visual output is asserted on rendered content (substrings of the stripped
+frame), never on raw byte streams: lipgloss/termenv emit equivalent-but-different
+escape sequences depending on the terminal environment, so byte-exact golden
+files were deliberately removed.
+
 ## Checklist for new features
 
 - [ ] Trace dispatch path: `handleKey` → overlay/mode → handler
 - [ ] Write teatest covering key → state change (full loop)
-- [ ] Use `finalModel` for state, `WaitFor` for async/output, golden for visuals
+- [ ] Use `finalModel` for state, `WaitFor` for async/output
 - [ ] No `time.Sleep` — use `WaitFor` for async, nothing for sync key messages
 - [ ] `WaitFor`/output assertions go through `tuitest.WaitFor` (strips ANSI) or `ansi.Strip` first — never raw `bytes.Contains` on alt-screen output (cursor-diff repaints fragment words → `-race`-only timeouts); gate on level-unique tokens (a breadcrumb path), not list items that flicker through transient frames
 - [ ] DB mutations verified by querying store directly
 - [ ] Read-only variant tested if feature should be blocked on RO tables
 - [ ] Test placed in correct file by feature area
-- [ ] Golden file added only if a new visual state is introduced
-- [ ] `go test ./app/ -run TestTeatest` — all pass, total < 8s
-- [ ] `go test ./app/ -run TestTeatest -update` if golden files changed
+- [ ] `just test-pkg ./internal/tui/dbtui/app` — all pass, total < 8s
+- [ ] `just test-race` before merging if the feature touches async tab loads or timers
 
 ## File placement
 
@@ -59,7 +63,9 @@ func TestTeatest<Feature>(t *testing.T) {
 
 | Helper | Purpose |
 |---|---|
-| `startTeatest(t)` | Setup DB + model + wait for render, returns `(*TestModel, *Store)` |
+| `startTeatest(t)` | Setup DB + model + wait for render, returns `(*teatest.TestModel, *sqlite.Store)` |
+| `setupTeatestDB(t)` | Per-test SQLite file with the standard schema |
+| `newTeatestModel(t)` | Model over a fresh DB, without starting teatest |
 | `sendKey(tm, "x")` | Send a rune key |
 | `sendSpecial(tm, tea.KeyEnter)` | Send a special key |
 | `finalModel(t, tm)` | Ctrl+C + wait + type-assert to `*Model` |
@@ -69,19 +75,9 @@ func TestTeatest<Feature>(t *testing.T) {
 | `newEmptyTeatestModel(t)` | Model with zero tables |
 | `newTeatestModelWithSchema(t, stmts)` | Model with custom SQL schema |
 
-## Golden files
-
-Stored in `testdata/`. Update with:
-
-```bash
-go test ./app/ -run TestTeatest -update
-```
-
-Only add golden files for distinct visual states (new overlays, new rendering modes).
-Golden files contain ANSI escape sequences and are tied to terminal dimensions
-(`testTermW=100`, `testTermH=30`).
+Tests render at `testTermW=100`, `testTermH=30` (constants in `teatest_test.go`).
 
 ## Performance
 
-Target: all teatests complete in < 8 seconds. Current: ~3s for ~49 tests.
+Target: all teatests complete in < 8 seconds.
 Key: no `time.Sleep` (except for truly async tab loads), `t.Parallel()` where DBs are isolated.
