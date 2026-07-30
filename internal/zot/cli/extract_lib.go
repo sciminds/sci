@@ -105,6 +105,16 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			"--plan and --apply are mutually exclusive — --plan writes nothing").
 			WithFix("sci zot extract-lib --plan")
 	}
+	// Quiet mode (--json) auto-confirms every prompt, so a bare
+	// `extract-lib --json` used to launch a full docling run with no
+	// confirmation at all — the exact footgun --plan exists to defuse.
+	// Require an explicit choice.
+	if (uikit.IsQuiet() || cmdutil.IsJSON(cmd)) && !extractLibPlan && !extractLibYes && !extractLibApply {
+		return cmdutil.Coded(cmdutil.CodeUsage,
+			"extract-lib under --json runs docling with no confirmation — pass --plan to preview or --yes to accept").
+			WithFix("sci zot extract-lib --plan --json")
+	}
+
 	if handled, err := maybeDelegateExtract(cmd); handled {
 		return err
 	}

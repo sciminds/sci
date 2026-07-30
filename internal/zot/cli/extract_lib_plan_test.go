@@ -12,6 +12,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -227,6 +228,25 @@ func TestExtractLib_Plan_ReextractDoesNotDeleteCache(t *testing.T) {
 	}
 	if _, ok := cache.Get("ATT2KEY0", hash); !ok {
 		t.Error("--plan --reextract deleted the cache entry — plan must be read-only")
+	}
+}
+
+func TestExtractLib_QuietWithoutChoice_Refuses(t *testing.T) {
+	_, calls := seedExtractLibFixture(t)
+
+	_, err := runOrient(t, "--json", "--library", "personal", "extract-lib")
+	coded, ok := errors.AsType[*cmdutil.CodedError](err)
+	if !ok {
+		t.Fatalf("err = %v, want CodedError — --json used to silently launch a full docling run", err)
+	}
+	if coded.Code != cmdutil.CodeUsage {
+		t.Errorf("code = %s, want %s", coded.Code, cmdutil.CodeUsage)
+	}
+	if !strings.Contains(coded.Fix, "--plan") {
+		t.Errorf("fix = %q, want a --plan rewrite", coded.Fix)
+	}
+	if calls.Load() != 0 {
+		t.Error("docling reached despite the refusal")
 	}
 }
 
