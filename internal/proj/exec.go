@@ -75,14 +75,11 @@ func RunTask(dir, task string, args []string) error {
 		return errWritingNoPkgManager
 	}
 
-	switch proj.PkgManager {
-	case Pixi:
-		return execCmd("pixi", slices.Concat([]string{"run", task}, args))
-	case UV:
-		return execCmd("uv", slices.Concat([]string{"run", "poe", task}, args))
-	default:
+	argv := BuildRunTaskArgs(proj.PkgManager, task, args)
+	if argv == nil {
 		return fmt.Errorf("unknown package manager: %s", proj.PkgManager)
 	}
+	return execCmd(argv[0], argv[1:])
 }
 
 // ---------------------------------------------------------------------------
