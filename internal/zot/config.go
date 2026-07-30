@@ -56,6 +56,14 @@ type ExtractConfig struct {
 	// (KEY/KEY.md + KEY.json + images + tables) there, the shape
 	// downstream consumers like zen read.
 	Dir string `json:"dir,omitempty"`
+	// Jobs is the default number of parallel docling processes for bulk
+	// extraction. 0 means "use the device-derived default". Each process
+	// holds ~14 GB resident and loads its own models, so raise this only
+	// on a machine with the RAM to match, and keep jobs × --num-threads
+	// at or under the core count. The --jobs flag overrides it. No env
+	// var on purpose: the ssh runner's remote resolves its own per-machine
+	// zot.json, and a worker count has no business crossing machines.
+	Jobs int `json:"jobs,omitempty"`
 }
 
 // Extraction runner backends for [ExtractConfig.Runner].
@@ -90,6 +98,15 @@ func (c *Config) ExtractRunner() (runner, host string, err error) {
 	default:
 		return "", "", fmt.Errorf("unknown extract runner %q (expected %q or %q) — check %s and $%s", runner, RunnerLocal, RunnerSSH, ConfigPath(), EnvExtractRunner)
 	}
+}
+
+// ExtractJobs resolves the docling worker count for bulk extraction: an
+// explicit --jobs flag wins, then extract.jobs from zot.json, then the
+// device-derived default; the result is never below 1. cmp.Or is
+// exactly the first-non-zero precedence rule, so an explicit `--jobs 1`
+// can still reduce below a configured higher value.
+func (c *Config) ExtractJobs(flagJobs, deviceDefault int) int {
+	return max(cmp.Or(flagJobs, c.Extract.Jobs, deviceDefault), 1)
 }
 
 // configFile is the typed handle to ~/.config/sci/zot.json. Path/save/exists

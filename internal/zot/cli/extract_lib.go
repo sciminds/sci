@@ -5,9 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/samber/lo"
@@ -38,11 +42,11 @@ var (
 // this is not called, and docling need not be installed.
 var newBatchExtractor = func() (extract.Extractor, error) { return extract.NewDoclingExtractor() }
 
-// pageCounter is the scheduling-workstream seam. nil means the
-// page-count estimator has not landed: --plan degrades to counts-only
-// (no buckets, no ETA) rather than guessing. When the estimator lands,
-// point this at it — e.g. `var pageCounter extract.PageCounter = ...`.
-var pageCounter extract.PageCounter
+// pageCounter feeds --plan's page buckets and ETA. PageCount (not
+// EstimatePages) on purpose: the report treats an unparseable PDF as
+// honestly unknown, while the scheduler's fallback guess is only for
+// ordering. A package var so tests can stub or nil it.
+var pageCounter extract.PageCounter = extract.PageCount
 
 func extractLibCommand() *cli.Command {
 	return &cli.Command{
@@ -69,7 +73,7 @@ func extractLibCommand() *cli.Command {
 			&cli.BoolFlag{Name: "plan", Aliases: []string{"dry-run"}, Usage: "report what a run would do and exit — no docling, no cache writes, no Zotero writes", Destination: &extractLibPlan, Local: true},
 			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "mps", Destination: &extractLibDevice, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default)", Destination: &extractLibNumThreads, Local: true},
-			&cli.IntFlag{Name: "jobs", Aliases: []string{"j"}, Usage: "parallel docling processes (0 = single process for all PDFs)", Destination: &extractLibJobs, Local: true},
+			&cli.IntFlag{Name: "jobs", Aliases: []string{"j"}, Usage: "parallel docling processes (0 = extract.jobs from zot.json, else the device default; each process holds ~14GB — keep jobs × num-threads ≤ cores)", Destination: &extractLibJobs, Local: true},
 			&cli.BoolFlag{Name: "apply", Usage: "post extracted notes to Zotero (default is cache-only)", Destination: &extractLibApply, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &extractLibYes, Local: true},
 			&cli.BoolFlag{Name: "force", Usage: "create new notes even if docling note already exists", Destination: &extractLibForce, Local: true},
@@ -195,8 +199,13 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		}
 	})
 
-	// PlanBatch uses concurrent hashing; use a reasonable parallelism.
-	planJobs := max(extract.BatchJobsDefault(extractLibDevice, runtime.NumCPU()), 4)
+	// PlanBatch's hashing is I/O-bound and unrelated to the docling
+	// worker count — size it off the CPU count alone.
+	planJobs := min(runtime.NumCPU(), 8)
+
+	// Docling worker count: --jobs beats extract.jobs beats the device
+	// default (2 on mps — see extract.BatchJobsDefault).
+	doclingJobs := cfg.ExtractJobs(extractLibJobs, extract.BatchJobsDefault(extractLibDevice, runtime.NumCPU()))
 
 	opts := extract.ZoteroDefaults()
 	if extractLibDevice != "" {
@@ -252,7 +261,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			Apply:       extractLibApply,
 			Reextract:   extractLibReextract,
 			Limit:       extractLibLimit,
-			Jobs:        extractLibJobs,
+			Jobs:        doclingJobs,
 			Device:      extractLibDevice,
 			Pages:       pageCounter,
 			Candidates:  candidates,
@@ -269,7 +278,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	// the docling constructor, before any confirmation.
 	if extractLibPlan {
 		outputScoped(ctx, cmd, zot.NewExtractLibPlanResult(
-			survey, extractLibDevice, extractLibJobs, layoutDirOf(layout)))
+			survey, extractLibDevice, doclingJobs, layoutDirOf(layout)))
 		return nil
 	}
 
@@ -392,7 +401,22 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	err = uikit.RunWithProgressCtx(ctx, "Planning...", func(ctx context.Context, t *uikit.ProgressTracker) error {
 		t.SetTotal(nCreate + nLayoutOnly)
 
-		var curPhase extract.BatchPhase
+		// Callbacks fire concurrently from up to Jobs worker goroutines
+		// during extraction, so shared state is an atomic (curPhase) or
+		// mutex-guarded (the in-flight set).
+		var curPhase atomic.Int32
+		var inflightMu sync.Mutex
+		inflight := map[string]bool{}
+		setStatus := func() {
+			names := slices.Sorted(maps.Keys(inflight))
+			switch {
+			case len(names) == 0:
+			case len(names) == 1:
+				t.Status(names[0])
+			default:
+				t.Status(fmt.Sprintf("%s +%d more", names[0], len(names)-1))
+			}
+		}
 
 		var res *extract.BatchResult
 		var batchErr error
@@ -402,18 +426,23 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			Writer:      writer,
 			Cache:       cache,
 			ExtractOpts: opts,
-			Jobs:        extractLibJobs,
+			Jobs:        doclingJobs,
 			RenderHTML:  extractLibHTML,
 			Layout:      layout,
 			OnPhase: func(phase extract.BatchPhase, count int) {
-				curPhase = phase
+				curPhase.Store(int32(phase))
 				switch phase {
 				case extract.PhasePostCached:
 					t.Reset("Posting cached notes to Zotero", count)
+				case extract.PhaseEstimate:
+					t.Reset("Measuring PDFs", count)
 				case extract.PhaseExtract:
 					suffix := " (cache-only)"
 					if extractLibApply {
 						suffix = ""
+					}
+					if doclingJobs > 1 {
+						suffix += fmt.Sprintf(" · %d workers", doclingJobs)
 					}
 					t.Reset(fmt.Sprintf("Extracting PDFs%s", suffix), count)
 				case extract.PhasePostFresh:
@@ -423,10 +452,21 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			OnProgress: func(ev *extract.DoclingEvent) {
 				switch ev.Kind {
 				case extract.EventProcessing:
-					t.Status(ev.Document)
+					inflightMu.Lock()
+					inflight[ev.Document] = true
+					setStatus()
+					inflightMu.Unlock()
 				case extract.EventFinished:
+					inflightMu.Lock()
+					delete(inflight, ev.Document)
+					setStatus()
+					inflightMu.Unlock()
 					t.Advance("extracted", fmt.Sprintf("%s %s (%.1fs)", uikit.SymOK, ev.Document, ev.Duration.Seconds()))
 				case extract.EventFailed:
+					inflightMu.Lock()
+					delete(inflight, filepath.Base(ev.Document))
+					setStatus()
+					inflightMu.Unlock()
 					t.Advance("failed", fmt.Sprintf("%s %s", uikit.SymFail, ev.Document))
 				}
 			},
@@ -441,7 +481,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 				// finalize callbacks (which fire mid-extraction, including
 				// for ActionSkip items) from double-counting the bar —
 				// don't remove it without rethinking that accounting.
-				if curPhase == extract.PhaseExtract {
+				if extract.BatchPhase(curPhase.Load()) == extract.PhaseExtract {
 					return
 				}
 				name := outcome.Item.Request.PDFName

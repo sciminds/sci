@@ -173,7 +173,7 @@ func TestExtractConfig_RoundTrip(t *testing.T) {
 		APIKey:  "abc123",
 		UserID:  "7654321",
 		DataDir: "/tmp/z",
-		Extract: ExtractConfig{Runner: RunnerSSH, Host: "mbp", Dir: "/tmp/extracts"},
+		Extract: ExtractConfig{Runner: RunnerSSH, Host: "mbp", Dir: "/tmp/extracts", Jobs: 3},
 	}
 	if err := SaveConfig(cfg); err != nil {
 		t.Fatal(err)
@@ -364,5 +364,29 @@ func TestResolve_All_RequiresSharedGroup(t *testing.T) {
 	cfg := &Config{UserID: "12345"}
 	if _, err := cfg.Resolve(LibAll); err == nil {
 		t.Fatal("Resolve(all) without a shared group must error, not degrade to personal-only")
+	}
+}
+
+// TestExtractJobs_Precedence pins the worker-count resolution: flag
+// beats config beats device default, floor of 1, and an explicit
+// --jobs 1 can reduce below a configured higher value.
+func TestExtractJobs_Precedence(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		flag, cfg, deviceDefault, want int
+	}{
+		{3, 2, 2, 3},  // flag wins
+		{0, 2, 1, 2},  // config wins over default
+		{0, 0, 2, 2},  // device default
+		{0, 0, 0, 1},  // floor
+		{-5, 4, 2, 1}, // negative flag is explicit, clamped to floor
+		{1, 8, 2, 1},  // explicit --jobs 1 reduces below configured 8
+	}
+	for _, tc := range cases {
+		c := &Config{Extract: ExtractConfig{Jobs: tc.cfg}}
+		if got := c.ExtractJobs(tc.flag, tc.deviceDefault); got != tc.want {
+			t.Errorf("ExtractJobs(flag=%d, cfg=%d, default=%d) = %d, want %d",
+				tc.flag, tc.cfg, tc.deviceDefault, got, tc.want)
+		}
 	}
 }

@@ -189,9 +189,13 @@ func TestExtractLib_Plan_JSONShapeAndDuplicates(t *testing.T) {
 	if len(env.Warnings) != 1 || env.Warnings[0].Code != cmdutil.CodeDuplicate {
 		t.Errorf("warnings = %+v, want one %s", env.Warnings, cmdutil.CodeDuplicate)
 	}
-	// No estimator wired yet → honest degradation.
-	if d.Pages != nil || d.ETA != nil {
-		t.Errorf("pages/eta = %v/%v, want null (estimator not wired)", d.Pages, d.ETA)
+	// The estimator is wired but the stub PDFs are unparseable → they
+	// count as honest unknowns and no ETA is fabricated.
+	if d.Pages == nil || d.Pages.Known != 0 || d.Pages.Unknown != 2 {
+		t.Errorf("pages = %+v, want 0 known / 2 unknown", d.Pages)
+	}
+	if d.ETA != nil {
+		t.Errorf("eta = %+v, want null (no known pages)", d.ETA)
 	}
 }
 

@@ -14,7 +14,11 @@
 // so the package has no HTTP dep.
 //
 // Beyond single items: [ExecuteBatch] (batch.go) drives bulk extraction,
-// resuming across runs via [MarkdownCache] (cache.go). [KeyLayout]
+// resuming across runs via [MarkdownCache] (cache.go). Extraction work
+// is ordered longest-first by estimated page count ([EstimatePages],
+// pagecount.go) and drained by Jobs workers from one queue — one
+// docling invocation per chunk, oversize documents isolated so a book
+// can't block papers (planChunks, schedule.go). [KeyLayout]
 // (layout.go) persists a per-key artifact directory (config extract_dir)
 // that is independent of the Zotero note — either store can exist
 // without the other, and neither gates the other. Every path that posts

@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 // writeStubPDF drops a minimal file at path so HashPDF has something
@@ -540,10 +541,10 @@ func TestExecuteBatch_OnProgressFires(t *testing.T) {
 	}
 }
 
-// TestExecuteBatch_ParallelJobs: with Jobs=3 and 6 items needing
-// extraction, ExtractBatch should be called 3 times (2+2+2) in
-// parallel.
-func TestExecuteBatch_ParallelJobs(t *testing.T) {
+// TestExecuteBatch_ChunkedQueue: 6 equal-cost items pool into chunks
+// of chunkTargetDocs (5) → 2 ExtractBatch invocations of 5 and 1,
+// drained by the worker queue.
+func TestExecuteBatch_ChunkedQueue(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	const N = 6
@@ -564,19 +565,25 @@ func TestExecuteBatch_ParallelJobs(t *testing.T) {
 	ex := &fakeExtractor{md: "# chunk\n", version: "docling 2.86.0"}
 	w := &fakeNoteWriter{}
 	res, err := ExecuteBatch(context.Background(), BatchInput{
-		Items:     items,
-		Extractor: ex,
-		Writer:    w,
-		Cache:     &MarkdownCache{Dir: filepath.Join(dir, "cache")},
-		Jobs:      3,
-		Now:       func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
+		Items:         items,
+		Extractor:     ex,
+		Writer:        w,
+		Cache:         &MarkdownCache{Dir: filepath.Join(dir, "cache")},
+		Jobs:          3,
+		PageEstimator: func(string) int { return 10 },
+		Now:           func() time.Time { return time.Date(2026, 4, 11, 18, 0, 0, 0, time.UTC) },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 6 items / 3 jobs = 3 ExtractBatch calls with 2 PDFs each.
-	if atomic.LoadInt32(&ex.calls) != 3 {
-		t.Errorf("extractor calls = %d, want 3 (3 parallel jobs)", atomic.LoadInt32(&ex.calls))
+	// 6 equal-cost items at target 5 → chunks of [5, 1] → 2 calls.
+	if atomic.LoadInt32(&ex.calls) != 2 {
+		t.Errorf("extractor calls = %d, want 2 (chunks of 5+1)", atomic.LoadInt32(&ex.calls))
+	}
+	sizes := lo.Map(ex.batches, func(b []string, _ int) int { return len(b) })
+	slices.Sort(sizes)
+	if !slices.Equal(sizes, []int{1, 5}) {
+		t.Errorf("chunk sizes = %v, want [1 5]", sizes)
 	}
 	created, _, _, failed := res.Counts()
 	if created != 6 || failed != 0 {
@@ -587,9 +594,9 @@ func TestExecuteBatch_ParallelJobs(t *testing.T) {
 	}
 }
 
-// TestExecuteBatch_SingleJobDefault: Jobs=0 (default) sends all PDFs
-// in a single ExtractBatch call.
-func TestExecuteBatch_SingleJobDefault(t *testing.T) {
+// TestExecuteBatch_UnderTargetIsOneChunk: fewer items than
+// chunkTargetDocs → one ExtractBatch call regardless of Jobs=0.
+func TestExecuteBatch_UnderTargetIsOneChunk(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	const N = 4
@@ -624,56 +631,13 @@ func TestExecuteBatch_SingleJobDefault(t *testing.T) {
 	}
 }
 
-// TestChunkByJobs verifies the chunking arithmetic.
-func TestChunkByJobs(t *testing.T) {
-	t.Parallel()
-	s := []string{"a", "b", "c", "d", "e"}
-
-	// 1 job → single chunk with all items.
-	got := chunkByJobs(s, 1)
-	if len(got) != 1 || len(got[0]) != 5 {
-		t.Errorf("1 job: got %d chunks, want 1", len(got))
-	}
-
-	// 2 jobs → chunks of [3, 2].
-	got = chunkByJobs(s, 2)
-	if len(got) != 2 {
-		t.Fatalf("2 jobs: got %d chunks, want 2", len(got))
-	}
-	if len(got[0]) != 3 || len(got[1]) != 2 {
-		t.Errorf("2 jobs: chunk sizes = [%d, %d], want [3, 2]", len(got[0]), len(got[1]))
-	}
-
-	// 5 jobs → 5 chunks of 1 each.
-	got = chunkByJobs(s, 5)
-	if len(got) != 5 {
-		t.Fatalf("5 jobs: got %d chunks, want 5", len(got))
-	}
-	for i, c := range got {
-		if len(c) != 1 {
-			t.Errorf("5 jobs: chunk[%d] size = %d, want 1", i, len(c))
-		}
-	}
-
-	// More jobs than items → capped to len(s) chunks.
-	got = chunkByJobs(s, 10)
-	if len(got) != 5 {
-		t.Errorf("10 jobs on 5 items: got %d chunks, want 5", len(got))
-	}
-
-	// 0 jobs → single chunk.
-	got = chunkByJobs(s, 0)
-	if len(got) != 1 {
-		t.Errorf("0 jobs: got %d chunks, want 1", len(got))
-	}
-}
-
-// TestBatchJobsDefault: the heuristic returns 1 for GPU devices and
-// NumCPU/4 for CPU.
+// TestBatchJobsDefault: mps defaults to 2 workers (unified memory,
+// CPU-bound OCR); cuda stays 1 (VRAM-bound) and auto stays 1 (unknown
+// device gets no bump without evidence).
 func TestBatchJobsDefault(t *testing.T) {
 	t.Parallel()
-	if got := BatchJobsDefault("mps", 8); got != 1 {
-		t.Errorf("mps, 8CPU → %d, want 1", got)
+	if got := BatchJobsDefault("mps", 8); got != 2 {
+		t.Errorf("mps, 8CPU → %d, want 2", got)
 	}
 	if got := BatchJobsDefault("cuda", 16); got != 1 {
 		t.Errorf("cuda, 16CPU → %d, want 1", got)
@@ -688,8 +652,6 @@ func TestBatchJobsDefault(t *testing.T) {
 		t.Errorf("cpu, 2CPU → %d, want 1 (floor)", got)
 	}
 }
-
-var _ = runtime.NumCPU
 
 // TestExecuteBatch_CachesAfterExtraction verifies that docling output
 // files are read and cached after ExtractBatch returns.
@@ -725,40 +687,6 @@ func TestExecuteBatch_CachesAfterExtraction(t *testing.T) {
 	}
 	if _, ok := cache.Get("PDFB", "hb"); !ok {
 		t.Error("PDFB not cached")
-	}
-}
-
-// TestChunkBySize verifies the fixed-size chunking.
-func TestChunkBySize(t *testing.T) {
-	t.Parallel()
-	s := []string{"a", "b", "c", "d", "e"}
-
-	// Chunk size 2 → [2, 2, 1].
-	got := chunkBySize(s, 2)
-	if len(got) != 3 {
-		t.Fatalf("size=2: got %d chunks, want 3", len(got))
-	}
-	if len(got[0]) != 2 || len(got[1]) != 2 || len(got[2]) != 1 {
-		t.Errorf("size=2: chunk sizes = [%d, %d, %d], want [2, 2, 1]",
-			len(got[0]), len(got[1]), len(got[2]))
-	}
-
-	// Chunk size larger than input → single chunk.
-	got = chunkBySize(s, 100)
-	if len(got) != 1 || len(got[0]) != 5 {
-		t.Errorf("size=100: got %d chunks, want 1", len(got))
-	}
-
-	// Chunk size 0 → single chunk (no panic).
-	got = chunkBySize(s, 0)
-	if len(got) != 1 {
-		t.Errorf("size=0: got %d chunks, want 1", len(got))
-	}
-
-	// Empty input.
-	got = chunkBySize(nil, 5)
-	if len(got) != 1 || len(got[0]) != 0 {
-		t.Errorf("nil input: got %d chunks", len(got))
 	}
 }
 
@@ -816,12 +744,13 @@ func TestExecuteBatch_PhaseOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Verify phase order.
-	if len(phases) != 3 {
-		t.Fatalf("got %d phases, want 3; phases: %+v", len(phases), phases)
+	// Verify phase order (Estimate precedes Extract).
+	if len(phases) != 4 {
+		t.Fatalf("got %d phases, want 4; phases: %+v", len(phases), phases)
 	}
 	wantPhases := []phaseEvent{
 		{PhasePostCached, 1},
+		{PhaseEstimate, 1},
 		{PhaseExtract, 1},
 		{PhasePostFresh, 1},
 	}
@@ -933,15 +862,18 @@ func TestExecuteBatch_FreshOnlySkipsPostCached(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Extract + PostFresh, no PostCached.
-	if len(phases) != 2 {
-		t.Fatalf("got %d phases, want 2; phases: %+v", len(phases), phases)
+	// Estimate + Extract + PostFresh, no PostCached.
+	if len(phases) != 3 {
+		t.Fatalf("got %d phases, want 3; phases: %+v", len(phases), phases)
 	}
-	if phases[0].phase != PhaseExtract {
-		t.Errorf("phase[0] = %+v, want Extract", phases[0])
+	if phases[0].phase != PhaseEstimate {
+		t.Errorf("phase[0] = %+v, want Estimate", phases[0])
 	}
-	if phases[1].phase != PhasePostFresh {
-		t.Errorf("phase[1] = %+v, want PostFresh", phases[1])
+	if phases[1].phase != PhaseExtract {
+		t.Errorf("phase[1] = %+v, want Extract", phases[1])
+	}
+	if phases[2].phase != PhasePostFresh {
+		t.Errorf("phase[2] = %+v, want PostFresh", phases[2])
 	}
 }
 

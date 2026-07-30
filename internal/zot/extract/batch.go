@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -108,12 +109,17 @@ type BatchInput struct {
 	RenderHTML bool
 	// Tags applied to newly created notes. Nil → default ["docling"].
 	Tags []string
-	// Jobs controls how many parallel docling processes to run.
-	// 0 or 1 means a single process handles all PDFs (models load
-	// once). Higher values split PDFs evenly across N concurrent
-	// processes — each loads models independently but they run in
-	// parallel. On MPS, 1 is usually best; on CPU, 2-4 can help.
+	// Jobs is the number of worker goroutines pulling chunks off the
+	// extraction queue; each chunk is one docling invocation. Every
+	// docling process loads models independently (~20-40s) and holds
+	// ~14 GB resident, so keep jobs × NumThreads at or under the core
+	// count. 0 means 1. See planChunks for how work is ordered and how
+	// oversize documents get isolated so they can't block papers.
 	Jobs int
+	// PageEstimator returns the per-document scheduling cost in pages
+	// for one PDF path. Nil → EstimatePages. Injected by tests to make
+	// the queue deterministic without real PDFs.
+	PageEstimator func(pdfPath string) int
 	// OutputDir is where docling writes all its output for the batch.
 	// ExecuteBatch creates this if needed.
 	OutputDir string
@@ -151,6 +157,8 @@ type BatchPhase int
 const (
 	// PhasePostCached — posting notes for previously-extracted cached items.
 	PhasePostCached BatchPhase = iota
+	// PhaseEstimate — measuring PDF page counts to order the queue.
+	PhaseEstimate
 	// PhaseExtract — running docling on un-cached PDFs.
 	PhaseExtract
 	// PhasePostFresh — posting notes for newly-extracted items.
@@ -199,16 +207,17 @@ func (r *BatchResult) Counts() (created, skipped, cached, failed int) {
 	return
 }
 
-// ExecuteBatch extracts all PDFs in a single docling invocation, then
-// populates the cache, then posts notes. This replaces the old
-// worker-pool approach: one process means models load once.
+// ExecuteBatch extracts every un-cached PDF and posts notes.
 //
 // Flow:
 //  1. Partition items into: skip, cached (cache hit), extract (need docling).
 //  2. Post notes for cached items first (flushes prior runs to Zotero
 //     before starting new extraction work).
-//  3. Run docling in size-limited batches over un-cached PDFs, caching
-//     results as each batch completes.
+//  3. Estimate page counts, order the work longest-first, and drain it
+//     with Jobs workers — one docling invocation per chunk, oversize
+//     documents isolated (planChunks), each document banked as docling
+//     completes it (cache in classic mode, per-key layout dirs via
+//     layoutFinalizer in layout mode).
 //  4. Post notes for freshly extracted items.
 func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	if in.Extractor == nil {
@@ -327,15 +336,11 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	}
 
 	// ── Phase 3: run docling over un-cached PDFs ──
-	// Docling hangs when given thousands of input files in a single
-	// invocation (it scans all inputs before starting extraction).
-	// We split into batches of maxDoclingBatch PDFs; each batch is a
-	// separate docling process that loads models and starts extracting
-	// immediately. Within each batch, Jobs controls parallelism.
+	// Work is estimated (pages), ordered longest-first, and drained by
+	// Jobs workers from one queue — one docling invocation per chunk,
+	// with oversize documents isolated so a scanned monograph can never
+	// sit at the head of a queue of papers (see planChunks).
 	if len(pdfPaths) > 0 {
-		if in.OnPhase != nil {
-			in.OnPhase(PhaseExtract, len(pdfPaths))
-		}
 		outputDir := in.OutputDir
 		if outputDir == "" {
 			tmp, err := os.MkdirTemp("", "sci-extract-batch-*")
@@ -383,181 +388,87 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 			pdfToIdx[pdfPaths[pi]] = idx
 		}
 
-		jobs := max(in.Jobs, 1)
-
 		// Build stem→(pdfPath, item index) so the progress callback
 		// can cache each document as soon as docling writes it.
-		stemToInfo := make(map[string]struct {
-			pdfPath string
-			idx     int
-		}, len(pdfPaths))
+		stemToInfo := make(map[string]stemInfo, len(pdfPaths))
 		for pi, idx := range needExtract {
-			stem := stemFor(pdfPaths[pi])
-			stemToInfo[stem] = struct {
-				pdfPath string
-				idx     int
-			}{pdfPaths[pi], idx}
+			stemToInfo[stemFor(pdfPaths[pi])] = stemInfo{pdfPath: pdfPaths[pi], idx: idx}
 		}
 
-		// Split into size-limited batches, then apply jobs parallelism
-		// within each batch.
-		batches := chunkBySize(pdfPaths, maxDoclingBatch)
-		batchNum := 0
-		for _, batch := range batches {
+		// Estimate each document's cost (pages) to order the queue.
+		// Estimates read the REAL PDF via the item, not the staged
+		// symlink — the truth is the same file, but the estimator stays
+		// independent of staging order.
+		est := in.PageEstimator
+		if est == nil {
+			est = EstimatePages
+		}
+		if in.OnPhase != nil {
+			in.OnPhase(PhaseEstimate, len(pdfPaths))
+		}
+		costs := make([]int, len(pdfPaths))
+		estSem := make(chan struct{}, min(runtime.NumCPU(), 8))
+		var estWG sync.WaitGroup
+		for pi := range pdfPaths {
 			if ctx.Err() != nil {
 				break
 			}
-			chunks := chunkByJobs(batch, jobs)
+			estWG.Add(1)
+			estSem <- struct{}{}
+			go func() {
+				defer estWG.Done()
+				defer func() { <-estSem }()
+				costs[pi] = est(in.Items[needExtract[pi]].Request.PDFPath)
+			}()
+		}
+		estWG.Wait()
 
-			type chunkResult struct {
-				chunk []string
-				res   *BatchExtractResult
-				err   error
-				fin   *layoutFinalizer
-			}
-			chunkResults := make([]chunkResult, len(chunks))
-			var wg sync.WaitGroup
-			for ci, chunk := range chunks {
-				// jobDir and the finalizer are built OUTSIDE the
-				// goroutine so cr.fin is never nil — even when the
-				// goroutine short-circuits on a canceled ctx, the
-				// post-exit sweep still runs over the (empty) job dir.
-				jobDir := filepath.Join(outputDir, fmt.Sprintf("batch-%d-job-%d", batchNum, ci))
-				var fin *layoutFinalizer
-				if in.Layout != nil {
-					fin = newLayoutFinalizer(in, jobDir, chunk, pdfToIdx, outcomes)
-				}
-				wg.Go(func() {
+		if in.OnPhase != nil {
+			// Fired after staging and estimation so the total is the
+			// true number of documents docling will see.
+			in.OnPhase(PhaseExtract, len(pdfPaths))
+		}
+
+		// LPT queue: chunks come out biggest-work-first, with oversize
+		// documents isolated (see planChunks). A pre-filled, pre-closed
+		// channel means workers never block and never deadlock when
+		// there are fewer chunks than workers.
+		chunks := planChunks(costs, isolateChunkPages, chunkTargetDocs)
+		queue := make(chan int, len(chunks))
+		for ci := range chunks {
+			queue <- ci
+		}
+		close(queue)
+
+		cc := &chunkContext{
+			in:          in,
+			extractOpts: extractOpts,
+			outputDir:   outputDir,
+			pdfPaths:    pdfPaths,
+			stemToInfo:  stemToInfo,
+			pdfToIdx:    pdfToIdx,
+			outcomes:    outcomes,
+			versions:    make([]string, len(chunks)),
+		}
+		var wg sync.WaitGroup
+		for range effectiveJobs(max(in.Jobs, 1), len(chunks)) {
+			wg.Go(func() {
+				for ci := range queue {
 					if ctx.Err() != nil {
-						chunkResults[ci] = chunkResult{chunk: chunk, fin: fin, err: ctx.Err()}
+						// Unpulled chunks are simply not run; the CLI
+						// collapses an interrupted run into one error.
 						return
 					}
-					opts := extractOpts
-					opts.OutputDir = jobDir
-
-					// Bank each document as docling completes it, for
-					// crash resilience. Classic mode caches the
-					// markdown; layout mode goes further and finalizes
-					// the whole per-key dir (see layoutFinalizer).
-					// Docling logs an output path slightly before the
-					// file is flushed, so both paths queue on one
-					// event and drain on the next — by then the
-					// previous file is on disk.
-					var pending []string
-					onEvent := func(ev *DoclingEvent) {
-						if fin != nil {
-							fin.onEvent(ev)
-						} else {
-							// Drain: try to cache any queued paths.
-							still := pending[:0]
-							for _, p := range pending {
-								stem := strings.TrimSuffix(filepath.Base(p), ".md")
-								if info, ok := stemToInfo[stem]; ok {
-									if md, err := os.ReadFile(p); err == nil {
-										item := in.Items[info.idx]
-										_, _ = in.Cache.Put(item.Request.PDFKey, item.Hash, md)
-									} else {
-										still = append(still, p)
-									}
-								}
-							}
-							pending = still
-
-							// Enqueue new output path.
-							if ev.Kind == EventOutput && strings.HasSuffix(ev.OutputPath, ".md") {
-								pending = append(pending, ev.OutputPath)
-							}
-						}
-
-						if in.OnProgress != nil {
-							in.OnProgress(ev)
-						}
-					}
-
-					res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, onEvent)
-					chunkResults[ci] = chunkResult{chunk: chunk, res: res, err: err, fin: fin}
-				})
-			}
-			wg.Wait()
-			batchNum++
-
-			// Process results — cache anything the progress callback
-			// missed (e.g. single-doc batches where the file write
-			// races with the log line) and mark errors.
-			for _, cr := range chunkResults {
-				if in.Layout != nil {
-					// Sweep before judging: everything docling actually
-					// finished is on disk, so an errored or canceled
-					// chunk still banks its completed documents. Only
-					// the remainder fails.
-					for _, stem := range cr.fin.sweep() {
-						idx := cr.fin.stems[stem]
-						item := in.Items[idx]
-						if cr.err != nil {
-							outcomes[idx].Err = fmt.Errorf("batch extract: %w", cr.err)
-						} else {
-							outcomes[idx].Err = fmt.Errorf("docling produced no output for %s", item.Request.PDFName)
-						}
-						if in.OnItemDone != nil {
-							in.OnItemDone(idx, outcomes[idx])
-						}
-					}
-					// ToolVersion is written only here, on the
-					// ExecuteBatch goroutine after wg.Wait() — never
-					// from a chunk callback, which would race.
-					if cr.err == nil && result.ToolVersion == "" {
-						result.ToolVersion = cr.res.ToolVersion
-					}
-					continue
+					runChunk(ctx, cc, ci, chunks[ci])
 				}
+			})
+		}
+		wg.Wait()
 
-				if cr.err != nil {
-					for _, pdf := range cr.chunk {
-						idx := pdfToIdx[pdf]
-						outcomes[idx].Err = fmt.Errorf("batch extract: %w", cr.err)
-						if in.OnItemDone != nil {
-							in.OnItemDone(idx, outcomes[idx])
-						}
-					}
-					continue
-				}
-				if result.ToolVersion == "" {
-					result.ToolVersion = cr.res.ToolVersion
-				}
-
-				for _, pdf := range cr.chunk {
-					idx := pdfToIdx[pdf]
-					item := in.Items[idx]
-
-					// Already cached by the progress callback?
-					if _, ok := in.Cache.Get(item.Request.PDFKey, item.Hash); ok {
-						continue
-					}
-					res, ok := cr.res.Results[pdf]
-					if !ok {
-						outcomes[idx].Err = fmt.Errorf("docling produced no output for %s", item.Request.PDFName)
-						if in.OnItemDone != nil {
-							in.OnItemDone(idx, outcomes[idx])
-						}
-						continue
-					}
-					// Fallback: read the file now that docling has exited.
-					md, err := os.ReadFile(res.MarkdownPath)
-					if err != nil {
-						outcomes[idx].Err = fmt.Errorf("read docling output for %s: %w", item.Request.PDFName, err)
-						if in.OnItemDone != nil {
-							in.OnItemDone(idx, outcomes[idx])
-						}
-						continue
-					}
-					if _, putErr := in.Cache.Put(item.Request.PDFKey, item.Hash, md); putErr != nil {
-						outcomes[idx].Err = fmt.Errorf("cache %s: %w", item.Request.PDFName, putErr)
-						if in.OnItemDone != nil {
-							in.OnItemDone(idx, outcomes[idx])
-						}
-					}
-				}
-			}
+		// First non-empty per-chunk version wins; the slots are written
+		// by exactly one worker each, and only read here after Wait.
+		if v, ok := lo.Find(cc.versions, func(v string) bool { return v != "" }); ok {
+			result.ToolVersion = v
 		}
 	}
 
@@ -589,6 +500,156 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	return result, nil
 }
 
+// stemInfo locates one queued document by its output stem: the input
+// pdf path and its index into BatchInput.Items.
+type stemInfo struct {
+	pdfPath string
+	idx     int
+}
+
+// chunkContext is the read-only state every runChunk call shares. The
+// mutable slices (outcomes, versions) are written on disjoint indices
+// only — planChunks partitions the slot space and each chunk index is
+// pulled by exactly one worker — so no lock is needed.
+type chunkContext struct {
+	in          BatchInput
+	extractOpts ExtractOptions
+	outputDir   string
+	pdfPaths    []string
+	stemToInfo  map[string]stemInfo
+	pdfToIdx    map[string]int
+	outcomes    []BatchOutcome
+	versions    []string
+}
+
+// runChunk executes one docling invocation over the chunk's slots and
+// post-processes its results: layout mode banks documents incrementally
+// via layoutFinalizer and salvages completed ones when the chunk errors
+// or is canceled; classic mode caches markdown and fails the chunk
+// wholesale on error (the cache is its resume store). Writes only its
+// own slots' outcomes and versions[ci].
+func runChunk(ctx context.Context, cc *chunkContext, ci int, slots []int) {
+	in := cc.in
+	chunk := lo.Map(slots, func(pi int, _ int) string { return cc.pdfPaths[pi] })
+	jobDir := filepath.Join(cc.outputDir, fmt.Sprintf("chunk-%03d", ci))
+	var fin *layoutFinalizer
+	if in.Layout != nil {
+		fin = newLayoutFinalizer(in, jobDir, chunk, cc.pdfToIdx, cc.outcomes)
+	}
+
+	opts := cc.extractOpts
+	opts.OutputDir = jobDir
+
+	// Bank each document as docling completes it, for crash resilience.
+	// Classic mode caches the markdown; layout mode goes further and
+	// finalizes the whole per-key dir (see layoutFinalizer). Docling
+	// logs an output path slightly before the file is flushed, so both
+	// paths queue on one event and drain on the next — by then the
+	// previous file is on disk.
+	var pending []string
+	onEvent := func(ev *DoclingEvent) {
+		if fin != nil {
+			fin.onEvent(ev)
+		} else {
+			// Drain: try to cache any queued paths.
+			still := pending[:0]
+			for _, p := range pending {
+				stem := strings.TrimSuffix(filepath.Base(p), ".md")
+				if info, ok := cc.stemToInfo[stem]; ok {
+					if md, err := os.ReadFile(p); err == nil {
+						item := in.Items[info.idx]
+						_, _ = in.Cache.Put(item.Request.PDFKey, item.Hash, md)
+					} else {
+						still = append(still, p)
+					}
+				}
+			}
+			pending = still
+
+			// Enqueue new output path.
+			if ev.Kind == EventOutput && strings.HasSuffix(ev.OutputPath, ".md") {
+				pending = append(pending, ev.OutputPath)
+			}
+		}
+
+		if in.OnProgress != nil {
+			in.OnProgress(ev)
+		}
+	}
+
+	res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, onEvent)
+
+	if in.Layout != nil {
+		// Sweep before judging: everything docling actually finished is
+		// on disk, so an errored or canceled chunk still banks its
+		// completed documents. Only the remainder fails.
+		for _, stem := range fin.sweep() {
+			idx := fin.stems[stem]
+			item := in.Items[idx]
+			if err != nil {
+				cc.outcomes[idx].Err = fmt.Errorf("batch extract: %w", err)
+			} else {
+				cc.outcomes[idx].Err = fmt.Errorf("docling produced no output for %s", item.Request.PDFName)
+			}
+			if in.OnItemDone != nil {
+				in.OnItemDone(idx, cc.outcomes[idx])
+			}
+		}
+		if err == nil {
+			cc.versions[ci] = res.ToolVersion
+		}
+		return
+	}
+
+	if err != nil {
+		for _, pdf := range chunk {
+			idx := cc.pdfToIdx[pdf]
+			cc.outcomes[idx].Err = fmt.Errorf("batch extract: %w", err)
+			if in.OnItemDone != nil {
+				in.OnItemDone(idx, cc.outcomes[idx])
+			}
+		}
+		return
+	}
+	cc.versions[ci] = res.ToolVersion
+
+	// Cache anything the progress callback missed (e.g. single-doc
+	// chunks where the file write races with the log line) and mark
+	// per-document failures.
+	for _, pdf := range chunk {
+		idx := cc.pdfToIdx[pdf]
+		item := in.Items[idx]
+
+		// Already cached by the progress callback?
+		if _, ok := in.Cache.Get(item.Request.PDFKey, item.Hash); ok {
+			continue
+		}
+		docRes, ok := res.Results[pdf]
+		if !ok {
+			cc.outcomes[idx].Err = fmt.Errorf("docling produced no output for %s", item.Request.PDFName)
+			if in.OnItemDone != nil {
+				in.OnItemDone(idx, cc.outcomes[idx])
+			}
+			continue
+		}
+		// Fallback: read the file now that docling has exited.
+		md, err := os.ReadFile(docRes.MarkdownPath)
+		if err != nil {
+			cc.outcomes[idx].Err = fmt.Errorf("read docling output for %s: %w", item.Request.PDFName, err)
+			if in.OnItemDone != nil {
+				in.OnItemDone(idx, cc.outcomes[idx])
+			}
+			continue
+		}
+		if _, putErr := in.Cache.Put(item.Request.PDFKey, item.Hash, md); putErr != nil {
+			cc.outcomes[idx].Err = fmt.Errorf("cache %s: %w", item.Request.PDFName, putErr)
+			if in.OnItemDone != nil {
+				in.OnItemDone(idx, cc.outcomes[idx])
+			}
+		}
+	}
+}
+
 // layoutFinalizer finalizes a chunk's documents into the per-key layout
 // as docling completes them, rather than waiting for the chunk's
 // process to exit. A chunk is hours of work: before this existed, an
@@ -605,7 +666,7 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 // the drain into an immediate finalize on the JSON output event.
 //
 // Threading: onEvent runs on the chunk's stderr-scanner goroutine
-// (inside Extractor.ExtractBatch); sweep runs on the ExecuteBatch
+// (inside Extractor.ExtractBatch); sweep runs on the same worker
 // goroutine after that call returned. The two never overlap, so no
 // lock is needed. Parallel chunks own disjoint stems, disjoint item
 // indices, and disjoint job dirs, so they never contend on outcomes or
@@ -790,45 +851,30 @@ func postNote(
 	}
 }
 
-// maxDoclingBatch is the maximum number of PDFs passed to a single
-// docling invocation. Docling scans all inputs before starting
-// extraction, so passing thousands of files causes it to appear hung.
-// 50 keeps startup fast (~seconds) while amortising model load time
-// across a reasonable number of documents.
+// maxDoclingBatch caps how many input PDFs a single docling invocation
+// may scan — docling reads every input before starting extraction, so
+// thousands of files make it appear hung. It is enforced inside
+// planChunks as an upper bound on chunk size (the working size is
+// chunkTargetDocs); it is no longer a batching/barrier mechanism.
 const maxDoclingBatch = 50
 
-// chunkBySize splits s into chunks of at most n elements.
-func chunkBySize(s []string, n int) [][]string {
-	if n <= 0 || len(s) == 0 {
-		return [][]string{s}
-	}
-	return lo.Chunk(s, n)
-}
-
-// chunkByJobs splits s into exactly `jobs` roughly-equal chunks.
-// jobs ≤ 1 returns s as a single chunk. If jobs > len(s), returns
-// one chunk per element.
-func chunkByJobs(s []string, jobs int) [][]string {
-	if jobs <= 1 || len(s) == 0 {
-		return [][]string{s}
-	}
-	if jobs > len(s) {
-		jobs = len(s)
-	}
-	chunkSize := (len(s) + jobs - 1) / jobs // ceil division
-	return lo.Chunk(s, chunkSize)
-}
-
-// BatchJobsDefault suggests a worker count for the PlanBatch hashing
-// phase based on the target docling device.
+// BatchJobsDefault is the default docling worker count for a device
+// (BatchInput.Jobs when neither --jobs nor extract.jobs is set).
+//
+//   - mps: 2. Apple-silicon unified memory comfortably holds two ~14 GB
+//     docling processes, and OCR — the dominant cost on scanned
+//     documents — is CPU-bound, so a second process recovers most of
+//     the idle capacity a single one leaves.
+//   - cuda: 1 — discrete VRAM is the binding constraint.
+//   - cpu: numCPU/4, floor 1.
+//   - auto/unknown: 1 — an unknown device gets no bump without evidence.
 func BatchJobsDefault(device string, numCPU int) int {
 	switch device {
 	case "cpu":
-		jobs := max(numCPU/4, 1)
-		return jobs
-	case "", "auto", "mps", "cuda":
-		return 1
-	default:
+		return max(numCPU/4, 1)
+	case "mps":
+		return 2
+	default: // "", "auto", "cuda", anything else
 		return 1
 	}
 }
