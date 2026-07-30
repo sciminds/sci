@@ -10,7 +10,7 @@ import (
 func TestBibResult_HumanSurfacesUnresolved(t *testing.T) {
 	t.Parallel()
 	r := BibResult{
-		Export:     LibraryExportResult{Format: "bibtex", OutPath: "refs.bib", Stats: ExportStats{Total: 2, Pinned: 1, Synthesized: 1}},
+		Export:     LibraryExportResult{Format: "biblatex", OutPath: "refs.bib", Stats: ExportStats{Total: 2, Pinned: 1, Synthesized: 1}},
 		Files:      []string{"draft.md"},
 		References: 3,
 		Resolved:   2,
@@ -29,7 +29,7 @@ func TestBibResult_HumanSurfacesUnresolved(t *testing.T) {
 func TestBibResult_HumanCleanWhenFullyResolved(t *testing.T) {
 	t.Parallel()
 	r := BibResult{
-		Export:     LibraryExportResult{Format: "bibtex", OutPath: "refs.bib", Stats: ExportStats{Total: 1, Pinned: 1}},
+		Export:     LibraryExportResult{Format: "biblatex", OutPath: "refs.bib", Stats: ExportStats{Total: 1, Pinned: 1}},
 		Files:      []string{"draft.md"},
 		References: 1,
 		Resolved:   1,
@@ -45,7 +45,7 @@ func TestBibResult_HumanCleanWhenFullyResolved(t *testing.T) {
 func TestBibResult_HumanPartitionsVerified(t *testing.T) {
 	t.Parallel()
 	r := BibResult{
-		Export:     LibraryExportResult{Format: "bibtex", Stats: ExportStats{Total: 1}},
+		Export:     LibraryExportResult{Format: "biblatex", Stats: ExportStats{Total: 1}},
 		Files:      []string{"draft.md"},
 		References: 5,
 		Resolved:   1,
@@ -99,7 +99,7 @@ func TestBibResult_HumanPrefersVerifiedOverRawUnresolved(t *testing.T) {
 	t.Parallel()
 	u := bib.Unresolved{Ref: bib.Ref{Raw: "@ghost2020", Kind: bib.KindCitekey}, Reason: "no match"}
 	r := BibResult{
-		Export:     LibraryExportResult{Format: "bibtex"},
+		Export:     LibraryExportResult{Format: "biblatex"},
 		Files:      []string{"draft.md"},
 		References: 1,
 		Unresolved: []bib.Unresolved{u},
@@ -115,7 +115,7 @@ func TestBibResult_HumanPrefersVerifiedOverRawUnresolved(t *testing.T) {
 func TestBibResult_HumanCountsRetraction(t *testing.T) {
 	t.Parallel()
 	r := BibResult{
-		Export: LibraryExportResult{Format: "bibtex"},
+		Export: LibraryExportResult{Format: "biblatex"},
 		Files:  []string{"draft.md"},
 		Verified: []bib.Verified{{
 			Unresolved: bib.Unresolved{Ref: bib.Ref{Raw: "10.1016/bad", Kind: bib.KindDOI}},

@@ -142,11 +142,11 @@ func bibCommand() *cli.Command {
 			"item are always listed, never silently dropped.\n\n" +
 			"$ sci zot bib paper.qmd --out refs.bib\n" +
 			"$ sci zot bib notes/ --recursive --format csl-json --out refs.json\n" +
-			"$ sci zot bib draft.md            # bibtex to stdout\n" +
+			"$ sci zot bib draft.md            # biblatex to stdout\n" +
 			"$ sci zot bib draft.md --verify   # also: which unresolved refs are real?",
 		ArgsUsage: "<file-or-dir>",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "bibtex", Usage: "output format: bibtex, csl-json", Destination: &bibFormat, Local: true},
+			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "biblatex", Usage: "output format: biblatex (alias: bibtex), csl-json", Destination: &bibFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file (enables drift-detection keymap sidecar)", Destination: &bibOut, Local: true},
 			&cli.BoolFlag{Name: "recursive", Aliases: []string{"r"}, Usage: "with a directory, descend into subdirectories", Destination: &bibRecursive, Local: true},
 			&cli.BoolFlag{Name: "verify", Usage: "check unresolved DOIs / arXiv ids against OpenAlex: real-but-missing vs. resolves-nowhere (needs network)", Destination: &bibVerify, Local: true},

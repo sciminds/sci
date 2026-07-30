@@ -27,7 +27,7 @@ var (
 	libExportType       string
 
 	searchExport       bool   // --export on `zot search`: emit a bibliography
-	searchExportFormat string // --format on `zot search`: bibtex (default) or csl-json
+	searchExportFormat string // --format on `zot search`: biblatex (default) or csl-json
 	searchExportOut    string
 	searchNotes        bool // --notes on `zot search`: filter to items with docling notes
 )
@@ -37,12 +37,12 @@ var (
 func libraryExportCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "export",
-		Usage: "Export your whole library as BibTeX or CSL-JSON",
+		Usage: "Export your whole library as BibLaTeX or CSL-JSON",
 		Description: "$ sci zot export --out refs.bib\n" +
 			"$ sci zot export --format csl-json --out refs.json\n" +
 			"$ sci zot export --collection COLLAAA1 --out brain.bib",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "bibtex", Usage: "output format: bibtex, csl-json", Destination: &libExportFormat, Local: true},
+			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "biblatex", Usage: "output format: biblatex (alias: bibtex), csl-json", Destination: &libExportFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file (enables drift-detection keymap sidecar)", Destination: &libExportOut, Local: true},
 			&cli.StringFlag{Name: "collection", Aliases: []string{"c"}, Usage: "filter by collection key", Destination: &libExportCollection, Local: true},
 			&cli.StringFlag{Name: "tag", Usage: "filter by tag name", Destination: &libExportTag, Local: true},
@@ -79,11 +79,11 @@ func libraryExportCommand() *cli.Command {
 // persists the updated keymap alongside the .bib file for next-run drift
 // detection.
 func runLibraryExport(items []local.Item, format, outPath string) (zot.LibraryExportResult, error) {
-	fmtEnum := zot.ExportFormat(format)
+	fmtEnum := zot.ExportFormat(format).Canon()
 	switch fmtEnum {
-	case zot.ExportBibTeX, zot.ExportCSLJSON, "":
+	case zot.ExportBibLaTeX, zot.ExportCSLJSON, "":
 	default:
-		return zot.LibraryExportResult{}, fmt.Errorf("unknown format %q (want bibtex or csl-json)", format)
+		return zot.LibraryExportResult{}, fmt.Errorf("unknown format %q (want biblatex or csl-json)", format)
 	}
 
 	var prev zot.Keymap

@@ -73,9 +73,9 @@ func TestExport_CSLJSON(t *testing.T) {
 	}
 }
 
-func TestExport_BibTeX(t *testing.T) {
+func TestExport_BibLaTeX(t *testing.T) {
 	t.Parallel()
-	out, err := ExportItem(sampleItem(), ExportBibTeX)
+	out, err := ExportItem(sampleItem(), ExportBibLaTeX)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,8 +84,8 @@ func TestExport_BibTeX(t *testing.T) {
 		"title = {Deep Learning for Neuroimaging}",
 		"author = {Smith, Alice and Jones, Bob}",
 		"editor = {Doe, Carol}",
-		"journal = {NeuroImage}",
-		"year = {2024}",
+		"journaltitle = {NeuroImage}",
+		"date = {2024-03-15}",
 		"volume = {42}",
 		"number = {7}",
 		"pages = {100-120}",
@@ -100,7 +100,47 @@ func TestExport_BibTeX(t *testing.T) {
 	}
 }
 
-func TestExport_BibTeXSynthesizesWhenUnpinned(t *testing.T) {
+func TestExport_BibTeXAliasEmitsBibLaTeX(t *testing.T) {
+	t.Parallel()
+	// "bibtex" is accepted for backwards compatibility but sci emits one
+	// .bib flavor only — BibLaTeX — so mixed-tool .bib files stay uniform.
+	out, err := ExportItem(sampleItem(), ExportBibTeX)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "journaltitle = {NeuroImage}") {
+		t.Errorf("bibtex alias did not emit biblatex fields:\n%s", out)
+	}
+}
+
+func TestExport_BibLaTeXTypeMap(t *testing.T) {
+	t.Parallel()
+	// Types must match Zotero's built-in BibLaTeX translator so entries from
+	// sci and from SciCite's shim look identical in one .bib.
+	tests := map[string]string{
+		"journalArticle":  "@article",
+		"book":            "@book",
+		"bookSection":     "@incollection",
+		"conferencePaper": "@inproceedings",
+		"thesis":          "@thesis",
+		"report":          "@report",
+		"webpage":         "@online",
+		"artwork":         "@misc", // unmapped types fall through to misc
+	}
+	for zt, want := range tests {
+		it := sampleItem()
+		it.Type = zt
+		out, err := ExportItem(it, ExportBibLaTeX)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(out, want+"{") {
+			t.Errorf("type %q: want prefix %q, got:\n%s", zt, want, out)
+		}
+	}
+}
+
+func TestExport_BibLaTeXSynthesizesWhenUnpinned(t *testing.T) {
 	t.Parallel()
 	// With no pinned citationKey, citekey.Resolve synthesizes a semantic
 	// key with a Zotero-key suffix for uniqueness. The suffix is what
@@ -108,7 +148,7 @@ func TestExport_BibTeXSynthesizesWhenUnpinned(t *testing.T) {
 	// source item; see internal/zot/citekey for the full rationale.
 	it := sampleItem()
 	delete(it.Fields, "citationKey")
-	out, _ := ExportItem(it, ExportBibTeX)
+	out, _ := ExportItem(it, ExportBibLaTeX)
 	if !strings.Contains(out, "@article{smith2024-deeplearneur-ABC12345,") {
 		t.Errorf("expected synthesized key:\n%s", out)
 	}
@@ -138,18 +178,18 @@ func TestExport_YearFromDate(t *testing.T) {
 	}
 }
 
-func TestExport_BibTeX_InstitutionalAuthor(t *testing.T) {
+func TestExport_BibLaTeX_InstitutionalAuthor(t *testing.T) {
 	t.Parallel()
 	// Zotero stores institutional creators like "NASA" with fieldMode=1,
 	// which the local reader surfaces as Creator.Name (First/Last empty).
-	// BibTeX must wrap these in braces so BibTeX doesn't parse them as
-	// "last, first".
+	// Bib(La)TeX must wrap these in braces so the name parser doesn't
+	// split them as "last, first".
 	it := sampleItem()
 	it.Creators = []local.Creator{
 		{Type: "author", Name: "NASA"},
 		{Type: "author", First: "Alice", Last: "Smith"},
 	}
-	out, err := ExportItem(it, ExportBibTeX)
+	out, err := ExportItem(it, ExportBibLaTeX)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,12 +198,12 @@ func TestExport_BibTeX_InstitutionalAuthor(t *testing.T) {
 	}
 }
 
-func TestExport_BibTeX_EscapesBraces(t *testing.T) {
+func TestExport_BibLaTeX_EscapesBraces(t *testing.T) {
 	t.Parallel()
 	it := sampleItem()
 	title := `A {Curly} title with \backslash`
 	it.Title = title
-	out, err := ExportItem(it, ExportBibTeX)
+	out, err := ExportItem(it, ExportBibLaTeX)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,13 +218,31 @@ func TestExport_BibTeX_EscapesBraces(t *testing.T) {
 	}
 }
 
-func TestExport_BibTeX_DualEncodedDateYear(t *testing.T) {
+func TestExport_BibLaTeX_DateFromZoteroDate(t *testing.T) {
 	t.Parallel()
+	// Zotero stores dates as "YYYY-MM-DD originalText" with 00-padding for
+	// unspecified components; biblatex `date` wants the ISO part with the
+	// unknown components trimmed.
+	tests := map[string]string{
+		"2024-03-15 March 15, 2024": "date = {2024-03-15}",
+		"2024-03-00 March 2024":     "date = {2024-03}",
+		"1871-00-00 1871":           "date = {1871}",
+		"2024":                      "date = {2024}",
+	}
+	for in, want := range tests {
+		it := sampleItem()
+		it.Date = in
+		out, _ := ExportItem(it, ExportBibLaTeX)
+		if !strings.Contains(out, want) {
+			t.Errorf("date %q: missing %q in:\n%s", in, want, out)
+		}
+	}
+	// An unparseable date omits the field rather than guessing.
 	it := sampleItem()
-	it.Date = "2024-03-15 March 15, 2024"
-	out, _ := ExportItem(it, ExportBibTeX)
-	if !strings.Contains(out, "year = {2024}") {
-		t.Errorf("year not extracted from dual-encoded date:\n%s", out)
+	it.Date = "March 2024"
+	out, _ := ExportItem(it, ExportBibLaTeX)
+	if strings.Contains(out, "date = {") {
+		t.Errorf("unparseable date should omit the field:\n%s", out)
 	}
 }
 

@@ -36,7 +36,7 @@ type ExportStats struct {
 // requested format. Pass the previous run's Keymap (or nil) for drift
 // detection on synthesized entries.
 //
-// For BibTeX output:
+// For BibLaTeX output:
 //   - user-pinned cite-keys are emitted verbatim with a zotero:// URI
 //     appended to the `note` field (preserving any existing user prose from
 //     the Zotero `extra` field)
@@ -46,19 +46,19 @@ type ExportStats struct {
 func ExportLibrary(items []local.Item, format ExportFormat, prev Keymap) (string, ExportStats, error) {
 	stats := ExportStats{Total: len(items), Keymap: Keymap{}}
 
-	switch format {
+	switch format.Canon() {
 	case ExportCSLJSON, "":
 		body, err := exportCSLJSONLibrary(items, &stats)
 		return body, stats, err
-	case ExportBibTeX:
-		body := exportBibTeXLibrary(items, prev, &stats)
+	case ExportBibLaTeX:
+		body := exportBibLaTeXLibrary(items, prev, &stats)
 		return body, stats, nil
 	default:
 		return "", stats, fmt.Errorf("unknown export format %q", format)
 	}
 }
 
-func exportBibTeXLibrary(items []local.Item, prev Keymap, stats *ExportStats) string {
+func exportBibLaTeXLibrary(items []local.Item, prev Keymap, stats *ExportStats) string {
 	var b strings.Builder
 	for i := range items {
 		it := &items[i]

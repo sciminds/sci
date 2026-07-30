@@ -58,6 +58,6 @@ var longDescs = map[string]string{
 	"zot": "(Experimental) Manage your Zotero library from the terminal. " +
 		"Reads your local Zotero database for fast search and browsing, " +
 		"and uses the Zotero Web API for writes (add, update, delete items). " +
-		"Organize collections, manage tags, export to BibTeX/CSL-JSON, run " +
+		"Organize collections, manage tags, export to BibLaTeX/CSL-JSON, run " +
 		"library health checks, and bulk-extract PDFs to notes.",
 }

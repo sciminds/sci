@@ -261,12 +261,12 @@ func TestStatsResult_Human(t *testing.T) {
 
 func TestExportResult(t *testing.T) {
 	t.Parallel()
-	r := ExportResult{Key: "K", Format: "bibtex", Body: "@article{K,}\n"}
+	r := ExportResult{Key: "K", Format: "biblatex", Body: "@article{K,}\n"}
 	if r.Human() != "@article{K,}\n\n" {
 		t.Errorf("Human = %q", r.Human())
 	}
 	b, _ := json.Marshal(r.JSON())
-	if !strings.Contains(string(b), `"format":"bibtex"`) {
+	if !strings.Contains(string(b), `"format":"biblatex"`) {
 		t.Errorf("JSON: %s", b)
 	}
 }

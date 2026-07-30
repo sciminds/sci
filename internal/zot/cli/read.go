@@ -194,7 +194,7 @@ func searchCommand() *cli.Command {
 			// --export routes the hit list through the same pipeline as
 			// `zot export`.
 			&cli.BoolFlag{Name: "export", Usage: "emit results as a bibliography instead of the normal hit list", Destination: &searchExport, Local: true},
-			&cli.StringFlag{Name: "format", Usage: "with --export, output format: bibtex, csl-json", Value: "bibtex", Destination: &searchExportFormat, Local: true},
+			&cli.StringFlag{Name: "format", Usage: "with --export, output format: biblatex (alias: bibtex), csl-json", Value: "biblatex", Destination: &searchExportFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
 			&cli.BoolFlag{Name: "notes", Usage: "filter to items that HAVE a docling extraction", Destination: &searchNotes, Local: true},
 			&cli.BoolFlag{Name: "content", Usage: "also match free-text terms against the full text of your papers (needs `sci zot content build`) — local only", Destination: &searchContent, Local: true},
@@ -905,11 +905,11 @@ func runInfoAllLibraries(ctx context.Context, cmd *cli.Command, cfg *zot.Config)
 func exportCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "export",
-		Usage:       "Export a citation for an item (csl-json or bibtex)",
-		Description: "$ sci zot item export ABC12345\n$ sci zot item export ABC12345 --format bibtex\n$ sci zot item export ABC12345 --format bibtex --out ref.bib",
+		Usage:       "Export a citation for an item (csl-json or biblatex)",
+		Description: "$ sci zot item export ABC12345\n$ sci zot item export ABC12345 --format biblatex\n$ sci zot item export ABC12345 --format biblatex --out ref.bib",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csl-json", Usage: "output format: csl-json, bibtex", Destination: &exportFormat, Local: true},
+			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csl-json", Usage: "output format: csl-json, biblatex (alias: bibtex)", Destination: &exportFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file instead of stdout", Destination: &exportOut, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -927,7 +927,8 @@ func exportCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			body, err := zot.ExportItem(it, zot.ExportFormat(exportFormat))
+			format := zot.ExportFormat(exportFormat).Canon()
+			body, err := zot.ExportItem(it, format)
 			if err != nil {
 				return err
 			}
@@ -935,9 +936,9 @@ func exportCommand() *cli.Command {
 				if err := os.WriteFile(exportOut, []byte(body+"\n"), 0o644); err != nil {
 					return err
 				}
-				body = fmt.Sprintf("wrote %s to %s", exportFormat, exportOut)
+				body = fmt.Sprintf("wrote %s to %s", format, exportOut)
 			}
-			outputScoped(ctx, cmd, zot.ExportResult{Key: key, Format: exportFormat, Body: body})
+			outputScoped(ctx, cmd, zot.ExportResult{Key: key, Format: string(format), Body: body})
 			return nil
 		},
 	}

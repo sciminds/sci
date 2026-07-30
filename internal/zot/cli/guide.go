@@ -150,7 +150,7 @@ func guideContent() zot.GuideResult {
 				Title: "Bibliography",
 				Entries: []zot.GuideEntry{
 					{
-						Goal: "Export the whole library (or a slice) to BibTeX / CSL-JSON",
+						Goal: "Export the whole library (or a slice) to BibLaTeX / CSL-JSON",
 						Cmd:  "sci zot export --out refs.bib",
 						Note: "Filter with --collection / --tag / --type; --format csl-json for a processor-friendly dump. With --out, writes a .zotero-citekeymap.json sidecar so drifted synthesized keys get a biblatex `ids = {oldkey}` alias next run.",
 					},

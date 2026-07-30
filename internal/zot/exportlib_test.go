@@ -36,7 +36,7 @@ func libSample() []local.Item {
 
 func TestExportLibrary_StatsCountsPinnedAndSynthesized(t *testing.T) {
 	t.Parallel()
-	_, stats, err := ExportLibrary(libSample(), ExportBibTeX, nil)
+	_, stats, err := ExportLibrary(libSample(), ExportBibLaTeX, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestExportLibrary_StatsCountsPinnedAndSynthesized(t *testing.T) {
 
 func TestExportLibrary_EmitsPinnedKeyVerbatim(t *testing.T) {
 	t.Parallel()
-	body, _, err := ExportLibrary(libSample(), ExportBibTeX, nil)
+	body, _, err := ExportLibrary(libSample(), ExportBibLaTeX, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestExportLibrary_EmitsPinnedKeyVerbatim(t *testing.T) {
 
 func TestExportLibrary_EmitsSynthesizedKeyWithZoteroSuffix(t *testing.T) {
 	t.Parallel()
-	body, _, err := ExportLibrary(libSample(), ExportBibTeX, nil)
+	body, _, err := ExportLibrary(libSample(), ExportBibLaTeX, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestExportLibrary_EmitsSynthesizedKeyWithZoteroSuffix(t *testing.T) {
 
 func TestExportLibrary_ZoteroURIOnPinnedEntries(t *testing.T) {
 	t.Parallel()
-	body, _, err := ExportLibrary(libSample(), ExportBibTeX, nil)
+	body, _, err := ExportLibrary(libSample(), ExportBibLaTeX, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestExportLibrary_PreservesUserExtraNote(t *testing.T) {
 			"extra":       "Citation Key: smith2020paper\nThis is my reading note.\nSecond line.",
 		},
 	}}
-	body, _, err := ExportLibrary(items, ExportBibTeX, nil)
+	body, _, err := ExportLibrary(items, ExportBibLaTeX, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestExportLibrary_DriftDetectionEmitsIDs(t *testing.T) {
 		Creators: []local.Creator{{Type: "author", Last: "Smithson"}},
 	}}
 	prev := Keymap{"ABCD1234": "smith2020-deeplear"}
-	body, stats, err := ExportLibrary(items, ExportBibTeX, prev)
+	body, stats, err := ExportLibrary(items, ExportBibLaTeX, prev)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestExportLibrary_NoDriftWhenPrefixUnchanged(t *testing.T) {
 		Creators: []local.Creator{{Type: "author", Last: "Smith"}},
 	}}
 	prev := Keymap{"ABCD1234": "smith2020-deeplear"}
-	body, stats, _ := ExportLibrary(items, ExportBibTeX, prev)
+	body, stats, _ := ExportLibrary(items, ExportBibLaTeX, prev)
 	if stats.Drifted != 0 {
 		t.Errorf("Drifted = %d, want 0", stats.Drifted)
 	}
@@ -174,7 +174,7 @@ func TestExportLibrary_NoDriftWhenPrefixUnchanged(t *testing.T) {
 
 func TestExportLibrary_ReturnedKeymapTracksSynthesizedPrefixes(t *testing.T) {
 	t.Parallel()
-	_, stats, _ := ExportLibrary(libSample(), ExportBibTeX, nil)
+	_, stats, _ := ExportLibrary(libSample(), ExportBibLaTeX, nil)
 	// Only the synthesized entry should appear in the new keymap —
 	// pinned keys are user-owned and not subject to drift detection.
 	got := stats.Keymap

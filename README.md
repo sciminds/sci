@@ -331,7 +331,7 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 | [`sci zot browse`](#search--export) | Interactive search REPL — type to search, type a hit number to open its PDF |
 | [`sci zot --library personal search <q> --export -o hits.bib`](#search--export) | Route search results through the export pipeline |
 | [`sci zot --library personal bib <file-or-dir>`](#search--export) | Build a bibliography from the `@citekeys`, DOIs, and links cited in markdown/Quarto files (`--recursive`, `--verify`) |
-| [`sci zot --library personal export -o refs.bib`](#search--export) | Full-library BibTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
+| [`sci zot --library personal export -o refs.bib`](#search--export) | Full-library BibLaTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
 | [`sci zot --library personal find works <query>`](#search--export) | Look up papers on OpenAlex (no library round-trip) |
 | [`sci zot --library personal find authors <query>`](#search--export) | Look up authors on OpenAlex |
 | [`sci zot --library personal graph refs <key>`](#search--export) | Show works this item cites — in-library vs outside |
@@ -344,7 +344,7 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 | [`sci zot --library personal item read <key>...`](#items) | Show full metadata for one or more items (`--missing-ok` reports not-founds instead of failing the batch) |
 | [`sci zot --library personal item list`](#items) | List items with optional filters |
 | [`sci zot --library personal item children <key>`](#items) | List child attachments + notes of an item |
-| [`sci zot --library personal item export <key>`](#items) | Export a single item to CSL-JSON or BibTeX |
+| [`sci zot --library personal item export <key>`](#items) | Export a single item to CSL-JSON or BibLaTeX |
 | [`sci zot --library personal item open <key>`](#items) | Open the item's PDF attachment |
 | [`sci zot --library personal item attach <key> <path>`](#items) | Upload a local file as a new child attachment |
 | [`sci zot --library shared item add` / `update` / `delete`](#items) | Create / patch / trash items via the Zotero Web API |

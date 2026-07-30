@@ -13,26 +13,42 @@ import (
 // ExportFormat selects the output format for ExportItem.
 type ExportFormat string
 
-// Supported export formats.
+// Supported export formats. sci emits exactly one .bib flavor — BibLaTeX,
+// matching Zotero's built-in BibLaTeX translator (which SciCite's BBT shim
+// and vscode-zotero use) — so entries from every tool coexist in one file.
+// "bibtex" is accepted as a legacy alias for that same output.
 const (
-	ExportCSLJSON ExportFormat = "csl-json"
-	ExportBibTeX  ExportFormat = "bibtex"
+	ExportCSLJSON  ExportFormat = "csl-json"
+	ExportBibLaTeX ExportFormat = "biblatex"
+	ExportBibTeX   ExportFormat = "bibtex" // alias for ExportBibLaTeX
 )
 
+// Canon returns the canonical name for a format, folding the legacy
+// "bibtex" alias into "biblatex". Unknown values pass through unchanged so
+// callers still get a precise error from ExportItem / ExportLibrary.
+func (f ExportFormat) Canon() ExportFormat {
+	if f == ExportBibTeX {
+		return ExportBibLaTeX
+	}
+	return f
+}
+
 // ExportItem serializes a Zotero item into the requested citation format.
-// Supported formats: csl-json (default), bibtex (basic).
+// Supported formats: csl-json (default), biblatex (basic; "bibtex" is an
+// alias).
 //
-// Scope note: BibTeX output is intentionally minimal — it uses the existing
-// citationKey field (populated by Better BibTeX for every item in typical
-// libraries) and maps a small set of standard fields. For fully-featured
-// BibTeX including LaTeX escaping and cite-key derivation, use Better BibTeX's
-// own export from the Zotero desktop app.
+// Scope note: BibLaTeX output is intentionally minimal — it uses the
+// existing citationKey field (populated for every item once sci or SciCite
+// has ensured keys) and maps a small set of standard fields, using the same
+// field vocabulary and type map as Zotero's built-in BibLaTeX translator.
+// For fully-featured output including LaTeX escaping, export from the
+// Zotero desktop app.
 func ExportItem(it *local.Item, format ExportFormat) (string, error) {
-	switch format {
+	switch format.Canon() {
 	case ExportCSLJSON, "":
 		return exportCSLJSON(it)
-	case ExportBibTeX:
-		return exportBibTeX(it), nil
+	case ExportBibLaTeX:
+		return exportBibLaTeX(it), nil
 	default:
 		return "", fmt.Errorf("unknown export format %q", format)
 	}
@@ -151,11 +167,11 @@ type bibEntryOpts struct {
 	ZoteroURI string // zotero:// URI to append to `note`, or ""
 }
 
-// exportBibTeX is the single-item entry point. Resolves the cite-key via
+// exportBibLaTeX is the single-item entry point. Resolves the cite-key via
 // ResolveCiteKey (honoring pinned keys, then BBT-extra, then synthesis) and
 // always appends a zotero:// round-trip URI to pinned entries so callers can
 // round-trip back to the Zotero item regardless of cite-key drift.
-func exportBibTeX(it *local.Item) string {
+func exportBibLaTeX(it *local.Item) string {
 	key, synth := citekey.Resolve(it)
 	opts := bibEntryOpts{CiteKey: key}
 	if !synth {
@@ -184,8 +200,8 @@ func writeBibEntry(it *local.Item, opts bibEntryOpts) string {
 	if editors := bibAuthors(it.Creators, "editor"); editors != "" {
 		writeBibFieldRaw(&b, "editor", editors)
 	}
-	writeBibField(&b, "journal", it.Publication)
-	writeBibField(&b, "year", firstDigits(it.Date, 4))
+	writeBibField(&b, "journaltitle", it.Publication)
+	writeBibField(&b, "date", bibDate(it.Date))
 	writeBibField(&b, "volume", it.Fields["volume"])
 	writeBibField(&b, "number", it.Fields["issue"])
 	writeBibField(&b, "pages", it.Fields["pages"])
@@ -213,6 +229,9 @@ func buildNoteField(it *local.Item, zoteroURI string) string {
 	}
 }
 
+// bibTypeFor maps Zotero item types to biblatex entry types, mirroring the
+// zotero2biblatexTypeMap in Zotero's built-in BibLaTeX translator for the
+// types sci handles. Unknown types fall through to misc, same as upstream.
 func bibTypeFor(zt string) string {
 	switch zt {
 	case "journalArticle":
@@ -220,13 +239,15 @@ func bibTypeFor(zt string) string {
 	case "book":
 		return "book"
 	case "bookSection":
-		return "inbook"
+		return "incollection"
 	case "conferencePaper":
 		return "inproceedings"
 	case "thesis":
-		return "phdthesis"
+		return "thesis"
 	case "report":
-		return "techreport"
+		return "report"
+	case "webpage":
+		return "online"
 	default:
 		return "misc"
 	}
@@ -267,6 +288,22 @@ func bibAuthors(creators []local.Creator, kind string) string {
 		return bibEscape(c.Last) + ", " + bibEscape(c.First), true
 	})
 	return strings.Join(parts, " and ")
+}
+
+// bibDate extracts the biblatex `date` value from Zotero's stored date,
+// whose sortable form is "YYYY-MM-DD originalText" with 00-padding for
+// unspecified components ("1871-00-00 1871" means year-only). The ISO token
+// is kept with the unknown components trimmed; a date that doesn't lead
+// with a 4-digit year is omitted rather than guessed.
+func bibDate(s string) string {
+	iso, _, _ := strings.Cut(s, " ")
+	if firstDigits(iso, 4) == "" {
+		return ""
+	}
+	for strings.HasSuffix(iso, "-00") {
+		iso = strings.TrimSuffix(iso, "-00")
+	}
+	return iso
 }
 
 func firstDigits(s string, n int) string {
