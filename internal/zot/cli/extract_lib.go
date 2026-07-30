@@ -378,6 +378,10 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 				// During the posting phases, advance the bar for each note.
 				// During extraction, OnProgress handles the bar — OnItemDone
 				// only fires for cache-populate bookkeeping, not user-visible.
+				// This guard is also what keeps layout mode's per-document
+				// finalize callbacks (which fire mid-extraction, including
+				// for ActionSkip items) from double-counting the bar —
+				// don't remove it without rethinking that accounting.
 				if curPhase == extract.PhaseExtract {
 					return
 				}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/samber/lo"
 )
 
 // KeyLayout writes the persistent per-parent-key artifact layout that
@@ -94,10 +96,8 @@ func StageKeyPDF(stagingDir, key, pdfPath string) (string, error) {
 func (l *KeyLayout) Finalize(key, outDir, pdfPath string, secs float64) (*LayoutManifest, error) {
 	srcMD := filepath.Join(outDir, key+".md")
 	srcJSON := filepath.Join(outDir, key+".json")
-	for _, src := range []string{srcMD, srcJSON} {
-		if _, err := os.Stat(src); err != nil {
-			return nil, fmt.Errorf("finalize %s: docling output missing: %w", key, err)
-		}
+	if !layoutOutputsReady(outDir, key) {
+		return nil, fmt.Errorf("finalize %s: docling output missing (%s.md / %s.json) in %s", key, key, key, outDir)
 	}
 
 	keyDir := l.KeyDir(key)
@@ -145,6 +145,19 @@ func (l *KeyLayout) Finalize(key, outDir, pdfPath string, secs float64) (*Layout
 		return nil, fmt.Errorf("finalize %s: write done marker: %w", key, err)
 	}
 	return man, nil
+}
+
+// layoutOutputsReady reports whether outDir holds both payload files
+// docling must produce for key. Layout mode always requests md+json, so
+// "both present" is the completeness test that lets a document be
+// finalized while docling is still converting the next one — and the
+// guard that stops a half-written document from reaching Finalize,
+// which clears the key's existing dir before rebuilding it.
+func layoutOutputsReady(outDir, key string) bool {
+	return lo.EveryBy([]string{key + ".md", key + ".json"}, func(name string) bool {
+		_, err := os.Stat(filepath.Join(outDir, name))
+		return err == nil
+	})
 }
 
 // buildManifest derives the LayoutManifest counts from the

@@ -34,6 +34,37 @@ func writeStagedOutputs(t *testing.T, outDir, key string) string {
 	return outDir
 }
 
+// TestLayoutOutputsReady locks the completeness predicate shared by the
+// incremental drain and the post-exit salvage sweep: a document is only
+// finalizable once BOTH payload files exist on disk.
+func TestLayoutOutputsReady(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		files []string
+		want  bool
+	}{
+		{"neither", nil, false},
+		{"md only", []string{"K.md"}, false},
+		{"json only", []string{"K.json"}, false},
+		{"both", []string{"K.md", "K.json"}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			for _, f := range tc.files {
+				if err := os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got := layoutOutputsReady(dir, "K"); got != tc.want {
+				t.Errorf("layoutOutputsReady(%v) = %v, want %v", tc.files, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestKeyLayout_FinalizeWritesLegacyShape(t *testing.T) {
 	t.Parallel()
 	staging := writeStagedOutputs(t, t.TempDir(), "ABCD1234")

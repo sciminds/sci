@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -124,6 +125,11 @@ type BatchInput struct {
 	// Plan says Skip (existing Zotero note) are STILL extracted when
 	// their layout dir is missing — the note and the layout are
 	// independent stores. Nil means classic behavior.
+	//
+	// Finalization is per-document, during extraction (see
+	// layoutFinalizer): a chunk that errors or is canceled banks every
+	// document docling finished, so an interrupted run resumes from the
+	// in-flight tail, never from zero.
 	Layout *KeyLayout
 	// Now is injected for tests. Nil → time.Now.
 	Now func() time.Time
@@ -407,45 +413,60 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 				chunk []string
 				res   *BatchExtractResult
 				err   error
+				fin   *layoutFinalizer
 			}
 			chunkResults := make([]chunkResult, len(chunks))
 			var wg sync.WaitGroup
 			for ci, chunk := range chunks {
+				// jobDir and the finalizer are built OUTSIDE the
+				// goroutine so cr.fin is never nil — even when the
+				// goroutine short-circuits on a canceled ctx, the
+				// post-exit sweep still runs over the (empty) job dir.
+				jobDir := filepath.Join(outputDir, fmt.Sprintf("batch-%d-job-%d", batchNum, ci))
+				var fin *layoutFinalizer
+				if in.Layout != nil {
+					fin = newLayoutFinalizer(in, jobDir, chunk, pdfToIdx, outcomes)
+				}
 				wg.Go(func() {
 					if ctx.Err() != nil {
-						chunkResults[ci] = chunkResult{chunk: chunk, err: ctx.Err()}
+						chunkResults[ci] = chunkResult{chunk: chunk, fin: fin, err: ctx.Err()}
 						return
 					}
 					opts := extractOpts
-					jobDir := filepath.Join(outputDir, fmt.Sprintf("batch-%d-job-%d", batchNum, ci))
 					opts.OutputDir = jobDir
 
-					// Cache each document as docling writes it to
-					// disk for crash resilience. Docling logs the
-					// output path slightly before the file is
-					// flushed, so we queue the path and drain the
-					// queue on every subsequent event — by then the
+					// Bank each document as docling completes it, for
+					// crash resilience. Classic mode caches the
+					// markdown; layout mode goes further and finalizes
+					// the whole per-key dir (see layoutFinalizer).
+					// Docling logs an output path slightly before the
+					// file is flushed, so both paths queue on one
+					// event and drain on the next — by then the
 					// previous file is on disk.
 					var pending []string
-					cacheOnOutput := func(ev *DoclingEvent) {
-						// Drain: try to cache any queued paths.
-						still := pending[:0]
-						for _, p := range pending {
-							stem := strings.TrimSuffix(filepath.Base(p), ".md")
-							if info, ok := stemToInfo[stem]; ok {
-								if md, err := os.ReadFile(p); err == nil {
-									item := in.Items[info.idx]
-									_, _ = in.Cache.Put(item.Request.PDFKey, item.Hash, md)
-								} else {
-									still = append(still, p)
+					onEvent := func(ev *DoclingEvent) {
+						if fin != nil {
+							fin.onEvent(ev)
+						} else {
+							// Drain: try to cache any queued paths.
+							still := pending[:0]
+							for _, p := range pending {
+								stem := strings.TrimSuffix(filepath.Base(p), ".md")
+								if info, ok := stemToInfo[stem]; ok {
+									if md, err := os.ReadFile(p); err == nil {
+										item := in.Items[info.idx]
+										_, _ = in.Cache.Put(item.Request.PDFKey, item.Hash, md)
+									} else {
+										still = append(still, p)
+									}
 								}
 							}
-						}
-						pending = still
+							pending = still
 
-						// Enqueue new output path.
-						if ev.Kind == EventOutput && strings.HasSuffix(ev.OutputPath, ".md") {
-							pending = append(pending, ev.OutputPath)
+							// Enqueue new output path.
+							if ev.Kind == EventOutput && strings.HasSuffix(ev.OutputPath, ".md") {
+								pending = append(pending, ev.OutputPath)
+							}
 						}
 
 						if in.OnProgress != nil {
@@ -453,8 +474,8 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 						}
 					}
 
-					res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, cacheOnOutput)
-					chunkResults[ci] = chunkResult{chunk: chunk, res: res, err: err}
+					res, err := in.Extractor.ExtractBatch(ctx, opts, chunk, onEvent)
+					chunkResults[ci] = chunkResult{chunk: chunk, res: res, err: err, fin: fin}
 				})
 			}
 			wg.Wait()
@@ -464,6 +485,32 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 			// missed (e.g. single-doc batches where the file write
 			// races with the log line) and mark errors.
 			for _, cr := range chunkResults {
+				if in.Layout != nil {
+					// Sweep before judging: everything docling actually
+					// finished is on disk, so an errored or canceled
+					// chunk still banks its completed documents. Only
+					// the remainder fails.
+					for _, stem := range cr.fin.sweep() {
+						idx := cr.fin.stems[stem]
+						item := in.Items[idx]
+						if cr.err != nil {
+							outcomes[idx].Err = fmt.Errorf("batch extract: %w", cr.err)
+						} else {
+							outcomes[idx].Err = fmt.Errorf("docling produced no output for %s", item.Request.PDFName)
+						}
+						if in.OnItemDone != nil {
+							in.OnItemDone(idx, outcomes[idx])
+						}
+					}
+					// ToolVersion is written only here, on the
+					// ExecuteBatch goroutine after wg.Wait() — never
+					// from a chunk callback, which would race.
+					if cr.err == nil && result.ToolVersion == "" {
+						result.ToolVersion = cr.res.ToolVersion
+					}
+					continue
+				}
+
 				if cr.err != nil {
 					for _, pdf := range cr.chunk {
 						idx := pdfToIdx[pdf]
@@ -481,11 +528,6 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 				for _, pdf := range cr.chunk {
 					idx := pdfToIdx[pdf]
 					item := in.Items[idx]
-
-					if in.Layout != nil {
-						finalizeLayoutItem(in, idx, pdf, cr.res, outcomes)
-						continue
-					}
 
 					// Already cached by the progress callback?
 					if _, ok := in.Cache.Get(item.Request.PDFKey, item.Hash); ok {
@@ -524,6 +566,14 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	nFresh := lo.CountBy(outcomes, func(o BatchOutcome) bool {
 		return o.Err == nil && o.Action == ActionCreate && !o.FromCache
 	})
+	// Salvage can post notes for documents whose chunk process died
+	// before reporting a version (an interrupt kills docling mid-batch).
+	// Record the tool without one rather than emitting an empty source.
+	// No-op in classic mode: a wholesale-failed chunk leaves no fresh
+	// error-free outcomes there.
+	if result.ToolVersion == "" && nFresh > 0 {
+		result.ToolVersion = "docling"
+	}
 	if nFresh > 0 {
 		if in.OnPhase != nil {
 			in.OnPhase(PhasePostFresh, nFresh)
@@ -539,51 +589,129 @@ func ExecuteBatch(ctx context.Context, in BatchInput) (*BatchResult, error) {
 	return result, nil
 }
 
-// finalizeLayoutItem completes one freshly-extracted item in layout
-// mode: makes sure the markdown is in the cache (the posting phase
-// reads it from there, and Finalize is about to move the staging file),
-// then finalizes the per-key dir. Skip-action items end their journey
-// here — the posting phase won't touch them — so their OnItemDone fires
-// now; Create items report when their note posts.
-func finalizeLayoutItem(in BatchInput, idx int, pdf string, batchRes *BatchExtractResult, outcomes []BatchOutcome) {
-	item := in.Items[idx]
-	fail := func(err error) {
-		outcomes[idx].Err = err
-		if in.OnItemDone != nil {
-			in.OnItemDone(idx, outcomes[idx])
-		}
-	}
+// layoutFinalizer finalizes a chunk's documents into the per-key layout
+// as docling completes them, rather than waiting for the chunk's
+// process to exit. A chunk is hours of work: before this existed, an
+// interrupt failed every PDF in it and the deferred cleanup of the
+// staging dir deleted every document that had already converted.
+//
+// The trigger is EventFinished, but docling logs that line *before* it
+// writes the document's output files, so a finished stem is queued and
+// completed on a later drain — the same drain-on-next-event pattern the
+// markdown cache uses. A stem is only finalized once both KEY.md and
+// KEY.json stat successfully. The one-event deferral also means a
+// document's outputs are only moved out of the job dir after docling
+// has demonstrably moved on to the next document — do not "optimize"
+// the drain into an immediate finalize on the JSON output event.
+//
+// Threading: onEvent runs on the chunk's stderr-scanner goroutine
+// (inside Extractor.ExtractBatch); sweep runs on the ExecuteBatch
+// goroutine after that call returned. The two never overlap, so no
+// lock is needed. Parallel chunks own disjoint stems, disjoint item
+// indices, and disjoint job dirs, so they never contend on outcomes or
+// on a key dir.
+type layoutFinalizer struct {
+	in       BatchInput
+	jobDir   string
+	outcomes []BatchOutcome
+	stems    map[string]int     // stem → index into in.Items, this chunk only
+	secs     map[string]float64 // stem → EventFinished duration
+	pending  []string           // finished stems whose outputs aren't on disk yet
+	done     map[string]bool    // stems already finalized (success or failure)
+}
 
-	res, ok := batchRes.Results[pdf]
-	if !ok {
-		fail(fmt.Errorf("docling produced no output for %s", item.Request.PDFName))
+func newLayoutFinalizer(in BatchInput, jobDir string, chunk []string, pdfToIdx map[string]int, outcomes []BatchOutcome) *layoutFinalizer {
+	return &layoutFinalizer{
+		in: in, jobDir: jobDir, outcomes: outcomes,
+		stems: lo.SliceToMap(chunk, func(p string) (string, int) { return stemFor(p), pdfToIdx[p] }),
+		secs:  map[string]float64{},
+		done:  map[string]bool{},
+	}
+}
+
+// onEvent drains anything queued by a previous event, then queues this
+// event's document if it just finished.
+func (f *layoutFinalizer) onEvent(ev *DoclingEvent) {
+	f.drain()
+	if ev.Kind != EventFinished {
 		return
 	}
+	stem := stemFor(ev.Document)
+	if _, ok := f.stems[stem]; !ok {
+		return // not one of this chunk's documents
+	}
+	f.secs[stem] = ev.Duration.Seconds()
+	if !f.done[stem] && !slices.Contains(f.pending, stem) {
+		f.pending = append(f.pending, stem)
+	}
+}
 
-	if _, ok := in.Cache.Get(item.Request.PDFKey, item.Hash); !ok {
-		md, err := os.ReadFile(res.MarkdownPath)
+// drain finalizes every queued stem whose outputs are now on disk.
+func (f *layoutFinalizer) drain() {
+	ready, waiting := lo.FilterReject(f.pending, func(stem string, _ int) bool {
+		return layoutOutputsReady(f.jobDir, stem)
+	})
+	f.pending = waiting
+	lo.ForEach(ready, func(stem string, _ int) { f.finalize(stem) })
+}
+
+// sweep finalizes every document of the chunk that has complete outputs
+// on disk but wasn't finalized during the run: the last document (whose
+// drain never got a following event), anything lost to a flush race,
+// and — when the chunk errored or was canceled — everything docling had
+// already converted. It deliberately ignores ctx: the files are on disk
+// and banking them is the whole point. Returns the stems it could not
+// finalize, sorted, so the caller fails exactly those.
+func (f *layoutFinalizer) sweep() []string {
+	f.drain()
+	stems := lo.Keys(f.stems)
+	slices.Sort(stems) // deterministic outcome/callback ordering
+	ready, unfinalized := lo.FilterReject(stems, func(stem string, _ int) bool {
+		return f.done[stem] || layoutOutputsReady(f.jobDir, stem)
+	})
+	lo.ForEach(ready, func(stem string, _ int) { f.finalize(stem) }) // no-op for already-done
+	return unfinalized
+}
+
+// finalize caches the markdown (the posting phase reads it from there,
+// and Finalize is about to move the staging file), then writes the
+// per-key dir. Skip-action items end their journey here — the posting
+// phase won't touch them — so their OnItemDone fires now; Create items
+// report when their note posts. The manifest records the document's own
+// EventFinished duration; zero means "unknown" (killed mid-document),
+// never the chunk total.
+func (f *layoutFinalizer) finalize(stem string) {
+	if f.done[stem] {
+		return
+	}
+	f.done[stem] = true // set first: a failed finalize must not be retried by sweep
+	idx := f.stems[stem]
+	item := f.in.Items[idx]
+	fail := func(err error) {
+		f.outcomes[idx].Err = err
+		if f.in.OnItemDone != nil {
+			f.in.OnItemDone(idx, f.outcomes[idx])
+		}
+	}
+	if _, ok := f.in.Cache.Get(item.Request.PDFKey, item.Hash); !ok {
+		md, err := os.ReadFile(filepath.Join(f.jobDir, stem+".md"))
 		if err == nil {
-			_, err = in.Cache.Put(item.Request.PDFKey, item.Hash, md)
+			_, err = f.in.Cache.Put(item.Request.PDFKey, item.Hash, md)
 		}
 		if err != nil {
 			fail(fmt.Errorf("cache %s: %w", item.Request.PDFName, err))
 			return
 		}
 	}
-
-	if _, err := in.Layout.Finalize(
-		item.Request.ParentKey,
-		filepath.Dir(res.MarkdownPath),
-		item.Request.PDFPath,
-		res.Duration.Seconds(),
-	); err != nil {
+	secs := f.secs[stem]
+	if _, err := f.in.Layout.Finalize(item.Request.ParentKey, f.jobDir, item.Request.PDFPath, secs); err != nil {
 		fail(err)
 		return
 	}
-	outcomes[idx].LayoutWritten = true
-
-	if item.Plan.Action == ActionSkip && in.OnItemDone != nil {
-		in.OnItemDone(idx, outcomes[idx])
+	f.outcomes[idx].LayoutWritten = true
+	f.outcomes[idx].Duration = time.Duration(secs * float64(time.Second))
+	if item.Plan.Action == ActionSkip && f.in.OnItemDone != nil {
+		f.in.OnItemDone(idx, f.outcomes[idx])
 	}
 }
 

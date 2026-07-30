@@ -1048,3 +1048,57 @@ func TestExecuteBatch_TagFailureDoesNotFailPost(t *testing.T) {
 		t.Errorf("CreateChildNote calls = %d, want 1", len(w.created))
 	}
 }
+
+// TestExecuteBatch_ClassicModeNoSalvageOnChunkError locks classic
+// (note-only) mode's behavior byte-identical against the layout-mode
+// salvage: a chunk error still fails every item in the chunk, and the
+// markdown cache — classic mode's own crash-resume store — keeps what
+// the in-flight drain banked before the death.
+func TestExecuteBatch_ClassicModeNoSalvageOnChunkError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	var items []BatchItem
+	for _, k := range []string{"k1", "k2", "k3"} {
+		pdf := filepath.Join(dir, k+".pdf")
+		writeStubPDF(t, pdf, k)
+		items = append(items, mkBatchItem("P"+k, "PDF"+k, k+".pdf", pdf, "h"+k, ActionCreate))
+	}
+	ex := &scriptedExtractor{
+		md: "# body\n", version: "docling 9.9.9",
+		steps: map[string]docStep{
+			"k1": {writeMD: true, secs: 1},
+			"k2": {writeMD: true, secs: 1},
+			"k3": {writeMD: true, secs: 1},
+		},
+		hook: func(p hookPoint, stem string) error {
+			// Abort after k1's markdown has been drained into the cache
+			// (the drain runs on k2's Processing event, before this hook).
+			if p == afterDrain && stem == "k1" {
+				return errors.New("docling exit: signal: killed")
+			}
+			return nil
+		},
+	}
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: ex,
+		Writer:    &fakeNoteWriter{},
+		Cache:     cache,
+		Now:       func() time.Time { return time.Date(2026, 7, 29, 22, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Classic mode: the whole chunk fails — no per-item salvage.
+	for i, o := range res.Outcomes {
+		if o.Err == nil {
+			t.Errorf("outcome %d has no error; classic mode must fail the chunk wholesale", i)
+		}
+	}
+	// But the incremental cache drain already banked k1 for resume.
+	if _, ok := cache.Get("PDFk1", "hk1"); !ok {
+		t.Error("cache missing k1 — the classic drain regressed")
+	}
+}
