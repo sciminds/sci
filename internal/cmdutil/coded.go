@@ -39,6 +39,10 @@ const (
 	// CodeStaleLocal flags a local mirror that is behind ground truth
 	// (warning channel only — never an error).
 	CodeStaleLocal Code = "stale-local"
+	// CodeDuplicate flags two or more records that resolve to the same
+	// underlying thing (warning channel only — sci reports duplicates,
+	// it never resolves them).
+	CodeDuplicate Code = "duplicate"
 	// CodeRuntime is the default for failures with no more specific code:
 	// the command was well-formed but the work itself failed.
 	CodeRuntime Code = "runtime"

@@ -30,7 +30,19 @@ var (
 	extractLibApply      bool
 	extractLibHTML       bool
 	extractLibOut        string
+	extractLibPlan       bool
 )
+
+// newBatchExtractor constructs the docling extractor for a bulk run. A
+// package var so tests can prove --plan never reaches it: under --plan
+// this is not called, and docling need not be installed.
+var newBatchExtractor = func() (extract.Extractor, error) { return extract.NewDoclingExtractor() }
+
+// pageCounter is the scheduling-workstream seam. nil means the
+// page-count estimator has not landed: --plan degrades to counts-only
+// (no buckets, no ETA) rather than guessing. When the estimator lands,
+// point this at it — e.g. `var pageCounter extract.PageCounter = ...`.
+var pageCounter extract.PageCounter
 
 func extractLibCommand() *cli.Command {
 	return &cli.Command{
@@ -38,13 +50,15 @@ func extractLibCommand() *cli.Command {
 		Usage: experimental + " Bulk-extract every PDF in the library into Zotero child notes (via docling)",
 		Description: "Runs `docling` on every parent item that has a PDF attachment.\n" +
 			"\n" +
-			"By default, extracted markdown is cached locally but NOT posted to Zotero.\n" +
+			"A bare run STILL EXTRACTS — it caches markdown locally without posting\n" +
+			"to Zotero. For a true read-only preview use --plan.\n" +
 			"Pass --apply to also create child notes in Zotero.\n" +
 			"\n" +
 			"Re-running after a failure resumes where it left off:\n" +
 			"  1. Items whose docling-tagged note already exists in Zotero are skipped (--apply only).\n" +
 			"  2. Items whose docling output was cached locally skip re-extraction.\n" +
 			"\n" +
+			"$ sci zot extract-lib --plan           # preview only: no docling, no writes\n" +
 			"$ sci zot extract-lib                  # extract all PDFs to local cache\n" +
 			"$ sci zot extract-lib --apply          # extract + post notes to Zotero\n" +
 			"$ sci zot extract-lib --apply --yes    # skip confirmation\n" +
@@ -52,6 +66,7 @@ func extractLibCommand() *cli.Command {
 			"$ sci zot extract-lib --force --apply  # create new notes even where docling note exists\n" +
 			"$ sci zot extract-lib --limit 5        # extract at most 5 items (smoke test)",
 		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "plan", Aliases: []string{"dry-run"}, Usage: "report what a run would do and exit — no docling, no cache writes, no Zotero writes", Destination: &extractLibPlan, Local: true},
 			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "mps", Destination: &extractLibDevice, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default)", Destination: &extractLibNumThreads, Local: true},
 			&cli.IntFlag{Name: "jobs", Aliases: []string{"j"}, Usage: "parallel docling processes (0 = single process for all PDFs)", Destination: &extractLibJobs, Local: true},
@@ -81,6 +96,15 @@ func (noopNoteWriter) AddTagToItem(context.Context, string, string) error {
 }
 
 func extractLibAction(ctx context.Context, cmd *cli.Command) error {
+	// --plan is the read-only mode; combining it with the one flag that
+	// writes to Zotero is a contradiction, refused before anything runs
+	// (including the ssh delegation — a bad command line never crosses
+	// the wire).
+	if extractLibPlan && extractLibApply {
+		return cmdutil.Coded(cmdutil.CodeConflict,
+			"--plan and --apply are mutually exclusive — --plan writes nothing").
+			WithFix("sci zot extract-lib --plan")
+	}
 	if handled, err := maybeDelegateExtract(cmd); handled {
 		return err
 	}
@@ -95,7 +119,20 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+
+	// Layout mode (persistent per-key artifact dirs): --out beats the
+	// configured extract.dir; empty means classic Zotero-note-only mode.
+	var layout *extract.KeyLayout
+	if dir := cmp.Or(extractLibOut, cfg.Extract.Dir); dir != "" {
+		layout = &extract.KeyLayout{Dir: dir}
+	}
+
 	if len(all) == 0 {
+		if extractLibPlan {
+			outputScoped(ctx, cmd, zot.NewExtractLibPlanResult(
+				extract.Survey{}, extractLibDevice, extractLibJobs, layoutDirOf(layout)))
+			return nil
+		}
 		_, _ = fmt.Fprintln(cmd.Root().Writer, "  no items with PDF attachments found")
 		return nil
 	}
@@ -106,23 +143,36 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	// Layout mode (persistent per-key artifact dirs): --out beats the
-	// configured extract.dir; empty means classic Zotero-note-only mode.
-	var layout *extract.KeyLayout
-	if dir := cmp.Or(extractLibOut, cfg.Extract.Dir); dir != "" {
-		layout = &extract.KeyLayout{Dir: dir}
+	// Layout completion is computed ONCE over all candidates and reused
+	// by both the reject below and the survey report, so the two can
+	// never disagree (Done stats three files per key).
+	candidates := len(all)
+	doneSet := map[string]bool{}
+	var layoutDone *int
+	if layout != nil {
+		for _, p := range all {
+			if layout.Done(p.ParentKey) {
+				doneSet[p.ParentKey] = true
+			}
+		}
+		layoutDone = new(len(doneSet))
 	}
 
 	// Filter out items that are fully handled. Classic mode: a docling
 	// note in Zotero settles it. Layout mode: the note AND the key dir
 	// must both exist — either one missing keeps the item in the run
 	// (the batch layer extracts and/or posts exactly what's absent).
+	alreadyDone := 0
 	if !extractLibForce {
 		all = lo.Reject(all, func(p local.PDFParent, _ int) bool {
+			done := hasExisting[p.ParentKey]
 			if layout != nil {
-				return hasExisting[p.ParentKey] && layout.Done(p.ParentKey)
+				done = done && doneSet[p.ParentKey]
 			}
-			return hasExisting[p.ParentKey]
+			if done {
+				alreadyDone++
+			}
+			return done
 		})
 	}
 
@@ -175,77 +225,46 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		writer = noopNoteWriter{}
 	}
 
-	// Plan phase — concurrent hashing + plan, shows a spinner.
-	// We plan ALL candidates first so we can filter out cached items
-	// before applying --limit. This ensures --limit picks up the next
-	// N truly-unextracted items instead of re-selecting cached ones.
-	var items []extract.BatchItem
+	// Plan phase — concurrent hashing + plan + survey, shows a spinner.
+	// We plan ALL candidates first so the survey can filter out cached
+	// items before applying --limit. This ensures --limit picks up the
+	// next N truly-unextracted items instead of re-selecting cached ones.
+	// BuildSurvey owns the cache filter, --limit slicing, and duplicate
+	// detection; the live run consumes its Selected/CachedIdx, which is
+	// what keeps --plan's report and the real run from ever diverging.
+	var survey extract.Survey
 	err = uikit.RunWithSpinner("Planning extraction...", func() error {
-		items = extract.PlanBatch(ctx, reqs, planJobs, extractLibForce, hasExisting)
+		planned := extract.PlanBatch(ctx, reqs, planJobs, extractLibForce, hasExisting)
+		survey = extract.BuildSurvey(extract.SurveyInput{
+			Items:       planned,
+			Cache:       cache,
+			Layout:      layout,
+			Apply:       extractLibApply,
+			Reextract:   extractLibReextract,
+			Limit:       extractLibLimit,
+			Jobs:        extractLibJobs,
+			Device:      extractLibDevice,
+			Pages:       pageCounter,
+			Candidates:  candidates,
+			AlreadyDone: alreadyDone,
+			LayoutDone:  layoutDone,
+		})
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	// Filter out items that are already cached (prior run extracted
-	// but didn't --apply). Without this, --limit keeps hitting cache
-	// instead of advancing to new items.
-	//
-	// In --apply mode cached items are kept (they still need posting)
-	// and tracked in cachedIdx so the confirm prompt can distinguish
-	// "needs new extraction" from "already cached, only needs posting".
-	//
-	// Layout mode skips this entirely: the markdown cache can't stand
-	// in for a key dir (no DoclingDocument JSON), so "already handled"
-	// was decided above via layout.Done and the batch layer.
-	cachedIdx := make(map[int]bool)
-	if !extractLibReextract && layout == nil {
-		filtered := items[:0]
-		for _, it := range items {
-			if it.Err != nil || it.Plan.Action == extract.ActionSkip {
-				filtered = append(filtered, it)
-				continue
-			}
-			if _, ok := cache.Get(it.Request.PDFKey, it.Hash); ok {
-				// Already cached — skip unless --apply needs to post.
-				if extractLibApply {
-					cachedIdx[len(filtered)] = true
-					filtered = append(filtered, it)
-				}
-				// In cache-only mode, nothing to do — drop it.
-				continue
-			}
-			filtered = append(filtered, it)
-		}
-		items = filtered
+	// --plan: report and stop — before the --reextract mutation, before
+	// the docling constructor, before any confirmation.
+	if extractLibPlan {
+		outputScoped(ctx, cmd, zot.NewExtractLibPlanResult(
+			survey, extractLibDevice, extractLibJobs, layoutDirOf(layout)))
+		return nil
 	}
 
-	// Apply --limit after filtering so re-runs advance past cached items.
-	if extractLibLimit > 0 && extractLibLimit < len(items) {
-		items = items[:extractLibLimit]
-		for i := range cachedIdx {
-			if i >= extractLibLimit {
-				delete(cachedIdx, i)
-			}
-		}
-	}
-
-	// Tally the plan for confirmation. nFresh = needs new extraction,
-	// --reextract: clear cache entries so docling re-runs from scratch.
-	// In layout mode also drop the .done markers — Finalize then rebuilds
-	// each selected key dir wholesale. Runs before the tally so the counts
-	// reflect the work the batch will actually do.
-	if extractLibReextract {
-		for _, it := range items {
-			if it.Err == nil && it.Hash != "" {
-				cache.Delete(it.Request.PDFKey, it.Hash)
-			}
-			if layout != nil && it.Err == nil {
-				_ = os.Remove(filepath.Join(layout.KeyDir(it.Request.ParentKey), ".done"))
-			}
-		}
-	}
+	items := survey.Selected
+	cachedIdx := survey.CachedIdx
 
 	// Tally the plan for confirmation. nFresh = needs new extraction,
 	// nCachedPost = already cached, only needs posting (--apply only),
@@ -285,8 +304,23 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		if layout != nil {
 			result.LayoutDir = layout.Dir
 		}
-		outputScoped(ctx, cmd, result)
+		outputScoped(ctx, cmd, cmdutil.WithWarnings(result, dupWarnings(survey)...))
 		return nil
+	}
+
+	// Surface duplicate PDF content before the user commits to the run
+	// — tonight's 332-page book was OCR'd twice because two items
+	// carried the same scan. Diagnostic, so it goes to stderr; the
+	// --json envelope carries the same fact via Warnings.
+	if len(survey.Duplicates) > 0 && !uikit.IsQuiet() {
+		fmt.Fprintf(os.Stderr, "\n  %s %d PDF(s) attached to more than one item — %d duplicate extraction(s) queued\n",
+			uikit.SymWarn, len(survey.Duplicates), survey.DuplicateWasted)
+		for _, g := range survey.Duplicates {
+			for _, m := range g.Members {
+				fmt.Fprintf(os.Stderr, "      %s  %-30s %s\n", m.ParentKey, m.PDFName, m.Disposition)
+			}
+		}
+		fmt.Fprintf(os.Stderr, "    %s triage: sci zot doctor duplicates\n", uikit.SymArrow)
 	}
 
 	// Confirm.
@@ -316,6 +350,21 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	// --reextract: clear cache entries so docling re-runs from scratch.
+	// In layout mode also drop the .done markers — Finalize then rebuilds
+	// each selected key dir wholesale. Deliberately AFTER the confirm: a
+	// declined prompt must not have already cost the cache.
+	if extractLibReextract {
+		for _, it := range items {
+			if it.Err == nil && it.Hash != "" {
+				cache.Delete(it.Request.PDFKey, it.Hash)
+			}
+			if layout != nil && it.Err == nil {
+				_ = os.Remove(filepath.Join(layout.KeyDir(it.Request.ParentKey), ".done"))
+			}
+		}
+	}
+
 	// From here on every "please stop" (signal, ssh drop, TUI ctrl+c)
 	// must land as a ctx cancel so the docling process group dies with us.
 	ctx, stop := extractContext(ctx)
@@ -325,7 +374,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	started := time.Now()
 	var batchResult *extract.BatchResult
 
-	ex, err := extract.NewDoclingExtractor()
+	ex, err := newBatchExtractor()
 	if err != nil {
 		return err
 	}
@@ -432,8 +481,31 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 	}
-	outputScoped(ctx, cmd, result)
+	outputScoped(ctx, cmd, cmdutil.WithWarnings(result, dupWarnings(survey)...))
 	return nil
+}
+
+// layoutDirOf returns the layout's directory, or "" for classic mode.
+func layoutDirOf(l *extract.KeyLayout) string {
+	if l == nil {
+		return ""
+	}
+	return l.Dir
+}
+
+// dupWarnings converts a survey's duplicate groups into the envelope
+// warning the plan result also emits, so live runs and --plan speak the
+// same warning vocabulary.
+func dupWarnings(s extract.Survey) []cmdutil.Warning {
+	if len(s.Duplicates) == 0 {
+		return nil
+	}
+	return []cmdutil.Warning{{
+		Code: cmdutil.CodeDuplicate,
+		Message: fmt.Sprintf("%d PDF(s) are attached to more than one item — %d extraction(s) would run on bytes already queued under another key",
+			len(s.Duplicates), s.DuplicateWasted),
+		Fix: "sci zot doctor duplicates",
+	}}
 }
 
 // backfillHasMarkdownTag adds extract.MarkdownTag to every parent that

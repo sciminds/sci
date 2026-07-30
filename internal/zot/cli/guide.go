@@ -117,7 +117,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Extract a PDF I haven't extracted yet (auto-applies the has-markdown tag)",
 						Cmd:  "sci zot content extract ABC12345 --apply",
-						Note: "Runs docling and posts the paper's text. Dry-runs without --apply. Re-extract in place with `content refresh`, remove with `content drop`, list what has one with `content list`. Bulk: `sci zot extract-lib`.",
+						Note: "Runs docling and posts the paper's text. Dry-runs without --apply. Re-extract in place with `content refresh`, remove with `content drop`, list what has one with `content list`. Bulk: `sci zot extract-lib`; --plan previews.",
 					},
 				},
 			},
