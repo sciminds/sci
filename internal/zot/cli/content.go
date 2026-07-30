@@ -205,7 +205,8 @@ func contentReadCommand() *cli.Command {
 		Name:  "read",
 		Usage: "Print the indexed text of one item",
 		Description: "The full text sci has for a paper, from whichever source supplied\n" +
-			"it. Useful for piping a paper into a model.\n\n" +
+			"it. Useful for piping a paper into a model. Papers whose markdown\n" +
+			"was too large for Zotero to store are served from the layout dir.\n\n" +
 			"$ sci zot content read AAAA1111\n" +
 			"$ sci zot content read AAAA1111 --json",
 		ArgsUsage: "<item-key>",
@@ -215,7 +216,7 @@ func contentReadCommand() *cli.Command {
 			}
 			itemKey := cmd.Args().First()
 
-			_, db, err := openLocalDB(ctx)
+			cfg, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
@@ -232,10 +233,21 @@ func contentReadCommand() *cli.Command {
 				return err
 			}
 			if !ok {
-				return cmdutil.Coded(cmdutil.CodeNotFound,
-					"no indexed content for %s", itemKey).
-					WithTry("the item may have no PDF text, or the index may be stale — " +
-						"check `sci zot content stats`")
+				// The index only ever holds text Zotero has. A paper whose
+				// markdown exceeded the note limit has none there, but its
+				// layout dir is complete — serve that rather than claim the
+				// paper has no text.
+				body, ok, err = layoutExtraction(cfg, db, itemKey)
+				if err != nil {
+					return err
+				}
+				if !ok {
+					return cmdutil.Coded(cmdutil.CodeNotFound,
+						"no indexed content for %s", itemKey).
+						WithTry("the item may have no PDF text, or the index may be stale — " +
+							"check `sci zot content stats`")
+				}
+				source = SourceLayout
 			}
 			outputScoped(ctx, cmd, zot.ContentReadResult{
 				ItemKey: itemKey,

@@ -3,6 +3,7 @@ package local
 import (
 	"cmp"
 	"database/sql"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -1041,8 +1042,22 @@ func buildClauseSQL(c match.Clause, ftIDs []int64) (string, []any, error) {
 	return frag, args, nil
 }
 
+// ItemNotFoundError reports that a key has no live row in the library
+// this DB is scoped to — it is absent, trashed, or belongs to another
+// library. Returned by [DB.Read] as a distinct type so callers can tell
+// "this library doesn't have that item" from a query that actually
+// failed; treating the two alike would let a broken DB masquerade as an
+// empty one.
+type ItemNotFoundError struct {
+	Key string
+}
+
+// Error implements error.
+func (e *ItemNotFoundError) Error() string { return "item " + e.Key + " not found" }
+
 // Read returns a single item by 8-char Zotero key, fully hydrated with
-// creators, tags, collections, and attachments.
+// creators, tags, collections, and attachments. A key this library does
+// not have yields an [ItemNotFoundError].
 func (d *DB) Read(key string) (*Item, error) {
 	libFrag, libArgs := d.libIn("i")
 	args := listArgs()
@@ -1060,8 +1075,8 @@ LIMIT 1
 		&it.ID, &it.Key, &libID, &it.Type, &it.Version, &it.DateAdded, &it.DateModified,
 		&title, &date, &doi, &pub, &citekey,
 	); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("item %s not found", key)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, &ItemNotFoundError{Key: key}
 		}
 		return nil, err
 	}

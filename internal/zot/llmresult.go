@@ -102,13 +102,21 @@ func (e LLMCatalogEntry) toBrief() ItemBrief {
 // read
 // ---------------------------------------------------------------------------
 
-// LLMReadEntry is one note in the read result.
+// LLMReadEntry is one extraction in the read result — normally a Zotero
+// note, but see Source.
 type LLMReadEntry struct {
-	Key     string `json:"key"`
-	Title   string `json:"title"`
-	DOI     string `json:"doi,omitempty"`
+	Key   string `json:"key"`
+	Title string `json:"title"`
+	DOI   string `json:"doi,omitempty"`
+	// NoteKey is empty when the body did not come from a note.
 	NoteKey string `json:"note_key"`
-	Body    string `json:"body"`
+	// Source names a non-default origin and is set only when the body
+	// came from somewhere other than a Zotero note (today: the layout
+	// store, for papers whose markdown exceeds Zotero's note limit).
+	// Omitted otherwise, so note-sourced entries keep the JSON shape
+	// agents were built against.
+	Source string `json:"source,omitempty"`
+	Body   string `json:"body"`
 }
 
 // LLMReadResult is returned by `zot llm read`.
@@ -133,6 +141,9 @@ func (r LLMReadResult) Human() string {
 		fmt.Fprintf(&b, "=== %s | %s", e.Key, e.Title)
 		if e.DOI != "" {
 			fmt.Fprintf(&b, " | %s", e.DOI)
+		}
+		if e.Source != "" {
+			fmt.Fprintf(&b, " | %s", e.Source)
 		}
 		fmt.Fprintf(&b, " ===\n\n")
 		fmt.Fprint(&b, e.Body)
