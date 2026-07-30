@@ -45,6 +45,13 @@ const (
 	StrategyDOI   Strategy = "doi"
 	StrategyTitle Strategy = "title"
 	StrategyBoth  Strategy = "both"
+	// StrategyContent clusters on PDF bytes instead of metadata. It runs
+	// alone: byte identity is the strongest signal available, and mixing
+	// it with the metadata passes would only add weaker matches to an
+	// answer the user asked to be certain about. It needs
+	// DuplicatesOptions.ContentKeys — the caller hashes the files,
+	// because this package stays DB- and disk-free.
+	StrategyContent Strategy = "content"
 )
 
 // DuplicatesOptions configures RunDuplicates and Duplicates.
@@ -66,6 +73,11 @@ type DuplicatesOptions struct {
 	Strategy  Strategy
 	Fuzzy     bool
 	Threshold float64
+	// ContentKeys maps item key → PDF content key, and is required by
+	// (and only consulted for) StrategyContent. Supplied by the caller:
+	// producing it means hashing files on disk, which this package does
+	// not do.
+	ContentKeys map[string]string
 }
 
 // RunDuplicates is the pure, DB-free entry point. It runs the configured
@@ -80,6 +92,10 @@ func RunDuplicates(cands []DuplicateCandidate, opts DuplicatesOptions) []Cluster
 	}
 	if opts.Threshold == 0 {
 		opts.Threshold = 0.85
+	}
+	// Byte identity supersedes rather than supplements: see StrategyContent.
+	if opts.Strategy == StrategyContent {
+		return ClusterByContent(cands, opts.ContentKeys)
 	}
 
 	var doiClusters, titleClusters []Cluster

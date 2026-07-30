@@ -174,27 +174,34 @@ func runMissing(ctx context.Context, cmd *cli.Command) error {
 func duplicatesCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "duplicates",
-		Usage: "Find potential duplicate items (by DOI and/or title)",
+		Usage: "Find potential duplicate items (by DOI, title, or PDF bytes)",
 		Description: `$ sci zot doctor duplicates                  # fast: DOI + exact-normalized title
 $ sci zot doctor duplicates --fuzzy          # adds slow fuzzy title pass (~30s on 5k items)
 $ sci zot doctor duplicates --strategy doi
+$ sci zot doctor duplicates --strategy content   # same PDF bytes, whatever the metadata says
 $ sci zot doctor duplicates --fuzzy --threshold 0.9
 $ sci zot doctor duplicates --limit 0 --json > dupes.json
 
-Strategies: doi (strongest), title, both (default).
+Strategies: doi (strongest), title, both (default), content.
 
 Fast mode catches shared DOIs and titles that are identical after
 normalization (case/whitespace/punctuation). Use --fuzzy to additionally
 pair near-identical titles (typos, punctuation drift) using Levenshtein
 similarity — accurate but O(n²) on the title-only singletons.
 
-DOI matches subsume title matches when both fire on the same items.`,
+DOI matches subsume title matches when both fire on the same items.
+
+--strategy content ignores metadata entirely and clusters items whose
+PDFs are byte-identical, which is the only way to catch the same scan
+filed twice under different titles and no DOI. It runs alone (byte
+identity needs no corroboration) and hashes every PDF in the library,
+so it costs tens of seconds where the metadata passes cost none.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "strategy",
 				Aliases:     []string{"s"},
 				Value:       "both",
-				Usage:       "match strategy: doi, title, both",
+				Usage:       "match strategy: doi, title, both, content",
 				Destination: &dupStrategy,
 				Local:       true,
 			},
@@ -229,16 +236,28 @@ DOI matches subsume title matches when both fire on the same items.`,
 			if dupThreshold < 0 || dupThreshold > 1 {
 				return cmdutil.UsageErrorf(cmd, "--threshold must be in [0, 1]")
 			}
-			_, db, err := openLocalDB(ctx)
+			cfg, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
 			}
 			defer func() { _ = db.Close() }()
 
+			// Content clustering needs the files themselves, which no
+			// metadata pass touches — hash them before handing the pure
+			// clusterer a finished map.
+			var contentKeys map[string]string
+			if strategy == hygiene.StrategyContent {
+				contentKeys, err = hashLibraryPDFs(ctx, db, cfg.DataDir)
+				if err != nil {
+					return err
+				}
+			}
+
 			rep, err := hygiene.Duplicates(db, hygiene.DuplicatesOptions{
-				Strategy:  strategy,
-				Fuzzy:     dupFuzzy,
-				Threshold: dupThreshold,
+				Strategy:    strategy,
+				Fuzzy:       dupFuzzy,
+				Threshold:   dupThreshold,
+				ContentKeys: contentKeys,
 			})
 			if err != nil {
 				return err
@@ -594,8 +613,10 @@ func parseStrategy(s string) (hygiene.Strategy, error) {
 		return hygiene.StrategyTitle, nil
 	case "both", "":
 		return hygiene.StrategyBoth, nil
+	case "content":
+		return hygiene.StrategyContent, nil
 	default:
-		return "", fmt.Errorf("unknown --strategy %q (want doi, title, or both)", s)
+		return "", fmt.Errorf("unknown --strategy %q (want doi, title, both, or content)", s)
 	}
 }
 

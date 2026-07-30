@@ -385,6 +385,15 @@ func (r DuplicatesResult) Human() string {
 	fmt.Fprintf(&b, "\n  %s %d cluster(s), %d item(s)\n",
 		uikit.SymArrow, stats.ClusterCount, stats.ItemsInGroups,
 	)
+	// A content cluster means "these items hold the same file", which is
+	// not the same claim as "these are the same work". Two unrelated
+	// titles sharing bytes is a mis-filed attachment, and without this
+	// line it just reads as the tool being wrong.
+	if stats.Strategy == string(hygiene.StrategyContent) {
+		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render(
+			"content clusters share PDF bytes — unrelated titles in one cluster "+
+				"mean the same file is attached to both items, not that they are the same work"))
+	}
 	return b.String()
 }
 
@@ -544,6 +553,8 @@ func matchTypeBadge(kind string) string {
 		return uikit.TUI.TextBlue().Render("[" + kind + "]")
 	case "title-fuzzy":
 		return uikit.TUI.Warn().Render("[" + kind + "]")
+	case "content":
+		return uikit.TUI.Pass().Render("[" + kind + "]")
 	default:
 		return uikit.TUI.Dim().Render("[" + kind + "]")
 	}
