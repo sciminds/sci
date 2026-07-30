@@ -61,12 +61,18 @@ type PlanPages struct {
 
 // PlanETA is the rough wall-clock estimate for the queued extractions.
 // Basis always states the assumption so nobody mistakes a guess for a
-// measurement.
+// measurement — and, when the rate came from the layout corpus, says how
+// many documents it was measured over.
 type PlanETA struct {
 	Seconds int    `json:"seconds"`
 	Human   string `json:"human"`
 	Jobs    int    `json:"jobs"`
 	Basis   string `json:"basis"`
+	// SecondsPerPage is the rate used. CalibratedFrom is the number of
+	// finished extractions it was measured over, omitted entirely when
+	// the rate is the device guess.
+	SecondsPerPage float64 `json:"seconds_per_page"`
+	CalibratedFrom int     `json:"calibrated_from,omitempty"`
 }
 
 // NewExtractLibPlanResult projects a Survey into the --plan result
@@ -105,12 +111,21 @@ func NewExtractLibPlanResult(s extract.Survey, device string, jobs int, layoutDi
 		}
 	}
 	if r.Pages != nil && s.ETA > 0 {
+		// Name the rate's provenance in the basis line: a median over the
+		// user's own extractions and a hardcoded per-device guess deserve
+		// very different amounts of trust.
+		rateSource := fmt.Sprintf("(%s guess)", device)
+		if s.CalibrationSamples > 0 {
+			rateSource = fmt.Sprintf("(median of %d extractions)", s.CalibrationSamples)
+		}
 		r.ETA = &PlanETA{
-			Seconds: int(s.ETA.Seconds()),
-			Human:   s.ETA.Truncate(time.Minute).String(),
-			Jobs:    max(jobs, 1),
-			Basis: fmt.Sprintf("%.1fs/page (%s) × %d pages ÷ %d jobs — rough",
-				extract.SecondsPerPage(device), device, s.PagesTotal, max(jobs, 1)),
+			Seconds:        int(s.ETA.Seconds()),
+			Human:          s.ETA.Truncate(time.Minute).String(),
+			Jobs:           max(jobs, 1),
+			SecondsPerPage: s.SecondsPerPage,
+			CalibratedFrom: s.CalibrationSamples,
+			Basis: fmt.Sprintf("%.1fs/page %s × %d pages ÷ %d jobs — rough",
+				s.SecondsPerPage, rateSource, s.PagesTotal, max(jobs, 1)),
 		}
 	}
 	return r

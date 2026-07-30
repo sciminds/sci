@@ -116,6 +116,13 @@ type SurveyInput struct {
 	Device    string // docling device, for the ETA rate
 	Pages     PageCounter
 
+	// SecondsPerPage overrides the Device guess for the ETA — the
+	// corpus-observed rate from [CalibrateSecondsPerPage]. 0 means fall
+	// back to [SecondsPerPage]. CalibrationSamples is how many documents
+	// it was measured over, carried so the plan can attribute it.
+	SecondsPerPage     float64
+	CalibrationSamples int
+
 	Candidates  int  // parents with a PDF, before any filtering
 	AlreadyDone int  // dropped pre-plan (note exists; and dir exists in layout mode)
 	LayoutDone  *int // layout.Done count over ALL candidates; nil in classic mode
@@ -160,6 +167,12 @@ type Survey struct {
 	Buckets           []PageBucket
 	ETA               time.Duration // 0 = unknown
 
+	// SecondsPerPage is the rate ETA was computed at, and
+	// CalibrationSamples the number of finished extractions behind it —
+	// 0 when the rate is the device guess rather than a measurement.
+	SecondsPerPage     float64
+	CalibrationSamples int
+
 	Errors map[string]string // parentKey → plan error
 }
 
@@ -175,6 +188,13 @@ func BuildSurvey(in SurveyInput) Survey {
 		AlreadyDone: in.AlreadyDone,
 		LayoutDone:  in.LayoutDone,
 		Limit:       in.Limit,
+		// A measured rate displaces the device guess; the sample count
+		// rides along so the plan can say which one it used.
+		SecondsPerPage:     cmp.Or(in.SecondsPerPage, SecondsPerPage(in.Device)),
+		CalibrationSamples: in.CalibrationSamples,
+	}
+	if in.SecondsPerPage <= 0 {
+		s.CalibrationSamples = 0
 	}
 	layoutMode := in.Layout != nil
 
@@ -305,7 +325,7 @@ func BuildSurvey(in SurveyInput) Survey {
 		})
 		s.Buckets = PageBuckets(queued)
 		if s.PagesKnownItems > 0 {
-			s.ETA = EstimateDuration(s.PagesTotal, in.Jobs, in.Device)
+			s.ETA = EstimateDurationAt(s.PagesTotal, in.Jobs, s.SecondsPerPage)
 		}
 	}
 
@@ -410,6 +430,5 @@ func SecondsPerPage(device string) float64 {
 // estimate at the given parallelism and device rate. jobs ≤ 1 means a
 // single docling process.
 func EstimateDuration(totalPages, jobs int, device string) time.Duration {
-	secs := float64(totalPages) * SecondsPerPage(device) / float64(max(jobs, 1))
-	return time.Duration(secs * float64(time.Second))
+	return EstimateDurationAt(totalPages, jobs, SecondsPerPage(device))
 }

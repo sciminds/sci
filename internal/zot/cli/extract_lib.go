@@ -254,19 +254,25 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 	var survey extract.Survey
 	err = uikit.RunWithSpinner("Planning extraction...", func() error {
 		planned := extract.PlanBatch(ctx, reqs, planJobs, extractLibForce, hasExisting)
+		// The device constant is a guess about hardware sci has never
+		// seen; the layout corpus recorded what this machine actually
+		// did. Prefer the measurement whenever there is enough of it.
+		cal, _ := extract.CalibrateSecondsPerPage(layout)
 		survey = extract.BuildSurvey(extract.SurveyInput{
-			Items:       planned,
-			Cache:       cache,
-			Layout:      layout,
-			Apply:       extractLibApply,
-			Reextract:   extractLibReextract,
-			Limit:       extractLibLimit,
-			Jobs:        doclingJobs,
-			Device:      extractLibDevice,
-			Pages:       pageCounter,
-			Candidates:  candidates,
-			AlreadyDone: alreadyDone,
-			LayoutDone:  layoutDone,
+			Items:              planned,
+			Cache:              cache,
+			Layout:             layout,
+			Apply:              extractLibApply,
+			Reextract:          extractLibReextract,
+			Limit:              extractLibLimit,
+			Jobs:               doclingJobs,
+			Device:             extractLibDevice,
+			Pages:              pageCounter,
+			SecondsPerPage:     cal.SecondsPerPage,
+			CalibrationSamples: cal.Samples,
+			Candidates:         candidates,
+			AlreadyDone:        alreadyDone,
+			LayoutDone:         layoutDone,
 		})
 		return nil
 	})
