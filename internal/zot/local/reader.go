@@ -24,6 +24,10 @@ type Reader interface {
 	SchemaOutOfRange() bool
 	LastSync() (time.Time, bool)
 
+	// PendingWAL sizes the committed Zotero changes this handle cannot see,
+	// because Open always uses immutable mode. See the package doc.
+	PendingWAL() (int64, bool)
+
 	// Items
 	List(f ListFilter) ([]Item, error)
 	CountList(f ListFilter) (int, error)

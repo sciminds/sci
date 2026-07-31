@@ -66,6 +66,59 @@ func staleLocalWarning(db local.Reader, fix string) []cmdutil.Warning {
 	}}
 }
 
+// freshnessReader is the slice of [local.Reader] the WAL rule needs. A narrow
+// consumer-side interface keeps the rule unit-testable without standing up a
+// whole Reader.
+type freshnessReader interface {
+	PendingWAL() (int64, bool)
+}
+
+// walStaleWarning flags a read that cannot see everything Zotero has already
+// committed. local.Open always uses immutable mode, which skips WAL
+// processing outright, so a non-empty write-ahead log is precisely the set of
+// changes this read missed — no further qualification needed.
+//
+// This is a different failure from [staleLocalWarning]: that one is a mirror
+// behind the *server*, measured in days, fixed by syncing. This one is a
+// connection behind the *local file*, measured in bytes, fixed by letting
+// Zotero checkpoint. Both reuse CodeStaleLocal — agents branch on "this read
+// may be behind ground truth", which is true either way.
+func walStaleWarning(db freshnessReader) []cmdutil.Warning {
+	pending, ok := db.PendingWAL()
+	if !ok {
+		return nil
+	}
+	return []cmdutil.Warning{{
+		Code: cmdutil.CodeStaleLocal,
+		Message: fmt.Sprintf(
+			"Zotero has %s of changes not yet written to the database file, and local reads "+
+				"cannot see them — recent edits and deletions may be missing",
+			humanBytes(pending)),
+		Fix: "quit Zotero desktop and re-run",
+	}}
+}
+
+// humanBytes renders a byte count for warning prose. Deliberately coarse: the
+// number is an order-of-magnitude cue about how much is unseen, not a
+// measurement anyone acts on precisely.
+func humanBytes(n int64) string {
+	switch {
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%.0f KB", float64(n)/(1<<10))
+	default:
+		return fmt.Sprintf("%d bytes", n)
+	}
+}
+
+// localReadWarnings bundles every freshness caveat that applies to a local
+// read: the mirror-vs-server lag and the connection-vs-file lag. Call sites
+// take both or neither — a read is only as trustworthy as its weakest link.
+func localReadWarnings(db local.Reader, fix string) []cmdutil.Warning {
+	return append(staleLocalWarning(db, fix), walStaleWarning(db)...)
+}
+
 // remoteRerunFix rebuilds the current command line with --remote appended —
 // the ground-truth resubmit for a stale-local warning. Empty when argv has
 // no zot token (test binaries, exotic invocations): no fix beats a wrong fix.

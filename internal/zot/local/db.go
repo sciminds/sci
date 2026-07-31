@@ -1,8 +1,29 @@
 // Package local provides read-only access to a local zotero.sqlite file.
 //
 // The database is opened with mode=ro&immutable=1 so we neither touch the
-// WAL nor contend with the running Zotero desktop app's locks. Every query
-// is scoped to a single libraryID, chosen at Open time via a LibrarySelector:
+// WAL nor contend with the running Zotero desktop app's locks.
+//
+// That choice has a price, and it is not optional to know about: immutable=1
+// tells SQLite the file cannot change, which makes it skip WAL processing
+// entirely. Every change Zotero has committed but not yet checkpointed is
+// therefore INVISIBLE to this package. Zotero checkpoints on a clean quit,
+// so the gap is usually empty — but while the app is running it can be
+// arbitrarily large, and reads will confidently return superseded data.
+//
+// Dropping immutable=1 is not the fix. Zotero holds an exclusive lock, so a
+// plain mode=ro connection fails to open at all while the app is running
+// ("database is locked"), and a connection opened while Zotero is closed can
+// start failing mid-run if the user launches it. Availability of the read
+// matters more than its freshness; a stale answer plus an honest warning
+// beats an intermittent one.
+//
+// So the gap is reported rather than closed: [DB.PendingWAL] sizes what this
+// handle cannot see, and callers turn it into a staleness warning (see
+// walStaleWarning in internal/zot/cli). Anything that silently trusts a local
+// read is asserting the WAL is empty — check it instead.
+//
+// Every query is scoped to a single libraryID, chosen at Open time via a
+// LibrarySelector:
 //
 //   - ForPersonal()             — the user's personal library (libraries.type='user')
 //   - ForGroup(sqliteLibraryID) — a specific group by its SQLite libraryID
@@ -13,12 +34,13 @@
 // that want the personal library pass ForPersonal().
 //
 // This package uses raw database/sql (not pocketbase/dbx) — read-only
-// immutable-mode SQLite doesn't need dbx ergonomics.
+// SQLite doesn't need dbx ergonomics.
 package local
 
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -49,6 +71,10 @@ type DB struct {
 	userLibraryID int64
 	schemaVer     int
 
+	// path is the zotero.sqlite this handle was opened from; PendingWAL
+	// stats its sibling -wal.
+	path string
+
 	// Fulltext table detection (lazy, cached).
 	ftsOnce sync.Once
 	hasFTS  bool
@@ -74,12 +100,29 @@ func Open(dataDir string, sel LibrarySelector) (*DB, error) {
 		return nil, fmt.Errorf("open %q: %w", path, err)
 	}
 
-	d := &DB{db: sqldb}
+	d := &DB{db: sqldb, path: path}
 	if err := d.init(sel); err != nil {
 		_ = sqldb.Close()
 		return nil, err
 	}
 	return d, nil
+}
+
+// PendingWAL returns the size in bytes of the sibling -wal file and whether
+// there is a signal at all. Because [Open] always uses immutable mode, a
+// non-empty WAL is exactly the set of committed Zotero changes this handle
+// cannot see — callers surface it as a staleness warning.
+//
+// ok=false means no claim can be made: the database is not in WAL mode, or
+// the log is fully checkpointed, or the stat failed. A freshness signal must
+// never fail (or slow) a read, so errors collapse into "no claim" rather
+// than propagating.
+func (d *DB) PendingWAL() (int64, bool) {
+	st, err := os.Stat(d.path + "-wal")
+	if err != nil || st.Size() == 0 {
+		return 0, false
+	}
+	return st.Size(), true
 }
 
 func (d *DB) init(sel LibrarySelector) error {

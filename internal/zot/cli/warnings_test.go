@@ -148,3 +148,54 @@ func TestBibQualityWarning(t *testing.T) {
 		t.Errorf("all-dated items must not warn, got %+v", clean)
 	}
 }
+
+// fakeFreshness is a one-method stand-in for the freshness fact a
+// local.Reader exposes. The narrow consumer-side interface is what makes this
+// possible without a ~50-method Reader fake.
+type fakeFreshness struct {
+	walBytes int64
+	walOK    bool
+}
+
+func (f fakeFreshness) PendingWAL() (int64, bool) { return f.walBytes, f.walOK }
+
+// TestWALStaleWarning_FiresOnPendingWAL pins the rule and its honest
+// negative: local reads always run in immutable mode, so a non-empty WAL is
+// exactly what was missed — and a checkpointed one is no claim at all.
+func TestWALStaleWarning_FiresOnPendingWAL(t *testing.T) {
+	cases := []struct {
+		name string
+		db   fakeFreshness
+		want bool
+	}{
+		{"pending WAL", fakeFreshness{walBytes: 2_542_072, walOK: true}, true},
+		{"checkpointed", fakeFreshness{}, false},
+		{"no signal despite bytes", fakeFreshness{walBytes: 2_542_072}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := walStaleWarning(tc.db)
+			if (len(got) > 0) != tc.want {
+				t.Fatalf("walStaleWarning fired=%v, want %v (%+v)", len(got) > 0, tc.want, tc.db)
+			}
+		})
+	}
+}
+
+// TestWALStaleWarning_CarriesActionableFix — the remedy is the whole point.
+// A user who is told their read may be stale needs to know what to do.
+func TestWALStaleWarning_CarriesActionableFix(t *testing.T) {
+	got := walStaleWarning(fakeFreshness{walBytes: 2_542_072, walOK: true})
+	if len(got) != 1 {
+		t.Fatalf("got %d warnings, want 1", len(got))
+	}
+	if got[0].Code != cmdutil.CodeStaleLocal {
+		t.Errorf("code = %q, want %q", got[0].Code, cmdutil.CodeStaleLocal)
+	}
+	if !strings.Contains(strings.ToLower(got[0].Message), "zotero") {
+		t.Errorf("message does not name Zotero as the cause: %q", got[0].Message)
+	}
+	if got[0].Fix == "" {
+		t.Error("warning carries no fix — the user is told they may be stale with no remedy")
+	}
+}

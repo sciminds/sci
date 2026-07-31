@@ -88,6 +88,15 @@ func openLocalDBScoped(ctx context.Context, allowAll bool) (*zot.Config, local.R
 		fmt.Fprintf(os.Stderr, "  %s Zotero schema version %d is outside the tested range [%d, %d] — proceeding anyway\n",
 			uikit.SymArrow, db.SchemaVersion(), local.MinTestedSchemaVersion, local.MaxTestedSchemaVersion)
 	}
+	// Connection-level freshness, reported here rather than per-command: the
+	// caveat applies to every read on this handle, and the commands that
+	// most needed it (doctor, hygiene) are exactly the ones that never wired
+	// up a per-result warning. Reuses walStaleWarning so the prose can't
+	// drift from the enveloped copy. Diagnostics go to stderr, so this is
+	// safe under --json.
+	for _, w := range walStaleWarning(db) {
+		fmt.Fprintf(os.Stderr, "  %s %s — %s\n", uikit.SymArrow, w.Message, w.Fix)
+	}
 	return cfg, db, nil
 }
 
@@ -310,7 +319,7 @@ func searchCommand() *cli.Command {
 			if mergedScope {
 				rerunFix = ""
 			}
-			staleWarns := append(staleLocalWarning(db, rerunFix), contentWarns...)
+			staleWarns := append(localReadWarnings(db, rerunFix), contentWarns...)
 			if searchNotes {
 				hasNotes, err := db.ParentsWithDoclingNotes()
 				if err != nil {
@@ -331,7 +340,7 @@ func searchCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				outputScoped(ctx, cmd, cmdutil.WithWarnings(res, staleLocalWarning(db, "")...))
+				outputScoped(ctx, cmd, cmdutil.WithWarnings(res, localReadWarnings(db, "")...))
 				return nil
 			}
 			// Excerpts are fetched only for the hits that survived ranking
@@ -568,7 +577,7 @@ func readCommand() *cli.Command {
 				// data (data.missing) AND a warning, and the wrapper shape is
 				// unconditional so batch callers never branch on arity.
 				res := zot.ItemsResult{Count: len(items), Items: items, Missing: missing}
-				warns := append(staleLocalWarning(db, remoteRerunFix(os.Args)),
+				warns := append(localReadWarnings(db, remoteRerunFix(os.Args)),
 					missingKeysWarning(missing)...)
 				outputScoped(ctx, cmd, cmdutil.WithWarnings(res, warns...))
 				return nil
@@ -578,7 +587,7 @@ func readCommand() *cli.Command {
 				return itemsNotFoundErr(ctx, keys, missing)
 			}
 			outputScoped(ctx, cmd, cmdutil.WithWarnings(readResultFor(items),
-				staleLocalWarning(db, remoteRerunFix(os.Args))...))
+				localReadWarnings(db, remoteRerunFix(os.Args))...))
 			return nil
 		},
 	}
@@ -748,7 +757,7 @@ func listCommand() *cli.Command {
 					result.Hint = "collection " + listCollection + " not found locally; pass --remote to fetch from the Zotero Web API (items just created may not be synced yet)"
 				}
 			}
-			outputScoped(ctx, cmd, cmdutil.WithWarnings(result, staleLocalWarning(db, remoteRerunFix(os.Args))...))
+			outputScoped(ctx, cmd, cmdutil.WithWarnings(result, localReadWarnings(db, remoteRerunFix(os.Args))...))
 			return nil
 		},
 	}

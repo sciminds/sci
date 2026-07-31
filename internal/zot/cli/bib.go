@@ -210,7 +210,7 @@ func bibCommand() *cli.Command {
 					return err
 				}
 			}
-			warns := append(staleLocalWarning(db, ""), bibQualityWarning(resolved, scopeFromCtx(ctx))...)
+			warns := append(localReadWarnings(db, ""), bibQualityWarning(resolved, scopeFromCtx(ctx))...)
 			outputScoped(ctx, cmd, cmdutil.WithWarnings(res, warns...))
 			return nil
 		},
