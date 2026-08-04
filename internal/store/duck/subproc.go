@@ -115,7 +115,11 @@ func startSubproc(dbPath string) (*subproc, error) {
 	if !duckcli.Available() {
 		return nil, duckcli.ErrNotInstalled
 	}
-	cmd := exec.Command("duckdb", "-jsonlines", dbPath) //nolint:gosec // binary name is fixed, path validated above
+	// -no-init keeps the user's ~/.duckdbrc out of the session. The
+	// jsonlines protocol depends on clean streams: an init file's startup
+	// banner lands in the armed stderr buffer and fails the Open probe,
+	// and any statement that prints would corrupt stdout framing.
+	cmd := exec.Command("duckdb", "-no-init", "-jsonlines", dbPath) //nolint:gosec // binary name is fixed, path validated above
 	return startSubprocFromCmd(cmd)
 }
 

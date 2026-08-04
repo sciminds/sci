@@ -38,6 +38,11 @@ func Available() bool {
 // and returns stdout. Returns [ErrNotInstalled] (wrapped) if the binary
 // is missing.
 //
+// -no-init keeps the user's ~/.duckdbrc out of the session: this is a
+// protocol channel, and an init file that prints to stdout (corrupting
+// the JSON payload), switches .mode, or LOADs an extension that broke
+// on a duckdb upgrade must not be able to break sci.
+//
 // Read-only safety is enforced in the SQL itself: source files are
 // ATTACHed READ_ONLY and verbs only emit SELECT (Convert is the
 // documented exception that legitimately writes via COPY ... TO).
@@ -45,7 +50,7 @@ func runJSON(sql string) ([]byte, error) {
 	if !Available() {
 		return nil, ErrNotInstalled
 	}
-	cmd := exec.Command(duckdbBinary, "-json", "-c", sql)
+	cmd := exec.Command(duckdbBinary, "-no-init", "-json", "-c", sql)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

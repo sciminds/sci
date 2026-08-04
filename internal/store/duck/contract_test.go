@@ -24,7 +24,7 @@ INSERT INTO people VALUES (1, 'alice', 3.14), (2, 'bob', 2.72), (3, 'carol', NUL
 CREATE TABLE extras (k VARCHAR, v INTEGER);
 INSERT INTO extras VALUES ('a', 1), ('b', 2);
 `
-	cmd := exec.Command("duckdb", path)
+	cmd := exec.Command("duckdb", "-no-init", path)
 	cmd.Stdin = strings.NewReader(script)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("create fixture: %v\n%s", err, out)

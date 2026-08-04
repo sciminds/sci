@@ -33,7 +33,7 @@ INSERT INTO people VALUES (1, 'alice'), (2, 'bob');
 CREATE TABLE extras (k VARCHAR, v INTEGER);
 INSERT INTO extras VALUES ('a', 1);
 `
-	cmd := exec.Command("duckdb", path)
+	cmd := exec.Command("duckdb", "-no-init", path)
 	cmd.Stdin = strings.NewReader(script)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("create fixture: %v\n%s", err, out)
@@ -57,7 +57,7 @@ INSERT INTO vecs VALUES
   (1, 'a', [0.1, 0.2, 0.3, 0.4]::FLOAT[]),
   (2, 'b', [0.5, 0.6, 0.7, 0.8]::FLOAT[]);
 `
-	cmd := exec.Command("duckdb", path)
+	cmd := exec.Command("duckdb", "-no-init", path)
 	cmd.Stdin = strings.NewReader(script)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("create heavy fixture: %v\n%s", err, out)
@@ -146,7 +146,7 @@ func makeParquetFixture(t *testing.T) string {
 	script := fmt.Sprintf(
 		`COPY (SELECT * FROM (VALUES (1, 'alice', 3.14), (2, 'bob', 2.72)) AS t(id, name, score)) TO '%s' (FORMAT PARQUET);`,
 		path)
-	cmd := exec.Command("duckdb", ":memory:")
+	cmd := exec.Command("duckdb", "-no-init", ":memory:")
 	cmd.Stdin = strings.NewReader(script)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("create parquet fixture: %v\n%s", err, out)

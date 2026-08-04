@@ -49,7 +49,7 @@ CREATE TABLE extras (k VARCHAR, v INTEGER);
 INSERT INTO extras VALUES ('a', 1), ('b', 2);
 CREATE VIEW recent_scores AS SELECT name, score FROM people WHERE score IS NOT NULL;
 `
-	cmd := exec.Command("duckdb", path)
+	cmd := exec.Command("duckdb", "-no-init", path)
 	cmd.Stdin = strings.NewReader(script)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("create fixture: %v\n%s", err, out)
@@ -72,6 +72,37 @@ func TestOpenAndClose(t *testing.T) {
 	// Idempotent.
 	if err := s.Close(); err != nil {
 		t.Fatalf("Close twice: %v", err)
+	}
+}
+
+// TestOpenIgnoresUserInitFile pins the -no-init contract: the jsonlines
+// subprocess is a protocol channel, and a user's ~/.duckdbrc — which may
+// print a startup banner, emit query results, switch .mode, or LOAD an
+// extension that fails after a duckdb upgrade — must not be able to break
+// the handshake. Regression: a .duckdbrc startup banner landed in the
+// armed stderr buffer and made Open's probe query report failure.
+func TestOpenIgnoresUserInitFile(t *testing.T) {
+	requireDuck(t)
+	fixture := makeFixture(t) // created before HOME is redirected
+	home := t.TempDir()
+	rc := "select 'stdout pollution' as noise;\n.mode csv\n"
+	if err := os.WriteFile(filepath.Join(home, ".duckdbrc"), []byte(rc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+
+	s, err := duck.Open(fixture)
+	if err != nil {
+		t.Fatalf("Open with a printing ~/.duckdbrc: %v", err)
+	}
+	defer func() { _ = s.Close() }()
+
+	names, err := s.TableNames()
+	if err != nil {
+		t.Fatalf("TableNames: %v", err)
+	}
+	if len(names) == 0 {
+		t.Error("TableNames returned nothing — protocol corrupted by init file?")
 	}
 }
 
@@ -559,7 +590,7 @@ func makeParquetFixture(t *testing.T) string {
 	script := fmt.Sprintf(
 		`COPY (SELECT * FROM (VALUES (1, 'alice', 3.14), (2, 'bob', 2.72), (3, 'carol', NULL)) AS t(id, name, score)) TO '%s' (FORMAT PARQUET);`,
 		path)
-	cmd := exec.Command("duckdb", ":memory:")
+	cmd := exec.Command("duckdb", "-no-init", ":memory:")
 	cmd.Stdin = strings.NewReader(script)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("create parquet fixture: %v\n%s", err, out)
@@ -665,7 +696,7 @@ INSERT INTO vecs VALUES
   (1, 'a', [0.1, 0.2, 0.3, 0.4]::FLOAT[], {'name': 'alice', 'score': 3.14}, 'hello'::BLOB, '{"k":1}'),
   (2, 'b', NULL, {'name': 'bob', 'score': 2.72}, NULL, '{"k":2,"nested":{"x":1}}');
 `
-	cmd := exec.Command("duckdb", path)
+	cmd := exec.Command("duckdb", "-no-init", path)
 	cmd.Stdin = strings.NewReader(script)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("create heavy fixture: %v\n%s", err, out)
