@@ -8,6 +8,14 @@ name: Build & Release
 #   - `[release]` on a main commit → publish after the gate passes.
 #   - workflow_dispatch with publish=true → manual override.
 #
+# Publishes are immutable CalVer releases: the tag is vYYYY.MM.DD (UTC),
+# with a .N suffix when the day already has one. GitHub's native
+# `releases/latest` alias serves install.sh and self-update, so nothing
+# is ever deleted or overwritten — old versions stay downloadable for
+# rollback (`gh release download vYYYY.MM.DD`). A temporary bridge step
+# additionally refreshes the old rolling `latest` tag for pre-CalVer
+# binaries still polling it; see that step's comment for removal criteria.
+#
 # The Environment Scenarios workflow is fully decoupled: it runs weekly and
 # on opt-in (`[scenarios]` in the commit message). If you want a release
 # that's also been validated against the scenario matrix, drop both
@@ -92,12 +100,42 @@ jobs:
         # lands here automatically.
         run: just check-ci
 
+      - name: Compute release version (CalVer)
+        id: ver
+        if: >
+          (github.event_name == 'workflow_dispatch' && inputs.publish) ||
+          (github.event_name == 'push' &&
+           contains(github.event.head_commit.message, '[release]'))
+        # vYYYY.MM.DD in UTC; if that tag already exists (same-day follow-up
+        # release), append .1, .2, … — the self-updater orders these suffixes
+        # numerically. Zero-padding matters: internal/selfupdate's tag parser
+        # requires it.
+        run: |
+          BASE="v$(date -u +%Y.%m.%d)"
+          VERSION="${BASE}"
+          N=0
+          while gh release view "${VERSION}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; do
+            N=$((N+1))
+            VERSION="${BASE}.${N}"
+          done
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Releasing as ${VERSION}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build
         run: |
           COMMIT="${GITHUB_SHA}"
           # Dev=false marks this as the released build — the only one allowed
           # to tell users an update is available (see internal/version).
           LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT} -X github.com/sciminds/cli/internal/version.Dev=false"
+
+          # Publishing runs stamp the CalVer tag as the binary's orderable
+          # identity; test-only builds carry no version.
+          VERSION="${{ steps.ver.outputs.version }}"
+          if [ -n "${VERSION}" ]; then
+            LDFLAGS="${LDFLAGS} -X github.com/sciminds/cli/internal/version.Version=${VERSION}"
+          fi
 
           mkdir -p dist
 
@@ -133,15 +171,6 @@ jobs:
             echo 'SHALINES_EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Delete existing release
-        if: >
-          (github.event_name == 'workflow_dispatch' && inputs.publish) ||
-          (github.event_name == 'push' &&
-           contains(github.event.head_commit.message, '[release]'))
-        run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create GitHub Release
         if: >
           (github.event_name == 'workflow_dispatch' && inputs.publish) ||
@@ -149,16 +178,51 @@ jobs:
            contains(github.event.head_commit.message, '[release]'))
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
-          tag_name: latest
-          name: sci latest
+          tag_name: ${{ steps.ver.outputs.version }}
+          name: sci ${{ steps.ver.outputs.version }}
           files: dist/*
           make_latest: true
           draft: false
           body: |
-            Latest build from `main` branch.
+            sci ${{ steps.ver.outputs.version }} — automated release from `main`.
 
             **Commit:** ${{ github.sha }}
 
             ${{ steps.checksums.outputs.sha_lines }}
 
             **Install:** `curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh`
+
+      # TEMPORARY (added 2026-08-03): pre-CalVer binaries in the wild poll
+      # releases/tags/latest and decide by commit-SHA inequality, so if the
+      # rolling `latest` release disappeared they would 404 quietly and never
+      # learn another update exists. Republish the alias alongside each
+      # versioned release (same assets, same body contract) so they see one
+      # more "update available" and self-update onto a CalVer binary.
+      # --latest=false keeps the versioned release as GitHub's "latest
+      # release" (which install.sh and the new self-updater resolve).
+      # Remove this step — and delete the `latest` tag — once every machine
+      # runs a CalVer build (sci --version shows a vYYYY.MM.DD tag).
+      - name: Bridge release for pre-CalVer binaries (temporary)
+        if: >
+          (github.event_name == 'workflow_dispatch' && inputs.publish) ||
+          (github.event_name == 'push' &&
+           contains(github.event.head_commit.message, '[release]'))
+        run: |
+          {
+            echo "Transitional alias for pre-CalVer binaries — releases are now CalVer-tagged (this build: ${VERSION})."
+            echo
+            echo "**Commit:** ${GITHUB_SHA}"
+            echo
+            cat /tmp/sha256-lines.txt
+            echo
+            echo "**Install:** \`curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh\`"
+          } > /tmp/bridge-notes.md
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest dist/* \
+            --title "sci latest (transition alias)" \
+            --target "${GITHUB_SHA}" \
+            --latest=false \
+            --notes-file /tmp/bridge-notes.md
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,7 +1,13 @@
 // Package selfupdate checks for and applies binary updates from GitHub releases.
 //
-// The sci binary uses a rolling "latest" release tag. [Check] compares the
-// current build's commit SHA against the latest release. If they differ,
+// Releases are immutable CalVer tags (vYYYY.MM.DD, with a .N suffix for
+// same-day follow-ups); [Check] queries GitHub's "latest release" endpoint
+// and compares the release tag against the compiled-in [version.Version] by
+// CalVer ordering — an update is available only when the release is strictly
+// newer, so a binary ahead of the published release is never advised to
+// downgrade. When either side lacks a parseable CalVer tag (pre-CalVer
+// binaries in the wild, or the transitional "latest" bridge release), the
+// comparison falls back to commit-SHA inequality. If an update is available,
 // [Update] downloads the new binary and atomically replaces the running
 // executable.
 //
@@ -21,6 +27,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,7 +36,9 @@ import (
 )
 
 // releaseURL is a var so tests can redirect to a local httptest server.
-var releaseURL = "https://api.github.com/repos/sciminds/sci/releases/tags/latest"
+// The /releases/latest endpoint resolves to whichever release is marked
+// "latest" (the newest CalVer release; make_latest in the workflow).
+var releaseURL = "https://api.github.com/repos/sciminds/sci/releases/latest"
 
 const (
 	// commitPattern extracts a commit SHA from the release body.
@@ -49,6 +58,8 @@ const (
 // by Check() itself — Check() is a pure network read.
 type CheckResult struct {
 	Available      bool   `json:"available"`
+	CurrentVersion string `json:"currentVersion,omitempty"`
+	LatestVersion  string `json:"latestVersion,omitempty"`
 	CurrentSHA     string `json:"currentCommit"`
 	LatestSHA      string `json:"latestCommit,omitempty"`
 	DownloadURL    string `json:"downloadUrl,omitempty"`
@@ -62,8 +73,9 @@ type CheckResult struct {
 
 // releaseResponse is the subset of the GitHub release API we need.
 type releaseResponse struct {
-	Body   string         `json:"body"`
-	Assets []releaseAsset `json:"assets"`
+	TagName string         `json:"tag_name"`
+	Body    string         `json:"body"`
+	Assets  []releaseAsset `json:"assets"`
 }
 
 type releaseAsset struct {
@@ -75,7 +87,7 @@ type releaseAsset struct {
 // against the compiled-in commit. Returns quickly — intended to run as a
 // background goroutine or tea.Cmd.
 func Check() CheckResult {
-	result := CheckResult{CurrentSHA: version.Commit}
+	result := CheckResult{CurrentSHA: version.Commit, CurrentVersion: version.Version}
 
 	if version.Commit == "unknown" {
 		result.Error = "dev build — no commit SHA to compare"
@@ -115,6 +127,7 @@ func Check() CheckResult {
 		result.Error = err.Error()
 		return result
 	}
+	result.LatestVersion = release.TagName
 
 	// Extract commit SHA from release body.
 	re := regexp.MustCompile(commitPattern)
@@ -142,10 +155,68 @@ func Check() CheckResult {
 		result.ExpectedSHA256 = m[1]
 	}
 
-	// Compare: if the current commit is a prefix of the latest (or vice versa), we're up-to-date.
-	result.Available = commitsDiffer(version.Commit, result.LatestSHA)
+	result.Available = updateAvailable(result.CurrentVersion, version.Commit, result.LatestVersion, result.LatestSHA)
 
 	return result
+}
+
+// calverTagRe matches the release workflow's tag format: vYYYY.MM.DD with an
+// optional .N suffix for same-day follow-up releases. Month and day are
+// zero-padded (the workflow uses `date -u +%Y.%m.%d`), so an unpadded tag is
+// not one of ours and fails the match.
+var calverTagRe = regexp.MustCompile(`^v(\d{4})\.(\d{2})\.(\d{2})(?:\.(\d+))?$`)
+
+// updateAvailable decides whether the published release is newer than the
+// running binary. When both sides carry a CalVer tag the release must be
+// strictly newer — a binary ahead of the published release is never advised
+// to downgrade. When either side lacks a parseable tag (pre-CalVer binaries,
+// the transitional "latest" bridge release), it falls back to commit-SHA
+// inequality, the pre-CalVer semantics.
+func updateAvailable(currentVersion, currentSHA, latestVersion, latestSHA string) bool {
+	if newer, ok := calverNewer(latestVersion, currentVersion); ok {
+		return newer
+	}
+	return commitsDiffer(currentSHA, latestSHA)
+}
+
+// calverNewer reports whether latest is a strictly newer CalVer tag than
+// current. ok is false unless both tags parse; callers fall back to a
+// commit-SHA comparison in that case.
+func calverNewer(latest, current string) (newer, ok bool) {
+	l, lok := calverParts(latest)
+	c, cok := calverParts(current)
+	if !lok || !cok {
+		return false, false
+	}
+	for i := range l {
+		if l[i] != c[i] {
+			return l[i] > c[i], true
+		}
+	}
+	return false, true
+}
+
+// calverParts extracts the numeric components [year, month, day, n] of a
+// CalVer tag; a missing same-day suffix counts as 0. Components compare
+// numerically — a lexical compare would rank the tenth same-day release
+// (.10) below the ninth (.9).
+func calverParts(tag string) ([4]int, bool) {
+	m := calverTagRe.FindStringSubmatch(tag)
+	if m == nil {
+		return [4]int{}, false
+	}
+	var parts [4]int
+	for i, s := range m[1:] {
+		if s == "" {
+			continue // no same-day suffix
+		}
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return [4]int{}, false
+		}
+		parts[i] = n
+	}
+	return parts, true
 }
 
 // commitsDiffer reports whether current and latest refer to different commits.

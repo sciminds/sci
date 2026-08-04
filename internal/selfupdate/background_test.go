@@ -105,6 +105,56 @@ func TestReadCachedNotice_UpToDate(t *testing.T) {
 	}
 }
 
+// TestReadCachedNotice_VersionMatchSilent covers the post-update re-check for
+// CalVer builds: after `sci update` the binary's version equals the cached
+// release tag, and the notice must stay quiet even though the commit SHAs
+// differ (they always do between the binary and a stale cache).
+func TestReadCachedNotice_VersionMatchSilent(t *testing.T) {
+	path := withCache(t)
+	withCommit(t, "aaaaaaa1111111")
+
+	oldVersion := version.Version
+	version.Version = "v2026.08.03"
+	t.Cleanup(func() { version.Version = oldVersion })
+
+	data, _ := json.Marshal(CheckResult{
+		Available:     true,
+		LatestVersion: "v2026.08.03",
+		LatestSHA:     "bbbbbbb2222222",
+		LastCheckedAt: time.Now(),
+	})
+	_ = os.WriteFile(path, data, 0o644)
+
+	if msg := ReadCachedNotice(); msg != "" {
+		t.Errorf("msg = %q, want empty when binary version matches cached release", msg)
+	}
+}
+
+// TestReadCachedNotice_ShowsVersion pins the notice label: a versioned
+// release announces its CalVer tag, not a commit SHA.
+func TestReadCachedNotice_ShowsVersion(t *testing.T) {
+	path := withCache(t)
+	withCommit(t, "aaaaaaa1111111")
+
+	oldVersion := version.Version
+	version.Version = "v2026.08.03"
+	t.Cleanup(func() { version.Version = oldVersion })
+
+	data, _ := json.Marshal(CheckResult{
+		Available:     true,
+		LatestVersion: "v2026.08.10",
+		LatestSHA:     "bbbbbbb2222222",
+		LastCheckedAt: time.Now(),
+	})
+	_ = os.WriteFile(path, data, 0o644)
+
+	msg := ReadCachedNotice()
+	want := "Update available: v2026.08.10 → run: sci update"
+	if msg != want {
+		t.Errorf("msg = %q, want %q", msg, want)
+	}
+}
+
 // A dev build stays silent even with an update genuinely cached. `just build`
 // stamps a real SHA, so commit inequality — the only signal the checker has —
 // fires on every working-tree build and would advise "updating" to the older

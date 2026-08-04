@@ -1,6 +1,7 @@
 package selfupdate
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -74,9 +75,9 @@ func ReadCachedNotice() string {
 		return ""
 	}
 	// Cache was written by some previous binary. If the user has since
-	// updated, the cached LatestSHA may now match our commit — re-evaluate
-	// with the current binary's commit.
-	if !commitsDiffer(version.Commit, cached.LatestSHA) {
+	// updated, the cached release may no longer be newer than this binary —
+	// re-evaluate against the current binary's identity.
+	if !updateAvailable(version.Version, version.Commit, cached.LatestVersion, cached.LatestSHA) {
 		return ""
 	}
 	// Show once per refresh cycle: if LastShownAt is after LastCheckedAt,
@@ -84,7 +85,8 @@ func ReadCachedNotice() string {
 	if cached.LastShownAt.After(cached.LastCheckedAt) {
 		return ""
 	}
-	return fmt.Sprintf("Update available: %s → run: sci update", ShortSHA(cached.LatestSHA))
+	return fmt.Sprintf("Update available: %s → run: sci update",
+		cmp.Or(cached.LatestVersion, ShortSHA(cached.LatestSHA)))
 }
 
 // MarkNoticeShown stamps the cache so subsequent ReadCachedNotice calls

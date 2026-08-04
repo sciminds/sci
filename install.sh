@@ -32,7 +32,9 @@ case "${ARCH}" in
 esac
 
 ASSET="sci-${OS}-${ARCH}"
-URL="https://github.com/${REPO}/releases/download/latest/${ASSET}"
+# releases/latest/download/ is GitHub's alias for the newest release —
+# releases are immutable CalVer tags, so nothing here names a specific one.
+URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
 
 # --- Download ---
 

@@ -111,6 +111,122 @@ func TestCommitsDiffer(t *testing.T) {
 	}
 }
 
+// TestCalverNewer exercises the CalVer tag comparison. Ordering must be
+// numeric per component — a lexical compare would rank a tenth same-day
+// release (.10) below the ninth (.9).
+func TestCalverNewer(t *testing.T) {
+	tests := []struct {
+		name    string
+		latest  string
+		current string
+		newer   bool
+		ok      bool
+	}{
+		{"equal tags", "v2026.08.03", "v2026.08.03", false, true},
+		{"later day", "v2026.08.10", "v2026.08.03", true, true},
+		{"earlier day", "v2026.08.01", "v2026.08.03", false, true},
+		{"later month", "v2026.09.01", "v2026.08.28", true, true},
+		{"later year", "v2027.01.01", "v2026.12.31", true, true},
+		{"same-day suffix beats base", "v2026.08.03.1", "v2026.08.03", true, true},
+		{"base loses to suffix", "v2026.08.03", "v2026.08.03.1", false, true},
+		{"tenth beats ninth numerically", "v2026.08.03.10", "v2026.08.03.9", true, true},
+		{"latest tag is not calver", "latest", "v2026.08.03", false, false},
+		{"empty current is not calver", "v2026.08.03", "", false, false},
+		{"sha is not calver", "v2026.08.03", "abc1234", false, false},
+		{"unpadded tag is not calver", "v2026.8.3", "v2026.08.03", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			newer, ok := calverNewer(tt.latest, tt.current)
+			if newer != tt.newer || ok != tt.ok {
+				t.Errorf("calverNewer(%q, %q) = (%v, %v), want (%v, %v)",
+					tt.latest, tt.current, newer, ok, tt.newer, tt.ok)
+			}
+		})
+	}
+}
+
+// TestUpdateAvailable covers the two-tier decision: CalVer ordering when both
+// sides carry a version, commit-SHA inequality as the fallback. The SHA rows
+// pin the transition behavior — a binary or release without a version keeps
+// the old semantics.
+func TestUpdateAvailable(t *testing.T) {
+	tests := []struct {
+		name                       string
+		currentVersion, currentSHA string
+		latestVersion, latestSHA   string
+		want                       bool
+	}{
+		{"newer release version", "v2026.08.03", "aaa1111", "v2026.08.10", "bbb2222", true},
+		{"same version, different SHAs", "v2026.08.03", "aaa1111", "v2026.08.03", "bbb2222", false},
+		{"older release version never downgrades", "v2026.08.10", "aaa1111", "v2026.08.03", "bbb2222", false},
+		{"no versions, SHAs differ", "", "aaa1111", "", "bbb2222", true},
+		{"no versions, SHAs match", "", "aaa1111", "", "aaa1111", false},
+		{"unversioned binary vs versioned release, SHAs differ", "", "aaa1111", "v2026.08.03", "bbb2222", true},
+		{"versioned binary vs non-calver tag, SHAs match", "v2026.08.03", "aaa1111", "latest", "aaa1111", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := updateAvailable(tt.currentVersion, tt.currentSHA, tt.latestVersion, tt.latestSHA)
+			if got != tt.want {
+				t.Errorf("updateAvailable(%q, %q, %q, %q) = %v, want %v",
+					tt.currentVersion, tt.currentSHA, tt.latestVersion, tt.latestSHA, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestCheck_VersionOrdering simulates a versioned release: the binary and the
+// release both carry CalVer tags, and availability must follow tag ordering
+// even though the commit SHAs differ (they always do between releases).
+func TestCheck_VersionOrdering(t *testing.T) {
+	tests := []struct {
+		name          string
+		binaryVersion string
+		releaseTag    string
+		wantAvailable bool
+	}{
+		{"release is newer", "v2026.08.03", "v2026.08.10", true},
+		{"release matches binary", "v2026.08.10", "v2026.08.10", false},
+		{"release is older", "v2026.08.10", "v2026.08.03", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				body := `{"tag_name":"` + tt.releaseTag + `","body":"**Commit:** bbbbbbb2222222","assets":[]}`
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(body))
+			}))
+			defer srv.Close()
+			overrideOnlineProbe(t, srv)
+
+			oldURL := releaseURL
+			releaseURL = srv.URL
+			defer func() { releaseURL = oldURL }()
+
+			oldCommit, oldVersion := version.Commit, version.Version
+			version.Commit = "aaaaaaa1111111"
+			version.Version = tt.binaryVersion
+			defer func() { version.Commit, version.Version = oldCommit, oldVersion }()
+
+			result := Check()
+			skipIfLoopbackFlake(t, result.Error)
+			if result.Error != "" {
+				t.Fatalf("unexpected error: %s", result.Error)
+			}
+			if result.Available != tt.wantAvailable {
+				t.Errorf("Available = %v, want %v", result.Available, tt.wantAvailable)
+			}
+			if result.LatestVersion != tt.releaseTag {
+				t.Errorf("LatestVersion = %q, want %q", result.LatestVersion, tt.releaseTag)
+			}
+			if result.CurrentVersion != tt.binaryVersion {
+				t.Errorf("CurrentVersion = %q, want %q", result.CurrentVersion, tt.binaryVersion)
+			}
+		})
+	}
+}
+
 // TestCheckUpToDate uses a local HTTP server to simulate a GitHub release
 // response where the release SHA matches the running binary's commit.
 // It verifies that Check() returns Available=false in that case.
@@ -317,6 +433,7 @@ func TestCheck_MissingCommitInRelease(t *testing.T) {
 // self-update.
 func TestCheck_ReleaseBodyFormatDrift(t *testing.T) {
 	const commit = "1234567abcdef89"
+	const tag = "v2026.08.03"
 	assets := []struct {
 		name string
 		sha  string
@@ -334,7 +451,7 @@ func TestCheck_ReleaseBodyFormatDrift(t *testing.T) {
 	for _, a := range assets {
 		fmt.Fprintf(&shaBlock, "**SHA256(%s):** %s\n", a.name, a.sha)
 	}
-	body := fmt.Sprintf(`Latest build from `+"`main`"+` branch.
+	body := fmt.Sprintf(`sci `+tag+` — automated release from `+"`main`"+`.
 
 **Commit:** %s
 
@@ -349,8 +466,8 @@ func TestCheck_ReleaseBodyFormatDrift(t *testing.T) {
 		t.Fatal(err)
 	}
 	releaseJSON := fmt.Sprintf(
-		`{"body":%s,"assets":[{"name":%q,"browser_download_url":"https://example.invalid/sci"}]}`,
-		string(bodyJSON), currentAsset,
+		`{"tag_name":%q,"body":%s,"assets":[{"name":%q,"browser_download_url":"https://example.invalid/sci"}]}`,
+		tag, string(bodyJSON), currentAsset,
 	)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -375,6 +492,9 @@ func TestCheck_ReleaseBodyFormatDrift(t *testing.T) {
 	}
 	if result.LatestSHA != commit {
 		t.Errorf("LatestSHA = %q, want %q", result.LatestSHA, commit)
+	}
+	if result.LatestVersion != tag {
+		t.Errorf("LatestVersion = %q, want %q", result.LatestVersion, tag)
 	}
 
 	// Find the expected hash for the current platform.

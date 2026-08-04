@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -76,8 +77,8 @@ func runUpdate(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	current := selfupdate.ShortSHA(result.CurrentSHA)
-	latest := selfupdate.ShortSHA(result.LatestSHA)
+	current := cmp.Or(result.CurrentVersion, selfupdate.ShortSHA(result.CurrentSHA))
+	latest := cmp.Or(result.LatestVersion, selfupdate.ShortSHA(result.LatestSHA))
 
 	if !result.Available {
 		cmdutil.Output(cmd, updateResult{inner: result})
@@ -144,11 +145,11 @@ type updateResult struct {
 func (r updateResult) JSON() any { return r.inner }
 
 func (r updateResult) Human() string {
-	current := selfupdate.ShortSHA(r.inner.CurrentSHA)
+	current := cmp.Or(r.inner.CurrentVersion, selfupdate.ShortSHA(r.inner.CurrentSHA))
 	if !r.inner.Available {
 		return fmt.Sprintf("  %s sci is up to date (%s)\n", uikit.SymOK, current)
 	}
-	latest := selfupdate.ShortSHA(r.inner.LatestSHA)
+	latest := cmp.Or(r.inner.LatestVersion, selfupdate.ShortSHA(r.inner.LatestSHA))
 	if r.Updated {
 		return fmt.Sprintf("  %s Updated to %s\n", uikit.SymOK, uikit.TUI.TextBlue().Render(latest))
 	}

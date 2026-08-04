@@ -437,11 +437,11 @@ Every push to `main` and every PR runs the [Build & Release workflow](.github/wo
 
 1. **Check** — fmt, vet, lint, test
 2. **Build** — cross-compiles `sci` for darwin/linux × arm64/amd64
-3. **Publish** — uploads all binaries to a rolling `latest` GitHub release *(only when opted in via commit message, see Development below)*
+3. **Publish** — uploads all binaries to an immutable CalVer-tagged GitHub release (`vYYYY.MM.DD`, `.N` suffix for same-day follow-ups) *(only when opted in via commit message, see Development below)*. `releases/latest` always points at the newest one, and old versions stay downloadable for rollback.
 
 Binaries are named `sci-{os}-{arch}` (e.g. `sci-darwin-arm64`, `sci-linux-amd64`).
 
-**Updating:** Users run `sci update`, which compares the compiled-in commit SHA against the latest release and atomically replaces the binary if a newer build is available.
+**Updating:** Users run `sci update`, which compares the compiled-in CalVer version against the latest release tag and atomically replaces the binary only when the release is strictly newer — a binary ahead of the published release is never downgraded.
 
 ## Development
 
@@ -477,8 +477,8 @@ Two opt-in actions are driven by strings in the commit message on `main`:
 
 | Trigger | Effect |
 |---|---|
-| `[release]` | After the gate passes, publishes the build to the `latest` GitHub release. Without it, push/PR runs only fmt/vet/lint/test + cross-compile. |
-| `[scenarios]` | Runs the [Environment Scenarios](.github/workflows/scenarios.yml) matrix (no-brew / brew-no-file / brew-file / no-brew-accept) for this commit. Otherwise scenarios only runs weekly (Mondays 09:00 UTC) or via manual dispatch. |
+| `[release]` | After the gate passes, publishes a CalVer-tagged GitHub release (`vYYYY.MM.DD[.N]`). Without it, push/PR runs only fmt/vet/lint/test + cross-compile. |
+| `[scenarios]` | Runs the [Environment Scenarios](.github/workflows/scenarios.yml) matrix (no-brew / brew-no-file / brew-file / no-brew-accept) for this commit. The matrix also auto-runs when a push touches the surfaces it asserts against (cmdutil/brew/doctor/netutil, the tools/doctor commands, or the workflow file); otherwise it runs weekly (Mondays 09:00 UTC) or via manual dispatch. |
 
 Markers are matched as substrings (same convention as `[skip ci]`); the brackets keep them visually distinct from prose so describing them in the commit body doesn't fire them accidentally.
 

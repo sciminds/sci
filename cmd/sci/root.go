@@ -31,7 +31,7 @@ func buildRoot() *cli.Command {
 	root := &cli.Command{
 		Name:    "sci",
 		Usage:   "Your scientific computing toolkit",
-		Version: version.Commit,
+		Version: version.String(),
 		Description: "# agents: every command accepts --json ({ok,data,warnings} / {ok:false,error:{code,message,fix,try}});\n" +
 			"# resubmit error.fix verbatim when present. For Zotero work run `sci zot guide --json` once first.",
 		Flags: []cli.Flag{

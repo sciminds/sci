@@ -7,7 +7,7 @@
 - **TDD by default.** Write the failing test first, then make it pass. Skip only for trivial edits (typos, docs, one-line refactors).
 - **All work on `main`.**
 - **CI mirrors `just check-ci`** — add a gate step there and `.github/workflows/release.yml` picks it up. One intentional divergence: CI runs the full suite (no `-short`).
-- **CI commit-message triggers** — bracket markers (not UPPERCASE prose, so describing them doesn't fire them): `[release]` publishes the build to the `latest` GitHub release; `[scenarios]` runs the brew/doctor matrix (otherwise weekly cron); combine for both. Every push/PR runs the gate + cross-compile regardless.
+- **CI commit-message triggers** — bracket markers (not UPPERCASE prose, so describing them doesn't fire them): `[release]` publishes an immutable CalVer-tagged release (`vYYYY.MM.DD[.N]`); `[scenarios]` runs the brew/doctor matrix (also auto-runs on pushes touching cmdutil/brew/doctor/netutil/tools code; otherwise weekly cron); combine for both. Every push/PR runs the gate + cross-compile regardless.
 
 ## Skills — invoke BEFORE the work, not after
 
