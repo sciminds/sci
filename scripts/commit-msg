@@ -1,0 +1,6 @@
+#!/bin/sh
+# commit-msg hook — rejects subjects that break the commit convention.
+# Installed by `just bootstrap` (symlinked into .git/hooks/commit-msg).
+# The convention and its rationale: CLAUDE.md "Commit convention";
+# validation logic lives in scripts/lint-commits.sh (shared with CI).
+exec "$(git rev-parse --show-toplevel)/scripts/lint-commits.sh" --message "$1"

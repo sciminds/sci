@@ -1,0 +1,60 @@
+# git-cliff — renders release notes from Conventional Commit subjects.
+# Consumed by .github/workflows/release.yml (the GitHub Release body) and by
+# `just changelog` (local preview of what the next [release] will publish).
+# The commit convention itself: CLAUDE.md "Commit convention"; enforcement:
+# scripts/lint-commits.sh.
+
+[changelog]
+header = ""
+# Tera template. Group order comes from the <!-- N --> prefixes assigned in
+# commit_parsers below; striptags removes them at render time. For
+# conventional commits, {{ commit.message }} is the description alone —
+# type and scope are already parsed off.
+body = """
+{% if version %}## {{ version }} ({{ timestamp | date(format="%Y-%m-%d") }}){% else %}## Unreleased{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+{% for commit in commits %}\
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message }}
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+postprocessors = [
+  { pattern = '\n{3,}', replace = "\n\n" },
+]
+
+[git]
+conventional_commits = true
+# Pre-convention commits (early history) stay in the pool but match no parser,
+# so filter_commits drops them; don't hard-filter or git-cliff errors on them.
+filter_unconventional = false
+filter_commits = true
+# A breaking change is always news, even under a type we normally skip
+# (chore!, ci!, …) — the Breaking parser below catches it first regardless.
+protect_breaking_commits = true
+sort_commits = "oldest"
+# CalVer release tags (vYYYY.MM.DD[.N]); never matches the transitional
+# `latest` alias tag.
+tag_pattern = "v[0-9].*"
+
+commit_preprocessors = [
+  # CI trigger markers are plumbing, not news.
+  { pattern = '\s*\[(release|scenarios|skip ci|ci skip)\]', replace = "" },
+]
+
+commit_parsers = [
+  # `!` breaking marker wins over the type — must stay first.
+  { message = '^[a-z]+(\([a-z0-9./,-]+\))?!:', group = "<!-- 0 -->Breaking" },
+  { message = "^feat", group = "<!-- 1 -->Features" },
+  { message = "^fix", group = "<!-- 2 -->Fixes" },
+  { message = "^perf", group = "<!-- 3 -->Improvements" },
+  { message = "^refactor", group = "<!-- 3 -->Improvements" },
+  { message = "^docs", group = "<!-- 4 -->Documentation" },
+  { message = "^chore", skip = true },
+  { message = "^test", skip = true },
+  { message = "^ci", skip = true },
+  { message = "^style", skip = true },
+  { message = "^build", skip = true },
+]

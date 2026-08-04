@@ -7,6 +7,7 @@
 - **TDD by default.** Write the failing test first, then make it pass. Skip only for trivial edits (typos, docs, one-line refactors).
 - **All work on `main`.**
 - **CI mirrors `just check-ci`** — add a gate step there and `.github/workflows/release.yml` picks it up. One intentional divergence: CI runs the full suite (no `-short`).
+- **Commit convention — Conventional Commits, enforced.** Subjects are `<type>(<scope>)!: subject` — types `feat fix docs refactor perf test chore ci build style`; scope optional, lowercase package/area (`zot`, `db`, `uikit`, …); `!` before the colon marks a breaking change. Enforced by the commit-msg hook (`just bootstrap` installs it) and a CI range check (`scripts/lint-commits.sh` is the shared logic). Release notes are generated from these subjects by git-cliff (`cliff.toml`) and posted as the GitHub Release body: `feat`/`fix`/`perf`/`refactor`/`docs` are published (breaking changes get their own section), `chore`/`ci`/`test`/`style`/`build` are not — pick the type accordingly for user-visible work. Preview the next release's notes with `just changelog` (needs `brew install git-cliff`).
 - **CI commit-message triggers** — bracket markers (not UPPERCASE prose, so describing them doesn't fire them): `[release]` publishes an immutable CalVer-tagged release (`vYYYY.MM.DD[.N]`); `[scenarios]` runs the brew/doctor matrix (also auto-runs on pushes touching cmdutil/brew/doctor/netutil/tools code; otherwise weekly cron); combine for both. Every push/PR runs the gate + cross-compile regardless.
 
 ## Skills — invoke BEFORE the work, not after
@@ -44,6 +45,8 @@ just test-canvas     # cass integration (needs CANVAS_TOKEN in .env + gh auth lo
 just test-zot-real   # opt-in real-Zotero-DB smoke over ./zotero.sqlite or $ZOT_REAL_DB
 just docs-uikit      # regenerate internal/uikit/REFERENCE.md — run after touching uikit godoc
 just zot-gen         # regenerate internal/zot/client/zotero.gen.go — never hand-edit it
+just changelog       # preview the next release's notes (git-cliff over commits since the last CalVer tag)
+just lint-commits    # validate unpushed commit subjects against the commit convention
 ```
 
 - The `-short` gate: tests marked `testing.Short()` (the `sci cloud` / `sci lab` command tests in `cmd/sci`, which drive the online-gated `Before` hooks) skip locally so a flaky network can't stall the gate; they still run in `just test` / `just test-cloud` and CI. Mark a new test short (via the `skipCloudShort` helper) only when it genuinely needs the network — most "cloud" tests use `httptest` and stay in the gate.

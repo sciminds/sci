@@ -25,9 +25,11 @@ tidy:
     go mod tidy
 
 # Install Go dev tools pinned in go.mod's `tool` block (goimports,
-# golangci-lint, gopls, gofumpt, dlv) into $GOBIN. Run once after cloning.
+# golangci-lint, gopls, gofumpt, dlv) into $GOBIN, and the commit-msg hook
+# enforcing the commit convention (CLAUDE.md). Run once after cloning.
 bootstrap:
     go install tool
+    ln -sf ../../scripts/commit-msg .git/hooks/commit-msg
 
 fmt:
     gofmt -w .
@@ -188,6 +190,19 @@ lint-docs:
 # Report gaps in user-facing CLI documentation (casts, gifs, README embeds, help descriptions).
 doc-coverage:
     ./scripts/doc-coverage.sh
+
+# Preview the release notes the next [release] commit will publish —
+# everything since the last CalVer tag, grouped per cliff.toml. Tags live on
+# the remote (CI mints them), so fetch first or the preview spans all history.
+changelog *ARGS:
+    @command -v git-cliff >/dev/null || { echo "git-cliff not found — brew install git-cliff"; exit 1; }
+    @git fetch --tags --quiet 2>/dev/null || true
+    git-cliff --unreleased --strip all {{ARGS}}
+
+# Validate commit subjects against the commit convention (CLAUDE.md).
+# Default range = unpushed work; CI passes the pushed/PR range explicitly.
+lint-commits RANGE="origin/main..HEAD":
+    ./scripts/lint-commits.sh {{RANGE}}
 
 # ─── Modernization via `go fix` (Go 1.26) ──────────────────────────────────
 # Go 1.26 rewrote `go fix` into a suite of modernizers (the same ones gopls

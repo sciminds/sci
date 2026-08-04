@@ -9,7 +9,10 @@ name: Build & Release
 #   - workflow_dispatch with publish=true → manual override.
 #
 # Publishes are immutable CalVer releases: the tag is vYYYY.MM.DD (UTC),
-# with a .N suffix when the day already has one. GitHub's native
+# with a .N suffix when the day already has one. Release notes are generated
+# by git-cliff (cliff.toml) from the Conventional Commit subjects since the
+# previous CalVer tag; commit subjects are lint-checked on every run so the
+# notes can't silently degrade. GitHub's native
 # `releases/latest` alias serves install.sh and self-update, so nothing
 # is ever deleted or overwritten — old versions stay downloadable for
 # rollback (`gh release download vYYYY.MM.DD`). A temporary bridge step
@@ -60,6 +63,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Full history + tags: git-cliff walks back to the previous CalVer
+          # tag for release notes, and the commit lint below checks a range.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Lint commit messages
+        # Enforce the commit convention (CLAUDE.md; scripts/lint-commits.sh —
+        # same logic as the local commit-msg hook, for machines without it).
+        # Push: everything in this push event. PR: the branch commits.
+        # github.event.before is all-zeros on a newly created ref — fall back
+        # to the head commit alone. Runs before the gate: it's the cheapest
+        # check and a bad subject would land in the published release notes.
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ] && ! echo "${{ github.event.before }}" | grep -qE '^0*$'; then
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          else
+            RANGE="${{ github.sha }}~1..${{ github.sha }}"
+          fi
+          ./scripts/lint-commits.sh "$RANGE"
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -92,7 +117,7 @@ jobs:
         #   `sci db` parity tests need it on PATH.
         run: |
           go install tool
-          brew install just ripgrep fd jaq ast-grep duckdb
+          brew install just ripgrep fd jaq ast-grep duckdb git-cliff
 
       - name: Gate (just check-ci)
         # Single source of truth with the local gate: tidy/fmt/vet/lint/
@@ -152,24 +177,43 @@ jobs:
           ./dist/sci-darwin-arm64 --help || ./dist/sci-darwin-amd64 --help
 
       - name: Compute SHA256 checksums
-        id: checksums
         # Emit one **SHA256(<asset>):** line per sci-* binary into the release
-        # body. `sci update` parses these and refuses to install a binary
+        # body (via /tmp/sha256-lines.txt, consumed by the compose and bridge
+        # steps). `sci update` parses these and refuses to install a binary
         # whose hash doesn't match.
         run: |
           {
             for f in dist/sci-*; do
               base="$(basename "$f")"
               sum="$(shasum -a 256 "$f" | awk '{print $1}')"
-              echo "sha_${base}=${sum}" >> "$GITHUB_OUTPUT"
               echo "**SHA256(${base}):** ${sum}"
             done
           } | tee /tmp/sha256-lines.txt
+
+      - name: Compose release notes
+        if: >
+          (github.event_name == 'workflow_dispatch' && inputs.publish) ||
+          (github.event_name == 'push' &&
+           contains(github.event.head_commit.message, '[release]'))
+        # git-cliff renders everything since the previous CalVer tag, grouped
+        # per cliff.toml (Breaking/Features/Fixes/…). The sed drops cliff's
+        # own `## vX` heading — the release title already carries the version.
+        # The **Commit:** and **SHA256(...):** lines are a parsing contract
+        # with internal/selfupdate — notes go above them, never instead.
+        run: |
+          git-cliff --unreleased --tag "${VERSION}" --strip all \
+            | sed -e '1{/^## /d;}' -e '/./,$!d' > /tmp/release-notes.md
           {
-            echo 'sha_lines<<SHALINES_EOF'
+            cat /tmp/release-notes.md
+            echo
+            echo "**Commit:** ${GITHUB_SHA}"
+            echo
             cat /tmp/sha256-lines.txt
-            echo 'SHALINES_EOF'
-          } >> "$GITHUB_OUTPUT"
+            echo
+            echo "**Install:** \`curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh\`"
+          } > /tmp/release-body.md
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
 
       - name: Create GitHub Release
         if: >
@@ -183,14 +227,7 @@ jobs:
           files: dist/*
           make_latest: true
           draft: false
-          body: |
-            sci ${{ steps.ver.outputs.version }} — automated release from `main`.
-
-            **Commit:** ${{ github.sha }}
-
-            ${{ steps.checksums.outputs.sha_lines }}
-
-            **Install:** `curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh`
+          body_path: /tmp/release-body.md
 
       # TEMPORARY (added 2026-08-03): pre-CalVer binaries in the wild poll
       # releases/tags/latest and decide by commit-SHA inequality, so if the
