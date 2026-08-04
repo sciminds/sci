@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -287,5 +288,77 @@ func TestUpdateSavedSearch_VersionRetry(t *testing.T) {
 	// 1st attempt: 412 fail. 2nd attempt: success. POSTs = 2.
 	if h.posts != 2 {
 		t.Errorf("posts = %d, want 2", h.posts)
+	}
+}
+
+func TestGetSavedSearch_NotFoundWrapsErrNotFound(t *testing.T) {
+	t.Parallel()
+	h := newSearchHandler(t)
+	c, _ := newTestClient(t, h)
+
+	_, err := c.GetSavedSearch(context.Background(), "MISSING1")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v, want errors.Is(err, ErrNotFound)", err)
+	}
+}
+
+func TestResolveSavedSearch_ByKey(t *testing.T) {
+	t.Parallel()
+	h := newSearchHandler(t)
+	h.seed("KC7TX6FU", "missing-pdf", 5, []client.SearchCondition{{Condition: "tag", Operator: "isNot", Value: "has-markdown"}})
+	c, _ := newTestClient(t, h)
+
+	got, err := c.ResolveSavedSearch(context.Background(), "KC7TX6FU")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Key != "KC7TX6FU" || got.Data.Name != "missing-pdf" {
+		t.Errorf("resolved %q/%q, want KC7TX6FU/missing-pdf", got.Key, got.Data.Name)
+	}
+}
+
+func TestResolveSavedSearch_ByNameCaseInsensitive(t *testing.T) {
+	t.Parallel()
+	h := newSearchHandler(t)
+	h.seed("KC7TX6FU", "missing-pdf", 5, []client.SearchCondition{{Condition: "tag", Operator: "isNot", Value: "has-markdown"}})
+	c, _ := newTestClient(t, h)
+
+	// A name never hits GET /searches/{key} — live Zotero 500s on
+	// name-shaped keys — it resolves via the list. Case-insensitive to
+	// match collection-name resolution.
+	got, err := c.ResolveSavedSearch(context.Background(), "Missing-PDF")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Key != "KC7TX6FU" {
+		t.Errorf("resolved key = %q, want KC7TX6FU", got.Key)
+	}
+}
+
+func TestResolveSavedSearch_NameNotFound(t *testing.T) {
+	t.Parallel()
+	h := newSearchHandler(t)
+	h.seed("KC7TX6FU", "missing-pdf", 5, []client.SearchCondition{{Condition: "tag", Operator: "isNot", Value: "has-markdown"}})
+	c, _ := newTestClient(t, h)
+
+	_, err := c.ResolveSavedSearch(context.Background(), "no-such-search")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v, want errors.Is(err, ErrNotFound)", err)
+	}
+}
+
+func TestResolveSavedSearch_AmbiguousName(t *testing.T) {
+	t.Parallel()
+	h := newSearchHandler(t)
+	h.seed("AAAA1111", "dupe", 1, []client.SearchCondition{{Condition: "title", Operator: "is", Value: "x"}})
+	h.seed("BBBB2222", "dupe", 2, []client.SearchCondition{{Condition: "title", Operator: "is", Value: "y"}})
+	c, _ := newTestClient(t, h)
+
+	_, err := c.ResolveSavedSearch(context.Background(), "dupe")
+	if err == nil {
+		t.Fatal("expected ambiguity error")
+	}
+	if !strings.Contains(err.Error(), "AAAA1111") || !strings.Contains(err.Error(), "BBBB2222") {
+		t.Errorf("err = %v, want both candidate keys listed", err)
 	}
 }

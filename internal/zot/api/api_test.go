@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -140,6 +141,33 @@ func TestRetry_GivesUpAfterMaxRetries(t *testing.T) {
 	// maxRetry=2 → 3 total attempts (attempt 0, 1, 2).
 	if calls != 3 {
 		t.Errorf("calls = %d, want 3", calls)
+	}
+}
+
+func TestRetry_5xxExhausted_SurfacesStatusNotClosedBody(t *testing.T) {
+	t.Parallel()
+	var calls int32
+	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		// Zotero answers name-shaped /searches/{key} refs with a plain 500
+		// (observed live) — the retry loop exhausts on it every time.
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("An error occurred"))
+	})
+	c, _ := newTestClient(t, h, WithMaxRetries(1))
+
+	_, err := c.ListSavedSearches(context.Background())
+	if err == nil {
+		t.Fatal("expected error after exhausting retries")
+	}
+	if got := atomic.LoadInt32(&calls); got != 2 {
+		t.Errorf("calls = %d, want 2", got)
+	}
+	// The regression: the final 5xx response came back with its body already
+	// drained AND closed, so the generated client's ReadAll failed with
+	// "file already closed" instead of the caller seeing the HTTP status.
+	if !strings.Contains(err.Error(), "500") {
+		t.Errorf("err = %v, want the HTTP 500 status surfaced", err)
 	}
 }
 

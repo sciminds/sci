@@ -1,14 +1,133 @@
 package cli
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/sciminds/cli/internal/zot/savedsearch"
 )
+
+// stubSourceLoaders builds pdfSourceLoaders from canned results, recording
+// which loaders ran so tests can assert on fallback order.
+type stubSourceLoaders struct {
+	collItems []local.Item
+	collErr   error
+	ssItems   []local.Item
+	ssErr     error
+
+	collCalled bool
+	ssCalled   bool
+}
+
+func (s *stubSourceLoaders) loaders() pdfSourceLoaders {
+	return pdfSourceLoaders{
+		collection: func(name string) ([]local.Item, string, func(), error) {
+			s.collCalled = true
+			return s.collItems, "collection:" + name, nil, s.collErr
+		},
+		savedSearch: func(name string) ([]local.Item, string, error) {
+			s.ssCalled = true
+			return s.ssItems, "saved-search:" + name, s.ssErr
+		},
+	}
+}
+
+func TestLoadEitherSource_CollectionFirstWins(t *testing.T) {
+	t.Parallel()
+	stub := &stubSourceLoaders{collItems: []local.Item{{Key: "AAAA1111"}}}
+	items, label, _, err := loadEitherSource("missing-pdf", true, stub.loaders())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || label != "collection:missing-pdf" {
+		t.Errorf("items=%d label=%q", len(items), label)
+	}
+	if stub.ssCalled {
+		t.Error("saved-search loader ran despite collection success")
+	}
+}
+
+func TestLoadEitherSource_FallsBackToSavedSearch(t *testing.T) {
+	t.Parallel()
+	stub := &stubSourceLoaders{
+		collErr: cmdutil.Coded(cmdutil.CodeNotFound, "collection %q not found", "missing-pdf"),
+		ssItems: []local.Item{{Key: "AAAA1111"}},
+	}
+	items, label, _, err := loadEitherSource("missing-pdf", true, stub.loaders())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || label != "saved-search:missing-pdf" {
+		t.Errorf("items=%d label=%q", len(items), label)
+	}
+}
+
+func TestLoadEitherSource_FallsBackToCollection(t *testing.T) {
+	t.Parallel()
+	stub := &stubSourceLoaders{
+		ssErr:     fmt.Errorf("saved search %q %w", "refs", api.ErrNotFound),
+		collItems: []local.Item{{Key: "AAAA1111"}},
+	}
+	items, label, _, err := loadEitherSource("refs", false, stub.loaders())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || label != "collection:refs" {
+		t.Errorf("items=%d label=%q", len(items), label)
+	}
+}
+
+func TestLoadEitherSource_BothMissing(t *testing.T) {
+	t.Parallel()
+	stub := &stubSourceLoaders{
+		collErr: cmdutil.Coded(cmdutil.CodeNotFound, "collection %q not found", "nope"),
+		ssErr:   fmt.Errorf("saved search %q %w", "nope", api.ErrNotFound),
+	}
+	_, _, _, err := loadEitherSource("nope", true, stub.loaders())
+	if err == nil {
+		t.Fatal("expected combined not-found error")
+	}
+	ce, ok := errors.AsType[*cmdutil.CodedError](err)
+	if !ok || ce.Code != cmdutil.CodeNotFound {
+		t.Fatalf("err = %v, want CodedError with CodeNotFound", err)
+	}
+	if !strings.Contains(ce.Message, "collection") || !strings.Contains(ce.Message, "saved search") {
+		t.Errorf("message %q should name both source kinds", ce.Message)
+	}
+}
+
+func TestLoadEitherSource_RealErrorNoFallback(t *testing.T) {
+	t.Parallel()
+	boom := errors.New("db exploded")
+	stub := &stubSourceLoaders{collErr: boom}
+	_, _, _, err := loadEitherSource("missing-pdf", true, stub.loaders())
+	if !errors.Is(err, boom) {
+		t.Errorf("err = %v, want the original failure", err)
+	}
+	if stub.ssCalled {
+		t.Error("fell back on a non-not-found error")
+	}
+}
+
+func TestLoadEitherSource_KeyShapedNeverFallsBack(t *testing.T) {
+	t.Parallel()
+	notFound := fmt.Errorf("saved search %q %w", "ABCD1234", api.ErrNotFound)
+	stub := &stubSourceLoaders{ssErr: notFound}
+	_, _, _, err := loadEitherSource("ABCD1234", false, stub.loaders())
+	if !errors.Is(err, api.ErrNotFound) {
+		t.Errorf("err = %v, want the saved-search not-found error", err)
+	}
+	if stub.collCalled {
+		t.Error("keys are kind-specific — a key miss must not fall back")
+	}
+}
 
 func TestIsZoteroKey(t *testing.T) {
 	t.Parallel()

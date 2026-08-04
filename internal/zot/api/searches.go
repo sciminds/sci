@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
@@ -113,8 +115,51 @@ func (c *Client) submitSavedSearch(ctx context.Context, body []client.SearchData
 
 // GetSavedSearch fetches one saved search by key from the Web API. Used by
 // `saved-search show` and as the version source for update/delete retries.
+// A 404 wraps [ErrNotFound] so callers can branch on it.
 func (c *Client) GetSavedSearch(ctx context.Context, key string) (*client.Search, error) {
 	return c.getSearchRaw(ctx, key)
+}
+
+// ResolveSavedSearch fetches a saved search by 8-char key or by name
+// (case-insensitive, matching collection-name resolution). Names never hit
+// GET /searches/{key} — the live Zotero API answers name-shaped keys with a
+// bare 500 — they resolve through [Client.ListSavedSearches] instead. A miss
+// on either path wraps [ErrNotFound]; an ambiguous name lists the candidate
+// keys so the caller can disambiguate.
+func (c *Client) ResolveSavedSearch(ctx context.Context, ref string) (*client.Search, error) {
+	if isObjectKey(ref) {
+		return c.getSearchRaw(ctx, ref)
+	}
+	all, err := c.ListSavedSearches(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list saved searches: %w", err)
+	}
+	matches := lo.Filter(all, func(s client.Search, _ int) bool {
+		return strings.EqualFold(s.Data.Name, ref)
+	})
+	switch len(matches) {
+	case 0:
+		return nil, fmt.Errorf("saved search %q %w", ref, ErrNotFound)
+	case 1:
+		return &matches[0], nil
+	default:
+		keys := lo.Map(matches, func(s client.Search, _ int) string { return s.Key })
+		return nil, fmt.Errorf("saved-search name %q is ambiguous, matches keys: %s", ref, strings.Join(keys, ", "))
+	}
+}
+
+// isObjectKey reports whether ref looks like an 8-char Zotero object key
+// (uppercase letters + digits). Anything else is treated as a name.
+func isObjectKey(ref string) bool {
+	if len(ref) != 8 {
+		return false
+	}
+	for _, r := range ref {
+		if (r < 'A' || r > 'Z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+	return true
 }
 
 // getSearchRaw fetches a saved search by key. Internal (412 version-retry +
@@ -125,7 +170,7 @@ func (c *Client) getSearchRaw(ctx context.Context, key string) (*client.Search, 
 		return nil, err
 	}
 	if status == http.StatusNotFound {
-		return nil, fmt.Errorf("saved search %s not found", key)
+		return nil, fmt.Errorf("saved search %s %w", key, ErrNotFound)
 	}
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("GET /searches/%s: %s", key, statusLine)

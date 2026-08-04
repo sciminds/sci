@@ -83,10 +83,14 @@ func (r *retryDoer) Do(req *http.Request) (*http.Response, error) {
 			r.client.sleep(retryAfter)
 			continue
 		case resp.StatusCode >= 500 && resp.StatusCode <= 599:
-			_ = drainAndClose(resp)
 			if attempt == r.client.maxRetry {
+				// Exhausted: hand the response back with its body intact.
+				// Draining+closing here made the generated client's ReadAll
+				// fail with "file already closed", masking the HTTP status
+				// (bitten live: Zotero 500s on name-shaped /searches/{key}).
 				return resp, nil
 			}
+			_ = drainAndClose(resp)
 			r.client.sleep(backoffDelay(attempt))
 			continue
 		default:

@@ -35,15 +35,16 @@ var (
 // of the wall-time win without looking like abuse to any single origin.
 const defaultPDFParallel = 5
 
-// defaultPDFCollection is the collection name we assume when --collection is
-// not passed. Matches the convention in CLAUDE.md and the user's library.
+// defaultPDFCollection is the source name we assume when no source flag is
+// passed — resolved as a collection first, then as a saved search of the
+// same name. Matches the convention in CLAUDE.md and the user's library.
 const defaultPDFCollection = "missing-pdf"
 
 func pdfsCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "pdfs",
-		Usage: "Find retrievable PDFs on OpenAlex for items in a collection",
-		Description: `$ sci zot --library personal doctor pdfs                              # scans default 'missing-pdf' collection
+		Usage: "Find retrievable PDFs on OpenAlex for items in a collection or saved search",
+		Description: `$ sci zot --library personal doctor pdfs                              # scans 'missing-pdf' (collection or saved search)
 $ sci zot --library personal doctor pdfs --collection ABCD1234        # by key
 $ sci zot --library personal doctor pdfs --collection missing-pdf     # by name
 $ sci zot --library personal doctor pdfs --saved-search missing-pdf   # via Zotero saved search (live, ignores stale local DB)
@@ -58,10 +59,15 @@ $ sci zot --library personal doctor pdfs --refresh                    # bypass c
 $ sci zot --library personal doctor pdfs --json > missing.json
 
 Item-source flags are mutually exclusive (--collection, --saved-search,
---keys-from). --saved-search resolves via the Zotero Web API so it stays
-live when the local SQLite is stale (e.g. desktop has synced collection
-edits but the local file hasn't been re-read). The translator only handles
-saved-search conditions the API can express (tag is/isNot, itemType is/isNot,
+--keys-from). Collections and saved searches are one usability surface: a
+NAME given to either flag (or the no-flag default) resolves against both
+kinds — the flag's own kind first, the other as fallback — so you never
+have to remember which one you made in Zotero. 8-char keys stay
+kind-specific. The result's source label always says which kind actually
+matched. --saved-search resolves via the Zotero Web API so it stays live
+when the local SQLite is stale (e.g. desktop has synced edits but the
+local file hasn't been re-read). The translator only handles saved-search
+conditions the API can express (tag is/isNot, itemType is/isNot,
 collection is, noChildren=true); other conditions error with the offending
 clause listed. --keys-from reads 8-char Zotero item keys, one per line,
 and resolves them via the API in 50-key batches.
@@ -87,14 +93,14 @@ uploads the file bytes via Zotero's 4-phase upload dance. Requires
 			&cli.StringFlag{
 				Name:        "collection",
 				Aliases:     []string{"c"},
-				Usage:       "collection name or key (mutually exclusive with --saved-search/--keys-from)",
+				Usage:       "collection name or key; a name falls back to a saved search of the same name (mutually exclusive with --saved-search/--keys-from)",
 				Destination: &pdfsCollection,
 				Local:       true,
 			},
 			&cli.StringFlag{
 				Name:        "saved-search",
 				Aliases:     []string{"s"},
-				Usage:       "saved-search name or key — runs the search live via the Zotero Web API",
+				Usage:       "saved-search name or key, run live via the Zotero Web API; a name falls back to a collection of the same name",
 				Destination: &pdfsSavedSearch,
 				Local:       true,
 			},
@@ -165,7 +171,7 @@ func runPDFs(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	items, sourceLabel, closer, err := resolvePDFItemSource(ctx, cmd)
+	items, sourceLabel, closer, err := resolvePDFItemSource(ctx)
 	if err != nil {
 		return err
 	}

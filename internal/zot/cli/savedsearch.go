@@ -94,17 +94,17 @@ func savedSearchShowCommand() *cli.Command {
 		Name:        "show",
 		Aliases:     []string{"read", "get"},
 		Usage:       "Show a saved search's name and conditions",
-		Description: "$ sci zot saved-search show ABCD1234",
-		ArgsUsage:   "<key>",
+		Description: "$ sci zot saved-search show ABCD1234\n$ sci zot saved-search show missing-pdf   # by name",
+		ArgsUsage:   "<key-or-name>",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected a saved-search key")
+				return cmdutil.UsageErrorf(cmd, "expected a saved-search key or name")
 			}
 			c, err := requireAPIClient(ctx)
 			if err != nil {
 				return err
 			}
-			s, err := c.GetSavedSearch(ctx, cmd.Args().First())
+			s, err := c.ResolveSavedSearch(ctx, cmd.Args().First())
 			if err != nil {
 				return err
 			}
@@ -172,7 +172,7 @@ func savedSearchUpdateCommand() *cli.Command {
 			"Saved-search updates are full replacements (the Zotero API has no per-condition PATCH).\n" +
 			"Omit --name to keep the existing name; omit --condition / --from-json to keep existing\n" +
 			"conditions.",
-		ArgsUsage: "<key>",
+		ArgsUsage: "<key-or-name>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "name", Usage: "new display name", Destination: &savedSearchUpdateName, Local: true},
 			&cli.StringSliceFlag{Name: "condition", Aliases: []string{"c"}, Usage: "condition triple 'field:operator:value' (repeatable; replaces all existing conditions)"}, // lint:no-local — urfave/cli v3 SliceFlag + Local:true keeps only the last --condition (PreParse re-creates the slice on every Set); see CLAUDE.md "slice-flag Local quirk"
@@ -181,9 +181,8 @@ func savedSearchUpdateCommand() *cli.Command {
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected a saved-search key")
+				return cmdutil.UsageErrorf(cmd, "expected a saved-search key or name")
 			}
-			key := cmd.Args().First()
 			condFlags := cmd.StringSlice("condition")
 			if savedSearchUpdateName == "" && len(condFlags) == 0 && savedSearchUpdateFromJSON == "" {
 				return cmdutil.UsageErrorf(cmd, "at least one of --name, --condition, --from-json is required")
@@ -192,10 +191,11 @@ func savedSearchUpdateCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			cur, err := c.GetSavedSearch(ctx, key)
+			cur, err := c.ResolveSavedSearch(ctx, cmd.Args().First())
 			if err != nil {
 				return err
 			}
+			key := cur.Key
 			name := savedSearchUpdateName
 			if name == "" {
 				name = cur.Data.Name
@@ -228,21 +228,27 @@ func savedSearchDeleteCommand() *cli.Command {
 		Name:        "delete",
 		Aliases:     []string{"trash"},
 		Usage:       "Delete a saved search (items are untouched)",
-		Description: "$ sci zot saved-search delete ABCD1234\n$ sci zot saved-search delete ABCD1234 --yes",
-		ArgsUsage:   "<key>",
+		Description: "$ sci zot saved-search delete ABCD1234\n$ sci zot saved-search delete missing-pdf --yes",
+		ArgsUsage:   "<key-or-name>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &savedSearchDeleteYes, Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
-				return cmdutil.UsageErrorf(cmd, "expected a saved-search key")
-			}
-			key := cmd.Args().First()
-			if done, err := cmdutil.ConfirmOrSkip(savedSearchDeleteYes, fmt.Sprintf("Delete saved search %s?", key)); done || err != nil {
-				return err
+				return cmdutil.UsageErrorf(cmd, "expected a saved-search key or name")
 			}
 			c, err := requireAPIClient(ctx)
 			if err != nil {
+				return err
+			}
+			// Resolve before confirming so the prompt names what will
+			// actually be deleted, not just whatever string was typed.
+			s, err := c.ResolveSavedSearch(ctx, cmd.Args().First())
+			if err != nil {
+				return err
+			}
+			key := s.Key
+			if done, err := cmdutil.ConfirmOrSkip(savedSearchDeleteYes, fmt.Sprintf("Delete saved search %q (%s)?", s.Data.Name, key)); done || err != nil {
 				return err
 			}
 			if err := c.DeleteSavedSearch(ctx, key); err != nil {

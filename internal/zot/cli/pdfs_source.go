@@ -2,7 +2,9 @@ package cli
 
 import (
 	"bufio"
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -41,42 +43,109 @@ func validatePDFSourceFlags(cmd *cli.Command) error {
 // label for the source (used as `Collection` in the result struct so JSON
 // consumers can see what was scanned), and an optional cleanup closer.
 //
-// The collection path uses the local SQLite (fast, but stale if Zotero
-// desktop hasn't finished syncing). The saved-search and keys-from paths
-// hit the Zotero Web API so they always reflect the live server state.
-func resolvePDFItemSource(ctx context.Context, cmd *cli.Command) ([]local.Item, string, func(), error) {
+// Collections and saved searches are one usability surface: a *name* given
+// to either --collection or --saved-search (or the no-flag default) resolves
+// against both kinds — the flag's own kind first, the other as fallback — so
+// users never have to remember which one they made in Zotero. 8-char keys
+// stay kind-specific (no fallback). The collection path reads local SQLite
+// (fast, but stale if Zotero desktop hasn't finished syncing); the
+// saved-search and keys-from paths hit the Zotero Web API so they always
+// reflect the live server state.
+func resolvePDFItemSource(ctx context.Context) ([]local.Item, string, func(), error) {
+	loaders := pdfSourceLoaders{
+		collection: func(name string) ([]local.Item, string, func(), error) {
+			return loadFromCollection(ctx, name)
+		},
+		savedSearch: func(name string) ([]local.Item, string, error) {
+			return loadFromSavedSearch(ctx, name)
+		},
+	}
 	switch {
 	case pdfsSavedSearch != "":
-		items, label, err := loadFromSavedSearch(ctx, pdfsSavedSearch)
-		return items, label, nil, err
+		return loadEitherSource(pdfsSavedSearch, false, loaders)
 
 	case pdfsKeysFrom != "":
 		items, label, err := loadFromKeysFile(ctx, pdfsKeysFrom)
 		return items, label, nil, err
 
 	default:
-		// --collection (or default 'missing-pdf'). Local-DB path.
-		_, db, err := openLocalDB(ctx)
-		if err != nil {
-			return nil, "", nil, err
-		}
-		closer := func() { _ = db.Close() }
-		name := pdfsCollection
-		if name == "" {
-			name = defaultPDFCollection
-		}
-		collKey, resolvedName, err := resolveCollectionKey(db, name)
-		if err != nil {
-			closer()
-			return nil, "", nil, err
-		}
-		items, err := db.ListAll(local.ListFilter{CollectionKey: collKey})
-		if err != nil {
-			closer()
-			return nil, "", nil, fmt.Errorf("list items in %q: %w", resolvedName, err)
-		}
-		return items, resolvedName, closer, nil
+		return loadEitherSource(cmp.Or(pdfsCollection, defaultPDFCollection), true, loaders)
 	}
+}
+
+// pdfSourceLoaders bundles the two name-addressable item sources so
+// loadEitherSource's fallback logic is testable with stubs.
+type pdfSourceLoaders struct {
+	collection  func(name string) ([]local.Item, string, func(), error)
+	savedSearch func(name string) ([]local.Item, string, error)
+}
+
+// loadEitherSource resolves ref against both name-addressable sources:
+// the preferred kind first, then the other when the name isn't found there.
+// Key-shaped refs never fall back — an 8-char key names one object in one
+// namespace, and "not found" for a key is an answer, not a routing miss.
+// A name missing from both kinds returns one combined not-found error.
+func loadEitherSource(ref string, collectionFirst bool, l pdfSourceLoaders) ([]local.Item, string, func(), error) {
+	fromCollection := func() ([]local.Item, string, func(), error) { return l.collection(ref) }
+	fromSavedSearch := func() ([]local.Item, string, func(), error) {
+		items, label, err := l.savedSearch(ref)
+		return items, label, nil, err
+	}
+	first, second := fromCollection, fromSavedSearch
+	if !collectionFirst {
+		first, second = fromSavedSearch, fromCollection
+	}
+
+	items, label, closer, err := first()
+	if err == nil {
+		return items, label, closer, nil
+	}
+	if isZoteroKey(ref) || !sourceNotFound(err) {
+		return nil, "", nil, err
+	}
+	items, label, closer, err2 := second()
+	if err2 == nil {
+		return items, label, closer, nil
+	}
+	if !sourceNotFound(err2) {
+		return nil, "", nil, err2
+	}
+	return nil, "", nil, cmdutil.Coded(cmdutil.CodeNotFound,
+		"no collection or saved search named %q", ref).
+		WithTry("run 'sci zot collection list' and 'sci zot saved-search list' to see available names and keys")
+}
+
+// sourceNotFound reports whether err means "no such collection / saved
+// search" — the only condition that licenses falling back to the other
+// source kind. Transport, ambiguity, and translation errors all propagate.
+func sourceNotFound(err error) bool {
+	if errors.Is(err, api.ErrNotFound) {
+		return true
+	}
+	ce, ok := errors.AsType[*cmdutil.CodedError](err)
+	return ok && ce.Code == cmdutil.CodeNotFound
+}
+
+// loadFromCollection is the local-SQLite collection path: resolve the
+// name-or-key, list the collection's items. The returned closer owns the
+// DB handle and is non-nil only on success.
+func loadFromCollection(ctx context.Context, name string) ([]local.Item, string, func(), error) {
+	_, db, err := openLocalDB(ctx)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	closer := func() { _ = db.Close() }
+	collKey, resolvedName, err := resolveCollectionKey(db, name)
+	if err != nil {
+		closer()
+		return nil, "", nil, err
+	}
+	items, err := db.ListAll(local.ListFilter{CollectionKey: collKey})
+	if err != nil {
+		closer()
+		return nil, "", nil, fmt.Errorf("list items in %q: %w", resolvedName, err)
+	}
+	return items, resolvedName, closer, nil
 }
 
 // loadFromSavedSearch resolves the saved search by key or name, translates
@@ -89,7 +158,7 @@ func loadFromSavedSearch(ctx context.Context, ref string) ([]local.Item, string,
 	if err != nil {
 		return nil, "", err
 	}
-	search, err := resolveSavedSearch(ctx, c, ref)
+	search, err := c.ResolveSavedSearch(ctx, ref)
 	if err != nil {
 		return nil, "", err
 	}
@@ -169,35 +238,6 @@ func tagFilterFromSavedSearch(f savedsearch.APIFilters) string {
 		return "-" + f.NotTag
 	default:
 		return ""
-	}
-}
-
-// resolveSavedSearch fetches a saved search by 8-char key or by exact name.
-// Names are looked up via the live ListSavedSearches call so we don't
-// depend on local SQLite here either — keeps the source uniformly fresh.
-func resolveSavedSearch(ctx context.Context, c *api.Client, ref string) (*client.Search, error) {
-	if isZoteroKey(ref) {
-		s, err := c.GetSavedSearch(ctx, ref)
-		if err != nil {
-			return nil, err
-		}
-		return s, nil
-	}
-	all, err := c.ListSavedSearches(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list saved searches: %w", err)
-	}
-	matches := lo.Filter(all, func(s client.Search, _ int) bool {
-		return s.Data.Name == ref
-	})
-	switch len(matches) {
-	case 0:
-		return nil, fmt.Errorf("no saved search named %q", ref)
-	case 1:
-		return &matches[0], nil
-	default:
-		keys := lo.Map(matches, func(s client.Search, _ int) string { return s.Key })
-		return nil, fmt.Errorf("saved-search name %q is ambiguous, matches keys: %s", ref, strings.Join(keys, ", "))
 	}
 }
 
