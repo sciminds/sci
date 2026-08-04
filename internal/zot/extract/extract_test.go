@@ -237,6 +237,31 @@ func TestBuildDoclingArgs_NoPDFs(t *testing.T) {
 	}
 }
 
+// TestBuildDoclingArgs_OCRDefaultOff: sci defaults OCR off (--no-ocr) —
+// docling's own default is on, but its OCR engines need models or
+// packages a stock install doesn't reliably have, and born-digital PDFs
+// (the overwhelming majority of a Zotero library) don't need OCR at
+// all. Users with a working OCR setup opt in per run with --ocr, which
+// sets ExtractOptions.OCR.
+func TestBuildDoclingArgs_OCRDefaultOff(t *testing.T) {
+	t.Parallel()
+
+	base := ZoteroDefaults()
+	base.OutputDir = "/tmp/out"
+
+	got := argString(buildDoclingArgs(base, "/tmp/a.pdf"))
+	if !strings.Contains(got, "--no-ocr") {
+		t.Errorf("default args missing --no-ocr; got: %s", got)
+	}
+
+	on := base
+	on.OCR = true
+	got = argString(buildDoclingArgs(on, "/tmp/a.pdf"))
+	if strings.Contains(got, "--no-ocr") {
+		t.Errorf("OCR-enabled args must omit --no-ocr; got: %s", got)
+	}
+}
+
 // TestBuildDoclingArgs_Device: the configured device appears in args
 // verbatim — docling makes the final auto-resolution call, not sci.
 func TestBuildDoclingArgs_Device(t *testing.T) {

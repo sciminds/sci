@@ -78,9 +78,14 @@ type ExtractOptions struct { //nolint:revive // name is established in the API
 	NumThreads int    // 0 = docling default (4)
 	Device     string // "" = docling auto
 
-	// OCR
-	DisableOCR bool // --no-ocr (docling defaults to OCR on)
-	ForceOCR   bool // --force-ocr
+	// OCR opts into docling's OCR pass (off by default, --no-ocr).
+	// Docling's own default is on, but its OCR engines need models or
+	// packages a stock install doesn't reliably have (rapidocr fetches
+	// models from modelscope.cn, unreachable on some networks), and
+	// born-digital PDFs don't need OCR at all. Set by the --ocr flag;
+	// a machine missing OCR deps surfaces docling's own error, and
+	// installing them is the user's call.
+	OCR bool
 }
 
 // ZoteroDefaults is the minimum-surface option set for the `zot item
@@ -406,11 +411,8 @@ func buildDoclingArgs(opts ExtractOptions, pdfs ...string) []string {
 		"--image-export-mode", string(imageMode),
 		"--table-mode", string(tableMode),
 	)
-	if opts.DisableOCR {
+	if !opts.OCR {
 		args = append(args, "--no-ocr")
-	}
-	if opts.ForceOCR {
-		args = append(args, "--force-ocr")
 	}
 	if opts.Device != "" {
 		args = append(args, "--device", opts.Device)

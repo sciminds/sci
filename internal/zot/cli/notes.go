@@ -29,6 +29,7 @@ var (
 	notesUpdateReextract  bool
 	notesUpdateHTML       bool
 	notesUpdateDevice     string
+	notesUpdateOCR        bool
 	notesUpdateNumThreads int
 	notesUpdateYes        bool
 )
@@ -243,6 +244,7 @@ func contentRefreshCommand() *cli.Command {
 			&cli.BoolFlag{Name: "reextract", Usage: "discard cached docling output and re-run", Destination: &notesUpdateReextract, Local: true},
 			&cli.BoolFlag{Name: "html", Usage: "render markdown as HTML before posting", Destination: &notesUpdateHTML, Local: true},
 			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "auto", Destination: &notesUpdateDevice, Local: true},
+			&cli.BoolFlag{Name: "ocr", Usage: "OCR scanned/bitmap content (off by default; needs a working docling OCR engine — install its deps yourself if docling errors)", Destination: &notesUpdateOCR, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = default)", Destination: &notesUpdateNumThreads, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &notesUpdateYes, Local: true},
 		},
@@ -326,6 +328,7 @@ func notesUpdateAction(ctx context.Context, cmd *cli.Command) error {
 		opts.Device = notesUpdateDevice
 	}
 	opts.NumThreads = notesUpdateNumThreads
+	opts.OCR = notesUpdateOCR
 
 	// A configured extract.dir makes refresh rebuild both stores: the
 	// run goes full-form over a staged KEY.pdf symlink, bypasses the

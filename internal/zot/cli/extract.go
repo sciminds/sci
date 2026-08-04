@@ -24,6 +24,7 @@ var (
 	extractNoNote     bool
 	extractYes        bool
 	extractDevice     string
+	extractOCR        bool
 	extractNumThreads int
 )
 
@@ -53,6 +54,7 @@ func contentExtractCommand() *cli.Command {
 			&cli.BoolFlag{Name: "no-note", Usage: "skip the Zotero note post — requires --out (artifacts only)", Destination: &extractNoNote, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &extractYes, Local: true},
 			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "auto", Destination: &extractDevice, Local: true},
+			&cli.BoolFlag{Name: "ocr", Usage: "OCR scanned/bitmap content (off by default; needs a working docling OCR engine — install its deps yourself if docling errors)", Destination: &extractOCR, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = docling default, usually 4)", Destination: &extractNumThreads, Local: true},
 		},
 		Action: extractAction,
@@ -139,6 +141,7 @@ func extractAction(ctx context.Context, cmd *cli.Command) error {
 		opts.Device = extractDevice
 	}
 	opts.NumThreads = extractNumThreads
+	opts.OCR = extractOCR
 
 	// ── --no-note: run docling directly, no plan, no API ──
 	if extractNoNote {
