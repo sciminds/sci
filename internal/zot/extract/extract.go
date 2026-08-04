@@ -91,7 +91,7 @@ func ZoteroDefaults() ExtractOptions {
 		Formats:   []OutputFormat{FormatMarkdown},
 		ImageMode: ImagePlaceholder,
 		TableMode: TableAccurate,
-		Device:    "mps",
+		Device:    "auto",
 	}
 }
 
@@ -103,7 +103,7 @@ func ZoteroDefaults() ExtractOptions {
 // packaging holes as of docling 2.86.
 func FullDefaults() ExtractOptions {
 	return ExtractOptions{
-		Device:      "mps",
+		Device:      "auto",
 		Formats:     []OutputFormat{FormatMarkdown, FormatJSON},
 		ImageMode:   ImageReferenced,
 		TableMode:   TableAccurate,

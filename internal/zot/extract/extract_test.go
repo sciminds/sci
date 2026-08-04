@@ -174,7 +174,7 @@ func TestBuildDoclingArgs_ZeroPerfKnobsOmitted(t *testing.T) {
 	t.Parallel()
 	opts := ZoteroDefaults()
 	opts.OutputDir = "/tmp/out"
-	opts.Device = ""    // explicitly clear — ZoteroDefaults now sets "mps"
+	opts.Device = ""    // explicitly clear — ZoteroDefaults sets "auto"
 	opts.NumThreads = 0 // already zero
 	args := buildDoclingArgs(opts, "/tmp/p.pdf")
 	if argIndex(args, "--device") != -1 {
@@ -237,33 +237,36 @@ func TestBuildDoclingArgs_NoPDFs(t *testing.T) {
 	}
 }
 
-// TestBuildDoclingArgs_DeviceMPS: when Device is "mps" it appears in args.
-func TestBuildDoclingArgs_DeviceMPS(t *testing.T) {
+// TestBuildDoclingArgs_Device: the configured device appears in args
+// verbatim — docling makes the final auto-resolution call, not sci.
+func TestBuildDoclingArgs_Device(t *testing.T) {
 	t.Parallel()
 	opts := ZoteroDefaults()
 	opts.OutputDir = "/tmp/out"
 	args := buildDoclingArgs(opts, "/tmp/a.pdf")
 	got := argString(args)
-	if !strings.Contains(got, "--device mps") {
-		t.Errorf("args missing --device mps; got: %s", got)
+	if !strings.Contains(got, "--device auto") {
+		t.Errorf("args missing --device auto; got: %s", got)
 	}
 }
 
-// TestZoteroDefaults_DeviceMPS: ZoteroDefaults must default to mps.
-func TestZoteroDefaults_DeviceMPS(t *testing.T) {
+// TestZoteroDefaults_DeviceAuto: ZoteroDefaults must default to auto so
+// non-Apple-Silicon machines (Intel mac, Linux) don't hard-fail on a
+// hardcoded mps.
+func TestZoteroDefaults_DeviceAuto(t *testing.T) {
 	t.Parallel()
 	d := ZoteroDefaults()
-	if d.Device != "mps" {
-		t.Errorf("Device = %q, want \"mps\"", d.Device)
+	if d.Device != "auto" {
+		t.Errorf("Device = %q, want \"auto\"", d.Device)
 	}
 }
 
-// TestFullDefaults_DeviceMPS: FullDefaults must default to mps.
-func TestFullDefaults_DeviceMPS(t *testing.T) {
+// TestFullDefaults_DeviceAuto: FullDefaults must default to auto.
+func TestFullDefaults_DeviceAuto(t *testing.T) {
 	t.Parallel()
 	d := FullDefaults()
-	if d.Device != "mps" {
-		t.Errorf("Device = %q, want \"mps\"", d.Device)
+	if d.Device != "auto" {
+		t.Errorf("Device = %q, want \"auto\"", d.Device)
 	}
 }
 

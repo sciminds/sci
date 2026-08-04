@@ -858,8 +858,27 @@ func postNote(
 // chunkTargetDocs); it is no longer a batching/barrier mechanism.
 const maxDoclingBatch = 50
 
+// ResolveDevice maps the "auto" (or empty) accelerator choice onto the
+// concrete device this machine would run: Apple-silicon hosts resolve to
+// "mps", everything else to "cpu" — sci never guesses at CUDA; a Linux
+// box with a GPU should say --device cuda explicitly. Explicit devices
+// pass through unchanged. This exists so jobs and ETA pricing can reason
+// about a concrete device while the flag defaults to "auto"; docling
+// still makes the final device call.
+func ResolveDevice(device string) string {
+	if device == "" || device == "auto" {
+		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+			return "mps"
+		}
+		return "cpu"
+	}
+	return device
+}
+
 // BatchJobsDefault is the default docling worker count for a device
 // (BatchInput.Jobs when neither --jobs nor extract.jobs is set).
+// "auto" and "" resolve through [ResolveDevice] first, so the flag's
+// auto default keeps the Apple-silicon throughput bump.
 //
 //   - mps: 2. Apple-silicon unified memory comfortably holds two ~14 GB
 //     docling processes, and OCR — the dominant cost on scanned
@@ -867,14 +886,14 @@ const maxDoclingBatch = 50
 //     the idle capacity a single one leaves.
 //   - cuda: 1 — discrete VRAM is the binding constraint.
 //   - cpu: numCPU/4, floor 1.
-//   - auto/unknown: 1 — an unknown device gets no bump without evidence.
+//   - unknown: 1 — an unknown device gets no bump without evidence.
 func BatchJobsDefault(device string, numCPU int) int {
-	switch device {
+	switch ResolveDevice(device) {
 	case "cpu":
 		return max(numCPU/4, 1)
 	case "mps":
 		return 2
-	default: // "", "auto", "cuda", anything else
+	default: // "cuda", anything else
 		return 1
 	}
 }

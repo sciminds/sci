@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -631,9 +632,32 @@ func TestExecuteBatch_UnderTargetIsOneChunk(t *testing.T) {
 	}
 }
 
+// TestResolveDevice: "auto" (and empty) resolve to the platform's real
+// accelerator so jobs/ETA pricing sees a concrete device; explicit
+// choices pass through untouched.
+func TestResolveDevice(t *testing.T) {
+	t.Parallel()
+	for _, explicit := range []string{"mps", "cpu", "cuda"} {
+		if got := ResolveDevice(explicit); got != explicit {
+			t.Errorf("ResolveDevice(%q) = %q, want passthrough", explicit, got)
+		}
+	}
+	want := "cpu"
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		want = "mps"
+	}
+	if got := ResolveDevice("auto"); got != want {
+		t.Errorf("ResolveDevice(auto) = %q, want %q on %s/%s", got, want, runtime.GOOS, runtime.GOARCH)
+	}
+	if got := ResolveDevice(""); got != want {
+		t.Errorf("ResolveDevice(\"\") = %q, want %q (empty means auto)", got, want)
+	}
+}
+
 // TestBatchJobsDefault: mps defaults to 2 workers (unified memory,
-// CPU-bound OCR); cuda stays 1 (VRAM-bound) and auto stays 1 (unknown
-// device gets no bump without evidence).
+// CPU-bound OCR); cuda stays 1 (VRAM-bound); auto resolves to the
+// platform device first (mps on Apple silicon), so the flag's "auto"
+// default doesn't silently halve bulk throughput.
 func TestBatchJobsDefault(t *testing.T) {
 	t.Parallel()
 	if got := BatchJobsDefault("mps", 8); got != 2 {
@@ -642,8 +666,13 @@ func TestBatchJobsDefault(t *testing.T) {
 	if got := BatchJobsDefault("cuda", 16); got != 1 {
 		t.Errorf("cuda, 16CPU → %d, want 1", got)
 	}
-	if got := BatchJobsDefault("auto", 8); got != 1 {
-		t.Errorf("auto, 8CPU → %d, want 1", got)
+	if got, want := BatchJobsDefault("auto", 8), BatchJobsDefault(ResolveDevice("auto"), 8); got != want {
+		t.Errorf("auto, 8CPU → %d, want %d (resolved-device default)", got, want)
+	}
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		if got := BatchJobsDefault("auto", 8); got != 2 {
+			t.Errorf("auto on Apple silicon, 8CPU → %d, want 2 (mps default)", got)
+		}
 	}
 	if got := BatchJobsDefault("cpu", 8); got != 2 {
 		t.Errorf("cpu, 8CPU → %d, want 2", got)

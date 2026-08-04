@@ -416,12 +416,12 @@ func PageBuckets(items []SurveyItem) []PageBucket {
 // used as a timeout; values are order-of-magnitude, not measurements of
 // any particular machine.
 func SecondsPerPage(device string) float64 {
-	switch device {
+	switch ResolveDevice(device) {
 	case "cpu":
 		return 4.0
 	case "cuda":
 		return 0.8
-	default: // mps / auto / ""
+	default: // mps
 		return 1.5
 	}
 }

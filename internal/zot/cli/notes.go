@@ -242,7 +242,7 @@ func contentRefreshCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "reextract", Usage: "discard cached docling output and re-run", Destination: &notesUpdateReextract, Local: true},
 			&cli.BoolFlag{Name: "html", Usage: "render markdown as HTML before posting", Destination: &notesUpdateHTML, Local: true},
-			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "mps", Destination: &notesUpdateDevice, Local: true},
+			&cli.StringFlag{Name: "device", Usage: "docling accelerator (auto|cpu|mps|cuda)", Value: "auto", Destination: &notesUpdateDevice, Local: true},
 			&cli.IntFlag{Name: "num-threads", Usage: "docling CPU threads (0 = default)", Destination: &notesUpdateNumThreads, Local: true},
 			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &notesUpdateYes, Local: true},
 		},
