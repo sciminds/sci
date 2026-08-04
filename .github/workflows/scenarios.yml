@@ -9,8 +9,12 @@ name: Environment Scenarios
 #   - schedule: weekly health check (the matrix is expensive and the
 #     scenarios it covers — brew install paths, doctor lifecycle — don't
 #     change commit-to-commit, so paying for it on every push is wasteful).
-#   - push to main: opt-in via `[scenarios]` in the commit message, for
-#     commits that touch brew/doctor/tools code and warrant a re-check.
+#   - push to main: auto-runs when the push touches the surfaces this
+#     workflow asserts against (cmdutil's --json envelope, brew/doctor/
+#     tools code, or this file) — detected by the cheap `changes` job —
+#     so contract changes can't land silently and only surface on the
+#     next cron. Any other push can still opt in via `[scenarios]` in
+#     the commit message.
 #   - workflow_dispatch: manual on-demand.
 #
 # Bracket marker (rather than an UPPERCASE phrase) so a commit message that
@@ -33,15 +37,49 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Cheap gate: did this push touch a surface the scenario assertions
+  # depend on? Runs on ubuntu in seconds so the macOS matrix only spins
+  # up when it can actually catch something.
+  changes:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    outputs:
+      hit: ${{ steps.diff.outputs.hit }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - name: Detect contract-surface changes
+        id: diff
+        run: |
+          BEFORE="${{ github.event.before }}"
+          # Unknown base (force-push, new branch) — run the matrix to be safe.
+          if [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$BEFORE" "${{ github.sha }}" \
+            | grep -qE '^(internal/(cmdutil|brew|doctor|netutil)/|cmd/sci/(tools_|doctor)|\.github/workflows/scenarios\.yml)'; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
   scenario:
     runs-on: macos-latest
-    # schedule + workflow_dispatch always run. push runs only when the
-    # commit message opts in with `[scenarios]`.
+    needs: changes
+    # schedule + workflow_dispatch always run (`changes` is skipped for
+    # them, hence !failure() && !cancelled() rather than a bare needs).
+    # push runs when it touched a contract surface or the commit message
+    # opts in with `[scenarios]`.
     if: >
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' &&
-       contains(github.event.head_commit.message, '[scenarios]'))
+      !failure() && !cancelled() &&
+      (github.event_name == 'schedule' ||
+       github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' &&
+        (needs.changes.outputs.hit == 'true' ||
+         contains(github.event.head_commit.message, '[scenarios]'))))
 
     strategy:
       fail-fast: false
@@ -271,7 +309,7 @@ jobs:
 
           # 1. --dry-run installs nothing.
           BEFORE_DRYRUN=$(brew list --formula --full-name | wc -l | tr -d ' ')
-          sci tools reccs --all --dry-run --json | jq -e '.dry_run == true' >/dev/null
+          sci tools reccs --all --dry-run --json | jq -e '.data.dry_run == true' >/dev/null
           AFTER_DRYRUN=$(brew list --formula --full-name | wc -l | tr -d ' ')
           [ "$BEFORE_DRYRUN" = "$AFTER_DRYRUN" ]
 
@@ -297,8 +335,8 @@ jobs:
           #    BrewfileOptional in one shot. JSON return drives the cleanup so
           #    the runner is left in the same state we found it.
           BULK_JSON=$(sci tools reccs --exclude 1password,quarto,kitty,obsidian,reflect,notion,tailscale-app,brave-browser,raycast,amethyst,karabiner-elements,dropbox,google-drive,fantastical --json)
-          echo "$BULK_JSON" | jq -e '.installed | type == "array"' >/dev/null
-          INSTALLED=$(echo "$BULK_JSON" | jq -r '.installed[]?')
+          echo "$BULK_JSON" | jq -e '.data.installed | type == "array"' >/dev/null
+          INSTALLED=$(echo "$BULK_JSON" | jq -r '.data.installed[]?')
           if [ -n "$INSTALLED" ]; then
             for name in $INSTALLED; do
               # Best-effort uninstall — type may be brew/uv. Try formula first,
