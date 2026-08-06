@@ -62,6 +62,9 @@ func extractLibCommand() *cli.Command {
 			"Re-running after a failure resumes where it left off:\n" +
 			"  1. Items whose docling-tagged note already exists in Zotero are skipped (--apply only).\n" +
 			"  2. Items whose docling output was cached locally skip re-extraction.\n" +
+			"  3. Notes Zotero rejected for exceeding its length limit are recorded and\n" +
+			"     never retried (the markdown stays cached locally); --reextract clears\n" +
+			"     the verdict along with the cache.\n" +
 			"\n" +
 			"$ sci zot extract-lib --plan           # preview only: no docling, no writes\n" +
 			"$ sci zot extract-lib                  # extract all PDFs to local cache\n" +
@@ -332,7 +335,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		if layout != nil {
 			result.LayoutDir = layout.Dir
 		}
-		outputScoped(ctx, cmd, cmdutil.WithWarnings(result, dupWarnings(survey)...))
+		outputScoped(ctx, cmd, cmdutil.WithWarnings(result, runWarnings(survey, 0)...))
 		return nil
 	}
 
@@ -498,6 +501,10 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 					t.Advance("failed", fmt.Sprintf("%s %s: %s", uikit.SymFail, name, outcome.Err))
 					return
 				}
+				if outcome.TooLong {
+					t.Advance("skipped", fmt.Sprintf("%s %s: note too long for Zotero — not retried", uikit.SymWarn, name))
+					return
+				}
 				t.Advance("posted", fmt.Sprintf("%s %s", uikit.SymOK, name))
 			},
 		})
@@ -515,7 +522,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	created, skipped, cached, failed := batchResult.Counts()
+	created, skipped, cached, failed, tooLong := batchResult.Counts()
 	result := zot.ExtractLibResult{
 		Total:          len(items),
 		Created:        created,
@@ -540,7 +547,7 @@ func extractLibAction(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 	}
-	outputScoped(ctx, cmd, cmdutil.WithWarnings(result, dupWarnings(survey)...))
+	outputScoped(ctx, cmd, cmdutil.WithWarnings(result, runWarnings(survey, tooLong)...))
 	return nil
 }
 
@@ -552,19 +559,27 @@ func layoutDirOf(l *extract.KeyLayout) string {
 	return l.Dir
 }
 
-// dupWarnings converts a survey's duplicate groups into the envelope
-// warning the plan result also emits, so live runs and --plan speak the
-// same warning vocabulary.
-func dupWarnings(s extract.Survey) []cmdutil.Warning {
-	if len(s.Duplicates) == 0 {
-		return nil
+// runWarnings converts a survey's duplicate groups and note-too-long
+// verdicts into the envelope warnings the plan result also emits, so
+// live runs and --plan speak the same warning vocabulary. batchTooLong
+// adds skips discovered inside the run itself (postNote's marker guard)
+// on top of the survey's plan-time drops — the two sets are disjoint,
+// because survey-dropped items never enter the batch. ExtractLibResult's
+// JSON shape is frozen, so the warning channel is where this fact rides.
+func runWarnings(s extract.Survey, batchTooLong int) []cmdutil.Warning {
+	var out []cmdutil.Warning
+	if len(s.Duplicates) > 0 {
+		out = append(out, cmdutil.Warning{
+			Code: cmdutil.CodeDuplicate,
+			Message: fmt.Sprintf("%d PDF(s) are attached to more than one item — %d extraction(s) would run on bytes already queued under another key",
+				len(s.Duplicates), s.DuplicateWasted),
+			Fix: "sci zot doctor duplicates",
+		})
 	}
-	return []cmdutil.Warning{{
-		Code: cmdutil.CodeDuplicate,
-		Message: fmt.Sprintf("%d PDF(s) are attached to more than one item — %d extraction(s) would run on bytes already queued under another key",
-			len(s.Duplicates), s.DuplicateWasted),
-		Fix: "sci zot doctor duplicates",
-	}}
+	if n := s.NoteTooLong + batchTooLong; n > 0 {
+		out = append(out, zot.NoteTooLongWarning(n))
+	}
+	return out
 }
 
 // backfillHasMarkdownTag adds extract.MarkdownTag to every parent that

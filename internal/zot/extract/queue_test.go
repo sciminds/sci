@@ -204,7 +204,7 @@ func TestExecuteBatch_NoHeadOfLineBlocking(t *testing.T) {
 	if res == nil {
 		t.Fatal("nil result")
 	}
-	created, _, _, failed := res.Counts()
+	created, _, _, failed, _ := res.Counts()
 	if created != 9 || failed != 0 {
 		t.Errorf("created=%d failed=%d, want 9/0", created, failed)
 	}
@@ -295,7 +295,7 @@ func TestExecuteBatch_FewerChunksThanJobs(t *testing.T) {
 	if atomic.LoadInt32(&ex.calls) != 1 {
 		t.Errorf("extractor calls = %d, want 1 (both docs pool into one chunk)", atomic.LoadInt32(&ex.calls))
 	}
-	created, _, _, failed := res.Counts()
+	created, _, _, failed, _ := res.Counts()
 	if created != 2 || failed != 0 {
 		t.Errorf("created=%d failed=%d, want 2/0", created, failed)
 	}

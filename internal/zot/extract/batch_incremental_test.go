@@ -474,7 +474,7 @@ func TestExecuteBatch_LayoutSalvagesCompletedDocsOnChunkError(t *testing.T) {
 	if byKey["K3"].Err == nil || !strings.Contains(byKey["K3"].Err.Error(), "signal: killed") {
 		t.Errorf("K3 err = %v, want the chunk error", byKey["K3"].Err)
 	}
-	if _, _, _, failed := res.Counts(); failed != 1 {
+	if _, _, _, failed, _ := res.Counts(); failed != 1 {
 		t.Errorf("failed = %d, want 1 (not the whole chunk)", failed)
 	}
 	if len(w.created) != 2 {

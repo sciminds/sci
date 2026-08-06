@@ -115,6 +115,60 @@ func TestCache_Delete(t *testing.T) {
 	c.Delete("NOSUCH", "nope")
 }
 
+// TestCache_TooLongMarker: MarkTooLong persists across cache instances,
+// and an unmarked entry reads as not-too-long.
+func TestCache_TooLongMarker(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	c := &MarkdownCache{Dir: dir}
+	if c.TooLong("PDF1", "h") {
+		t.Fatal("fresh entry must not be marked too long")
+	}
+	if err := c.MarkTooLong("PDF1", "h", "Note '...' too long"); err != nil {
+		t.Fatal(err)
+	}
+	if !c.TooLong("PDF1", "h") {
+		t.Error("expected TooLong after MarkTooLong")
+	}
+	// A new instance over the same dir sees the marker (it's on disk).
+	if !(&MarkdownCache{Dir: dir}).TooLong("PDF1", "h") {
+		t.Error("marker must persist on disk across instances")
+	}
+	// Marker is keyed by (pdfKey, hash): a changed PDF retries naturally.
+	if c.TooLong("PDF1", "otherhash") {
+		t.Error("different hash must not inherit the marker")
+	}
+	if c.TooLong("PDF2", "h") {
+		t.Error("different pdfKey must not inherit the marker")
+	}
+	// MarkTooLong on a nonexistent dir creates it, like Put.
+	c2 := &MarkdownCache{Dir: filepath.Join(dir, "nested")}
+	if err := c2.MarkTooLong("PDFX", "hx", "too long"); err != nil {
+		t.Fatal(err)
+	}
+	if !c2.TooLong("PDFX", "hx") {
+		t.Error("expected TooLong after MarkTooLong into fresh dir")
+	}
+}
+
+// TestCache_DeleteClearsTooLongMarker: --reextract's cache invalidation
+// is the escape hatch for a recorded too-long verdict — Delete must
+// drop the marker along with the markdown.
+func TestCache_DeleteClearsTooLongMarker(t *testing.T) {
+	t.Parallel()
+	c := &MarkdownCache{Dir: t.TempDir()}
+	if _, err := c.Put("PDF1", "h", []byte("data")); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.MarkTooLong("PDF1", "h", "too long"); err != nil {
+		t.Fatal(err)
+	}
+	c.Delete("PDF1", "h")
+	if c.TooLong("PDF1", "h") {
+		t.Error("Delete must clear the too-long marker")
+	}
+}
+
 // TestCache_AutoMkdir: a fresh Cache with a non-existent Dir is a
 // valid, empty cache — Put creates the directory.
 func TestCache_AutoMkdir(t *testing.T) {

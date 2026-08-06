@@ -43,6 +43,10 @@ const (
 	DispDone Disposition = "done"
 	// DispSkip — an existing Zotero note settles the item (classic mode).
 	DispSkip Disposition = "skip"
+	// DispNoteTooLong — a prior run recorded Zotero's note-length
+	// rejection for this exact content; posting is skipped, not retried.
+	// --reextract clears the verdict.
+	DispNoteTooLong Disposition = "note-too-long"
 	// DispError — hashing/planning failed; the item is reported, never run.
 	DispError Disposition = "error"
 )
@@ -149,6 +153,9 @@ type Survey struct {
 	ArtifactsOnly   int
 	Skipped         int
 	PlanErrors      int
+	// NoteTooLong counts items dropped because Zotero already rejected
+	// their note for length (see DispNoteTooLong).
+	NoteTooLong int
 
 	Limit     int
 	Remaining int // selected candidates cut by --limit
@@ -231,8 +238,22 @@ func BuildSurvey(in SurveyInput) Survey {
 				s.Skipped++
 			}
 		default: // ActionCreate
+			// A recorded too-long verdict settles any item whose only
+			// remaining work is posting — Zotero will reject the identical
+			// body again, so re-attempting it every run is pure waste.
+			// --reextract retries: the run's invalidation loop clears the
+			// marker along with the cache entry, so the survey must keep
+			// the item selected. (Items still needing extraction keep
+			// running docling — postNote's own guard skips the post.)
+			tooLong := !in.Reextract && in.Cache.TooLong(it.Request.PDFKey, it.Hash)
 			switch {
 			case layoutMode && in.Layout.Done(it.Request.ParentKey):
+				if tooLong {
+					si.Disposition = DispNoteTooLong
+					s.NoteTooLong++
+					keep = false
+					break
+				}
 				// Note missing, dir present — the run posts from the
 				// layout markdown without docling.
 				si.Disposition = DispPostCached
@@ -244,6 +265,12 @@ func BuildSurvey(in SurveyInput) Survey {
 				s.NeedsExtraction++
 			default:
 				if _, hit := in.Cache.Get(it.Request.PDFKey, it.Hash); hit && !in.Reextract {
+					if tooLong {
+						si.Disposition = DispNoteTooLong
+						s.NoteTooLong++
+						keep = false
+						break
+					}
 					si.Disposition = DispPostCached
 					s.Cached++
 					if in.Apply {

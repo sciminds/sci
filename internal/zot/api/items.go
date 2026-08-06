@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/client"
@@ -75,6 +76,11 @@ func (c *Client) CreateItem(ctx context.Context, data client.ItemData) (*client.
 	status, statusLine, respBody, err := c.createOrUpdateItems(ctx, body)
 	if err != nil {
 		return nil, err
+	}
+	if status == http.StatusRequestEntityTooLarge {
+		// The payload died at the HTTP layer before Zotero could produce
+		// a per-slot failure — same permanent verdict, same typed error.
+		return nil, &WriteFailedError{Code: status, Message: strings.TrimSpace(string(respBody))}
 	}
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("POST /items: %s: %s", statusLine, string(respBody))
@@ -518,11 +524,14 @@ func decodeMultiObject(body []byte) (*client.MultiObjectResult, error) {
 
 func multiObjectFailure(mor *client.MultiObjectResult) error {
 	for idx, f := range mor.Failed {
-		msg := ""
-		if f.Message != nil {
-			msg = *f.Message
+		wf := &WriteFailedError{Index: idx}
+		if f.Code != nil {
+			wf.Code = *f.Code
 		}
-		return fmt.Errorf("batch item %s failed: %s", idx, msg)
+		if f.Message != nil {
+			wf.Message = *f.Message
+		}
+		return wf
 	}
 	return fmt.Errorf("batch write reported no successes")
 }

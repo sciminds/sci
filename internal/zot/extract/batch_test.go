@@ -148,7 +148,7 @@ func TestExecuteBatch_HappyPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	created, skipped, cached, failed := res.Counts()
+	created, skipped, cached, failed, _ := res.Counts()
 	if created != 1 || skipped != 1 || failed != 0 {
 		t.Errorf("counts = created=%d/skipped=%d/cached=%d/failed=%d; want 1/1/0/0", created, skipped, cached, failed)
 	}
@@ -357,9 +357,118 @@ func TestExecuteBatch_PerItemErrorsContinue(t *testing.T) {
 	if res.Outcomes[1].Err != nil {
 		t.Errorf("PA: unexpected error %v", res.Outcomes[1].Err)
 	}
-	created, _, _, failed := res.Counts()
+	created, _, _, failed, _ := res.Counts()
 	if created != 1 || failed != 1 {
 		t.Errorf("created=%d failed=%d; want 1/1", created, failed)
+	}
+}
+
+// tooLongErr mimics api.WriteFailedError for Zotero's note-length
+// rejection: an error whose NoteTooLong() reports the permanent verdict.
+// A local type on purpose — extract can't import api (cycle via zot),
+// so it detects the behavior, not the concrete type.
+type tooLongErr struct{}
+
+func (tooLongErr) Error() string     { return "batch item 0 failed: Note '<h1>x</h1>...' too long" }
+func (tooLongErr) NoteTooLong() bool { return true }
+
+// TestExecuteBatch_NoteTooLongMarksAndStopsRetrying is the retry-loop
+// fix end to end: a note Zotero rejects for length fails ONCE (with a
+// durable marker recorded), and the next run skips posting it entirely
+// instead of burning another attempt.
+func TestExecuteBatch_NoteTooLongMarksAndStopsRetrying(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+	now := func() time.Time { return time.Date(2026, 8, 6, 12, 0, 0, 0, time.UTC) }
+
+	// Run 1: extraction succeeds, the post is rejected as too long.
+	items := []BatchItem{mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate)}
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     items,
+		Extractor: &fakeExtractor{md: "# huge\n", version: "docling 2.86.0"},
+		Writer:    &fakeNoteWriter{createErr: tooLongErr{}},
+		Cache:     cache,
+		Now:       now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Outcomes[0].Err == nil {
+		t.Fatal("run 1: expected a failed outcome for the rejected note")
+	}
+	if !res.Outcomes[0].TooLong {
+		t.Error("run 1: outcome must be flagged TooLong")
+	}
+	if !cache.TooLong("PDFA", "ha") {
+		t.Error("run 1: too-long marker must be recorded in the cache")
+	}
+	if _, _, _, failed, _ := res.Counts(); failed != 1 {
+		t.Errorf("run 1: failed = %d, want 1", failed)
+	}
+
+	// Run 2: same cache. The item is served from cache, but the recorded
+	// verdict means the writer must never be called again.
+	w2 := &fakeNoteWriter{}
+	res2, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     []BatchItem{mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate)},
+		Extractor: &fakeExtractor{md: "# huge\n", version: "docling 2.86.0"},
+		Writer:    w2,
+		Cache:     cache,
+		Now:       now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(w2.created) != 0 {
+		t.Errorf("run 2: CreateChildNote called %d time(s), want 0", len(w2.created))
+	}
+	o := res2.Outcomes[0]
+	if o.Err != nil {
+		t.Errorf("run 2: skipping a known-too-long note is not a failure, got %v", o.Err)
+	}
+	if !o.TooLong {
+		t.Error("run 2: outcome must be flagged TooLong")
+	}
+	if o.NoteKey != "" {
+		t.Errorf("run 2: no note must be created, got key %q", o.NoteKey)
+	}
+	created, _, _, failed, tooLong := res2.Counts()
+	if created != 0 || failed != 0 || tooLong != 1 {
+		t.Errorf("run 2: created=%d failed=%d tooLong=%d; want 0/0/1", created, failed, tooLong)
+	}
+}
+
+// TestExecuteBatch_OtherPostErrorsStayRetriable: a transient post
+// failure (not a length rejection) must NOT be recorded as permanent —
+// the next run retries it.
+func TestExecuteBatch_OtherPostErrorsStayRetriable(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	pdfA := filepath.Join(dir, "a.pdf")
+	writeStubPDF(t, pdfA, "a")
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+
+	res, err := ExecuteBatch(context.Background(), BatchInput{
+		Items:     []BatchItem{mkBatchItem("PA", "PDFA", "a.pdf", pdfA, "ha", ActionCreate)},
+		Extractor: &fakeExtractor{md: "# h\n", version: "docling 2.86.0"},
+		Writer:    &fakeNoteWriter{createErr: errors.New("503 service unavailable")},
+		Cache:     cache,
+		Now:       func() time.Time { return time.Date(2026, 8, 6, 12, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Outcomes[0].Err == nil {
+		t.Fatal("expected failed outcome")
+	}
+	if res.Outcomes[0].TooLong {
+		t.Error("transient failure must not be flagged TooLong")
+	}
+	if cache.TooLong("PDFA", "ha") {
+		t.Error("transient failure must not record a permanent marker")
 	}
 }
 
@@ -586,7 +695,7 @@ func TestExecuteBatch_ChunkedQueue(t *testing.T) {
 	if !slices.Equal(sizes, []int{1, 5}) {
 		t.Errorf("chunk sizes = %v, want [1 5]", sizes)
 	}
-	created, _, _, failed := res.Counts()
+	created, _, _, failed, _ := res.Counts()
 	if created != 6 || failed != 0 {
 		t.Errorf("created=%d failed=%d; want 6/0", created, failed)
 	}
@@ -798,7 +907,7 @@ func TestExecuteBatch_PhaseOrder(t *testing.T) {
 	}
 
 	// Both notes should have been posted.
-	created, _, _, failed := res.Counts()
+	created, _, _, failed, _ := res.Counts()
 	if created != 2 || failed != 0 {
 		t.Errorf("created=%d failed=%d; want 2/0", created, failed)
 	}
@@ -852,7 +961,7 @@ func TestExecuteBatch_CachedOnlySkipsExtract(t *testing.T) {
 	if atomic.LoadInt32(&ex.calls) != 0 {
 		t.Errorf("extractor calls = %d, want 0", atomic.LoadInt32(&ex.calls))
 	}
-	created, _, _, _ := res.Counts()
+	created, _, _, _, _ := res.Counts()
 	if created != 1 {
 		t.Errorf("created=%d, want 1", created)
 	}

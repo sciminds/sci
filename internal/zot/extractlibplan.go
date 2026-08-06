@@ -32,6 +32,7 @@ type ExtractLibPlanResult struct {
 	ArtifactsOnly   int  `json:"artifacts_only"`
 	Skipped         int  `json:"skipped"`
 	PlanErrors      int  `json:"plan_errors"`
+	NoteTooLong     int  `json:"note_too_long"`
 
 	Limit     int `json:"limit"`
 	Selected  int `json:"selected"`
@@ -91,6 +92,7 @@ func NewExtractLibPlanResult(s extract.Survey, device string, jobs int, layoutDi
 		ArtifactsOnly:        s.ArtifactsOnly,
 		Skipped:              s.Skipped,
 		PlanErrors:           s.PlanErrors,
+		NoteTooLong:          s.NoteTooLong,
 		Limit:                s.Limit,
 		Selected:             len(s.Selected),
 		Remaining:            s.Remaining,
@@ -157,6 +159,9 @@ func (r ExtractLibPlanResult) Human() string {
 	if r.Skipped > 0 {
 		fmt.Fprintf(&b, "      skipped:        %d\n", r.Skipped)
 	}
+	if r.NoteTooLong > 0 {
+		fmt.Fprintf(&b, "      note too long:  %d (Zotero rejected these — not retried; --reextract to force)\n", r.NoteTooLong)
+	}
 	if r.Limit > 0 {
 		fmt.Fprintf(&b, "      selected:       %d (--limit %d; %d remaining)\n", r.Selected, r.Limit, r.Remaining)
 	}
@@ -211,15 +216,34 @@ func (r ExtractLibPlanResult) Human() string {
 }
 
 // Warnings implements cmdutil.Warner: duplicate PDF content is a
-// data-quality caveat an agent should act on before trusting the plan.
+// data-quality caveat an agent should act on before trusting the plan,
+// and recorded note-length rejections explain why some candidates are
+// permanently excluded from the run.
 func (r ExtractLibPlanResult) Warnings() []cmdutil.Warning {
-	if len(r.Duplicates) == 0 {
-		return nil
+	var out []cmdutil.Warning
+	if len(r.Duplicates) > 0 {
+		out = append(out, cmdutil.Warning{
+			Code: cmdutil.CodeDuplicate,
+			Message: fmt.Sprintf("%d PDF(s) are attached to more than one item — %d extraction(s) would run on bytes already queued under another key",
+				r.DuplicateGroups, r.DuplicateWasted),
+			Fix: "sci zot doctor duplicates",
+		})
 	}
-	return []cmdutil.Warning{{
-		Code: cmdutil.CodeDuplicate,
-		Message: fmt.Sprintf("%d PDF(s) are attached to more than one item — %d extraction(s) would run on bytes already queued under another key",
-			r.DuplicateGroups, r.DuplicateWasted),
-		Fix: "sci zot doctor duplicates",
-	}}
+	if r.NoteTooLong > 0 {
+		out = append(out, NoteTooLongWarning(r.NoteTooLong))
+	}
+	return out
+}
+
+// NoteTooLongWarning is the shared envelope warning for extractions
+// whose note Zotero rejected for length — emitted by both the --plan
+// result and the live-run result so the two speak the same vocabulary.
+// The completed-run JSON shape is frozen (TestExtractLibResult_JSONKeysAreFrozen),
+// so the live run carries this fact in the warning channel only.
+func NoteTooLongWarning(n int) cmdutil.Warning {
+	return cmdutil.Warning{
+		Code: cmdutil.CodeRuntime,
+		Message: fmt.Sprintf("%d extraction note(s) exceed Zotero's note length limit — skipped, not retried (a server-side limit; the markdown stays available locally, and --reextract clears the verdict)",
+			n),
+	}
 }

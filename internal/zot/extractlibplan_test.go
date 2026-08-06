@@ -53,6 +53,7 @@ func planSurveyFixture() extract.Survey {
 		NeedsExtraction: 3,
 		ArtifactsOnly:   1,
 		PlanErrors:      1,
+		NoteTooLong:     2,
 		Selected:        make([]extract.BatchItem, 4),
 		Remaining:       0,
 		PagesKnownItems: 3, PagesUnknownItems: 1, PagesTotal: 400, Extrapolated: true,
@@ -93,6 +94,9 @@ func TestExtractLibPlanResult_JSONShape(t *testing.T) {
 	if m["eta"] == nil || m["pages"] == nil {
 		t.Error("pages/eta missing despite estimator data")
 	}
+	if m["note_too_long"] != float64(2) {
+		t.Errorf("note_too_long = %v, want 2", m["note_too_long"])
+	}
 
 	// Classic mode: layout_done is an explicit null, not absent.
 	classic := NewExtractLibPlanResult(extract.Survey{Candidates: 1}, "mps", 0, "")
@@ -111,14 +115,17 @@ func TestExtractLibPlanResult_Warnings(t *testing.T) {
 	t.Parallel()
 	r := NewExtractLibPlanResult(planSurveyFixture(), "mps", 2, "")
 	warns := r.Warnings()
-	if len(warns) != 1 {
-		t.Fatalf("warnings = %d, want 1", len(warns))
+	if len(warns) != 2 {
+		t.Fatalf("warnings = %d, want 2 (duplicates + note-too-long)", len(warns))
 	}
 	if warns[0].Code != cmdutil.CodeDuplicate {
 		t.Errorf("code = %s, want %s", warns[0].Code, cmdutil.CodeDuplicate)
 	}
 	if warns[0].Fix != "sci zot doctor duplicates" {
 		t.Errorf("fix = %q", warns[0].Fix)
+	}
+	if warns[1].Code != cmdutil.CodeRuntime || !strings.Contains(warns[1].Message, "length limit") {
+		t.Errorf("too-long warning = %+v", warns[1])
 	}
 
 	clean := NewExtractLibPlanResult(extract.Survey{Candidates: 2}, "mps", 0, "")

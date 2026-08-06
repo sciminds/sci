@@ -174,6 +174,11 @@ type BatchOutcome struct {
 	FromCache bool
 	Duration  time.Duration
 	Err       error
+	// TooLong is true when this item's note exceeds Zotero's length
+	// limit — either rejected on this run (Err is also set, and a
+	// durable cache marker was recorded) or skipped because a prior run
+	// already recorded the verdict (Err is nil; no post was attempted).
+	TooLong bool
 	// LayoutWritten is true when this run finalized the item's
 	// per-key layout dir (layout mode only; false for dirs that
 	// were already Done).
@@ -187,11 +192,18 @@ type BatchResult struct {
 	ToolVersion string
 }
 
-// Counts returns the tallies used by CLI result rendering.
-func (r *BatchResult) Counts() (created, skipped, cached, failed int) {
+// Counts returns the tallies used by CLI result rendering. tooLong
+// counts items whose posting was skipped because a prior run recorded
+// Zotero's length rejection; a rejection that happened THIS run carries
+// an Err and counts under failed instead.
+func (r *BatchResult) Counts() (created, skipped, cached, failed, tooLong int) {
 	for _, o := range r.Outcomes {
 		if o.Err != nil {
 			failed++
+			continue
+		}
+		if o.TooLong {
+			tooLong++
 			continue
 		}
 		switch o.Action {
@@ -776,9 +788,32 @@ func (f *layoutFinalizer) finalize(stem string) {
 	}
 }
 
+// noteTooLongError is the behavior Zotero's note-length rejection
+// carries (implemented by api.WriteFailedError). Declared locally
+// because extract cannot import api (import cycle via zot) — the
+// classification travels as behavior, not as a concrete type.
+type noteTooLongError interface {
+	error
+	NoteTooLong() bool
+}
+
+// isNoteTooLong reports whether err is Zotero's note-length rejection —
+// a permanent verdict for this body, never worth retrying.
+func isNoteTooLong(err error) bool {
+	tl, ok := errors.AsType[noteTooLongError](err)
+	return ok && tl.NoteTooLong()
+}
+
 // postNote reads the cached markdown for a single item, renders the
 // note body, and posts it to Zotero via the writer. It updates
 // outcomes[i] in place and fires OnItemDone.
+//
+// Items whose (pdfKey, hash) carries a too-long marker are skipped
+// without an API call: a prior run already learned Zotero rejects this
+// body, and retrying the identical payload can never succeed. The
+// survey normally filters these out of the selection; this guard covers
+// the paths that still reach here (e.g. layout-mode runs that extract
+// artifacts for a marked item).
 func postNote(
 	ctx context.Context,
 	i int,
@@ -789,6 +824,14 @@ func postNote(
 	tags []string,
 	now func() time.Time,
 ) {
+	if in.Cache.TooLong(item.Request.PDFKey, item.Hash) {
+		outcomes[i].TooLong = true
+		if in.OnItemDone != nil {
+			in.OnItemDone(i, outcomes[i])
+		}
+		return
+	}
+
 	cachedPath, ok := in.Cache.Get(item.Request.PDFKey, item.Hash)
 	if !ok {
 		outcomes[i].Err = fmt.Errorf("expected cache entry for %s after extraction", item.Request.PDFName)
@@ -830,7 +873,16 @@ func postNote(
 
 	key, err := in.Writer.CreateChildNote(ctx, item.Plan.Request.ParentKey, body, tags)
 	if err != nil {
-		outcomes[i].Err = fmt.Errorf("create note: %w", err)
+		if isNoteTooLong(err) {
+			// Permanent verdict: record it so future runs stop retrying.
+			// Marker write is best-effort — if it fails, the worst case
+			// is one more (failed) attempt next run.
+			outcomes[i].TooLong = true
+			_ = in.Cache.MarkTooLong(item.Request.PDFKey, item.Hash, err.Error())
+			outcomes[i].Err = fmt.Errorf("note exceeds Zotero's length limit — recorded, future runs skip it (retry with --reextract): %w", err)
+		} else {
+			outcomes[i].Err = fmt.Errorf("create note: %w", err)
+		}
 		if in.OnItemDone != nil {
 			in.OnItemDone(i, outcomes[i])
 		}

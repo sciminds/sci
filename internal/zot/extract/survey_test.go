@@ -77,6 +77,99 @@ func TestBuildSurvey_Dispositions(t *testing.T) {
 	}
 }
 
+// TestBuildSurvey_NoteTooLongDroppedFromSelection is the plan-level half
+// of the retry-loop fix: an item whose only remaining work is posting a
+// note Zotero already rejected for length is classified note-too-long
+// and excluded from the run, instead of burning an attempt every --apply.
+func TestBuildSurvey_NoteTooLongDroppedFromSelection(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+
+	// Both cached; PB additionally carries the too-long verdict.
+	for _, k := range []string{"PDFPA", "PDFPB"} {
+		if _, err := cache.Put(k, "h", []byte("# cached\n")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := cache.MarkTooLong("PDFPB", "h", "Note too long"); err != nil {
+		t.Fatal(err)
+	}
+	items := []BatchItem{
+		mkBatchItem("PA", "PDFPA", "a.pdf", "/x/a.pdf", "h", ActionCreate),
+		mkBatchItem("PB", "PDFPB", "b.pdf", "/x/b.pdf", "h", ActionCreate),
+	}
+	s := BuildSurvey(SurveyInput{Items: items, Cache: cache, Apply: true, Candidates: 2})
+
+	if s.Items[0].Disposition != DispPostCached {
+		t.Errorf("PA disposition = %s, want %s", s.Items[0].Disposition, DispPostCached)
+	}
+	if s.Items[1].Disposition != DispNoteTooLong {
+		t.Errorf("PB disposition = %s, want %s", s.Items[1].Disposition, DispNoteTooLong)
+	}
+	if s.NoteTooLong != 1 {
+		t.Errorf("NoteTooLong = %d, want 1", s.NoteTooLong)
+	}
+	if s.Cached != 1 {
+		t.Errorf("Cached = %d, want 1 (the marked item is not postable)", s.Cached)
+	}
+	if len(s.Selected) != 1 || s.Selected[0].Request.ParentKey != "PA" {
+		t.Fatalf("Selected = %+v, want only PA", s.Selected)
+	}
+}
+
+// TestBuildSurvey_NoteTooLongRetriedUnderReextract: --reextract is the
+// escape hatch — it clears cache entries (and their markers) for
+// selected items, so the survey must keep marked items in the run.
+func TestBuildSurvey_NoteTooLongRetriedUnderReextract(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+	if _, err := cache.Put("PDFPB", "h", []byte("# cached\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.MarkTooLong("PDFPB", "h", "Note too long"); err != nil {
+		t.Fatal(err)
+	}
+	items := []BatchItem{mkBatchItem("PB", "PDFPB", "b.pdf", "/x/b.pdf", "h", ActionCreate)}
+	s := BuildSurvey(SurveyInput{Items: items, Cache: cache, Apply: true, Reextract: true, Candidates: 1})
+
+	if s.Items[0].Disposition != DispExtract {
+		t.Errorf("disposition = %s, want %s (reextract retries)", s.Items[0].Disposition, DispExtract)
+	}
+	if s.NoteTooLong != 0 {
+		t.Errorf("NoteTooLong = %d, want 0 under --reextract", s.NoteTooLong)
+	}
+	if len(s.Selected) != 1 {
+		t.Fatalf("Selected = %d, want 1", len(s.Selected))
+	}
+}
+
+// TestBuildSurvey_NoteTooLongLayoutDone: in layout mode a Done key dir
+// with a marked note is fully settled — nothing left this run can do.
+func TestBuildSurvey_NoteTooLongLayoutDone(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	layout := &KeyLayout{Dir: filepath.Join(dir, "extracts")}
+	staging := writeStagedOutputs(t, t.TempDir(), "PB")
+	if _, err := layout.Finalize("PB", staging, "/x/b.pdf", 1); err != nil {
+		t.Fatal(err)
+	}
+	cache := &MarkdownCache{Dir: filepath.Join(dir, "cache")}
+	if err := cache.MarkTooLong("PDFPB", "h", "Note too long"); err != nil {
+		t.Fatal(err)
+	}
+	items := []BatchItem{mkBatchItem("PB", "PDFPB", "b.pdf", "/x/b.pdf", "h", ActionCreate)}
+	s := BuildSurvey(SurveyInput{Items: items, Cache: cache, Layout: layout, Apply: true, Candidates: 1})
+
+	if s.Items[0].Disposition != DispNoteTooLong {
+		t.Errorf("disposition = %s, want %s", s.Items[0].Disposition, DispNoteTooLong)
+	}
+	if s.NoteTooLong != 1 || len(s.Selected) != 0 {
+		t.Errorf("NoteTooLong=%d Selected=%d, want 1/0", s.NoteTooLong, len(s.Selected))
+	}
+}
+
 // TestBuildSurvey_CacheFilterMatchesLegacyBehavior pins the moved
 // filter logic: cache-only drops cached items, --reextract skips the
 // filter entirely, and layout mode never consults the markdown cache.

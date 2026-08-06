@@ -69,15 +69,45 @@ func (c *MarkdownCache) Put(pdfKey, hash string, md []byte) (string, error) {
 	return final, nil
 }
 
-// Delete removes the cached entry for (pdfKey, hash), if it exists.
-// Used by --reextract to force docling to re-run. A no-op if the
-// entry doesn't exist.
+// Delete removes the cached entry for (pdfKey, hash), if it exists,
+// along with its too-long marker. Used by --reextract to force docling
+// to re-run — which is also the escape hatch for a recorded too-long
+// verdict. A no-op if the entry doesn't exist.
 func (c *MarkdownCache) Delete(pdfKey, hash string) {
 	_ = os.Remove(c.pathFor(pdfKey, hash))
+	_ = os.Remove(c.tooLongPathFor(pdfKey, hash))
+}
+
+// MarkTooLong records that Zotero rejected this entry's note for
+// exceeding the server-side length limit — a permanent verdict for this
+// exact content, so retrying the identical body is pointless. The marker
+// is a sibling file (<pdfKey>-<hash>.toolong) holding the server's
+// message; keyed by hash, a changed PDF retries naturally. Cleared by
+// [MarkdownCache.Delete] (--reextract).
+func (c *MarkdownCache) MarkTooLong(pdfKey, hash, reason string) error {
+	if err := os.MkdirAll(c.Dir, 0o755); err != nil {
+		return fmt.Errorf("cache mkdir: %w", err)
+	}
+	if err := os.WriteFile(c.tooLongPathFor(pdfKey, hash), []byte(reason+"\n"), 0o644); err != nil {
+		return fmt.Errorf("cache too-long marker: %w", err)
+	}
+	return nil
+}
+
+// TooLong reports whether (pdfKey, hash) carries a too-long marker —
+// i.e. a previous run already learned Zotero will not accept this
+// entry's note.
+func (c *MarkdownCache) TooLong(pdfKey, hash string) bool {
+	_, err := os.Stat(c.tooLongPathFor(pdfKey, hash))
+	return err == nil
 }
 
 func (c *MarkdownCache) pathFor(pdfKey, hash string) string {
 	return filepath.Join(c.Dir, pdfKey+"-"+hash+".md")
+}
+
+func (c *MarkdownCache) tooLongPathFor(pdfKey, hash string) string {
+	return filepath.Join(c.Dir, pdfKey+"-"+hash+".toolong")
 }
 
 // DefaultCacheDir returns the standard on-disk location for the
