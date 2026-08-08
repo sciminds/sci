@@ -10,7 +10,7 @@ import (
 	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/hygiene"
 	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/internal/zot/openalex"
+	"github.com/sciminds/cli/pkg/openalex"
 )
 
 // Target is one planned enrichment: for ItemKey (at Version), apply Data to

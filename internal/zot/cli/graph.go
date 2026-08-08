@@ -7,7 +7,7 @@ import (
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/graph"
 	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/internal/zot/openalex"
+	"github.com/sciminds/cli/pkg/openalex"
 	"github.com/urfave/cli/v3"
 )
 

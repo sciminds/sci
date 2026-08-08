@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/cli/pkg/citekey"
 )
 
 // Keymap records the synthesized cite-key *prefix* (the part before

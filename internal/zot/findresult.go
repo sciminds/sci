@@ -6,7 +6,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/openalex"
+	"github.com/sciminds/cli/pkg/openalex"
 )
 
 // FindWorksResult wraps a page of Works returned by `zot find works`.

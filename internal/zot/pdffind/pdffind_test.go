@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/internal/zot/openalex"
+	"github.com/sciminds/cli/pkg/openalex"
 )
 
 // --- test doubles -----------------------------------------------------------

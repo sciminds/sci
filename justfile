@@ -36,7 +36,7 @@ fmt:
     goimports -w .
 
 lint:
-    golangci-lint run ./internal/... ./cmd/...
+    golangci-lint run ./internal/... ./pkg/... ./cmd/...
 
 # Structural style rules enforced via ast-grep.
 # No lipgloss.NewStyle() outside internal/uikit/; no hardcoded lipgloss.Color() outside palette/style files;
@@ -44,7 +44,7 @@ lint:
 lint-style:
     sg test
     sg scan
-    semgrep --config .semgrep/ --error --quiet ./internal/ ./cmd/
+    semgrep --config .semgrep/ --error --quiet ./internal/ ./pkg/ ./cmd/
 
 # Project-specific guards: import boundaries, flag conventions, API usage rules.
 lint-guard:
@@ -54,7 +54,7 @@ lint-guard:
 scriptable: lint-guard
 
 vet:
-    go vet ./internal/... ./cmd/...
+    go vet ./internal/... ./pkg/... ./cmd/...
 
 test:
     go test ./... -count=1
@@ -115,11 +115,11 @@ check-ci:
     out=$(gofmt -l .); if [ -n "$out" ]; then echo "gofmt drift:"; echo "$out"; exit 1; fi
     out=$(goimports -l .); if [ -n "$out" ]; then echo "goimports drift:"; echo "$out"; exit 1; fi
     echo "==> vet"
-    go vet ./internal/... ./cmd/...
+    go vet ./internal/... ./pkg/... ./cmd/...
     echo "==> lint"
-    golangci-lint run ./internal/... ./cmd/...
+    golangci-lint run ./internal/... ./pkg/... ./cmd/...
     echo "==> lint-docs"
-    golangci-lint run --config .golangci-docs.yml ./internal/...
+    golangci-lint run --config .golangci-docs.yml ./internal/... ./pkg/...
     echo "==> lint-guard"
     ./scripts/lint-guard.sh
     echo "==> test -race"
@@ -185,7 +185,7 @@ casts-gif FILTER='*':
 # Check Go doc comments (package-level + exported symbols) via revive.
 # Part of the `check`/`ok` gate; also runnable standalone for doc-audit sessions.
 lint-docs:
-    golangci-lint run --config .golangci-docs.yml ./internal/...
+    golangci-lint run --config .golangci-docs.yml ./internal/... ./pkg/...
 
 # Report gaps in user-facing CLI documentation (casts, gifs, README embeds, help descriptions).
 doc-coverage:

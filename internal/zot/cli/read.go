@@ -13,10 +13,10 @@ import (
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/api"
-	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/content"
 	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/cli/pkg/citekey"
 	"github.com/urfave/cli/v3"
 )
 

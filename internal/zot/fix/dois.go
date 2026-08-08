@@ -9,8 +9,8 @@ import (
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/client"
-	"github.com/sciminds/cli/internal/zot/doi"
 	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/cli/pkg/doi"
 )
 
 // DOITarget is one planned DOI rewrite: "for item ItemKey, overwrite the

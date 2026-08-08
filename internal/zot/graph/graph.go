@@ -30,7 +30,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/enrich"
 	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/internal/zot/openalex"
+	"github.com/sciminds/cli/pkg/openalex"
 )
 
 // LibraryIndex resolves a list of DOIs to Zotero item keys for items in

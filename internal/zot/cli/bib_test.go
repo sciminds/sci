@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/sciminds/cli/internal/zot/bib"
-	"github.com/sciminds/cli/internal/zot/doiorg"
-	"github.com/sciminds/cli/internal/zot/openalex"
+	"github.com/sciminds/cli/pkg/doiorg"
+	"github.com/sciminds/cli/pkg/openalex"
 )
 
 func writeFiles(t *testing.T, root string, paths ...string) {

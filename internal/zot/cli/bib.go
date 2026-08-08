@@ -17,9 +17,9 @@ import (
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/bib"
-	"github.com/sciminds/cli/internal/zot/doiorg"
 	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/internal/zot/openalex"
+	"github.com/sciminds/cli/pkg/doiorg"
+	"github.com/sciminds/cli/pkg/openalex"
 	"github.com/urfave/cli/v3"
 )
 

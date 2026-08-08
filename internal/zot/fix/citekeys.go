@@ -18,9 +18,9 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/api"
-	"github.com/sciminds/cli/internal/zot/citekey"
 	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/cli/pkg/citekey"
 )
 
 // CitekeyKind is a bitmask selecting which categories of citekey problem a
