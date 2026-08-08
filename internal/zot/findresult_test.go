@@ -86,14 +86,13 @@ func TestFindWorksResult_JSON_compactByDefault(t *testing.T) {
 			PublicationYear: new(2017),
 			Type:            new("article"),
 			CitedByCount:    42,
-			IsOA:            true,
 			Authorships: []openalex.Authorship{
 				{Author: openalex.AuthorRef{DisplayName: "Ashish Vaswani"},
 					Institutions:          []openalex.Institution{{ID: "https://openalex.org/I20089843", DisplayName: "Princeton University"}},
 					RawAffiliationStrings: []string{"long string that should NOT appear"}},
 			},
 			PrimaryLocation: &openalex.Location{Source: &openalex.SourceRef{DisplayName: "NeurIPS"}},
-			OpenAccess:      &openalex.OpenAccess{OAStatus: "gold"},
+			OpenAccess:      &openalex.OpenAccess{IsOA: true, OAStatus: "gold"},
 		}},
 	}
 	b, err := json.Marshal(r.JSON())

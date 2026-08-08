@@ -96,7 +96,10 @@ func workToCompact(w openalex.Work, hits map[string]string) FindWorkCompact {
 	out := FindWorkCompact{
 		OpenAlexID:   openalexShortID(w.ID),
 		CitedByCount: w.CitedByCount,
-		IsOA:         w.IsOA,
+		// Read through open_access rather than a top-level is_oa: OpenAlex
+		// returns one but refuses to SELECT it, so the field mask cannot
+		// ask for it and a struct field for it would always be false.
+		IsOA: w.OpenAccess != nil && w.OpenAccess.IsOA,
 	}
 	if w.Title != nil && *w.Title != "" {
 		out.Title = *w.Title

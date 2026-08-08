@@ -55,7 +55,6 @@ func TestScan_ResolvesByDOIWhenPresent(t *testing.T) {
 			ID:          "https://openalex.org/W42",
 			DOI:         new("https://doi.org/10.1/x"),
 			Title:       new("A paper"),
-			IsOA:        true,
 			HasFulltext: true,
 			OpenAccess:  &openalex.OpenAccess{IsOA: true, OAStatus: "gold"},
 			BestOALocation: &openalex.Location{
@@ -524,9 +523,10 @@ func TestTitleSearchSelect_ExcludesIsOA(t *testing.T) {
 // selectable): f.IsOA must still reflect the true OA state.
 func TestPopulateFromWork_DerivesIsOAFromOpenAccess(t *testing.T) {
 	t.Parallel()
+	// There is no top-level is_oa to fall back to any more: OpenAlex 400s
+	// on selecting it, so openalex.Work models only the nested form.
 	w := &openalex.Work{
 		ID:         "https://openalex.org/W1",
-		IsOA:       false, // top-level absent/false (select-narrowed response)
 		OpenAccess: &openalex.OpenAccess{IsOA: true, OAStatus: "gold"},
 	}
 	var f Finding

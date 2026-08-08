@@ -277,15 +277,13 @@ func populateFromWork(f *Finding, w *openalex.Work) {
 	if w.DOI != nil {
 		f.OADOI = stripDOIPrefix(*w.DOI)
 	}
-	// Prefer open_access.is_oa over the top-level is_oa: OpenAlex no longer
-	// accepts is_oa in `select` (returns 400), so a select-narrowed response
-	// can carry only the nested form. Fall back to the top-level when
-	// open_access is absent.
+	// open_access is the ONLY route to is_oa. OpenAlex returns a top-level
+	// is_oa but refuses it in `select` with a 400, so openalex.Work models
+	// only the nested form — a top-level field would be permanently false
+	// under any narrowed response, and asking for it kills the request.
 	if w.OpenAccess != nil {
 		f.IsOA = w.OpenAccess.IsOA
 		f.OAStatus = w.OpenAccess.OAStatus
-	} else {
-		f.IsOA = w.IsOA
 	}
 	f.HasFulltext = w.HasFulltext
 	if w.PrimaryLocation != nil && w.PrimaryLocation.LandingPageURL != nil {

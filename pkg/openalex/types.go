@@ -24,7 +24,6 @@ type Work struct {
 	Type                         *string             `json:"type"`
 	Language                     *string             `json:"language"`
 	IsRetracted                  bool                `json:"is_retracted"`
-	IsOA                         bool                `json:"is_oa"`
 	CitedByCount                 int                 `json:"cited_by_count"`
 	ReferencedWorksCount         int                 `json:"referenced_works_count"`
 	FWCI                         *float64            `json:"fwci"`
@@ -95,6 +94,12 @@ type SourceRef struct {
 	HostOrganizationName *string `json:"host_organization_name"`
 }
 
+// OpenAccess carries the open-access status, including IsOA.
+//
+// There is no top-level is_oa field here on purpose. OpenAlex's response
+// has one, but it is NOT in the API's selectable set — asking for it 400s
+// the entire request — and open_access.is_oa is the same fact by a route
+// that works.
 // OpenAccess is a work's open-access status block (the open_access field).
 type OpenAccess struct {
 	IsOA     bool    `json:"is_oa"`

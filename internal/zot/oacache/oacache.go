@@ -58,15 +58,23 @@ import (
 // re-fetched at full price or not at all.
 //
 // The test enforces mask == struct. It cannot enforce struct == API, and
-// that gap is where biblio and ids hid: both were absent from the struct,
-// so the mask was "complete" and 1,991 papers stayed without a volume.
-// Before paying for a sync, check the Work object docs for fields this
-// type does not model yet.
+// that gap cuts both ways. biblio and ids were absent from the struct, so
+// the mask was "complete" while never asking for them and 1,991 papers
+// stayed without a volume. In the other direction, is_oa was IN the struct
+// and is not selectable at all — OpenAlex 400s the whole request for it —
+// which is why the response shape and the selectable set have to be
+// treated as two different lists. The same fact is reachable as
+// open_access.is_oa.
+//
+// A rejected select field fails loudly on the first request, so the cost
+// of getting this wrong is one round trip. A missing one fails silently
+// and costs a whole re-sync. Before paying for a sync, check the Work
+// docs for fields this type does not model yet.
 var WorkSelect = []string{
 	"id", "doi", "display_name", "title", "publication_year", "publication_date",
 	"type", "language", "is_retracted", "cited_by_count", "referenced_works_count",
 	"fwci", "citation_normalized_percentile", "has_fulltext",
-	"is_oa", "open_access", "primary_location", "best_oa_location", "locations",
+	"open_access", "primary_location", "best_oa_location", "locations",
 	"authorships", "topics", "keywords", "mesh",
 	"referenced_works", "abstract_inverted_index",
 	"biblio", "ids",
