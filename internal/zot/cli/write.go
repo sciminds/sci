@@ -14,6 +14,7 @@ import (
 	"github.com/sciminds/cli/internal/netutil"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/cli/internal/zot/backfill"
 	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/enrich"
 	"github.com/sciminds/cli/internal/zot/local"
@@ -47,6 +48,7 @@ var (
 	updAbstract    string
 	updPublication string
 	updExtra       string
+	updFromJSON    string
 
 	deleteYes bool
 
@@ -241,8 +243,14 @@ func updateCommand() *cli.Command {
 		Usage: "Update fields on one or more items",
 		Description: "$ sci zot item update ABC12345 --title \"Corrected Title\"\n" +
 			"$ sci zot item update ABC12345 DEF67890 --publication \"Nature\"\n" +
+			"$ sci zot item update --from-json doi-backfill.ndjson\n" +
 			"Providing multiple keys applies the same field patch to each item via a\n" +
-			"batched POST /items request (up to 50 items per round-trip).",
+			"batched POST /items request (up to 50 items per round-trip).\n\n" +
+			"--from-json applies MANY DISTINCT patches instead of one patch to many\n" +
+			"keys. It reads the NDJSON plan `zot backfill` writes, and composes each\n" +
+			"item's Extra field from the SERVER's copy rather than the plan, so a\n" +
+			"note added on another device is not erased. An item that has gained a\n" +
+			"DOI since the plan was built is skipped, not overwritten.",
 		ArgsUsage: "<key> [<key>...]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "title", Destination: &updTitle, Local: true},
@@ -252,9 +260,18 @@ func updateCommand() *cli.Command {
 			&cli.StringFlag{Name: "abstract", Destination: &updAbstract, Local: true},
 			&cli.StringFlag{Name: "publication", Destination: &updPublication, Local: true},
 			&cli.StringFlag{Name: "extra", Destination: &updExtra, Local: true},
+			&cli.StringFlag{Name: "from-json", Destination: &updFromJSON, Local: true,
+				Usage: "apply a DOI backfill plan (NDJSON from `zot backfill`)"},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			keys := cmd.Args().Slice()
+			if updFromJSON != "" {
+				if len(keys) > 0 {
+					return cmdutil.UsageErrorf(cmd,
+						"--from-json carries its own keys; do not also pass them as arguments")
+				}
+				return runBackfillPlan(ctx, cmd)
+			}
 			if len(keys) == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected at least one item key")
 			}
@@ -862,4 +879,59 @@ func unionCollection(collKey string) func(*client.Item) (client.ItemData, error)
 		}
 		return client.ItemData{Collections: &merged}, nil
 	}
+}
+
+// runBackfillPlan applies a `zot backfill` plan.
+//
+// The plan is read and validated in full before a single write, so a bad
+// row cannot leave the library half-patched in a state nobody planned.
+//
+// Rows are routed by the library each one names, not by --library. The
+// corpus spans both and an item key is unique only within one, so a single
+// scope makes the other library's keys 404 -- which reads as a broken plan
+// rather than a misrouted write, and leaves half the backfill silently
+// undone.
+func runBackfillPlan(ctx context.Context, cmd *cli.Command) error {
+	plans, err := backfill.Read(updFromJSON)
+	if err != nil {
+		return err
+	}
+	if len(plans) == 0 {
+		outputScoped(ctx, cmd, backfill.CLIResult{Plan: updFromJSON})
+		return nil
+	}
+
+	cfg, err := requireConfigCoded()
+	if err != nil {
+		return err
+	}
+	if !netutil.Online() {
+		return cmdutil.Coded(cmdutil.CodeOffline, "no internet connection — applying a plan requires network access")
+	}
+
+	total := &backfill.Result{}
+	for _, scope := range []zot.LibraryScope{zot.LibPersonal, zot.LibShared} {
+		rows := backfill.ByLibrary(plans)[string(scope)]
+		if len(rows) == 0 {
+			continue
+		}
+		ref, refErr := cfg.Resolve(scope)
+		if refErr != nil {
+			return refErr
+		}
+		c, clientErr := api.New(cfg, api.WithLibrary(ref))
+		if clientErr != nil {
+			return clientErr
+		}
+		res, applyErr := backfill.Apply(ctx, c, c, rows)
+		if applyErr != nil {
+			return applyErr
+		}
+		total.Merge(res)
+	}
+
+	outputScoped(ctx, cmd, backfill.CLIResult{
+		Plan: updFromJSON, Planned: len(plans), Result: total,
+	})
+	return nil
 }
