@@ -85,7 +85,7 @@ func TestList_FilterByType(t *testing.T) {
 // "exclude notes and attachments from listings" rule silently overrode an
 // explicit --type note filter. Without the opt-out, asking the local DB
 // for `ItemType:"note"` returned zero rows because the unconditional
-// contentItemTypeFilter won.
+// hygieneItemTypeFilter won.
 func TestList_FilterByType_Note(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
@@ -112,7 +112,7 @@ func TestList_FilterByType_Note(t *testing.T) {
 }
 
 // TestList_FilterByType_Attachment: same logic as the note case but for
-// attachments (the other type excluded by contentItemTypeFilter).
+// attachments (the other type excluded by hygieneItemTypeFilter).
 func TestList_FilterByType_Attachment(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)

@@ -90,7 +90,7 @@ func (d *DB) listWhere(f ListFilter) (string, []any) {
 	// each other and we silently return zero rows.
 	if !isExcludedContentType(f.ItemType) {
 		if f.Mirror {
-			where.WriteString(contentItemTypeFilter)
+			where.WriteString(mirrorItemTypeFilter)
 		} else {
 			where.WriteString(hygieneItemTypeFilter)
 		}

@@ -253,7 +253,7 @@ func TestFieldPresenceScanIgnoresAnnotations(t *testing.T) {
 	// exactly one real one exists, which is enough noise to make the
 	// dashboard unreadable and the genuine finding invisible.
 	//
-	// Annotations are excluded HERE rather than in contentItemTypeFilter:
+	// Annotations are excluded by hygieneItemTypeFilter, not by the mirror:
 	// that filter is shared with ListAll, which feeds the NDJSON mirror,
 	// and the mirror is supposed to be lossless.
 	for _, r := range rows {

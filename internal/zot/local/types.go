@@ -156,18 +156,34 @@ func ParseYear(date string) int {
 	return y
 }
 
-// contentItemTypeFilter returns the SQL fragment excluding attachment/note
-// rows from a query joined on itemTypes as alias "it". These are children
-// of "real" items and should not appear in top-level listings.
-//
-// Annotations are deliberately NOT excluded here. This fragment is shared
-// with ListAll, which feeds the NDJSON mirror, and that mirror is supposed
-// to be lossless — an annotation is a real Zotero object and belongs in
-// it. Scans that are asking about PAPERS use hygieneItemTypeFilter.
-const contentItemTypeFilter = " AND it.typeName NOT IN ('attachment','note') "
+// Two filters, because two different questions get asked of the same
+// table, and one fragment answering both is how they came to be answered
+// wrongly. "Which rows are PAPERS" and "which rows are real Zotero
+// objects" differ on exactly the child/parentless boundary.
 
-// hygieneItemTypeFilter additionally excludes annotations, for scans whose
-// question is about papers rather than about objects.
+// mirrorItemTypeFilter excludes attachment/note rows that HAVE a parent,
+// and keeps the ones that do not.
+//
+// The distinction is the difference between a lossless mirror and one with
+// a silent hole. A child attachment rides nested inside its parent's
+// Attachments array, so it reaches a consumer either way and emitting it
+// at top level too would double-count it. A PARENTLESS attachment has
+// nothing to ride: excluding it by type drops it from the mirror entirely,
+// and on the live library that was 51 real PDFs plus 3 standalone notes
+// that no consumer could see at all.
+const mirrorItemTypeFilter = `
+ AND ( it.typeName NOT IN ('attachment','note')
+       OR (it.typeName = 'attachment'
+           AND NOT EXISTS (SELECT 1 FROM itemAttachments ia
+                           WHERE ia.itemID = i.itemID AND ia.parentItemID IS NOT NULL))
+       OR (it.typeName = 'note'
+           AND NOT EXISTS (SELECT 1 FROM itemNotes inn
+                           WHERE inn.itemID = i.itemID AND inn.parentItemID IS NOT NULL)) ) `
+
+// hygieneItemTypeFilter is for queries asking about PAPERS: listings,
+// search, stats, and every health check. It excludes attachments, notes
+// and annotations alike — all three are children of a real item, and none
+// of them is a thing anyone cites.
 //
 // A PDF annotation is a row in the items table with no title, no creators
 // and no DOI, so a health check that counts it reports three missing-field
@@ -177,7 +193,7 @@ const contentItemTypeFilter = " AND it.typeName NOT IN ('attachment','note') "
 const hygieneItemTypeFilter = " AND it.typeName NOT IN ('attachment','note','annotation') "
 
 // isExcludedContentType reports whether t is one of the item types that
-// contentItemTypeFilter would otherwise strip from listings. Used by
+// hygieneItemTypeFilter would otherwise strip from listings. Used by
 // List/ListAll to opt out of the blanket exclusion when the caller
 // explicitly asked for notes or attachments via ListFilter.ItemType.
 func isExcludedContentType(t string) bool {
