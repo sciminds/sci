@@ -250,6 +250,7 @@ type ChildItemView struct {
 	Note        string   `json:"note,omitempty"`
 	ContentType string   `json:"content_type,omitempty"`
 	Filename    string   `json:"filename,omitempty"`
+	Md5         string   `json:"md5,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 }
 

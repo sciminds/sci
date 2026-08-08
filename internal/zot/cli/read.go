@@ -34,6 +34,8 @@ var (
 	readDOI       string
 	readMissingOK bool
 
+	childrenRemote bool
+
 	searchLimit    int
 	searchRemote   bool
 	searchFull     bool
@@ -958,16 +960,26 @@ func childrenCommand() *cli.Command {
 		Name:  "children",
 		Usage: "List the child items (attachments + notes) of a parent item",
 		Description: "$ sci zot item children 6R45EVSB\n" +
+			"$ sci zot item children 6R45EVSB --remote   # bypass local sqlite; ground truth\n" +
 			"$ sci zot --json item children 6R45EVSB | jq '.children[] | select(.item_type==\"note\") | .key'\n" +
 			"\n" +
-			"Lists every child from the local Zotero database. Use together with\n" +
+			"Reads the local Zotero database by default. Pass --remote when the\n" +
+			"answer must reflect writes this CLI just made — the local mirror does\n" +
+			"not see them until Zotero desktop syncs, so a local read of a\n" +
+			"freshly-attached parent reports zero children. Use together with\n" +
 			"`zot item delete` to prune specific notes or attachments.",
 		ArgsUsage: "<parent-item-key>",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (sees children written since the last desktop sync)", Destination: &childrenRemote, Local: true},
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return cmdutil.UsageErrorf(cmd, "expected exactly one item key")
 			}
 			parentKey := cmd.Args().First()
+			if childrenRemote {
+				return runChildrenRemote(ctx, cmd, parentKey)
+			}
 			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
@@ -986,23 +998,69 @@ func childrenCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			views := lo.Map(children, func(ch local.ChildItem, _ int) zot.ChildItemView {
-				return toChildItemView(ch)
-			})
-			outputScoped(ctx, cmd, zot.ChildrenListResult{
+			views := lo.Map(children, toChildItemView)
+			result := zot.ChildrenListResult{
 				ParentKey: parentKey,
 				Count:     len(views),
 				Children:  views,
-			})
+			}
+			warns := append(localReadWarnings(db, remoteRerunFix(os.Args)),
+				emptyChildrenWarning(parentKey, len(views), remoteRerunFix(os.Args))...)
+			outputScoped(ctx, cmd, cmdutil.WithWarnings(result, warns...))
 			return nil
 		},
 	}
 }
 
+// runChildrenRemote answers `item children --remote` from the Web API, which
+// is the only plane that can see children written since Zotero desktop last
+// synced — including the ones this CLI wrote seconds ago.
+func runChildrenRemote(ctx context.Context, cmd *cli.Command, parentKey string) error {
+	c, err := requireAPIClient(ctx)
+	if err != nil {
+		return err
+	}
+	children, err := c.ListChildren(ctx, parentKey)
+	if err != nil {
+		return err
+	}
+	views := lo.Map(children, apiChildItemView)
+	outputScoped(ctx, cmd, zot.ChildrenListResult{
+		ParentKey: parentKey,
+		Count:     len(views),
+		Children:  views,
+	})
+	return nil
+}
+
+// emptyChildrenWarning flags the one answer a local read cannot be trusted
+// to give. Nothing in a zero-children payload distinguishes "this parent is
+// genuinely childless" from "the mirror predates the child we are asking
+// about" — and the second is the normal state right after `item attach` or
+// `content extract`, since desktop sync-back is minutes-slow. A caller that
+// reads the confident zero as permission to write attaches a duplicate.
+//
+// Deliberately scoped to the zero case: a non-empty listing may still be
+// short a child, but that is the ordinary staleness localReadWarnings
+// already reports. Zero is where the ambiguity changes what a caller does.
+func emptyChildrenWarning(parentKey string, count int, fix string) []cmdutil.Warning {
+	if count > 0 {
+		return nil
+	}
+	return []cmdutil.Warning{{
+		Code: cmdutil.CodeStaleLocal,
+		Message: fmt.Sprintf(
+			"%s has no children in the local mirror, which cannot distinguish a childless item "+
+				"from one whose children were written since the last Zotero desktop sync — "+
+				"do not treat this as permission to write", parentKey),
+		Fix: fix,
+	}}
+}
+
 // toChildItemView projects a local.ChildItem into the zot-package
 // mirror type used by ChildrenListResult. The duplication exists to
 // break the local → zot import cycle; see zot.ChildItemView's doc.
-func toChildItemView(ch local.ChildItem) zot.ChildItemView {
+func toChildItemView(ch local.ChildItem, _ int) zot.ChildItemView {
 	return zot.ChildItemView{
 		Key:         ch.Key,
 		ItemType:    ch.ItemType,
@@ -1010,6 +1068,23 @@ func toChildItemView(ch local.ChildItem) zot.ChildItemView {
 		Note:        ch.Note,
 		ContentType: ch.ContentType,
 		Filename:    ch.Filename,
+		Md5:         ch.Md5,
+		Tags:        ch.Tags,
+	}
+}
+
+// apiChildItemView is toChildItemView's --remote twin. The two shapes are
+// field-identical by design: which plane answered must not change the
+// payload a caller parses.
+func apiChildItemView(ch api.ChildItem, _ int) zot.ChildItemView {
+	return zot.ChildItemView{
+		Key:         ch.Key,
+		ItemType:    ch.ItemType,
+		Title:       ch.Title,
+		Note:        ch.Note,
+		ContentType: ch.ContentType,
+		Filename:    ch.Filename,
+		Md5:         ch.Md5,
 		Tags:        ch.Tags,
 	}
 }

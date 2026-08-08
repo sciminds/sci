@@ -122,7 +122,8 @@ func seedFixture(dir string) error {
 			parentItemID INTEGER,
 			linkMode INTEGER,
 			contentType TEXT,
-			path TEXT
+			path TEXT,
+			storageHash TEXT
 		)`,
 		`CREATE TABLE itemNotes (
 			itemID INTEGER PRIMARY KEY,
@@ -268,11 +269,13 @@ func seedFixture(dir string) error {
 
 		// Item 40 is an attachment child of item 10. Item 60 is a
 		// standalone attachment (parentItemID NULL).
-		`INSERT INTO itemAttachments VALUES
-			(40,10,1,'application/pdf','storage:deeplearning.pdf'),
-			(60,NULL,1,'application/pdf','storage:standalone.pdf'),
-			(81,80,1,'application/pdf','storage:transformers.pdf'),
-			(220,200,1,'application/pdf','storage:shared.pdf')`,
+		// storageHash is Zotero's md5 of the stored file; item 60 leaves it
+		// NULL, the shape an attachment has before Zotero hashes it.
+		`INSERT INTO itemAttachments (itemID, parentItemID, linkMode, contentType, path, storageHash) VALUES
+			(40,10,1,'application/pdf','storage:deeplearning.pdf','5fd414b08706d73fdc2bb134d702b1fe'),
+			(60,NULL,1,'application/pdf','storage:standalone.pdf',NULL),
+			(81,80,1,'application/pdf','storage:transformers.pdf','f4d2b845de30725ee574e7a573105d8f'),
+			(220,200,1,'application/pdf','storage:shared.pdf','aa11bb22cc33dd44ee55ff6677889900')`,
 
 		// Item 70 is a standalone note with no parent.
 		// Item 90 is a note child of item 10 (tagged "docling").

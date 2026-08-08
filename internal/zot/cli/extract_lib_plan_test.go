@@ -57,7 +57,7 @@ func seedExtractLibFixture(t *testing.T) (string, *atomic.Int32) {
 			(300, 1, 1, 'ATT1KEY0', 1, '2024-01-01 10:05:00', '2024-01-01 10:05:00', '2024-01-01 10:05:00'),
 			(301, 1, 1, 'ATT2KEY0', 1, '2024-02-01 10:05:00', '2024-02-01 10:05:00', '2024-02-01 10:05:00'),
 			(302, 1, 1, 'ATT3KEY0', 1, '2024-03-01 10:05:00', '2024-03-01 10:05:00', '2024-03-01 10:05:00')`,
-		`INSERT INTO itemAttachments VALUES
+		`INSERT INTO itemAttachments (itemID, parentItemID, linkMode, contentType, path) VALUES
 			(300, 1, 1, 'application/pdf', 'storage:paper1.pdf'),
 			(301, 2, 1, 'application/pdf', 'storage:paper2.pdf'),
 			(302, 3, 1, 'application/pdf', 'storage:paper3.pdf')`,

@@ -15,18 +15,24 @@ import (
 // `zot item children`. Mixed fields are populated based on ItemType:
 //
 //   - ItemType="note":       Note body set, Filename/ContentType empty
-//   - ItemType="attachment": Filename + ContentType set, Note empty
+//   - ItemType="attachment": Filename + ContentType + Md5 set, Note empty
 //
 // Title is the attachment/note's own title field (may be empty for
 // notes that don't have one set).
 type ChildItem struct {
-	Key         string   `json:"key"`
-	ItemType    string   `json:"item_type"`
-	Title       string   `json:"title,omitempty"`
-	Note        string   `json:"note,omitempty"`         // body, notes only
-	ContentType string   `json:"content_type,omitempty"` // attachments only
-	Filename    string   `json:"filename,omitempty"`     // attachments only
-	Tags        []string `json:"tags,omitempty"`
+	Key         string `json:"key"`
+	ItemType    string `json:"item_type"`
+	Title       string `json:"title,omitempty"`
+	Note        string `json:"note,omitempty"`         // body, notes only
+	ContentType string `json:"content_type,omitempty"` // attachments only
+	Filename    string `json:"filename,omitempty"`     // attachments only
+	// Md5 is the hex digest of the stored file (imported_file attachments
+	// only; empty for notes and linked URLs). It is the only field that
+	// answers "does this parent already have the bytes I am about to
+	// upload?" without downloading anything, which is what makes a batch
+	// attach resumable — see `zot item attach --skip-existing`.
+	Md5  string   `json:"md5,omitempty"`
+	Tags []string `json:"tags,omitempty"`
 }
 
 // ListChildren returns every child of parentKey — notes, attachments,
@@ -67,6 +73,9 @@ func (c *Client) ListChildren(ctx context.Context, parentKey string) ([]ChildIte
 			// in some contexts; the Filename field is already
 			// stripped but we defensively trim anyway.
 			ci.Filename = strings.TrimPrefix(*it.Data.Filename, "storage:")
+		}
+		if it.Data.Md5 != nil {
+			ci.Md5 = *it.Data.Md5
 		}
 		if it.Data.Tags != nil {
 			for _, t := range *it.Data.Tags {

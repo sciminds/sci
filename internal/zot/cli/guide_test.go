@@ -244,13 +244,22 @@ func TestGuide_ContractTeachesTheEnvelope(t *testing.T) {
 // TestGuide_SizeBudget is the terse-beats-thorough fence: the JSON pack must
 // stay small enough to pull into an agent's context at session start. Raise
 // this ceiling only with a reason — every sentence costs reliability.
+//
+// Raised 10KB → 11KB for the `item attach --skip-existing` entry. The reason
+// is that the guide is the only surface that reaches an agent before it acts,
+// and the gap it closes is a write defect, not a discoverability nicety: a
+// bare attach is not idempotent, and the read an agent naturally reaches for
+// to guard it (`item children`, local) answers a confident zero for children
+// this CLI just wrote. That combination duplicated 79 attachments on the live
+// library. An entry that prevents a bad write earns more context than one
+// that finds a command.
 func TestGuide_SizeBudget(t *testing.T) {
 	t.Parallel()
 	raw, err := json.Marshal(guideContent().JSON())
 	if err != nil {
 		t.Fatal(err)
 	}
-	const budget = 10 * 1024
+	const budget = 11 * 1024
 	if len(raw) > budget {
 		t.Errorf("guide JSON is %d bytes, over the %d budget — trim before growing", len(raw), budget)
 	}

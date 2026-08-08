@@ -9,15 +9,20 @@ import "fmt"
 // Mixed fields are populated based on ItemType:
 //
 //   - ItemType="note":       Note body + Title set, Filename/ContentType empty
-//   - ItemType="attachment": Filename + ContentType set, Note empty
+//   - ItemType="attachment": Filename + ContentType + Md5 set, Note empty
 type ChildItem struct {
-	Key         string   `json:"key"`
-	ItemType    string   `json:"item_type"`
-	Title       string   `json:"title,omitempty"`
-	Note        string   `json:"note,omitempty"`         // body, notes only
-	ContentType string   `json:"content_type,omitempty"` // attachments only
-	Filename    string   `json:"filename,omitempty"`     // attachments only
-	Tags        []string `json:"tags,omitempty"`
+	Key         string `json:"key"`
+	ItemType    string `json:"item_type"`
+	Title       string `json:"title,omitempty"`
+	Note        string `json:"note,omitempty"`         // body, notes only
+	ContentType string `json:"content_type,omitempty"` // attachments only
+	Filename    string `json:"filename,omitempty"`     // attachments only
+	// Md5 is the hex digest of the stored file, from itemAttachments
+	// .storageHash — the same value the Web API reports as `md5`, so the
+	// local and --remote listings agree field for field. Empty for notes
+	// and for attachments Zotero has not hashed yet.
+	Md5  string   `json:"md5,omitempty"`
+	Tags []string `json:"tags,omitempty"`
 }
 
 // ListChildren returns every non-trashed child of parentKey — notes,
@@ -29,7 +34,8 @@ SELECT ch.key, it.typeName,
        COALESCE(n.title, ''),
        COALESCE(n.note, ''),
        COALESCE(ia.contentType, ''),
-       COALESCE(REPLACE(ia.path, 'storage:', ''), '')
+       COALESCE(REPLACE(ia.path, 'storage:', ''), ''),
+       COALESCE(ia.storageHash, '')
 FROM items p
 JOIN items ch ON ch.libraryID = p.libraryID
 LEFT JOIN itemAttachments ia ON ia.itemID = ch.itemID AND ia.parentItemID = p.itemID
@@ -48,8 +54,8 @@ ORDER BY ch.dateAdded
 }
 
 // queryChildren runs a query that returns ChildItem-shaped rows
-// (key, typeName, title, note, contentType, filename) and hydrates
-// tags in a second pass. Used by ListChildren and ListDoclingNotes.
+// (key, typeName, title, note, contentType, filename, storageHash) and
+// hydrates tags in a second pass. Used by ListChildren and ListDoclingNotes.
 func (d *DB) queryChildren(q, errPrefix, parentKey string) ([]ChildItem, error) {
 	rows, err := d.db.Query(q, d.libraryID, parentKey)
 	if err != nil {
@@ -61,7 +67,7 @@ func (d *DB) queryChildren(q, errPrefix, parentKey string) ([]ChildItem, error) 
 	for rows.Next() {
 		var ci ChildItem
 		if err := rows.Scan(&ci.Key, &ci.ItemType, &ci.Title, &ci.Note,
-			&ci.ContentType, &ci.Filename); err != nil {
+			&ci.ContentType, &ci.Filename, &ci.Md5); err != nil {
 			return nil, fmt.Errorf("scan %s %s: %w", errPrefix, parentKey, err)
 		}
 		out = append(out, ci)

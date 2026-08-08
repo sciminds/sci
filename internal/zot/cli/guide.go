@@ -140,6 +140,11 @@ func guideContent() zot.GuideResult {
 						Note: "Tag with --tag. This is for notes YOU write; paper text goes through `sci zot content extract`.",
 					},
 					{
+						Goal: "Attach a PDF you already have on disk, safely across a batch",
+						Cmd:  "sci zot item attach ABC12345 ./paper.pdf --skip-existing",
+						Note: "A bare attach is NOT idempotent — twice makes two attachments. --skip-existing no-ops on a same-md5 child, which is what makes a batch resumable. Never resume off local `item children`: it cannot see what this CLI just wrote and answers 0. Use `item children KEY --remote`; both listings carry md5.",
+					},
+					{
 						Goal: "Relate a note to the papers it discusses, without doing it by hand",
 						Cmd:  "sci zot link suggest NOTEKEY1",
 						Note: "Reads the note and resolves every reference in it — zotero:// item links, @citekeys, DOIs, arXiv ids, [[wikilinks]] — into proposed dc:relation links. Dry-run by default; --apply writes (--yes skips the confirm). Each suggestion carries a status: proposed | already-linked (relation exists, reported not rewritten, so a re-run reads as \"nothing to do\") | unresolved (matched 0 or >1 items — listed, never guessed). Pass --remote to read the note's CURRENT relations live: after a recent `link add` the local mirror still lags, so a stale read re-proposes links that already exist. Refuses docling extractions: those references are the PAPER's bibliography, not yours. Manual pairs: `link add A B`, `link rm A B`, `link list KEY --remote`.",

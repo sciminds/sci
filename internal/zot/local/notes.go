@@ -39,7 +39,8 @@ SELECT ni.key, it.typeName,
        COALESCE(n.title, ''),
        COALESCE(n.note, ''),
        '' AS contentType,
-       '' AS filename
+       '' AS filename,
+       '' AS storageHash
 FROM items p
 JOIN itemNotes n ON n.parentItemID = p.itemID
 JOIN items ni ON ni.itemID = n.itemID

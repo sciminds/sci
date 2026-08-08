@@ -14,17 +14,24 @@ package cli
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"mime"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/urfave/cli/v3"
 )
+
+// attachSkipExisting backs `item attach --skip-existing`.
+var attachSkipExisting bool
 
 func itemAttachCommand() *cli.Command {
 	return &cli.Command{
@@ -32,12 +39,22 @@ func itemAttachCommand() *cli.Command {
 		Usage:     "Upload a local file as a child attachment of an existing item",
 		ArgsUsage: "<parent-key> <path>",
 		Description: "$ sci zot --library personal item attach ABC12345 ~/papers/Smith2022.pdf\n" +
+			"$ sci zot --library personal item attach ABC12345 ~/papers/Smith2022.pdf --skip-existing\n" +
 			"\n" +
 			"Creates a new imported_file attachment as a child of <parent-key> and\n" +
 			"uploads the file bytes. Existing attachments on the parent are left\n" +
 			"untouched — running this twice against the same parent produces two\n" +
 			"attachment items; Zotero's server-side dedup may share storage for\n" +
-			"identical bytes but the attachment items are still distinct.",
+			"identical bytes but the attachment items are still distinct.\n" +
+			"\n" +
+			"Pass --skip-existing to make the command idempotent: it checks the\n" +
+			"parent's children over the Web API first and no-ops when one already\n" +
+			"carries the same md5. That check is what makes a batch attach safely\n" +
+			"resumable — a local `item children` read cannot answer it, since the\n" +
+			"mirror does not see attachments this CLI just wrote.",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "skip-existing", Usage: "no-op when the parent already has an attachment with the same md5 (one extra API call)", Destination: &attachSkipExisting, Local: true},
+		},
 		Action: runItemAttach,
 	}
 }
@@ -65,6 +82,33 @@ func attachFileToParent(ctx context.Context, cmd *cli.Command, parentKey, path s
 	if err != nil {
 		return err
 	}
+
+	// The guard is a REMOTE read on purpose. `item children` against the
+	// local mirror answers zero for a parent whose attachments were written
+	// since the last Zotero desktop sync — which is exactly the state a
+	// resumed batch is in — and a caller that trusts that zero uploads the
+	// file a second time.
+	if attachSkipExisting {
+		digest, err := fileMD5(path)
+		if err != nil {
+			return err
+		}
+		children, err := c.ListChildren(ctx, parentKey)
+		if err != nil {
+			return fmt.Errorf("check existing attachments: %w", err)
+		}
+		if key := findExistingAttachment(children, digest); key != "" {
+			meta.close()
+			outputScoped(ctx, cmd, zot.WriteResult{
+				Action:  "skipped",
+				Kind:    "item",
+				Target:  key,
+				Message: fmt.Sprintf("item %s already has %s with the same contents (md5 %s)", parentKey, key, digest),
+			})
+			return nil
+		}
+	}
+
 	it, err := c.CreateChildAttachment(ctx, parentKey, meta.meta)
 	if err != nil {
 		return fmt.Errorf("create attachment: %w", err)
@@ -83,6 +127,44 @@ func attachFileToParent(ctx context.Context, cmd *cli.Command, parentKey, path s
 		Data:    api.ItemFromClient(it),
 	})
 	return nil
+}
+
+// fileMD5 returns the hex md5 of a file's bytes — the same digest Zotero
+// stores for an imported_file attachment, so the two are directly comparable.
+// md5 is not a security choice here: it is the hash Zotero's API reports, and
+// matching it is the whole point.
+func fileMD5(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("open %q: %w", path, err)
+	}
+	defer func() { _ = f.Close() }()
+	h := md5.New() //nolint:gosec // content identity against Zotero's md5, not a security boundary
+	if _, err := io.Copy(h, f); err != nil {
+		return "", fmt.Errorf("hash %q: %w", path, err)
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// findExistingAttachment returns the key of a child attachment whose stored
+// bytes match digest, or "" when the parent has none.
+//
+// Matching on md5 rather than filename is deliberate: the same paper saved
+// under two names is one attachment, and two different papers that happen to
+// share a filename are two. An empty digest on either side never matches —
+// Zotero leaves md5 blank for linked URLs and for files it has not hashed
+// yet, and treating unknown == unknown would skip a real upload.
+func findExistingAttachment(children []api.ChildItem, digest string) string {
+	if digest == "" {
+		return ""
+	}
+	match, ok := lo.Find(children, func(ch api.ChildItem) bool {
+		return ch.ItemType == "attachment" && ch.Md5 == digest
+	})
+	if !ok {
+		return ""
+	}
+	return match.Key
 }
 
 // attachmentSource bundles the open file handle, its metadata, and a closer —

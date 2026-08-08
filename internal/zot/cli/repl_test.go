@@ -35,7 +35,7 @@ func seedREPLAttachments(t *testing.T, dataDir string) {
 		`INSERT INTO items (itemID, itemTypeID, libraryID, key, version, dateAdded, dateModified, clientDateModified) VALUES
 			(100, 1, 1, 'ATTKEY01', 1, '2024-01-01 10:05:00', '2024-01-01 10:05:00', '2024-01-01 10:05:00'),
 			(101, 1, 2, 'ATTKEY02', 1, '2024-06-01 10:05:00', '2024-06-01 10:05:00', '2024-06-01 10:05:00')`,
-		`INSERT INTO itemAttachments VALUES
+		`INSERT INTO itemAttachments (itemID, parentItemID, linkMode, contentType, path) VALUES
 			(100, 1, 1, 'application/pdf', 'storage:paper1.pdf'),
 			(101, 7, 1, 'application/pdf', 'storage:shared1.pdf')`,
 	}

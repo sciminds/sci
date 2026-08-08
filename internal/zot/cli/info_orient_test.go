@@ -58,7 +58,7 @@ func seedOrientDB(t *testing.T, dataDir string) {
 		`CREATE TABLE itemTags (itemID INTEGER, tagID INTEGER, type INTEGER, PRIMARY KEY (itemID, tagID))`,
 		`CREATE TABLE collections (collectionID INTEGER PRIMARY KEY, collectionName TEXT, libraryID INTEGER, parentCollectionID INTEGER, key TEXT)`,
 		`CREATE TABLE collectionItems (collectionID INTEGER, itemID INTEGER, PRIMARY KEY (collectionID, itemID))`,
-		`CREATE TABLE itemAttachments (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, linkMode INTEGER, contentType TEXT, path TEXT)`,
+		`CREATE TABLE itemAttachments (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, linkMode INTEGER, contentType TEXT, path TEXT, storageHash TEXT)`,
 		`CREATE TABLE itemNotes (itemID INTEGER PRIMARY KEY, parentItemID INTEGER, note TEXT, title TEXT)`,
 		`CREATE TABLE relationPredicates (predicateID INTEGER PRIMARY KEY, predicate TEXT UNIQUE)`,
 		`CREATE TABLE itemRelations (itemID INTEGER, predicateID INTEGER, object TEXT, PRIMARY KEY (itemID, predicateID, object))`,

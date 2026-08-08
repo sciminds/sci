@@ -199,3 +199,35 @@ func TestWALStaleWarning_CarriesActionableFix(t *testing.T) {
 		t.Error("warning carries no fix — the user is told they may be stale with no remedy")
 	}
 }
+
+// A local `item children` that finds nothing cannot tell a childless parent
+// from a mirror that predates the child. That ambiguity is what let a batch
+// attach re-attach 79 PDFs it had already uploaded, so the zero answer has
+// to say so in the envelope rather than read as a confident "none".
+func TestItemChildren_ZeroChildrenWarnsAboutTheMirror(t *testing.T) {
+	withOrientConfig(t)
+
+	out, err := runItemRead(t, "--json", "--library", "personal", "item", "children", "KEY3")
+	if err != nil {
+		t.Fatalf("item children KEY3: %v\n%s", err, string(out))
+	}
+	env := searchEnvelope(t, out)
+	found := false
+	for _, w := range env.Warnings {
+		if w.Code == cmdutil.CodeStaleLocal && strings.Contains(w.Message, "no children in the local mirror") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("zero-children read carries no stale-mirror warning: %+v", env.Warnings)
+	}
+}
+
+// The same read with children present must NOT carry the warning — it is
+// scoped to the answer that changes what a caller does.
+func TestItemChildren_WithChildrenHasNoEmptyWarning(t *testing.T) {
+	t.Parallel()
+	if w := emptyChildrenWarning("KEY1", 2, ""); w != nil {
+		t.Errorf("non-empty listing warned anyway: %+v", w)
+	}
+}

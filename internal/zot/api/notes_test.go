@@ -81,7 +81,7 @@ func (h *noteHandler) seedNoteChild(parentKey, body string, tags ...string) stri
 
 // seedAttachmentChild attaches an attachment item — used to verify the
 // note filter on ListNoteChildren doesn't return non-note children.
-func (h *noteHandler) seedAttachmentChild(parentKey string) string {
+func (h *noteHandler) seedAttachmentChild(parentKey string, md5 ...string) string {
 	h.nextKey++
 	key := childKey(h.nextKey)
 	at := client.Attachment
@@ -89,6 +89,9 @@ func (h *noteHandler) seedAttachmentChild(parentKey string) string {
 	data := client.ItemData{
 		ItemType:   at,
 		ParentItem: &parent,
+	}
+	if len(md5) > 0 {
+		data.Md5 = &md5[0]
 	}
 	k := key
 	v := 1
@@ -403,4 +406,33 @@ func TestUpdateChildNote_PatchesBodyInPlace(t *testing.T) {
 	if it.data.ParentItem == nil || *it.data.ParentItem != "PARENT01" {
 		t.Errorf("parent relationship lost on update")
 	}
+}
+
+// The md5 of a stored attachment is what makes an attach idempotent: it is
+// the only field that answers "are these the same bytes I am about to
+// upload?" without downloading the file. `zot item attach --skip-existing`
+// reads it off this listing, so a ChildItem that drops it silently makes
+// every resumed batch attach a duplicate-producer.
+func TestListChildren_CarriesAttachmentMd5(t *testing.T) {
+	t.Parallel()
+	h := newNoteHandler(t)
+	h.seedParent("PARENT01")
+	const digest = "5fd414b08706d73fdc2bb134d702b1fe"
+	attKey := h.seedAttachmentChild("PARENT01", digest)
+
+	c, _ := newTestClient(t, h)
+	got, err := c.ListChildren(context.Background(), "PARENT01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ci := range got {
+		if ci.Key != attKey {
+			continue
+		}
+		if ci.Md5 != digest {
+			t.Errorf("Md5 = %q, want %q", ci.Md5, digest)
+		}
+		return
+	}
+	t.Fatalf("attachment %s missing from result", attKey)
 }
