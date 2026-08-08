@@ -12,6 +12,7 @@ import (
 	"github.com/sciminds/cli/internal/zot/local"
 
 	"github.com/sciminds/cli/internal/zot/oacache"
+	"github.com/sciminds/cli/internal/zot/xrcache"
 )
 
 // ListResult wraps a slice of items for search/list/recent outputs.
@@ -704,6 +705,51 @@ func (r OpenAlexSyncResult) Human() string {
 		fmt.Fprintf(&b, "    %s %d DOIs are not in OpenAlex — listed in the sidecar.\n",
 			uikit.TUI.Dim().Render("gap:"), n)
 		fmt.Fprintf(&b, "      that is OpenAlex's coverage, not a claim the papers are not real\n")
+	}
+	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("out:"), r.OutPath)
+	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
+	return b.String()
+}
+
+// CrossrefSyncResult reports what `zot crossref sync` swept and wrote.
+//
+// It separates two numbers that a single "misses" count would fuse:
+// titles Crossref answered with nothing, and titles that could not be
+// asked. The first is evidence — for a preprint or a pre-1950 paper,
+// "Crossref has no DOI" is usually true and is the reason not to write
+// one. The second is the absence of evidence, and letting a flaky network
+// vote against a DOI would corrupt the agreement rate this sweep exists
+// to measure.
+type CrossrefSyncResult struct {
+	Scope      string        `json:"scope"`
+	OutPath    string        `json:"out_path"`
+	MetaPath   string        `json:"meta_path"`
+	TitlesSeen int           `json:"titles_seen"`
+	Stats      xrcache.Stats `json:"stats"`
+	Errored    []string      `json:"errored,omitempty"`
+}
+
+// JSON implements cmdutil.Result.
+func (r CrossrefSyncResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
+func (r CrossrefSyncResult) Human() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %s swept %d titles against Crossref, kept %d candidates (%d requests)\n",
+		uikit.SymOK, r.Stats.TitlesQueried, r.Stats.Candidates, r.Stats.Requests)
+	fmt.Fprintf(&b, "    %s %d titles matched, %d matched nothing\n",
+		uikit.TUI.Dim().Render("hits:"), r.Stats.TitlesWithHits, r.Stats.TitlesNoMatch)
+	if r.Stats.TitlesNoMatch > 0 {
+		fmt.Fprintf(&b, "      a title Crossref does not have is usually a preprint, a chapter,\n")
+		fmt.Fprintf(&b, "      or a pre-DOI paper — evidence that no DOI should be written\n")
+	}
+	// Errored titles are the denominator problem. Any agreement rate
+	// computed without excluding them is measured over questions that
+	// were never asked.
+	if n := len(r.Errored); n > 0 {
+		fmt.Fprintf(&b, "    %s %d titles could not be asked — listed in the sidecar\n",
+			uikit.TUI.Dim().Render("unknown:"), n)
+		fmt.Fprintf(&b, "      these are NOT no-matches; exclude them before scoring agreement\n")
 	}
 	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("out:"), r.OutPath)
 	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
