@@ -820,6 +820,14 @@ func resolveBulkCollectionAddItems(
 // Items already in collKey produce no patch (zero API cost); the rest get a
 // patch carrying Version + ItemType so UpdateItemsBatch's fast path avoids
 // per-item GETs.
+//
+// The Version is not just a fast-path token — it is the safety interlock. The
+// merged array is composed from the local mirror, which cannot see memberships
+// added on the server since the last desktop sync, and a Zotero PATCH replaces
+// `collections` wholesale. Submitting under the local version means any such
+// membership makes the write 412 instead of silently erasing it; the Rebuild
+// hook then re-runs the same union against the server's own array. Together
+// they keep the zero-API-read fast path while making the stale case correct.
 func buildCollectionAddPatches(items []local.Item, collKey string) (patches []api.ItemPatch, alreadyMember []string) {
 	for _, it := range items {
 		if slices.Contains(it.Collections, collKey) {
@@ -832,7 +840,26 @@ func buildCollectionAddPatches(items []local.Item, collKey string) (patches []ap
 			Version:  it.Version,
 			ItemType: it.Type,
 			Data:     client.ItemData{Collections: &merged},
+			Rebuild:  unionCollection(collKey),
 		})
 	}
 	return patches, alreadyMember
+}
+
+// unionCollection returns the Rebuild hook for a collection-add patch: the
+// same append, re-derived against whatever the server actually holds. Adding
+// a collection the item already belongs to restates the server's array
+// unchanged rather than duplicating the key, so a re-derive is idempotent.
+func unionCollection(collKey string) func(*client.Item) (client.ItemData, error) {
+	return func(cur *client.Item) (client.ItemData, error) {
+		var current []string
+		if cur.Data.Collections != nil {
+			current = *cur.Data.Collections
+		}
+		merged := slices.Clone(current)
+		if !slices.Contains(merged, collKey) {
+			merged = append(merged, collKey)
+		}
+		return client.ItemData{Collections: &merged}, nil
+	}
 }

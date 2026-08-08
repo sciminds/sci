@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -116,6 +117,72 @@ func TestBuildCollectionAddPatches_AllAlreadyMembers(t *testing.T) {
 	}
 	if !slices.Equal(alreadyMember, []string{"AAA11111", "BBB22222"}) {
 		t.Errorf("alreadyMember = %v", alreadyMember)
+	}
+}
+
+// Every bulk patch composes its Collections array from a read of the
+// (possibly stale) local mirror, so each one must carry the Rebuild hook
+// that re-derives from the server on a 412. Without it, a membership added
+// remotely since the last desktop sync is erased by our write.
+func TestBuildCollectionAddPatches_RebuildUnionsServerState(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		// The local mirror knows only FWA6J7QI.
+		{Key: "JUT9W6KR", Version: 10, Type: "journalArticle", Collections: []string{"FWA6J7QI"}},
+	}
+	patches, _ := buildCollectionAddPatches(items, "HV5JXX9A")
+	if len(patches) != 1 {
+		t.Fatalf("len(patches) = %d, want 1", len(patches))
+	}
+	rebuild := patches[0].Rebuild
+	if rebuild == nil {
+		t.Fatal("patch carries no Rebuild hook — a stale array would be resubmitted on 412")
+	}
+
+	// The server meanwhile has DSRAFUIM too, added since our read.
+	server := &client.Item{
+		Key:     "JUT9W6KR",
+		Version: 11,
+		Data: client.ItemData{
+			ItemType:    "journalArticle",
+			Collections: &[]string{"FWA6J7QI", "DSRAFUIM"},
+		},
+	}
+	data, err := rebuild(server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := *data.Collections
+	want := []string{"FWA6J7QI", "DSRAFUIM", "HV5JXX9A"}
+	if !slices.Equal(got, want) {
+		t.Errorf("rebuilt collections = %v, want %v", got, want)
+	}
+}
+
+// If the target collection landed on the server between our read and our
+// write, the rebuild is a no-op restatement of server state, not a second
+// append — Zotero reports it unchanged.
+func TestBuildCollectionAddPatches_RebuildIsIdempotent(t *testing.T) {
+	t.Parallel()
+	items := []local.Item{
+		{Key: "JUT9W6KR", Version: 10, Type: "journalArticle", Collections: []string{"FWA6J7QI"}},
+	}
+	patches, _ := buildCollectionAddPatches(items, "HV5JXX9A")
+	server := &client.Item{
+		Key:     "JUT9W6KR",
+		Version: 11,
+		Data: client.ItemData{
+			ItemType:    "journalArticle",
+			Collections: &[]string{"FWA6J7QI", "HV5JXX9A"},
+		},
+	}
+	data, err := patches[0].Rebuild(server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := *data.Collections
+	if !slices.Equal(got, []string{"FWA6J7QI", "HV5JXX9A"}) {
+		t.Errorf("rebuilt collections = %v, want the server's array unchanged", got)
 	}
 }
 

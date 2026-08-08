@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/cli/internal/zot/client"
 )
 
 type fakeWriter struct {
@@ -90,5 +91,44 @@ func TestApply_propagatesWholeRequestError(t *testing.T) {
 	_, err := Apply(context.Background(), w, []Target{{ItemKey: "A"}})
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+// Enrichment's premise is "these fields are blank". A 412 means someone
+// filled something in the meantime, so the payload is re-derived against
+// the server's copy: fields still blank are filled, fields since populated
+// are dropped rather than overwritten with OpenAlex's version.
+func TestApply_RebuildDropsFieldsFilledOnTheServer(t *testing.T) {
+	t.Parallel()
+	title := "OpenAlex Title"
+	abstract := "OpenAlex abstract"
+	w := &fakeWriter{results: map[string]error{"AAA": nil}}
+	targets := []Target{{
+		ItemKey: "AAA", Version: 1, ItemType: "journalArticle",
+		Fills: map[string]string{"title": title, "abstract": abstract},
+		Data:  client.ItemData{ItemType: "journalArticle", Title: &title, AbstractNote: &abstract},
+	}}
+	if _, err := Apply(context.Background(), w, targets); err != nil {
+		t.Fatal(err)
+	}
+	rebuild := w.patches[0].Rebuild
+	if rebuild == nil {
+		t.Fatal("enrich patch carries no Rebuild hook")
+	}
+
+	theirs := "A Title Someone Typed By Hand"
+	data, err := rebuild(&client.Item{Data: client.ItemData{
+		ItemType: "journalArticle",
+		Title:    &theirs, // filled since the plan
+		// AbstractNote still absent.
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data.Title != nil {
+		t.Errorf("rebuilt patch still sets Title = %q; it was filled on the server", *data.Title)
+	}
+	if data.AbstractNote == nil || *data.AbstractNote != abstract {
+		t.Errorf("rebuilt patch dropped the still-blank abstract: %v", data.AbstractNote)
 	}
 }

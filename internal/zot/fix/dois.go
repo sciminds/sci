@@ -117,6 +117,9 @@ func ApplyDOIs(ctx context.Context, w DOIWriter, targets []DOITarget, opts ...Ap
 				Version:  tg.Version,
 				ItemType: tg.ItemType,
 				Data:     client.ItemData{DOI: &newDOI},
+				Rebuild: rewriteIfUnchanged("doi", tg.OldDOI, tg.NewDOI,
+					func(cur *client.Item) *string { return cur.Data.DOI },
+					func(v *string) client.ItemData { return client.ItemData{DOI: v} }),
 			}
 		})
 

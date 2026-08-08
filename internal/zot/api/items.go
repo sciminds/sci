@@ -231,103 +231,109 @@ func (c *Client) TrashItem(ctx context.Context, key string) error {
 	)
 }
 
+// patchItemDerived runs a read-modify-write whose payload is a function of
+// the item's *current server* state: GET, derive, PATCH.
+//
+// The 412 path is the reason this exists rather than a GET followed by
+// UpdateItem. A conflict means the read the payload was derived from is no
+// longer valid — some other writer changed the item — so the recovery is to
+// re-read and re-derive, not to stamp a fresh version onto the payload we
+// already built. Since Zotero replaces whole arrays on PATCH, the latter
+// erases whatever the other writer added. Same reasoning as ItemPatch.Rebuild,
+// applied to the single-item plane.
+//
+// derive returns (payload, needed, error); needed=false short-circuits with no
+// write, which is how "already a member" / "tag not present" become genuine
+// no-ops. Only one re-derive is attempted: a second conflict signals hot
+// contention we would rather surface than spin on.
+func (c *Client) patchItemDerived(ctx context.Context, key string, derive func(cur *client.Item) (client.ItemData, bool, error)) error {
+	var conflict error
+	for range 2 {
+		cur, err := c.getItemRaw(ctx, key)
+		if err != nil {
+			return err
+		}
+		data, needed, err := derive(cur)
+		if err != nil || !needed {
+			return err
+		}
+		data.Key = &key
+		data.Version = &cur.Version
+		data.ItemType = cur.Data.ItemType
+
+		status, statusLine, body, err := c.updateItem(ctx, key, data)
+		if err != nil {
+			return err
+		}
+		switch status {
+		case http.StatusNoContent, http.StatusOK:
+			return nil
+		case http.StatusPreconditionFailed:
+			conflict = &VersionConflictError{Path: "/items/" + key}
+		default:
+			return fmt.Errorf("PATCH /items/%s: %s: %s", key, statusLine, string(body))
+		}
+	}
+	return conflict
+}
+
 // AddItemToCollection appends collKey to the item's Collections array.
 // No-op if the collection is already present.
 func (c *Client) AddItemToCollection(ctx context.Context, itemKey, collKey string) error {
-	it, err := c.getItemRaw(ctx, itemKey)
-	if err != nil {
-		return err
-	}
-	var current []string
-	if it.Data.Collections != nil {
-		current = *it.Data.Collections
-	}
-	if slices.Contains(current, collKey) {
-		return nil // already member
-	}
-	updated := append(slices.Clone(current), collKey)
-	return c.UpdateItem(ctx, itemKey, client.ItemData{
-		ItemType:    it.Data.ItemType,
-		Collections: &updated,
+	return c.patchItemDerived(ctx, itemKey, func(cur *client.Item) (client.ItemData, bool, error) {
+		current := derefSlice(cur.Data.Collections)
+		if slices.Contains(current, collKey) {
+			return client.ItemData{}, false, nil // already member
+		}
+		updated := append(slices.Clone(current), collKey)
+		return client.ItemData{Collections: &updated}, true, nil
 	})
 }
 
 // RemoveItemFromCollection removes collKey from the item's Collections array.
 func (c *Client) RemoveItemFromCollection(ctx context.Context, itemKey, collKey string) error {
-	it, err := c.getItemRaw(ctx, itemKey)
-	if err != nil {
-		return err
-	}
-	var current []string
-	if it.Data.Collections != nil {
-		current = *it.Data.Collections
-	}
-	updated := make([]string, 0, len(current))
-	removed := false
-	for _, k := range current {
-		if k == collKey {
-			removed = true
-			continue
+	return c.patchItemDerived(ctx, itemKey, func(cur *client.Item) (client.ItemData, bool, error) {
+		current := derefSlice(cur.Data.Collections)
+		updated := lo.Reject(current, func(k string, _ int) bool { return k == collKey })
+		if len(updated) == len(current) {
+			return client.ItemData{}, false, nil // not a member
 		}
-		updated = append(updated, k)
-	}
-	if !removed {
-		return nil
-	}
-	return c.UpdateItem(ctx, itemKey, client.ItemData{
-		ItemType:    it.Data.ItemType,
-		Collections: &updated,
+		return client.ItemData{Collections: &updated}, true, nil
 	})
 }
 
 // AddTagToItem appends a tag to an item. No-op if already present.
 func (c *Client) AddTagToItem(ctx context.Context, itemKey, tag string) error {
-	it, err := c.getItemRaw(ctx, itemKey)
-	if err != nil {
-		return err
-	}
-	var current []client.Tag
-	if it.Data.Tags != nil {
-		current = *it.Data.Tags
-	}
-	for _, t := range current {
-		if t.Tag == tag {
-			return nil
+	return c.patchItemDerived(ctx, itemKey, func(cur *client.Item) (client.ItemData, bool, error) {
+		current := derefSlice(cur.Data.Tags)
+		if lo.ContainsBy(current, func(t client.Tag) bool { return t.Tag == tag }) {
+			return client.ItemData{}, false, nil
 		}
-	}
-	updated := append(slices.Clone(current), client.Tag{Tag: tag})
-	return c.UpdateItem(ctx, itemKey, client.ItemData{
-		ItemType: it.Data.ItemType,
-		Tags:     &updated,
+		updated := append(slices.Clone(current), client.Tag{Tag: tag})
+		return client.ItemData{Tags: &updated}, true, nil
 	})
 }
 
 // RemoveTagFromItem removes a tag from a single item.
 func (c *Client) RemoveTagFromItem(ctx context.Context, itemKey, tag string) error {
-	it, err := c.getItemRaw(ctx, itemKey)
-	if err != nil {
-		return err
-	}
-	var current []client.Tag
-	if it.Data.Tags != nil {
-		current = *it.Data.Tags
-	}
-	updated := make([]client.Tag, 0, len(current))
-	removed := false
-	for _, t := range current {
-		if t.Tag == tag {
-			removed = true
-			continue
+	return c.patchItemDerived(ctx, itemKey, func(cur *client.Item) (client.ItemData, bool, error) {
+		current := derefSlice(cur.Data.Tags)
+		updated := lo.Reject(current, func(t client.Tag, _ int) bool { return t.Tag == tag })
+		if len(updated) == len(current) {
+			return client.ItemData{}, false, nil
 		}
-		updated = append(updated, t)
-	}
-	if !removed {
+		return client.ItemData{Tags: &updated}, true, nil
+	})
+}
+
+// derefSlice reads a `*[]T` OpenAPI optional field as a plain slice, so
+// derive closures don't each repeat the nil check. A nil pointer and an
+// empty array mean the same thing to every caller here.
+func derefSlice[T any](p *[]T) []T {
+	if p == nil {
 		return nil
 	}
-	return c.UpdateItem(ctx, itemKey, client.ItemData{
-		ItemType: it.Data.ItemType,
-		Tags:     &updated,
-	})
+	return *p
 }
 
 // ItemPatch describes a single entry in a bulk item update. Key is required;
@@ -343,6 +349,33 @@ type ItemPatch struct {
 	Version  int    // optional: skip GET if set together with ItemType
 	ItemType string // optional: skip GET if set together with Version
 	Data     client.ItemData
+
+	// Rebuild re-derives Data from the server's copy of the item after a
+	// 412 Precondition Failed, and is REQUIRED for any patch whose payload
+	// was composed from a read at Version.
+	//
+	// Zotero has no field-level write: a PATCH carrying `collections` (or
+	// `tags`, or `extra`) replaces that whole array. So a payload built by
+	// reading the local mirror, appending one element, and writing the
+	// result silently erases anything added on the server since that read.
+	// The version guard catches it — every server-side change bumps the
+	// version, so the write comes back 412 — but refreshing the version and
+	// resubmitting the same stale array converts a correct rejection into
+	// data loss. That is exactly what `zot collection add` did.
+	//
+	// Rebuild closes the loop: it receives the item as the server has it
+	// (the GET the retry already performs) and returns the payload the
+	// caller would have composed had it read that state. Returning an error
+	// abandons the patch — the error is recorded for that key and nothing is
+	// written, which is the right answer when the premise the plan was built
+	// on no longer holds (e.g. the DOI a fix was planned against has since
+	// changed upstream).
+	//
+	// Key, Version, and ItemType are stamped onto the returned payload from
+	// the fresh item, so Rebuild only supplies the fields it changes.
+	// Leaving it nil on a version-carrying patch is what lint-guard rule 16
+	// rejects.
+	Rebuild func(cur *client.Item) (client.ItemData, error)
 }
 
 // maxBatchItems is the Zotero Web API's per-request object cap for
@@ -463,7 +496,10 @@ func (c *Client) UpdateItemsBatch(ctx context.Context, patches []ItemPatch) (map
 		return results, err
 	}
 
-	// Refresh versions for 412 items and run one more round.
+	// Refresh 412 items and run one more round. A patch that declares a
+	// Rebuild hook gets its whole payload re-derived from the fresh copy —
+	// see ItemPatch.Rebuild for why resubmitting the old payload with only
+	// the version bumped is data loss rather than a retry.
 	if len(retry) > 0 {
 		refreshed := make([]built, 0, len(retry))
 		for _, b := range retry {
@@ -471,6 +507,16 @@ func (c *Client) UpdateItemsBatch(ctx context.Context, patches []ItemPatch) (map
 			if gerr != nil {
 				results[b.patch.Key] = fmt.Errorf("refresh after 412: %w", gerr)
 				continue
+			}
+			if b.patch.Rebuild != nil {
+				data, rerr := b.patch.Rebuild(cur)
+				if rerr != nil {
+					results[b.patch.Key] = fmt.Errorf("rebuild after 412: %w", rerr)
+					continue
+				}
+				b.body = data
+				k := b.patch.Key
+				b.body.Key = &k
 			}
 			v := cur.Version
 			b.body.Version = &v

@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -18,11 +20,14 @@ type itemHandler struct {
 	t             *testing.T
 	items         map[string]*fakeItem // keyed by item key
 	versionSeq    int
-	post412Once   bool // force first POST /items/<key> to 412
+	post412Once   bool // force first PATCH /items/<key> to 412
 	delete412Once bool
-	gets          int32
-	posts         int32
-	deletes       int32
+	// on412 runs when post412Once fires, letting a test stage the
+	// concurrent server-side change the conflict is reporting.
+	on412   func(*fakeItem)
+	gets    int32
+	posts   int32
+	deletes int32
 }
 
 type fakeItem struct {
@@ -84,6 +89,9 @@ func (h *itemHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// Advance the version so the next fetch returns a higher one.
 			h.versionSeq++
 			it.version += 1
+			if h.on412 != nil {
+				h.on412(it)
+			}
 			w.WriteHeader(http.StatusPreconditionFailed)
 			return
 		}
@@ -531,6 +539,106 @@ func TestUpdateItemsBatch_412RetryUsesGETOnlyForConflicts(t *testing.T) {
 	// Only 1 GET: the 412 retry for ABC12345. DEF67890 never needed a GET.
 	if g := atomic.LoadInt32(&h.gets); g != 1 {
 		t.Errorf("want 1 GET (412 retry only), got %d", g)
+	}
+}
+
+// A 412 on a version-derived patch means the read the payload was built
+// from is invalid, not merely that the version number moved. Refreshing
+// the version and resubmitting the stale array is what turned a correct
+// optimistic-concurrency rejection into silent data loss: the membership
+// added on the server between our read and our write got erased.
+func TestUpdateItemsBatch_412RebuildsPayloadFromServer(t *testing.T) {
+	t.Parallel()
+	h := newItemHandler(t)
+	// Server truth: the item is already in two collections at version 11.
+	h.seed("JUT9W6KR", client.ItemData{
+		ItemType:    "journalArticle",
+		Collections: &[]string{"FWA6J7QI", "DSRAFUIM"},
+	}, 11)
+	c, _ := newTestClient(t, h)
+
+	// Caller's stale mirror says version 10, collections [FWA6J7QI].
+	// It composes [FWA6J7QI, HV5JXX9A] — which would drop DSRAFUIM.
+	stale := []string{"FWA6J7QI", "HV5JXX9A"}
+	results, err := c.UpdateItemsBatch(context.Background(), []ItemPatch{{
+		Key:      "JUT9W6KR",
+		Version:  10,
+		ItemType: "journalArticle",
+		Data:     client.ItemData{Collections: &stale},
+		Rebuild: func(cur *client.Item) (client.ItemData, error) {
+			merged := append(slices.Clone(*cur.Data.Collections), "HV5JXX9A")
+			return client.ItemData{Collections: &merged}, nil
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := results["JUT9W6KR"]; e != nil {
+		t.Fatalf("JUT9W6KR: %v", e)
+	}
+	got := *h.items["JUT9W6KR"].data.Collections
+	want := []string{"FWA6J7QI", "DSRAFUIM", "HV5JXX9A"}
+	if !slices.Equal(got, want) {
+		t.Errorf("collections after rebuild = %v, want %v", got, want)
+	}
+}
+
+// Rebuild is also the veto: a patch whose premise no longer holds on the
+// server (the field it was planned against has since changed) must fail
+// for that key rather than overwrite the newer value.
+func TestUpdateItemsBatch_RebuildErrorAbandonsPatch(t *testing.T) {
+	t.Parallel()
+	h := newItemHandler(t)
+	serverDOI := "10.1000/changed-remotely"
+	h.seed("ABC12345", client.ItemData{ItemType: "journalArticle", DOI: &serverDOI}, 11)
+	c, _ := newTestClient(t, h)
+
+	planned := "10.1000/planned"
+	results, err := c.UpdateItemsBatch(context.Background(), []ItemPatch{{
+		Key:      "ABC12345",
+		Version:  10,
+		ItemType: "journalArticle",
+		Data:     client.ItemData{DOI: &planned},
+		Rebuild: func(*client.Item) (client.ItemData, error) {
+			return client.ItemData{}, errors.New("doi changed on the server since the plan was built")
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results["ABC12345"] == nil {
+		t.Fatal("want a per-key error when Rebuild refuses, got nil")
+	}
+	if got := *h.items["ABC12345"].data.DOI; got != serverDOI {
+		t.Errorf("server DOI = %q, want it untouched (%q)", got, serverDOI)
+	}
+}
+
+// The single-item collection add has the same window as the bulk path,
+// just narrower: a membership can land between our GET and our PATCH.
+// The 412 must re-derive from the server's copy, not resubmit the array
+// we composed from the now-invalid read.
+func TestAddItemToCollection_412RederivesFromServer(t *testing.T) {
+	t.Parallel()
+	h := newItemHandler(t)
+	h.seed("JUT9W6KR", client.ItemData{
+		ItemType:    "journalArticle",
+		Collections: &[]string{"FWA6J7QI"},
+	}, 10)
+	h.post412Once = true
+	h.on412 = func(it *fakeItem) {
+		// Someone else added DSRAFUIM between our read and our write.
+		it.data.Collections = &[]string{"FWA6J7QI", "DSRAFUIM"}
+	}
+	c, _ := newTestClient(t, h)
+
+	if err := c.AddItemToCollection(context.Background(), "JUT9W6KR", "HV5JXX9A"); err != nil {
+		t.Fatal(err)
+	}
+	got := *h.items["JUT9W6KR"].data.Collections
+	want := []string{"FWA6J7QI", "DSRAFUIM", "HV5JXX9A"}
+	if !slices.Equal(got, want) {
+		t.Errorf("collections after retry = %v, want %v", got, want)
 	}
 }
 

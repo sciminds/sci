@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -191,5 +192,47 @@ func TestDryRunDOIs_FlagsNotApplied(t *testing.T) {
 	}
 	if len(res.Outcomes) != 0 {
 		t.Errorf("dry-run should carry no outcomes, got %d", len(res.Outcomes))
+	}
+}
+
+// A DOI fix is planned against the value the local mirror held. If the
+// server's DOI moved between the plan and the write, the 412 that follows
+// must abandon the patch rather than overwrite the newer value — the plan's
+// premise ("this item still carries the malformed subobject DOI") no longer
+// holds, and only a human can say which is right.
+func TestApplyDOIs_RebuildRefusesWhenServerDOIMoved(t *testing.T) {
+	t.Parallel()
+	w := &fakeWriter{}
+	targets := []DOITarget{
+		{ItemKey: "F1", Version: 11, ItemType: "journalArticle",
+			OldDOI: "10.3389/fnhum.2013.00015/abstract", NewDOI: "10.3389/fnhum.2013.00015"},
+	}
+	if _, err := ApplyDOIs(context.Background(), w, targets); err != nil {
+		t.Fatal(err)
+	}
+	rebuild := w.received[0].Rebuild
+	if rebuild == nil {
+		t.Fatal("DOI patch carries no Rebuild hook")
+	}
+
+	moved := "10.9999/someone-else-fixed-it-differently"
+	if _, err := rebuild(&client.Item{Data: client.ItemData{DOI: &moved}}); err == nil {
+		t.Error("want a refusal when the server DOI no longer matches the plan, got nil")
+	}
+
+	// Premise intact → the same rewrite is resubmitted.
+	unchanged := targets[0].OldDOI
+	data, err := rebuild(&client.Item{Data: client.ItemData{DOI: &unchanged}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data.DOI == nil || *data.DOI != targets[0].NewDOI {
+		t.Errorf("rebuilt DOI = %v, want %q", data.DOI, targets[0].NewDOI)
+	}
+
+	// Already applied (a resumed run) is success, not a conflict.
+	applied := targets[0].NewDOI
+	if _, err := rebuild(&client.Item{Data: client.ItemData{DOI: &applied}}); err != nil {
+		t.Errorf("rebuild refused an already-applied fix: %v", err)
 	}
 }

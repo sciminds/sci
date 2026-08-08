@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/cli/internal/zot/client"
 	"github.com/sciminds/cli/internal/zot/local"
 )
 
@@ -416,5 +417,61 @@ func TestPlanCitekeys_OrderingIsDeterministic(t *testing.T) {
 			t.Errorf("item keys unsorted inside reason %q: %s before %s",
 				prev.Reason, prev.ItemKey, cur.ItemKey)
 		}
+	}
+}
+
+// Same contract as the DOI fix: a citekey rewrite is planned against the
+// stored key the local mirror held, so a 412 means that premise is stale.
+// Resubmitting would overwrite whatever key landed in the meantime — which
+// on a BBT-managed library is exactly the key the user cares about.
+func TestApplyCitekeys_RebuildRefusesWhenServerKeyMoved(t *testing.T) {
+	t.Parallel()
+	w := &fakeWriter{}
+	targets := []CitekeyTarget{
+		{ItemKey: "AAA11111", Version: 10, ItemType: "journalArticle",
+			OldKey: "smith2020-old-AAA11111", NewKey: "smith2020-new-AAA11111"},
+	}
+	if _, err := ApplyCitekeys(context.Background(), w, targets); err != nil {
+		t.Fatal(err)
+	}
+	rebuild := w.received[0].Rebuild
+	if rebuild == nil {
+		t.Fatal("citekey patch carries no Rebuild hook")
+	}
+
+	moved := "bbt2020-rewrote-this-AAA11111"
+	if _, err := rebuild(&client.Item{Data: client.ItemData{CitationKey: &moved}}); err == nil {
+		t.Error("want a refusal when the server citekey no longer matches the plan, got nil")
+	}
+
+	unchanged := targets[0].OldKey
+	data, err := rebuild(&client.Item{Data: client.ItemData{CitationKey: &unchanged}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data.CitationKey == nil || *data.CitationKey != targets[0].NewKey {
+		t.Errorf("rebuilt citekey = %v, want %q", data.CitationKey, targets[0].NewKey)
+	}
+}
+
+// An "unstored" target plans against the absence of a key. A server that
+// now has one is the same broken premise.
+func TestApplyCitekeys_RebuildRefusesWhenUnstoredKeyAppeared(t *testing.T) {
+	t.Parallel()
+	w := &fakeWriter{}
+	targets := []CitekeyTarget{
+		{ItemKey: "AAA11111", Version: 10, ItemType: "journalArticle",
+			OldKey: "", Reason: "unstored", NewKey: "smith2020-new-AAA11111"},
+	}
+	if _, err := ApplyCitekeys(context.Background(), w, targets); err != nil {
+		t.Fatal(err)
+	}
+	appeared := "bbt2020-arrived-AAA11111"
+	if _, err := w.received[0].Rebuild(&client.Item{Data: client.ItemData{CitationKey: &appeared}}); err == nil {
+		t.Error("want a refusal when a key appeared under an unstored target, got nil")
+	}
+	// Still absent → proceed.
+	if _, err := w.received[0].Rebuild(&client.Item{Data: client.ItemData{}}); err != nil {
+		t.Errorf("rebuild refused a still-unstored item: %v", err)
 	}
 }

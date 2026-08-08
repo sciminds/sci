@@ -310,6 +310,9 @@ func ApplyCitekeys(ctx context.Context, w CitekeyWriter, targets []CitekeyTarget
 				Version:  tg.Version,
 				ItemType: tg.ItemType,
 				Data:     client.ItemData{CitationKey: &newKey},
+				Rebuild: rewriteIfUnchanged("citekey", tg.OldKey, tg.NewKey,
+					func(cur *client.Item) *string { return cur.Data.CitationKey },
+					func(v *string) client.ItemData { return client.ItemData{CitationKey: v} }),
 			}
 		})
 

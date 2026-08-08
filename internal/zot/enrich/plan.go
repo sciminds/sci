@@ -193,6 +193,7 @@ func Apply(ctx context.Context, w Writer, targets []Target) (*ApplyResult, error
 			Version:  t.Version,
 			ItemType: t.ItemType,
 			Data:     t.Data,
+			Rebuild:  fillStillBlank(t.Data),
 		}
 	})
 	results, err := w.UpdateItemsBatch(ctx, patches)
@@ -213,6 +214,42 @@ func Apply(ctx context.Context, w Writer, targets []Target) (*ApplyResult, error
 	}
 	return out, nil
 }
+
+// fillStillBlank builds the api.ItemPatch.Rebuild hook for an enrichment
+// patch. Unlike the fix/ package's plans, enrichment IS a derivation — its
+// premise is "these fields are blank", and re-evaluating that premise against
+// the server's copy is the whole recovery. A 412 means someone filled
+// something between the plan and the write, so those fields drop out of the
+// payload and the rest are still filled. Overwriting a hand-typed title with
+// OpenAlex's is the one outcome enrichment must never produce.
+//
+// Only the five fields buildTarget can set are considered; anything the
+// planned patch left nil stays nil.
+func fillStillBlank(planned client.ItemData) func(*client.Item) (client.ItemData, error) {
+	return func(cur *client.Item) (client.ItemData, error) {
+		out := client.ItemData{ItemType: planned.ItemType}
+		if planned.Title != nil && blank(cur.Data.Title) {
+			out.Title = planned.Title
+		}
+		if planned.Creators != nil && (cur.Data.Creators == nil || len(*cur.Data.Creators) == 0) {
+			out.Creators = planned.Creators
+		}
+		if planned.Date != nil && blank(cur.Data.Date) {
+			out.Date = planned.Date
+		}
+		if planned.AbstractNote != nil && blank(cur.Data.AbstractNote) {
+			out.AbstractNote = planned.AbstractNote
+		}
+		if planned.Url != nil && blank(cur.Data.Url) {
+			out.Url = planned.Url
+		}
+		return out, nil
+	}
+}
+
+// blank reports whether an optional string field is absent or empty — the
+// two forms Zotero uses interchangeably for "not set".
+func blank(p *string) bool { return p == nil || *p == "" }
 
 func abbrev(s string, n int) string {
 	if len(s) <= n {

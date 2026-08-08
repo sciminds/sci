@@ -505,6 +505,45 @@ for f in $huh_files; do
 	fail "no-huh-outside-uikit"
 done
 
+# ── Rule 16: a version-carrying api.ItemPatch must declare a Rebuild hook ────
+# Zotero has no field-level write: a PATCH replaces `collections`/`tags`/etc
+# wholesale. A patch that sets Version is declaring "my payload was composed
+# from a read at this version" — and UpdateItemsBatch answers the resulting 412
+# by re-reading. Without a Rebuild hook it then resubmits the STALE payload,
+# turning a correct optimistic-concurrency rejection into silent data loss.
+# That is the `zot collection add` clobber; see api.ItemPatch.Rebuild.
+#
+# The hook either re-derives the payload from the server's copy (collection
+# add, enrich) or refuses because the plan's premise moved (fix/ DOI + citekey).
+# Both are correct answers; resubmitting unchanged is not.
+patch_files=$(rg -l 'api\.ItemPatch\{' --type go --glob '!*_test.go' \
+	--glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
+
+for f in $patch_files; do
+	# Walk each composite literal by brace depth: awk's gsub returns the match
+	# count, so `n - m` is the net depth change per line. Simple line-wise
+	# counting is enough here — every literal in the tree is gofmt'd.
+	offenders=$(awk '
+		!inlit && /api\.ItemPatch\{/ { inlit = 1; depth = 0; start = NR; hasver = 0; hasreb = 0 }
+		inlit {
+			n = gsub(/\{/, "{"); m = gsub(/\}/, "}")
+			depth += n - m
+			if ($0 ~ /(^|[^[:alnum:]_])Version:/) hasver = 1
+			if ($0 ~ /(^|[^[:alnum:]_])Rebuild:/) hasreb = 1
+			if (depth <= 0) { if (hasver && !hasreb) print start; inlit = 0 }
+		}
+	' "$f")
+	[[ -z "$offenders" ]] && continue
+
+	for line in $offenders; do
+		echo "FAIL [itempatch-needs-rebuild] $f:$line api.ItemPatch sets Version without a Rebuild hook."
+		echo "  The version says the payload came from a read that a 412 invalidates."
+		echo "  Add Rebuild: re-derive from the server's copy, or return an error to"
+		echo "  abandon the patch when the plan's premise no longer holds."
+		fail "itempatch-needs-rebuild"
+	done
+done
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
 	echo ""
