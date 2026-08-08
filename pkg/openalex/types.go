@@ -40,6 +40,33 @@ type Work struct {
 	ReferencedWorks              []string            `json:"referenced_works"`
 	Mesh                         []Mesh              `json:"mesh"`
 	AbstractInvertedIndex        map[string][]int    `json:"abstract_inverted_index"`
+	// Biblio is volume/issue/pages. It is what separates a citation from a
+	// gesture at one, and Zotero is missing volume on 1,991 of this
+	// library's papers, pages on 1,684, and issue on 2,478.
+	Biblio *Biblio `json:"biblio"`
+	// IDs are the cross-index identifiers — pmid, pmcid, mag — the only
+	// route from a work to PubMed without a second lookup.
+	IDs *WorkIDs `json:"ids"`
+}
+
+// Biblio is OpenAlex's bibliographic block. Every field is a STRING, not a
+// number: page ranges are "127-159", volumes are sometimes "9A", and
+// issues are sometimes "Suppl 2". Typing them as ints drops the ones that
+// need the most help.
+type Biblio struct {
+	Volume    *string `json:"volume"`
+	Issue     *string `json:"issue"`
+	FirstPage *string `json:"first_page"`
+	LastPage  *string `json:"last_page"`
+}
+
+// WorkIDs are the identifiers OpenAlex holds for a work in other indexes.
+type WorkIDs struct {
+	OpenAlex string  `json:"openalex"`
+	DOI      *string `json:"doi"`
+	PMID     *string `json:"pmid"`
+	PMCID    *string `json:"pmcid"`
+	MAG      *string `json:"mag"`
 }
 
 // CitationPercentile holds a citation percentile value (0–100) from OpenAlex.

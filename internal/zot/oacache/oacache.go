@@ -56,6 +56,12 @@ import (
 // nothing downstream could tell the omission from the truth. A field mask
 // is not free to get wrong: this API is metered, so a field left out is
 // re-fetched at full price or not at all.
+//
+// The test enforces mask == struct. It cannot enforce struct == API, and
+// that gap is where biblio and ids hid: both were absent from the struct,
+// so the mask was "complete" and 1,991 papers stayed without a volume.
+// Before paying for a sync, check the Work object docs for fields this
+// type does not model yet.
 var WorkSelect = []string{
 	"id", "doi", "display_name", "title", "publication_year", "publication_date",
 	"type", "language", "is_retracted", "cited_by_count", "referenced_works_count",
@@ -63,6 +69,7 @@ var WorkSelect = []string{
 	"is_oa", "open_access", "primary_location", "best_oa_location", "locations",
 	"authorships", "topics", "keywords", "mesh",
 	"referenced_works", "abstract_inverted_index",
+	"biblio", "ids",
 }
 
 // doiBatch is how many DOIs go into one `doi:a|b|c` filter. OpenAlex
