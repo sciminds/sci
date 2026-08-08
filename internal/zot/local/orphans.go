@@ -140,7 +140,7 @@ func (d *DB) ScanUncollectedItems() ([]Item, error) {
 	args = append(args, d.libraryID)
 	q := baseSelect() + `
 WHERE i.libraryID = ? AND di.itemID IS NULL
-` + contentItemTypeFilter + `
+` + hygieneItemTypeFilter + `
   AND NOT EXISTS (
     SELECT 1 FROM collectionItems ci WHERE ci.itemID = i.itemID
   )

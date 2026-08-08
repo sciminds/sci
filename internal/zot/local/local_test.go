@@ -667,7 +667,12 @@ func TestLastSync_ReadsVersionRow(t *testing.T) {
 
 func TestCountList_MatchesUnpagedTotal(t *testing.T) {
 	db := openFixture(t)
-	all, err := db.ListAll(ListFilter{})
+	// CountList is the denominator for a truncated List page, so it must
+	// agree with LIST -- not with ListAll, which is the lossless mirror and
+	// deliberately carries annotations that no listing shows. The two were
+	// interchangeable while they shared one filter; asserting against the
+	// wrong one would now quietly require the mirror to start lying.
+	listed, err := db.List(ListFilter{Limit: 1000})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -675,11 +680,19 @@ func TestCountList_MatchesUnpagedTotal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != len(all) {
-		t.Errorf("CountList = %d, ListAll = %d — must agree", n, len(all))
+	if n != len(listed) {
+		t.Errorf("CountList = %d, List = %d — must agree", n, len(listed))
 	}
 	if n == 0 {
 		t.Fatal("fixture should have items")
+	}
+
+	all, err := db.ListAll(ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) <= len(listed) {
+		t.Errorf("ListAll = %d, List = %d — the mirror must be a strict superset", len(all), len(listed))
 	}
 }
 

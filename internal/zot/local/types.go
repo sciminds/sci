@@ -119,6 +119,15 @@ type ListFilter struct {
 	Limit   int // 0 → default 50
 	Offset  int
 	OrderBy OrderBy
+	// Mirror keeps PDF annotations in the result set. ListAll sets it
+	// itself, because ListAll IS the lossless mirror the NDJSON export is
+	// built from — leaving that to the caller means the mirror silently
+	// loses a class of object the first time someone forgets.
+	//
+	// Every other listing leaves it false: an annotation has no title and
+	// no authors, so a search or an item list that returns one is showing
+	// a highlight where a paper should be.
+	Mirror bool
 }
 
 // OrderBy selects the sort order for listings.
@@ -150,7 +159,22 @@ func ParseYear(date string) int {
 // contentItemTypeFilter returns the SQL fragment excluding attachment/note
 // rows from a query joined on itemTypes as alias "it". These are children
 // of "real" items and should not appear in top-level listings.
+//
+// Annotations are deliberately NOT excluded here. This fragment is shared
+// with ListAll, which feeds the NDJSON mirror, and that mirror is supposed
+// to be lossless — an annotation is a real Zotero object and belongs in
+// it. Scans that are asking about PAPERS use hygieneItemTypeFilter.
 const contentItemTypeFilter = " AND it.typeName NOT IN ('attachment','note') "
+
+// hygieneItemTypeFilter additionally excludes annotations, for scans whose
+// question is about papers rather than about objects.
+//
+// A PDF annotation is a row in the items table with no title, no creators
+// and no DOI, so a health check that counts it reports three missing-field
+// findings for a perfectly healthy highlight. On the live library that was
+// 108 annotations manufacturing 109 untitled-item ERRORS over exactly one
+// real one — enough noise to bury the finding that mattered.
+const hygieneItemTypeFilter = " AND it.typeName NOT IN ('attachment','note','annotation') "
 
 // isExcludedContentType reports whether t is one of the item types that
 // contentItemTypeFilter would otherwise strip from listings. Used by

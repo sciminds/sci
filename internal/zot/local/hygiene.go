@@ -115,7 +115,7 @@ FROM items i
 JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
 LEFT JOIN deletedItems di ON i.itemID = di.itemID
 WHERE i.libraryID = ? AND di.itemID IS NULL
-` + contentItemTypeFilter + `
+` + hygieneItemTypeFilter + `
 ORDER BY i.dateAdded DESC
 `
 	rows, err := d.db.Query(q, d.libraryID)
@@ -176,7 +176,7 @@ FROM items i
 JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
 LEFT JOIN deletedItems di ON i.itemID = di.itemID
 WHERE i.libraryID = ? AND di.itemID IS NULL
-` + contentItemTypeFilter + `
+` + hygieneItemTypeFilter + `
 ORDER BY i.dateAdded DESC
 `
 	rows, err := d.db.Query(q, d.libraryID)
@@ -223,7 +223,7 @@ FROM items i
 JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
 LEFT JOIN deletedItems di ON i.itemID = di.itemID
 WHERE i.libraryID = ? AND di.itemID IS NULL
-` + contentItemTypeFilter + `
+` + hygieneItemTypeFilter + `
 ORDER BY i.key
 `
 	rows, err := d.db.Query(q, d.libraryID)
@@ -280,7 +280,7 @@ WHERE f.fieldName IN (` + strings.Join(placeholders, ",") + `)
   AND di.itemID IS NULL
   AND i.libraryID = ?
   AND TRIM(idv.value) <> ''
-` + contentItemTypeFilter + `
+` + hygieneItemTypeFilter + `
 ORDER BY i.key, f.fieldName
 `
 	rows, err := d.db.Query(q, args...)

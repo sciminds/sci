@@ -158,8 +158,8 @@ func (d *DB) RecentlyAdded(n int) ([]RecentItem, error) {
 		JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
 		LEFT JOIN deletedItems di ON i.itemID = di.itemID
 		WHERE i.libraryID = ?
-		  AND di.itemID IS NULL
-		  AND it.typeName NOT IN ('attachment','note')
+		  AND di.itemID IS NULL `+
+		hygieneItemTypeFilter+`
 		ORDER BY i.dateAdded DESC
 		LIMIT ?
 	`, d.libraryID, n)
@@ -207,8 +207,8 @@ func (d *DB) ExtractionCoverage() (*ExtractionCoverage, error) {
 		JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
 		LEFT JOIN deletedItems di ON i.itemID = di.itemID
 		WHERE i.libraryID = ?
-		  AND di.itemID IS NULL
-		  AND it.typeName NOT IN ('attachment','note')
+		  AND di.itemID IS NULL `+
+		hygieneItemTypeFilter+`
 	`, d.libraryID).Scan(&cov.TotalItems); err != nil {
 		return nil, fmt.Errorf("count items: %w", err)
 	}

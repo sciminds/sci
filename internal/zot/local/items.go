@@ -89,7 +89,11 @@ func (d *DB) listWhere(f ListFilter) (string, []any) {
 	// asked for one of those types — otherwise the two clauses contradict
 	// each other and we silently return zero rows.
 	if !isExcludedContentType(f.ItemType) {
-		where.WriteString(contentItemTypeFilter)
+		if f.Mirror {
+			where.WriteString(contentItemTypeFilter)
+		} else {
+			where.WriteString(hygieneItemTypeFilter)
+		}
 	}
 
 	if f.ItemType != "" {
@@ -188,6 +192,10 @@ func (d *DB) List(f ListFilter) ([]Item, error) {
 // one per batch for creators), not per-item round-trips. On the live 7300-
 // item library this keeps the whole export under a second.
 func (d *DB) ListAll(f ListFilter) ([]Item, error) {
+	// Set here rather than by the caller: this method is what the NDJSON
+	// mirror is built from, and losslessness should not depend on every
+	// call site remembering a flag.
+	f.Mirror = true
 	where, whereArgs := d.listWhere(f)
 	args := append(listArgs(), whereArgs...)
 
@@ -626,7 +634,7 @@ func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Ite
 	libFrag, libArgs := d.libIn("i")
 	q := `
 WITH base AS (` + baseSelect() + `
-	WHERE ` + libFrag + ` AND di.itemID IS NULL ` + contentItemTypeFilter + `
+	WHERE ` + libFrag + ` AND di.itemID IS NULL ` + hygieneItemTypeFilter + `
 )
 SELECT b.* FROM base b
 WHERE ` + strings.Join(orParts, " OR ") + `
@@ -1292,8 +1300,8 @@ func (d *DB) Stats() (*Stats, error) {
 		FROM items i
 		JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
 		LEFT JOIN deletedItems di ON i.itemID = di.itemID
-		WHERE i.libraryID = ? AND di.itemID IS NULL
-		  AND it.typeName NOT IN ('attachment','note')
+		WHERE i.libraryID = ? AND di.itemID IS NULL `+
+		hygieneItemTypeFilter+`
 		GROUP BY it.typeName
 	`, d.libraryID)
 	if err != nil {
@@ -1358,8 +1366,8 @@ func (d *DB) countFieldPresent(fieldName string, out *int) error {
 		JOIN itemData id ON i.itemID = id.itemID
 		JOIN fields f ON id.fieldID = f.fieldID
 		LEFT JOIN deletedItems di ON i.itemID = di.itemID
-		WHERE i.libraryID = ? AND di.itemID IS NULL
-		  AND it.typeName NOT IN ('attachment','note')
+		WHERE i.libraryID = ? AND di.itemID IS NULL `+
+		hygieneItemTypeFilter+`
 		  AND f.fieldName = ?
 	`, d.libraryID, fieldName).Scan(out)
 }

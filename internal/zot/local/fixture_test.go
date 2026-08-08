@@ -166,7 +166,7 @@ func seedFixture(dir string) error {
 		// ForGroupByAPIID when the CLI --library shared flag is passed.
 		`INSERT INTO groups VALUES (2, 6506098, 'sciminds')`,
 
-		`INSERT INTO itemTypes VALUES (1,'journalArticle'),(2,'book'),(3,'attachment'),(4,'note'),(5,'conferencePaper')`,
+		`INSERT INTO itemTypes VALUES (1,'journalArticle'),(2,'book'),(3,'attachment'),(4,'note'),(5,'conferencePaper'),(6,'annotation')`,
 
 		// Minimal field set we actually query.
 		`INSERT INTO fields VALUES (1,'title'),(2,'date'),(3,'DOI'),(4,'publicationTitle'),(5,'url'),(6,'abstractNote'),(7,'citationKey'),(8,'extra')`,
@@ -197,6 +197,12 @@ func seedFixture(dir string) error {
 			-- Note 91 carries a realistic Zotero note wrapper so the note-search
 			-- tests can prove markup words ("div", "znv1") never match as content.
 			(91, 4, 1, 'NOTECH11', 7,  '2024-01-03 10:00:00', '2024-01-03 10:00:00', '2024-01-03 10:00:00'),
+			-- A PDF annotation. It is a first-class row in the items table,
+			-- has no title, DOI or creators, and is a child of an attachment,
+			-- so every hygiene scan that forgets to exclude it reports a
+			-- perfectly healthy highlight as an untitled, author-less,
+			-- DOI-less paper.
+			(92, 6, 1, 'ANNOT001', 3,  '2024-01-04 10:00:00', '2024-01-04 10:00:00', '2024-01-04 10:00:00'),
 			-- Group-library items (libraryID=2) seed the dual-scope tests.
 			-- Keys use a distinct prefix so leak assertions are easy to read.
 			(200, 1, 2, 'GRPITEM01', 1, '2024-07-01 10:00:00', '2024-07-01 10:00:00', '2024-07-01 10:00:00'),

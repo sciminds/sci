@@ -232,3 +232,33 @@ func TestScanCiteKeys(t *testing.T) {
 		t.Errorf("CCCC3333 extra did not carry BBT line: %q", c.Extra)
 	}
 }
+
+func TestFieldPresenceScanIgnoresAnnotations(t *testing.T) {
+	t.Parallel()
+	dir := buildFixture(t)
+	db, err := Open(dir, ForPersonal())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	rows, err := db.ScanFieldPresence()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A PDF annotation is a row in `items` with no title, no creators and
+	// no DOI -- so a scan that includes it reports three "missing field"
+	// findings for a perfectly healthy highlight. On the real library that
+	// is 108 annotations manufacturing 109 untitled-item ERRORS where
+	// exactly one real one exists, which is enough noise to make the
+	// dashboard unreadable and the genuine finding invisible.
+	//
+	// Annotations are excluded HERE rather than in contentItemTypeFilter:
+	// that filter is shared with ListAll, which feeds the NDJSON mirror,
+	// and the mirror is supposed to be lossless.
+	for _, r := range rows {
+		if r.Key == "ANNOT001" {
+			t.Fatal("annotation reported as an item missing every field")
+		}
+	}
+}

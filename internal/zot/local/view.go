@@ -48,7 +48,7 @@ SELECT
 FROM items i
 JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
 LEFT JOIN deletedItems di ON i.itemID = di.itemID
-WHERE i.libraryID = ? AND di.itemID IS NULL ` + contentItemTypeFilter + `
+WHERE i.libraryID = ? AND di.itemID IS NULL ` + hygieneItemTypeFilter + `
 ORDER BY i.dateAdded DESC
 `
 
@@ -107,7 +107,7 @@ SELECT COUNT(*)
 FROM items i
 JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
 LEFT JOIN deletedItems di ON i.itemID = di.itemID
-WHERE i.libraryID = ? AND di.itemID IS NULL ` + contentItemTypeFilter
+WHERE i.libraryID = ? AND di.itemID IS NULL ` + hygieneItemTypeFilter
 	var n int
 	if err := d.db.QueryRow(q, d.libraryID).Scan(&n); err != nil {
 		return 0, fmt.Errorf("count view rows: %w", err)
