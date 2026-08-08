@@ -39,17 +39,30 @@ import (
 	"github.com/sciminds/cli/pkg/openalex"
 )
 
-// WorkSelect is the field mask requested for every work.
+// WorkSelect is the field mask requested for every work. It must name
+// exactly the json tags [openalex.Work] decodes, no more and no less —
+// TestWorkSelectCoversEveryFieldTheWorkStructDecodes enforces both halves.
 //
 // It is explicit because the bootstrap caches this replaces were fetched
 // with a narrower one — no publication_year, no type, no display_name —
 // and the consumer had no way to tell a field that is absent from a field
 // that is null. Ask for everything the schema has a column for.
+//
+// That rule was stated here and then quietly broken in both directions:
+// eight fields the struct decodes were never requested, and one requested
+// field the struct has no home for was decoded by nobody. The costly one
+// was abstract_inverted_index — a full sync wrote 6,618 works with zero
+// abstracts, and since OpenAlex genuinely lacks abstracts for some works,
+// nothing downstream could tell the omission from the truth. A field mask
+// is not free to get wrong: this API is metered, so a field left out is
+// re-fetched at full price or not at all.
 var WorkSelect = []string{
 	"id", "doi", "display_name", "title", "publication_year", "publication_date",
-	"type", "language", "is_retracted", "cited_by_count", "fwci",
-	"primary_location", "locations", "authorships", "topics", "keywords",
-	"referenced_works", "updated_date",
+	"type", "language", "is_retracted", "cited_by_count", "referenced_works_count",
+	"fwci", "citation_normalized_percentile", "has_fulltext",
+	"is_oa", "open_access", "primary_location", "best_oa_location", "locations",
+	"authorships", "topics", "keywords", "mesh",
+	"referenced_works", "abstract_inverted_index",
 }
 
 // doiBatch is how many DOIs go into one `doi:a|b|c` filter. OpenAlex

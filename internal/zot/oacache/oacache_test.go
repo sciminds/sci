@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -332,5 +333,51 @@ func TestAQuoteInATitleCannotCloseTheWrapperEarly(t *testing.T) {
 	got := oacache.TitleFilter(`On "Theory" of Mind`)
 	if strings.Count(got, `"`) != 2 {
 		t.Errorf("filter = %q, want exactly the two wrapping quotes", got)
+	}
+}
+
+// TestWorkSelectCoversEveryFieldTheWorkStructDecodes pins the invariant
+// WorkSelect's own comment states: ask for everything the schema has a
+// column for.
+//
+// It drifted in both directions at once, and neither direction announces
+// itself. abstract_inverted_index was decoded but never requested, so a
+// full sync wrote 6,618 works with zero abstracts — indistinguishable, to
+// every consumer downstream, from a corpus whose publishers supply none.
+// updated_date was requested but decoded nowhere, so every response paid
+// for a field that was thrown away on arrival.
+//
+// Reflecting over the struct rather than restating the list is the whole
+// point: a hand-maintained mask beside a hand-maintained struct is two
+// lists that must agree, which is how they came to disagree.
+func TestWorkSelectCoversEveryFieldTheWorkStructDecodes(t *testing.T) {
+	want := map[string]bool{}
+	rt := reflect.TypeFor[openalex.Work]()
+	for i := range rt.NumField() {
+		tag, _, _ := strings.Cut(rt.Field(i).Tag.Get("json"), ",")
+		if tag != "" && tag != "-" {
+			want[tag] = true
+		}
+	}
+
+	got := map[string]bool{}
+	for _, f := range oacache.WorkSelect {
+		if got[f] {
+			t.Errorf("WorkSelect lists %q twice", f)
+		}
+		got[f] = true
+	}
+
+	for f := range want {
+		if !got[f] {
+			t.Errorf("openalex.Work decodes %q but WorkSelect never asks for it — "+
+				"the field arrives null and reads as absent-from-OpenAlex", f)
+		}
+	}
+	for f := range got {
+		if !want[f] {
+			t.Errorf("WorkSelect asks for %q but openalex.Work has no field for it — "+
+				"every response carries it and nothing reads it", f)
+		}
 	}
 }
