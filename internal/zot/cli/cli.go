@@ -119,6 +119,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	doctor  [subcommand]        hygiene: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates}
 //	graph   <subcommand>        traverse citation relationships (library + OpenAlex)
+//	openalex sync               build the OpenAlex work cache zot reads (writes staging)
 //	extract <parent-key>        retired stub — rewrites to `content extract`
 //	extract-lib                 [experimental] bulk extract every PDF → child note (via docling)
 //
@@ -147,6 +148,7 @@ func Commands() []*cli.Command {
 		llmCommand(),
 		doctorCommand(),
 		graphCommand(),
+		openalexCommand(),
 		retiredCommand("extract", "moved to `zot content extract`",
 			[]string{"extract"}, []string{"content", "extract"},
 			extractionMoved),

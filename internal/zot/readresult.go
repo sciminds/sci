@@ -10,6 +10,8 @@ import (
 	"github.com/sciminds/cli/internal/uikit"
 	"github.com/sciminds/cli/internal/zot/content"
 	"github.com/sciminds/cli/internal/zot/local"
+
+	"github.com/sciminds/cli/internal/zot/oacache"
 )
 
 // ListResult wraps a slice of items for search/list/recent outputs.
@@ -662,5 +664,48 @@ func (r MultiStatsResult) Human() string {
 	for _, e := range r.Errors {
 		fmt.Fprintf(&b, "  %s %s\n", uikit.SymFail, e)
 	}
+	return b.String()
+}
+
+// OpenAlexSyncResult reports what `zot openalex sync` fetched and wrote.
+//
+// Every number that could hide a loss is on it: DOIs OpenAlex does not
+// have, titles whose candidate list was capped, titles that matched
+// nothing. A sync that reports only "wrote N works" cannot be audited,
+// and its gaps become the consumer's invisible gaps.
+type OpenAlexSyncResult struct {
+	Scope        string        `json:"scope"`
+	OutPath      string        `json:"out_path"`
+	MetaPath     string        `json:"meta_path"`
+	ItemsScanned int           `json:"items_scanned"`
+	Stats        oacache.Stats `json:"stats"`
+	NotFound     []string      `json:"not_found,omitempty"`
+}
+
+// JSON implements cmdutil.Result.
+func (r OpenAlexSyncResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
+func (r OpenAlexSyncResult) Human() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %s cached %d OpenAlex works for %d %s items in %d requests\n",
+		uikit.SymOK, r.Stats.Works, r.ItemsScanned, r.Scope, r.Stats.Requests)
+	fmt.Fprintf(&b, "    %s %d of %d found; %d title lookups, %d with hits\n",
+		uikit.TUI.Dim().Render("dois:"),
+		r.Stats.DOIsFound, r.Stats.DOIsRequested,
+		r.Stats.TitlesQueried, r.Stats.TitlesWithHits)
+	// A capped candidate list is a truncation, and a truncation that is not
+	// announced reads as a complete answer.
+	if r.Stats.TitlesTruncated > 0 {
+		fmt.Fprintf(&b, "    %s %d title lookups had more matches than the cap kept\n",
+			uikit.TUI.Dim().Render("note:"), r.Stats.TitlesTruncated)
+	}
+	if n := len(r.NotFound); n > 0 {
+		fmt.Fprintf(&b, "    %s %d DOIs are not in OpenAlex — listed in the sidecar.\n",
+			uikit.TUI.Dim().Render("gap:"), n)
+		fmt.Fprintf(&b, "      that is OpenAlex's coverage, not a claim the papers are not real\n")
+	}
+	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("out:"), r.OutPath)
+	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
 	return b.String()
 }
