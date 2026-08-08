@@ -76,9 +76,15 @@ type Attachment struct {
 }
 
 // Collection is a user-defined organizational folder.
+//
+// Library names the library scope this row came from — "personal" or
+// "shared", the same vocabulary as Item.Library and the --library flag.
+// Load-bearing under --library all, where collection keys from two
+// libraries land in one result set; a constant otherwise.
 type Collection struct {
 	Key       string `json:"key"`
 	Name      string `json:"name"`
+	Library   string `json:"library,omitempty"`
 	ParentKey string `json:"parent_key,omitempty"`
 	ItemCount int    `json:"item_count"`
 }

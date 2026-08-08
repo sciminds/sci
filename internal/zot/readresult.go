@@ -583,6 +583,43 @@ func (r LibraryExportResult) Human() string {
 	return b.String()
 }
 
+// LibraryDumpResult is returned for `zot export --format ndjson` — the
+// item-plane mirror. Distinct from LibraryExportResult because a dump has
+// no cite-key stats and does carry a completeness sidecar.
+type LibraryDumpResult struct {
+	Scope    string    `json:"scope"`
+	OutPath  string    `json:"out_path,omitempty"`
+	MetaPath string    `json:"meta_path,omitempty"`
+	Body     string    `json:"body,omitempty"`
+	Stats    DumpStats `json:"stats"`
+}
+
+// JSON implements cmdutil.Result.
+func (r LibraryDumpResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
+func (r LibraryDumpResult) Human() string {
+	var b strings.Builder
+	if r.OutPath == "" {
+		b.WriteString(r.Body)
+		if !strings.HasSuffix(r.Body, "\n") {
+			b.WriteString("\n")
+		}
+	} else {
+		fmt.Fprintf(&b, "  %s dumped %s library to %s\n", uikit.SymOK, r.Scope, r.OutPath)
+		if r.MetaPath != "" {
+			fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
+		}
+	}
+	fmt.Fprintf(&b, "    %s %d item(s), %d collection(s)\n",
+		uikit.TUI.Dim().Render("·"), r.Stats.Items, r.Stats.Collections)
+	if r.OutPath == "" {
+		fmt.Fprintf(&b, "    %s no --out: completeness sidecar not written\n",
+			uikit.TUI.Dim().Render("!"))
+	}
+	return b.String()
+}
+
 // OpenResult is returned for `zot open`.
 type OpenResult struct {
 	Key      string `json:"key"`

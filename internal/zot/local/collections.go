@@ -35,20 +35,27 @@ func (d *DB) CollectionByKey(key string) (*Collection, error) {
 	return &c, nil
 }
 
-// ListCollections returns all collections in the user library with item
-// counts and parent references. Results are returned flat (not nested).
+// ListCollections returns all collections in the handle's library scope
+// with item counts and parent references. Results are returned flat (not
+// nested), ordered by name.
+//
+// Converted through libIn, so it answers correctly under ForAll where a
+// bare `libraryID = ?` would have silently returned personal-only. Each
+// row is stamped with its Library for the same reason.
 func (d *DB) ListCollections() ([]Collection, error) {
+	where, args := d.libIn("c")
 	rows, err := d.db.Query(`
 		SELECT
 			c.key,
 			c.collectionName,
+			c.libraryID,
 			parent.key,
 			(SELECT COUNT(*) FROM collectionItems ci WHERE ci.collectionID = c.collectionID)
 		FROM collections c
 		LEFT JOIN collections parent ON c.parentCollectionID = parent.collectionID
-		WHERE c.libraryID = ?
+		WHERE `+where+`
 		ORDER BY c.collectionName COLLATE NOCASE ASC
-	`, d.libraryID)
+	`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list collections: %w", err)
 	}
@@ -57,13 +64,15 @@ func (d *DB) ListCollections() ([]Collection, error) {
 	var out []Collection
 	for rows.Next() {
 		var c Collection
+		var libID int64
 		var parent *string
-		if err := rows.Scan(&c.Key, &c.Name, &parent, &c.ItemCount); err != nil {
+		if err := rows.Scan(&c.Key, &c.Name, &libID, &parent, &c.ItemCount); err != nil {
 			return nil, err
 		}
 		if parent != nil {
 			c.ParentKey = *parent
 		}
+		c.Library = d.scopeLabel(libID)
 		out = append(out, c)
 	}
 	return out, rows.Err()

@@ -62,6 +62,11 @@ type Reader interface {
 	ItemRelations(itemKey string) (ItemRelationSet, error)
 	ItemLabels(keys []string) (map[string]string, error)
 
+	// Bulk hydration (see hydrate.go) — the set-based counterparts to
+	// what Read does per item. For callers that want every item's
+	// tags/collections/attachments without N round trips.
+	HydrateAll(items []Item) error
+
 	// PDF Resolution
 	ResolvePDFAttachment(parentKey string) (*PDFAttachment, error)
 	ListAllPDFAttachments() ([]PDFParent, error)
