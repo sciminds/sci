@@ -706,6 +706,14 @@ func (r OpenAlexSyncResult) Human() string {
 			uikit.TUI.Dim().Render("gap:"), n)
 		fmt.Fprintf(&b, "      that is OpenAlex's coverage, not a claim the papers are not real\n")
 	}
+	// Reported apart from the DOI gap because it answers a different
+	// question: not "what does OpenAlex lack" but "how much of this run
+	// went on identifiers that did not work".
+	if r.Stats.FallbackTitlesQueried > 0 {
+		fmt.Fprintf(&b, "    %s %d of those fell back to a title lookup, %d recovered\n",
+			uikit.TUI.Dim().Render("recovered:"),
+			r.Stats.FallbackTitlesQueried, r.Stats.FallbackTitlesWithHits)
+	}
 	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("out:"), r.OutPath)
 	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
 	return b.String()

@@ -155,6 +155,17 @@ func wantFrom(items []local.Item, byTitle bool) (oacache.Want, int) {
 				seenDOI[k] = true
 				w.DOIs = append(w.DOIs, doi)
 			}
+			// Remember the title against the DOI. It costs nothing unless
+			// OpenAlex turns out not to hold that DOI, and then it is the
+			// difference between a resolved item and a local mint.
+			if t := strings.TrimSpace(it.Title); t != "" {
+				if w.FallbackTitles == nil {
+					w.FallbackTitles = map[string]string{}
+				}
+				if _, ok := w.FallbackTitles[doi]; !ok {
+					w.FallbackTitles[doi] = t
+				}
+			}
 			continue
 		}
 		// Cross-library duplicates share a title, so deduplicating here is

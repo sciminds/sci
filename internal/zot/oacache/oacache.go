@@ -98,6 +98,17 @@ const DefaultTitleCandidates = 5
 type Want struct {
 	DOIs   []string
 	Titles []string
+	// FallbackTitles maps a DOI to the title of the item carrying it, for
+	// the case where OpenAlex has no record of that DOI.
+	//
+	// An item goes down the DOI path OR the title path, never both,
+	// because a DOI is the stronger identifier. That holds only while the
+	// index actually has it. When it does not, a DOI is strictly WORSE
+	// than none: the lookup returns nothing and the title lookup that
+	// would have matched was never made. Backfilling 709 inferred DOIs
+	// made this concrete -- 20 landed on records OpenAlex does not hold,
+	// and 10 items that used to resolve by title stopped resolving at all.
+	FallbackTitles map[string]string
 }
 
 // Stats is what a sync did. Every number that could hide a loss is here:
@@ -115,8 +126,15 @@ type Stats struct {
 	TitlesQueried   int `json:"titles_queried"`
 	TitlesWithHits  int `json:"titles_with_hits"`
 	TitlesTruncated int `json:"titles_truncated"`
-	Works           int `json:"works"`
-	Requests        int `json:"requests"`
+	// Fallback lookups are counted apart from TitlesQueried, which is the
+	// number of items that had no DOI at all. Fusing them would leave the
+	// run unable to report how much of itself was spent recovering from
+	// DOIs the index does not hold — which is the number that says whether
+	// the library's identifiers are getting better or worse.
+	FallbackTitlesQueried  int `json:"fallback_titles_queried"`
+	FallbackTitlesWithHits int `json:"fallback_titles_with_hits"`
+	Works                  int `json:"works"`
+	Requests               int `json:"requests"`
 }
 
 // Searcher is what oacache needs from an OpenAlex client.
@@ -261,6 +279,35 @@ func Fetch(ctx context.Context, c Searcher, w Want, opts Options) (Result, error
 
 	res.Stats.DOIsNotFound = len(res.NotFound)
 	res.Stats.DOIsFound = res.Stats.DOIsRequested - res.Stats.DOIsNotFound
+
+	// Recover the misses by title. Bounded by the not-found list, so a
+	// library whose DOIs are all good pays nothing for this.
+	//
+	// The DOI stays in NotFound either way: the fallback recovers a WORK,
+	// it does not improve OpenAlex's coverage of that identifier, and a
+	// sidecar that dropped it would overstate the index.
+	for _, d := range res.NotFound {
+		title := w.FallbackTitles[d]
+		if title == "" {
+			continue
+		}
+		res.Stats.FallbackTitlesQueried++
+		out, err := c.SearchWorks(ctx, openalex.SearchOpts{
+			Filter:  map[string]string{"title.search": TitleFilter(title)},
+			PerPage: cap,
+			Select:  WorkSelect,
+		})
+		res.Stats.Requests++
+		if err != nil {
+			// One unrecoverable title is not a reason to lose the whole
+			// sync; the DOI is already recorded as not found.
+			continue
+		}
+		if len(out.Results) > 0 {
+			res.Stats.FallbackTitlesWithHits++
+		}
+		keep(out.Results)
+	}
 
 	// Titles, one lookup each. Every candidate is kept; nothing here judges
 	// whether a candidate IS the item.

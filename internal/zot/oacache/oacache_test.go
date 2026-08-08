@@ -381,3 +381,96 @@ func TestWorkSelectCoversEveryFieldTheWorkStructDecodes(t *testing.T) {
 		}
 	}
 }
+
+// TestANotFoundDOIFallsBackToItsTitle covers a trap the DOI backfill
+// walked straight into.
+//
+// wantFrom sends an item down the DOI path if it has one and the title
+// path otherwise -- never both -- on the reasonable-sounding theory that a
+// DOI is the stronger identifier. It is, right up until OpenAlex has no
+// record of it. Then having a DOI is strictly WORSE than having none: the
+// lookup returns nothing AND the title lookup that would have matched was
+// never made.
+//
+// This is not hypothetical. Writing 709 inferred DOIs into Zotero gave 20
+// items a DOI OpenAlex does not index -- Oxford Scholarship chapters,
+// Kluwer, Wiley SICI, arXiv -- and 10 of them lost the title match they
+// used to have and fell to a local mint. They were resolvable before the
+// backfill and unresolvable after it.
+func TestANotFoundDOIFallsBackToItsTitle(t *testing.T) {
+	t.Parallel()
+	f := &fakeOA{
+		byDOI: map[string]openalex.Work{},
+		byTitle: map[string][]openalex.Work{
+			"The vectors of mind": {{ID: "https://openalex.org/W7"}},
+		},
+	}
+	res, err := oacache.Fetch(context.Background(), f, oacache.Want{
+		DOIs:           []string{"10.1037/h0075959"},
+		FallbackTitles: map[string]string{"10.1037/h0075959": "The vectors of mind"},
+	}, oacache.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Works) != 1 {
+		t.Fatalf("kept %d works, want the title fallback's hit", len(res.Works))
+	}
+	// The DOI is still reported not-found: the fallback recovers a WORK,
+	// it does not make OpenAlex's coverage of that DOI any better, and a
+	// sidecar that quietly dropped it would overstate the index.
+	if len(res.NotFound) != 1 {
+		t.Errorf("not_found = %v, want the DOI still listed", res.NotFound)
+	}
+	if res.Stats.FallbackTitlesQueried != 1 || res.Stats.FallbackTitlesWithHits != 1 {
+		t.Errorf("stats = %+v", res.Stats)
+	}
+}
+
+func TestAFoundDOINeverCostsAFallbackRequest(t *testing.T) {
+	t.Parallel()
+	doi := "10.1/found"
+	f := &fakeOA{
+		byDOI:   map[string]openalex.Work{doi: {ID: "https://openalex.org/W1", DOI: &doi}},
+		byTitle: map[string][]openalex.Work{"A Paper": {{ID: "https://openalex.org/W2"}}},
+	}
+	res, err := oacache.Fetch(context.Background(), f, oacache.Want{
+		DOIs:           []string{doi},
+		FallbackTitles: map[string]string{doi: "A Paper"},
+	}, oacache.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fallback is for MISSES only. Firing it on every DOI would double
+	// the metered cost of a sync to buy nothing.
+	if res.Stats.FallbackTitlesQueried != 0 {
+		t.Errorf("a found DOI triggered %d fallback lookups", res.Stats.FallbackTitlesQueried)
+	}
+	if len(res.Works) != 1 {
+		t.Errorf("kept %d works", len(res.Works))
+	}
+}
+
+func TestFallbackLookupsAreCountedSeparately(t *testing.T) {
+	t.Parallel()
+	f := &fakeOA{
+		byDOI:   map[string]openalex.Work{},
+		byTitle: map[string][]openalex.Work{"Recovered": {{ID: "https://openalex.org/W9"}}},
+	}
+	res, err := oacache.Fetch(context.Background(), f, oacache.Want{
+		DOIs:           []string{"10.1/missing"},
+		Titles:         []string{"A DOI-less item"},
+		FallbackTitles: map[string]string{"10.1/missing": "Recovered"},
+	}, oacache.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// TitlesQueried is the count of items that had NO DOI. Folding
+	// fallbacks into it would make the sync's own report unable to say
+	// how much of the run was spent recovering from bad DOIs.
+	if res.Stats.TitlesQueried != 1 {
+		t.Errorf("TitlesQueried = %d, want only the DOI-less item", res.Stats.TitlesQueried)
+	}
+	if res.Stats.FallbackTitlesQueried != 1 {
+		t.Errorf("FallbackTitlesQueried = %d", res.Stats.FallbackTitlesQueried)
+	}
+}
