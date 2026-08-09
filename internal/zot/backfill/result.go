@@ -42,9 +42,13 @@ func (r CLIResult) Human() string {
 	}
 	fmt.Fprintf(&b, "  %s applied %d of %d planned item(s)\n",
 		uikit.SymOK, r.Result.Applied, r.Planned)
-	if r.Result.FieldsWritten > 0 || r.Result.FieldsSkipped > 0 {
+	if r.Result.FieldsWritten > 0 || r.Result.FieldsSkipped > 0 || r.Result.FieldsOverwritten > 0 {
 		fmt.Fprintf(&b, "    %s %d field(s) written\n",
 			uikit.TUI.Dim().Render("fields:"), r.Result.FieldsWritten)
+		if r.Result.FieldsOverwritten > 0 {
+			fmt.Fprintf(&b, "      %d value(s) REPLACED by a forced row\n",
+				r.Result.FieldsOverwritten)
+		}
 		if r.Result.FieldsSkipped > 0 {
 			fmt.Fprintf(&b, "      %d already had a value on the server and were left alone\n",
 				r.Result.FieldsSkipped)

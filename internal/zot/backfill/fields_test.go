@@ -230,3 +230,52 @@ func TestOneFileMayCarryBothKindsOfRow(t *testing.T) {
 		t.Errorf("the field row did not apply: %+v", got)
 	}
 }
+
+// TestForceOverwritesButOnlyWhenTheRowSaysSo.
+//
+// The applier is fill-only by design: enrichment's premise is that a field
+// is empty, and a value already on the server outranks an inferred one. But
+// a REPAIR is the other case — zot wrote 394 page ranges with an ASCII
+// hyphen where this library's convention is an en-dash, and correcting its
+// own output is not the same act as overwriting a publisher's.
+//
+// So force is per ROW and never a flag: a plan file states which of its
+// rows are repairs, and a reader can see it. A blanket --force would make
+// every future plan one typo away from flattening the library.
+func TestForceOverwritesButOnlyWhenTheRowSaysSo(t *testing.T) {
+	t.Parallel()
+	f := &fakeServer{server: map[string]client.Item{
+		"AAA11111": {Data: client.ItemData{
+			Key: str("AAA11111"), ItemType: "journalArticle", Pages: str("715-726"),
+		}},
+		"BBB22222": {Data: client.ItemData{
+			Key: str("BBB22222"), ItemType: "journalArticle", Pages: str("715-726"),
+		}},
+	}}
+	p := write(t,
+		`{"library":"personal","item_key":"AAA11111","item_type":"journalArticle","work_id":"W","basis":"repair","force":true,"fields":{"pages":"715–726"},"why":"separator"}`,
+		`{"library":"personal","item_key":"BBB22222","item_type":"journalArticle","work_id":"W","basis":"doi/publisher","fields":{"pages":"715–726"},"why":"fill"}`,
+	)
+	plans, err := backfill.Read(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := backfill.Apply(context.Background(), f, f, plans)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := f.got["AAA11111"]; got.Pages == nil || *got.Pages != "715–726" {
+		t.Errorf("forced row did not overwrite: %v", got.Pages)
+	}
+	if _, wrote := f.got["BBB22222"]; wrote {
+		t.Error("a row without force overwrote a value that was already there")
+	}
+	if res.FieldsOverwritten != 1 {
+		t.Errorf("overwrites = %d, want 1 — a replacement must be counted apart from a fill",
+			res.FieldsOverwritten)
+	}
+	if res.FieldsWritten != 0 {
+		t.Errorf("fills = %d, want 0", res.FieldsWritten)
+	}
+}

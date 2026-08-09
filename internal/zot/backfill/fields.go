@@ -151,7 +151,7 @@ func validateFields(p Plan, line int) error {
 
 // fieldStats records what one item's patch actually carried, so a plan of
 // 4,840 fills and a result of 4,833 is explainable rather than mysterious.
-type fieldStats struct{ written, skipped int }
+type fieldStats struct{ written, skipped, overwritten int }
 
 // composeFields builds the patch body from the server's copy.
 //
@@ -161,7 +161,7 @@ type fieldStats struct{ written, skipped int }
 // that need filling.
 func composeFields(cur *client.Item, p Plan, st *fieldStats) (client.ItemData, error) {
 	var out client.ItemData
-	st.written, st.skipped = 0, 0
+	st.written, st.skipped, st.overwritten = 0, 0, 0
 
 	// Iterated in sorted order so a patch body is byte-identical across
 	// runs — a diff between two dry runs should show what changed in the
@@ -172,14 +172,26 @@ func composeFields(cur *client.Item, p Plan, st *fieldStats) (client.ItemData, e
 			st.skipped++
 			continue
 		}
-		if cur != nil && strings.TrimSpace(acc.get(cur.Data)) != "" {
+		occupied := cur != nil && strings.TrimSpace(acc.get(cur.Data)) != ""
+		switch {
+		case occupied && !p.Force:
 			st.skipped++
 			continue
+		case occupied:
+			// Same value already there — a repair that repairs nothing is
+			// still a write, and a write that changes nothing is noise in
+			// the version history.
+			if acc.get(cur.Data) == p.Fields[name] {
+				st.skipped++
+				continue
+			}
+			st.overwritten++
+		default:
+			st.written++
 		}
 		acc.set(&out, p.Fields[name])
-		st.written++
 	}
-	if st.written == 0 {
+	if st.written+st.overwritten == 0 {
 		return client.ItemData{}, ErrNothingToFill
 	}
 	return out, nil

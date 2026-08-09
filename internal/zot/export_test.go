@@ -201,20 +201,70 @@ func TestExport_BibLaTeX_InstitutionalAuthor(t *testing.T) {
 func TestExport_BibLaTeX_EscapesBraces(t *testing.T) {
 	t.Parallel()
 	it := sampleItem()
-	title := `A {Curly} title with \backslash`
-	it.Title = title
+	it.Title = `A {Curly} title with \backslash`
 	out, err := ExportItem(it, ExportBibLaTeX)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Order of replacement matters: "{" → "\{", "}" → "\}", "\" → "\\" —
-	// the replacer runs left-to-right in the order given, so a literal
-	// backslash in the input becomes "\\" AND "\{" gets its newly-added
-	// backslash doubled. Verify the final form round-trips through the
-	// BibTeX escape contract: no unbalanced raw braces in field values.
-	want := `title = {A \{Curly\} title with \\backslash}`
+	// A literal backslash is NOT "\\" — that is a line break in LaTeX, and
+	// it is what this exporter used to emit. \textbackslash{} is the literal.
+	want := `title = {A \{Curly\} title with \textbackslash{}backslash}`
 	if !strings.Contains(out, want) {
 		t.Errorf("escaping wrong:\nwant %q\ngot:\n%s", want, out)
+	}
+}
+
+// TestExport_BibLaTeX_EscapesLaTeXSpecials is about whether the file
+// COMPILES, not about typography.
+//
+// A bare & is a tabular alignment character and errors out wherever it
+// lands; % comments the rest of the line; # $ _ are equally active. The
+// live library carries 180 such values — 126 of them journal names like
+// "Philosophical Transactions ... A & B" — so any manuscript citing one of
+// those papers failed to build, and the failure points at the .bib rather
+// than at the citation.
+func TestExport_BibLaTeX_EscapesLaTeXSpecials(t *testing.T) {
+	t.Parallel()
+	it := sampleItem()
+	it.Publication = "Attention & Perception"
+	it.Title = "Growth of 50% in C#, cost $5, snake_case"
+	out, err := ExportItem(it, ExportBibLaTeX)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`journaltitle = {Attention \& Perception}`,
+		`title = {Growth of 50\% in C\#, cost \$5, snake\_case}`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("want %q in:\n%s", want, out)
+		}
+	}
+}
+
+// TestExport_BibLaTeX_LeavesVerbatimFieldsAlone.
+//
+// biblatex declares url and doi as VERBATIM fields: their content is not
+// LaTeX-processed, and \url / hyperref take them as-is. Escaping an
+// underscore there does not protect anything — it corrupts the address,
+// and a DOI is a resolvable identifier, not prose. 113 DOIs and 131 URLs
+// in the live library carry an underscore.
+func TestExport_BibLaTeX_LeavesVerbatimFieldsAlone(t *testing.T) {
+	t.Parallel()
+	it := sampleItem()
+	it.DOI = "10.1037/a0028_15"
+	it.URL = "https://example.org/a_b?x=1&y=2#frag"
+	out, err := ExportItem(it, ExportBibLaTeX)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`doi = {10.1037/a0028_15}`,
+		`url = {https://example.org/a_b?x=1&y=2#frag}`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("want %q in:\n%s", want, out)
+		}
 	}
 }
 

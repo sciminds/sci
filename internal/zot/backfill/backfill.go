@@ -45,11 +45,19 @@ type Plan struct {
 	// can rebuild an abstract from OpenAlex itself, and two decoders
 	// reading two caches is two chances for the library to disagree with
 	// the snapshot about what it holds.
-	Fields   map[string]string `json:"fields,omitempty"`
-	ItemType string            `json:"item_type,omitempty"`
-	WorkID   string            `json:"work_id,omitempty"`
-	Basis    string            `json:"basis,omitempty"`
-	Why      string            `json:"why"`
+	Fields map[string]string `json:"fields,omitempty"`
+	// Force replaces values already on the server, and is the one way to
+	// do so. It is per ROW, never a flag: correcting zot's OWN past output
+	// (394 page ranges written with the wrong separator) is a different act
+	// from overwriting a publisher's value, and a plan file that states
+	// which of its rows are repairs can be read before it is run. A blanket
+	// --force would put every future plan one typo away from flattening the
+	// library.
+	Force    bool   `json:"force,omitempty"`
+	ItemType string `json:"item_type,omitempty"`
+	WorkID   string `json:"work_id,omitempty"`
+	Basis    string `json:"basis,omitempty"`
+	Why      string `json:"why"`
 }
 
 // IsFieldPlan reports which kind of row this is.
@@ -94,6 +102,10 @@ type Result struct {
 	// of 4,840 fills whose result says 4,833 needs somewhere to say why.
 	FieldsWritten int `json:"fields_written,omitempty"`
 	FieldsSkipped int `json:"fields_skipped,omitempty"`
+	// FieldsOverwritten counts values REPLACED rather than filled. Kept
+	// apart from FieldsWritten because the two carry different risk: a fill
+	// cannot destroy anything and a replacement can.
+	FieldsOverwritten int `json:"fields_overwritten,omitempty"`
 	// SkippedKeys names the items whose premise no longer held, so a
 	// shrinking "applied" count is explainable rather than mysterious.
 	SkippedKeys []string `json:"skipped_keys,omitempty"`
@@ -231,6 +243,7 @@ func Apply(ctx context.Context, r Reader, w Writer, plans []Plan) (*Result, erro
 				if st := stats[key]; st != nil {
 					res.FieldsWritten += st.written
 					res.FieldsSkipped += st.skipped
+					res.FieldsOverwritten += st.overwritten
 				}
 			case errors.Is(e, ErrSuperseded), errors.Is(e, ErrNothingToFill):
 				res.Skipped++
@@ -307,6 +320,7 @@ func (r *Result) Merge(other *Result) {
 	r.Failed += other.Failed
 	r.FieldsWritten += other.FieldsWritten
 	r.FieldsSkipped += other.FieldsSkipped
+	r.FieldsOverwritten += other.FieldsOverwritten
 	r.SkippedKeys = append(r.SkippedKeys, other.SkippedKeys...)
 	for k, v := range other.Errors {
 		if r.Errors == nil {

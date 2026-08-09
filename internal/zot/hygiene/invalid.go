@@ -193,6 +193,19 @@ func Invalid(db local.Reader, fields []InvalidField) (*Report, error) {
 // DOIs can contain `< > ; ( )` so we keep the allowed-char set loose.
 var doiRegex = regexp.MustCompile(`^10\.\d{4,9}/[-._;()/:A-Za-z0-9<>]+$`)
 
+// nestedDOIRegex matches a second DOI, or a resolver URL, appearing inside
+// a DOI's suffix.
+var nestedDOIRegex = regexp.MustCompile(`(?i)(doi\.org/|doi:|10\.\d{4,9}/)`)
+
+// suffixOf returns everything after the registrant prefix, which is the
+// only part a nested DOI can hide in.
+func suffixOf(doi string) string {
+	if i := strings.Index(doi, "/"); i >= 0 {
+		return doi[i+1:]
+	}
+	return doi
+}
+
 // ValidateDOI checks that the value looks like a DOI. Accepts raw DOIs
 // or DOIs with the common URL prefixes that Zotero and imports use.
 func ValidateDOI(raw string) (bool, string) {
@@ -216,6 +229,19 @@ func ValidateDOI(raw string) (bool, string) {
 	}
 	if !doiRegex.MatchString(s) {
 		return false, "does not match 10.NNNN/suffix pattern"
+	}
+	// A well-formed prefix is not a well-formed DOI. The suffix pattern
+	// accepts almost any character — deliberately, since real DOIs carry
+	// colons (Kluwer's 10.1023/a:NNN) and angle brackets (Wiley's SICI) —
+	// so a whole second DOI pasted inside one passes every check above.
+	// Seen live: `10.1145/http://dx.doi.org/10.1145/2600057.2602892`.
+	//
+	// This is not cosmetic. A DOI is the tier-1 identity key, so a nested
+	// one resolves nowhere, silently costs the item its match against every
+	// upstream index, and reads downstream as "the index doesn't have this
+	// paper" rather than as a typo in the library.
+	if nestedDOIRegex.MatchString(suffixOf(s)) {
+		return false, "the suffix contains another DOI or a resolver URL"
 	}
 	return true, ""
 }

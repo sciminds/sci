@@ -206,8 +206,11 @@ func writeBibEntry(it *local.Item, opts bibEntryOpts) string {
 	writeBibField(&b, "number", it.Fields["issue"])
 	writeBibField(&b, "pages", it.Fields["pages"])
 	writeBibField(&b, "publisher", it.Fields["publisher"])
-	writeBibField(&b, "doi", it.DOI)
-	writeBibField(&b, "url", it.URL)
+	// doi and url are biblatex VERBATIM fields: their content is not
+	// LaTeX-processed, so escaping an underscore there corrupts the
+	// address instead of protecting it.
+	writeBibVerbatimField(&b, "doi", it.DOI)
+	writeBibVerbatimField(&b, "url", it.URL)
 	// `note` combines any user-authored prose from the Zotero `extra`
 	// field with the zotero:// round-trip URI. User content always
 	// survives — we append, never overwrite.
@@ -268,11 +271,51 @@ func writeBibFieldRaw(b *strings.Builder, name, value string) {
 	fmt.Fprintf(b, "  %s = {%s},\n", name, value)
 }
 
-// bibEscape performs minimal BibTeX escaping: braces and backslashes.
-// Anything more sophisticated belongs in Better BibTeX — see the scope note
-// on ExportItem.
+// writeBibVerbatimField writes a field biblatex treats as verbatim.
+//
+// Only the two characters that would break the FILE are touched: a raw
+// brace ends the value early and desynchronises every entry after it.
+// Everything else is left exactly as the publisher wrote it.
+func writeBibVerbatimField(b *strings.Builder, name, value string) {
+	if value == "" {
+		return
+	}
+	writeBibFieldRaw(b, name, strings.NewReplacer(`{`, `\{`, `}`, `\}`).Replace(value))
+}
+
+// bibEscape escapes a value destined for a LaTeX TEXT field.
+//
+// This is about whether the .bib COMPILES, not about typography. A bare &
+// is a tabular alignment character and errors wherever it lands, % comments
+// away the rest of the line, and # $ _ are equally active. The live library
+// carries 180 such values — 126 of them journal names like "Philosophical
+// Transactions ... A & B" — so a manuscript citing one of those papers
+// failed to build, pointing at the .bib rather than at the citation.
+//
+// The backslash case was worse than missing: it mapped to `\\`, which is a
+// LINE BREAK in LaTeX, not a literal backslash. \textbackslash{} is the
+// literal, and the trailing {} is what keeps it from eating the next
+// character.
+//
+// Replacement is single-pass (strings.Replacer), so the braces introduced
+// by the backslash and tilde replacements are not themselves re-escaped —
+// which is exactly what a naive sequence of ReplaceAll calls would do.
+//
+// Typography beyond compilation — smart quotes, dashes, math mode — still
+// belongs in Better BibTeX; see the scope note on ExportItem.
 func bibEscape(s string) string {
-	return strings.NewReplacer(`\`, `\\`, `{`, `\{`, `}`, `\}`).Replace(s)
+	return strings.NewReplacer(
+		`\`, `\textbackslash{}`,
+		`{`, `\{`,
+		`}`, `\}`,
+		`&`, `\&`,
+		`%`, `\%`,
+		`$`, `\$`,
+		`#`, `\#`,
+		`_`, `\_`,
+		`~`, `\textasciitilde{}`,
+		`^`, `\textasciicircum{}`,
+	).Replace(s)
 }
 
 func bibAuthors(creators []local.Creator, kind string) string {

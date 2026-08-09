@@ -233,3 +233,39 @@ func TestValidateDate(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateDOI_RejectsADOIInsideADOI.
+//
+// A well-formed prefix is not a well-formed DOI. The live library carries
+// `10.1145/http://dx.doi.org/10.1145/2600057.2602892` — a paste that landed
+// inside the suffix of another DOI — and it passed every check because it
+// starts `10.1145/` and the suffix pattern accepts almost any character.
+//
+// It matters more than a cosmetic defect: a DOI is the tier-1 identity key,
+// so this one resolves nowhere, silently costs the item its match against
+// every upstream index, and reads as "OpenAlex doesn't have this paper".
+func TestValidateDOI_RejectsADOIInsideADOI(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{
+		"10.1145/http://dx.doi.org/10.1145/2600057.2602892",
+		"10.1000/https://doi.org/10.1000/xyz",
+		"10.1000/10.2000/nested",
+		"10.1000/doi:10.2000/nested",
+	} {
+		if ok, _ := ValidateDOI(bad); ok {
+			t.Errorf("%q was accepted", bad)
+		}
+	}
+	// And the shapes that legitimately contain dots, slashes and colons
+	// stay valid — Kluwer's colon form and Wiley's SICI are real DOIs.
+	for _, good := range []string{
+		"10.1023/a:1010933404324",
+		"10.1002/(SICI)1097-0258(19980815)17:15<1661::AID-SIM968>3.0.CO;2-2",
+		"10.1037/a0028015",
+		"https://doi.org/10.1037/a0028015",
+	} {
+		if ok, why := ValidateDOI(good); !ok {
+			t.Errorf("%q was rejected: %s", good, why)
+		}
+	}
+}
