@@ -177,6 +177,12 @@ func primarySourceName(w *openalex.Work) string {
 // journalArticle makes Zotero reject the batch with "'publicationTitle' is not
 // a valid field for type X"; for preprints / theses / reports we leave the
 // source unattached rather than invent a home for it.
+//
+// The same routing for a user-supplied --publication lives in
+// api.SetVenueField, which reads the field name off Zotero's own item
+// template instead of this switch. This one stays a pure switch on purpose:
+// mapping runs inside plan application, where a per-item network call to
+// resolve a field name would be the wrong trade.
 func routeSourceTitle(out *client.ItemData, title string) {
 	t := title
 	switch out.ItemType {

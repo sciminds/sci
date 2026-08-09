@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sciminds/cli/internal/zot"
@@ -40,6 +41,11 @@ type Client struct {
 	maxRetry int
 	now      func() time.Time
 	sleep    func(time.Duration)
+
+	// venueCache memoizes itemType → venue field name (see VenueField).
+	// A sync.Map because it is written on first use rather than at
+	// construction, and a Client may be shared.
+	venueCache sync.Map
 }
 
 // HTTPDoer matches the generated client's HttpRequestDoer interface so we

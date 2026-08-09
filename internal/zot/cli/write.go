@@ -99,9 +99,12 @@ func requireAPIClient(ctx context.Context) (*api.Client, error) {
 // key/version/itemType — a write that reports success and changes nothing,
 // the same shape as the 709 empty patches that once reported
 // "applied 709 of 709".
-func buildItemPatch(cmd *cli.Command) (client.ItemData, bool) {
-	patch := client.ItemData{}
-	any := false
+//
+// --publication comes back SEPARATELY rather than on the patch, because its
+// field name depends on the item's type (see applyVenue) and one patch may
+// be applied to many keys of different types. `any` still counts it, so
+// `--publication` alone is a valid edit.
+func buildItemPatch(cmd *cli.Command) (patch client.ItemData, venue *string, any bool) {
 	set := func(dst **string, flag string) {
 		if !cmd.IsSet(flag) {
 			return
@@ -115,9 +118,71 @@ func buildItemPatch(cmd *cli.Command) (client.ItemData, bool) {
 	set(&patch.Url, "url")
 	set(&patch.Date, "date")
 	set(&patch.AbstractNote, "abstract")
-	set(&patch.PublicationTitle, "publication")
+	set(&venue, "publication")
 	set(&patch.Extra, "extra")
-	return patch, any
+	return patch, venue, any
+}
+
+// venueResolver is the slice of *api.Client that venue routing needs: given
+// an item type, which field does Zotero's template say carries its venue.
+type venueResolver interface {
+	VenueField(ctx context.Context, itemType string) (string, error)
+}
+
+// venueTargeter adds the per-item type lookup `item update` needs on top of
+// venueResolver — the same patch may be applied to a journal article and a
+// book chapter in one call.
+type venueTargeter interface {
+	venueResolver
+	GetItem(ctx context.Context, key string) (*client.Item, error)
+}
+
+// venuePatches returns the patch to send for each key, identical to the
+// shared one unless --publication was passed — in which case each key's
+// venue lands in whatever field ITS type declares.
+//
+// The extra GET per key is only paid when --publication is set, and it is
+// the item's own type that decides the field: guessing from the first key
+// would write a bookTitle onto a journal article and fail that whole item.
+func venuePatches(ctx context.Context, c venueTargeter, keys []string, patch client.ItemData, venue *string) (map[string]client.ItemData, error) {
+	out := lo.SliceToMap(keys, func(k string) (string, client.ItemData) { return k, patch })
+	if venue == nil {
+		return out, nil
+	}
+	for _, k := range keys {
+		it, err := c.GetItem(ctx, k)
+		if err != nil {
+			return nil, err
+		}
+		data := patch
+		if err := applyVenue(ctx, c, &data, string(it.Data.ItemType), *venue); err != nil {
+			return nil, err
+		}
+		out[k] = data
+	}
+	return out, nil
+}
+
+// applyVenue places a --publication value in the field the item type
+// actually declares — publicationTitle for a journal article, bookTitle for
+// a book chapter, proceedingsTitle for a conference paper.
+//
+// Sending the wrong one is not a degraded write, it is a failed one:
+// Zotero answers "'publicationTitle' is not a valid field for type
+// 'bookSection'" and the whole request dies. A type with no venue field at
+// all is bad input, so it is a usage error (exit 2) rather than a runtime
+// error surfaced from the API after a round trip.
+func applyVenue(ctx context.Context, r venueResolver, data *client.ItemData, itemType, value string) error {
+	field, err := r.VenueField(ctx, itemType)
+	if err != nil {
+		return err
+	}
+	if field == "" {
+		return cmdutil.Coded(cmdutil.CodeUsage,
+			"--publication is not a valid field for item type %q", itemType).
+			WithTry("only types with a container take one — use --type bookSection for a chapter in an edited volume, or --type conferencePaper for a proceedings paper")
+	}
+	return api.SetVenueField(data, field, value)
 }
 
 func addCommand() *cli.Command {
@@ -125,8 +190,13 @@ func addCommand() *cli.Command {
 		Name:  "add",
 		Usage: "Create a new item in your Zotero library",
 		Description: "$ sci zot item add --type journalArticle --title \"My Paper\" --author \"Smith, Alice\" --doi 10.1000/abc\n" +
+			"$ sci zot item add --type bookSection --title \"A Chapter\" --publication \"The Edited Volume\"\n" +
 			"$ sci zot item add --openalex 10.1038/nature12373\n" +
-			"$ sci zot item add --openalex W2963403868 --collection ABC12345 --tag ml",
+			"$ sci zot item add --openalex W2963403868 --collection ABC12345 --tag ml\n\n" +
+			"--publication carries the VENUE, and Zotero names that field per item\n" +
+			"type: publicationTitle on a journal article, bookTitle on a bookSection,\n" +
+			"proceedingsTitle on a conferencePaper. The right one is chosen from the\n" +
+			"type's own Zotero template; a type with no venue field says so.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "openalex", Usage: "lookup metadata on OpenAlex by DOI / W…-ID / arXiv / PMID", Destination: &addOpenAlex, Local: true},
 			&cli.StringFlag{Name: "type", Value: "journalArticle", Usage: "item type (e.g. journalArticle, book, webpage)", Destination: &addType, Local: true},
@@ -135,7 +205,7 @@ func addCommand() *cli.Command {
 			&cli.StringFlag{Name: "url", Usage: "URL", Destination: &addURL, Local: true},
 			&cli.StringFlag{Name: "date", Usage: "publication date (freeform)", Destination: &addDate, Local: true},
 			&cli.StringFlag{Name: "abstract", Usage: "abstract / summary", Destination: &addAbstract, Local: true},
-			&cli.StringFlag{Name: "publication", Usage: "journal / publication title", Destination: &addPublication, Local: true},
+			&cli.StringFlag{Name: "publication", Usage: "venue title — routed to the field the item type takes (publicationTitle / bookTitle / proceedingsTitle)", Destination: &addPublication, Local: true},
 			&cli.StringSliceFlag{Name: "author", Usage: "author as \"Last, First\" (repeatable)", Destination: &addAuthor}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.StringFlag{Name: "collection", Usage: "add item to collection key", Destination: &addCollection, Local: true},
 			&cli.StringSliceFlag{Name: "tag", Usage: "attach a tag (repeatable)", Destination: &addTag}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
@@ -153,6 +223,14 @@ func runAdd(ctx context.Context, cmd *cli.Command) error {
 	c, err := requireAPIClient(ctx)
 	if err != nil {
 		return err
+	}
+	// Resolved after the client exists because the field name comes from
+	// Zotero's own template for the type. The type is whatever survived
+	// applyAddFlagOverrides — --type when given, else --openalex's guess.
+	if addPublication != "" {
+		if err := applyVenue(ctx, c, &data, string(data.ItemType), addPublication); err != nil {
+			return err
+		}
 	}
 	it, err := c.CreateItem(ctx, data)
 	if err != nil {
@@ -221,9 +299,9 @@ func applyAddFlagOverrides(data *client.ItemData) {
 	if addAbstract != "" {
 		data.AbstractNote = &addAbstract
 	}
-	if addPublication != "" {
-		data.PublicationTitle = &addPublication
-	}
+	// --publication is deliberately NOT applied here: its field name
+	// depends on the item type, which this function is still deciding.
+	// runAdd places it once the type is settled (see applyVenue).
 	if addExtra != "" {
 		data.Extra = &addExtra
 	}
@@ -291,7 +369,7 @@ func updateCommand() *cli.Command {
 			&cli.StringFlag{Name: "url", Destination: &updURL, Local: true},
 			&cli.StringFlag{Name: "date", Destination: &updDate, Local: true},
 			&cli.StringFlag{Name: "abstract", Destination: &updAbstract, Local: true},
-			&cli.StringFlag{Name: "publication", Destination: &updPublication, Local: true},
+			&cli.StringFlag{Name: "publication", Usage: "venue title — routed per item to the field ITS type takes", Destination: &updPublication, Local: true},
 			&cli.StringFlag{Name: "extra", Destination: &updExtra, Local: true},
 			&cli.StringFlag{Name: "from-json", Destination: &updFromJSON, Local: true,
 				Usage: "apply a patch plan (NDJSON from `zot backfill` or `zot enrich`)"},
@@ -309,7 +387,7 @@ func updateCommand() *cli.Command {
 				return cmdutil.UsageErrorf(cmd, "expected at least one item key")
 			}
 
-			patch, anyField := buildItemPatch(cmd)
+			patch, venue, anyField := buildItemPatch(cmd)
 			if !anyField {
 				return cmdutil.UsageErrorf(cmd, "at least one field flag is required")
 			}
@@ -319,10 +397,17 @@ func updateCommand() *cli.Command {
 				return err
 			}
 
+			// One patch, many keys — but a venue field name is per TYPE,
+			// so --publication has to be placed per key.
+			perKey, err := venuePatches(ctx, c, keys, patch, venue)
+			if err != nil {
+				return err
+			}
+
 			if len(keys) == 1 {
 				// Fast path: single PATCH. UpdateItem fills in
 				// ItemType internally if not supplied.
-				if err := c.UpdateItem(ctx, keys[0], patch); err != nil {
+				if err := c.UpdateItem(ctx, keys[0], perKey[keys[0]]); err != nil {
 					return err
 				}
 				outputScoped(ctx, cmd, zot.WriteResult{Action: "updated", Kind: "item", Target: keys[0]})
@@ -330,7 +415,7 @@ func updateCommand() *cli.Command {
 			}
 
 			patches := lo.Map(keys, func(k string, _ int) api.ItemPatch {
-				return api.ItemPatch{Key: k, Data: patch}
+				return api.ItemPatch{Key: k, Data: perKey[k]}
 			})
 			results, err := c.UpdateItemsBatch(ctx, patches)
 			if err != nil {

@@ -40,6 +40,27 @@ func (h *itemTemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// countingTemplateHandler counts requests, for asserting the venue-field
+// cache actually caches.
+type countingTemplateHandler struct {
+	itemTemplateHandler
+	mu sync.Mutex
+	n  int
+}
+
+func (h *countingTemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mu.Lock()
+	h.n++
+	h.mu.Unlock()
+	h.itemTemplateHandler.ServeHTTP(w, r)
+}
+
+func (h *countingTemplateHandler) calls() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.n
+}
+
 func TestItemTemplate_Success(t *testing.T) {
 	t.Parallel()
 	h := &itemTemplateHandler{

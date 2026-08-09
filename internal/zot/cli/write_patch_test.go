@@ -25,10 +25,12 @@ func runPatchBuilder(t *testing.T, argv ...string) (patch map[string]*string, an
 			&cli.StringFlag{Name: "extra", Destination: &extra, Local: true},
 		},
 		Action: func(_ context.Context, c *cli.Command) error {
-			p, a := buildItemPatch(c)
+			p, venue, a := buildItemPatch(c)
+			// --publication rides beside the patch, not on it: its field
+			// name is per item type and is placed later (see applyVenue).
 			patch = map[string]*string{
 				"title": p.Title, "doi": p.DOI, "url": p.Url, "date": p.Date,
-				"abstract": p.AbstractNote, "publication": p.PublicationTitle, "extra": p.Extra,
+				"abstract": p.AbstractNote, "publication": venue, "extra": p.Extra,
 			}
 			any = a
 			return nil
