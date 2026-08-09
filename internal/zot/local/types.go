@@ -1,6 +1,9 @@
 package local
 
-import "strconv"
+import (
+	"slices"
+	"strconv"
+)
 
 // Item is a denormalized snapshot of a Zotero item for list/search/read views.
 // Fields that may be absent are string-typed rather than pointers — empty
@@ -191,6 +194,25 @@ const mirrorItemTypeFilter = `
 // 108 annotations manufacturing 109 untitled-item ERRORS over exactly one
 // real one — enough noise to bury the finding that mattered.
 const hygieneItemTypeFilter = " AND it.typeName NOT IN ('attachment','note','annotation') "
+
+// nonBibliographicTypes is the same rule in Go, for callers holding rows
+// rather than building a query. It must list exactly the types
+// hygieneItemTypeFilter excludes — TestNonBibliographicTypesMatchSQL is
+// what keeps the two from drifting apart.
+var nonBibliographicTypes = []string{"attachment", "note", "annotation"}
+
+// IsBibliographic reports whether an item of this Zotero type is a thing
+// anyone cites. Annotations, notes and attachments are real Zotero items
+// and belong in a lossless mirror, but none of them is a reference.
+//
+// The bibliography exporters need it because ListAll is deliberately
+// lossless — it feeds the NDJSON mirror, so it returns standalone
+// attachments, standalone notes and annotations. On the live library that
+// put 39 non-references into the exported .bib, 36 of them titleless
+// `@misc` entries that nothing downstream could render or verify.
+func IsBibliographic(itemType string) bool {
+	return !slices.Contains(nonBibliographicTypes, itemType)
+}
 
 // isExcludedContentType reports whether t is one of the item types that
 // hygieneItemTypeFilter would otherwise strip from listings. Used by

@@ -23,9 +23,12 @@ import (
 // differ, so manuscripts that already cite the old form still resolve.
 type Keymap map[string]string
 
-// ExportStats summarizes a library-wide export.
+// ExportStats summarizes a library-wide export. Total counts the entries
+// that landed in the document; Skipped counts the non-bibliographic items
+// dropped on the way in, so the filter is reported rather than silent.
 type ExportStats struct {
 	Total       int    `json:"total"`
+	Skipped     int    `json:"skipped"`
 	Pinned      int    `json:"pinned"`
 	Synthesized int    `json:"synthesized"`
 	Drifted     int    `json:"drifted"`
@@ -36,6 +39,12 @@ type ExportStats struct {
 // requested format. Pass the previous run's Keymap (or nil) for drift
 // detection on synthesized entries.
 //
+// Both output formats are BIBLIOGRAPHIES, so non-bibliographic items are
+// filtered out first — see local.IsBibliographic. Callers hand this
+// whatever ListAll returned, and ListAll is deliberately lossless because
+// it also feeds the NDJSON mirror. The item-plane dump is the surface that
+// wants those rows; it goes through DumpNDJSON, not here.
+//
 // For BibLaTeX output:
 //   - user-pinned cite-keys are emitted verbatim with a zotero:// URI
 //     appended to the `note` field (preserving any existing user prose from
@@ -44,14 +53,21 @@ type ExportStats struct {
 //     uniqueness and round-trip recovery
 //   - drifted synthesized prefixes get a biblatex `ids = {oldkey}` alias
 func ExportLibrary(items []local.Item, format ExportFormat, prev Keymap) (string, ExportStats, error) {
-	stats := ExportStats{Total: len(items), Keymap: Keymap{}}
+	cited := lo.Filter(items, func(it local.Item, _ int) bool {
+		return local.IsBibliographic(it.Type)
+	})
+	stats := ExportStats{
+		Total:   len(cited),
+		Skipped: len(items) - len(cited),
+		Keymap:  Keymap{},
+	}
 
 	switch format.Canon() {
 	case ExportCSLJSON, "":
-		body, err := exportCSLJSONLibrary(items, &stats)
+		body, err := exportCSLJSONLibrary(cited, &stats)
 		return body, stats, err
 	case ExportBibLaTeX:
-		body := exportBibLaTeXLibrary(items, prev, &stats)
+		body := exportBibLaTeXLibrary(cited, prev, &stats)
 		return body, stats, nil
 	default:
 		return "", stats, fmt.Errorf("unknown export format %q", format)

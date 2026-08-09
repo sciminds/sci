@@ -34,6 +34,69 @@ func libSample() []local.Item {
 	}
 }
 
+// nonBibSample is what ListAll hands the exporter: real papers plus the
+// note / attachment / annotation rows the NDJSON mirror needs and a
+// bibliography must not carry. The three non-papers are deliberately
+// titleless, which is the shape they had in the live library — 36
+// titleless `@misc` entries in the exported .bib.
+func nonBibSample() []local.Item {
+	return []local.Item{
+		{
+			Key:      "PAPER001",
+			Type:     "journalArticle",
+			Title:    "Predictive Coding",
+			Date:     "2020",
+			Creators: []local.Creator{{Type: "author", Last: "Friston"}},
+		},
+		{Key: "NOTE0001", Type: "note"},
+		{Key: "ATTACH01", Type: "attachment"},
+		{Key: "ANNOT001", Type: "annotation"},
+	}
+}
+
+func TestExportLibrary_DropsNonBibliographicItems(t *testing.T) {
+	t.Parallel()
+	body, stats, err := ExportLibrary(nonBibSample(), ExportBibLaTeX, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"NOTE0001", "ATTACH01", "ANNOT001"} {
+		if strings.Contains(body, key) {
+			t.Errorf("non-bibliographic item %s reached the bibliography:\n%s", key, body)
+		}
+	}
+	// A titleless @misc is the symptom: nothing consuming the .bib can
+	// render or verify it, and it inflates the reference count.
+	if strings.Contains(body, "@misc{") {
+		t.Errorf("bibliography carries a titleless @misc entry:\n%s", body)
+	}
+	if n := strings.Count(body, "@"); n != 1 {
+		t.Errorf("entry count = %d, want 1 (the one paper):\n%s", n, body)
+	}
+	// Total is what landed in the file; Skipped says what didn't, so the
+	// drop is reported rather than silent.
+	if stats.Total != 1 {
+		t.Errorf("Total = %d, want 1", stats.Total)
+	}
+	if stats.Skipped != 3 {
+		t.Errorf("Skipped = %d, want 3", stats.Skipped)
+	}
+}
+
+func TestExportLibrary_CSLJSONDropsNonBibliographicItems(t *testing.T) {
+	t.Parallel()
+	body, stats, err := ExportLibrary(nonBibSample(), ExportCSLJSON, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(body, `"id"`); n != 1 {
+		t.Errorf("expected 1 id field, got %d:\n%s", n, body)
+	}
+	if stats.Total != 1 || stats.Skipped != 3 {
+		t.Errorf("stats = %+v, want Total 1 / Skipped 3", stats)
+	}
+}
+
 func TestExportLibrary_StatsCountsPinnedAndSynthesized(t *testing.T) {
 	t.Parallel()
 	_, stats, err := ExportLibrary(libSample(), ExportBibLaTeX, nil)

@@ -584,6 +584,13 @@ func (r LibraryExportResult) Human() string {
 		fmt.Fprintf(&b, ", %d drifted", r.Stats.Drifted)
 	}
 	b.WriteString("\n")
+	// A bibliography carries references, so notes, attachments and
+	// annotations are dropped on the way in. Say how many, or the count
+	// above reads as the whole library and comes up short.
+	if r.Stats.Skipped > 0 {
+		fmt.Fprintf(&b, "    %s skipped %d non-bibliographic item(s) (notes, attachments, annotations)\n",
+			uikit.TUI.Dim().Render("·"), r.Stats.Skipped)
+	}
 	return b.String()
 }
 
