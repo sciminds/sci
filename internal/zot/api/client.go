@@ -42,10 +42,10 @@ type Client struct {
 	now      func() time.Time
 	sleep    func(time.Duration)
 
-	// venueCache memoizes itemType → venue field name (see VenueField).
-	// A sync.Map because it is written on first use rather than at
-	// construction, and a Client may be shared.
-	venueCache sync.Map
+	// schemaCache memoizes the per-item-type schema lookups (which fields
+	// and creator types a type accepts). A sync.Map because it is written
+	// on first use rather than at construction, and a Client may be shared.
+	schemaCache sync.Map
 }
 
 // HTTPDoer matches the generated client's HttpRequestDoer interface so we

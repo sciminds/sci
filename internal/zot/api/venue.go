@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"fmt"
+	"slices"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
@@ -17,27 +19,20 @@ import (
 // field yet.
 //
 // Which types accept which is not hardcoded here on purpose: Zotero's
-// /items/new template declares it, so VenueFieldOf reads the answer off the
-// template rather than restating a schema that lives on the server.
+// /itemTypeFields declares it, so VenueFieldIn reads the answer off the
+// schema rather than restating something that lives on the server.
 
-// VenueFieldOf reports which venue field an item-type template declares, or
+// venueFields are the venue fields in priority order. Only one can ever be
+// present on a given item type, so the order is a formality — but it makes
+// the choice deterministic if Zotero ever ships a type carrying two.
+var venueFields = []string{"publicationTitle", "bookTitle", "proceedingsTitle"}
+
+// VenueFieldIn reports which venue field a type's field list contains, or
 // "" when the type has no venue at all (a book is the volume; a thesis and
 // a preprint have no container).
-//
-// It reads presence, not value: the template returns every field the type
-// accepts, blank, so a non-nil pointer to "" means "this type has this
-// field".
-func VenueFieldOf(tmpl *client.ItemData) string {
-	switch {
-	case tmpl.PublicationTitle != nil:
-		return "publicationTitle"
-	case tmpl.BookTitle != nil:
-		return "bookTitle"
-	case tmpl.ProceedingsTitle != nil:
-		return "proceedingsTitle"
-	default:
-		return ""
-	}
+func VenueFieldIn(fields []string) string {
+	found, _ := lo.Find(venueFields, func(v string) bool { return slices.Contains(fields, v) })
+	return found
 }
 
 // SetVenueField writes value into the named venue field, clearing the other
@@ -70,26 +65,30 @@ func SetVenueField(data *client.ItemData, field, value string) error {
 	return nil
 }
 
-// VenueField returns the venue field itemType declares, fetching the type's
-// template on first use and caching it for the life of the Client.
+// SetField writes an arbitrary Zotero field by name, for the `--field
+// key=value` escape hatch. The caller is responsible for having validated
+// name against ItemTypeFields — this writes what it is told.
+//
+// It goes through the generated Set rather than a per-field table because
+// the point of the escape hatch is reaching fields nothing here enumerates:
+// place, edition, conferenceName, numPages, seriesNumber, and whatever
+// Zotero adds next. ItemData.MarshalJSON applies AdditionalProperties LAST,
+// so this wins over a typed member of the same name — which is the right
+// precedence for an explicit flag.
+func SetField(data *client.ItemData, name, value string) {
+	data.Set(name, value)
+}
+
+// VenueField returns the venue field itemType declares.
 //
 // An empty return is an ANSWER — the type has no venue field — and callers
 // must turn it into a usage error naming the type. An error is a failed
 // lookup, and must never be flattened into the empty case: that would drop
 // a value the user explicitly passed.
-//
-// The cache matters because `item update` resolves per item, and /items/new
-// is a static unauthenticated schema endpoint — refetching it once per key
-// of a 50-item batch is pure waste.
 func (c *Client) VenueField(ctx context.Context, itemType string) (string, error) {
-	if v, ok := c.venueCache.Load(itemType); ok {
-		return v.(string), nil
-	}
-	tmpl, err := c.ItemTemplate(ctx, itemType, "")
+	fields, err := c.ItemTypeFields(ctx, itemType)
 	if err != nil {
 		return "", fmt.Errorf("look up fields for item type %q: %w", itemType, err)
 	}
-	field := VenueFieldOf(tmpl)
-	c.venueCache.Store(itemType, field)
-	return field, nil
+	return VenueFieldIn(fields), nil
 }

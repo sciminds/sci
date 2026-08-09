@@ -2,9 +2,12 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync"
 	"testing"
+
+	"github.com/samber/lo"
 )
 
 // itemTemplateHandler serves GET /items/new for tests.
@@ -40,25 +43,69 @@ func (h *itemTemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// countingTemplateHandler counts requests, for asserting the venue-field
-// cache actually caches.
-type countingTemplateHandler struct {
-	itemTemplateHandler
-	mu sync.Mutex
-	n  int
+// schemaHandler serves /itemTypeFields and /itemTypeCreatorTypes from a
+// trimmed copy of what the live API returns, counting requests per path so
+// the caching contract can be asserted.
+type schemaHandler struct {
+	mu     sync.Mutex
+	n      map[string]int
+	status int // 0 → 200
+
+	fields   map[string][]string
+	creators map[string][]string
 }
 
-func (h *countingTemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func newSchemaHandler() *schemaHandler {
+	return &schemaHandler{
+		n: map[string]int{},
+		fields: map[string][]string{
+			"journalArticle":  {"title", "abstractNote", "publicationTitle", "volume", "issue", "pages", "DOI", "extra"},
+			"bookSection":     {"title", "abstractNote", "bookTitle", "edition", "date", "publisher", "place", "pages", "ISBN", "extra"},
+			"conferencePaper": {"title", "abstractNote", "proceedingsTitle", "conferenceName", "publisher", "place", "pages", "extra"},
+			"book":            {"title", "abstractNote", "edition", "date", "publisher", "place", "numPages", "ISBN", "extra"},
+		},
+		creators: map[string][]string{
+			"journalArticle":  {"author", "contributor", "editor", "reviewedAuthor", "translator"},
+			"bookSection":     {"author", "bookAuthor", "contributor", "editor", "seriesEditor", "translator"},
+			"conferencePaper": {"author", "contributor", "editor", "seriesEditor", "translator"},
+			"book":            {"author", "contributor", "editor", "seriesEditor", "translator"},
+		},
+	}
+}
+
+func (h *schemaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
-	h.n++
+	h.n[r.URL.Path]++
+	status := h.status
 	h.mu.Unlock()
-	h.itemTemplateHandler.ServeHTTP(w, r)
+
+	if status != 0 {
+		w.WriteHeader(status)
+		return
+	}
+	itemType := r.URL.Query().Get("itemType")
+	var names []string
+	var key string
+	switch r.URL.Path {
+	case "/itemTypeFields":
+		names, key = h.fields[itemType], "field"
+	case "/itemTypeCreatorTypes":
+		names, key = h.creators[itemType], "creatorType"
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	rows := lo.Map(names, func(n string, _ int) map[string]string {
+		return map[string]string{key: n, "localized": n}
+	})
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(rows)
 }
 
-func (h *countingTemplateHandler) calls() int {
+func (h *schemaHandler) calls(path string) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.n
+	return h.n[path]
 }
 
 func TestItemTemplate_Success(t *testing.T) {

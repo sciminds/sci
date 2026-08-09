@@ -2,30 +2,37 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
-func TestVenueFieldOf(t *testing.T) {
+// Field lists as GET /itemTypeFields actually returns them, trimmed.
+var zoteroTypeFields = map[string][]string{
+	"journalArticle":  {"title", "abstractNote", "publicationTitle", "volume", "issue", "pages", "DOI", "extra"},
+	"bookSection":     {"title", "abstractNote", "bookTitle", "edition", "date", "publisher", "place", "pages", "ISBN", "extra"},
+	"conferencePaper": {"title", "abstractNote", "proceedingsTitle", "conferenceName", "publisher", "place", "pages", "extra"},
+	"book":            {"title", "abstractNote", "edition", "date", "publisher", "place", "numPages", "ISBN", "extra"},
+}
+
+func TestVenueFieldIn(t *testing.T) {
 	t.Parallel()
-	blank := ""
-	for _, tc := range []struct {
-		name string
-		tmpl client.ItemData
-		want string
-	}{
-		{"journalArticle", client.ItemData{PublicationTitle: &blank}, "publicationTitle"},
-		{"bookSection", client.ItemData{BookTitle: &blank}, "bookTitle"},
-		{"conferencePaper", client.ItemData{ProceedingsTitle: &blank}, "proceedingsTitle"},
+	for _, tc := range []struct{ itemType, want string }{
+		{"journalArticle", "publicationTitle"},
+		{"bookSection", "bookTitle"},
+		{"conferencePaper", "proceedingsTitle"},
 		// A book has a title but no venue — it IS the volume.
-		{"book", client.ItemData{Title: &blank}, ""},
-		{"empty", client.ItemData{}, ""},
+		{"book", ""},
 	} {
-		if got := VenueFieldOf(&tc.tmpl); got != tc.want {
-			t.Errorf("%s: VenueFieldOf = %q, want %q", tc.name, got, tc.want)
+		if got := VenueFieldIn(zoteroTypeFields[tc.itemType]); got != tc.want {
+			t.Errorf("%s: VenueFieldIn = %q, want %q", tc.itemType, got, tc.want)
 		}
+	}
+	if got := VenueFieldIn(nil); got != "" {
+		t.Errorf("VenueFieldIn(nil) = %q, want empty", got)
 	}
 }
 
@@ -76,11 +83,9 @@ func TestSetVenueField_UnknownFieldErrors(t *testing.T) {
 	}
 }
 
-func TestVenueField_ResolvesFromTemplate(t *testing.T) {
+func TestVenueField_ResolvesFromTheSchema(t *testing.T) {
 	t.Parallel()
-	h := &itemTemplateHandler{
-		body: []byte(`{"itemType":"bookSection","title":"","bookTitle":"","pages":""}`),
-	}
+	h := newSchemaHandler()
 	c, _ := newTestClient(t, h)
 
 	got, err := c.VenueField(context.Background(), "bookSection")
@@ -96,8 +101,7 @@ func TestVenueField_NoVenueFieldIsNotAnError(t *testing.T) {
 	t.Parallel()
 	// A type declaring no venue field is an answer, not a failure — the
 	// caller turns the empty string into a usage error naming the type.
-	h := &itemTemplateHandler{body: []byte(`{"itemType":"book","title":"","publisher":""}`)}
-	c, _ := newTestClient(t, h)
+	c, _ := newTestClient(t, newSchemaHandler())
 
 	got, err := c.VenueField(context.Background(), "book")
 	if err != nil {
@@ -108,13 +112,9 @@ func TestVenueField_NoVenueFieldIsNotAnError(t *testing.T) {
 	}
 }
 
-func TestVenueField_CachesPerItemType(t *testing.T) {
+func TestItemTypeFields_CachesPerItemType(t *testing.T) {
 	t.Parallel()
-	h := &countingTemplateHandler{
-		itemTemplateHandler: itemTemplateHandler{
-			body: []byte(`{"itemType":"conferencePaper","title":"","proceedingsTitle":""}`),
-		},
-	}
+	h := newSchemaHandler()
 	c, _ := newTestClient(t, h)
 
 	for range 3 {
@@ -122,21 +122,84 @@ func TestVenueField_CachesPerItemType(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// /items/new is a static, unauthenticated schema endpoint — refetching
-	// it once per item on a batch update is pure waste.
-	if n := h.calls(); n != 1 {
-		t.Errorf("template fetched %d times, want 1 (cached)", n)
+	if _, err := c.ItemTypeFields(context.Background(), "conferencePaper"); err != nil {
+		t.Fatal(err)
+	}
+	// /itemTypeFields is static and unauthenticated, and `item update`
+	// resolves per key — refetching it once per key of a 50-item batch is
+	// pure waste.
+	if n := h.calls("/itemTypeFields"); n != 1 {
+		t.Errorf("schema fetched %d times, want 1 (cached)", n)
 	}
 }
 
-func TestVenueField_TransportErrorPropagates(t *testing.T) {
+func TestItemTypeFields_TransportErrorPropagates(t *testing.T) {
 	t.Parallel()
-	h := &itemTemplateHandler{status: http.StatusInternalServerError}
+	h := newSchemaHandler()
+	h.status = http.StatusInternalServerError
 	c, _ := newTestClient(t, h)
 
 	// A failed lookup must not launder into "this type has no venue
 	// field" — that would silently drop the value the user passed.
 	if _, err := c.VenueField(context.Background(), "journalArticle"); err == nil {
-		t.Fatal("want an error when the template lookup fails")
+		t.Fatal("want an error when the schema lookup fails")
+	}
+}
+
+func TestItemTypeCreatorTypes(t *testing.T) {
+	t.Parallel()
+	c, _ := newTestClient(t, newSchemaHandler())
+
+	got, err := c.ItemTypeCreatorTypes(context.Background(), "bookSection")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An edited volume needs an editor, and a journalArticle has no
+	// bookAuthor — which is exactly why this is asked per type.
+	if !slices.Contains(got, "editor") || !slices.Contains(got, "bookAuthor") {
+		t.Errorf("bookSection creator types = %v", got)
+	}
+}
+
+func TestSetField_ReachesAnUnmodelledField(t *testing.T) {
+	t.Parallel()
+	// place, edition and conferenceName are real Zotero fields with no
+	// member on client.ItemData — the whole point of the escape hatch.
+	var d client.ItemData
+	SetField(&d, "place", "Cambridge, MA")
+	SetField(&d, "conferenceName", "SDAIR-94")
+
+	raw, err := json.Marshal(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["place"] != "Cambridge, MA" {
+		t.Errorf("place did not reach the wire: %s", raw)
+	}
+	if got["conferenceName"] != "SDAIR-94" {
+		t.Errorf("conferenceName did not reach the wire: %s", raw)
+	}
+}
+
+func TestSetField_WinsOverAModelledMember(t *testing.T) {
+	t.Parallel()
+	// MarshalJSON applies AdditionalProperties last. An explicit --field is
+	// the more specific instruction, so this precedence is the right one —
+	// but it is emergent from generated code, so it gets pinned.
+	stale := "1-2"
+	d := client.ItemData{Pages: &stale}
+	SetField(&d, "pages", "45-70")
+
+	raw, _ := json.Marshal(d)
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["pages"] != "45-70" {
+		t.Errorf("pages = %v, want the --field value to win: %s", got["pages"], raw)
 	}
 }

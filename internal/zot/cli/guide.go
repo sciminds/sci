@@ -130,6 +130,11 @@ func guideContent() zot.GuideResult {
 						Note: "Resolves metadata from OpenAlex; layer --tag, --collection, --author over the auto-fill.",
 					},
 					{
+						Goal: "Add a book chapter / proceedings paper by hand",
+						Cmd:  "sci zot item add --type bookSection --title \"A Chapter\" --author \"Manning, Jeremy\" --creator \"editor:Gazzaniga, Michael\" --publication \"The Volume\" --field pages=45-70",
+						Note: "--publication is the VENUE and lands in whichever field the type names it; --field name=value and --creator type:name reach anything else the type declares. All validated against the type's Zotero schema first, so a bad name exits 2 listing the valid ones. --creator is add-only: a PATCH clobbers arrays.",
+					},
+					{
 						Goal: "Drag-drop import a PDF (uses Zotero desktop's recognizer)",
 						Cmd:  "sci zot import paper.pdf",
 						Note: "Requires Zotero desktop running. Bypasses --library (writes to whatever desktop has selected).",

@@ -36,6 +36,8 @@ var (
 	addAbstract    string
 	addPublication string
 	addAuthor      []string
+	addCreator     []string
+	addField       []string
 	addCollection  string
 	addTag         []string
 	addExtra       string
@@ -48,6 +50,7 @@ var (
 	updAbstract    string
 	updPublication string
 	updExtra       string
+	updField       []string
 	updFromJSON    string
 
 	deleteYes bool
@@ -129,24 +132,30 @@ type venueResolver interface {
 	VenueField(ctx context.Context, itemType string) (string, error)
 }
 
-// venueTargeter adds the per-item type lookup `item update` needs on top of
-// venueResolver — the same patch may be applied to a journal article and a
-// book chapter in one call.
-type venueTargeter interface {
+// itemTargeter adds the per-item type lookup `item update` needs on top of
+// the schema readers — the same patch may be applied to a journal article
+// and a book chapter in one call.
+type itemTargeter interface {
 	venueResolver
+	itemSchema
 	GetItem(ctx context.Context, key string) (*client.Item, error)
 }
 
-// venuePatches returns the patch to send for each key, identical to the
-// shared one unless --publication was passed — in which case each key's
-// venue lands in whatever field ITS type declares.
+// perItemPatches returns the patch to send for each key, identical to the
+// shared one unless a schema-dependent flag was passed — in which case each
+// key's values land in whatever fields ITS type declares.
 //
-// The extra GET per key is only paid when --publication is set, and it is
-// the item's own type that decides the field: guessing from the first key
-// would write a bookTitle onto a journal article and fail that whole item.
-func venuePatches(ctx context.Context, c venueTargeter, keys []string, patch client.ItemData, venue *string) (map[string]client.ItemData, error) {
+// The extra GET per key is only paid when one of those flags is set, and it
+// is the item's own type that decides: guessing from the first key would
+// write a bookTitle onto a journal article and fail that whole item.
+//
+// There is deliberately no --creator here. A Zotero PATCH replaces whole
+// arrays, so sending creators would erase every creator the item has that
+// this command line did not restate — the failure the Rebuild contract in
+// CLAUDE.md exists to prevent. Creators are `item add` only.
+func perItemPatches(ctx context.Context, c itemTargeter, keys []string, patch client.ItemData, venue *string, fields []string) (map[string]client.ItemData, error) {
 	out := lo.SliceToMap(keys, func(k string) (string, client.ItemData) { return k, patch })
-	if venue == nil {
+	if venue == nil && len(fields) == 0 {
 		return out, nil
 	}
 	for _, k := range keys {
@@ -154,8 +163,14 @@ func venuePatches(ctx context.Context, c venueTargeter, keys []string, patch cli
 		if err != nil {
 			return nil, err
 		}
+		itemType := string(it.Data.ItemType)
 		data := patch
-		if err := applyVenue(ctx, c, &data, string(it.Data.ItemType), *venue); err != nil {
+		if venue != nil {
+			if err := applyVenue(ctx, c, &data, itemType, *venue); err != nil {
+				return nil, err
+			}
+		}
+		if err := applyFields(ctx, c, &data, itemType, fields); err != nil {
 			return nil, err
 		}
 		out[k] = data
@@ -189,14 +204,26 @@ func addCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "add",
 		Usage: "Create a new item in your Zotero library",
+		// Every repeatable flag here carries a HUMAN NAME or a free-text
+		// value, and urfave/cli splits slice values on comma by default.
+		// That silently turned --author "Smith, Alice" into two creators,
+		// "Smith" and " Alice", each of which parseCreator then read as an
+		// INSTITUTIONAL author because neither half has a comma left.
+		// Repeat the flag to pass several values.
+		DisableSliceFlagSeparator: true,
 		Description: "$ sci zot item add --type journalArticle --title \"My Paper\" --author \"Smith, Alice\" --doi 10.1000/abc\n" +
-			"$ sci zot item add --type bookSection --title \"A Chapter\" --publication \"The Edited Volume\"\n" +
+			"$ sci zot item add --type bookSection --title \"A Chapter\" --publication \"The Edited Volume\" \\\n" +
+			"    --author \"Manning, Jeremy\" --creator \"editor:Gazzaniga, Michael\" \\\n" +
+			"    --field publisher=\"MIT Press\" --field place=\"Cambridge, MA\" --field pages=45-70\n" +
 			"$ sci zot item add --openalex 10.1038/nature12373\n" +
 			"$ sci zot item add --openalex W2963403868 --collection ABC12345 --tag ml\n\n" +
 			"--publication carries the VENUE, and Zotero names that field per item\n" +
 			"type: publicationTitle on a journal article, bookTitle on a bookSection,\n" +
 			"proceedingsTitle on a conferencePaper. The right one is chosen from the\n" +
-			"type's own Zotero template; a type with no venue field says so.",
+			"type's own Zotero schema; a type with no venue field says so.\n\n" +
+			"--field and --creator reach the rest of that schema — every field and\n" +
+			"creator type the item type declares, checked before anything is sent.\n" +
+			"Naming any creator replaces the set --openalex supplied.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "openalex", Usage: "lookup metadata on OpenAlex by DOI / W…-ID / arXiv / PMID", Destination: &addOpenAlex, Local: true},
 			&cli.StringFlag{Name: "type", Value: "journalArticle", Usage: "item type (e.g. journalArticle, book, webpage)", Destination: &addType, Local: true},
@@ -206,7 +233,9 @@ func addCommand() *cli.Command {
 			&cli.StringFlag{Name: "date", Usage: "publication date (freeform)", Destination: &addDate, Local: true},
 			&cli.StringFlag{Name: "abstract", Usage: "abstract / summary", Destination: &addAbstract, Local: true},
 			&cli.StringFlag{Name: "publication", Usage: "venue title — routed to the field the item type takes (publicationTitle / bookTitle / proceedingsTitle)", Destination: &addPublication, Local: true},
-			&cli.StringSliceFlag{Name: "author", Usage: "author as \"Last, First\" (repeatable)", Destination: &addAuthor}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
+			&cli.StringSliceFlag{Name: "author", Usage: "author as \"Last, First\" (repeatable)", Destination: &addAuthor},                                                     // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
+			&cli.StringSliceFlag{Name: "creator", Usage: "non-author creator as \"type:Last, First\", e.g. \"editor:Kahana, Michael\" (repeatable)", Destination: &addCreator}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
+			&cli.StringSliceFlag{Name: "field", Usage: "any other field the item type takes, as name=value, e.g. --field pages=45-70 (repeatable)", Destination: &addField},    // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.StringFlag{Name: "collection", Usage: "add item to collection key", Destination: &addCollection, Local: true},
 			&cli.StringSliceFlag{Name: "tag", Usage: "attach a tag (repeatable)", Destination: &addTag}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.StringFlag{Name: "extra", Usage: "free-text extra field (key: value lines)", Destination: &addExtra, Local: true},
@@ -224,13 +253,21 @@ func runAdd(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	// Resolved after the client exists because the field name comes from
-	// Zotero's own template for the type. The type is whatever survived
-	// applyAddFlagOverrides — --type when given, else --openalex's guess.
+	// Everything schema-dependent is resolved once the client exists,
+	// because the answers come from Zotero's own per-type schema. The type
+	// is whatever survived applyAddFlagOverrides — --type when given, else
+	// --openalex's guess.
+	itemType := string(data.ItemType)
 	if addPublication != "" {
-		if err := applyVenue(ctx, c, &data, string(data.ItemType), addPublication); err != nil {
+		if err := applyVenue(ctx, c, &data, itemType, addPublication); err != nil {
 			return err
 		}
+	}
+	if err := applyCreators(ctx, c, &data, itemType, addAuthor, addCreator); err != nil {
+		return err
+	}
+	if err := applyFields(ctx, c, &data, itemType, addField); err != nil {
+		return err
 	}
 	it, err := c.CreateItem(ctx, data)
 	if err != nil {
@@ -305,10 +342,9 @@ func applyAddFlagOverrides(data *client.ItemData) {
 	if addExtra != "" {
 		data.Extra = &addExtra
 	}
-	if len(addAuthor) > 0 {
-		creators := lo.Map(addAuthor, func(a string, _ int) client.Creator { return parseCreator(a) })
-		data.Creators = &creators
-	}
+	// Creators are NOT built here: --creator has to be validated against
+	// the item type's schema, which needs a client. runAdd does both once
+	// the type is settled (see applyCreators).
 	if addCollection != "" {
 		colls := []string{addCollection}
 		data.Collections = &colls
@@ -347,6 +383,9 @@ func updateCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "update",
 		Usage: "Update fields on one or more items",
+		// See addCommand: --field values are free text and must not be
+		// split on comma (`--field place="Cambridge, MA"`).
+		DisableSliceFlagSeparator: true,
 		Description: "$ sci zot item update ABC12345 --title \"Corrected Title\"\n" +
 			"$ sci zot item update ABC12345 DEF67890 --publication \"Nature\"\n" +
 			"$ sci zot item update --from-json doi-backfill.ndjson\n" +
@@ -371,6 +410,7 @@ func updateCommand() *cli.Command {
 			&cli.StringFlag{Name: "abstract", Destination: &updAbstract, Local: true},
 			&cli.StringFlag{Name: "publication", Usage: "venue title — routed per item to the field ITS type takes", Destination: &updPublication, Local: true},
 			&cli.StringFlag{Name: "extra", Destination: &updExtra, Local: true},
+			&cli.StringSliceFlag{Name: "field", Usage: "any other field the item type takes, as name=value (repeatable)", Destination: &updField}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.StringFlag{Name: "from-json", Destination: &updFromJSON, Local: true,
 				Usage: "apply a patch plan (NDJSON from `zot backfill` or `zot enrich`)"},
 		},
@@ -388,7 +428,7 @@ func updateCommand() *cli.Command {
 			}
 
 			patch, venue, anyField := buildItemPatch(cmd)
-			if !anyField {
+			if !anyField && len(updField) == 0 {
 				return cmdutil.UsageErrorf(cmd, "at least one field flag is required")
 			}
 
@@ -397,9 +437,9 @@ func updateCommand() *cli.Command {
 				return err
 			}
 
-			// One patch, many keys — but a venue field name is per TYPE,
-			// so --publication has to be placed per key.
-			perKey, err := venuePatches(ctx, c, keys, patch, venue)
+			// One patch, many keys — but which fields a type accepts is
+			// per TYPE, so --publication and --field are placed per key.
+			perKey, err := perItemPatches(ctx, c, keys, patch, venue, updField)
 			if err != nil {
 				return err
 			}

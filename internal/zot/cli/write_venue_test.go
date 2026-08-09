@@ -99,10 +99,10 @@ func TestApplyVenue_TypeWithNoVenueIsAUsageError(t *testing.T) {
 	}
 }
 
-// stubVenueTargeter answers both halves `item update` needs: each key's
-// item type, and each type's venue field.
+// stubVenueTargeter answers everything `item update` needs: each key's
+// item type, and that type's schema.
 type stubVenueTargeter struct {
-	stubVenueResolver
+	stubSchema
 	types map[string]string
 }
 
@@ -117,7 +117,7 @@ func (s stubVenueTargeter) GetItem(_ context.Context, key string) (*client.Item,
 func TestVenuePatches_ResolvesPerItemNotPerCall(t *testing.T) {
 	t.Parallel()
 	c := stubVenueTargeter{
-		stubVenueResolver: zoteroVenues,
+		stubSchema: zoteroSchema,
 		types: map[string]string{
 			"JOURNAL1": "journalArticle",
 			"CHAPTER1": "bookSection",
@@ -127,7 +127,7 @@ func TestVenuePatches_ResolvesPerItemNotPerCall(t *testing.T) {
 	keys := []string{"JOURNAL1", "CHAPTER1", "PROCEED1"}
 	venue := "The Cognitive Neurosciences"
 
-	got, err := venuePatches(context.Background(), c, keys, client.ItemData{}, &venue)
+	got, err := perItemPatches(context.Background(), c, keys, client.ItemData{}, &venue, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,11 +148,11 @@ func TestVenuePatches_NoPublicationSkipsTheLookup(t *testing.T) {
 	t.Parallel()
 	// No --publication means no reason to read the items at all; GetItem
 	// returning an error for every key proves it was never called.
-	c := stubVenueTargeter{stubVenueResolver: zoteroVenues}
+	c := stubVenueTargeter{stubSchema: zoteroSchema}
 	title := "New Title"
 
-	got, err := venuePatches(context.Background(), c, []string{"AAAA1111", "BBBB2222"},
-		client.ItemData{Title: &title}, nil)
+	got, err := perItemPatches(context.Background(), c, []string{"AAAA1111", "BBBB2222"},
+		client.ItemData{Title: &title}, nil, nil)
 	if err != nil {
 		t.Fatalf("an update with no --publication must not read the items: %v", err)
 	}
