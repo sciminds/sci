@@ -40,10 +40,10 @@ lint:
 
 # Structural style rules enforced via ast-grep.
 # No lipgloss.NewStyle() outside internal/uikit/; no hardcoded lipgloss.Color() outside palette/style files;
-# no manual m.width/m.height literal arithmetic outside uikit. `sg test` validates the rules' own fixtures.
+# no manual m.width/m.height literal arithmetic outside uikit. `ast-grep test` validates the rules' own fixtures.
 lint-style:
-    sg test
-    sg scan
+    ast-grep test
+    ast-grep scan
     semgrep --config .semgrep/ --error --quiet ./internal/ ./pkg/ ./cmd/
 
 # Project-specific guards: import boundaries, flag conventions, API usage rules.

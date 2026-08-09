@@ -309,7 +309,7 @@ scriptable_exempt=(
 
 # ── Step 1: Discover call sites via ast-grep ────────────────────────────────
 # Output: deduplicated JSON array of {id, file, line} sorted by file then line.
-sg_json=$(sg scan -r "$interactive_rules" --json 2>/dev/null | \
+sg_json=$(ast-grep scan -r "$interactive_rules" --json 2>/dev/null | \
 	jaq '[.[] | {id: .ruleId, file, line: (.range.start.line + 1)}] | unique_by(.file, .id, .line) | sort_by(.file, .line)' 2>/dev/null)
 
 # Filter out exempt paths and lint:no-scriptable suppressions.
