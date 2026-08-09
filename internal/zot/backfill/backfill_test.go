@@ -26,6 +26,10 @@ type fakeServer struct {
 	// listed counts read round-trips, so a version that skips the read
 	// cannot pass unnoticed.
 	listed int
+	// capture hands a patch's Rebuild hook to the test WITHOUT calling it,
+	// so a test can exercise the 412 path deliberately while the fake keeps
+	// behaving like the server on the happy path.
+	capture func(key string, hook func(*client.Item) (client.ItemData, error))
 }
 
 func (f *fakeServer) ListItems(_ context.Context, opts api.ListItemsOptions) ([]client.Item, error) {
@@ -51,6 +55,9 @@ func (f *fakeServer) UpdateItemsBatch(_ context.Context, patches []api.ItemPatch
 		}
 		// No Rebuild call: Zotero only triggers it via a 412, and a patch
 		// whose Data is empty writes nothing.
+		if f.capture != nil {
+			f.capture(p.Key, p.Rebuild)
+		}
 		f.got[p.Key] = p.Data
 		out[p.Key] = nil
 	}

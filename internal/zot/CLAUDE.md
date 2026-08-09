@@ -83,6 +83,18 @@ A **mirror, not a bibliography**. The citation formats project the library down 
 - **No local filesystem paths.** Attachment paths are mbp-local and resolve to nothing on the machines that read the dump, so a path in the mirror is a broken promise. Pinned by a test.
 - **`search --export --format ndjson` is refused** with a `Fix` naming `sci zot export --format ndjson`: a dump of arbitrary search hits is not a coherent item plane.
 
+## Applying a zot plan (`item update --from-json`, `internal/zot/backfill/`)
+
+The sibling `zotero-mcp` repo decides what should be written and this side writes it — **zot owns the item→work join, sci owns the credential, and neither imports the other; they meet at a file.** Two kinds of row share one verb and one reader:
+
+- **DOI rows** (`zot backfill`) carry `doi` + `doi_source`. Extra is composed from the SERVER's copy, never the plan, because Zotero has no field-level write and a payload built from a stale mirror erases whatever landed since. An item that has since gained a DOI is **abandoned** — the plan asserted one fact and it is now false.
+- **Field rows** (`zot enrich`) carry `fields{}` — abstract, url, date, volume, issue, pages, PMID. These are **re-derived, not abandoned**, and the difference is the premise's shape: a field row asserts five facts, and four can still hold when the fifth stops. Each field is checked against the server separately on the way in and again in `Rebuild`, so a volume that appeared in the meantime costs that one field rather than the other four.
+
+- **The plan carries VALUES, not a work id to re-derive them from.** sci can rebuild an abstract from OpenAlex itself (`enrich.reconstructAbstract`), and two decoders reading two caches is two chances for the library to disagree with the snapshot about what it holds. Whatever `zot enrich` decoded is what gets written.
+- **`PMID` is a real Zotero field that the generated client does not model.** The live library holds 100 as field rows; the OpenAPI spec mentions PMID only in a comment about Extra. `client.ItemData`'s `AdditionalProperties` (via its generated `Get`/`Set`, inlined by `MarshalJSON`) is the escape hatch — so the field goes on the wire under its own name instead of being smuggled into Extra, where zot's loader reads DOI provenance and nothing parses an identifier.
+- **The writable vocabulary is an explicit table, not reflection over json tags** (`fields.go`). A plan naming anything outside it is refused at READ time, before a single write: a 3,258-item plan that discovers an unsupported field halfway through has already changed the library in a way nobody planned. zot filters its own plan against what the corpus shows an item type carries, which under-approximates on purpose; this table and Zotero's schema are the other half of that contract.
+- **Fields are counted beside items in the result** — an item can be applied and still have left two of its five fields alone, and a plan of 4,840 fills reporting 4,833 needs somewhere to say why.
+
 ## Relations (`zot link`, `zot link suggest`)
 
 Zotero's "related items" (`dc:relation`) connect a standalone note to the papers it discusses. Reads split the predicates by owner: `Related` is the user's own `dc:relation`, `Other` is Zotero's bookkeeping (`owl:sameAs`, `dc:replaces`) which sci reads but never writes. A PATCH replaces the whole relations object, so `api.patchRelations` must carry every predicate back — see its godoc.

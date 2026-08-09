@@ -31,14 +31,29 @@ import (
 // zot's item loader parses the same prefix back out.
 const provenanceKey = "DOI-source:"
 
-// Plan is one row of the NDJSON plan.
+// Plan is one row of the NDJSON plan, in either of the two kinds zot
+// emits: a DOI row (from `zot backfill`) or a FIELD row (from `zot
+// enrich`). Exactly one of DOI and Fields is set — a row that says both is
+// two plans wearing one record, and a row that says neither writes nothing.
 type Plan struct {
 	Library   string `json:"library"`
 	ItemKey   string `json:"item_key"`
-	DOI       string `json:"doi"`
-	DOISource string `json:"doi_source"`
-	Why       string `json:"why"`
+	DOI       string `json:"doi,omitempty"`
+	DOISource string `json:"doi_source,omitempty"`
+	// Fields is a field row's payload: Zotero field name -> the value to
+	// write. It carries VALUES, not a work id to re-derive them from. sci
+	// can rebuild an abstract from OpenAlex itself, and two decoders
+	// reading two caches is two chances for the library to disagree with
+	// the snapshot about what it holds.
+	Fields   map[string]string `json:"fields,omitempty"`
+	ItemType string            `json:"item_type,omitempty"`
+	WorkID   string            `json:"work_id,omitempty"`
+	Basis    string            `json:"basis,omitempty"`
+	Why      string            `json:"why"`
 }
+
+// IsFieldPlan reports which kind of row this is.
+func (p Plan) IsFieldPlan() bool { return len(p.Fields) > 0 }
 
 // ByLibrary groups a plan by the library each row names.
 //
@@ -73,6 +88,12 @@ type Result struct {
 	Skipped int               `json:"skipped"`
 	Failed  int               `json:"failed"`
 	Errors  map[string]string `json:"errors,omitempty"`
+	// FieldsWritten and FieldsSkipped count FIELDS, where the three above
+	// count items. A field plan's premise is per field, so an item can be
+	// applied and still have left two of its five fields alone — and a plan
+	// of 4,840 fills whose result says 4,833 needs somewhere to say why.
+	FieldsWritten int `json:"fields_written,omitempty"`
+	FieldsSkipped int `json:"fields_skipped,omitempty"`
 	// SkippedKeys names the items whose premise no longer held, so a
 	// shrinking "applied" count is explainable rather than mysterious.
 	SkippedKeys []string `json:"skipped_keys,omitempty"`
@@ -111,10 +132,17 @@ func Read(path string) ([]Plan, error) {
 			return nil, fmt.Errorf("plan line %d (%s): no library — the corpus spans both, so a row cannot say where its key lives by omission", line, p.ItemKey)
 		case p.ItemKey == "":
 			return nil, fmt.Errorf("plan line %d: no item_key", line)
-		case p.DOI == "":
-			return nil, fmt.Errorf("plan line %d (%s): no doi — a patch that writes nothing is a bug, not a no-op", line, p.ItemKey)
-		case p.DOISource == "":
+		case p.DOI != "" && len(p.Fields) > 0:
+			return nil, fmt.Errorf("plan line %d (%s): carries both a doi and fields — those are two different plans with two different premises, and one row cannot state both", line, p.ItemKey)
+		case p.DOI == "" && len(p.Fields) == 0:
+			return nil, fmt.Errorf("plan line %d (%s): writes nothing — a patch with neither a doi nor any fields is a bug, not a no-op", line, p.ItemKey)
+		case p.DOI != "" && p.DOISource == "":
 			return nil, fmt.Errorf("plan line %d (%s): no doi_source — an unprovenanced DOI is indistinguishable from a publisher's", line, p.ItemKey)
+		}
+		if p.IsFieldPlan() {
+			if err := validateFields(p, line); err != nil {
+				return nil, err
+			}
 		}
 		out = append(out, p)
 	}
@@ -147,6 +175,7 @@ func Apply(ctx context.Context, r Reader, w Writer, plans []Plan) (*Result, erro
 			return *it.Data.Key, it
 		})
 
+		stats := map[string]*fieldStats{}
 		var patches []api.ItemPatch
 		for _, p := range chunk {
 			it, ok := cur[p.ItemKey]
@@ -158,10 +187,13 @@ func Apply(ctx context.Context, r Reader, w Writer, plans []Plan) (*Result, erro
 				res.Errors[p.ItemKey] = "not found in this library"
 				continue
 			}
-			body, buildErr := compose(&it, p)
+			st := &fieldStats{}
+			stats[p.ItemKey] = st
+			body, buildErr := composeFor(&it, p, st)
 			if buildErr != nil {
 				res.Skipped++
 				res.SkippedKeys = append(res.SkippedKeys, p.ItemKey)
+				res.FieldsSkipped += st.skipped
 				continue
 			}
 			var version int
@@ -173,7 +205,15 @@ func Apply(ctx context.Context, r Reader, w Writer, plans []Plan) (*Result, erro
 				Version:  version,
 				ItemType: string(it.Data.ItemType),
 				Data:     body,
-				Rebuild:  func(fresh *client.Item) (client.ItemData, error) { return compose(fresh, p) },
+				// Re-derive on a 412 rather than restamping the version.
+				// The DOI path REFUSES (its single premise is void once the
+				// item has a DOI); the field path RE-DERIVES, because one
+				// field losing its premise says nothing about the others.
+				// Which of the two applies is a property of the plan, not a
+				// choice made here — see composeFor.
+				Rebuild: func(fresh *client.Item) (client.ItemData, error) {
+					return composeFor(fresh, p, st)
+				},
 			})
 		}
 		if len(patches) == 0 {
@@ -188,7 +228,11 @@ func Apply(ctx context.Context, r Reader, w Writer, plans []Plan) (*Result, erro
 			switch {
 			case e == nil:
 				res.Applied++
-			case errors.Is(e, ErrSuperseded):
+				if st := stats[key]; st != nil {
+					res.FieldsWritten += st.written
+					res.FieldsSkipped += st.skipped
+				}
+			case errors.Is(e, ErrSuperseded), errors.Is(e, ErrNothingToFill):
 				res.Skipped++
 				res.SkippedKeys = append(res.SkippedKeys, key)
 			default:
@@ -203,11 +247,18 @@ func Apply(ctx context.Context, r Reader, w Writer, plans []Plan) (*Result, erro
 	return res, nil
 }
 
-// compose builds the patch body from the server's copy of an item.
-//
-// It is used for both the initial payload and the 412 rebuild, so the two
-// can never drift — which is how a rebuild ends up writing something the
-// plan never intended.
+// composeFor routes a row to the composer its kind requires. Both are used
+// for the initial payload AND the 412 rebuild, so neither can drift from
+// itself — which is how a rebuild ends up writing something the plan never
+// intended.
+func composeFor(cur *client.Item, p Plan, st *fieldStats) (client.ItemData, error) {
+	if p.IsFieldPlan() {
+		return composeFields(cur, p, st)
+	}
+	return compose(cur, p)
+}
+
+// compose builds a DOI row's patch body from the server's copy of an item.
 func compose(cur *client.Item, p Plan) (client.ItemData, error) {
 	if cur != nil && cur.Data.DOI != nil && strings.TrimSpace(*cur.Data.DOI) != "" {
 		return client.ItemData{}, ErrSuperseded
@@ -254,6 +305,8 @@ func (r *Result) Merge(other *Result) {
 	r.Applied += other.Applied
 	r.Skipped += other.Skipped
 	r.Failed += other.Failed
+	r.FieldsWritten += other.FieldsWritten
+	r.FieldsSkipped += other.FieldsSkipped
 	r.SkippedKeys = append(r.SkippedKeys, other.SkippedKeys...)
 	for k, v := range other.Errors {
 		if r.Errors == nil {

@@ -244,13 +244,18 @@ func updateCommand() *cli.Command {
 		Description: "$ sci zot item update ABC12345 --title \"Corrected Title\"\n" +
 			"$ sci zot item update ABC12345 DEF67890 --publication \"Nature\"\n" +
 			"$ sci zot item update --from-json doi-backfill.ndjson\n" +
+			"$ sci zot item update --from-json enrich-plan.ndjson\n" +
 			"Providing multiple keys applies the same field patch to each item via a\n" +
 			"batched POST /items request (up to 50 items per round-trip).\n\n" +
 			"--from-json applies MANY DISTINCT patches instead of one patch to many\n" +
-			"keys. It reads the NDJSON plan `zot backfill` writes, and composes each\n" +
-			"item's Extra field from the SERVER's copy rather than the plan, so a\n" +
-			"note added on another device is not erased. An item that has gained a\n" +
-			"DOI since the plan was built is skipped, not overwritten.",
+			"keys. It reads either plan the zot binary writes: a DOI plan from `zot\n" +
+			"backfill`, or a field plan from `zot enrich` (abstracts, volume, issue,\n" +
+			"pages, PMID). Rows of both kinds may share one file.\n\n" +
+			"Nothing is overwritten. A DOI plan composes Extra from the SERVER's copy\n" +
+			"rather than the plan, so a note added on another device is not erased,\n" +
+			"and an item that has gained a DOI since the plan was built is skipped. A\n" +
+			"field plan checks EACH field against the server separately, so a volume\n" +
+			"that appeared in the meantime costs that one field, not the other four.",
 		ArgsUsage: "<key> [<key>...]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "title", Destination: &updTitle, Local: true},
@@ -261,7 +266,7 @@ func updateCommand() *cli.Command {
 			&cli.StringFlag{Name: "publication", Destination: &updPublication, Local: true},
 			&cli.StringFlag{Name: "extra", Destination: &updExtra, Local: true},
 			&cli.StringFlag{Name: "from-json", Destination: &updFromJSON, Local: true,
-				Usage: "apply a DOI backfill plan (NDJSON from `zot backfill`)"},
+				Usage: "apply a patch plan (NDJSON from `zot backfill` or `zot enrich`)"},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			keys := cmd.Args().Slice()
@@ -881,7 +886,8 @@ func unionCollection(collKey string) func(*client.Item) (client.ItemData, error)
 	}
 }
 
-// runBackfillPlan applies a `zot backfill` plan.
+// runBackfillPlan applies a plan written by the zot binary — DOI rows from
+// `zot backfill`, field rows from `zot enrich`, or both in one file.
 //
 // The plan is read and validated in full before a single write, so a bad
 // row cannot leave the library half-patched in a state nobody planned.
