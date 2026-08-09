@@ -128,6 +128,11 @@ func savedSearchCreateCommand() *cli.Command {
 			"dateModified, fulltextContent, collection. Operators: is, isNot, contains, doesNotContain,\n" +
 			"beginsWith, before, after, isInTheLast.",
 		ArgsUsage: "<name>",
+		// A condition VALUE is free text, so it may hold a comma.
+		// urfave/cli would split "title:contains:Cambridge, MA" into two
+		// specs, the second of which (" MA") fails to parse — an error
+		// naming a fragment the user never typed. Repeat --condition.
+		DisableSliceFlagSeparator: true,
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{Name: "condition", Aliases: []string{"c"}, Usage: "condition triple 'field:operator:value' (repeatable)"}, // lint:no-local — urfave/cli v3 SliceFlag + Local:true keeps only the last --condition (PreParse re-creates the slice on every Set); see CLAUDE.md "slice-flag Local quirk"
 			&cli.BoolFlag{Name: "any", Usage: "match ANY condition instead of ALL (adds a leading joinMode condition)", Destination: &savedSearchCreateJoinAny, Local: true},
@@ -173,6 +178,9 @@ func savedSearchUpdateCommand() *cli.Command {
 			"Omit --name to keep the existing name; omit --condition / --from-json to keep existing\n" +
 			"conditions.",
 		ArgsUsage: "<key-or-name>",
+		// See savedSearchCreateCommand: condition values are free text and
+		// must not be split on comma.
+		DisableSliceFlagSeparator: true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "name", Usage: "new display name", Destination: &savedSearchUpdateName, Local: true},
 			&cli.StringSliceFlag{Name: "condition", Aliases: []string{"c"}, Usage: "condition triple 'field:operator:value' (repeatable; replaces all existing conditions)"}, // lint:no-local — urfave/cli v3 SliceFlag + Local:true keeps only the last --condition (PreParse re-creates the slice on every Set); see CLAUDE.md "slice-flag Local quirk"

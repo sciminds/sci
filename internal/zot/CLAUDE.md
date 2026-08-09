@@ -210,18 +210,39 @@ to prevent regressions. If the reproduction test ever starts passing with
 `Local: true`, urfave/cli has fixed the upstream bug and the waivers can be
 removed.
 
+**Rule 17 is the gate.** Rule 4 requires `Local: true` on every flag, which
+on a slice flag is precisely the bug above — so the waiver comment was the
+only thing preventing it, opt-in by memory. `zot doctor --check` shipped
+with `Local: true`, and `--check invalid --check missing` silently ran ONLY
+`missing` while its report looked complete. Rule 17 now rejects
+`Local: true` on any `*SliceFlag`, so the waiver can't be forgotten.
+
 **Orthogonal gotcha — the comma split.** urfave/cli's default slice
 separator is `,`, so `--author "Smith, A"` arrived as `["Smith", " A"]`,
 and `parseCreator` reads a comma-less value as an INSTITUTIONAL name — one
 author silently became two organizations. It is a *command*-level setting
 (`DisableSliceFlagSeparator`, no per-flag form and no inheritance from the
-root), and `item add` / `item update` set it, because every repeatable flag
-there carries a human name or free text (`--field place="Cambridge, MA"`).
-The cost is that `--tag a,b` is now one tag on those two commands; repeat
-the flag for two. `TestSliceFlagFix_CommaBearingValuesSurvive` pins it —
-removing the setting corrupts every creator name. Commands that have NOT
-opted in still split, so weigh it before adding a name-bearing slice flag
-elsewhere.
+root), so each command opts in on its own.
+
+**Opted in** — every value they carry is a human name or free text:
+`item add`, `item update`, `item note add` (Zotero tags are free text; the
+live library holds 9 with commas, MeSH headings like
+`"Pattern Recognition, Visual"`), and `saved-search create` / `update`
+(a condition *value* is free text). The cost is that `--tag a,b` is one tag
+on those commands; repeat the flag for two.
+
+**Deliberately not opted in** — the split is correct or harmless there:
+`doctor --check` and `doctor citekeys --kind` (enum names, and both parse
+the comma form themselves on purpose), `doctor citekeys --item` and
+`llm query --key` (8-char keys, no commas possible), and
+`find works --filter` (comma is OpenAlex's own AND separator, so splitting
+`--filter a=1,b=2` into two filters is the intended reading).
+
+`TestSliceFlagFix_CommaBearingValuesSurvive` pins the opted-in set —
+removing the setting corrupts creator names and tags. Extend its table when
+opting another command in. It must stay **non-parallel**: it drives the
+package-level flag `Destination`s that urfave/cli re-zeroes on every `Run`,
+so a parallel sibling hands it the wrong values.
 
 ## Gotchas
 

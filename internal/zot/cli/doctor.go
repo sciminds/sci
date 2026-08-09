@@ -49,10 +49,10 @@ for that.`,
 			pdfsCommand(),
 		},
 		Flags: []cli.Flag{
+			// lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.StringSliceFlag{
 				Name:  "check",
 				Usage: "limit run to specific checks (repeatable): invalid, missing, orphans, duplicates, citekeys",
-				Local: true,
 			},
 			&cli.BoolFlag{
 				Name:        "deep",

@@ -89,6 +89,13 @@ func itemNoteAddCommand() *cli.Command {
 			"  [Ho 2022](zotero://select/library/items/<KEY>)           — personal\n" +
 			"These survive sanitization and open the referenced item in Zotero\n" +
 			"desktop. Find <groupID> via `zot info` (library_api_id).",
+		// A Zotero tag is free text and commonly holds a comma — the live
+		// library carries 9, MeSH headings like "Pattern Recognition,
+		// Visual" among them. urfave/cli would split those into two wrong
+		// tags. `item add --tag` already does not split; the same flag on
+		// the same noun behaving two ways is worse than either rule alone.
+		// Repeat --tag to pass several.
+		DisableSliceFlagSeparator: true,
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "body", Usage: "inline note body (or `-` to read from stdin)", Destination: &noteBody, Local: true},
 			&cli.StringFlag{Name: "body-file", Usage: "path to a note body file (or `-` for stdin)", Destination: &noteBodyFile, Local: true},

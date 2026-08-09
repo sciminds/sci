@@ -129,6 +129,11 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 		{name: "item note add --tag", argv: []string{"item", "note", "add", "PARENT12", "--body", "x", "--tag", "a", "--tag", "b", "--tag", "c"}, flagName: "tag"},
 		{name: "find works --filter", argv: []string{"find", "works", "--filter", "k1=v1", "--filter", "k2=v2", "--filter", "k3=v3", "q"}, flagName: "filter"},
 		{name: "llm query --key", argv: []string{"llm", "query", "--key", "ABC12345", "--key", "DEF67890", "--key", "GHI34567", "--", "select 1"}, flagName: "key"},
+		// doctor --check was missing from this table and carried
+		// Local: true, so `--check invalid --check missing` ran ONLY
+		// missing — a diagnostic quietly doing less than it was asked
+		// while its report looked complete.
+		{name: "doctor --check", argv: []string{"doctor", "--check", "invalid", "--check", "missing", "--check", "orphans"}, flagName: "check"},
 		{name: "doctor citekeys --kind", argv: []string{"doctor", "citekeys", "--fix", "--kind", "invalid", "--kind", "collision", "--kind", "non-canonical"}, flagName: "kind"},
 		{name: "doctor citekeys --item", argv: []string{"doctor", "citekeys", "--fix", "--item", "AAAA1111", "--item", "BBBB2222", "--item", "CCCC3333"}, flagName: "item"},
 		{name: "saved-search create --condition", argv: []string{"saved-search", "create", "x", "--condition", "title:contains:a", "--condition", "tag:is:b", "--condition", "itemType:is:c"}, flagName: "condition"},
@@ -213,6 +218,32 @@ func TestSliceFlagFix_CommaBearingValuesSurvive(t *testing.T) {
 			argv:     []string{"item", "update", "ABCD1234", "--field", "place=Cambridge, MA"},
 			flagName: "field",
 			want:     []string{"place=Cambridge, MA"},
+		},
+		{
+			// The live library holds 9 comma-bearing tags, MeSH headings
+			// like "Pattern Recognition, Visual" among them. Splitting
+			// makes one tag into two wrong ones, and `item add --tag`
+			// already does not — the same flag on the same noun behaving
+			// two ways is worse than either rule alone.
+			name:     "item note add --tag",
+			argv:     []string{"item", "note", "add", "PARENT12", "--body", "x", "--tag", "Pattern Recognition, Visual"},
+			flagName: "tag",
+			want:     []string{"Pattern Recognition, Visual"},
+		},
+		{
+			// A condition VALUE is free text. Split, its tail arrives as
+			// " MA" and fails to parse — an error naming a fragment the
+			// user never typed.
+			name:     "saved-search create --condition",
+			argv:     []string{"saved-search", "create", "x", "--condition", "title:contains:Cambridge, MA"},
+			flagName: "condition",
+			want:     []string{"title:contains:Cambridge, MA"},
+		},
+		{
+			name:     "saved-search update --condition",
+			argv:     []string{"saved-search", "update", "ABCD1234", "--condition", "title:contains:Cambridge, MA"},
+			flagName: "condition",
+			want:     []string{"title:contains:Cambridge, MA"},
 		},
 	} {
 		// NB: no t.Parallel() — shared package-level Destinations, same

@@ -544,6 +544,34 @@ for f in $patch_files; do
 	done
 done
 
+# ── Rule 17: a slice flag must NOT carry Local: true ─────────────────────────
+# The exact inverse of rule 4, and the reason it needs its own rule: rule 4
+# requires Local: true on every flag, which on a SLICE flag is a bug. urfave/cli
+# v3 re-runs PreParse on every Set for a Local flag, and SliceBase.Create zeroes
+# the slice there — so `--flag a --flag b --flag c` keeps only "c".
+#
+# Rule 4's waiver comment is the only thing standing between a slice flag and
+# that bug, and it was opt-in by memory: `zot doctor --check` shipped with
+# Local: true, so `--check invalid --check missing` silently ran ONLY missing
+# while its report looked complete. A diagnostic quietly doing less than it was
+# asked is exactly what a gate is for.
+#
+# Fix: drop Local from the slice flag and annotate it `// lint:no-local` for
+# rule 4. Regression coverage lives in cli/sliceflag_quirk_test.go — add the
+# flag to its production table too.
+slice_local=$(rg -n --type go --glob '!*_test.go' --glob '!.agents/**' --glob '!vendor/**' \
+	--multiline --multiline-dotall \
+	'&cli\.[A-Za-z]*SliceFlag\{[^}]*?Local:\s*true' . 2>/dev/null || true)
+
+if [[ -n "$slice_local" ]]; then
+	echo "FAIL [sliceflag-no-local] slice flag declared with Local: true:"
+	echo "$slice_local" | sed 's/^/  /'
+	echo "  Local: true truncates a repeatable flag to its LAST occurrence."
+	echo "  Drop Local and mark the line // lint:no-local (rule 4's waiver),"
+	echo "  then add the flag to cli/sliceflag_quirk_test.go's production table."
+	fail "sliceflag-no-local"
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
 	echo ""
