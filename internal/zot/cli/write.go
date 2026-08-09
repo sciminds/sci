@@ -85,11 +85,39 @@ func requireAPIClient(ctx context.Context) (*api.Client, error) {
 	return api.New(cfg, api.WithLibrary(ref))
 }
 
-func strPtr(s string) *string {
-	if s == "" {
-		return nil
+// buildItemPatch turns the --field flags into a PATCH body.
+//
+// Presence is read from cmd.IsSet, not from the value, because "leave this
+// alone" and "empty this" are different instructions and a bare string
+// cannot tell them apart. Before this there was no way to clear a field
+// through the CLI at all, which surfaced on two items whose Extra held
+// nothing but a `DOI-source:` line that a merge had made untrue.
+//
+// It deliberately does NOT use strPtr: that helper returns nil for an empty
+// string, which is right for "the caller said nothing" and exactly wrong
+// here. Going through it turned `--extra ""` into a patch carrying only
+// key/version/itemType — a write that reports success and changes nothing,
+// the same shape as the 709 empty patches that once reported
+// "applied 709 of 709".
+func buildItemPatch(cmd *cli.Command) (client.ItemData, bool) {
+	patch := client.ItemData{}
+	any := false
+	set := func(dst **string, flag string) {
+		if !cmd.IsSet(flag) {
+			return
+		}
+		v := cmd.String(flag)
+		*dst = &v
+		any = true
 	}
-	return &s
+	set(&patch.Title, "title")
+	set(&patch.DOI, "doi")
+	set(&patch.Url, "url")
+	set(&patch.Date, "date")
+	set(&patch.AbstractNote, "abstract")
+	set(&patch.PublicationTitle, "publication")
+	set(&patch.Extra, "extra")
+	return patch, any
 }
 
 func addCommand() *cli.Command {
@@ -281,21 +309,7 @@ func updateCommand() *cli.Command {
 				return cmdutil.UsageErrorf(cmd, "expected at least one item key")
 			}
 
-			patch := client.ItemData{}
-			anyField := false
-			set := func(dst **string, v string) {
-				if v != "" {
-					*dst = strPtr(v)
-					anyField = true
-				}
-			}
-			set(&patch.Title, updTitle)
-			set(&patch.DOI, updDOI)
-			set(&patch.Url, updURL)
-			set(&patch.Date, updDate)
-			set(&patch.AbstractNote, updAbstract)
-			set(&patch.PublicationTitle, updPublication)
-			set(&patch.Extra, updExtra)
+			patch, anyField := buildItemPatch(cmd)
 			if !anyField {
 				return cmdutil.UsageErrorf(cmd, "at least one field flag is required")
 			}
