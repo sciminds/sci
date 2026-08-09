@@ -191,7 +191,11 @@ func Invalid(db local.Reader, fields []InvalidField) (*Report, error) {
 // doiRegex follows Crossref's recommended pattern: the "10." prefix, a
 // 4–9 digit registrant, a slash, then one or more URI-safe chars. Real
 // DOIs can contain `< > ; ( )` so we keep the allowed-char set loose.
-var doiRegex = regexp.MustCompile(`^10\.\d{4,9}/[-._;()/:A-Za-z0-9<>]+$`)
+// '#' is in the class because a Wiley SICI's check character can be one
+// (10.1002/…3.0.co;2-# is live in this library and resolves fine). It is
+// also a URL fragment delimiter, which is why the nested-DOI check below
+// matters more than the character class.
+var doiRegex = regexp.MustCompile(`^10\.\d{4,9}/[-._;()/:A-Za-z0-9<>#]+$`)
 
 // nestedDOIRegex matches a second DOI, or a resolver URL, appearing inside
 // a DOI's suffix.

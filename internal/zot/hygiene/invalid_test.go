@@ -263,6 +263,10 @@ func TestValidateDOI_RejectsADOIInsideADOI(t *testing.T) {
 		"10.1002/(SICI)1097-0258(19980815)17:15<1661::AID-SIM968>3.0.CO;2-2",
 		"10.1037/a0028015",
 		"https://doi.org/10.1037/a0028015",
+		// A Wiley SICI check character can be '#'. This one is in the live
+		// library and is a perfectly resolvable DOI; the pattern simply
+		// never allowed the character, so it read as malformed.
+		"10.1002/1097-4679(194510)1:4<296::aid-jclp2270010410>3.0.co;2-#",
 	} {
 		if ok, why := ValidateDOI(good); !ok {
 			t.Errorf("%q was rejected: %s", good, why)
