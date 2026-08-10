@@ -1,7 +1,9 @@
 package api
 
 import (
+	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,16 +92,25 @@ func TestItemFromClient_PopulatesExtraAndCitationKey(t *testing.T) {
 	}
 }
 
-func TestItemFromClient_NoExtraNoFields(t *testing.T) {
+func TestItemFromClient_FieldsIsNilOnlyWhenTheItemCarriesNone(t *testing.T) {
 	t.Parallel()
+	// An item with a title has a field bag: `title` is a row in itemData
+	// on the local side, so it is one here too. Fields goes nil only when
+	// the item carries no bibliographic field at all, which keeps the JSON
+	// shape minimal without inventing a difference between the planes.
 	title := "X"
 	it := &client.Item{Key: "Z", Data: client.ItemData{ItemType: "preprint", Title: &title}}
 	got := ItemFromClient(it)
 	if got.Extra != "" {
 		t.Errorf("Extra = %q, want empty", got.Extra)
 	}
-	if got.Fields != nil {
-		t.Errorf("Fields = %v, want nil when no extra/citationKey", got.Fields)
+	if got.Fields["title"] != "X" {
+		t.Errorf("Fields[title] = %q, want X", got.Fields["title"])
+	}
+
+	bare := ItemFromClient(&client.Item{Key: "Z", Data: client.ItemData{ItemType: "preprint"}})
+	if bare.Fields != nil {
+		t.Errorf("Fields = %v, want nil when the item carries no fields", bare.Fields)
 	}
 }
 
@@ -229,5 +240,117 @@ func TestItemFromClient_NoRelationsLeavesFieldNil(t *testing.T) {
 	got = ItemFromClient(&client.Item{Key: "ABC12345", Data: client.ItemData{ItemType: "book", Relations: &empty}})
 	if got.Relations != nil {
 		t.Errorf("Relations = %+v, want nil for an empty relations object", got.Relations)
+	}
+}
+
+// A remote read is the ground-truth path for verifying a write — the local
+// mirror cannot tell a field this CLI just wrote from one that was never
+// there. It projected two fields out of the ~66 an item can carry, so it
+// could verify `extra` and `citationKey` and nothing else. That cost a real
+// false alarm: volume, issue and pages read back absent after a write and
+// looked exactly like data loss, when the fields were on the server the
+// whole time and the converter was dropping them.
+//
+// The projection is a JSON round-trip rather than a hand-written list of
+// the 76 typed fields on ItemData, because a hand-written list going stale
+// against a regenerated client IS this bug.
+func TestItemFromClient_ProjectsEveryFieldTheServerSent(t *testing.T) {
+	t.Parallel()
+	vol, iss, pages := "108", "4", "814-834"
+	pub, title := "Psychological Review", "The Emotional Dog"
+	it := &client.Item{
+		Key:     "FIELDS01",
+		Version: 3,
+		Data: client.ItemData{
+			ItemType:         "journalArticle",
+			Title:            &title,
+			Volume:           &vol,
+			Issue:            &iss,
+			Pages:            &pages,
+			PublicationTitle: &pub,
+		},
+	}
+	got := ItemFromClient(it)
+	for name, want := range map[string]string{
+		"volume": vol, "issue": iss, "pages": pages,
+		"publicationTitle": pub, "title": title,
+	} {
+		if got.Fields[name] != want {
+			t.Errorf("Fields[%s] = %q, want %q", name, got.Fields[name], want)
+		}
+	}
+}
+
+// Structural data is already typed on local.Item, and the local reader's
+// Fields comes from itemData, which holds none of it. Letting creators or
+// collections through as stringified JSON would make the two planes
+// disagree in exactly the place this change exists to make them agree.
+func TestItemFromClient_KeepsStructuralDataOutOfFields(t *testing.T) {
+	t.Parallel()
+	fn, ln := "Jonathan", "Haidt"
+	cols := []string{"COLL0001"}
+	added := time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC)
+	it := &client.Item{
+		Key:     "STRUCT01",
+		Version: 9,
+		Data: client.ItemData{
+			ItemType:    "journalArticle",
+			Creators:    &[]client.Creator{{CreatorType: "author", FirstName: &fn, LastName: &ln}},
+			Collections: &cols,
+			Tags:        &[]client.Tag{{Tag: "moral"}},
+			DateAdded:   &added,
+		},
+	}
+	got := ItemFromClient(it)
+	for _, name := range []string{
+		"key", "version", "itemType", "creators", "tags",
+		"collections", "relations", "dateAdded", "dateModified",
+	} {
+		if v, ok := got.Fields[name]; ok {
+			t.Errorf("Fields[%s] = %q, want it absent — it is typed on the item", name, v)
+		}
+	}
+}
+
+// The drift guard. This projection went narrow once and stayed narrow
+// because nothing compared it against the client it projects from — so
+// this walks every *string field the generated ItemData declares, sets it,
+// and requires fieldBag to return all of them.
+//
+// It fails the day `just zot-gen` adds a field the projection would drop,
+// which is the failure mode that produced the two-field version.
+func TestFieldBagDropsNothingTheGeneratedClientDeclares(t *testing.T) {
+	t.Parallel()
+	var d client.ItemData
+	v := reflect.ValueOf(&d).Elem()
+	typ := v.Type()
+
+	want := map[string]string{}
+	for i := range typ.NumField() {
+		f := typ.Field(i)
+		if f.Type.Kind() != reflect.Pointer || f.Type.Elem().Kind() != reflect.String {
+			continue // structural or non-scalar; covered by its own test
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "" || name == "-" || structuralFields[name] {
+			continue
+		}
+		// Built through reflect.New so named string types (LinkMode and
+		// friends) get a *client.X rather than a *string.
+		val := "v-" + name
+		ptr := reflect.New(f.Type.Elem())
+		ptr.Elem().SetString(val)
+		v.Field(i).Set(ptr)
+		want[name] = val
+	}
+	if len(want) < 40 {
+		t.Fatalf("only %d string fields found on ItemData — the walk is not reaching them", len(want))
+	}
+
+	got := fieldBag(d)
+	for name, wantVal := range want {
+		if got[name] != wantVal {
+			t.Errorf("fieldBag dropped %s: got %q, want %q", name, got[name], wantVal)
+		}
 	}
 }

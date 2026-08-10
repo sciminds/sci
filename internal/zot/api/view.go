@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+	"strconv"
 	"strings"
 
 	"github.com/samber/lo"
@@ -45,22 +47,7 @@ func ItemFromClient(it *client.Item) local.Item {
 	if d.Extra != nil {
 		out.Extra = *d.Extra
 	}
-	// Seed Fields with the entries citekey.Resolve consults so the same
-	// enrichment helper works on items from either side of the
-	// reads-local / writes-cloud split. Skip empty strings so the JSON
-	// shape stays minimal — pointers from the OpenAPI client are
-	// frequently non-nil pointing at "" for absent fields.
-	seedField := func(name string, p *string) {
-		if p == nil || *p == "" {
-			return
-		}
-		if out.Fields == nil {
-			out.Fields = map[string]string{}
-		}
-		out.Fields[name] = *p
-	}
-	seedField("extra", d.Extra)
-	seedField("citationKey", d.CitationKey)
+	out.Fields = fieldBag(d)
 	if d.Creators != nil {
 		out.Creators = lo.Map(*d.Creators, creatorFromClient)
 	}
@@ -80,6 +67,67 @@ func ItemFromClient(it *client.Item) local.Item {
 		out.NumChildren = *it.Meta.NumChildren
 	}
 	out.Relations = relationSetFromClient(d.Relations)
+	return out
+}
+
+// structuralFields are the keys fieldBag refuses. Each is already typed on
+// [local.Item], and the local reader's Fields comes from Zotero's itemData
+// table, which holds none of them — so letting them through would make the
+// two planes disagree in the one place this projection exists to make them
+// agree.
+var structuralFields = map[string]bool{
+	"key": true, "version": true, "itemType": true, "creators": true,
+	"tags": true, "collections": true, "relations": true,
+	"dateAdded": true, "dateModified": true,
+}
+
+// fieldBag projects every bibliographic field the server sent, under
+// Zotero's own field names, matching what local.hydrateFields reads out of
+// itemData. Returns nil when the item carries none, so the JSON shape stays
+// minimal.
+//
+// It round-trips through JSON rather than listing ItemData's 76 typed
+// fields, and that is the point rather than a shortcut. This converter used
+// to seed exactly two entries, `extra` and `citationKey`, so `--remote`
+// could verify those and nothing else — while sci's own contract makes a
+// remote read the ground truth for confirming a write, because the local
+// mirror cannot tell a field this CLI just wrote from one that was never
+// there. A hand-maintained list going stale against a regenerated client is
+// how the projection got narrow in the first place; ItemData's MarshalJSON
+// already merges AdditionalProperties and omits nil pointers, so the
+// round-trip yields precisely what arrived and picks up new fields for free.
+//
+// Non-scalar values are skipped rather than stringified: a nested object
+// rendered as Go syntax is worse than an absent key, because it looks like
+// data.
+func fieldBag(d client.ItemData) map[string]string {
+	raw, err := json.Marshal(d)
+	if err != nil {
+		return nil
+	}
+	var all map[string]any
+	if err := json.Unmarshal(raw, &all); err != nil {
+		return nil
+	}
+	out := map[string]string{}
+	for name, v := range all {
+		if structuralFields[name] {
+			continue
+		}
+		switch t := v.(type) {
+		case string:
+			if t != "" {
+				out[name] = t
+			}
+		case bool:
+			out[name] = strconv.FormatBool(t)
+		case float64:
+			out[name] = strconv.FormatFloat(t, 'f', -1, 64)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 
