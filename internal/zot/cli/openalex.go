@@ -106,9 +106,22 @@ func openalexSyncCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+
+			// The reference title pool, from the referenced_works of the
+			// works just fetched. Same pass, so the two files cannot
+			// disagree about which works this library cites.
+			cited, err := oacache.FetchCited(ctx, client, res.Works, oacache.Options{})
+			if err != nil {
+				return err
+			}
+			citedBody, err := oacache.WriteCited(oaSyncDir(), scope, cited)
+			if err != nil {
+				return err
+			}
 			outputScoped(ctx, cmd, zot.OpenAlexSyncResult{
 				Scope: scope, OutPath: body, MetaPath: body + ".meta.json",
 				ItemsScanned: scanned, Stats: res.Stats, NotFound: res.NotFound,
+				CitedPath: citedBody, CitedAsked: cited.Asked, CitedGot: len(cited.Works),
 			})
 			return nil
 		},

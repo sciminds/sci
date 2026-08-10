@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -23,6 +24,7 @@ type fakeOA struct {
 	byTitle  map[string][]openalex.Work
 	count    int // Meta.Count to report; 0 means len(results)
 	resolved []string
+	byID     map[string]openalex.Work
 	err      error
 }
 
@@ -35,6 +37,13 @@ func (f *fakeOA) SearchWorks(_ context.Context, opts openalex.SearchOpts) (*open
 	if d, ok := opts.Filter["doi"]; ok {
 		for _, one := range strings.Split(d, "|") {
 			if w, ok := f.byDOI[one]; ok {
+				out = append(out, w)
+			}
+		}
+	}
+	if ids, ok := opts.Filter["openalex_id"]; ok {
+		for _, one := range strings.Split(ids, "|") {
+			if w, ok := f.byID[one]; ok {
 				out = append(out, w)
 			}
 		}
@@ -472,5 +481,70 @@ func TestFallbackLookupsAreCountedSeparately(t *testing.T) {
 	}
 	if res.Stats.FallbackTitlesQueried != 1 {
 		t.Errorf("FallbackTitlesQueried = %d", res.Stats.FallbackTitlesQueried)
+	}
+}
+
+// The reference title pool — the thing that lets `zot cites` NAME the work
+// an edge points at — had no producer. It was a zen-ingest artifact copied
+// into staging by hand, frozen at one date, and covering ~72% of what the
+// library actually cites: 53,573 cited works had no title at all, 29% of
+// the citation graph.
+//
+// The set is not a new query. Every work's referenced_works names it, and
+// this verb has just fetched those works, so the pool derives from the
+// same pass that produced them and the two can never disagree about which
+// works are cited.
+func TestCitedWorksAreCollectedFromTheWorksJustFetched(t *testing.T) {
+	parent := work("W1", "10.1/a", "Parent")
+	parent.ReferencedWorks = []string{
+		"https://openalex.org/W10", "https://openalex.org/W11",
+		"https://openalex.org/W10", // a repeat costs no request
+		"https://openalex.org/W1",  // already a full record; not re-fetched
+	}
+	f := &fakeOA{byID: map[string]openalex.Work{
+		"W10": work("W10", "10.1/j", "Cited ten"),
+		"W11": work("W11", "10.1/k", "Cited eleven"),
+	}}
+
+	got, err := oacache.FetchCited(context.Background(), f, []openalex.Work{parent}, oacache.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Works) != 2 {
+		t.Fatalf("cited works = %d, want 2 (deduped, self excluded)", len(got.Works))
+	}
+	// A narrow mask here is deliberate — whole records for 186k cited works
+	// is a different product. Deliberate is not the same as unrecorded:
+	// this one has to reach the sidecar or its omissions are invisible.
+	sel := strings.Join(f.calls[0].Select, ",")
+	for _, field := range []string{"id", "display_name", "publication_year", "doi", "type"} {
+		if !strings.Contains(sel, field) {
+			t.Errorf("cited select does not ask for %s: %s", field, sel)
+		}
+	}
+	if strings.Contains(sel, "abstract_inverted_index") || strings.Contains(sel, "authorships") {
+		t.Errorf("cited select is not narrow: %s", sel)
+	}
+}
+
+func TestTheCitedPoolPublishesTheMaskThatBuiltIt(t *testing.T) {
+	dir := t.TempDir()
+	res := oacache.CitedResult{Works: []openalex.Work{work("W10", "10.1/j", "Cited ten")}}
+	if _, err := oacache.WriteCited(dir, "all", res); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, oacache.CitedFile+".meta.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m oacache.Meta
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(m.Select, oacache.CitedSelect) {
+		t.Errorf("sidecar select = %v, want %v", m.Select, oacache.CitedSelect)
+	}
+	if m.RecordsTotal != 1 || m.SHA256 == "" {
+		t.Errorf("sidecar does not describe the body: %+v", m)
 	}
 }

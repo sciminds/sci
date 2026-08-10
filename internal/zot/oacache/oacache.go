@@ -347,6 +347,87 @@ type Meta struct {
 	SHA256       string   `json:"sha256"`
 }
 
+// CitedSelect is the field mask for works the library CITES rather than
+// owns. It is deliberately narrow, and that is a different thing from the
+// accidental narrowness WorkSelect's comment warns about: these records
+// exist to NAME an edge's target and to let the title tiers disambiguate
+// it, not to describe a paper. Whole records for ~186k cited works is a
+// different product with a very different footprint.
+//
+// Deliberate still has to be recorded. Write publishes this list into the
+// sidecar, because a mask's omissions are invisible in the data it
+// produces -- rows parse, counts hold, and the corpus is stale in SHAPE.
+var CitedSelect = []string{"id", "display_name", "publication_year", "doi", "type"}
+
+// CitedFile is the reference title pool's name inside a staging directory.
+// It keeps the name the zen-ingest artifact used, so the consumer's staging
+// plumbing does not move when the producer changes underneath it.
+const CitedFile = "openalex-titles.ndjson"
+
+// CitedResult is what FetchCited answers.
+type CitedResult struct {
+	Works []openalex.Work
+	// Asked is how many distinct ids went out, so a caller can report the
+	// difference between what was requested and what came back rather than
+	// presenting a short result as a complete one.
+	Asked int
+}
+
+// FetchCited hydrates the works named by the referenced_works of works
+// already fetched -- the reference title pool.
+//
+// The set is derived from `have` rather than queried, so the pool and the
+// works that define it are produced in one pass and cannot disagree about
+// which works are cited. Ids already present in `have` are skipped: a full
+// record is strictly more than this narrow one, and re-fetching it would
+// pay for a downgrade.
+func FetchCited(ctx context.Context, c Searcher, have []openalex.Work, opts Options) (CitedResult, error) {
+	owned := make(map[string]bool, len(have))
+	for i := range have {
+		owned[shortID(have[i].ID)] = true
+	}
+	seen := map[string]bool{}
+	var want []string
+	for i := range have {
+		for _, ref := range have[i].ReferencedWorks {
+			id := shortID(ref)
+			if id == "" || owned[id] || seen[id] {
+				continue
+			}
+			seen[id] = true
+			want = append(want, id)
+		}
+	}
+	out := CitedResult{Asked: len(want)}
+	for _, batch := range lo.Chunk(want, doiBatch) {
+		res, err := c.SearchWorks(ctx, openalex.SearchOpts{
+			Filter:  map[string]string{"openalex_id": strings.Join(batch, "|")},
+			PerPage: len(batch),
+			Select:  CitedSelect,
+		})
+		if err != nil {
+			return out, err
+		}
+		out.Works = append(out.Works, res.Results...)
+		if opts.Progress != nil {
+			opts.Progress(len(out.Works), len(want))
+		}
+	}
+	return out, nil
+}
+
+// WriteCited writes the reference title pool and its sidecar, in the same
+// body-then-sidecar order as Write.
+func WriteCited(dir, scope string, res CitedResult) (string, error) {
+	return writeNDJSON(dir, CitedFile, res.Works, Meta{
+		ProducedAt:   time.Now().UTC().Format(time.RFC3339),
+		ProducedBy:   "sci zot openalex sync (cited works)",
+		Scope:        scope,
+		RecordsTotal: len(res.Works),
+		Select:       CitedSelect,
+	})
+}
+
 // CacheFile is the body's name inside a staging directory.
 const CacheFile = "openalex-works.ndjson"
 
@@ -358,20 +439,37 @@ const CacheFile = "openalex-works.ndjson"
 // This mirrors `zot export --format ndjson` exactly, because the consumer
 // is the same one.
 func Write(dir, scope string, res Result) (string, error) {
+	return writeNDJSON(dir, CacheFile, res.Works, Meta{
+		ProducedAt:   time.Now().UTC().Format(time.RFC3339),
+		ProducedBy:   "sci zot openalex sync",
+		Scope:        scope,
+		RecordsTotal: len(res.Works),
+		Select:       WorkSelect,
+		Stats:        res.Stats,
+		NotFound:     res.NotFound,
+	})
+}
+
+// writeNDJSON writes works as newline-delimited JSON and then the sidecar
+// describing them. The sidecar goes LAST and carries a digest of the bytes
+// that actually landed, so a consumer finding a body without a matching
+// sidecar knows it caught a partial write rather than guessing. meta's
+// SHA256 is filled here -- a caller cannot know it before the write.
+func writeNDJSON(dir, name string, works []openalex.Work, meta Meta) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	body := filepath.Join(dir, CacheFile)
+	body := filepath.Join(dir, name)
 
 	f, err := os.Create(body) //nolint:gosec // path is the caller's own --out
 	if err != nil {
 		return "", err
 	}
 	enc := json.NewEncoder(f)
-	for i := range res.Works {
-		if err := enc.Encode(res.Works[i]); err != nil {
+	for i := range works {
+		if err := enc.Encode(works[i]); err != nil {
 			_ = f.Close()
-			return "", fmt.Errorf("encode work %s: %w", res.Works[i].ID, err)
+			return "", fmt.Errorf("encode work %s: %w", works[i].ID, err)
 		}
 	}
 	if err := f.Close(); err != nil {
@@ -382,16 +480,8 @@ func Write(dir, scope string, res Result) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	raw, err := json.MarshalIndent(Meta{
-		ProducedAt:   time.Now().UTC().Format(time.RFC3339),
-		ProducedBy:   "sci zot openalex sync",
-		Scope:        scope,
-		RecordsTotal: len(res.Works),
-		Select:       WorkSelect,
-		Stats:        res.Stats,
-		NotFound:     res.NotFound,
-		SHA256:       sum,
-	}, "", "  ")
+	meta.SHA256 = sum
+	raw, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {
 		return "", err
 	}

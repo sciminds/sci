@@ -688,6 +688,13 @@ type OpenAlexSyncResult struct {
 	ItemsScanned int           `json:"items_scanned"`
 	Stats        oacache.Stats `json:"stats"`
 	NotFound     []string      `json:"not_found,omitempty"`
+	// Cited describes the reference title pool written alongside the works.
+	// Asked and Got are reported separately because their difference is the
+	// share of the citation graph that stays unnameable, and a pool that
+	// silently came back short would look identical to a complete one.
+	CitedPath  string `json:"cited_path,omitempty"`
+	CitedAsked int    `json:"cited_asked,omitempty"`
+	CitedGot   int    `json:"cited_got,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -698,6 +705,10 @@ func (r OpenAlexSyncResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s cached %d OpenAlex works for %d %s items in %d requests\n",
 		uikit.SymOK, r.Stats.Works, r.ItemsScanned, r.Scope, r.Stats.Requests)
+	if r.CitedAsked > 0 {
+		fmt.Fprintf(&b, "    %s %d of %d cited works named -> %s\n",
+			uikit.TUI.Dim().Render("pool:"), r.CitedGot, r.CitedAsked, r.CitedPath)
+	}
 	fmt.Fprintf(&b, "    %s %d of %d found; %d title lookups, %d with hits\n",
 		uikit.TUI.Dim().Render("dois:"),
 		r.Stats.DOIsFound, r.Stats.DOIsRequested,
