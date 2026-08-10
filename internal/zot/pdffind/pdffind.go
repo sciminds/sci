@@ -222,8 +222,8 @@ func lookupOne(ctx context.Context, it local.Item, oa Lookup) Finding {
 	case it.DOI != "":
 		w, err := oa.ResolveWork(ctx, it.DOI)
 		if err != nil && is404(err) && doi.IsSubobject(it.DOI) {
-			// Publisher-specific subobject DOI (Frontiers /abstract, PLOS
-			// .tNNN, PNAS /-/DCSupplemental). Strip the suffix and retry
+			// Publisher-specific subobject DOI (an article section, table,
+			// figure, supplement, or eLife asset). Strip the suffix and retry
 			// against the parent-paper DOI; the parent typically resolves
 			// and is open-access. See internal/zot/doi for patterns.
 			normalized := doi.StripSubobject(it.DOI)

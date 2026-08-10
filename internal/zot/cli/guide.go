@@ -190,7 +190,7 @@ func guideContent() zot.GuideResult {
 						Note: "OpenAlex-led lookup. Defaults to 'missing-pdf' — collection or saved search; a NAME resolves against both kinds (own kind first), keys stay kind-specific. --saved-search runs live via the Web API (good when local SQLite is stale); --keys-from FILE|- feeds explicit keys (one per line). Add --download / --attach to write back; default is read-only triage.",
 					},
 					{
-						Goal: "Flag publisher-subobject DOIs (Frontiers /abstract, PLOS .tNNN, PNAS supplements) so OpenAlex can resolve them",
+						Goal: "Flag publisher-subobject DOIs (article sections, tables, figures, supplements, eLife assets) so OpenAlex can resolve them",
 						Cmd:  "sci zot doctor dois",
 						Note: "Read-only by default. Add --fix for a dry-run; --fix --apply to patch the DOI field via the Web API.",
 					},

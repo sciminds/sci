@@ -24,7 +24,7 @@ var (
 func doisCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "dois",
-		Usage: "Scan for publisher subobject DOIs (Frontiers/abstract, PLOS .tNNN, PNAS supplements)",
+		Usage: "Scan for publisher subobject DOIs (article-section, table, figure, and supplement children)",
 		Description: `$ sci zot --library personal doctor dois                       # read-only scan
 $ sci zot --library personal doctor dois --json > dois.json
 
@@ -37,10 +37,12 @@ figure, supplement, or article-section anchor) rather than the parent
 work. These DOIs 404 on OpenAlex and other metadata APIs, so any
 PDF/landing-page lookup for the item silently fails.
 
-Patterns recognized (anchored to the publisher prefix):
-  Frontiers          10.3389/.../abstract  10.3389/.../full
+Patterns recognized (anchored to the publisher prefix, case-insensitive):
+  article sections   10.3389|10.1111|10.1002/.../abstract  .../full
   PLOS subobjects    10.1371/....tNNN  ....gNNN  ....sNNN
-  PNAS supplements   10.1073/.../-/DCSupplemental[/...]
+  supplements        10.1073|10.1093/.../-/DCSupplemental[/...]  .../-/DCn
+  eLife assets       10.7554/eLife.NNNNN.NNN
+  PeerJ subobjects   10.7717/peerj.NNN/supp-N  /fig-N  /table-N
 
 --fix is dry-run by default. --apply is required to actually patch the
 DOI field via the Zotero Web API; the new DOI is the parent-paper form

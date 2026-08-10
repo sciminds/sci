@@ -12,7 +12,8 @@ import (
 
 // SubobjectDOIStats summarizes a dois check run. Subobject is the count
 // of items whose stored DOI matches a known publisher subobject pattern
-// (Frontiers /abstract+/full, PLOS .tNNN/.gNNN/.sNNN, PNAS /-/DCSupplemental*).
+// (article-section /abstract+/full, PLOS .tNNN/.gNNN/.sNNN, PNAS and OUP
+// /-/DC*, eLife .NNN assets, PeerJ /supp-N).
 type SubobjectDOIStats struct {
 	Scanned   int `json:"scanned"`
 	Subobject int `json:"subobject"`
