@@ -942,7 +942,13 @@ esac
 # some stage already reached.
 on_exit() {
     local rc=$?
-    [[ $BASHPID == "$$" ]] || return 0
+    # BASHPID is bash 4+; mbp runs Apple's bash 3.2, where `set -u` makes a
+    # bare reference fatal — and fatal in the EXIT trap, which is the last
+    # place an error can still be reported. The default keeps it a guard
+    # rather than a landmine. It is belt-and-braces either way: bash does
+    # not run an EXIT trap inside a command substitution (verified on 3.2
+    # and 5.x), so the trap already cannot misfire where -E used to.
+    [[ ${BASHPID:-$$} == "$$" ]] || return 0
     ((LOCK_HELD)) && rm -rf "$LOCK_DIR"
     ((rc == 0)) && return 0
     ((OUTCOME_RECORDED)) && return 0
