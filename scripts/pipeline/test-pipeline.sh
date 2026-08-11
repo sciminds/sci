@@ -189,6 +189,31 @@ ok 'one over the cap is not' \
 ok 'a cap raised past the real cost authorises the real run' \
     "$(pl_oa_decision 3 4211 5000)" 'run'
 
+printf '\nGROBID readiness\n'
+# The bodies are what /api/isalive actually answers; the Jetty 404 page is
+# captured from the running service, because "something answered on the
+# port" is the case a status-only check gets wrong.
+gready() {
+    local out rc=0
+    out=$(pl_grobid_ready "$1" "$(cat "$2")") || rc=$?
+    printf '%s rc=%s\n' "$out" "$rc"
+}
+
+ok '200 with true is ready' \
+    "$(gready 200 "$TD/grobid-isalive-ready.txt")" 'ready rc=0'
+ok 'no connection at all is unreachable, which is normal during warm-up' \
+    "$(gready 000 "$TD/grobid-isalive-empty.txt")" 'unreachable rc=2'
+ok '200 with false is not ready — the body is checked, not just the status' \
+    "$(gready 200 "$TD/grobid-isalive-false.txt")" 'not-ready rc=1'
+ok "Jetty answering 404 before the app is mapped is not ready" \
+    "$(gready 404 "$TD/grobid-isalive-jetty404.html")" 'not-ready rc=1'
+ok 'a 200 from something that is not GROBID is not ready' \
+    "$(gready 200 "$TD/grobid-isalive-jetty404.html")" 'not-ready rc=1'
+ok 'a 503 while models load is not ready' \
+    "$(gready 503 "$TD/grobid-isalive-empty.txt")" 'not-ready rc=1'
+ok 'trailing whitespace does not make a ready service look broken' \
+    "$(pl_grobid_ready 200 '  true  ')" 'ready'
+
 printf '\nDebounce\n'
 now=1000000
 ok 'a burst still moving does not fire' \

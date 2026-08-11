@@ -294,6 +294,44 @@ pl_oa_decision() {
 }
 
 # ---------------------------------------------------------------------------
+# GROBID readiness
+# ---------------------------------------------------------------------------
+#
+# `/api/isalive` answers `true` with a 200 once the service has finished
+# loading its models. Everything else is a stage on the way there, and the
+# difference between them is worth keeping because it is the difference
+# between "wait" and "something is wrong":
+#
+#   unreachable  nothing is listening yet — curl could not connect (000).
+#                Normal for the first several seconds of a JVM start.
+#   not-ready    something answered, but not with the service being alive:
+#                Jetty up before the app is mapped (404), the app mapped
+#                but still loading (503), or a literal `false`.
+#   ready        200 and `true`.
+#
+# The body is checked, not just the status. A reverse proxy, a captive
+# portal, or a stale process bound to the port can all answer 200 with
+# something that is not GROBID, and posting 5,000 PDFs to it would produce
+# 5,000 failures that look like extraction failures.
+pl_grobid_ready() {
+    local code=$1 body=$2
+    # Trim whitespace; the endpoint answers with a bare token plus newline.
+    body=${body#"${body%%[![:space:]]*}"}
+    body=${body%"${body##*[![:space:]]}"}
+
+    if [[ $code == 000 || -z $code ]]; then
+        printf 'unreachable\n'
+        return 2
+    fi
+    if [[ $code == 200 && $body == true ]]; then
+        printf 'ready\n'
+        return 0
+    fi
+    printf 'not-ready\n'
+    return 1
+}
+
+# ---------------------------------------------------------------------------
 # Debounce
 # ---------------------------------------------------------------------------
 #

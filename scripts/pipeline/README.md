@@ -67,6 +67,29 @@ Asking sci to price it, rather than deriving the answer here, is what makes it r
 
 Over cap, or unpriceable, defers exactly as before, consumes nothing, and notifies every tenth deferral. `pl_oa_estimate` still prices the FULL sync for the log line: a delta sidecar's own `stats` describes the delta, so sci carries the last full sync's accounting forward as `full_sync_stats` and the estimator prefers it; a delta with no carried measurement prices as `unknown`.
 
+## The GROBID service
+
+The slow cadence owns the service for the length of the arm: it starts it, waits for it, and stops it. Two rules make owning it safe.
+
+**It stops only what it started.** A service already answering on the port belongs to whoever started it — very likely a human mid-session — so it is used as found and left running. `GROBID_PGID` is set only by `grobid_start`, and `grobid_stop` is a no-op without it. There is no path on which this script kills a service it did not spawn.
+
+**It kills a process group, not a name.** `pkill -f gradle` would reach an unrelated build; killing the `gradlew` pid alone could leave a forked JVM holding port 8070 forever. The service is spawned under `set -m`, which puts it in its own process group whose id is the child's pid (verified on bash 3.2 and 5.x), and stopped with `kill -TERM -PGID`, escalating to `KILL` after `GROBID_STOP_TIMEOUT`.
+
+**`--no-daemon` is what makes that true.** A daemonized Gradle run forks the build into a daemon that *outlives* the launcher, so the application JVM would not be in the group we spawned and killing that group would leave it running. Under `--no-daemon` the whole thing is one process in our group — confirmed on mbp, where the group at readiness holds exactly the launcher and the port is free two seconds after `TERM`. Paying the warm-up once a night is the price of a service that can actually be stopped.
+
+Readiness checks the **body**, not just the status: a reverse proxy, a captive portal, or a stale process on the port can all answer `200`, and posting 5,000 PDFs to one of them would produce 5,000 failures that look like extraction failures. `/api/isalive` must answer `200` with `true`. Polling gives up early if the process we spawned exits, so a broken checkout fails in seconds rather than holding the nightly for the whole `GROBID_READY_TIMEOUT` (default 420 s, which is also the hard cap).
+
+Every failure here is **fail-closed, never fail-blocking**: a service that will not start or will not become ready skips the arm with the reason recorded and notified, docling and the whole fast path continue untouched, and the stop step does nothing because nothing was started. `is_primary` exists precisely because the corpus is read by both engines.
+
+Teardown is registered in `on_exit`, not at the end of the arm, so no orphan JVM survives a failed stage, an errexit, or a SIGTERM from launchd.
+
+```sh
+zot-pipeline grobid-cycle                      # start → wait → stop, no extraction
+GROBID_CYCLE_DWELL=40 zot-pipeline grobid-cycle  # hold it up to poke at it
+```
+
+`grobid-cycle` takes the same lock the cadences take, because it binds the port the nightly arm needs. It refuses to touch a service it finds already running.
+
 ## Building
 
 `zot build` is given `--db "$ZOT_ARTIFACTS/zot.duckdb"` explicitly, never left to zot's default. Staging and the snapshot it produces are one artifact set, and a run that redirects only one of them reads sandbox inputs and writes the production output. That is not hypothetical: a test pointing `ZOT_STAGING` at a scratch directory rebuilt this machine's real 2.1 GB snapshot from a staging dir holding nothing but `zotero-items.ndjson`, turning it into a 42 MB item plane with no text, no works and no citations. The atomic rename did exactly its job — the previous snapshot was replaced completely and successfully. Staging is the durable state, so `zot build --staging ~/.local/share/zot/staging --db ~/.local/share/zot/zot.duckdb` restored it in 76 s to identical row counts.
@@ -136,6 +159,6 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.sciminds.zot-pipelin
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.sciminds.zot-pipeline.slow.plist
 ```
 
-The GROBID arm additionally needs its service up; the runner skips it and says so when it is not, which is why the slow cadence can be loaded before anyone decides how that JVM should be supervised.
+The GROBID arm starts and stops its own service (see above), so the slow cadence needs nothing running beforehand — but `zot-pipeline grobid-cycle` is the cheap way to confirm the lifecycle works on a host before trusting it at 03:30.
 
 The runner is invoked from its synced path (`/Users/esh/syncthing/air-mbp/sci/scripts/pipeline/zot-pipeline`), so editing it on air deploys it to mbp — and the `zot` binary reaches mbp the same way, which is why nothing had to be installed there. The flip side of both: save whole, and expect syncthing latency between building on air and mbp seeing the new binary.

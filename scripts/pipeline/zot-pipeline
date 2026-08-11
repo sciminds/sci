@@ -27,6 +27,11 @@
 #                            then the fast cadence's tail
 #   zot-pipeline preflight   check every prerequisite; nonzero if any is missing
 #   zot-pipeline status      print the last run's outcome
+#   zot-pipeline grobid-cycle
+#                            maintenance: start the GROBID service, wait for
+#                            it to answer, stop it. Runs no extraction and
+#                            writes nothing but a log — the supervised way to
+#                            check the service lifecycle on a host.
 #
 # Flags (before or after the verb)
 #   --dry-run        print every command that would run; run none of them
@@ -83,8 +88,19 @@ CONFIG_FILE=${ZOT_PIPELINE_CONFIG:-$HOME/.config/zot-pipeline/config.env}
 : "${TEI_DIR:=$HOME/syncthing/air-mbp/zen-data/sources/grobid-tei}"
 : "${EXTRACT_DIR:=$HOME/syncthing/air-mbp/neurotree-scrape/docling-extracts}"
 : "${GROBID_PILOT:=$HOME/syncthing/air-mbp/grobid/pilot}"
+: "${GROBID_HOME:=$HOME/syncthing/air-mbp/grobid}"
 : "${GROBID_URL:=http://localhost:8070}"
 : "${GROBID_WORKERS:=16}"
+: "${GROBID_JAVA_HOME:=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home}"
+# Generous, and also the hard cap: a checkout that cannot build must not
+# hold the nightly open indefinitely. Readiness also gives up early if the
+# process we spawned exits, so a broken build fails in seconds, not minutes.
+: "${GROBID_READY_TIMEOUT:=420}"
+: "${GROBID_STOP_TIMEOUT:=60}"
+# grobid-cycle only: hold the service up this long after it answers, so a
+# human (or a fixture capture) can reach it before it is torn down. Zero by
+# default — the verb's job is the lifecycle, not a session.
+: "${GROBID_CYCLE_DWELL:=0}"
 : "${PDF_SOURCE:=missing-pdf}"   # collection or saved search `doctor pdfs` scans
 : "${PDF_LIBRARY:=personal}"     # doctor pdfs is a single-library verb
 
@@ -114,10 +130,10 @@ while (($#)); do
     --no-extract) DO_EXTRACT=0 ;;
     --verbose | -v) VERBOSE=1 ;;
     -h | --help)
-        sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+        sed -n '2,48p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
         exit 0
         ;;
-    poll | fast | slow | preflight | status) VERB=$1 ;;
+    poll | fast | slow | preflight | status | grobid-cycle) VERB=$1 ;;
     *)
         printf 'zot-pipeline: unknown argument %q\n' "$1" >&2
         exit 64
@@ -684,18 +700,183 @@ stage_extract_docling() {
 }
 
 # The GROBID arm is a second DRIVER, not a second flag — it posts PDFs to a
-# local JVM service. That service is not something an unattended runner may
-# start on a host it is not allowed to reconfigure, so a service that is
-# down SKIPS the arm and says how to start it. The docling arm and the
-# whole fast path are unaffected; `is_primary` exists precisely because the
-# corpus is read by both engines.
-stage_extract_grobid() {
-    if ! curl -fsS -m 5 "$GROBID_URL/api/isalive" >/dev/null 2>&1; then
-        log "grobid: service at $GROBID_URL is down — skipping this arm"
-        log "grobid: start it with  JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradlew run"
-        state_set '.grobid = {status:"skipped", reason:"service_down", at:(now|todate)}'
-        notify "zot pipeline: GROBID skipped" "service at $GROBID_URL is not running"
+# local JVM service, and the runner now owns that service's lifecycle for
+# the length of the arm.
+#
+# Two rules make owning it safe.
+#
+# It stops only what it started. A service already answering on the port
+# belongs to whoever started it — very likely a human mid-session — and is
+# used as found and left running. GROBID_PGID is set only by grobid_start,
+# and grobid_stop is a no-op without it, so there is no path on which this
+# script kills a service it did not spawn.
+#
+# It kills a PROCESS GROUP, not a name. `pkill -f gradle` would reach an
+# unrelated build on a developer's machine, and killing the gradlew PID
+# alone would leave the forked application JVM holding port 8070 forever.
+# The service is spawned under `set -m`, which puts it in its own process
+# group whose id is the child's pid (verified on bash 3.2 and 5.x), and
+# stopped with `kill -TERM -PGID`.
+#
+# --no-daemon is what makes any of that true. A daemonized Gradle run
+# forks the build into a daemon that OUTLIVES the launcher, so the
+# application JVM would not be in the group we spawned and killing that
+# group would leave it running. Paying the daemon's warm-up once a night
+# is the price of a service that can actually be stopped.
+#
+# Everything here is fail-closed and never fail-blocking: a service that
+# will not start or will not become ready skips the arm with the reason
+# recorded, docling and the whole fast path are untouched, and `is_primary`
+# exists precisely because the corpus is read by both engines.
+
+GROBID_PGID=""
+
+# grobid_probe prints "<http-code> <body>" for one /api/isalive request.
+grobid_probe() {
+    local out
+    out=$(curl -s -m 5 -w '|%{http_code}' "$GROBID_URL/api/isalive" 2>/dev/null) || out='|000'
+    printf '%s %s\n' "${out##*|}" "${out%|*}"
+}
+
+# grobid_up is true when the service is ready right now.
+grobid_up() {
+    local probe
+    probe=$(grobid_probe)
+    pl_grobid_ready "${probe%% *}" "${probe#* }" >/dev/null
+}
+
+grobid_start() {
+    if [[ ! -x "$GROBID_HOME/gradlew" ]]; then
+        log "grobid: no gradlew at $GROBID_HOME — cannot start the service"
+        return 1
+    fi
+    if [[ ! -d "$GROBID_JAVA_HOME" ]]; then
+        log "grobid: no JDK at $GROBID_JAVA_HOME — cannot start the service"
+        return 1
+    fi
+    ((DRY_RUN)) && {
+        printf '    would run: (cd %s && JAVA_HOME=%s ./gradlew --no-daemon run) &\n' \
+            "$GROBID_HOME" "$GROBID_JAVA_HOME"
         return 0
+    }
+
+    mkdir -p "$LOG_DIR"
+    local svc_log="$LOG_DIR/grobid-service.log"
+    log "grobid: starting the service (log: $svc_log)"
+    # set -m gives the subshell its own process group, which is the whole
+    # point; exec keeps that group's id equal to the pid we record.
+    set -m
+    (
+        cd "$GROBID_HOME" || exit 1
+        JAVA_HOME="$GROBID_JAVA_HOME" exec ./gradlew --no-daemon run
+    ) >"$svc_log" 2>&1 &
+    GROBID_PGID=$!
+    set +m
+    log "grobid: spawned process group $GROBID_PGID"
+    return 0
+}
+
+# grobid_wait_ready polls until the service answers, the process we
+# spawned dies, or the deadline passes.
+#   0 ready · 1 timed out · 2 the process exited without ever answering
+grobid_wait_ready() {
+    ((DRY_RUN)) && return 0
+    local deadline=$((SECONDS + GROBID_READY_TIMEOUT)) probe verdict waited=0
+    while ((SECONDS < deadline)); do
+        probe=$(grobid_probe)
+        verdict=$(pl_grobid_ready "${probe%% *}" "${probe#* }" || true)
+        if [[ $verdict == ready ]]; then
+            log "grobid: ready after ${waited}s"
+            return 0
+        fi
+        # A dead process will never become ready, so a broken checkout
+        # fails in seconds instead of holding the nightly for the whole
+        # timeout.
+        if [[ -n $GROBID_PGID ]] && ! kill -0 "$GROBID_PGID" 2>/dev/null; then
+            log "grobid: the process exited while still $verdict"
+            return 2
+        fi
+        ((waited % 30 == 0)) && log "grobid: $verdict after ${waited}s, waiting (cap ${GROBID_READY_TIMEOUT}s)"
+        sleep 5
+        waited=$((waited + 5))
+    done
+    log "grobid: still not ready after ${GROBID_READY_TIMEOUT}s"
+    return 1
+}
+
+# grobid_group_ps lists every process sharing the group we spawned. The
+# claim the stop strategy rests on is that the application JVM Gradle forks
+# is in that group; this is what makes that checkable rather than assumed.
+grobid_group_ps() {
+    [[ -n ${GROBID_PGID:-} ]] || return 0
+    ps -A -o pid,pgid,rss,command 2>/dev/null |
+        awk -v g="$GROBID_PGID" "NR==1 || \$2==g" || true
+}
+
+# grobid_stop tears down ONLY a service this run started. Idempotent, and
+# called from on_exit so no exit path can leave an orphan JVM.
+grobid_stop() {
+    [[ -n ${GROBID_PGID:-} ]] || return 0
+    local pgid=$GROBID_PGID
+    GROBID_PGID=""
+    ((DRY_RUN)) && {
+        printf '    would run: kill -TERM -%s\n' "$pgid"
+        return 0
+    }
+
+    log "grobid: stopping the service we started (process group $pgid)"
+    kill -TERM "-$pgid" 2>/dev/null || true
+    local deadline=$((SECONDS + GROBID_STOP_TIMEOUT))
+    while ((SECONDS < deadline)); do
+        if ! kill -0 "-$pgid" 2>/dev/null; then
+            log "grobid: stopped, process group $pgid is gone"
+            return 0
+        fi
+        sleep 1
+    done
+    log "grobid: process group $pgid ignored TERM for ${GROBID_STOP_TIMEOUT}s — sending KILL"
+    kill -KILL "-$pgid" 2>/dev/null || true
+    sleep 2
+    if kill -0 "-$pgid" 2>/dev/null; then
+        log "grobid: process group $pgid SURVIVED KILL — a JVM may be holding the port"
+        notify "zot pipeline: GROBID would not die" "process group $pgid survived SIGKILL"
+        return 1
+    fi
+    log "grobid: stopped by KILL"
+}
+
+# grobid_skip records the arm being skipped, in the one shape every reason
+# shares. The pipeline continues: docling is the other engine, not a
+# fallback for this one.
+grobid_skip() {
+    local reason=$1 detail=$2
+    log "grobid: SKIPPING this arm — $reason ($detail)"
+    state_set --arg r "$reason" --arg d "$detail" \
+        '.grobid = {status:"skipped", reason:$r, detail:$d, at:(now|todate)}'
+    notify "zot pipeline: GROBID arm skipped" "$reason — $detail"
+    return 0
+}
+
+stage_extract_grobid() {
+    local ours=0
+    if grobid_up; then
+        log "grobid: a service is already answering at $GROBID_URL — using it, and leaving it running"
+    else
+        if ! grobid_start; then
+            grobid_skip start_failed "no runnable service at $GROBID_HOME"
+            return 0
+        fi
+        ours=1
+        local rc=0
+        grobid_wait_ready || rc=$?
+        if ((rc != 0)); then
+            grobid_stop
+            case $rc in
+            2) grobid_skip start_failed "the service exited during startup; see $LOG_DIR/grobid-service.log" ;;
+            *) grobid_skip not_ready "no answer within ${GROBID_READY_TIMEOUT}s; see $LOG_DIR/grobid-service.log" ;;
+            esac
+            return 0
+        fi
     fi
 
     # The worklist is <parent key>\t<pdf path>, regenerated from the dump
@@ -720,6 +901,9 @@ stage_extract_grobid() {
     run "$GROBID_PILOT/extract.py" --worklist "$worklist" --outdir "$TEI_DIR" \
         --url "$GROBID_URL" --workers "$GROBID_WORKERS" ||
         log "grobid: extract.py returned nonzero — per-document failures are recorded in progress.jsonl"
+
+    ((ours)) && state_set '.grobid = {status:"ran", service:"started-and-stopped", at:(now|todate)}'
+    grobid_stop
 }
 
 stage_parse() {
@@ -881,8 +1065,14 @@ preflight() {
     check tei-dir "$([[ -d $TEI_DIR ]] && echo yes || echo no)" "$TEI_DIR"
     check extract-dir "$([[ -d $EXTRACT_DIR ]] && echo yes || echo no)" "$EXTRACT_DIR"
     check grobid-driver "$([[ -r "$GROBID_PILOT/extract.py" ]] && echo yes || echo no)" "$GROBID_PILOT/extract.py"
+    # The service being down is not a miss — the slow cadence starts it.
+    # What WOULD be a miss is being unable to.
+    check grobid-gradlew "$([[ -x "$GROBID_HOME/gradlew" ]] && echo yes || echo no)" "$GROBID_HOME/gradlew"
+    check grobid-jdk "$([[ -d $GROBID_JAVA_HOME ]] && echo yes || echo no)" "$GROBID_JAVA_HOME"
+    local gprobe
+    gprobe=$(grobid_probe)
     printf '  note  %-22s %s\n' "grobid service" \
-        "$(curl -fsS -m 5 "$GROBID_URL/api/isalive" >/dev/null 2>&1 && echo "up at $GROBID_URL" || echo "down at $GROBID_URL (the arm skips, the pipeline does not)")"
+        "$(pl_grobid_ready "${gprobe%% *}" "${gprobe#* }" || true) at $GROBID_URL (the slow cadence starts and stops it)"
 
     local counters
     if counters=$(remote_versions); then
@@ -900,6 +1090,62 @@ preflight() {
 
     printf '\n%s\n' "$([[ $misses == 0 ]] && echo 'preflight: all prerequisites present' || echo "preflight: $misses missing prerequisite(s)")"
     return $((misses > 0))
+}
+
+# cadence_grobid_cycle — the service lifecycle, alone.
+#
+# Exercising start/ready/stop through the slow cadence would mean running a
+# real extraction, so this is the narrow verb that does the lifecycle and
+# nothing else: no worklist, no PDFs, no staging writes. It takes the same
+# lock the cadences take, because it starts a JVM that binds the port the
+# nightly arm needs.
+cadence_grobid_cycle() {
+    log "grobid-cycle: probing $GROBID_URL"
+    local probe verdict
+    probe=$(grobid_probe)
+    verdict=$(pl_grobid_ready "${probe%% *}" "${probe#* }" || true)
+    log "grobid-cycle: initial probe → $verdict (http ${probe%% *})"
+
+    if [[ $verdict == ready ]]; then
+        log "grobid-cycle: a service is ALREADY running and is not ours — leaving it alone"
+        log "grobid-cycle: nothing to test; stop it by hand first if you want the full cycle"
+        return 0
+    fi
+
+    if ! grobid_start; then
+        log "grobid-cycle: start FAILED"
+        return 1
+    fi
+    log "grobid-cycle: waiting for readiness (cap ${GROBID_READY_TIMEOUT}s)"
+
+    local rc=0
+    grobid_wait_ready || rc=$?
+    if ((rc == 0)); then
+        probe=$(grobid_probe)
+        log "grobid-cycle: READY — isalive answered http ${probe%% *} body '${probe#* }'"
+        log "grobid-cycle: every process in group $GROBID_PGID —"
+        # Selected by matching the PGID column, not `ps -g`: on macOS that
+        # flag does not filter by process group and silently lists a single
+        # process, which would hide the forked application JVM this whole
+        # design depends on being in the group.
+        grobid_group_ps | sed "s/^/    /"
+    else
+        log "grobid-cycle: never became ready (rc=$rc)"
+    fi
+
+    if ((rc == 0)) && ((GROBID_CYCLE_DWELL > 0)); then
+        log "grobid-cycle: holding the service up for ${GROBID_CYCLE_DWELL}s"
+        sleep "$GROBID_CYCLE_DWELL"
+    fi
+
+    local pgid=$GROBID_PGID
+    grobid_stop
+    if [[ -n $pgid ]] && kill -0 "-$pgid" 2>/dev/null; then
+        log "grobid-cycle: FAILED — process group $pgid is still alive"
+        return 1
+    fi
+    log "grobid-cycle: process group ${pgid:-none} is gone; no orphan left behind"
+    return $rc
 }
 
 show_status() {
@@ -967,6 +1213,11 @@ on_exit() {
     # not run an EXIT trap inside a command substitution (verified on 3.2
     # and 5.x), so the trap already cannot misfire where -E used to.
     [[ ${BASHPID:-$$} == "$$" ]] || return 0
+    # Before anything else: a service this run spawned must not outlive it.
+    # Putting the teardown here rather than at the end of the arm is what
+    # makes "no orphan JVM" true on the paths that do not reach the end of
+    # the arm — a failed stage, an errexit, a SIGTERM from launchd.
+    grobid_stop || true
     ((LOCK_HELD)) && rm -rf "$LOCK_DIR"
     ((rc == 0)) && return 0
     ((OUTCOME_RECORDED)) && return 0
@@ -987,5 +1238,9 @@ fast)
 slow)
     acquire_lock
     cadence_slow
+    ;;
+grobid-cycle)
+    acquire_lock
+    cadence_grobid_cycle
     ;;
 esac
