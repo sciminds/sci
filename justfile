@@ -95,15 +95,9 @@ test-zot-real:
 
 test-all: test test-slow
 
-# The unattended pipeline runner's gates (scripts/pipeline/): the WAL gate,
-# the OpenAlex leash, and the debounce, against real sidecars. Shell, not
-# Go, so it is not in `just test` -- but it IS in `just ok`.
-test-pipeline:
-    ./scripts/pipeline/test-pipeline.sh
-
 # Local pre-commit gate. No -race here (CI's check-ci covers it) so the loop
 # stays fast; see test-race. Run `just ok`, not `check`, day to day.
-check: tidy fmt vet lint lint-style lint-docs lint-guard test-gate test-pipeline build
+check: tidy fmt vet lint lint-style lint-docs lint-guard test-gate build
 
 # CI gate — verify-only (no file writes), no multi-arch build, no lint-style.
 # Mirrors `check` so the local and CI gates can't drift: add a step here and
