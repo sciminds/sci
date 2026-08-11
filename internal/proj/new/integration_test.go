@@ -314,6 +314,71 @@ func TestIntegrationWritingComposed(t *testing.T) {
 	})
 }
 
+// --- typst (no python env, no MyST — pure Typst → PDF) ---
+
+func TestIntegrationTypst(t *testing.T) {
+	skipUnlessSlow(t)
+	requireTool(t, "typst")
+
+	dir := t.TempDir()
+	result, err := Create(CreateOptions{
+		Name:        "test-typst",
+		Dir:         dir,
+		Kind:        "typst",
+		AuthorName:  "Test Author",
+		AuthorEmail: "test@example.com",
+		Description: "Integration test typst manuscript",
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if len(result.Files) == 0 {
+		t.Fatal("no files created")
+	}
+
+	t.Run("scaffold has no pyproject.toml or myst.yml", func(t *testing.T) {
+		for _, noWant := range []string{"pyproject.toml", "myst.yml"} {
+			if _, err := os.Stat(filepath.Join(result.ProjectDir, noWant)); err == nil {
+				t.Errorf("typst project should not have %s", noWant)
+			}
+		}
+	})
+
+	t.Run("typst compiles single-file layout to PDF", func(t *testing.T) {
+		runIn(t, result.ProjectDir, "typst", "compile", "--root", ".", "main.typ")
+		assertFileExists(t, filepath.Join(result.ProjectDir, "main.pdf"))
+	})
+}
+
+func TestIntegrationTypstComposed(t *testing.T) {
+	skipUnlessSlow(t)
+	requireTool(t, "typst")
+
+	dir := t.TempDir()
+	result, err := Create(CreateOptions{
+		Name:        "test-typst-composed",
+		Dir:         dir,
+		Kind:        "typst",
+		MdLayout:    "composed",
+		AuthorName:  "Test Author",
+		AuthorEmail: "test@example.com",
+		Description: "Integration test composed typst manuscript",
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	t.Run("composed layout ships content/ and figures", func(t *testing.T) {
+		assertFileExists(t, filepath.Join(result.ProjectDir, "content", "01-intro.md"))
+		assertFileExists(t, filepath.Join(result.ProjectDir, "figures", "placeholder.svg"))
+	})
+
+	t.Run("typst compiles composed layout to PDF", func(t *testing.T) {
+		runIn(t, result.ProjectDir, "typst", "compile", "--root", ".", "main.typ")
+		assertFileExists(t, filepath.Join(result.ProjectDir, "main.pdf"))
+	})
+}
+
 // --- pixi × none and uv × none (install-only) ---
 
 func TestIntegrationPixiNone(t *testing.T) {

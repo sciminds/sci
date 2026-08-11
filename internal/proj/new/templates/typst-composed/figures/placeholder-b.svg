@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300" viewBox="0 0 480 300">
+  <rect width="480" height="300" fill="#fafafa" stroke="#ccc"/>
+  <line x1="50" y1="250" x2="440" y2="250" stroke="#333" stroke-width="1.5"/>
+  <line x1="50" y1="250" x2="50" y2="30" stroke="#333" stroke-width="1.5"/>
+  <polyline points="50,230 115,205 180,190 245,150 310,120 375,95 440,60"
+            fill="none" stroke="#1f4ea8" stroke-width="2.5"/>
+  <polyline points="50,240 115,232 180,220 245,215 310,200 375,196 440,185"
+            fill="none" stroke="#c65b1e" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <text x="245" y="285" font-family="Helvetica" font-size="14" text-anchor="middle" fill="#333">Trials</text>
+  <text x="20" y="140" font-family="Helvetica" font-size="14" text-anchor="middle" fill="#333" transform="rotate(-90 20 140)">Accuracy</text>
+</svg>

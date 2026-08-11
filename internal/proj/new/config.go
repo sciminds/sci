@@ -4,7 +4,9 @@ package new
 // projects. [PlanConfig] computes diffs without writing; [Sync] applies them.
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,14 +72,17 @@ type ConfigFile struct {
 }
 
 // PlanConfig detects the project and computes what each managed file would
-// look like without writing anything. Returns the list of applicable files.
+// look like without writing anything. Returns the list of applicable files —
+// a managed file that no overlay of the detected kind ships is skipped, so
+// kinds without editor configs (writing) simply manage nothing.
 func PlanConfig(dir string) ([]ConfigFile, error) {
 	p := proj.Detect(dir)
 	if p == nil {
-		return nil, fmt.Errorf("no Python project detected in %s", dir)
+		return nil, fmt.Errorf("no project detected in %s", dir)
 	}
 
 	vars := TemplateVars{
+		Kind:       string(p.Kind),
 		PkgManager: string(p.PkgManager),
 		DocSystem:  string(p.DocSystem),
 	}
@@ -86,6 +91,9 @@ func PlanConfig(dir string) ([]ConfigFile, error) {
 	for _, tmplName := range ManagedFiles {
 		outName := strings.TrimSuffix(tmplName, ".tmpl")
 		rendered, err := RenderFile(tmplName, vars)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
 		if err != nil {
 			return nil, fmt.Errorf("rendering %s: %w", tmplName, err)
 		}

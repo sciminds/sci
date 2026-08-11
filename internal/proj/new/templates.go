@@ -26,11 +26,11 @@ var templateFS embed.FS
 // TemplateVars holds the variables available to all project templates.
 type TemplateVars struct {
 	ProjectName string
-	Kind        string // "python" (default) or "writing"
+	Kind        string // "python" (default), "writing", or "typst"
 	PkgManager  string // "pixi" or "uv" (Python projects only)
 	DocSystem   string // "quarto", "myst", or "none" (Python projects only)
 	MdLayout    string // "single-file" (default) or "composed" — manuscript layout
-	Template    string // "lab" (default), "default", or any MyST template name
+	Template    string // "lab" (default), "default", or any MyST template name (not used by typst)
 	AuthorName  string
 	AuthorEmail string
 	Description string
@@ -58,6 +58,7 @@ func applyDefaults(vars *TemplateVars) {
 //   - writing       → _paper, _paper-{single|composed}, [_paper-template-lab], writing
 //   - python+myst   → _paper, _paper-{single|composed}, [_paper-template-lab], python
 //   - python+other  → python only
+//   - typst         → typst, typst-{single|composed} (shares nothing with the MyST paths)
 func renderRoots(vars TemplateVars) []string {
 	switch vars.Kind {
 	case "writing":
@@ -67,6 +68,11 @@ func renderRoots(vars TemplateVars) []string {
 			return paperRoots(vars, "templates/python")
 		}
 		return []string{"templates/python"}
+	case "typst":
+		if vars.MdLayout == "composed" {
+			return []string{"templates/typst", "templates/typst-composed"}
+		}
+		return []string{"templates/typst", "templates/typst-single"}
 	}
 	return nil
 }

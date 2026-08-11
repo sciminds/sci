@@ -1,0 +1,6 @@
+# Compiled output (commit final versions explicitly with `git add -f` if needed)
+*.pdf
+
+# OS
+.DS_Store
+Thumbs.db

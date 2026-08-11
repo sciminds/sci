@@ -66,7 +66,7 @@ commands:
       - id: project-name
         type: uikit.FormInput
         nth: 1
-        line: 63
+        line: 69
         description: "Project name"
         bypass: "positional arg [name]"
         status: covered
@@ -74,15 +74,15 @@ commands:
       - id: kind
         type: uikit.FormSelect
         nth: 1
-        line: 67
-        description: "Project kind (python/writing)"
+        line: 73
+        description: "Project kind (python/writing/typst)"
         bypass: "--kind"
         status: covered
 
       - id: pkg-manager
         type: uikit.FormSelect
         nth: 2
-        line: 75
+        line: 82
         description: "Package manager (pixi/uv)"
         bypass: "--pkg-manager"
         status: covered
@@ -90,7 +90,7 @@ commands:
       - id: doc-system
         type: uikit.FormSelect
         nth: 3
-        line: 80
+        line: 87
         description: "Authoring system (quarto/myst/none)"
         bypass: "--doc-system"
         status: covered
@@ -98,7 +98,7 @@ commands:
       - id: md-layout
         type: uikit.FormSelect
         nth: 4
-        line: 89
+        line: 96
         description: "Manuscript layout (single-file/composed)"
         bypass: "--md-layout"
         status: covered
@@ -106,15 +106,23 @@ commands:
       - id: template
         type: uikit.FormSelect
         nth: 5
-        line: 95
+        line: 102
         description: "Typst template (lab/default/custom)"
         bypass: "--template"
+        status: covered
+
+      - id: typst-layout
+        type: uikit.FormSelect
+        nth: 6
+        line: 111
+        description: "Typst manuscript layout (single-file/composed)"
+        bypass: "--md-layout"
         status: covered
 
       - id: template-name
         type: uikit.FormInput
         nth: 2
-        line: 104
+        line: 119
         description: "Custom Typst template name"
         bypass: "--template <name>"
         status: covered
@@ -122,7 +130,7 @@ commands:
       - id: author-name
         type: uikit.FormInput
         nth: 3
-        line: 112
+        line: 127
         description: "Author name"
         bypass: "--author"
         status: covered
@@ -130,7 +138,7 @@ commands:
       - id: author-email
         type: uikit.FormInput
         nth: 4
-        line: 114
+        line: 129
         description: "Author email"
         bypass: "--email"
         status: covered
@@ -138,7 +146,7 @@ commands:
       - id: description
         type: uikit.FormInput
         nth: 5
-        line: 116
+        line: 131
         description: "Project description"
         bypass: "--description"
         status: covered

@@ -1,0 +1,13 @@
+{
+  "[typst]": {
+    "editor.wordWrap": "on"
+  },
+  "[markdown]": {
+    "editor.wordWrap": "on"
+  },
+  "tinymist.formatterMode": "typstyle",
+  "editor.minimap.enabled": false,
+  "files.exclude": {
+    "**/.DS_Store": true
+  }
+}

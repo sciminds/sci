@@ -580,6 +580,151 @@ func TestWritingMystYmlNoNotebookSettings(t *testing.T) {
 	}
 }
 
+// Pure-Typst project, single-file layout (default): one main.md, no MyST,
+// no Python, no README (typst.yml's comments are the docs).
+func TestRenderAllTypst(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "typst"
+
+	dest := t.TempDir()
+	created, err := RenderAll(vars, dest)
+	if err != nil {
+		t.Fatalf("RenderAll failed: %v", err)
+	}
+
+	createdSet := make(map[string]bool)
+	for _, f := range created {
+		createdSet[f] = true
+	}
+
+	wantFiles := []string{
+		"main.typ",
+		"typst.yml",
+		"main.md",
+		"refs.bib",
+		".gitignore",
+		"figures/.gitkeep",
+		".vscode/extensions.json",
+		".vscode/settings.json",
+		".zed/settings.json",
+		".zed/tasks.json",
+	}
+	for _, want := range wantFiles {
+		if !createdSet[want] {
+			t.Errorf("expected file %q to be created, got files: %v", want, created)
+		}
+		if _, err := os.Stat(filepath.Join(dest, want)); err != nil {
+			t.Errorf("file %q not found on disk: %v", want, err)
+		}
+	}
+
+	noFiles := []string{
+		"README.md",
+		"myst.yml",
+		"pyproject.toml",
+		"_templates/paper/paper.typ",
+		"content/01-intro.md",
+		"figures/placeholder.svg",
+	}
+	for _, noWant := range noFiles {
+		if createdSet[noWant] {
+			t.Errorf("file %q should NOT be created for typst kind (single-file)", noWant)
+		}
+	}
+}
+
+// Pure-Typst project, composed layout: the full working example — content/
+// files with demo prose plus the placeholder figures they reference.
+func TestRenderAllTypstComposed(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "typst"
+	vars.MdLayout = "composed"
+
+	dest := t.TempDir()
+	created, err := RenderAll(vars, dest)
+	if err != nil {
+		t.Fatalf("RenderAll failed: %v", err)
+	}
+
+	createdSet := make(map[string]bool)
+	for _, f := range created {
+		createdSet[f] = true
+	}
+
+	wantFiles := []string{
+		"main.typ",
+		"typst.yml",
+		"content/01-intro.md",
+		"content/02-methods.md",
+		"content/03-results.md",
+		"figures/placeholder.svg",
+		"figures/placeholder-b.svg",
+		"refs.bib",
+	}
+	for _, want := range wantFiles {
+		if !createdSet[want] {
+			t.Errorf("expected file %q to be created, got files: %v", want, created)
+		}
+	}
+
+	if createdSet["main.md"] {
+		t.Errorf("main.md should NOT be created for composed typst layout")
+	}
+}
+
+// Single-file typst.yml: metadata comes from vars, content lists main.md.
+func TestTypstYmlContent(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "typst"
+
+	content, err := RenderFile("typst.yml.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	for _, want := range []string{
+		`title: "test-project"`,
+		"Test Author",
+		"test@example.com",
+		"- main.md",
+		"bibliography: refs.bib",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("typst.yml missing %q\n--- content ---\n%s", want, content)
+		}
+	}
+	if strings.Contains(content, "content/01-intro.md") {
+		t.Errorf("single-file typst.yml should not reference content/ files\n--- content ---\n%s", content)
+	}
+}
+
+// Composed typst.yml: content lists the content/ files, not main.md.
+func TestTypstYmlComposedContent(t *testing.T) {
+	t.Parallel()
+	vars := baseVars()
+	vars.Kind = "typst"
+	vars.MdLayout = "composed"
+
+	content, err := RenderFile("typst.yml.tmpl", vars)
+	if err != nil {
+		t.Fatalf("RenderFile failed: %v", err)
+	}
+	for _, want := range []string{
+		"- content/01-intro.md",
+		"- content/02-methods.md",
+		"- content/03-results.md",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("composed typst.yml missing %q\n--- content ---\n%s", want, content)
+		}
+	}
+	if strings.Contains(content, "- main.md") {
+		t.Errorf("composed typst.yml should not reference main.md\n--- content ---\n%s", content)
+	}
+}
+
 func TestConditionalFileSkipping(t *testing.T) {
 	t.Parallel()
 	// _quarto.yml should render empty (and be skipped) when docSystem != "quarto"

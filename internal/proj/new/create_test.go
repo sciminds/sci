@@ -96,6 +96,17 @@ func TestDefaultPostStepsWriting(t *testing.T) {
 	}
 }
 
+func TestDefaultPostStepsTypst(t *testing.T) {
+	t.Parallel()
+	steps := DefaultPostSteps("typst", "")
+	if len(steps) != 1 {
+		t.Fatalf("typst kind should produce exactly one post-step (git init), got %d: %+v", len(steps), steps)
+	}
+	if steps[0].Label != "git init" {
+		t.Errorf("expected git init, got %q", steps[0].Label)
+	}
+}
+
 func TestDefaultPostStepsPython(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

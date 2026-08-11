@@ -43,6 +43,8 @@ func TestBuildRenderArgs(t *testing.T) {
 		{"python+quarto with target", Python, Quarto, "code/report.qmd", []string{"quarto", "render", "code/report.qmd"}},
 		{"python+myst → pdf", Python, Myst, "", []string{"npx", "mystmd", "build", "--pdf"}},
 		{"writing+myst → pdf", Writing, Myst, "", []string{"npx", "mystmd", "build", "--pdf"}},
+		{"typst no target", Typst, TypstDoc, "", []string{"typst", "compile", "--root", ".", "main.typ"}},
+		{"typst with target", Typst, TypstDoc, "supplement.typ", []string{"typst", "compile", "--root", ".", "supplement.typ"}},
 		{"python+none returns nil", Python, NoDoc, "", nil},
 	}
 
@@ -66,6 +68,7 @@ func TestBuildPreviewArgs(t *testing.T) {
 		{"python+quarto", Python, Quarto, []string{"quarto", "preview"}},
 		{"python+myst", Python, Myst, []string{"npx", "mystmd", "start"}},
 		{"writing+myst", Writing, Myst, []string{"npx", "mystmd", "start"}},
+		{"typst", Typst, TypstDoc, []string{"tinymist", "preview", "main.typ"}},
 		{"python+none returns nil", Python, NoDoc, nil},
 	}
 

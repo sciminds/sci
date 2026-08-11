@@ -50,7 +50,13 @@ func RunWizard(opts *CreateOptions) error {
 		templateCustom = opts.Template
 	}
 
+	// Typst projects reuse the single-file/composed layout choice, but through
+	// a separate select with typst-appropriate labels — a local var so the two
+	// layout selects never fight over opts.MdLayout.
+	typstLayout := opts.MdLayout
+
 	pythonOnly := func() bool { return opts.Kind != "python" }
+	notTypst := func() bool { return opts.Kind != "typst" }
 	noManuscript := func() bool {
 		if opts.Kind == "writing" {
 			return false
@@ -68,8 +74,9 @@ func RunWizard(opts *CreateOptions) error {
 				[]uikit.Option[string]{
 					uikit.NewOption("Python   (data analysis + writing)", "python"),
 					uikit.NewOption("Writing  (MyST → Typst PDF only)", "writing"),
+					uikit.NewOption("Typst    (pure Typst markdown manuscript)", "typst"),
 				},
-				uikit.WithDescription("Python = data analysis (uv/pixi) with optional MyST/Quarto docs. Writing = pure manuscript (MyST → Typst → PDF).")),
+				uikit.WithDescription("Python = data analysis (uv/pixi) with optional MyST/Quarto docs. Writing = pure manuscript (MyST → Typst → PDF). Typst = markdown manuscript typeset directly by Typst (fastest previews, no MyST/node).")),
 		),
 		uikit.FormGroup(
 			uikit.FormSelect(&opts.PkgManager, "Package manager",
@@ -101,6 +108,14 @@ func RunWizard(opts *CreateOptions) error {
 				uikit.WithDescription("`lab` ships a local, editable copy of the sci-preprint template under _templates/paper/. `default` and any other name use a MyST-hosted template.")),
 		).HideWhen(noManuscript),
 		uikit.FormGroup(
+			uikit.FormSelect(&typstLayout, "Manuscript layout",
+				[]uikit.Option[string]{
+					uikit.NewOption("single-file (one main.md, simplest)", "single-file"),
+					uikit.NewOption("composed    (content/ files with a worked example)", "composed"),
+				},
+				uikit.WithDescription("Single-file = all prose in one main.md. Composed = separate content/ files scaffolded with a full worked example (citations, figures, tables).")),
+		).HideWhen(notTypst),
+		uikit.FormGroup(
 			uikit.FormInput(&templateCustom, "Template name",
 				uikit.WithDescription("Any MyST-resolvable template, e.g. lapreprint-typst, arxiv-two-column."),
 				uikit.WithPlaceholder("lapreprint-typst"),
@@ -130,11 +145,17 @@ func RunWizard(opts *CreateOptions) error {
 		opts.Template = templateChoice
 	}
 
-	// Writing projects don't use these fields — clear so downstream logic
-	// (Create + post-steps) sees the canonical empty state.
+	// Writing/typst projects don't use these fields — clear so downstream
+	// logic (Create + post-steps) sees the canonical empty state.
 	if opts.Kind == "writing" {
 		opts.PkgManager = ""
 		opts.DocSystem = ""
+	}
+	if opts.Kind == "typst" {
+		opts.PkgManager = ""
+		opts.DocSystem = ""
+		opts.Template = ""
+		opts.MdLayout = typstLayout
 	}
 	// Clear manuscript fields for non-manuscript paths so they don't leak
 	// into TemplateVars where they're meaningless.

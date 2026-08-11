@@ -93,6 +93,60 @@ func TestApplyConfigFiles(t *testing.T) {
 	}
 }
 
+// PlanConfig on a typst project resolves the typst overlay's editor configs
+// (plain files, not .tmpl — RenderFile falls back to the un-suffixed name).
+func TestPlanConfigTypst(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "typst.yml"), []byte("title: \"Paper\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := PlanConfig(dir)
+	if err != nil {
+		t.Fatalf("PlanConfig failed: %v", err)
+	}
+
+	got := make(map[string]bool)
+	for _, f := range files {
+		got[f.Path] = true
+	}
+	for _, want := range []string{
+		".vscode/extensions.json",
+		".vscode/settings.json",
+		".zed/settings.json",
+		".zed/tasks.json",
+	} {
+		if !got[want] {
+			t.Errorf("expected managed file %q, got %v", want, files)
+		}
+	}
+	for _, f := range files {
+		if strings.Contains(f.Content, "python") {
+			t.Errorf("typst-managed %s should not carry python config:\n%s", f.Path, f.Content)
+		}
+	}
+}
+
+// PlanConfig on a writing project: none of its overlays ship editor configs,
+// so the managed list is empty — it must not error, and must not fall back to
+// rendering the python configs.
+func TestPlanConfigWriting(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "myst.yml"), []byte("version: 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := PlanConfig(dir)
+	if err != nil {
+		t.Fatalf("PlanConfig failed: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("writing project should have no managed config files, got %v", files)
+	}
+}
+
 func TestManagedFiles_NonEmpty(t *testing.T) {
 	t.Parallel()
 	if len(ManagedFiles) == 0 {

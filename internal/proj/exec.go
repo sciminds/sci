@@ -7,6 +7,7 @@ package proj
 // actually executing anything.
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,8 +26,8 @@ func Add(dir string, pkgs []string) error {
 	if proj == nil {
 		return errNoProject(dir)
 	}
-	if proj.Kind == Writing {
-		return errWritingNoPkgManager
+	if proj.Kind != Python {
+		return errNoPkgManager(proj.Kind)
 	}
 
 	switch proj.PkgManager {
@@ -46,8 +47,8 @@ func Remove(dir string, pkgs []string) error {
 	if proj == nil {
 		return errNoProject(dir)
 	}
-	if proj.Kind == Writing {
-		return errWritingNoPkgManager
+	if proj.Kind != Python {
+		return errNoPkgManager(proj.Kind)
 	}
 
 	switch proj.PkgManager {
@@ -71,8 +72,8 @@ func RunTask(dir, task string, args []string) error {
 	if proj == nil {
 		return errNoProject(dir)
 	}
-	if proj.Kind == Writing {
-		return errWritingNoPkgManager
+	if proj.Kind != Python {
+		return errNoPkgManager(proj.Kind)
 	}
 
 	argv := BuildRunTaskArgs(proj.PkgManager, task, args)
@@ -142,6 +143,7 @@ func BuildRunTaskArgs(pm PkgManager, task string, args []string) []string {
 
 // BuildRenderArgs constructs the argv for a render command. Both Writing+Myst
 // and Python+Myst build the Typst PDF; the HTML site is reachable via Preview.
+// Typst projects compile main.typ directly (target overrides the input file).
 func BuildRenderArgs(_ Kind, ds DocSystem, target string) []string {
 	switch ds {
 	case Quarto:
@@ -152,6 +154,8 @@ func BuildRenderArgs(_ Kind, ds DocSystem, target string) []string {
 		return args
 	case Myst:
 		return []string{"npx", "mystmd", "build", "--pdf"}
+	case TypstDoc:
+		return []string{"typst", "compile", "--root", ".", cmp.Or(target, "main.typ")}
 	default:
 		return nil
 	}
@@ -159,13 +163,16 @@ func BuildRenderArgs(_ Kind, ds DocSystem, target string) []string {
 
 // BuildPreviewArgs constructs the argv for a preview command. Writing and
 // python+myst projects share `mystmd start` (the live preview is HTML either
-// way; PDF output is rebuilt on save inside the preview).
+// way; PDF output is rebuilt on save inside the preview). Typst projects use
+// tinymist's browser preview, which recompiles on save.
 func BuildPreviewArgs(_ Kind, ds DocSystem) []string {
 	switch ds {
 	case Quarto:
 		return []string{"quarto", "preview"}
 	case Myst:
 		return []string{"npx", "mystmd", "start"}
+	case TypstDoc:
+		return []string{"tinymist", "preview", "main.typ"}
 	default:
 		return nil
 	}
@@ -177,13 +184,15 @@ func BuildPreviewArgs(_ Kind, ds DocSystem) []string {
 
 // errNoProject returns a descriptive error when no project is found.
 func errNoProject(dir string) error {
-	return fmt.Errorf("no project detected in %s (expected pixi.toml, pyproject.toml with [tool.pixi] or [tool.poe], uv.lock, or myst.yml)", dir)
+	return fmt.Errorf("no project detected in %s (expected pixi.toml, pyproject.toml with [tool.pixi] or [tool.poe], uv.lock, myst.yml, or typst.yml)", dir)
 }
 
-// errWritingNoPkgManager is returned when package-manager commands run inside
-// a writing-only project. Writing projects have no Python environment to
-// install into.
-var errWritingNoPkgManager = fmt.Errorf("this is a writing project — no package manager to install into. Use `sci proj render` to build the PDF")
+// errNoPkgManager is returned when package-manager commands run inside a
+// manuscript-only project (writing or typst). Those projects have no Python
+// environment to install into.
+func errNoPkgManager(kind Kind) error {
+	return fmt.Errorf("this is a %s project — no package manager to install into. Use `sci proj render` to build the PDF", kind)
+}
 
 // execCmd replaces the current process with the given command via syscall.Exec.
 func execCmd(name string, args []string) error {

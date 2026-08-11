@@ -77,6 +77,20 @@ func TestDetect(t *testing.T) {
 			wantDoc:  Myst,
 		},
 		{
+			name:     "typst.yml only → typst kind",
+			files:    map[string]string{"typst.yml": "title: \"Paper\"\ncontent: [main.md]", "main.typ": "// template"},
+			wantKind: Typst,
+			wantPkg:  "",
+			wantDoc:  TypstDoc,
+		},
+		{
+			name:     "myst.yml takes precedence over typst.yml",
+			files:    map[string]string{"myst.yml": "version: 1", "typst.yml": "title: \"Paper\""},
+			wantKind: Writing,
+			wantPkg:  "",
+			wantDoc:  Myst,
+		},
+		{
 			name:    "_quarto.yml without python markers → nil",
 			files:   map[string]string{"_quarto.yml": "project:\n  type: manuscript"},
 			wantNil: true,

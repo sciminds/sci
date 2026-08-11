@@ -50,11 +50,11 @@ func projCommand() *cli.Command {
 func projNewCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "new",
-		Usage:       "Create a new Python or writing project",
-		Description: "$ sci proj new\n$ sci proj new my-analysis --pkg-manager pixi\n$ sci proj new my-paper --kind writing --md-layout composed",
+		Usage:       "Create a new Python or manuscript project",
+		Description: "$ sci proj new\n$ sci proj new my-analysis --pkg-manager pixi\n$ sci proj new my-paper --kind writing --md-layout composed\n$ sci proj new my-paper --kind typst",
 		ArgsUsage:   "[name]",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "kind", Usage: "project kind (python or writing)", Destination: &projNewKind, Local: true},
+			&cli.StringFlag{Name: "kind", Usage: "project kind (python, writing, or typst)", Destination: &projNewKind, Local: true},
 			&cli.StringFlag{Name: "pkg-manager", Usage: "package manager (pixi or uv)", Destination: &projNewPkgManager, Local: true},
 			&cli.StringFlag{Name: "doc-system", Usage: "doc system (quarto, myst, or none)", Destination: &projNewDocSystem, Local: true},
 			&cli.StringFlag{Name: "md-layout", Usage: "manuscript layout (single-file or composed)", Destination: &projNewMdLayout, Local: true},
@@ -217,6 +217,8 @@ func runProjNew(_ context.Context, cmd *cli.Command) error {
 		switch opts.Kind {
 		case "writing":
 			uikit.NextStep("cd "+opts.Name+" && sci proj render", "Build your manuscript PDF")
+		case "typst":
+			uikit.NextStep("cd "+opts.Name+" && sci proj preview", "Live-preview your manuscript in the browser")
 		default:
 			uikit.NextStep("cd "+opts.Name+" && sci py repl", "Jump into your new project")
 		}

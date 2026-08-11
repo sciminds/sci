@@ -1,8 +1,10 @@
-// Package new scaffolds new Python projects from embedded templates.
+// Package new scaffolds new projects from embedded templates.
 //
-// It supports two package managers (uv and pixi) and three document systems
-// (Quarto, MyST, or none). Templates live in the embedded templates/python/
-// directory and are rendered with [text/template] based on [TemplateVars].
+// Python projects support two package managers (uv and pixi) and three
+// document systems (Quarto, MyST, or none); writing projects are pure MyST
+// manuscripts, and typst projects are pure-Typst markdown manuscripts.
+// Templates live in the embedded templates/ directory and are rendered with
+// [text/template] based on [TemplateVars].
 //
 // Key entry points:
 //
@@ -33,10 +35,10 @@ import (
 type CreateOptions struct {
 	Name        string
 	Dir         string // parent directory (default ".")
-	Kind        string // "python" (default) or "writing"
+	Kind        string // "python" (default), "writing", or "typst"
 	PkgManager  string // "pixi" or "uv" (Python projects only)
 	DocSystem   string // "quarto", "myst", or "none" (Python projects only)
-	MdLayout    string // "single-file" (default) or "composed" — manuscript layout (writing or python+myst)
+	MdLayout    string // "single-file" (default) or "composed" — manuscript layout (writing, python+myst, or typst)
 	Template    string // "lab" (default), "default", or any MyST template name (writing or python+myst)
 	AuthorName  string
 	AuthorEmail string
@@ -170,14 +172,14 @@ type PostStep struct {
 
 // DefaultPostSteps returns the post-creation steps for a given kind and
 // package manager. Every project gets git init; python projects additionally
-// get pixi install or uv sync. Writing projects have no Python environment
-// to set up.
+// get pixi install or uv sync. Writing and typst projects have no Python
+// environment to set up.
 func DefaultPostSteps(kind, pkgManager string) []PostStep {
 	steps := []PostStep{
 		{Label: "git init", Cmd: []string{"git", "init"}, ContinueOnError: false},
 	}
 
-	if kind == "writing" {
+	if kind == "writing" || kind == "typst" {
 		return steps
 	}
 

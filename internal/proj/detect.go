@@ -1,11 +1,12 @@
 // Package proj detects and manages Python project environments.
 //
 // It auto-detects the package manager (uv or pixi) and document system
-// (Quarto or MyST) by looking for marker files in the project directory:
+// (Quarto, MyST, or pure Typst) by looking for marker files in the project
+// directory:
 //
 //   - pixi.toml or [tool.pixi] in pyproject.toml → Pixi
 //   - [tool.poe] in pyproject.toml or uv.lock → UV
-//   - _quarto.yml → Quarto; myst.yml → MyST
+//   - _quarto.yml → Quarto; myst.yml → MyST; typst.yml → Typst
 //
 // All commands that invoke external tools (add, remove, run, render, preview)
 // use [syscall.Exec] to replace the current process, giving the user direct
@@ -31,10 +32,13 @@ type Kind string
 
 // Supported project kinds. Python projects have a package manager (pixi/uv)
 // and may include a doc system. Writing projects are pure MyST → Typst PDF
-// manuscripts with no Python environment.
+// manuscripts with no Python environment. Typst projects are pure-Typst
+// Markdown manuscripts (typst.yml + main.typ, no MyST/node) with no Python
+// environment either.
 const (
 	Python  Kind = "python"
 	Writing Kind = "writing"
+	Typst   Kind = "typst"
 )
 
 // PkgManager identifies the Python package manager used by a project.
@@ -49,11 +53,14 @@ const (
 // DocSystem identifies the documentation system used by a project.
 type DocSystem string
 
-// Supported documentation systems.
+// Supported documentation systems. TypstDoc is the pure-Typst pipeline
+// (typst compile / tinymist preview), as opposed to Myst, which also renders
+// through Typst but is driven by mystmd.
 const (
-	Quarto DocSystem = "quarto"
-	Myst   DocSystem = "myst"
-	NoDoc  DocSystem = "none"
+	Quarto   DocSystem = "quarto"
+	Myst     DocSystem = "myst"
+	TypstDoc DocSystem = "typst"
+	NoDoc    DocSystem = "none"
 )
 
 // Project holds the detected configuration for a project directory.
@@ -67,7 +74,8 @@ type Project struct {
 // Detect inspects dir for project markers and returns a Project, or nil if
 // no recognized project is detected. Python markers (pixi.toml, pyproject.toml
 // with [tool.pixi]/[tool.poe], or uv.lock) take precedence; otherwise a
-// standalone myst.yml indicates a writing-only project.
+// standalone myst.yml indicates a writing-only project, and a standalone
+// typst.yml indicates a pure-Typst manuscript project.
 func Detect(dir string) *Project {
 	if pm := detectPkgManager(dir); pm != "" {
 		return &Project{
@@ -82,6 +90,13 @@ func Detect(dir string) *Project {
 			Dir:       dir,
 			Kind:      Writing,
 			DocSystem: Myst,
+		}
+	}
+	if fileExists(filepath.Join(dir, "typst.yml")) {
+		return &Project{
+			Dir:       dir,
+			Kind:      Typst,
+			DocSystem: TypstDoc,
 		}
 	}
 	return nil

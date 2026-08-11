@@ -1,0 +1,52 @@
+# Every setting for this paper lives here.
+# You should never need to open main.typ unless you want to restyle the template itself.
+
+# ── metadata ─────────────────────────────────────────────────────────
+title: "{{.ProjectName}}"
+short_title: "Running head"
+authors:
+  - name: {{.AuthorName}}
+    affiliations: [1]
+{{- if .AuthorEmail}}
+    email: {{.AuthorEmail}}
+{{- end}}
+    corresponding: true
+affiliations:
+  - id: 1
+    name: Your Department, Your University
+abstract: >
+  One paragraph, 150-250 words. What question, why it matters, what you did,
+  what you found, what it means. Markdown works here too: *emphasis*,
+  inline math like $r = .42$, even a citation [@jolly2019flatland].
+keywords: []
+
+# ── files ────────────────────────────────────────────────────────────
+content:
+{{- if eq .MdLayout "composed"}}
+  - content/01-intro.md
+  - content/02-methods.md
+  - content/03-results.md
+{{- else}}
+  - main.md
+{{- end}}
+bibliography: refs.bib
+
+# ── layout ───────────────────────────────────────────────────────────
+two_column: false # PNAS/journal-style two-column layout
+draft: true # line numbers, word count, DRAFT header
+font_size: 11 # in pt
+indent_paragraphs: true # classic manuscript style; first ¶ after a heading never indents
+numbered_sections: false
+line_numbers: auto # auto = only in draft; or true / false
+
+# ── tables, figures, equations, code ─────────────────────────────────
+booktabs_tables: true # three-line scientific table style, bold header
+align_decimals: true # decimal-align numeric table columns; numbers render exactly as typed
+number_equations: true # number display equations (1), (2), ... (equate package)
+code_style: zebra # plain | zebra  (zebra = shaded alternating lines + line numbers)
+
+# ── extras ───────────────────────────────────────────────────────────
+show_correspondence: true # false hides the *Correspondence line and the author's star
+show_dois: false # false strips https://doi.org/... links from the reference list
+word_count: false # show total word count in the footer while draft: true
+citation_style: american-psychological-association
