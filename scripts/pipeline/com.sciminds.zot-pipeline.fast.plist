@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.sciminds.zot-pipeline.fast</string>
+
+  <!-- `poll` is cheap by construction: one conditional GET per library.
+       It decides for itself whether anything happened, whether the burst
+       has gone quiet, and whether another run already holds the lock. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/esh/syncthing/air-mbp/sci/scripts/pipeline/zot-pipeline</string>
+    <string>poll</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>120</integer>
+
+  <!-- Deliberately absent: RunAtLoad. Loading this job should not fire a
+       pipeline; the first run should be one the overseer watches. -->
+
+  <!-- ~/.local/bin is where sci lives, /opt/homebrew/bin is where jq,
+       curl's newer build and duckdb live. A launchd agent inherits neither. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/esh/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/esh</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+
+  <!-- No StandardOutPath/StandardErrorPath on purpose: launchd refuses to
+       start a job whose log directory is missing, and the runner creates
+       and writes its own log under ~/.local/state/zot-pipeline/logs. -->
+</dict>
+</plist>

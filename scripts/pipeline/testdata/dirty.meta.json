@@ -1,0 +1,13 @@
+{
+  "dumped_at": "2026-08-10T06:02:54Z",
+  "produced_by": "sci zot export --format ndjson",
+  "scope": "all",
+  "schema_version": 125,
+  "last_sync": "2026-08-10T06:02:26Z",
+  "stats": {
+    "items": 6155,
+    "collections": 71
+  },
+  "sha256": "ae1955695e3687af01ce6677de170b098cd28239657d00cc57e5cdd48474fbfe",
+  "pending_wal_bytes": 4152
+}
