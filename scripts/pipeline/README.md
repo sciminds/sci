@@ -84,7 +84,7 @@ The plists are installed into `~/Library/LaunchAgents/` **unloaded**. Loading th
 
 ```sh
 # on air
-rsync -a --info=stats2 ~/.local/share/zot/staging/ mbp:.local/share/zot/staging/
+rsync -a --stats ~/.local/share/zot/staging/ mbp:.local/share/zot/staging/
 ```
 
 After that the runner owns the two files it produces (`zotero-items`, and `openalex-works` when the leash lets it) and the two `zot parse-*` produce; the bootstrap OpenAlex caches (`titles`, `authors`, `venues`, `institutions`) are copied inputs with no producing verb and stay as seeded.

@@ -549,10 +549,13 @@ stage_ship() {
         return 0
     fi
     log "ship: $ZOT_ARTIFACTS/ → $SHIP_HOST:$SHIP_PATH"
-    run rsync -a --info=stats2 \
+    # mbp ships openrsync, not GNU rsync: --info=* and '***' patterns are
+    # GNU extensions it rejects outright. Flags here must stay in the
+    # portable subset (verified against openrsync protocol 29).
+    run rsync -a --stats \
         --delete \
-        --exclude 'staging/***' \
-        --exclude 'quarantine/***' \
+        --exclude 'staging' \
+        --exclude 'quarantine' \
         --exclude '*.building' \
         -e 'ssh -o BatchMode=yes -o ConnectTimeout=20' \
         "$ZOT_ARTIFACTS/" "$SHIP_HOST:$SHIP_PATH" ||
