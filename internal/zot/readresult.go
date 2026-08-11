@@ -695,6 +695,26 @@ type OpenAlexSyncResult struct {
 	CitedPath  string `json:"cited_path,omitempty"`
 	CitedAsked int    `json:"cited_asked,omitempty"`
 	CitedGot   int    `json:"cited_got,omitempty"`
+	// Mode is "full" or "delta" — a full replace of the cache, or a
+	// targeted fetch merged into the one already there. It is on the result
+	// as well as in the sidecar because the two files answer to different
+	// readers, and neither should have to infer this from record counts.
+	Mode string `json:"mode,omitempty"`
+	// Delta, Merged and CitedMerged are set only in delta mode: what the
+	// run targeted, and what the merge did to each of the two bodies.
+	Delta       *oacache.Delta `json:"delta,omitempty"`
+	Merged      *oacache.Merge `json:"merged,omitempty"`
+	CitedMerged *oacache.Merge `json:"cited_merged,omitempty"`
+	// KeysUnmatched are --keys that named no bibliographic item. Reported
+	// rather than dropped: a run that silently skipped the paper it was
+	// asked for reports a successful sync of nothing.
+	KeysUnmatched []string `json:"keys_unmatched,omitempty"`
+	// MissingWithoutDOI counts items --missing could not judge because they
+	// carry no DOI. See the CLI's targetItems.
+	MissingWithoutDOI int `json:"missing_without_doi,omitempty"`
+	// MissingKnownAbsent counts items --missing skipped because a previous
+	// run already asked OpenAlex for their DOI and got nothing.
+	MissingKnownAbsent int `json:"missing_known_absent,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -703,6 +723,9 @@ func (r OpenAlexSyncResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r OpenAlexSyncResult) Human() string {
 	var b strings.Builder
+	if r.Mode == "delta" {
+		return r.humanDelta()
+	}
 	fmt.Fprintf(&b, "  %s cached %d OpenAlex works for %d %s items in %d requests\n",
 		uikit.SymOK, r.Stats.Works, r.ItemsScanned, r.Scope, r.Stats.Requests)
 	if r.CitedAsked > 0 {
@@ -734,6 +757,100 @@ func (r OpenAlexSyncResult) Human() string {
 	}
 	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("out:"), r.OutPath)
 	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
+	return b.String()
+}
+
+// humanDelta renders a targeted run. It leads with what MOVED rather than
+// with what the file holds: a delta's headline number is small on purpose,
+// and printing the cache's total first would read as a collapse.
+func (r OpenAlexSyncResult) humanDelta() string {
+	var b strings.Builder
+	if r.Merged == nil {
+		fmt.Fprintf(&b, "  %s nothing to fetch — every targeted item is already in the cache\n", uikit.SymOK)
+	} else {
+		fmt.Fprintf(&b, "  %s merged %d new and %d updated works into %d cached, in %d requests\n",
+			uikit.SymOK, r.Merged.Added, r.Merged.Replaced, r.Merged.Total, r.Delta.Requests)
+	}
+	fmt.Fprintf(&b, "    %s %d items; %d of %d DOIs found, %d title lookups\n",
+		uikit.TUI.Dim().Render("targeted:"), r.ItemsScanned,
+		r.Stats.DOIsFound, r.Stats.DOIsRequested, r.Stats.TitlesQueried)
+	if r.CitedMerged != nil && r.CitedMerged.Added > 0 {
+		fmt.Fprintf(&b, "    %s %d newly named cited works (%d in the pool)\n",
+			uikit.TUI.Dim().Render("pool:"), r.CitedMerged.Added, r.CitedMerged.Total)
+	}
+	// A key that named nothing is the difference between "your paper is
+	// cached" and "your paper was never asked for".
+	if n := len(r.KeysUnmatched); n > 0 {
+		fmt.Fprintf(&b, "    %s %d key(s) matched no bibliographic item: %s\n",
+			uikit.TUI.Dim().Render("gap:"), n, strings.Join(r.KeysUnmatched, ", "))
+	}
+	if r.MissingWithoutDOI > 0 {
+		fmt.Fprintf(&b, "    %s %d items have no DOI, so --missing cannot judge them — name one with --keys\n",
+			uikit.TUI.Dim().Render("note:"), r.MissingWithoutDOI)
+	}
+	if r.MissingKnownAbsent > 0 {
+		fmt.Fprintf(&b, "    %s %d DOIs a previous run already found absent from OpenAlex were not re-asked\n",
+			uikit.TUI.Dim().Render("held:"), r.MissingKnownAbsent)
+	}
+	if n := len(r.NotFound); n > 0 {
+		fmt.Fprintf(&b, "    %s %d DOIs are not in OpenAlex — listed in the sidecar.\n",
+			uikit.TUI.Dim().Render("gap:"), n)
+		fmt.Fprintf(&b, "      that is OpenAlex's coverage, not a claim the papers are not real\n")
+	}
+	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("out:"), r.OutPath)
+	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
+	return b.String()
+}
+
+// OpenAlexEstimateResult prices a sync without making a request.
+//
+// It exists for a caller that must decide BEFORE it spends: the unattended
+// pipeline runs under a request cap, and the only honest way to respect one
+// is to know the bill in advance. Nothing on this result is a measurement
+// of a run that happened — see [oacache.Plan] for which arms are certain
+// and which is a bound.
+type OpenAlexEstimateResult struct {
+	Scope              string       `json:"scope"`
+	StagingDir         string       `json:"staging_dir"`
+	Plan               oacache.Plan `json:"plan"`
+	Keys               []string     `json:"keys,omitempty"`
+	KeysUnmatched      []string     `json:"keys_unmatched,omitempty"`
+	MissingWithoutDOI  int          `json:"missing_without_doi,omitempty"`
+	MissingKnownAbsent int          `json:"missing_known_absent,omitempty"`
+}
+
+// JSON implements cmdutil.Result.
+func (r OpenAlexEstimateResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
+func (r OpenAlexEstimateResult) Human() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %s a %s sync of %d items would spend %d requests (at most %d)\n",
+		uikit.SymOK, r.Plan.Mode, r.Plan.ItemsTargeted, r.Plan.Requests, r.Plan.RequestsMax)
+	fmt.Fprintf(&b, "    %s %d DOI lookups (%d unbatchable), %d title lookups, %d cited batches\n",
+		uikit.TUI.Dim().Render("arms:"), r.Plan.DOIRequests, r.Plan.DOIsUnbatchable,
+		r.Plan.TitleRequests, r.Plan.CitedRequests)
+	// The fallback arm is bounded, not priced: it fires once per DOI
+	// OpenAlex turns out not to hold, and worst-casing it would treble
+	// every estimate.
+	if r.Plan.FallbackMax > 0 {
+		fmt.Fprintf(&b, "    %s up to %d more if OpenAlex holds none of those DOIs\n",
+			uikit.TUI.Dim().Render("bound:"), r.Plan.FallbackMax)
+	}
+	if n := len(r.KeysUnmatched); n > 0 {
+		fmt.Fprintf(&b, "    %s %d key(s) matched no bibliographic item: %s\n",
+			uikit.TUI.Dim().Render("gap:"), n, strings.Join(r.KeysUnmatched, ", "))
+	}
+	if r.MissingWithoutDOI > 0 {
+		fmt.Fprintf(&b, "    %s %d items have no DOI, so --missing cannot judge them\n",
+			uikit.TUI.Dim().Render("note:"), r.MissingWithoutDOI)
+	}
+	if r.MissingKnownAbsent > 0 {
+		fmt.Fprintf(&b, "    %s %d DOIs already measured as absent from OpenAlex are not re-asked\n",
+			uikit.TUI.Dim().Render("held:"), r.MissingKnownAbsent)
+	}
+	fmt.Fprintf(&b, "    %s nothing was fetched — drop --estimate to spend it\n",
+		uikit.TUI.Dim().Render("dry:"))
 	return b.String()
 }
 

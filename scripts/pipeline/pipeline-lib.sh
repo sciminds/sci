@@ -148,16 +148,31 @@ pl_journal_verdict() {
 # The OpenAlex leash
 # ---------------------------------------------------------------------------
 #
-# `sci zot openalex sync` is the one stage that costs money, and it has no
-# --limit: it re-fetches the whole library every run, then expands every
-# work's referenced_works into the reference title pool. So the question is
-# never "how much of it should we run" — it is "may we run it at all".
+# `sci zot openalex sync` in its FULL form re-fetches the whole library
+# every run and then expands every work's referenced_works into the
+# reference title pool. This function prices that full run — the question
+# it answers is "may we run it at all".
+#
+# It is not the only shape of the stage any more. `sync --keys` / `--missing`
+# fetch a handful of items and MERGE them into the cache, and price
+# themselves exactly, in advance, with `sync --missing --estimate --json`
+# (.plan.requests). That is the number a targeted run should be gated on;
+# this one stays the gate for the full re-sync.
 #
 # The cost is a MEASUREMENT, not a guess. sci writes the request count it
 # actually made into openalex-works.ndjson.meta.json as `stats.requests`,
 # and the cited-works arm's size into openalex-titles.ndjson.meta.json as
-# `records_total`. When `stats.requests` is absent (an older sidecar) the
-# arm is reconstructed from the counters that are:
+# `records_total`.
+#
+# A delta sidecar's `stats` describes the DELTA — two requests, say — so
+# reading it as the cost of a full sync would authorise a four-thousand
+# request run on the strength of a two-request one. sci carries the last
+# full sync's accounting forward as `full_sync_stats` for exactly this
+# reader, and it is preferred whenever present. A delta sidecar with no
+# carried measurement is `unknown`, which fails closed.
+#
+# When neither is present (an older sidecar) the arm is reconstructed from
+# the counters that are:
 #
 #   ceil(dois_requested / 50)          DOI lookups, batched 50 per request
 #   + dois_unbatchable                 DOIs that had to go one at a time
@@ -180,7 +195,14 @@ pl_oa_estimate() {
     local works_meta=$1 titles_meta=$2
     local works cited
 
-    works=$(pl_json "$works_meta" '.stats.requests' '')
+    works=$(pl_json "$works_meta" '.full_sync_stats.requests // .stats.requests' '')
+    # A delta sidecar that carried no full-sync measurement cannot price a
+    # full sync, and its own counters describe a handful of items. Saying
+    # so is the only honest answer; pl_oa_decision turns it into a defer.
+    if [[ $(pl_json "$works_meta" 'if (.delta and (.full_sync_stats|not)) then "delta" else "no" end' 'no') == delta ]]; then
+        printf 'unknown\n'
+        return 1
+    fi
     if [[ ! $works =~ ^[1-9][0-9]*$ ]]; then
         local dois unbatchable titles fallback
         dois=$(pl_json "$works_meta" '.stats.dois_requested' '')

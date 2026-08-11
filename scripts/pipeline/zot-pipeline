@@ -502,8 +502,8 @@ stage_export() {
 # Stage: the metered one
 # ---------------------------------------------------------------------------
 #
-# `sci zot openalex sync` re-fetches the whole library and then expands
-# every work's referenced_works, so it has no small mode: its own sidecars
+# `sci zot openalex sync` in the form this stage runs re-fetches the whole
+# library and then expands every work's referenced_works: its own sidecars
 # measure the last run at ~4,200 requests. Two independent questions decide
 # whether it runs, and both must say yes.
 #
@@ -516,6 +516,13 @@ stage_export() {
 # and the run says so. That is the intended behaviour, not a bug to route
 # around: the fast path still lands the paper at `metadata` depth, and
 # resolving it to an OpenAlex work waits for a human to spend the money.
+#
+# `sync --missing` is the small form — it fetches only the items whose DOIs
+# the cache lacks and merges them in, and `--missing --estimate --json`
+# prices itself in advance (.plan.requests; ~2 per new paper). Pointing this
+# stage at it is a deliberate policy change, not a refactor: it would mean
+# the pipeline spends unattended, inside the cap, rather than deferring to a
+# human. Left as it stands until that is chosen.
 
 # count_new_dois — DOIs the DELTA introduced that the works cache does not
 # already hold.

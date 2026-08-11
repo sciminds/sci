@@ -506,7 +506,7 @@ func TestCitedWorksAreCollectedFromTheWorksJustFetched(t *testing.T) {
 		"W11": work("W11", "10.1/k", "Cited eleven"),
 	}}
 
-	got, err := oacache.FetchCited(context.Background(), f, []openalex.Work{parent}, oacache.Options{})
+	got, err := oacache.FetchCited(context.Background(), f, []openalex.Work{parent}, nil, oacache.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -546,5 +546,474 @@ func TestTheCitedPoolPublishesTheMaskThatBuiltIt(t *testing.T) {
 	}
 	if m.RecordsTotal != 1 || m.SHA256 == "" {
 		t.Errorf("sidecar does not describe the body: %+v", m)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Targeted delta syncs
+// ---------------------------------------------------------------------------
+
+// readLines returns the body's NDJSON lines, so a merge can be checked for
+// what it did NOT touch. Byte-identity is the assertion that matters: a
+// merge that re-encodes every record would look correct in every field and
+// still be a full rewrite of a file the consumer digests.
+func readLines(t *testing.T, path string) []string {
+	t.Helper()
+	raw, err := os.ReadFile(path) //nolint:gosec // a test's own temp dir
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
+}
+
+// writeRawBase plants a body the way OpenAlex might actually have left one:
+// records carrying a field this build's Work type does not model.
+//
+// That is what makes the byte-identity assertion able to fail. A base
+// written through Write encodes the same struct the merge would re-encode,
+// so a merge that decoded and re-encoded every record would produce
+// identical bytes and the test would pass while doing the wrong thing. With
+// an unmodelled field present, a re-encoding merge silently DROPS it — the
+// field-mask failure, arriving through the back door.
+func writeRawBase(t *testing.T, dir, name string, lines ...string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := strings.Join(lines, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestADeltaReplacesItsTargetAndLeavesEveryOtherLineByteIdentical(t *testing.T) {
+	dir := t.TempDir()
+	writeRawBase(t, dir, oacache.CacheFile,
+		`{"id":"https://openalex.org/W1","doi":"https://doi.org/10.1/a","display_name":"One"}`,
+		`{"id":"https://openalex.org/W2","doi":"https://doi.org/10.1/b","display_name":"Two","apc_paid":{"value":3000}}`)
+	before := readLines(t, filepath.Join(dir, oacache.CacheFile))
+
+	base, err := oacache.LoadBase(dir, oacache.CacheFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := oacache.Result{Works: []openalex.Work{work("W1", "https://doi.org/10.1/a", "One, revised")}}
+	_, merge, err := oacache.WriteDelta(dir, "all", fresh, base, &oacache.Delta{Keys: []string{"AAAAAAAA"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if merge.Replaced != 1 || merge.Added != 0 || merge.Total != 2 {
+		t.Fatalf("merge = %+v, want one replacement and nothing else", merge)
+	}
+	after := readLines(t, filepath.Join(dir, oacache.CacheFile))
+	if len(after) != 2 {
+		t.Fatalf("body has %d lines, want 2", len(after))
+	}
+	// A merge NARROWS nothing: the record it did not fetch is the same
+	// bytes it was, so the field mask that produced it survives untouched.
+	if after[1] != before[1] {
+		t.Errorf("an untouched record was rewritten:\n before %s\n after  %s", before[1], after[1])
+	}
+	if !strings.Contains(after[1], "apc_paid") {
+		t.Error("a field this build does not model was dropped by a merge that never fetched that record")
+	}
+	if !strings.Contains(after[0], "One, revised") {
+		t.Errorf("the targeted record was not replaced: %s", after[0])
+	}
+	if after[0] == before[0] {
+		t.Error("the targeted record is unchanged")
+	}
+}
+
+func TestADeltaAppendsWorksTheBaseNeverHeldAndDuplicatesNone(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := oacache.Write(dir, "all", oacache.Result{Works: []openalex.Work{
+		work("W1", "https://doi.org/10.1/a", "One"),
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	base, err := oacache.LoadBase(dir, oacache.CacheFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := oacache.Result{Works: []openalex.Work{
+		work("W1", "https://doi.org/10.1/a", "One, revised"),
+		work("W9", "https://doi.org/10.1/i", "Nine"),
+	}}
+	_, merge, err := oacache.WriteDelta(dir, "all", fresh, base, &oacache.Delta{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if merge.Replaced != 1 || merge.Added != 1 || merge.Total != 2 {
+		t.Fatalf("merge = %+v, want one replaced and one added", merge)
+	}
+	// A duplicated id gives one work two rows, and zot refuses an ambiguous
+	// match — so a merge that appended instead of replacing would silently
+	// REDUCE resolution while growing the file.
+	seen := map[string]int{}
+	for _, line := range readLines(t, filepath.Join(dir, oacache.CacheFile)) {
+		var rec struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal([]byte(line), &rec); err != nil {
+			t.Fatal(err)
+		}
+		seen[rec.ID]++
+	}
+	for id, n := range seen {
+		if n != 1 {
+			t.Errorf("%s appears %d times after a merge", id, n)
+		}
+	}
+	if len(seen) != 2 {
+		t.Errorf("merged body holds %d works, want 2", len(seen))
+	}
+}
+
+func TestADeltaSidecarNamesTheBaseItMergedOver(t *testing.T) {
+	dir := t.TempDir()
+	full := oacache.Result{
+		Works: []openalex.Work{work("W1", "https://doi.org/10.1/a", "One")},
+		Stats: oacache.Stats{Works: 1, DOIsRequested: 5158, Requests: 857},
+	}
+	if _, err := oacache.Write(dir, "all", full); err != nil {
+		t.Fatal(err)
+	}
+	baseRaw, err := os.ReadFile(filepath.Join(dir, oacache.CacheFile+".meta.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var baseMeta oacache.Meta
+	if err := json.Unmarshal(baseRaw, &baseMeta); err != nil {
+		t.Fatal(err)
+	}
+
+	base, err := oacache.LoadBase(dir, oacache.CacheFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := oacache.Result{
+		Works: []openalex.Work{work("W9", "https://doi.org/10.1/i", "Nine")},
+		Stats: oacache.Stats{Works: 1, DOIsRequested: 1, DOIsFound: 1, Requests: 1},
+	}
+	if _, _, err := oacache.WriteDelta(dir, "all", fresh, base, &oacache.Delta{
+		Keys: []string{"ABCD1234"}, ItemsTargeted: 1, Requests: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, oacache.CacheFile+".meta.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m oacache.Meta
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m.Delta == nil {
+		t.Fatal("the sidecar does not say the body was merged, so a reader cannot tell a delta from a full sync")
+	}
+	if !slices.Equal(m.Delta.Keys, []string{"ABCD1234"}) {
+		t.Errorf("delta.keys = %v, want the targeted key", m.Delta.Keys)
+	}
+	if m.Delta.RecordsAdded != 1 || m.Delta.RecordsReplaced != 0 {
+		t.Errorf("delta = %+v, want one added record", m.Delta)
+	}
+	if m.Delta.Requests != 2 {
+		t.Errorf("delta.requests = %d, want what the run actually spent", m.Delta.Requests)
+	}
+	// The base's identity is what makes the merge auditable: a sidecar that
+	// only reported the result cannot say WHICH file the untouched records
+	// came from, so a merge over the wrong base looks exactly like a merge
+	// over the right one.
+	if m.Delta.Base.SHA256 != baseMeta.SHA256 || m.Delta.Base.Records != 1 {
+		t.Errorf("delta.base = %+v, want the base's own digest %s", m.Delta.Base, baseMeta.SHA256)
+	}
+	if m.Delta.Base.File != oacache.CacheFile {
+		t.Errorf("delta.base.file = %q", m.Delta.Base.File)
+	}
+	if m.RecordsTotal != 2 {
+		t.Errorf("records_total = %d, want the merged total", m.RecordsTotal)
+	}
+	if m.SHA256 == baseMeta.SHA256 {
+		t.Error("the sidecar re-published the base's digest instead of the merged body's")
+	}
+	// The mask is the field-coverage claim. A delta merges records fetched
+	// with the full mask into records fetched with the full mask, so the
+	// claim is unchanged — publishing a narrower one would be the staleness
+	// bug wearing a fingerprint's clothes.
+	if !slices.Equal(m.Select, oacache.WorkSelect) {
+		t.Errorf("select = %v, want the full mask", m.Select)
+	}
+	// stats is what THIS run did; a delta that overwrote it with small
+	// numbers and nothing else would tell the pipeline's estimator that a
+	// full sync costs one request.
+	if m.Stats.Requests != 1 {
+		t.Errorf("stats.requests = %d, want the delta's own spend", m.Stats.Requests)
+	}
+	if m.FullSyncStats == nil || m.FullSyncStats.Requests != 857 {
+		t.Errorf("full_sync_stats = %+v, want the base's 857-request measurement carried forward", m.FullSyncStats)
+	}
+}
+
+func TestADeltaOverASecondDeltaStillCarriesTheFullSyncMeasurement(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := oacache.Write(dir, "all", oacache.Result{
+		Works: []openalex.Work{work("W1", "https://doi.org/10.1/a", "One")},
+		Stats: oacache.Stats{Requests: 857},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := range 2 {
+		base, err := oacache.LoadBase(dir, oacache.CacheFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fresh := oacache.Result{
+			Works: []openalex.Work{work("W"+string(rune('2'+i)), "https://doi.org/10.1/x", "X")},
+			Stats: oacache.Stats{Requests: 1},
+		}
+		if _, _, err := oacache.WriteDelta(dir, "all", fresh, base, &oacache.Delta{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, oacache.CacheFile+".meta.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m oacache.Meta
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	// A chain of deltas must not erode the one number the leash prices a
+	// full run from. Carrying it only one hop would make the second delta
+	// the moment the pipeline decides a full sync is free.
+	if m.FullSyncStats == nil || m.FullSyncStats.Requests != 857 {
+		t.Errorf("full_sync_stats = %+v after two deltas", m.FullSyncStats)
+	}
+}
+
+func TestThereIsNoDeltaWithoutABaseToMergeOver(t *testing.T) {
+	// A delta that wrote its handful of records into an empty directory
+	// would produce a file with the name, the shape and the sidecar of a
+	// whole cache — and zot would load it as the whole cache, silently
+	// dropping every work it does not mention.
+	_, err := oacache.LoadBase(t.TempDir(), oacache.CacheFile)
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("err = %v, want os.ErrNotExist so the caller can refuse the run", err)
+	}
+}
+
+func TestTheCitedPoolIsMergedNotReplaced(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := oacache.WriteCited(dir, "all", oacache.CitedResult{Works: []openalex.Work{
+		work("W10", "10.1/j", "Cited ten"),
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	base, err := oacache.LoadBase(dir, oacache.CitedFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, merge, err := oacache.WriteCitedDelta(dir, "all", oacache.CitedResult{
+		Works: []openalex.Work{work("W11", "10.1/k", "Cited eleven")}, Asked: 1,
+	}, base, &oacache.Delta{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if merge.Added != 1 || merge.Total != 2 {
+		t.Fatalf("merge = %+v, want the pool grown by one", merge)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, oacache.CitedFile+".meta.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m oacache.Meta
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m.RecordsTotal != 2 {
+		t.Errorf("records_total = %d, want the merged pool", m.RecordsTotal)
+	}
+	// The leash prices the cited arm from this number. A delta that wrote
+	// only its own two records would tell the runner the whole pool is two
+	// works and that a full sync's cited arm costs one request.
+	if !slices.Equal(m.Select, oacache.CitedSelect) {
+		t.Errorf("select = %v, want the cited mask", m.Select)
+	}
+}
+
+func TestCitedHydrationSkipsIdsTheCacheAlreadyHolds(t *testing.T) {
+	parent := work("W1", "10.1/a", "Parent")
+	parent.ReferencedWorks = []string{"https://openalex.org/W10", "https://openalex.org/W11"}
+	f := &fakeOA{byID: map[string]openalex.Work{
+		"W10": work("W10", "10.1/j", "Cited ten"),
+		"W11": work("W11", "10.1/k", "Cited eleven"),
+	}}
+	// The pool already names W11. Re-fetching it buys the identical narrow
+	// record at full price — and a targeted sync exists precisely because
+	// requests are the scarce thing.
+	got, err := oacache.FetchCited(context.Background(), f, []openalex.Work{parent},
+		map[string]bool{"W11": true}, oacache.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Asked != 1 || len(got.Works) != 1 {
+		t.Fatalf("asked %d and got %d, want only the id the cache lacks", got.Asked, len(got.Works))
+	}
+	if len(f.calls) != 1 || strings.Contains(f.calls[0].Filter["openalex_id"], "W11") {
+		t.Errorf("filter = %q, want W11 left out", f.calls[0].Filter["openalex_id"])
+	}
+	if got.Requests != 1 {
+		t.Errorf("requests = %d, want the one batch it made", got.Requests)
+	}
+}
+
+func TestAnEmptyCitedPlanCostsNothing(t *testing.T) {
+	parent := work("W1", "10.1/a", "Parent")
+	parent.ReferencedWorks = []string{"https://openalex.org/W10"}
+	f := &fakeOA{byID: map[string]openalex.Work{}}
+	got, err := oacache.FetchCited(context.Background(), f, []openalex.Work{parent},
+		map[string]bool{"W10": true}, oacache.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.calls) != 0 || got.Requests != 0 {
+		t.Errorf("made %d requests for a plan with nothing to fetch", len(f.calls))
+	}
+}
+
+func TestEstimatePricesAPlanWithoutSpendingARequest(t *testing.T) {
+	// N DOIs and M titles, priced from the same batching the fetch uses:
+	// 118 batchable DOIs are three requests, the two filter-hostile ones go
+	// one at a time, and each title is its own lookup.
+	var dois []string
+	for i := range 118 {
+		dois = append(dois, "10.1/"+string(rune('a'+i%26))+string(rune('0'+i/26)))
+	}
+	dois = append(dois, "10.1023/a:1007465528199", "10.1002/(sici)1:5<3::aid-hbm1>3.0.co;2-5")
+	plan := oacache.Estimate(oacache.Want{DOIs: dois, Titles: []string{"A", "B", "C"}})
+
+	if plan.DOIRequests != 5 {
+		t.Errorf("doi_requests = %d, want ceil(118/50)=3 batched plus 2 unbatchable", plan.DOIRequests)
+	}
+	if plan.DOIsUnbatchable != 2 {
+		t.Errorf("dois_unbatchable = %d, want 2", plan.DOIsUnbatchable)
+	}
+	if plan.TitleRequests != 3 {
+		t.Errorf("title_requests = %d, want one per title", plan.TitleRequests)
+	}
+	if plan.CitedRequests != 123 {
+		t.Errorf("cited_requests = %d, want one per lookup", plan.CitedRequests)
+	}
+	if plan.Requests != 131 {
+		t.Errorf("requests = %d, want 5+3+123", plan.Requests)
+	}
+	// The fallback arm is bounded but not priced: it fires once per DOI
+	// OpenAlex turns out not to hold, measured at under 2% of them. Folding
+	// the worst case into the headline number would triple every estimate
+	// and defer runs that cost eight requests.
+	if plan.FallbackMax != 120 || plan.RequestsMax != 251 {
+		t.Errorf("fallback_max = %d, requests_max = %d", plan.FallbackMax, plan.RequestsMax)
+	}
+}
+
+func TestASingleNewPaperIsPricedInSingleDigits(t *testing.T) {
+	// The number the unattended pipeline's 50-request cap gets compared
+	// against for the ordinary case: one paper arrived, it has a DOI.
+	plan := oacache.Estimate(oacache.Want{DOIs: []string{"10.1/new"}})
+	if plan.Requests != 2 || plan.RequestsMax != 3 {
+		t.Errorf("plan = %+v, want 1 DOI lookup + 1 cited batch", plan)
+	}
+}
+
+func TestABodyItsSidecarDoesNotVouchForIsNotAMergeableBase(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := oacache.Write(dir, "all", oacache.Result{
+		Works: []openalex.Work{work("W1", "https://doi.org/10.1/a", "One")},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// A body that grew after its sidecar was written is the shape of a run
+	// that died between the two. The sidecar goes last precisely so that is
+	// detectable; merging over it would launder half a write into a
+	// complete-looking cache.
+	f, err := os.OpenFile(filepath.Join(dir, oacache.CacheFile), os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(`{"id":"https://openalex.org/W2"}` + "\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := oacache.LoadBase(dir, oacache.CacheFile); err == nil {
+		t.Fatal("loaded a base its own sidecar does not describe")
+	}
+}
+
+func TestADeltaKeepsTheNotFoundListACorpusFactNotARunFact(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := oacache.Write(dir, "all", oacache.Result{
+		Works:    []openalex.Work{work("W1", "https://doi.org/10.1/a", "One")},
+		NotFound: []string{"10.1/monograph", "10.1/late"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	base, err := oacache.LoadBase(dir, oacache.CacheFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// This run asked about 10.1/late (OpenAlex has it now) and 10.1/new
+	// (it does not). It never asked about 10.1/monograph.
+	fresh := oacache.Result{
+		Works:    []openalex.Work{work("W2", "https://doi.org/10.1/late", "Late")},
+		NotFound: []string{"10.1/new"},
+	}
+	if _, _, err := oacache.WriteDelta(dir, "all", fresh, base, &oacache.Delta{
+		DOIsAsked: []string{"10.1/late", "10.1/new"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, oacache.CacheFile+".meta.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m oacache.Meta
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	// The list says "we asked OpenAlex and it has nothing" about the whole
+	// corpus. A delta that published only its own two answers would shrink
+	// it to those two, and the next --missing run would pay again for every
+	// monograph OpenAlex has never indexed.
+	if !slices.Equal(m.NotFound, []string{"10.1/monograph", "10.1/new"}) {
+		t.Errorf("not_found = %v, want the untouched miss kept and the recovered one dropped", m.NotFound)
+	}
+}
+
+func TestAWriteStampsTheDeltaItWasGiven(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := oacache.Write(dir, "all", oacache.Result{
+		Works: []openalex.Work{work("W1", "https://doi.org/10.1/a", "One")},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	base, err := oacache.LoadBase(dir, oacache.CacheFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := oacache.Delta{Keys: []string{"ABCD1234"}}
+	if _, _, err := oacache.WriteDelta(dir, "all", oacache.Result{
+		Works: []openalex.Work{work("W9", "https://doi.org/10.1/i", "Nine")},
+	}, base, &d); err != nil {
+		t.Fatal(err)
+	}
+	// The sidecar and the caller's own report describe the same run. When
+	// the write filled a COPY, the sidecar named its base and the CLI's
+	// --json said `"base": {"file": "", "records": 0}` — two accounts of one
+	// merge, both published.
+	if d.Base.File != oacache.CacheFile || d.Base.Records != 1 || d.RecordsAdded != 1 {
+		t.Errorf("delta = %+v, want the write's own accounting stamped back", d)
 	}
 }

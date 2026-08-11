@@ -119,6 +119,13 @@ ok 'a sidecar with no stats at all is unknown, never zero' \
     "$(pl_oa_estimate "$TD/oa-works-unmeasured.meta.json" "$TD/oa-titles.meta.json")" 'unknown'
 ok 'a missing cited sidecar is unknown, never zero' \
     "$(pl_oa_estimate "$TD/oa-works.meta.json" "$TD/nope.meta.json")" 'unknown'
+# A targeted sync writes its OWN spend into stats — one request, honestly.
+# Pricing a full re-sync from that number is how a two-request run comes to
+# authorise a four-thousand-request one, so the carried measurement wins.
+ok 'a delta sidecar prices the full sync from the measurement it carried' \
+    "$(pl_oa_estimate "$TD/oa-works-delta.meta.json" "$TD/oa-titles.meta.json")" '4211'
+ok 'a delta that carried no full-sync measurement is unknown, not cheap' \
+    "$(pl_oa_estimate "$TD/oa-works-delta-uncarried.meta.json" "$TD/oa-titles.meta.json")" 'unknown'
 
 printf '\nOpenAlex leash\n'
 ok 'no new DOIs: the metered stage does not run' \

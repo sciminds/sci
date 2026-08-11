@@ -45,12 +45,23 @@ This is why the runner does **not** use `set -E`. Every gate signals by exit sta
 
 ## The metered stage
 
-`sci zot openalex sync` is the only stage that costs money, and it has no `--limit`: it re-fetches the whole library and then expands every work's `referenced_works`. Its own sidecars measure that at **857 + ceil(167 665 / 50) = 4211 requests**. Two independent questions gate it:
+`sci zot openalex sync` is the only stage that costs money. In its **full** form it re-fetches the whole library and then expands every work's `referenced_works`; its own sidecars measure that at **857 + ceil(167 665 / 50) = 4211 requests**. Two independent questions gate it:
 
 - **worth running?** did the delta introduce a DOI the works cache does not hold — counting only items modified *since* the cache was produced, because ~40 DOIs in this library are permanently unresolvable (OpenAlex 404s on monographs) and would otherwise claim there is work to do forever.
 - **allowed to?** does the measured cost fit inside `OA_REQUEST_CAP` (default **50**)?
 
-Under the default cap the second answer is no, every time, and the run says so and records a deferral. **That is the intended behaviour.** The fast path still lands the paper at `metadata` depth; resolving it to an OpenAlex work waits for a human to spend the money — `sci zot --library all openalex sync`, or a cap raised deliberately in the config. An automation that quietly bills is worse than one that quietly fails.
+Under the default cap the second answer is no, every time, and the run says so and records a deferral. **That is the intended behaviour** for the full form: an automation that quietly bills is worse than one that quietly fails.
+
+The stage does have a small form now, and it is the one that fits under a cap:
+
+```sh
+sci zot --library all openalex sync --missing --estimate --json   # .plan.requests — costs nothing
+sci zot --library all openalex sync --missing                     # fetch only those, MERGE into the cache
+```
+
+`--missing` targets bibliographic items whose DOI the works cache does not already hold; `--keys A,B` names them outright. Either way the result is merged into the existing `openalex-works.ndjson` and `openalex-titles.ndjson` — records the run did not fetch keep their exact bytes — and the sidecar records `delta` with the base's digest and what the run spent. One new paper with a DOI prices at **2 requests** (at most 3). A run refuses outright if there is no cache in staging to merge into, because a delta-only body would load as the whole corpus.
+
+`pl_oa_estimate` still prices the FULL sync — that is what its cap gates. A delta sidecar's own `stats` describes the delta, so sci carries the last full sync's accounting forward as `full_sync_stats` and the estimator prefers it; a delta with no carried measurement prices as `unknown`, which defers.
 
 ## Building
 

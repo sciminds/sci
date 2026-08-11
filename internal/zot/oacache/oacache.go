@@ -24,6 +24,7 @@
 package oacache
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -336,6 +337,10 @@ func Fetch(ctx context.Context, c Searcher, w Want, opts Options) (Result, error
 }
 
 // Meta is the sidecar written beside the cache body.
+//
+// Fields are only ever ADDED. Two live consumers parse this file — zot's
+// build and the unattended pipeline runner's spend leash — and neither
+// version-negotiates, so a renamed key is a silent zero somewhere.
 type Meta struct {
 	ProducedAt   string   `json:"produced_at"`
 	ProducedBy   string   `json:"produced_by"`
@@ -345,6 +350,14 @@ type Meta struct {
 	Stats        Stats    `json:"stats"`
 	NotFound     []string `json:"not_found,omitempty"`
 	SHA256       string   `json:"sha256"`
+	// Delta is set only when the body was MERGED into rather than replaced.
+	// Its absence is what says "this file is everything the run fetched".
+	Delta *Delta `json:"delta,omitempty"`
+	// FullSyncStats is the last FULL sync's accounting, carried across
+	// every delta since. Stats above describes THIS run — two requests for
+	// a targeted one — and a caller pricing a full re-sync from that number
+	// would conclude it is free. See carriedFullSyncStats.
+	FullSyncStats *Stats `json:"full_sync_stats,omitempty"`
 }
 
 // CitedSelect is the field mask for works the library CITES rather than
@@ -371,6 +384,10 @@ type CitedResult struct {
 	// difference between what was requested and what came back rather than
 	// presenting a short result as a complete one.
 	Asked int
+	// Requests is what this arm actually spent. Fetch counts its own; a
+	// targeted run has to report the sum, because the cap it lives under is
+	// on the whole run.
+	Requests int
 }
 
 // FetchCited hydrates the works named by the referenced_works of works
@@ -381,7 +398,13 @@ type CitedResult struct {
 // which works are cited. Ids already present in `have` are skipped: a full
 // record is strictly more than this narrow one, and re-fetching it would
 // pay for a downgrade.
-func FetchCited(ctx context.Context, c Searcher, have []openalex.Work, opts Options) (CitedResult, error) {
+//
+// `known` is the pool a targeted run is merging INTO -- every id the cache
+// already holds. A full sync passes nil, because the file it is about to
+// replace holds nothing it can keep. A delta passes the base's ids, and
+// that is most of what makes a delta cheap: a new paper's references are
+// overwhelmingly works this corpus already cites.
+func FetchCited(ctx context.Context, c Searcher, have []openalex.Work, known map[string]bool, opts Options) (CitedResult, error) {
 	owned := make(map[string]bool, len(have))
 	for i := range have {
 		owned[shortID(have[i].ID)] = true
@@ -391,7 +414,7 @@ func FetchCited(ctx context.Context, c Searcher, have []openalex.Work, opts Opti
 	for i := range have {
 		for _, ref := range have[i].ReferencedWorks {
 			id := shortID(ref)
-			if id == "" || owned[id] || seen[id] {
+			if id == "" || owned[id] || known[id] || seen[id] {
 				continue
 			}
 			seen[id] = true
@@ -405,6 +428,7 @@ func FetchCited(ctx context.Context, c Searcher, have []openalex.Work, opts Opti
 			PerPage: len(batch),
 			Select:  CitedSelect,
 		})
+		out.Requests++
 		if err != nil {
 			return out, err
 		}
@@ -451,11 +475,30 @@ func Write(dir, scope string, res Result) (string, error) {
 }
 
 // writeNDJSON writes works as newline-delimited JSON and then the sidecar
+// describing them.
+func writeNDJSON(dir, name string, works []openalex.Work, meta Meta) (string, error) {
+	lines := make([][]byte, 0, len(works))
+	for i := range works {
+		raw, err := json.Marshal(works[i])
+		if err != nil {
+			return "", fmt.Errorf("encode work %s: %w", works[i].ID, err)
+		}
+		lines = append(lines, raw)
+	}
+	return writeLines(dir, name, lines, meta)
+}
+
+// writeLines writes already-encoded NDJSON lines and then the sidecar
 // describing them. The sidecar goes LAST and carries a digest of the bytes
 // that actually landed, so a consumer finding a body without a matching
 // sidecar knows it caught a partial write rather than guessing. meta's
 // SHA256 is filled here -- a caller cannot know it before the write.
-func writeNDJSON(dir, name string, works []openalex.Work, meta Meta) (string, error) {
+//
+// Lines rather than works is what lets a delta merge: a record this run did
+// not fetch is copied through as the bytes it already was, so nothing about
+// it -- including fields this build's Work type does not model -- can be
+// narrowed by a merge that never touched it.
+func writeLines(dir, name string, lines [][]byte, meta Meta) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
@@ -465,12 +508,23 @@ func writeNDJSON(dir, name string, works []openalex.Work, meta Meta) (string, er
 	if err != nil {
 		return "", err
 	}
-	enc := json.NewEncoder(f)
-	for i := range works {
-		if err := enc.Encode(works[i]); err != nil {
+	w := bufio.NewWriter(f)
+	for _, line := range lines {
+		// The newline is written separately, never appended to the line: a
+		// base's lines are subslices of one buffer, and append() into their
+		// spare capacity would scribble on the neighbouring record.
+		if _, err := w.Write(line); err != nil {
 			_ = f.Close()
-			return "", fmt.Errorf("encode work %s: %w", works[i].ID, err)
+			return "", err
 		}
+		if err := w.WriteByte('\n'); err != nil {
+			_ = f.Close()
+			return "", err
+		}
+	}
+	if err := w.Flush(); err != nil {
+		_ = f.Close()
+		return "", err
 	}
 	if err := f.Close(); err != nil {
 		return "", err
