@@ -16,9 +16,10 @@ plan.md
 !internal/store/sqlite/testdata/*.db
 !internal/duck/testdata/tiny.csv
 !internal/duck/testdata/nan.csv
-!internal/proj/new/templates/python/code/bibliography.bib
-!internal/proj/new/templates/python/data/raw/penguins.csv
-!internal/proj/new/templates/writing/references.bib
+# Everything under the scaffold templates is embedded payload; a data-file
+# pattern above must never silently swallow one (refs.bib shipped local-only
+# three times before this rule).
+!internal/proj/new/templates/**
 
 # internal/duck binary fixtures are regenerated at TestMain — never commit
 internal/duck/testdata/tiny.parquet
