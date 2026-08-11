@@ -354,3 +354,39 @@ func TestFieldBagDropsNothingTheGeneratedClientDeclares(t *testing.T) {
 		}
 	}
 }
+
+// TestFieldNames_ProjectsOnlyPopulatedBibliographicFields.
+//
+// This is the input to `item update --type`'s dropped-field report, so what
+// it counts as "a field the item carries" decides what a type change is
+// said to have destroyed. Structural keys must stay out: creators and tags
+// survive a type change and reporting them as dropped would be a false
+// alarm on every repair.
+func TestFieldNames_ProjectsOnlyPopulatedBibliographicFields(t *testing.T) {
+	t.Parallel()
+	title := "Socially intelligent machines that learn from humans and help humans learn"
+	pub := "Philosophical Transactions of the Royal Society A."
+	empty := ""
+	first, last := "Judi", "Thfan"
+	d := client.ItemData{
+		ItemType:  "document",
+		Title:     &title,
+		Publisher: &pub,
+		Place:     &empty, // stored empty — indistinguishable from unset
+		Creators:  &[]client.Creator{{CreatorType: "author", FirstName: &first, LastName: &last}},
+		Tags:      &[]client.Tag{{Tag: "has-markdown"}},
+	}
+
+	got := FieldNames(d)
+	want := []string{"publisher", "title"}
+	if !slices.Equal(got, want) {
+		t.Errorf("FieldNames = %v, want %v", got, want)
+	}
+}
+
+func TestFieldNames_EmptyItemHasNoFields(t *testing.T) {
+	t.Parallel()
+	if got := FieldNames(client.ItemData{ItemType: "journalArticle"}); len(got) != 0 {
+		t.Errorf("FieldNames = %v, want none", got)
+	}
+}

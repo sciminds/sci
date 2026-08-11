@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -129,6 +131,21 @@ func fieldBag(d client.ItemData) map[string]string {
 		return nil
 	}
 	return out
+}
+
+// FieldNames returns the bibliographic fields an item actually carries,
+// sorted. Empty fields are absent, because Zotero stores "" and "unset"
+// identically and a caller comparing two items cannot use a distinction the
+// server does not keep.
+//
+// It exists so a type change can be REPORTED rather than merely survived.
+// Zotero drops every field the new type does not declare, silently and
+// without naming them; diffing this across the write turns that into data
+// the caller can act on. Structural keys (creators, tags, collections, the
+// dates) are excluded by fieldBag — creators are reported separately and
+// the rest never move on a type change.
+func FieldNames(d client.ItemData) []string {
+	return slices.Sorted(maps.Keys(fieldBag(d)))
 }
 
 // relationSetFromClient maps the GET payload's relations into the same

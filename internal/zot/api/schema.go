@@ -32,6 +32,24 @@ func (c *Client) ItemTypeFields(ctx context.Context, itemType string) ([]string,
 	})
 }
 
+// ItemTypes returns every item type Zotero declares, in the API's own
+// order.
+//
+// This is the authority `item update --type` validates against, for the
+// same reason ItemTypeFields is the authority for --field: a hardcoded list
+// goes stale the moment Zotero adds a type, and the cost of guessing is a
+// 400 after the round trip — which on a multi-key update lands after some
+// items have already been patched.
+func (c *Client) ItemTypes(ctx context.Context) ([]string, error) {
+	return c.cachedSchema(ctx, "itemTypes", "itemType", func(ctx context.Context) (*[]client.SchemaLabelled, string, int, error) {
+		r, err := c.Gen.GetItemTypesWithResponse(ctx, &client.GetItemTypesParams{})
+		if err != nil {
+			return nil, "", 0, err
+		}
+		return r.JSON200, r.Status(), r.StatusCode(), nil
+	})
+}
+
 // ItemTypeCreatorTypes returns the creator types an item type accepts — a
 // bookSection takes editor and bookAuthor, a journalArticle takes neither.
 func (c *Client) ItemTypeCreatorTypes(ctx context.Context, itemType string) ([]string, error) {

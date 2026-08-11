@@ -19,11 +19,12 @@ import (
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
-// stubSchema answers the two per-item-type schema lookups from a table.
+// stubSchema answers the three per-item-type schema lookups from a table.
 type stubSchema struct {
 	stubVenueResolver
 	fields   map[string][]string
 	creators map[string][]string
+	types    []string
 	err      error
 }
 
@@ -41,18 +42,31 @@ func (s stubSchema) ItemTypeCreatorTypes(_ context.Context, itemType string) ([]
 	return s.creators[itemType], nil
 }
 
+func (s stubSchema) ItemTypes(_ context.Context) ([]string, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.types, nil
+}
+
 var zoteroSchema = stubSchema{
 	stubVenueResolver: zoteroVenues,
 	fields: map[string][]string{
 		"journalArticle":  {"title", "abstractNote", "publicationTitle", "volume", "issue", "pages", "DOI", "extra"},
 		"bookSection":     {"title", "abstractNote", "bookTitle", "edition", "date", "publisher", "place", "pages", "ISBN", "extra"},
 		"conferencePaper": {"title", "abstractNote", "proceedingsTitle", "conferenceName", "publisher", "place", "pages", "extra"},
+		// `document` is the type Zotero's PDF import falls back to when it
+		// cannot recognize a paper, so it is the usual LEFT side of a
+		// `--type` repair. Its field list is verbatim from the live API.
+		"document": {"title", "abstractNote", "type", "date", "publisher", "place", "DOI", "citationKey", "url", "extra"},
 	},
 	creators: map[string][]string{
 		"journalArticle":  {"author", "contributor", "editor", "reviewedAuthor", "translator"},
 		"bookSection":     {"author", "bookAuthor", "contributor", "editor", "seriesEditor", "translator"},
 		"conferencePaper": {"author", "contributor", "editor", "seriesEditor", "translator"},
+		"document":        {"author", "contributor", "editor", "reviewedAuthor", "translator"},
 	},
+	types: []string{"journalArticle", "bookSection", "conferencePaper", "document", "book", "thesis"},
 }
 
 func codedFrom(t *testing.T, err error) *cmdutil.CodedError {

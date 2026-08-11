@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
+	"slices"
 	"sync"
 	"testing"
 
@@ -91,6 +93,8 @@ func (h *schemaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		names, key = h.fields[itemType], "field"
 	case "/itemTypeCreatorTypes":
 		names, key = h.creators[itemType], "creatorType"
+	case "/itemTypes":
+		names, key = slices.Sorted(maps.Keys(h.fields)), "itemType"
 	default:
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -163,5 +167,45 @@ func TestItemTemplate_BadType(t *testing.T) {
 	_, err := c.ItemTemplate(context.Background(), "notAType", "")
 	if err == nil {
 		t.Fatal("expected error on 400")
+	}
+}
+
+// TestItemTypes_ReadsTheServersListAndCachesIt.
+//
+// `item update --type` validates against this, so a stale hardcoded list
+// would refuse a type Zotero has and accept one it does not. The cache
+// assertion matters for the same reason it does on the other two lookups:
+// a 50-key batch update resolves the schema per key.
+func TestItemTypes_ReadsTheServersListAndCachesIt(t *testing.T) {
+	t.Parallel()
+	h := newSchemaHandler()
+	c, _ := newTestClient(t, h)
+
+	got, err := c.ItemTypes(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"book", "bookSection", "conferencePaper", "journalArticle"}
+	if !slices.Equal(got, want) {
+		t.Errorf("item types = %v, want %v", got, want)
+	}
+	if _, err := c.ItemTypes(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if n := h.calls("/itemTypes"); n != 1 {
+		t.Errorf("hit /itemTypes %d times, want 1 — the list is static", n)
+	}
+}
+
+func TestItemTypes_ErrorStatusIsNotAnEmptyList(t *testing.T) {
+	t.Parallel()
+	h := newSchemaHandler()
+	h.status = http.StatusInternalServerError
+	c, _ := newTestClient(t, h)
+
+	// An empty list read as "Zotero has no item types" would make every
+	// --type invalid, so a failed lookup must surface as a failure.
+	if _, err := c.ItemTypes(context.Background()); err == nil {
+		t.Fatal("want an error when the lookup fails")
 	}
 }

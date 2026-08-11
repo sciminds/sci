@@ -25,10 +25,12 @@ import (
 	"github.com/sciminds/cli/internal/zot/client"
 )
 
-// itemSchema is the slice of *api.Client that --field / --creator need.
+// itemSchema is the slice of *api.Client that --field / --creator / --type
+// need.
 type itemSchema interface {
 	ItemTypeFields(ctx context.Context, itemType string) ([]string, error)
 	ItemTypeCreatorTypes(ctx context.Context, itemType string) ([]string, error)
+	ItemTypes(ctx context.Context) ([]string, error)
 }
 
 // dedicatedFieldFlags maps a Zotero field to the flag that already owns it.

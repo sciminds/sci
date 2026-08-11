@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -51,6 +52,9 @@ var (
 	updPublication string
 	updExtra       string
 	updField       []string
+	updType        string
+	updAuthor      []string
+	updCreator     []string
 	updFromJSON    string
 
 	deleteYes bool
@@ -141,41 +145,213 @@ type itemTargeter interface {
 	GetItem(ctx context.Context, key string) (*client.Item, error)
 }
 
+// updateSpec is everything `item update` resolved from its flags, kept
+// together because almost every part of it depends on the item's type and
+// therefore has to be applied per key rather than once per command.
+type updateSpec struct {
+	patch    client.ItemData
+	venue    *string
+	fields   []string
+	authors  []string
+	creators []string
+	newType  string
+}
+
+// schemaBound reports whether anything in the spec needs the item's own
+// type to place — i.e. whether the extra GET per key has to be paid.
+func (s updateSpec) schemaBound() bool {
+	return s.venue != nil || len(s.fields) > 0 ||
+		len(s.authors) > 0 || len(s.creators) > 0 || s.newType != ""
+}
+
+// typeChange records what a --type does to one item, so the command can
+// report it instead of letting the server discard fields in silence.
+type typeChange struct {
+	FromType string
+	ToType   string
+	// WillDrop is what the CLI predicts the new type cannot hold, computed
+	// from the two schemas. The REPORTED loss is still a diff of two reads
+	// (droppedFields) — this only decides what the patch clears.
+	WillDrop []string
+	// before is the item as it was read, kept so the post-write diff costs
+	// no second GET of a state we already hold.
+	before client.ItemData
+}
+
+// changed reports whether this is a real type change rather than --type
+// naming the type the item already has.
+func (t typeChange) changed() bool { return t.FromType != t.ToType }
+
 // perItemPatches returns the patch to send for each key, identical to the
 // shared one unless a schema-dependent flag was passed — in which case each
 // key's values land in whatever fields ITS type declares.
 //
 // The extra GET per key is only paid when one of those flags is set, and it
 // is the item's own type that decides: guessing from the first key would
-// write a bookTitle onto a journal article and fail that whole item.
+// write a bookTitle onto a journal article and fail that whole item. Under
+// --type the EFFECTIVE type is the new one, so the fields and creator types
+// a repair introduces are checked against the type the item is becoming
+// rather than the one it is leaving — otherwise setting a journalArticle's
+// volume while promoting it from a `document` would need two commands and
+// an invalid state in between.
 //
-// There is deliberately no --creator here. A Zotero PATCH replaces whole
-// arrays, so sending creators would erase every creator the item has that
-// this command line did not restate — the failure the Rebuild contract in
-// CLAUDE.md exists to prevent. Creators are `item add` only.
-func perItemPatches(ctx context.Context, c itemTargeter, keys []string, patch client.ItemData, venue *string, fields []string) (map[string]client.ItemData, error) {
-	out := lo.SliceToMap(keys, func(k string) (string, client.ItemData) { return k, patch })
-	if venue == nil && len(fields) == 0 {
-		return out, nil
+// Creators REPLACE. A Zotero PATCH overwrites whole arrays, so a creator
+// flag states the complete new list and anything not restated is gone. That
+// is a sharp edge, and it is deliberate: the alternative — merging into the
+// server's array — cannot express "this author is wrong, remove her", which
+// is the repair creators are almost always needed for. An update naming no
+// creator flag carries no creators array at all, so ordinary field edits
+// are never a creator write.
+func perItemPatches(ctx context.Context, c itemTargeter, keys []string, spec updateSpec) (map[string]client.ItemData, map[string]typeChange, error) {
+	out := lo.SliceToMap(keys, func(k string) (string, client.ItemData) { return k, spec.patch })
+	changes := map[string]typeChange{}
+	if !spec.schemaBound() {
+		return out, changes, nil
 	}
 	for _, k := range keys {
 		it, err := c.GetItem(ctx, k)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		itemType := string(it.Data.ItemType)
-		data := patch
-		if venue != nil {
-			if err := applyVenue(ctx, c, &data, itemType, *venue); err != nil {
-				return nil, err
+		curType := string(it.Data.ItemType)
+		itemType := cmp.Or(spec.newType, curType)
+		data := spec.patch
+
+		if spec.newType != "" && spec.newType != curType {
+			change, cerr := planTypeChange(ctx, c, it.Data, curType, spec.newType)
+			if cerr != nil {
+				return nil, nil, cerr
+			}
+			data.ItemType = client.ItemDataItemType(spec.newType)
+			// Clear what the new type cannot hold IN THE SAME PATCH.
+			// Zotero validates the item a patch RESULTS in, so leaving a
+			// `publisher` on an item becoming a journalArticle is a failed
+			// write rather than a degraded one — and one atomic patch
+			// means a rejection changes nothing at all.
+			for _, name := range change.WillDrop {
+				api.SetField(&data, name, "")
+			}
+			changes[k] = change
+		} else if spec.newType != "" {
+			changes[k] = typeChange{FromType: curType, ToType: curType}
+		}
+
+		if spec.venue != nil {
+			if err := applyVenue(ctx, c, &data, itemType, *spec.venue); err != nil {
+				return nil, nil, err
 			}
 		}
-		if err := applyFields(ctx, c, &data, itemType, fields); err != nil {
-			return nil, err
+		if err := applyFields(ctx, c, &data, itemType, spec.fields); err != nil {
+			return nil, nil, err
+		}
+		if err := applyCreators(ctx, c, &data, itemType, spec.authors, spec.creators); err != nil {
+			return nil, nil, err
 		}
 		out[k] = data
 	}
-	return out, nil
+	return out, changes, nil
+}
+
+// planTypeChange works out which of the item's populated fields the new
+// type does not declare.
+//
+// Both schemas come from Zotero, so this states no opinion about which
+// fields belong to which type; it only reads the two lists and subtracts.
+func planTypeChange(ctx context.Context, s itemSchema, data client.ItemData, from, to string) (typeChange, error) {
+	valid, err := s.ItemTypeFields(ctx, to)
+	if err != nil {
+		return typeChange{}, err
+	}
+	carried := api.FieldNames(data)
+	drop := lo.Filter(carried, func(name string, _ int) bool {
+		return !slices.Contains(valid, name)
+	})
+	return typeChange{FromType: from, ToType: to, WillDrop: drop, before: data}, nil
+}
+
+// validateItemType refuses a --type Zotero does not declare, before the
+// command reads or writes anything.
+//
+// The round trip is not the reason: an invalid type answers 400 on the
+// first item of a batch, by which time nothing has been written but the
+// user has spent a write's worth of latency to learn they made a typo. The
+// reason is that the fix is a spelling, so the message must carry the
+// spellings — `journal-article` and `journalarticle` are both things people
+// type, and neither is discoverable from the server's refusal.
+func validateItemType(ctx context.Context, s itemSchema, itemType string) error {
+	if itemType == "" {
+		return nil
+	}
+	types, err := s.ItemTypes(ctx)
+	if err != nil {
+		return err
+	}
+	if slices.Contains(types, itemType) {
+		return nil
+	}
+	return cmdutil.Coded(cmdutil.CodeUsage, "%q is not a Zotero item type", itemType).
+		WithTry("item types: " + strings.Join(types, ", "))
+}
+
+// updateReport builds the `data` an update returns, re-reading the item
+// only when a type actually changed.
+//
+// The re-read is the whole point: what Zotero kept is a fact about the
+// server, and predicting it from two schemas would report our model of the
+// write rather than the write. Every other kind of edit changes exactly the
+// fields it named, so it costs no round trip and returns nil.
+func updateReport(ctx context.Context, c itemTargeter, key string, change typeChange, spec updateSpec) (*zot.ItemUpdateData, error) {
+	data := &zot.ItemUpdateData{
+		CreatorsReplaced: len(spec.authors) + len(spec.creators),
+	}
+	if change.changed() {
+		after, err := c.GetItem(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+		// Never nil: "the new type kept everything" is an answer, and a
+		// JSON null there reads as "not computed".
+		dropped := droppedFields(change.before, after.Data)
+		if dropped == nil {
+			dropped = []string{}
+		}
+		data.TypeChange = &zot.ItemTypeChange{
+			From: change.FromType, To: change.ToType, DroppedFields: dropped,
+		}
+	}
+	if data.TypeChange == nil && data.CreatorsReplaced == 0 {
+		return nil, nil
+	}
+	return data, nil
+}
+
+// updateMessage renders the one line a human sees. A type change that threw
+// fields away must say so on that line — a caller who has to ask for --json
+// to discover a loss has already been surprised.
+func updateMessage(key string, data *zot.ItemUpdateData) string {
+	if data == nil || data.TypeChange == nil {
+		return ""
+	}
+	msg := fmt.Sprintf("updated item %s (%s → %s)", key, data.TypeChange.From, data.TypeChange.To)
+	if n := len(data.TypeChange.DroppedFields); n > 0 {
+		msg += fmt.Sprintf("; dropped %d field(s): %s", n, strings.Join(data.TypeChange.DroppedFields, ", "))
+	}
+	return msg
+}
+
+// droppedFields names the fields an item carried before a write and does
+// not carry after it.
+//
+// It is a diff of two READS rather than a replay of what the patch asked
+// for, because the question it answers is what the server did — and on a
+// type change the server discards fields nobody named. A field whose value
+// merely changed is not a loss and would only bury the real casualties.
+func droppedFields(before, after client.ItemData) []string {
+	had := api.FieldNames(before)
+	kept := api.FieldNames(after)
+	return lo.Filter(had, func(name string, _ int) bool {
+		return !slices.Contains(kept, name)
+	})
 }
 
 // applyVenue places a --publication value in the field the item type
@@ -388,10 +564,20 @@ func updateCommand() *cli.Command {
 		DisableSliceFlagSeparator: true,
 		Description: "$ sci zot item update ABC12345 --title \"Corrected Title\"\n" +
 			"$ sci zot item update ABC12345 DEF67890 --publication \"Nature\"\n" +
+			"$ sci zot item update ABC12345 --type journalArticle --publication \"Nature\" \\\n" +
+			"    --author \"Gweon, Hyowon\" --author \"Fan, Judith\" --field volume=381\n" +
 			"$ sci zot item update --from-json doi-backfill.ndjson\n" +
 			"$ sci zot item update --from-json enrich-plan.ndjson\n" +
 			"Providing multiple keys applies the same field patch to each item via a\n" +
 			"batched POST /items request (up to 50 items per round-trip).\n\n" +
+			"--author / --creator REPLACE the item's whole creator list: they state\n" +
+			"the complete new set, and any creator not restated is removed. An\n" +
+			"update naming neither leaves the creators untouched.\n\n" +
+			"--type changes the item type. Zotero keeps only the fields the new type\n" +
+			"declares, so the rest are removed and reported in data.type_change.\n" +
+			"dropped_fields (a diff of the item before and after the write). Every\n" +
+			"other flag is validated against the NEW type, so a document can become a\n" +
+			"journalArticle and gain volume/issue/pages in one command.\n\n" +
 			"--from-json applies MANY DISTINCT patches instead of one patch to many\n" +
 			"keys. It reads either plan the zot binary writes: a DOI plan from `zot\n" +
 			"backfill`, or a field plan from `zot enrich` (abstracts, volume, issue,\n" +
@@ -410,7 +596,11 @@ func updateCommand() *cli.Command {
 			&cli.StringFlag{Name: "abstract", Destination: &updAbstract, Local: true},
 			&cli.StringFlag{Name: "publication", Usage: "venue title — routed per item to the field ITS type takes", Destination: &updPublication, Local: true},
 			&cli.StringFlag{Name: "extra", Destination: &updExtra, Local: true},
-			&cli.StringSliceFlag{Name: "field", Usage: "any other field the item type takes, as name=value (repeatable)", Destination: &updField}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
+			&cli.StringFlag{Name: "type", Destination: &updType, Local: true,
+				Usage: "change the item type (e.g. journalArticle) — fields the new type does not declare are REMOVED, and reported as dropped_fields"},
+			&cli.StringSliceFlag{Name: "field", Usage: "any other field the item type takes, as name=value (repeatable)", Destination: &updField},                       // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
+			&cli.StringSliceFlag{Name: "author", Usage: "author as \"Last, First\" (repeatable) — REPLACES the item's whole creator list", Destination: &updAuthor},     // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
+			&cli.StringSliceFlag{Name: "creator", Usage: "non-author creator as \"type:Last, First\" (repeatable) — REPLACES the whole list", Destination: &updCreator}, // lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
 			&cli.StringFlag{Name: "from-json", Destination: &updFromJSON, Local: true,
 				Usage: "apply a patch plan (NDJSON from `zot backfill` or `zot enrich`)"},
 		},
@@ -428,7 +618,15 @@ func updateCommand() *cli.Command {
 			}
 
 			patch, venue, anyField := buildItemPatch(cmd)
-			if !anyField && len(updField) == 0 {
+			spec := updateSpec{
+				patch:    patch,
+				venue:    venue,
+				fields:   updField,
+				authors:  updAuthor,
+				creators: updCreator,
+				newType:  updType,
+			}
+			if !anyField && !spec.schemaBound() {
 				return cmdutil.UsageErrorf(cmd, "at least one field flag is required")
 			}
 
@@ -437,9 +635,17 @@ func updateCommand() *cli.Command {
 				return err
 			}
 
+			// Before any read or write: a mistyped --type is a spelling
+			// the server cannot suggest, and on a batch its 400 would
+			// arrive after earlier items were already patched.
+			if err := validateItemType(ctx, c, updType); err != nil {
+				return err
+			}
+
 			// One patch, many keys — but which fields a type accepts is
-			// per TYPE, so --publication and --field are placed per key.
-			perKey, err := perItemPatches(ctx, c, keys, patch, venue, updField)
+			// per TYPE, so --publication, --field, --creator and --type
+			// are placed per key.
+			perKey, changes, err := perItemPatches(ctx, c, keys, spec)
 			if err != nil {
 				return err
 			}
@@ -450,7 +656,15 @@ func updateCommand() *cli.Command {
 				if err := c.UpdateItem(ctx, keys[0], perKey[keys[0]]); err != nil {
 					return err
 				}
-				outputScoped(ctx, cmd, zot.WriteResult{Action: "updated", Kind: "item", Target: keys[0]})
+				data, err := updateReport(ctx, c, keys[0], changes[keys[0]], spec)
+				if err != nil {
+					return err
+				}
+				outputScoped(ctx, cmd, zot.WriteResult{
+					Action: "updated", Kind: "item", Target: keys[0],
+					Message: updateMessage(keys[0], data),
+					Data:    data,
+				})
 				return nil
 			}
 
@@ -470,13 +684,29 @@ func updateCommand() *cli.Command {
 					success = append(success, k)
 				}
 			}
-			outputScoped(ctx, cmd, zot.BulkWriteResult{
+			// Only the items that actually applied are re-read: a failed
+			// patch changed nothing, so it has nothing to report.
+			reports := map[string]*zot.ItemUpdateData{}
+			for _, k := range success {
+				data, rerr := updateReport(ctx, c, k, changes[k], spec)
+				if rerr != nil {
+					return rerr
+				}
+				if data != nil {
+					reports[k] = data
+				}
+			}
+			out := zot.BulkWriteResult{
 				Action:  "updated",
 				Kind:    "item",
 				Total:   len(keys),
 				Success: success,
 				Failed:  failed,
-			})
+			}
+			if len(reports) > 0 {
+				out.Data = reports
+			}
+			outputScoped(ctx, cmd, out)
 			return nil
 		},
 	}

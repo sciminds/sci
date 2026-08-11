@@ -127,7 +127,7 @@ func TestVenuePatches_ResolvesPerItemNotPerCall(t *testing.T) {
 	keys := []string{"JOURNAL1", "CHAPTER1", "PROCEED1"}
 	venue := "The Cognitive Neurosciences"
 
-	got, err := perItemPatches(context.Background(), c, keys, client.ItemData{}, &venue, nil)
+	got, _, err := perItemPatches(context.Background(), c, keys, updateSpec{venue: &venue})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,8 +151,8 @@ func TestVenuePatches_NoPublicationSkipsTheLookup(t *testing.T) {
 	c := stubVenueTargeter{stubSchema: zoteroSchema}
 	title := "New Title"
 
-	got, err := perItemPatches(context.Background(), c, []string{"AAAA1111", "BBBB2222"},
-		client.ItemData{Title: &title}, nil, nil)
+	got, _, err := perItemPatches(context.Background(), c, []string{"AAAA1111", "BBBB2222"},
+		updateSpec{patch: client.ItemData{Title: &title}})
 	if err != nil {
 		t.Fatalf("an update with no --publication must not read the items: %v", err)
 	}
