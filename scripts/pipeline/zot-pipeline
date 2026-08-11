@@ -848,6 +848,22 @@ preflight() {
     done
     check sci-config "$([[ -r $SCI_CONFIG ]] && echo yes || echo no)" "$SCI_CONFIG"
 
+    # Presence is not capability. mbp's sci was a copy predating --missing,
+    # so the metered stage priced nothing and deferred forever while this
+    # line said "ok sci". A preflight that checks a file exists where it
+    # should check the file can do the job is the same defect as a journal
+    # gate that measures a size.
+    # The help text is captured before it is searched, never piped into
+    # `grep -q`: grep exits on the first match, sci dies of SIGPIPE, and
+    # `set -o pipefail` turns a successful probe into a failed one.
+    local sci_help=""
+    [[ -x ${SCI_BIN:-} ]] && sci_help=$("$SCI_BIN" zot openalex sync --help 2>&1 || true)
+    if [[ $sci_help == *--missing* ]]; then
+        check sci-delta-mode yes "sync --missing is available; the metered stage can price and spend"
+    else
+        check sci-delta-mode no "this sci predates 'openalex sync --missing' — the stage will defer 'unpriced' forever. Fix: ln -sf \$HOME/syncthing/air-mbp/sci/sci \$HOME/.local/bin/sci"
+    fi
+
     local dd
     dd=$(zotero_data_dir)
     check zotero-data-dir "$([[ -n $dd && -r "$dd/zotero.sqlite" ]] && echo yes || echo no)" "${dd:-unset}"
