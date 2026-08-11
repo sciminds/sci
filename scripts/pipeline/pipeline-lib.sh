@@ -92,6 +92,59 @@ pl_wal_verdict() {
 }
 
 # ---------------------------------------------------------------------------
+# The rollback-journal gate
+# ---------------------------------------------------------------------------
+#
+# The rollback-mode twin of the WAL gate. An immutable=1 reader skips
+# journal playback exactly as it skips WAL replay, so a journal SQLite would
+# roll back is a gap the dump cannot see.
+#
+# Hotness is a HEADER question, never a size question. mbp's Zotero runs
+# journal_mode=PERSIST: the -journal file is created once and then lives
+# forever, invalidated after each commit by zeroing its header rather than
+# by being deleted or truncated. Its size stays constant and its body stays
+# full of stale page images — testdata/journal-hot.bin and
+# testdata/journal-persist-cold.bin are the same journal before and after a
+# commit, and both are 8,720 bytes. A size test cannot tell them apart, so
+# a size test holds the pipeline forever on a machine where Zotero is
+# always open.
+#
+# SQLite's own test is the magic in the first 8 bytes:
+#
+#   static const unsigned char aJournalMagic[] =
+#     { 0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7 };
+#
+# and writeJournalHdr() writes it as ZEROS until the journal has been
+# synced, filling it in only once playback would be safe. So "magic absent"
+# is not a heuristic for "probably fine" — it is SQLite saying it would not
+# replay this file either. A genuinely hot journal (a crash mid-transaction)
+# still carries the magic, and still holds the run.
+#
+# Prints "<verdict> <bytes>"; exit 1 on hot so a caller can branch on $?.
+#   absent  — no journal file at all (journal_mode=DELETE, at rest)
+#   cold    — present, header invalidated: PERSIST after commit, or an
+#             unsynced journal SQLite would itself decline to replay
+#   hot     — the magic is there; SQLite would roll this back
+pl_journal_magic='d9d505f920a163d7'
+
+pl_journal_verdict() {
+    local path=$1
+    if [[ ! -e $path ]]; then
+        printf 'absent 0\n'
+        return 0
+    fi
+    local bytes head8
+    bytes=$(wc -c <"$path" | tr -d ' ')
+    head8=$(od -An -tx1 -N8 -v "$path" 2>/dev/null | tr -d ' \n')
+    if [[ $head8 == "$pl_journal_magic" ]]; then
+        printf 'hot %s\n' "$bytes"
+        return 1
+    fi
+    printf 'cold %s\n' "$bytes"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
 # The OpenAlex leash
 # ---------------------------------------------------------------------------
 #

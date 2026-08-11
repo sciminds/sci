@@ -41,7 +41,16 @@
 #   zot-pipeline --dry-run fast
 #   zot-pipeline --once --no-ship --no-openalex fast
 
-set -Eeuo pipefail
+# NOT set -E, deliberately. The gates SIGNAL with an exit status — a hot
+# journal, a dirty WAL and a lagging mirror are all "return 1" — and every
+# one of them is read through a command substitution. With -E the ERR trap
+# is inherited into that subshell, where bash cannot see that the caller
+# already handles the failure with `|| rc=$?`; the trap fired, recorded
+# "unexpected error on line 384", and its own notification text was
+# captured into the variable holding the gate's verdict. An expected answer
+# must never be reported as a crash. Unexpected failures are caught by the
+# EXIT trap instead, which cannot misfire inside a subshell.
+set -euo pipefail
 
 SELF_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 readonly SELF_DIR
@@ -169,22 +178,36 @@ state_set() {
 }
 
 # record_outcome is called exactly once per run, on every exit path.
+#
+# Three statuses, and the difference is whether anyone should look:
+#   ok      the cadence completed
+#   held    a freshness gate said "not yet" — expected, self-correcting,
+#           and it deliberately leaves the counter unconsumed so the next
+#           poll retries. Not an alarm until it repeats.
+#   failed  something broke.
+OUTCOME_RECORDED=0
+
 record_outcome() {
     local status=$1 stage=$2 reason=$3
+    OUTCOME_RECORDED=1
     state_set \
         --arg s "$status" --arg st "$stage" --arg r "$reason" \
         --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg c "$VERB" \
         '.last_run = {status:$s, cadence:$c, stage:$st, reason:$r, at:$at}'
-    if [[ $status == ok ]]; then
+    case $status in
+    ok)
         ((DRY_RUN)) || rm -f "$FAIL_MARKER"
-    else
+        ;;
+    held) ;; # deliberately no marker and no notification: see hold_run
+    *)
         ((DRY_RUN)) || {
             mkdir -p "$STATE_DIR"
             printf '%s  %s cadence failed at stage %s: %s\n' \
                 "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$VERB" "$stage" "$reason" >"$FAIL_MARKER"
         }
         notify "zot pipeline: $VERB failed" "$stage — $reason"
-    fi
+        ;;
+    esac
 }
 
 fail_stage() {
@@ -192,6 +215,30 @@ fail_stage() {
     log "STOP  stage=$stage reason=$reason"
     record_outcome failed "$stage" "$reason"
     exit 1
+}
+
+# hold_run — a freshness gate said "not yet", and that is an ANSWER.
+#
+# It exits 0: the run did not break, it declined, and launchd should see a
+# clean exit. It does not consume the counter, so the next poll retries the
+# whole thing. And it does not raise the alarm on the first occurrence,
+# because a Zotero desktop mid-sync produces exactly this and resolves
+# itself in one poll interval. A hold that KEEPS happening is a different
+# animal, so consecutive holds are counted and the third one notifies.
+hold_run() {
+    local stage=$1 gate=$2 detail=$3
+    local n
+    n=$(state_get '.consecutive_holds' 0)
+    [[ $n =~ ^[0-9]+$ ]] || n=0
+    n=$((n + 1))
+
+    log "HOLD  stage=$stage gate=$gate detail=$detail (consecutive: $n)"
+    state_set --arg g "$gate" --arg d "$detail" --arg st "$stage" \
+        --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson n "$n" \
+        '.last_gate_hold = {gate:$g, detail:$d, stage:$st, at:$at} | .consecutive_holds = $n'
+    record_outcome held "$stage" "gate $gate: $detail"
+    ((n < 3)) || notify "zot pipeline: $VERB held ${n}x" "gate $gate — $detail"
+    exit 0
 }
 
 # ---------------------------------------------------------------------------
@@ -202,12 +249,19 @@ fail_stage() {
 # macOS is not (no flock(1) in the base system). The pid inside lets a run
 # distinguish a live holder from one that was killed.
 
+# The lock is released by the single EXIT trap (on_exit), not by one of its
+# own. Two EXIT traps cannot coexist in bash — the second silently replaces
+# the first — and the version of this script that set one here quietly
+# disarmed the outcome recorder for every run that took the lock, which is
+# every run that does any work.
+LOCK_HELD=0
+
 acquire_lock() {
     ((DRY_RUN)) && return 0
     mkdir -p "$STATE_DIR"
     if mkdir "$LOCK_DIR" 2>/dev/null; then
+        LOCK_HELD=1
         printf '%s\n' "$$" >"$LOCK_DIR/pid"
-        trap 'rm -rf "$LOCK_DIR"' EXIT
         return 0
     fi
     local holder
@@ -219,8 +273,8 @@ acquire_lock() {
     log "stale lock (pid ${holder:-unknown} is gone) — reclaiming"
     rm -rf "$LOCK_DIR"
     mkdir "$LOCK_DIR" || die "cannot create lock at $LOCK_DIR"
+    LOCK_HELD=1
     printf '%s\n' "$$" >"$LOCK_DIR/pid"
-    trap 'rm -rf "$LOCK_DIR"' EXIT
 }
 
 # ---------------------------------------------------------------------------
@@ -316,12 +370,11 @@ zotero_data_dir() { pl_json "$SCI_CONFIG" '.data_dir' ''; }
 journal_gate() {
     local dir
     dir=$(zotero_data_dir)
-    [[ -n $dir ]] || return 0
-    if [[ -s "$dir/zotero.sqlite-journal" ]]; then
-        printf 'hot %s\n' "$(wc -c <"$dir/zotero.sqlite-journal" | tr -d ' ')"
-        return 1
-    fi
-    printf 'quiet 0\n'
+    [[ -n $dir ]] || {
+        printf 'no-data-dir 0\n'
+        return 0
+    }
+    pl_journal_verdict "$dir/zotero.sqlite-journal"
 }
 
 # sync_gate <dump-body> <dump-meta> <observed-remote-version> <first-seen-epoch>
@@ -376,33 +429,49 @@ stage_export() {
 
     run mkdir -p "$INCOMING"
 
-    local attempt held=""
+    # --dry-run is a PREVIEW, not a rehearsal. Two of the three gates read
+    # a dump that does not exist yet, so evaluating them here could only
+    # produce a verdict about nothing. The journal gate is the one that can
+    # be read against the live library without exporting, so it is shown —
+    # labelled, and with no power to hold, record, or notify.
+    if ((DRY_RUN)); then
+        printf '    would run: rm -f %s %s\n' "$body" "$meta"
+        printf '    would run: %s zot --library %s export --format ndjson --out %s\n' \
+            "$SCI_BIN" "$LIBRARY" "$body"
+        printf '    gates (preview only, none can hold a dry run):\n'
+        printf '      journal: %s   [read live, now]\n' "$(journal_gate || true)"
+        printf '      wal:     needs the dump this run would not take\n'
+        printf '      sync:    needs the dump this run would not take\n'
+        printf '    would promote into %s only if all three passed\n' "$ZOT_STAGING"
+        return 0
+    fi
+
+    local attempt gate="" detail=""
     for ((attempt = 1; attempt <= GATE_ATTEMPTS; attempt++)); do
         log "export attempt $attempt/$GATE_ATTEMPTS"
 
-        local jv
-        jv=$(journal_gate) || {
-            held="journal ($jv)"
-            log "  gate journal: $jv — the reader would skip a rollback"
-            ((DRY_RUN)) && break
+        local jv jrc=0
+        jv=$(journal_gate) || jrc=$?
+        if ((jrc)); then
+            gate=journal detail=$jv
+            log "  gate journal: HELD ($jv) — SQLite would roll this journal back, and an immutable reader cannot see it"
             sleep "$GATE_WAIT_SECONDS"
             continue
-        }
+        fi
         log "  gate journal: $jv"
 
         run rm -f "$body" "$meta"
         if ! run "$SCI_BIN" zot --library "$LIBRARY" export --format ndjson --out "$body"; then
             fail_stage export "sci zot export failed"
         fi
-        ((DRY_RUN)) && break
 
-        local verdict rc=0
-        verdict=$(pl_wal_verdict "$meta" "$WAL_TOLERANCE_BYTES") || rc=$?
-        log "  gate wal: $verdict"
-        case $rc in
-        0) ;;
+        local verdict wrc=0
+        verdict=$(pl_wal_verdict "$meta" "$WAL_TOLERANCE_BYTES") || wrc=$?
+        case $wrc in
+        0) log "  gate wal: $verdict" ;;
         1)
-            held="wal ($verdict)"
+            gate=wal detail=$verdict
+            log "  gate wal: HELD ($verdict) — the dump cannot see what Zotero has committed"
             rm -f "$body" "$meta"
             sleep "$GATE_WAIT_SECONDS"
             continue
@@ -410,23 +479,23 @@ stage_export() {
         *) fail_stage export "dump sidecar is $verdict — the export did not finish" ;;
         esac
 
-        local sv
-        if sv=$(sync_gate "$body" "$meta" "$want_version" "$first_seen"); then
+        local sv src=0
+        sv=$(sync_gate "$body" "$meta" "$want_version" "$first_seen") || src=$?
+        if ((src == 0)); then
             log "  gate sync: $sv"
             log "promoting dump into staging"
             run mv -f "$body" "$ZOT_STAGING/zotero-items.ndjson"
             run mv -f "$meta" "$ZOT_STAGING/zotero-items.ndjson.meta.json"
+            state_set '.consecutive_holds = 0'
             return 0
         fi
-        held="sync ($sv)"
-        log "  gate sync: $sv — the desktop has not pulled the change yet"
+        gate=sync detail=$sv
+        log "  gate sync: HELD ($sv) — the desktop has not pulled the change yet"
         rm -f "$body" "$meta"
         sleep "$GATE_WAIT_SECONDS"
     done
 
-    ((DRY_RUN)) && return 0
-    state_set --arg h "$held" '.last_gate_hold = $h'
-    fail_stage export "gate held after $GATE_ATTEMPTS attempts: ${held:-unknown}"
+    hold_run export "${gate:-unknown}" "${detail:-held after $GATE_ATTEMPTS attempts}"
 }
 
 # ---------------------------------------------------------------------------
@@ -539,8 +608,19 @@ stage_openalex() {
 # parts. A sidecar file that lands beside the snapshot tomorrow ships with
 # it and no one edits this function.
 
+# --db is passed EXPLICITLY, never left to zot's default.
+#
+# Staging and the snapshot it builds are one artifact set, and a run that
+# redirects only one of them is a run that reads sandbox inputs and writes
+# the production output. That is not hypothetical: a test pointing
+# ZOT_STAGING at a scratch directory rebuilt this machine's real 2.1 GB
+# snapshot from a staging dir holding nothing but zotero-items, and turned
+# it into a 42 MB item plane with no text, no works and no citations. The
+# build's atomic rename did exactly its job — the previous snapshot was
+# replaced completely and successfully.
 stage_build() {
-    run "$ZOT_BIN" build --staging "$ZOT_STAGING" || fail_stage build "zot build failed"
+    run "$ZOT_BIN" build --staging "$ZOT_STAGING" --db "$ZOT_ARTIFACTS/zot.duckdb" ||
+        fail_stage build "zot build failed"
 }
 
 stage_ship() {
@@ -574,7 +654,7 @@ stage_ship() {
         'export PATH=$HOME/.local/bin:$PATH; zot status --json' 2>/dev/null) ||
         fail_stage ship "shipped, but the remote zot status did not answer"
     remote_snap=$(printf '%s' "$remote" | jq -r '.data.snapshot // empty')
-    local_snap=$("$ZOT_BIN" status --json | jq -r '.data.snapshot // empty')
+    local_snap=$("$ZOT_BIN" status --json --db "$ZOT_ARTIFACTS/zot.duckdb" | jq -r '.data.snapshot // empty')
     if [[ -z $remote_snap || $remote_snap != "$local_snap" ]]; then
         fail_stage ship "remote snapshot is ${remote_snap:-unreadable}, local is $local_snap"
     fi
@@ -816,6 +896,7 @@ show_status() {
       "last run   \(.last_run.status // "?")  \(.last_run.cadence // "?")  \(.last_run.at // "?")",
       "           stage=\(.last_run.stage // "-")  reason=\(.last_run.reason // "-")",
       "counter    seen=\(.seen.versions // "-")  pending=\(.pending.versions // "-")",
+      "last hold  \(.last_gate_hold.gate // "-"): \(.last_gate_hold.detail // "-")  at \(.last_gate_hold.at // "-")  consecutive=\(.consecutive_holds // 0)",
       "openalex   \(.openalex.decision // "-")  new_dois=\(.openalex.new_dois // 0) est=\(.openalex.estimated_requests // "-") cap=\(.openalex.cap // "-") deferrals=\(.openalex_deferrals // 0)",
       "shipped    \(.shipped.snapshot // "-") to \(.shipped.host // "-") at \(.shipped.at // "-")"
     ' <"$STATE_FILE"
@@ -851,7 +932,24 @@ esac
 [[ -x ${SCI_BIN:-} ]] || die "sci not found — run 'zot-pipeline preflight'"
 [[ -x ${ZOT_BIN:-} ]] || die "zot not found — run 'zot-pipeline preflight'"
 
-trap 'record_outcome failed "$VERB" "unexpected error on line $LINENO"' ERR
+# The last-resort recorder. An ERR trap cannot do this job: with -E it
+# fires inside the command substitutions the gates are read through, where
+# a deliberate "return 1" is indistinguishable from a crash, and without -E
+# it never fires inside a function at all — which is where every stage
+# lives. An EXIT trap sees exactly one thing: this process ended without
+# any code path having recorded why. The $$ guard keeps it from firing in a
+# forked subshell, and OUTCOME_RECORDED keeps it from overwriting a verdict
+# some stage already reached.
+on_exit() {
+    local rc=$?
+    [[ $BASHPID == "$$" ]] || return 0
+    ((LOCK_HELD)) && rm -rf "$LOCK_DIR"
+    ((rc == 0)) && return 0
+    ((OUTCOME_RECORDED)) && return 0
+    record_outcome failed "$VERB" "exited $rc without reaching a stage verdict"
+    return 0
+}
+trap on_exit EXIT
 
 case $VERB in
 poll)

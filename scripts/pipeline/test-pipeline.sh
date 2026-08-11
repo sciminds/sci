@@ -75,6 +75,36 @@ ok 'an operator tolerance lets a known-small WAL through' \
 ok 'and a tolerance below the measurement still refuses' \
     "$(verdict "$TD/dirty.meta.json" 4151)" 'dirty 4152 rc=1'
 
+printf '\nRollback-journal gate\n'
+# journal-hot.bin and journal-persist-cold.bin are the SAME SQLite rollback
+# journal, copied mid-transaction and again after the commit, from a
+# database running journal_mode=PERSIST. Both are 8720 bytes: the file
+# survives the commit and is invalidated by zeroing its header, which is
+# why the size test this replaced held mbp's pipeline every single run.
+# journal-mbp-live.bin is the first 4 KB of mbp's actual
+# ~/Zotero/zotero.sqlite-journal, taken with Zotero open.
+jverdict() {
+    local out rc=0
+    out=$(pl_journal_verdict "$1") || rc=$?
+    printf '%s rc=%s\n' "$out" "$rc"
+}
+
+ok 'a journal carrying the SQLite magic is hot and HOLDS the run' \
+    "$(jverdict "$TD/journal-hot.bin")" 'hot 8720 rc=1'
+ok 'the same journal after commit under PERSIST is cold' \
+    "$(jverdict "$TD/journal-persist-cold.bin")" 'cold 8720 rc=0'
+ok 'hot and cold are the same size — size cannot be the test' \
+    "$(wc -c <"$TD/journal-hot.bin" | tr -d ' ') $(wc -c <"$TD/journal-persist-cold.bin" | tr -d ' ')" \
+    '8720 8720'
+ok "mbp's live journal, with Zotero open, is cold" \
+    "$(jverdict "$TD/journal-mbp-live.bin")" 'cold 4096 rc=0'
+ok 'no journal file at all is absent, not hot' \
+    "$(jverdict "$TD/journal-does-not-exist.bin")" 'absent 0 rc=0'
+ok 'an empty journal is cold' \
+    "$(jverdict "$TD/journal-empty.bin")" 'cold 0 rc=0'
+ok 'a journal too short to hold the magic is cold, not hot' \
+    "$(jverdict "$TD/journal-truncated.bin")" 'cold 4 rc=0'
+
 printf '\nOpenAlex cost estimate\n'
 # 857 (measured works arm) + ceil(167665/50)=3354 = 4211
 ok 'the measured request count plus the cited arm' \
