@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "data": {
+    "library": "all",
+    "scope": "all",
+    "staging_dir": "/Users/esh/.local/share/zot/staging",
+    "plan": {
+      "mode": "delta",
+      "items_targeted": 2,
+      "dois": 2,
+      "dois_unbatchable": 0,
+      "titles": 0,
+      "lookups": 2,
+      "doi_requests": 1,
+      "title_requests": 0,
+      "cited_requests": 2,
+      "fallback_max": 2,
+      "requests": 3,
+      "requests_max": 5
+    },
+    "missing_without_doi": 653,
+    "missing_known_absent": 43
+  }
+}

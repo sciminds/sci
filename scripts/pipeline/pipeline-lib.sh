@@ -227,19 +227,53 @@ pl_oa_estimate() {
     printf '%s\n' "$((works + (cited + pl_oa_batch - 1) / pl_oa_batch))"
 }
 
-# pl_oa_decision <new_identifiers> <estimate> <cap>
+# pl_oa_plan <estimate-json> — read what a TARGETED sync would cost.
+#
+# `sci zot openalex sync --missing --estimate --json` prices the delta
+# without contacting OpenAlex, which is what lets an unattended caller
+# decide before it bills. Two numbers come out: how many items the run
+# would target, and what it would cost.
+#
+# The cost read here is `requests_max`, not `requests`. sci reports the
+# fallback arm — the title lookup a DOI that resolves to nothing falls back
+# to — as a separate BOUND rather than folding its worst case into the
+# headline, so that an eight-request run is not priced as twenty-four and
+# deferred. A cap is a promise about what the machine may spend without
+# asking, so the promise has to be made against the number the run cannot
+# exceed. On this library that is 5 against a headline of 3, and both fit.
+#
+# Prints "<items_targeted> <requests_max>". Exit 1 — and no numbers — when
+# sci declined to price the plan at all: a targeted sync MERGES, so it
+# refuses when staging holds no cache to merge into, and that refusal
+# arrives as ok:false in the envelope with exit status 0. A plan nobody
+# could price is not a plan costing zero.
+pl_oa_plan() {
+    local file=$1
+    if [[ $(pl_json "$file" '.ok' 'false') != true ]]; then
+        return 1
+    fi
+    local items req
+    items=$(pl_json "$file" '.data.plan.items_targeted' '')
+    req=$(pl_json "$file" '.data.plan.requests_max // .data.plan.requests' '')
+    if [[ ! $items =~ ^[0-9]+$ || ! $req =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    printf '%s %s\n' "$items" "$req"
+}
+
+# pl_oa_decision <targeted> <estimate> <cap>
 #
 # Prints one of:
-#   run                    — the delta introduced unresolved identifiers and
-#                            the measured cost fits inside the chosen cap
+#   run                    — the run has something to fetch and its cost
+#                            fits inside the chosen cap
 #   skip:no_new_identifiers
 #   defer:over_cap
 #   defer:unknown_cost
 #
-# The two conditions are independent on purpose. "Did anything new appear"
-# decides whether the stage is WORTH running; "what would it cost" decides
-# whether it is ALLOWED to. Collapsing them would let a one-DOI delta
-# authorize a four-thousand-request run.
+# The two conditions are independent on purpose. "Is there anything to
+# fetch" decides whether the stage is WORTH running; "what would it cost"
+# decides whether it is ALLOWED to. Collapsing them would let a one-DOI
+# delta authorize a four-thousand-request run.
 pl_oa_decision() {
     local new=$1 estimate=$2 cap=$3
 

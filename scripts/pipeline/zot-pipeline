@@ -502,66 +502,41 @@ stage_export() {
 # Stage: the metered one
 # ---------------------------------------------------------------------------
 #
-# `sci zot openalex sync` in the form this stage runs re-fetches the whole
-# library and then expands every work's referenced_works: its own sidecars
-# measure the last run at ~4,200 requests. Two independent questions decide
-# whether it runs, and both must say yes.
+# The stage spends, and it spends only inside a bound priced in advance.
 #
-#   is it WORTH running   did the delta introduce a DOI the works cache
-#                         does not already hold?
-#   is it ALLOWED to      does the MEASURED cost of the command fit inside
-#                         the cap someone chose?
+# `sci zot openalex sync` has two shapes. The FULL form re-fetches every
+# bibliographic item and then expands every work's referenced_works — its
+# own sidecars measure that at ~4,200 requests, and this stage never runs
+# it. `sync --missing` fetches only the items whose DOIs the cache lacks
+# and MERGES them in, which is about 2 requests per new paper.
 #
-# Under the default cap of 50 the answer to the second is no, every time,
-# and the run says so. That is the intended behaviour, not a bug to route
-# around: the fast path still lands the paper at `metadata` depth, and
-# resolving it to an OpenAlex work waits for a human to spend the money.
+# Two independent questions decide, and both must say yes:
 #
-# `sync --missing` is the small form — it fetches only the items whose DOIs
-# the cache lacks and merges them in, and `--missing --estimate --json`
-# prices itself in advance (.plan.requests; ~2 per new paper). Pointing this
-# stage at it is a deliberate policy change, not a refactor: it would mean
-# the pipeline spends unattended, inside the cap, rather than deferring to a
-# human. Left as it stands until that is chosen.
+#   is it WORTH running   would a targeted run fetch anything at all?
+#   is it ALLOWED to      does the priced cost fit inside the chosen cap?
+#
+# `--missing --estimate --json` answers both, in one call, contacting
+# nothing: `.data.plan.items_targeted` and `.data.plan.requests_max`. Asking
+# sci rather than deriving it here is what makes the answer right — sci
+# merges the `not_found` list forward, so the 43 monographs and preprints
+# OpenAlex has never indexed stop being re-bought every run, which is the
+# difference between 45 requests and 3. A shell-side anti-join could not
+# know that, and the one this replaced had to be date-filtered to stop the
+# permanently-unresolvable tail from claiming work forever — a filter that
+# also hid two genuinely missing DOIs.
+#
+# Over cap, or unpriceable, defers exactly as before and consumes nothing.
+# A full re-sync stays a human decision; the stage logs what one would cost
+# so the human deciding has the number.
 
-# count_new_dois — DOIs the DELTA introduced that the works cache does not
-# already hold.
-#
-# The delta part is load-bearing. A plain "which DOIs are missing from the
-# cache" answer never reaches zero: OpenAlex 404s on monographs and
-# preprints, so ~40 DOIs in this library are permanently unresolvable and
-# would keep claiming there is new work to do forever. Restricting the
-# question to items MODIFIED SINCE the cache was produced makes it a delta
-# again — the same reason the runner watches a version counter and not a
-# file's mtime.
-count_new_dois() {
-    local items="$ZOT_STAGING/zotero-items.ndjson"
-    local works="$ZOT_STAGING/openalex-works.ndjson"
-    [[ -r $items ]] || {
-        printf '0\n'
-        return
-    }
-    local since
-    since=$(pl_json "$ZOT_STAGING/openalex-works.ndjson.meta.json" '.produced_at' '')
-
-    local mine
-    mine=$(jq -r --arg since "$since" '
-        select(.kind=="item")
-        | select($since == "" or ((.date_modified // "") > $since))
-        | .fields.DOI // empty
-        | ascii_downcase | sub("^https?://(dx\\.)?doi\\.org/";"")' <"$items" | sort -u)
-
-    if [[ ! -r $works ]]; then
-        # No cache at all: every DOI in the library is unresolved.
-        printf '%s' "$mine" | grep -c . || true
-        return
-    fi
-    # An anti-join, not `NOT IN`: the DOI pool has nulls, and a NULL-bearing
-    # NOT IN silently returns nothing. comm(1) over two sorted sets is the
-    # shell's anti-join.
-    comm -23 <(printf '%s\n' "$mine") \
-        <(jq -r '.doi // empty | ascii_downcase | sub("^https?://(dx\\.)?doi\\.org/";"")' <"$works" | sort -u) |
-        grep -c . || true
+# oa_plan prices a targeted sync. --estimate reaches no network, so a dry
+# run may ask it for real; it writes only where told, and a dry run is told
+# a temp file so it stays side-effect free.
+oa_plan() {
+    local out=$1
+    "$SCI_BIN" zot --library "$LIBRARY" openalex sync \
+        --missing --estimate --json --out "$ZOT_STAGING" >"$out" 2>/dev/null || true
+    pl_oa_plan "$out"
 }
 
 stage_openalex() {
@@ -571,32 +546,52 @@ stage_openalex() {
         return 0
     fi
 
-    local new estimate decision
-    new=$(count_new_dois)
-    estimate=$(pl_oa_estimate \
+    local estimate_json
+    if ((DRY_RUN)); then
+        estimate_json=$(mktemp -t zot-oa-estimate)
+    else
+        mkdir -p "$STATE_DIR"
+        estimate_json="$STATE_DIR/openalex-estimate.json"
+    fi
+
+    local plan targeted requests decision
+    if plan=$(oa_plan "$estimate_json"); then
+        targeted=${plan%% *}
+        requests=${plan##* }
+        decision=$(pl_oa_decision "$targeted" "$requests" "$OA_REQUEST_CAP")
+    else
+        targeted=unknown requests=unknown decision=defer:unpriced
+    fi
+    ((DRY_RUN)) && rm -f "$estimate_json"
+
+    # What a full re-sync would cost, for the human who has to authorise
+    # one. It is context in the log, never an input to the decision above.
+    local full
+    full=$(pl_oa_estimate \
         "$ZOT_STAGING/openalex-works.ndjson.meta.json" \
         "$ZOT_STAGING/openalex-titles.ndjson.meta.json" || true)
-    decision=$(pl_oa_decision "$new" "$estimate" "$OA_REQUEST_CAP")
 
-    log "openalex: new_dois=$new estimated_requests=$estimate cap=$OA_REQUEST_CAP → $decision"
-    state_set --arg d "$decision" --argjson n "${new:-0}" \
-        --arg e "$estimate" --argjson c "$OA_REQUEST_CAP" \
-        '.openalex = {decision:$d, new_dois:$n, estimated_requests:$e, cap:$c, at:(now|todate)}'
+    log "openalex: targeted=$targeted requests<=$requests cap=$OA_REQUEST_CAP → $decision (a full re-sync would cost $full and stays manual)"
+    state_set --arg d "$decision" --arg t "$targeted" \
+        --arg e "$requests" --arg f "$full" --argjson c "$OA_REQUEST_CAP" \
+        '.openalex = {decision:$d, targeted:$t, estimated_requests:$e, full_sync_requests:$f, cap:$c, at:(now|todate)}'
 
     case $decision in
     run)
-        run "$SCI_BIN" zot --library "$LIBRARY" openalex sync --out "$ZOT_STAGING" ||
-            fail_stage openalex "sci zot openalex sync failed"
+        log "openalex: spending up to $requests request(s) on $targeted item(s)"
+        run "$SCI_BIN" zot --library "$LIBRARY" openalex sync --missing --out "$ZOT_STAGING" ||
+            fail_stage openalex "sci zot openalex sync --missing failed"
+        state_set '.openalex_deferrals = 0'
         ;;
     defer:*)
         local n
         n=$(state_get '.openalex_deferrals' 0)
         [[ $n =~ ^[0-9]+$ ]] || n=0
         state_set --argjson n "$((n + 1))" '.openalex_deferrals = $n'
-        log "openalex: DEFERRED ($decision) — $new unresolved DOI(s) wait for a run someone authorises"
+        log "openalex: DEFERRED ($decision) — $targeted item(s) wait for a run someone authorises"
         if (((n + 1) % 10 == 0)); then
-            notify "zot pipeline: OpenAlex deferred ${n} times" \
-                "$new unresolved DOIs; est. $estimate requests > cap $OA_REQUEST_CAP"
+            notify "zot pipeline: OpenAlex deferred $((n + 1)) times" \
+                "$targeted items; up to $requests requests against a cap of $OA_REQUEST_CAP"
         fi
         ;;
     esac
@@ -904,7 +899,7 @@ show_status() {
       "           stage=\(.last_run.stage // "-")  reason=\(.last_run.reason // "-")",
       "counter    seen=\(.seen.versions // "-")  pending=\(.pending.versions // "-")",
       "last hold  \(.last_gate_hold.gate // "-"): \(.last_gate_hold.detail // "-")  at \(.last_gate_hold.at // "-")  consecutive=\(.consecutive_holds // 0)",
-      "openalex   \(.openalex.decision // "-")  new_dois=\(.openalex.new_dois // 0) est=\(.openalex.estimated_requests // "-") cap=\(.openalex.cap // "-") deferrals=\(.openalex_deferrals // 0)",
+      "openalex   \(.openalex.decision // "-")  targeted=\(.openalex.targeted // "-") requests<=\(.openalex.estimated_requests // "-") cap=\(.openalex.cap // "-") deferrals=\(.openalex_deferrals // 0)  (full re-sync: \(.openalex.full_sync_requests // "-"))",
       "shipped    \(.shipped.snapshot // "-") to \(.shipped.host // "-") at \(.shipped.at // "-")"
     ' <"$STATE_FILE"
 }

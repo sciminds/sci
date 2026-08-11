@@ -127,7 +127,53 @@ ok 'a delta sidecar prices the full sync from the measurement it carried' \
 ok 'a delta that carried no full-sync measurement is unknown, not cheap' \
     "$(pl_oa_estimate "$TD/oa-works-delta-uncarried.meta.json" "$TD/oa-titles.meta.json")" 'unknown'
 
+printf '\nTargeted-sync pricing\n'
+# Every fixture here is a real `sync --missing --estimate --json` envelope,
+# produced with zero network calls:
+#   delta-small  the live library today — 2 items, 3 requests, 5 as a bound
+#   delta-large  the same command against a staging dir seeded with a
+#                one-record cache, so --missing targets the whole library:
+#                5,346 items and up to 10,444 requests
+#   no-base      sci refusing to price a merge with nothing to merge into,
+#                which arrives as ok:false at exit status 0
+#   nothing      delta-small with the plan zeroed, the shape of the run
+#                after the two items have been fetched
+ok 'a small delta prices at its upper bound, not its headline' \
+    "$(pl_oa_plan "$TD/oa-estimate-delta-small.json")" '2 5'
+ok 'a whole-library delta prices in the thousands' \
+    "$(pl_oa_plan "$TD/oa-estimate-delta-large.json")" '5346 10444'
+ok 'nothing to fetch prices at zero' \
+    "$(pl_oa_plan "$TD/oa-estimate-nothing.json")" '0 0'
+ok 'a refusal to price is not a price of zero' \
+    "$(pl_oa_plan "$TD/oa-estimate-no-base.json" || echo 'unpriced')" 'unpriced'
+ok 'an unparseable envelope is unpriced' \
+    "$(pl_oa_plan "$TD/oa-estimate-malformed.json" || echo 'unpriced')" 'unpriced'
+ok 'a missing envelope is unpriced' \
+    "$(pl_oa_plan "$TD/oa-estimate-nope.json" || echo 'unpriced')" 'unpriced'
+
 printf '\nOpenAlex leash\n'
+# The decision the runner actually takes, fed by the plans above. The two
+# fields of a plan are deliberately split into the two arguments the
+# decision takes — that split is the seam this pair is tested across.
+decide_from() {
+    local plan
+    plan=$(pl_oa_plan "$1") || {
+        printf 'unpriced\n'
+        return 0
+    }
+    pl_oa_decision "${plan%% *}" "${plan##* }" "$2"
+}
+ok 'the live delta fits the cap and RUNS — the pipeline may now spend' \
+    "$(decide_from "$TD/oa-estimate-delta-small.json" 50)" 'run'
+ok 'a whole-library delta is over cap and defers' \
+    "$(decide_from "$TD/oa-estimate-delta-large.json" 50)" 'defer:over_cap'
+ok 'nothing targeted skips without asking the cap' \
+    "$(decide_from "$TD/oa-estimate-nothing.json" 50)" 'skip:no_new_identifiers'
+ok 'the bound is what the cap is checked against: 5 fits a cap of 5' \
+    "$(decide_from "$TD/oa-estimate-delta-small.json" 5)" 'run'
+ok 'and a cap of 4 refuses the same run, because 3 is not the promise' \
+    "$(decide_from "$TD/oa-estimate-delta-small.json" 4)" 'defer:over_cap'
+
 ok 'no new DOIs: the metered stage does not run' \
     "$(pl_oa_decision 0 4211 50)" 'skip:no_new_identifiers'
 ok 'new DOIs but the measured cost exceeds the chosen cap: defer' \

@@ -45,23 +45,27 @@ This is why the runner does **not** use `set -E`. Every gate signals by exit sta
 
 ## The metered stage
 
-`sci zot openalex sync` is the only stage that costs money. In its **full** form it re-fetches the whole library and then expands every work's `referenced_works`; its own sidecars measure that at **857 + ceil(167 665 / 50) = 4211 requests**. Two independent questions gate it:
+`sci zot openalex sync` is the only stage that costs money, and the pipeline **may now spend inside a bound it prices in advance**.
 
-- **worth running?** did the delta introduce a DOI the works cache does not hold — counting only items modified *since* the cache was produced, because ~40 DOIs in this library are permanently unresolvable (OpenAlex 404s on monographs) and would otherwise claim there is work to do forever.
-- **allowed to?** does the measured cost fit inside `OA_REQUEST_CAP` (default **50**)?
-
-Under the default cap the second answer is no, every time, and the run says so and records a deferral. **That is the intended behaviour** for the full form: an automation that quietly bills is worse than one that quietly fails.
-
-The stage does have a small form now, and it is the one that fits under a cap:
+The verb has two shapes. The **full** form re-fetches the whole library and then expands every work's `referenced_works`; its own sidecars measure that at **857 + ceil(167 665 / 50) = 4211 requests**. The pipeline never runs it — a full re-sync stays a human decision, and the runner logs what one would cost so the human deciding has the number. The **targeted** form fetches only the items whose DOIs the cache lacks and MERGES them in:
 
 ```sh
-sci zot --library all openalex sync --missing --estimate --json   # .plan.requests — costs nothing
+sci zot --library all openalex sync --missing --estimate --json   # prices the plan, contacts nothing
 sci zot --library all openalex sync --missing                     # fetch only those, MERGE into the cache
 ```
 
-`--missing` targets bibliographic items whose DOI the works cache does not already hold; `--keys A,B` names them outright. Either way the result is merged into the existing `openalex-works.ndjson` and `openalex-titles.ndjson` — records the run did not fetch keep their exact bytes — and the sidecar records `delta` with the base's digest and what the run spent. One new paper with a DOI prices at **2 requests** (at most 3). A run refuses outright if there is no cache in staging to merge into, because a delta-only body would load as the whole corpus.
+`--missing` targets bibliographic items whose DOI the works cache does not already hold; `--keys A,B` names them outright. Either way the result is merged into the existing `openalex-works.ndjson` and `openalex-titles.ndjson` — records the run did not fetch keep their exact bytes — and the sidecar records `delta` with the base's digest and what the run spent. A run refuses outright if there is no cache in staging to merge into, because a delta-only body would load as the whole corpus.
 
-`pl_oa_estimate` still prices the FULL sync — that is what its cap gates. A delta sidecar's own `stats` describes the delta, so sci carries the last full sync's accounting forward as `full_sync_stats` and the estimator prefers it; a delta with no carried measurement prices as `unknown`, which defers.
+Two independent questions gate the stage, and `--missing --estimate --json` answers both in one call, contacting nothing:
+
+- **worth running?** `.data.plan.items_targeted` — would the run fetch anything at all?
+- **allowed to?** `.data.plan.requests_max` — does the cost fit inside `OA_REQUEST_CAP` (default **50**)?
+
+**The cap is checked against `requests_max`, not `requests`.** sci reports the fallback arm — the title lookup a DOI resolving to nothing falls back to — as a separate bound rather than folding its worst case into the headline, so an eight-request run is not priced as twenty-four and deferred. But a cap is a promise about what the machine may spend without asking, and a promise has to be made against the number the run cannot exceed. On this library today that is **5 against a headline of 3**, and both fit.
+
+Asking sci to price it, rather than deriving the answer here, is what makes it right. sci merges the `not_found` list forward, so the 43 monographs and preprints OpenAlex has never indexed stop being re-bought every run — the difference between 45 requests and 3. The shell-side anti-join this replaced could not know that, and had to be date-filtered to stop the permanently-unresolvable tail from claiming work forever; that filter also hid two genuinely missing DOIs, which the estimate finds.
+
+Over cap, or unpriceable, defers exactly as before, consumes nothing, and notifies every tenth deferral. `pl_oa_estimate` still prices the FULL sync for the log line: a delta sidecar's own `stats` describes the delta, so sci carries the last full sync's accounting forward as `full_sync_stats` and the estimator prefers it; a delta with no carried measurement prices as `unknown`.
 
 ## Building
 
