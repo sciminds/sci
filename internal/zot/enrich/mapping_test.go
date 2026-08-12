@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/client"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/internal/zot/client"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 func TestToItemFields_journalArticle(t *testing.T) {

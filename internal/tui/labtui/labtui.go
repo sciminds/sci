@@ -9,9 +9,9 @@ import (
 	"errors"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/lab"
-	"github.com/sciminds/cli/internal/tui/labtui/app"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/lab"
+	"github.com/sciminds/sci/internal/tui/labtui/app"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // ErrInterrupted is returned when the user quits via Ctrl-C; CLI callers

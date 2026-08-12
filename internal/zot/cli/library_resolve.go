@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/internal/zot/api"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 )

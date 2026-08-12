@@ -18,7 +18,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/sciminds/cli/internal/uikit/browser"
+	"github.com/sciminds/sci/internal/uikit/browser"
 )
 
 // ── Entry rendering ─────────────────────────────────────────────────────────

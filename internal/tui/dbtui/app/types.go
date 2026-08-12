@@ -13,7 +13,7 @@ package app
 // Bubble Tea widget imports that don't belong in the tabstate package.
 
 import (
-	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
+	"github.com/sciminds/sci/internal/tui/dbtui/tabstate"
 )
 
 // Mode aliases.

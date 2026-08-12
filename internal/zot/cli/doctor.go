@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot"
 	"github.com/urfave/cli/v3"
 )
 

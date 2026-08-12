@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // TestDoctor_SkipUpgradeCheckFlagDefined asserts that the doctor command

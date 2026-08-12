@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // Format represents a notebook format.

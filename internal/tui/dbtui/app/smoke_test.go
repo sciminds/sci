@@ -8,9 +8,9 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	zone "github.com/lrstanley/bubblezone/v2"
 
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/store/sqlite"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/store/sqlite"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // TestViewAtZeroSize ensures the TUI Model can render View() before any

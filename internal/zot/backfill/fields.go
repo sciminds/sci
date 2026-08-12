@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // A field plan is the second kind of row `zot` emits, from `zot enrich`.

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 func TestItemFromClient_MapsCoreFields(t *testing.T) {

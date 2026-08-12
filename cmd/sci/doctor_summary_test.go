@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/doctor"
+	"github.com/sciminds/sci/internal/doctor"
 )
 
 // TestClosingSummary verifies the trailing message picks between the

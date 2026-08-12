@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // yankCell copies the focused cell's value to the system clipboard.

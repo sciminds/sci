@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	dbtui "github.com/sciminds/cli/internal/tui/dbtui/app"
-	"github.com/sciminds/cli/internal/zot/view"
+	dbtui "github.com/sciminds/sci/internal/tui/dbtui/app"
+	"github.com/sciminds/sci/internal/zot/view"
 	"github.com/urfave/cli/v3"
 )
 

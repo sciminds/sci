@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	projnew "github.com/sciminds/cli/internal/proj/new"
+	projnew "github.com/sciminds/sci/internal/proj/new"
 )
 
 func testFiles() []projnew.ConfigFile {

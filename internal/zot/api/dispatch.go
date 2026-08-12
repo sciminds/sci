@@ -13,7 +13,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // createOrUpdateItems dispatches POST /items (personal) or POST /groups/.../items.

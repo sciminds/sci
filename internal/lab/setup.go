@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // nonInteractiveSSH builds an ssh invocation that is guaranteed never to

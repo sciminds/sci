@@ -5,7 +5,7 @@ import (
 
 	zone "github.com/lrstanley/bubblezone/v2"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // makeStatusModel builds a minimal Model for status-bar tests.

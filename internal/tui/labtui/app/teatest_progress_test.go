@@ -17,7 +17,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
-	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/sci/internal/lab"
 )
 
 func TestTeatest_TransferCompletesQueue(t *testing.T) {

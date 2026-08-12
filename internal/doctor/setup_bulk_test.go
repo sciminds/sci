@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/sci/internal/brew"
 )
 
 // installedSnap returns a mock whose snapshot reports `installed` as

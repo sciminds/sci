@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
-	"github.com/sciminds/cli/internal/version"
+	"github.com/sciminds/sci/internal/version"
 )
 
 // TestDefaultCacheFile_EmptyXDGCacheHome guards against an empty

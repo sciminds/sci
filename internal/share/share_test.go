@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/cloud"
+	"github.com/sciminds/sci/internal/cloud"
 )
 
 // fakeUploader implements dirUploader for shareDir unit tests.

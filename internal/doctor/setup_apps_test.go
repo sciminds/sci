@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/sci/internal/brew"
 )
 
 func TestOptionalCatalog_AppsReturnsOnlyCasks(t *testing.T) {

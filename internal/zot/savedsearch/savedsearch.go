@@ -17,7 +17,7 @@ package savedsearch
 import (
 	"fmt"
 
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // APIFilters is the API-level projection of a saved search. Zero values

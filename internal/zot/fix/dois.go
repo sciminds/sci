@@ -7,10 +7,10 @@ import (
 	"slices"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/api"
-	"github.com/sciminds/cli/internal/zot/client"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/pkg/doi"
+	"github.com/sciminds/sci/internal/zot/api"
+	"github.com/sciminds/sci/internal/zot/client"
+	"github.com/sciminds/sci/pkg/doi"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // DOITarget is one planned DOI rewrite: "for item ItemKey, overwrite the

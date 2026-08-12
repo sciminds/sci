@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sciminds/cli/internal/cass/api/canvas"
+	"github.com/sciminds/sci/internal/cass/api/canvas"
 )
 
 func TestPushGate_BlocksWhenMatchPending(t *testing.T) {

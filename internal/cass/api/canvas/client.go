@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cass/api"
+	"github.com/sciminds/sci/internal/cass/api"
 )
 
 const (

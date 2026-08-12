@@ -66,7 +66,7 @@ When a layout can be expressed with `VStack`/`HStack`/`Box`/`GridLayout`/`Respon
 **Reach for the uikit primitives first.** A title/body/status screen with a weighted dual pane is a few lines — and it gets the border math and proportional sizing right by construction:
 
 ```go
-import "github.com/sciminds/cli/internal/uikit"
+import "github.com/sciminds/sci/internal/uikit"
 
 func (m model) render() string {
     return uikit.VStack(m.width, m.height).

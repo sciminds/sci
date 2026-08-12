@@ -9,14 +9,14 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/api"
-	"github.com/sciminds/cli/internal/zot/client"
-	"github.com/sciminds/cli/internal/zot/content"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/pkg/citekey"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/internal/zot/api"
+	"github.com/sciminds/sci/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/content"
+	"github.com/sciminds/sci/pkg/citekey"
+	"github.com/sciminds/sci/pkg/local"
 	"github.com/urfave/cli/v3"
 )
 

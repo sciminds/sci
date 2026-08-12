@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/cloud"
-	"github.com/sciminds/cli/internal/share"
-	"github.com/sciminds/cli/internal/uikit/browser"
+	"github.com/sciminds/sci/internal/cloud"
+	"github.com/sciminds/sci/internal/share"
+	"github.com/sciminds/sci/internal/uikit/browser"
 )
 
 // browseFixture is a small synthetic bucket: two users (ejolly, alice),

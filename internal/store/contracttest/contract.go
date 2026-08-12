@@ -28,7 +28,7 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/sci/internal/store"
 )
 
 // SetupFunc returns a fresh DataStore populated with the contract fixture.

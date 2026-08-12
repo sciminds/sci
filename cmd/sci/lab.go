@@ -10,12 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/lab"
-	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/tui/fspicker"
-	"github.com/sciminds/cli/internal/tui/labtui"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/lab"
+	"github.com/sciminds/sci/internal/netutil"
+	"github.com/sciminds/sci/internal/tui/fspicker"
+	"github.com/sciminds/sci/internal/tui/labtui"
+	"github.com/sciminds/sci/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 

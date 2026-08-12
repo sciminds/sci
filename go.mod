@@ -1,4 +1,4 @@
-module github.com/sciminds/cli
+module github.com/sciminds/sci
 
 go 1.26.1
 

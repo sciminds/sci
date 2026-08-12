@@ -12,9 +12,9 @@ import (
 	"testing"
 
 	"github.com/adrg/xdg"
-	"github.com/sciminds/cli/internal/lab"
-	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/lab"
+	"github.com/sciminds/sci/internal/netutil"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // startSSHBannerListener spins a single-accept TCP server that writes a fake

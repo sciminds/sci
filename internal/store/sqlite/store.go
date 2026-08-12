@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/sci/internal/store"
 
 	_ "modernc.org/sqlite" // registers "sqlite" driver
 )

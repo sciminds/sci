@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/sci/internal/store"
 )
 
 // TableMeta is one entry in the Info() result: a base table or view in

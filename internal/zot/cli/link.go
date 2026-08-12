@@ -6,14 +6,14 @@ import (
 	"slices"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/bib"
-	"github.com/sciminds/cli/internal/zot/extract"
-	"github.com/sciminds/cli/internal/zot/link"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/internal/zot/notemd"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/internal/zot/bib"
+	"github.com/sciminds/sci/internal/zot/extract"
+	"github.com/sciminds/sci/internal/zot/link"
+	"github.com/sciminds/sci/internal/zot/notemd"
+	"github.com/sciminds/sci/pkg/local"
 	"github.com/urfave/cli/v3"
 )
 

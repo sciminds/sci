@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sciminds/cli/internal/version"
+	"github.com/sciminds/sci/internal/version"
 )
 
 // withSpawnFn replaces the package-level spawnFn with a recording stub

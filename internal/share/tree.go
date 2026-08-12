@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/sciminds/cli/internal/cloud"
+	"github.com/sciminds/sci/internal/cloud"
 )
 
 // TreeEntry is one navigable child at a given bucket path. For folders,

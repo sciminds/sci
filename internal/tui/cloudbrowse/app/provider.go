@@ -17,10 +17,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 
-	"github.com/sciminds/cli/internal/cloud"
-	"github.com/sciminds/cli/internal/share"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/uikit/browser"
+	"github.com/sciminds/sci/internal/cloud"
+	"github.com/sciminds/sci/internal/share"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit/browser"
 )
 
 // Provider implements browser.Provider over a mutable []cloud.ObjectInfo.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/netutil"
+	"github.com/sciminds/sci/internal/netutil"
 )
 
 // TestCloud_SubcommandShape locks in the surface: setup/ls/get/put/remove.

@@ -50,7 +50,7 @@ Text wrapping. Long strings wrap to multiple lines in narrower panels, making th
 Never rely on auto-wrapping. Truncate all text explicitly. See [Golden Rules #2](golden-rules.md#rule-2-never-auto-wrap-in-bordered-panels).
 
 ```go
-import "github.com/sciminds/cli/internal/uikit"
+import "github.com/sciminds/sci/internal/uikit"
 
 maxTextWidth := panelWidth - 4  // -2 borders, -2 padding
 

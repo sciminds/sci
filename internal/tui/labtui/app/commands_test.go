@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/sci/internal/lab"
 )
 
 // TestTransferWithRecoverConvertsPanicToError verifies that a panic inside

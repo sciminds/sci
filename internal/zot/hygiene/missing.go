@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // MissingField names a field the Missing check knows how to inspect. The

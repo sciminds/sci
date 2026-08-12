@@ -16,8 +16,8 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/adrg/xdg"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot"
 	"github.com/urfave/cli/v3"
 )
 

@@ -1,5 +1,5 @@
 commit := `git rev-parse --short HEAD 2>/dev/null || echo unknown`
-ldflags := "-s -w -X github.com/sciminds/cli/internal/version.Commit=" + commit
+ldflags := "-s -w -X github.com/sciminds/sci/internal/version.Commit=" + commit
 
 build:
     go build -ldflags="{{ldflags}}" -o sci ./cmd/sci
@@ -259,8 +259,8 @@ zot-gen:
 
 # Open package documentation in the browser
 docs:
-    @echo "Starting pkgsite at http://localhost:6060/github.com/sciminds/cli"
-    open "http://localhost:6060/github.com/sciminds/cli"
+    @echo "Starting pkgsite at http://localhost:6060/github.com/sciminds/sci"
+    open "http://localhost:6060/github.com/sciminds/sci"
     pkgsite -http=localhost:6060
 
 set dotenv-load

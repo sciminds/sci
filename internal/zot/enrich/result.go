@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // FromMissingResult is the cmdutil.Result shell around the outputs of

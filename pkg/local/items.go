@@ -11,7 +11,7 @@ import (
 	"unicode"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/match"
+	"github.com/sciminds/sci/internal/tui/dbtui/match"
 )
 
 // fieldValueSubquery is a reusable correlated subquery that pulls a single

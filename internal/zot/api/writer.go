@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // Writer is the write-only contract for the Zotero Web API.

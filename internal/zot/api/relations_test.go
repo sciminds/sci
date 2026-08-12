@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 func TestItemURI(t *testing.T) {

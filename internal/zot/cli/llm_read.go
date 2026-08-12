@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/pkg/local"
 	"github.com/urfave/cli/v3"
 )
 

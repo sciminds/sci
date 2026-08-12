@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/sci/internal/brew"
 )
 
 func TestParseBrewfileEntries(t *testing.T) {

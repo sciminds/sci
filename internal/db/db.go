@@ -12,8 +12,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/store/sqlite"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/store/sqlite"
 )
 
 // withStore opens the database, calls fn, and closes it.

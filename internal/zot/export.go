@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/pkg/citekey"
+	"github.com/sciminds/sci/pkg/citekey"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // ExportFormat selects the output format for ExportItem.

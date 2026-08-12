@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/sci/internal/lab"
 )
 
 // checkIdentity verifies git user.name, user.email, gh auth, and SciMinds auth.

@@ -31,8 +31,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/version"
+	"github.com/sciminds/sci/internal/netutil"
+	"github.com/sciminds/sci/internal/version"
 )
 
 // releaseURL is a var so tests can redirect to a local httptest server.

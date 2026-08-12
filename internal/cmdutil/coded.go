@@ -7,7 +7,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // Code identifies why a command failed — or what a warning is about — in a

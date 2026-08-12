@@ -15,8 +15,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // fakeZotero is a tiny in-memory stand-in for the Zotero Web API that

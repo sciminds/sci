@@ -26,10 +26,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/connector"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/internal/zot/connector"
 	"github.com/urfave/cli/v3"
 )
 

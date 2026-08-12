@@ -153,13 +153,13 @@ jobs:
           COMMIT="${GITHUB_SHA}"
           # Dev=false marks this as the released build — the only one allowed
           # to tell users an update is available (see internal/version).
-          LDFLAGS="-s -w -X github.com/sciminds/cli/internal/version.Commit=${COMMIT} -X github.com/sciminds/cli/internal/version.Dev=false"
+          LDFLAGS="-s -w -X github.com/sciminds/sci/internal/version.Commit=${COMMIT} -X github.com/sciminds/sci/internal/version.Dev=false"
 
           # Publishing runs stamp the CalVer tag as the binary's orderable
           # identity; test-only builds carry no version.
           VERSION="${{ steps.ver.outputs.version }}"
           if [ -n "${VERSION}" ]; then
-            LDFLAGS="${LDFLAGS} -X github.com/sciminds/cli/internal/version.Version=${VERSION}"
+            LDFLAGS="${LDFLAGS} -X github.com/sciminds/sci/internal/version.Version=${VERSION}"
           fi
 
           mkdir -p dist

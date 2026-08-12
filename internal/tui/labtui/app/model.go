@@ -9,7 +9,7 @@ import (
 
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/sci/internal/lab"
 )
 
 // screen is the top-level view state. Each screen consumes a different

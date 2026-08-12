@@ -7,9 +7,9 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/selfupdate"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/selfupdate"
+	"github.com/sciminds/sci/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 

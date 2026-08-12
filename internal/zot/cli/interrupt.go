@@ -25,8 +25,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot"
 	"golang.org/x/term"
 )
 

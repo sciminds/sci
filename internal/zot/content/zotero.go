@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // Library is the slice of [local.Reader] the content indexer needs.

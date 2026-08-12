@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // RequireFfmpeg checks that ffmpeg and ffprobe are on PATH.

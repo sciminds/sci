@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
-	"github.com/sciminds/cli/internal/selfupdate"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/version"
+	"github.com/sciminds/sci/internal/selfupdate"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/version"
 	"github.com/urfave/cli/v3"
 )
 

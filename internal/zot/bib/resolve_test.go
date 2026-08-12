@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 func testItems() []local.Item {

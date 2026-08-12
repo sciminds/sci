@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // CurrentKey fetches metadata about the configured API key, including the

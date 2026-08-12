@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 func TestNotesListResult_JSON(t *testing.T) {

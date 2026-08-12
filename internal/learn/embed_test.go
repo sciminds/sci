@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 func TestLoadCast(t *testing.T) {

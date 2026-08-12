@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/oacache"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/internal/zot/oacache"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 // fakeOA stands in for *openalex.Client. It records every request so the

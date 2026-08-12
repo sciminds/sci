@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/sci/internal/zot"
 )
 
 // ListGroups returns the groups the Client's user ID has access to.

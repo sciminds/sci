@@ -14,9 +14,9 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/pkg/doi"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/pkg/doi"
+	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 // Finding is the per-item output of a Scan. One Finding is emitted for every

@@ -45,7 +45,7 @@ All components follow the Elm architecture (`Init`/`Update`/`View`) and compose 
 The layout primitives are the heart of uikit — they encode the golden rules (see `golden-rules.md`). Each child callback receives its exact inner dimensions, so children never need to know the parent's size.
 
 ```go
-import "github.com/sciminds/cli/internal/uikit"
+import "github.com/sciminds/sci/internal/uikit"
 
 // Vertical stack: fixed title + flexible body + fixed status.
 uikit.VStack(m.width, m.height).
@@ -85,7 +85,7 @@ Pre-styled wrapper over `bubbles/v2/list`. Pass `list.Item`s and optional extra 
 ```go
 import (
     "charm.land/bubbles/v2/list"
-    "github.com/sciminds/cli/internal/uikit"
+    "github.com/sciminds/sci/internal/uikit"
 )
 
 picker := uikit.NewListPicker("Pick a file", items) // items []list.Item

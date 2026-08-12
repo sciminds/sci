@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/lab"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/lab"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // ── Messages ───────────────────────────────────────────────────────────────

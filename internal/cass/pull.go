@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cass/api/canvas"
-	"github.com/sciminds/cli/internal/cass/api/github"
+	"github.com/sciminds/sci/internal/cass/api/canvas"
+	"github.com/sciminds/sci/internal/cass/api/github"
 	"golang.org/x/sync/errgroup"
 )
 

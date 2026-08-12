@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/sci/internal/store"
 )
 
 // Cols lists the column names + duckdb-inferred types of file at path.

@@ -33,9 +33,9 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cloud"
-	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/cloud"
+	"github.com/sciminds/sci/internal/netutil"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // Network timeouts for cloud operations.

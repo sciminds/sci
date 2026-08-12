@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/tui/dbtui/match"
+	"github.com/sciminds/sci/internal/tui/dbtui/match"
 )
 
 func searchKeys(t *testing.T, db *DB, query string) []string {

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 func libSample() []local.Item {

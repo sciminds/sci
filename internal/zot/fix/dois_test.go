@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/client"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/zot/client"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // sampleDOILib returns a hand-rolled set of items covering every DOI

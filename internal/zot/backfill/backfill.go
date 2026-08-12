@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/api"
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/api"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // provenanceKey is the Extra line that records where a DOI came from.

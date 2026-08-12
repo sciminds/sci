@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
-	"github.com/sciminds/cli/internal/version"
+	"github.com/sciminds/sci/internal/version"
 )
 
 // cacheFile is the path to the cached update-check result. It is a var so

@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/tui/dbtui/match"
-	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/tui/dbtui/match"
+	"github.com/sciminds/sci/internal/tui/dbtui/tabstate"
 )
 
 func TestApplySearchFilter_Phrase_MetadataContiguousOnly(t *testing.T) {

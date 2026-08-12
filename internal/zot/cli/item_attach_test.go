@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/sci/internal/zot/api"
 )
 
 // --- buildAttachmentMetaFromPath ---

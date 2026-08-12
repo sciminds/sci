@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sciminds/cli/pkg/crossref"
+	"github.com/sciminds/sci/pkg/crossref"
 )
 
 // Searcher is what this package needs from a Crossref client.

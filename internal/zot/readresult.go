@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/content"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot/content"
+	"github.com/sciminds/sci/pkg/local"
 
-	"github.com/sciminds/cli/internal/zot/oacache"
-	"github.com/sciminds/cli/internal/zot/xrcache"
+	"github.com/sciminds/sci/internal/zot/oacache"
+	"github.com/sciminds/sci/internal/zot/xrcache"
 )
 
 // ListResult wraps a slice of items for search/list/recent outputs.
@@ -431,7 +431,7 @@ type StatsResult struct {
 
 	// Orient fields — populated only when `info --orient` is set. Kept
 	// optional via omitempty so the default `info` shape stays unchanged.
-	// Source: internal/zot/local/orient.go.
+	// Source: pkg/local/orient.go.
 	ExtractionCoverage *local.ExtractionCoverage `json:"extraction_coverage,omitempty"`
 	TopTags            []local.TagCount          `json:"top_tags,omitempty"`
 	TopCollections     []local.CollectionRef     `json:"top_collections,omitempty"`

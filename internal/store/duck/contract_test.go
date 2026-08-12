@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/store/contracttest"
-	"github.com/sciminds/cli/internal/store/duck"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/store/contracttest"
+	"github.com/sciminds/sci/internal/store/duck"
 )
 
 // setupContract builds the shared contract fixture in a fresh .duckdb file

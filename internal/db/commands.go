@@ -13,11 +13,11 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/duck"
-	"github.com/sciminds/cli/internal/store"
-	duckstore "github.com/sciminds/cli/internal/store/duck"
-	"github.com/sciminds/cli/internal/store/sqlite"
-	dbtui "github.com/sciminds/cli/internal/tui/dbtui/app"
+	"github.com/sciminds/sci/internal/duck"
+	"github.com/sciminds/sci/internal/store"
+	duckstore "github.com/sciminds/sci/internal/store/duck"
+	"github.com/sciminds/sci/internal/store/sqlite"
+	dbtui "github.com/sciminds/sci/internal/tui/dbtui/app"
 )
 
 // isDuckDB reports whether path's extension marks it as a duckdb file.

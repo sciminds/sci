@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/hygiene"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot/hygiene"
 )
 
 func TestParseDoctorCheck(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/pkg/crossref"
+	"github.com/sciminds/sci/pkg/crossref"
 )
 
 // WorkFetcher is what the by-DOI sweep needs from a Crossref client.

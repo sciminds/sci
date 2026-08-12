@@ -9,7 +9,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // Overlay dimension bounds and layout constants for the table list and file browser.

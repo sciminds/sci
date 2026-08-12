@@ -16,8 +16,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/tui/dbtui/tabstate"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 const (

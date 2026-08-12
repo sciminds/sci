@@ -3,7 +3,7 @@
 // the running desktop app) and writes via the Zotero Web API. Zotero desktop
 // handles sync back to local, so write callers do not need to wait.
 //
-// The command tree is defined in [github.com/sciminds/cli/internal/zot/cli]
+// The command tree is defined in [github.com/sciminds/sci/internal/zot/cli]
 // and mounted under `sci zot` from cmd/sci/zot.go.
 package zot
 
@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sciminds/cli/internal/sciconfig"
+	"github.com/sciminds/sci/internal/sciconfig"
 )
 
 // Config holds Zotero credentials and library targets.

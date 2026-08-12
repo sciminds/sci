@@ -15,9 +15,9 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/sciminds/cli/internal/tui/fspicker/app"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/uikit/browser"
+	"github.com/sciminds/sci/internal/tui/fspicker/app"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit/browser"
 )
 
 // ErrCancelled signals the user quit the picker without picking

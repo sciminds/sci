@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/sci/internal/lab"
 )
 
 // rsyncShutdownGrace is how long to wait between SIGINT and SIGKILL when

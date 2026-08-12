@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // DuplicateCandidate is the shape the duplicate clusterers operate on.

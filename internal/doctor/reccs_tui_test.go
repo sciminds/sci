@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/brew"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 var testEntries = []brew.BrewfileEntry{

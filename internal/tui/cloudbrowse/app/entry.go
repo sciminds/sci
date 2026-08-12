@@ -12,8 +12,8 @@ import (
 	"fmt"
 
 	"github.com/dustin/go-humanize"
-	"github.com/sciminds/cli/internal/share"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/share"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // Entry wraps a share.TreeEntry. The exported field stays accessible to

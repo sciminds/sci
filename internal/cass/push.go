@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sciminds/cli/internal/cass/api/canvas"
+	"github.com/sciminds/sci/internal/cass/api/canvas"
 )
 
 // CheckPushGates verifies preconditions for pushing grades.

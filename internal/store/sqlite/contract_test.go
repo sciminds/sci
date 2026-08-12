@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/store/contracttest"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/store/contracttest"
 )
 
 // setupContract builds the shared contract fixture in a fresh SQLite file

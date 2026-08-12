@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/sciminds/cli/internal/help"
+	"github.com/sciminds/sci/internal/help"
 	"github.com/urfave/cli/v3"
 )
 

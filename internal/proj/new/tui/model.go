@@ -12,8 +12,8 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	projnew "github.com/sciminds/cli/internal/proj/new"
-	"github.com/sciminds/cli/internal/uikit"
+	projnew "github.com/sciminds/sci/internal/proj/new"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // ── Phase ────────────────────────────────────────────────────────────────────

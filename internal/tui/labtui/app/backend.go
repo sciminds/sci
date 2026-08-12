@@ -6,7 +6,7 @@ package app
 import (
 	"context"
 
-	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/sci/internal/lab"
 )
 
 // Backend abstracts the network-side operations the TUI performs so tests

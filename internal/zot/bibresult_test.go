@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/bib"
+	"github.com/sciminds/sci/internal/zot/bib"
 )
 
 func TestBibResult_HumanSurfacesUnresolved(t *testing.T) {

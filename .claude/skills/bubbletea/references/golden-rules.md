@@ -98,7 +98,7 @@ Lipgloss auto-wraps text that exceeds the panel width. In bordered panels, this 
 Calculate the maximum text width and truncate ALL strings before rendering. Use a **width-aware** truncator — `uikit.Truncate` in-repo, or `runewidth.Truncate` outside it:
 
 ```go
-import "github.com/sciminds/cli/internal/uikit"
+import "github.com/sciminds/sci/internal/uikit"
 
 // Calculate max text width to prevent wrapping
 maxTextWidth := panelWidth - 4 // -2 for borders, -2 for padding

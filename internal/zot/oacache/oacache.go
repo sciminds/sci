@@ -37,7 +37,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 // WorkSelect is the field mask requested for every work. It must name

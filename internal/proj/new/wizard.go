@@ -7,7 +7,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // RunWizard runs an interactive form to populate CreateOptions.

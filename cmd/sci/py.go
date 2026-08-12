@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sciminds/cli/internal/py"
+	"github.com/sciminds/sci/internal/py"
 	"github.com/urfave/cli/v3"
 )
 

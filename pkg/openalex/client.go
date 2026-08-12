@@ -24,7 +24,7 @@ const (
 	// scan with no progress. 60s is generous enough for a real backoff
 	// without making the failure mode look like a hang.
 	defaultMaxRetryDelay = 60 * time.Second
-	userAgent            = "sci-zot (+https://github.com/sciminds/cli)"
+	userAgent            = "sci-zot (+https://github.com/sciminds/sci)"
 )
 
 // Client is a thin HTTP client for the OpenAlex API.

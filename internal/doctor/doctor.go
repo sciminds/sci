@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/sci/internal/brew"
 )
 
 // sciMindsOrg is the Hugging Face organisation that gates sci cloud access.

@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // Zotero's schema is per item type, and the CLI has to respect it or the

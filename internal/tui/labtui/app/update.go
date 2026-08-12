@@ -3,7 +3,7 @@ package app
 import (
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/sci/internal/lab"
 )
 
 // progressBarInset is the terminal columns reserved around the progress bar

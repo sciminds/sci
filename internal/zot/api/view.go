@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/client"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/zot/client"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // ItemFromClient converts a Zotero Web API item into the same shape used by

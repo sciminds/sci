@@ -15,11 +15,11 @@ import (
 	"os"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/api"
-	"github.com/sciminds/cli/internal/zot/client"
-	"github.com/sciminds/cli/internal/zot/notemd"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/internal/zot/api"
+	"github.com/sciminds/sci/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/notemd"
 	"github.com/urfave/cli/v3"
 )
 

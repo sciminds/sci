@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/sciminds/cli/internal/cass/api/canvas"
+	"github.com/sciminds/sci/internal/cass/api/canvas"
 )
 
 func TestListModules(t *testing.T) {

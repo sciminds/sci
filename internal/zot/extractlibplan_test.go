@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot/extract"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot/extract"
 )
 
 // TestExtractLibResult_JSONKeysAreFrozen is the byte-stability fence

@@ -21,8 +21,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
 
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/uikit/browser"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit/browser"
 )
 
 // State holds picker state shared between the provider and the actions.

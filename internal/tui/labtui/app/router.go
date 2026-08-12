@@ -18,7 +18,7 @@ package app
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // router dispatches View and key handling to the active screen. Width and

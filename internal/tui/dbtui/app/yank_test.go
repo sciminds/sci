@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // makeYankModel builds a normal-mode model over an id/name tab.

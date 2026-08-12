@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 func TestItemRead_MultipleKeys_ReturnsAllInOrder(t *testing.T) {

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/api"
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/api"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // Attacher is the narrow Zotero-write contract Attach depends on. Kept as an

@@ -18,8 +18,8 @@ package app
 import (
 	"fmt"
 
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // openCellPreview opens the preview overlay for the selected cell. tab

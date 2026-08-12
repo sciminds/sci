@@ -11,8 +11,8 @@ package main
 import (
 	"context"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/doctor"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/doctor"
 	"github.com/urfave/cli/v3"
 )
 

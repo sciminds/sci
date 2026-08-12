@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sciminds/cli/internal/zot/api"
+	"github.com/sciminds/sci/internal/zot/api"
 )
 
 // remoteIndex is a LibraryIndex backed by api.Client.ListItems. It

@@ -23,7 +23,7 @@ import (
 	"syscall"
 	"time"
 
-	duckcli "github.com/sciminds/cli/internal/duck"
+	duckcli "github.com/sciminds/sci/internal/duck"
 )
 
 // defaultCloseTimeout bounds how long [subproc.close] waits for the child

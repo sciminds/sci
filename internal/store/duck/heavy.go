@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/sci/internal/store"
 )
 
 // isHeavyType reports whether a DuckDB column type's natural rendering is

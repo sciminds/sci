@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/sci/internal/store"
 )
 
 // Shared DataStore-iface assertions live in internal/store/contracttest and

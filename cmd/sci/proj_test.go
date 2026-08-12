@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 func TestProjNew_JSONRequiresNameArg(t *testing.T) {

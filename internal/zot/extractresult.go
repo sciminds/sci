@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/extract"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot/extract"
 )
 
 // ExtractPlanResult describes the dry-run preview of `zot item extract`:

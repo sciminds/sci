@@ -16,7 +16,7 @@ import (
 	"sync"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/sci/internal/store"
 )
 
 // maxCompoundSelect bounds how many tables we fold into one UNION ALL

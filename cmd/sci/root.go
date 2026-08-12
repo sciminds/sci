@@ -10,11 +10,11 @@ import (
 	"os"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/selfupdate"
-	dbtui "github.com/sciminds/cli/internal/tui/dbtui/app"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/version"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/selfupdate"
+	dbtui "github.com/sciminds/sci/internal/tui/dbtui/app"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/version"
 	"github.com/urfave/cli/v3"
 )
 

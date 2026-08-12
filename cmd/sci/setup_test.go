@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/adrg/xdg"
-	"github.com/sciminds/cli/internal/cass"
-	"github.com/sciminds/cli/internal/lab"
-	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/sci/internal/cass"
+	"github.com/sciminds/sci/internal/lab"
+	"github.com/sciminds/sci/internal/zot"
 )
 
 // withXDGConfigHome points config storage at a fresh temp dir so status checks

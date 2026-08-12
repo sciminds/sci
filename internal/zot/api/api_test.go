@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/sci/internal/zot"
 )
 
 // fakeClock records sleeps without actually pausing.

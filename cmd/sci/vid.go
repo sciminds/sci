@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/vid"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/vid"
 	"github.com/urfave/cli/v3"
 )
 

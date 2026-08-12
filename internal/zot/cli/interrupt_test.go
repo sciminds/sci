@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/sci/internal/zot"
 )
 
 func TestWatchStdinEOF(t *testing.T) {

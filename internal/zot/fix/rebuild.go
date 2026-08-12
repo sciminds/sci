@@ -3,7 +3,7 @@ package fix
 import (
 	"fmt"
 
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // rewriteIfUnchanged builds the api.ItemPatch.Rebuild hook for a single-field

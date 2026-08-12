@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/db"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/db"
+	"github.com/sciminds/sci/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 

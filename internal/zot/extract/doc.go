@@ -3,7 +3,7 @@
 // through the Zotero Web API.
 //
 // Lives in its own sub-package so it can import both
-// internal/zot/api (the Web API client) and internal/zot/local
+// internal/zot/api (the Web API client) and pkg/local
 // (the read-only library reader) without cycling through the parent
 // zot package. Same split rationale as internal/zot/fix.
 //

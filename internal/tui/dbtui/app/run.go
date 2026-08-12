@@ -9,8 +9,8 @@ import (
 	"os"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // ErrInterrupted signals that the user interrupted the TUI (e.g. Ctrl-C).

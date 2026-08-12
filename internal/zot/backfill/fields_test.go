@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/backfill"
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/backfill"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // A field plan is the second kind of row `zot` emits. Where a DOI plan

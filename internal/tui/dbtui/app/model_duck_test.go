@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/store/duck"
+	"github.com/sciminds/sci/internal/store/duck"
 )
 
 // requireDuck skips when the duckdb CLI is not on PATH.

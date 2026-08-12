@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
-	"github.com/sciminds/cli/internal/tuitest"
+	"github.com/sciminds/sci/internal/tuitest"
 )
 
 // splitBooks is the fixture used by every test in this file — a single

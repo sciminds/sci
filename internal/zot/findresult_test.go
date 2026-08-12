@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 func TestFindWorksResult_Empty(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // Zotero has no single "venue" field. A journalArticle carries its venue in

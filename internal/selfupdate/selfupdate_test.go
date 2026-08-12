@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/version"
+	"github.com/sciminds/sci/internal/netutil"
+	"github.com/sciminds/sci/internal/version"
 )
 
 // overrideOnlineProbe points netutil.Online() at a local httptest server so

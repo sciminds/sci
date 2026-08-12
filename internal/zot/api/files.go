@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // s3Client uploads phase-3 file bytes to Zotero's pre-signed S3 URL.

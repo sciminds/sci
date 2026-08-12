@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/pkg/citekey"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/pkg/citekey"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // briefAuthorLimit caps authors per ItemBrief. Multi-author consortium

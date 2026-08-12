@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/internal/zot/oacache"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/internal/zot/oacache"
+	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 func TestWantFromSkipsWhatIsNotAWork(t *testing.T) {

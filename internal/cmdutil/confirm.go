@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // ErrCancelled is returned when the user declines a confirmation prompt.

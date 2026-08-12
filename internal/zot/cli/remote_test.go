@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/sci/internal/zot"
 )
 
 func TestBuildRemoteArgs_Basic(t *testing.T) {

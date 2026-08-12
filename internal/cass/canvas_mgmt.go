@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/sciminds/cli/internal/cass/api/canvas"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/cass/api/canvas"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // --- Modules ---

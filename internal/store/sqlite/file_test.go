@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/sci/internal/store"
 )
 
 func writeFile(t *testing.T, path, content string) {

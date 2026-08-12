@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/duck"
+	"github.com/sciminds/sci/internal/duck"
 )
 
 // Phase 2b regression suite — exercises each `sci db` public verb

@@ -19,9 +19,9 @@ import (
 	"syscall"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/lab"
-	"github.com/sciminds/cli/internal/zot"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/lab"
+	"github.com/sciminds/sci/internal/zot"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 )

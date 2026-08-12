@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/bib"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot/bib"
 )
 
 // BibResult is returned by `zot bib` — a document-driven bibliography.

@@ -46,7 +46,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 

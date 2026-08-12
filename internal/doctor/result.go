@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/brew"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // DocResult is the top-level result returned by `sci doctor`.

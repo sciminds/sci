@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/client"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/zot/client"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 func TestParseKeysFromReader_StripsBlanksAndComments(t *testing.T) {

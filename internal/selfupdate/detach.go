@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/sciminds/cli/internal/version"
+	"github.com/sciminds/sci/internal/version"
 )
 
 // spawnFn is the indirection used by [SpawnDetachedRefresh] so tests can

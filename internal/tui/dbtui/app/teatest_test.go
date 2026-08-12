@@ -11,8 +11,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
-	"github.com/sciminds/cli/internal/store/sqlite"
-	"github.com/sciminds/cli/internal/tuitest"
+	"github.com/sciminds/sci/internal/store/sqlite"
+	"github.com/sciminds/sci/internal/tuitest"
 )
 
 const (

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/xrcache"
-	"github.com/sciminds/cli/pkg/crossref"
+	"github.com/sciminds/sci/internal/zot/xrcache"
+	"github.com/sciminds/sci/pkg/crossref"
 )
 
 // fakeXR records what it was asked and answers from a script.

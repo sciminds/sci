@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/py/convert"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/py/convert"
 	"github.com/urfave/cli/v3"
 )
 

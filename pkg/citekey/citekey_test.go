@@ -3,7 +3,7 @@ package citekey
 import (
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 func TestEnrich_PopulatesCitekey(t *testing.T) {

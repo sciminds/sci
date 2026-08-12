@@ -16,10 +16,10 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/hygiene"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/internal/zot/hygiene"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // insertLibraryFix rebuilds the user's command line with `--library personal`

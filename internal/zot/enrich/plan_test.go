@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/hygiene"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/internal/zot/hygiene"
+	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 // --- test doubles -----------------------------------------------------------

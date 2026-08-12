@@ -159,7 +159,7 @@ func (c *Client) Search(ctx context.Context, title string, rows int) ([]Record, 
 }
 
 func userAgent(mailto string) string {
-	ua := "sci-zot/1.0 (https://github.com/sciminds/cli"
+	ua := "sci-zot/1.0 (https://github.com/sciminds/sci"
 	if mailto != "" {
 		ua += "; mailto:" + mailto
 	}

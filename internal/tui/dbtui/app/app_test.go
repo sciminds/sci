@@ -7,10 +7,10 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/tui/dbtui/match"
-	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/tui/dbtui/match"
+	"github.com/sciminds/sci/internal/tui/dbtui/tabstate"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // makeTab creates a Tab with the given cell data for testing.

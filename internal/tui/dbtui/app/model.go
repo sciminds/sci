@@ -11,9 +11,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/store/sqlite"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/store/sqlite"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // Zone ID prefixes for clickable UI regions.

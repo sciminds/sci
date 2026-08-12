@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/db"
-	"github.com/sciminds/cli/internal/duck"
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/db"
+	"github.com/sciminds/sci/internal/duck"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 

@@ -17,8 +17,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
-	"github.com/sciminds/cli/internal/tui/fspicker/app"
-	"github.com/sciminds/cli/internal/tuitest"
+	"github.com/sciminds/sci/internal/tui/fspicker/app"
+	"github.com/sciminds/sci/internal/tuitest"
 )
 
 const (

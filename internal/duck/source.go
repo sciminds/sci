@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
+	"github.com/sciminds/sci/internal/store"
 )
 
 // Source is the SQL preamble + FROM-clause expression for a file.

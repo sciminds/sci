@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/bib"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/zot/bib"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 func match(kind bib.RefKind, value, key, title string) bib.RefMatch {

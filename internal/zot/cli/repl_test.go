@@ -16,9 +16,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // seedREPLAttachments adds PDF attachments to the orient fixture: one on

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/brew"
+	"github.com/sciminds/sci/internal/brew"
 )
 
 // TestMain neutralises the real `git xet install` shellout for every test

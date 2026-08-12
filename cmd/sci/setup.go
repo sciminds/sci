@@ -10,12 +10,12 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cass"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/lab"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot"
-	zotcli "github.com/sciminds/cli/internal/zot/cli"
+	"github.com/sciminds/sci/internal/cass"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/lab"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot"
+	zotcli "github.com/sciminds/sci/internal/zot/cli"
 	"github.com/urfave/cli/v3"
 )
 

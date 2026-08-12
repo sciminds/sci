@@ -11,10 +11,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/store/sqlite"
-	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/store/sqlite"
+	"github.com/sciminds/sci/internal/tui/dbtui/tabstate"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // restoreTabState carries over sorts, filters, cursor, and column position

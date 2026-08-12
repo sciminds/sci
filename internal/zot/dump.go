@@ -19,7 +19,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // ExportNDJSON serializes the library as a kind-tagged NDJSON mirror.

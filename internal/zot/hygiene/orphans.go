@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // OrphanKind names a sub-check within the Orphans umbrella. Findings

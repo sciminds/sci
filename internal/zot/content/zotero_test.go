@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // fakeLibrary stands in for local.Reader's content-source surface.

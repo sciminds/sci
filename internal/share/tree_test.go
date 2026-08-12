@@ -3,7 +3,7 @@ package share
 import (
 	"testing"
 
-	"github.com/sciminds/cli/internal/cloud"
+	"github.com/sciminds/sci/internal/cloud"
 )
 
 // fixture mimics the layout that lives in sciminds/private after seeding the

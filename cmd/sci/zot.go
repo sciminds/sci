@@ -1,7 +1,7 @@
 package main
 
 import (
-	zotcli "github.com/sciminds/cli/internal/zot/cli"
+	zotcli "github.com/sciminds/sci/internal/zot/cli"
 	"github.com/urfave/cli/v3"
 )
 

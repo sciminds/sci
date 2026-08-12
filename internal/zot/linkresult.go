@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/bib"
-	"github.com/sciminds/cli/internal/zot/link"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot/bib"
+	"github.com/sciminds/sci/internal/zot/link"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // LinkResult is returned by `zot link` and `zot link rm`.

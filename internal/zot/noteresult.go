@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/internal/zot/notemd"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot/notemd"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // NotesListResult is returned by `zot notes list [parent-key]`.

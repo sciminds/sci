@@ -23,8 +23,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // stubTypeTargeter answers everything `item update` needs: each key's

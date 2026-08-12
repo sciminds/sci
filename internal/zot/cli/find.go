@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/zot"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/zot"
+	"github.com/sciminds/sci/pkg/openalex"
 	"github.com/urfave/cli/v3"
 )
 

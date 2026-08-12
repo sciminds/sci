@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/extract"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot/extract"
 )
 
 // ExtractLibPlanResult is emitted by `zot extract-lib --plan`: a

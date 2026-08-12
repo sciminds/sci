@@ -13,9 +13,9 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/client"
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/internal/zot/client"
+	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 // OpenAlexID extracts the OpenAlex W-id from an item's Extra field. Looks

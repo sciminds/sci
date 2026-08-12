@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/zot/hygiene"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/zot/hygiene"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // DoctorChecks is the full ordered list of checks Doctor knows how to

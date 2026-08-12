@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sciminds/cli/internal/tui/dbtui/match"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/tui/dbtui/match"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // findRepoRoot walks up from cwd looking for go.mod. Same pattern as the

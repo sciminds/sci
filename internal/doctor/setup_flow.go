@@ -12,9 +12,9 @@ import (
 	"sync"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/brew"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // SetupResult holds the Brewfile and tool installation outcomes.

@@ -14,11 +14,11 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/brew"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/doctor"
-	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/brew"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/doctor"
+	"github.com/sciminds/sci/internal/netutil"
+	"github.com/sciminds/sci/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/local"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 // stubReader implements local.Reader with only the methods graph uses

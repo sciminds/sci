@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // CLIResult reports what `zot item update --from-json` wrote, for either

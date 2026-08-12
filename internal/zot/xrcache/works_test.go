@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/pkg/crossref"
+	"github.com/sciminds/sci/pkg/crossref"
 )
 
 // stubWorks answers Work() from a canned map; a nil entry is a 404.

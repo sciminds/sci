@@ -7,7 +7,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/sciminds/cli/internal/lab"
+	"github.com/sciminds/sci/internal/lab"
 )
 
 // fakeBackend is a deterministic Backend for tests. Listings are seeded by

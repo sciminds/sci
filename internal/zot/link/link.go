@@ -18,8 +18,8 @@ import (
 	"slices"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/zot/bib"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/zot/bib"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // Status is what a suggestion's fate is: something to write, something

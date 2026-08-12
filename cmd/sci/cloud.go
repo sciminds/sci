@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sciminds/cli/internal/cloud"
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/netutil"
-	"github.com/sciminds/cli/internal/share"
-	"github.com/sciminds/cli/internal/tui/cloudbrowse"
-	"github.com/sciminds/cli/internal/tui/fspicker"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/cloud"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/netutil"
+	"github.com/sciminds/sci/internal/share"
+	"github.com/sciminds/sci/internal/tui/cloudbrowse"
+	"github.com/sciminds/sci/internal/tui/fspicker"
+	"github.com/sciminds/sci/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 

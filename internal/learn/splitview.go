@@ -1,6 +1,6 @@
 package learn
 
-import "github.com/sciminds/cli/internal/uikit"
+import "github.com/sciminds/sci/internal/uikit"
 
 // newSplitView wires a markdown viewer and cast player into a uikit.SplitView
 // with the conventional layout: reader on the left (default-recipient),

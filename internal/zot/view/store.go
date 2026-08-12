@@ -5,7 +5,7 @@
 // without touching the live Zotero DB.
 //
 // Every write method returns ErrReadOnly — the store is a projection over
-// internal/zot/local, which itself opens zotero.sqlite in
+// pkg/local, which itself opens zotero.sqlite in
 // mode=ro&immutable=1. The store also implements data.ViewLister and
 // returns IsView(items)=true so dbtui forces the tab into read-only mode
 // as a belt-and-suspenders against future key bindings.
@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 // TableName is the single virtual table the store exposes.

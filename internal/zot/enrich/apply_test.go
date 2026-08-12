@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/api"
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/api"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 type fakeWriter struct {

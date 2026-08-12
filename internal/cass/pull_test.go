@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/cass/api/github"
+	"github.com/sciminds/sci/internal/cass/api/github"
 )
 
 func TestPullStudents_Changelog(t *testing.T) {

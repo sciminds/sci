@@ -9,7 +9,7 @@ import (
 	"path"
 	"regexp"
 
-	"github.com/sciminds/cli/internal/sciconfig"
+	"github.com/sciminds/sci/internal/sciconfig"
 )
 
 // Lab server connection defaults.

@@ -41,7 +41,7 @@ const defaultMaxPDFBytes int64 = 500 * 1024 * 1024
 //     automation to consistently crack those walls.
 //
 // Net: an honest UA is the highest-expected-value default.
-const downloadUserAgent = "sci-zot (+https://github.com/sciminds/cli)"
+const downloadUserAgent = "sci-zot (+https://github.com/sciminds/sci)"
 
 // DownloadOptions configures Download. Zero value is valid — no callbacks,
 // serial execution.

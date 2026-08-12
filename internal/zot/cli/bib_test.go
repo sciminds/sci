@@ -8,9 +8,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/bib"
-	"github.com/sciminds/cli/pkg/doiorg"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/internal/zot/bib"
+	"github.com/sciminds/sci/pkg/doiorg"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 func writeFiles(t *testing.T, root string, paths ...string) {

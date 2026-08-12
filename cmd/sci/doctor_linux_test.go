@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // TestDoctor_Linux_NoBrewReferences asserts the Linux doctor never mentions

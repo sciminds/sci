@@ -8,8 +8,8 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // openColumnRename opens the column rename overlay for the current column.

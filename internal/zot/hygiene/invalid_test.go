@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/local"
+	"github.com/sciminds/sci/pkg/local"
 )
 
 func TestInvalid_FromFieldValues(t *testing.T) {

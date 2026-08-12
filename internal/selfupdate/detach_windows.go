@@ -5,7 +5,7 @@ package selfupdate
 import (
 	"os"
 
-	"github.com/sciminds/cli/internal/version"
+	"github.com/sciminds/sci/internal/version"
 )
 
 // SpawnDetachedRefresh on Windows falls back to the previous goroutine

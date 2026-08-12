@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/store"
-	"github.com/sciminds/cli/internal/store/duck"
+	"github.com/sciminds/sci/internal/store"
+	"github.com/sciminds/sci/internal/store/duck"
 )
 
 // requireDuck skips the test if the duckdb CLI is missing.

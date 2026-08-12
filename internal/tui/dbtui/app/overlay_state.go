@@ -9,7 +9,7 @@ package app
 import (
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // columnPickerState holds the cursor for the hidden-column picker overlay.

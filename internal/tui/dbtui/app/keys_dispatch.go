@@ -7,7 +7,7 @@ package app
 import (
 	"strings"
 
-	"github.com/sciminds/cli/internal/tui/dbtui/tabstate"
+	"github.com/sciminds/sci/internal/tui/dbtui/tabstate"
 )
 
 // handleNormalModeKey processes keys specific to normal mode.

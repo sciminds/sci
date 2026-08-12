@@ -20,7 +20,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/sciminds/cli/internal/uikit/browser"
+	"github.com/sciminds/sci/internal/uikit/browser"
 )
 
 // BuildActions returns upload + force-upload + toggle-hidden.

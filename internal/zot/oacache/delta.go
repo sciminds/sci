@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/cli/pkg/openalex"
+	"github.com/sciminds/sci/pkg/openalex"
 )
 
 // A targeted sync fetches a handful of works and MERGES them into the cache

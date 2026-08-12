@@ -10,8 +10,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/adrg/xdg"
 	"github.com/charmbracelet/x/exp/teatest/v2"
-	"github.com/sciminds/cli/internal/lab"
-	"github.com/sciminds/cli/internal/tuitest"
+	"github.com/sciminds/sci/internal/lab"
+	"github.com/sciminds/sci/internal/tuitest"
 )
 
 // hermeticTransferLog points xdg.StateHome at a fresh temp dir so the

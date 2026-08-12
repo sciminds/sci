@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sciminds/cli/internal/cmdutil"
-	"github.com/sciminds/cli/internal/proj"
-	projnew "github.com/sciminds/cli/internal/proj/new"
-	configTUI "github.com/sciminds/cli/internal/proj/new/tui"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/proj"
+	projnew "github.com/sciminds/sci/internal/proj/new"
+	configTUI "github.com/sciminds/sci/internal/proj/new/tui"
+	"github.com/sciminds/sci/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
 

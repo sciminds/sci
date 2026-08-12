@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/sciminds/cli/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit"
 )
 
 // Entry wraps a filesystem entry plus its absolute path. We can't embed

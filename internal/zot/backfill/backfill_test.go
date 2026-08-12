@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/zot/api"
-	"github.com/sciminds/cli/internal/zot/backfill"
-	"github.com/sciminds/cli/internal/zot/client"
+	"github.com/sciminds/sci/internal/zot/api"
+	"github.com/sciminds/sci/internal/zot/backfill"
+	"github.com/sciminds/sci/internal/zot/client"
 )
 
 // fakeServer stands in for the Zotero Web API.

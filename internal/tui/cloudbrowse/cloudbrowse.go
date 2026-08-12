@@ -10,10 +10,10 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/sciminds/cli/internal/cloud"
-	"github.com/sciminds/cli/internal/tui/cloudbrowse/app"
-	"github.com/sciminds/cli/internal/uikit"
-	"github.com/sciminds/cli/internal/uikit/browser"
+	"github.com/sciminds/sci/internal/cloud"
+	"github.com/sciminds/sci/internal/tui/cloudbrowse/app"
+	"github.com/sciminds/sci/internal/uikit"
+	"github.com/sciminds/sci/internal/uikit/browser"
 )
 
 // ErrInterrupted signals the user interrupted the TUI (Ctrl-C). The

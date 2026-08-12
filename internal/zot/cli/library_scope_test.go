@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/urfave/cli/v3"
 )
 
