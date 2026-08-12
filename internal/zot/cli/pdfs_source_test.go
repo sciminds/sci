@@ -1,14 +1,18 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/cmdutil"
+	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/api"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/sciminds/cli/internal/zot/savedsearch"
@@ -245,5 +249,48 @@ func TestTagFilterFromSavedSearch(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
 		}
+	}
+}
+
+func TestValidatePDFSourceFlags_MissingIsMutuallyExclusive(t *testing.T) {
+	withOrientConfig(t)
+	t.Cleanup(func() { pdfsMissing, pdfsCollection = false, "" })
+	_, err := runOrient(t, "--json", "doctor", "pdfs", "--library", "personal",
+		"--missing", "--collection", "missing-pdf")
+	if err == nil {
+		t.Fatal("want usage error when --missing is combined with --collection")
+	}
+	if !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Errorf("err = %v, want the mutual-exclusion usage error", err)
+	}
+}
+
+func TestLoadFromMissing_LocalPredicate(t *testing.T) {
+	// The orient fixture has four papers and no PDF attachments; KEY1's
+	// only child is a note (DOCL0001). All four must surface — KEY1 is the
+	// item a "has zero children" reading would wrongly drop.
+	withOrientConfig(t)
+	holder := &libraryHolder{HasFlag: true, Partial: zot.LibPersonal}
+	ctx := withLibraryHolder(context.Background(), holder)
+
+	items, label, closer, err := loadFromMissing(ctx)
+	if err != nil {
+		t.Fatalf("loadFromMissing: %v", err)
+	}
+	defer closer()
+
+	keys := lo.Map(items, func(it local.Item, _ int) string { return it.Key })
+	slices.Sort(keys)
+	want := []string{"KEY1", "KEY2", "KEY3", "KEY4"}
+	if !slices.Equal(keys, want) {
+		t.Errorf("keys = %v, want %v", keys, want)
+	}
+	if !strings.Contains(label, "missing") {
+		t.Errorf("label = %q, should identify the missing source", label)
+	}
+	// Items must be hydrated enough for pdffind.Scan: KEY1 carries a DOI.
+	k1, ok := lo.Find(items, func(it local.Item) bool { return it.Key == "KEY1" })
+	if !ok || k1.DOI != "10.1038/nature12373" {
+		t.Errorf("KEY1 DOI = %q, want 10.1038/nature12373 (items must be hydrated for the OpenAlex scan)", k1.DOI)
 	}
 }

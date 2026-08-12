@@ -70,6 +70,7 @@ type Reader interface {
 	// PDF Resolution
 	ResolvePDFAttachment(parentKey string) (*PDFAttachment, error)
 	ListAllPDFAttachments() ([]PDFParent, error)
+	MissingPDFKeys() ([]string, error)
 	ParentsWithDoclingNotes() (map[string]bool, error)
 	ParentsWithDoclingNotesMissingTag(tag string) ([]string, error)
 	DoclingNoteKeys(parentKey string) ([]string, error)

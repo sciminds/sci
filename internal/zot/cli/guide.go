@@ -187,7 +187,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Find items missing PDFs and try to recover them",
 						Cmd:  "sci zot doctor pdfs",
-						Note: "OpenAlex-led lookup. Defaults to 'missing-pdf' — collection or saved search; a NAME resolves against both kinds (own kind first), keys stay kind-specific. --saved-search runs live via the Web API (good when local SQLite is stale); --keys-from FILE|- feeds explicit keys (one per line). Add --download / --attach to write back; default is read-only triage.",
+						Note: "OpenAlex-led lookup. --missing computes 'no PDF attachment' locally in one query — use it for whole-library sweeps. Or name a curated set: 'missing-pdf' collection/saved search (NAMEs resolve against both kinds, keys stay kind-specific; --saved-search runs live), or --keys-from FILE|-. Add --download / --attach to write back; default is read-only triage.",
 					},
 					{
 						Goal: "Flag publisher-subobject DOIs (article sections, tables, figures, supplements, eLife assets) so OpenAlex can resolve them",

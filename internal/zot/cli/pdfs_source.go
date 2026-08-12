@@ -20,7 +20,7 @@ import (
 )
 
 // validatePDFSourceFlags rejects invalid combinations of --collection,
-// --saved-search, --keys-from. At most one may be set.
+// --saved-search, --keys-from, --missing. At most one may be set.
 func validatePDFSourceFlags(cmd *cli.Command) error {
 	set := 0
 	if pdfsCollection != "" {
@@ -32,8 +32,11 @@ func validatePDFSourceFlags(cmd *cli.Command) error {
 	if pdfsKeysFrom != "" {
 		set++
 	}
+	if pdfsMissing {
+		set++
+	}
 	if set > 1 {
-		return cmdutil.UsageErrorf(cmd, "--collection, --saved-search, --keys-from are mutually exclusive")
+		return cmdutil.UsageErrorf(cmd, "--collection, --saved-search, --keys-from, --missing are mutually exclusive")
 	}
 	return nil
 }
@@ -61,6 +64,9 @@ func resolvePDFItemSource(ctx context.Context) ([]local.Item, string, func(), er
 		},
 	}
 	switch {
+	case pdfsMissing:
+		return loadFromMissing(ctx)
+
 	case pdfsSavedSearch != "":
 		return loadEitherSource(pdfsSavedSearch, false, loaders)
 
@@ -71,6 +77,38 @@ func resolvePDFItemSource(ctx context.Context) ([]local.Item, string, func(), er
 	default:
 		return loadEitherSource(cmp.Or(pdfsCollection, defaultPDFCollection), true, loaders)
 	}
+}
+
+// loadFromMissing computes "bibliographic item with no PDF attachment"
+// from the local SQLite in one query and hydrates the matches. This is
+// the predicate doctor pdfs actually wants; no saved search can express
+// it (noChildren means top-level-only, and the Web API has no
+// has-a-PDF-child filter), so it is computed rather than outsourced.
+// Like the collection path it reads local data — the caller owns
+// freshness (the pipeline runs it behind sync-gates; interactively, sync
+// first or use --saved-search for a live view of a curated set).
+func loadFromMissing(ctx context.Context) ([]local.Item, string, func(), error) {
+	_, db, err := openLocalDB(ctx)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	closer := func() { _ = db.Close() }
+	keys, err := db.MissingPDFKeys()
+	if err != nil {
+		closer()
+		return nil, "", nil, fmt.Errorf("scan items missing a PDF: %w", err)
+	}
+	if len(keys) == 0 {
+		// An empty Keys filter would mean "no key filter" and hydrate the
+		// whole library — return the honest empty answer instead.
+		return nil, "missing:none", closer, nil
+	}
+	items, err := db.List(local.ListFilter{Keys: keys, Limit: len(keys)})
+	if err != nil {
+		closer()
+		return nil, "", nil, fmt.Errorf("hydrate %d PDF-less items: %w", len(keys), err)
+	}
+	return items, fmt.Sprintf("missing:%d PDF-less items", len(items)), closer, nil
 }
 
 // pdfSourceLoaders bundles the two name-addressable item sources so

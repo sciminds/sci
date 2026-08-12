@@ -21,6 +21,7 @@ var (
 	pdfsCollection  string
 	pdfsSavedSearch string
 	pdfsKeysFrom    string
+	pdfsMissing     bool
 	pdfsDownload    string
 	pdfsLimit       int
 	pdfsNoCache     bool
@@ -51,6 +52,7 @@ $ sci zot --library personal doctor pdfs --saved-search missing-pdf   # via Zote
 $ sci zot --library personal doctor pdfs --saved-search KC7TX6FU      # by saved-search key
 $ sci zot --library personal doctor pdfs --keys-from keys.txt         # explicit item keys, one per line
 $ cat keys.txt | sci zot --library personal doctor pdfs --keys-from - # piped keys
+$ sci zot --library personal doctor pdfs --missing                    # every item with no PDF attachment (computed locally)
 $ sci zot --library personal doctor pdfs --download ~/pdfs            # also retrieve each PDF (5-way parallel)
 $ sci zot --library personal doctor pdfs --download ~/pdfs -P 10      # bump download concurrency
 $ sci zot --library personal doctor pdfs --download ~/pdfs --attach   # upload downloaded PDFs as Zotero child attachments
@@ -59,7 +61,12 @@ $ sci zot --library personal doctor pdfs --refresh                    # bypass c
 $ sci zot --library personal doctor pdfs --json > missing.json
 
 Item-source flags are mutually exclusive (--collection, --saved-search,
---keys-from). Collections and saved searches are one usability surface: a
+--keys-from, --missing). --missing computes the predicate this command
+actually wants — "bibliographic item with no PDF attachment" — from the
+local Zotero database in one query, instead of outsourcing it to a saved
+search whose conditions cannot express it. It reads local SQLite, so run
+it after Zotero desktop has synced (the pipeline's freshness gates handle
+this for unattended runs). Collections and saved searches are one usability surface: a
 NAME given to either flag (or the no-flag default) resolves against both
 kinds — the flag's own kind first, the other as fallback — so you never
 have to remember which one you made in Zotero. 8-char keys stay
@@ -108,6 +115,13 @@ uploads the file bytes via Zotero's 4-phase upload dance. Requires
 				Name:        "keys-from",
 				Usage:       "read item keys from FILE (one per line); use - for stdin",
 				Destination: &pdfsKeysFrom,
+				Local:       true,
+			},
+			&cli.BoolFlag{
+				Name:        "missing",
+				Aliases:     []string{"m"},
+				Usage:       "scan every bibliographic item with no PDF attachment, computed from the local Zotero database (mutually exclusive with the other source flags)",
+				Destination: &pdfsMissing,
 				Local:       true,
 			},
 			&cli.StringFlag{
