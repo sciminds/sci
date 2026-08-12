@@ -2,8 +2,11 @@ package cli
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/cli/internal/zot"
 	"github.com/sciminds/cli/internal/zot/local"
 	"github.com/sciminds/cli/internal/zot/xrcache"
@@ -17,6 +20,14 @@ var (
 	xrSyncRows    int
 	xrSyncRetries int
 	xrSyncPauseMS int
+)
+
+// crossref works flag destinations.
+var (
+	xrWorksOut     string
+	xrWorksRetries int
+	xrWorksPauseMS int
+	xrWorksRefresh bool
 )
 
 // crossrefCommand groups the Crossref sweep.
@@ -38,6 +49,7 @@ func crossrefCommand() *cli.Command {
 			"DOIs OpenAlex inferred from the same titles.",
 		Commands: []*cli.Command{
 			crossrefSyncCommand(),
+			crossrefWorksCommand(),
 		},
 	}
 }
@@ -144,6 +156,134 @@ func crossrefSyncCommand() *cli.Command {
 func xrSyncDir() string {
 	if xrSyncOut != "" {
 		return xrSyncOut
+	}
+	return oaSyncDir()
+}
+
+func crossrefWorksCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "works",
+		Usage: "Fetch each DOI-holding item's own Crossref record into zot's staging",
+		Description: "$ sci zot --library all crossref works\n" +
+			"$ sci zot --library all crossref works --refresh   # re-ask everything, incl. known absences\n\n" +
+			"Writes crossref-works.ndjson plus a .meta.json sidecar, in the same\n" +
+			"body-then-sidecar order as every other staged input.\n\n" +
+			"Where `crossref sync` asks by TITLE for DOI-less items (candidates,\n" +
+			"a second opinion), this asks by the item's own DOI (an identity):\n" +
+			"the record that comes back — byline, venue, type, volume/issue/pages,\n" +
+			"repository for posted-content — is publisher-registered fact, the\n" +
+			"evidence a metadata-repair dossier cites for the fields an item is\n" +
+			"missing and the creator-quality diff against what Zotero holds.\n\n" +
+			"Runs are deltas by default: DOIs already cached, and DOIs the\n" +
+			"sidecar records Crossref as lacking (DataCite-registered DOIs —\n" +
+			"arXiv, OSF — 404 here structurally), are not re-asked. A lookup\n" +
+			"that fails in transport is neither cached nor recorded absent, so\n" +
+			"it is re-asked next run. Crossref is free and unmetered; a\n" +
+			"full-library sweep is a politeness question, not a budget one.",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name: "out", Aliases: []string{"o"},
+				Usage:       "staging directory (default: $ZOT_STAGING or ~/.local/share/zot/staging)",
+				Sources:     cli.EnvVars("ZOT_STAGING"),
+				Destination: &xrWorksOut, Local: true,
+			},
+			&cli.IntFlag{
+				Name: "retries", Value: 2,
+				Usage:       "extra attempts before a DOI is reported unaskable",
+				Destination: &xrWorksRetries, Local: true,
+			},
+			&cli.IntFlag{
+				Name: "pause-ms", Value: 100,
+				Usage:       "delay between requests, for the polite pool",
+				Destination: &xrWorksPauseMS, Local: true,
+			},
+			&cli.BoolFlag{
+				Name:        "refresh",
+				Usage:       "ignore the existing cache and known-absent set; re-fetch every DOI",
+				Destination: &xrWorksRefresh, Local: true,
+			},
+		},
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			// --library all, same reason as sync: the corpus spans both
+			// libraries and a per-library cache would have to be merged by
+			// the consumer.
+			_, db, err := openLocalDBAllowAll(ctx)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = db.Close() }()
+
+			items, err := db.ListAll(local.ListFilter{})
+			if err != nil {
+				return err
+			}
+			want, _ := wantFrom(items, false)
+
+			base, haveDOIs, absent, err := xrcache.ReadWorksBase(xrWorksDir())
+			if err != nil {
+				return err
+			}
+			if xrWorksRefresh {
+				base, haveDOIs, absent = nil, map[string]bool{}, map[string]bool{}
+			}
+
+			skipped := 0
+			ask := lo.Filter(want.DOIs, func(d string, _ int) bool {
+				n := xrcache.NormalizeDOI(d)
+				if haveDOIs[n] || absent[n] {
+					skipped++
+					return false
+				}
+				return true
+			})
+
+			cfg, err := zot.LoadConfig()
+			if err != nil {
+				return err
+			}
+			mailto := ""
+			if cfg != nil {
+				mailto = cfg.OpenAlexEmail
+			}
+
+			res, err := xrcache.FetchWorks(ctx, crossref.New(mailto), ask, xrcache.Options{
+				Retries: xrWorksRetries,
+				Pause:   time.Duration(xrWorksPauseMS) * time.Millisecond,
+			})
+			if err != nil {
+				return err
+			}
+			res.Stats.DOIsSkipped = skipped
+
+			// The next delta's skip set: everything already known absent
+			// plus this sweep's fresh 404s. Errored DOIs deliberately stay
+			// out — they will be re-asked.
+			carryAbsent := slices.Concat(slices.Sorted(maps.Keys(absent)), res.Absent)
+
+			scope := "personal"
+			if h := libraryHolderFromCtx(ctx); h != nil && h.Resolved != nil {
+				scope = string(h.Resolved.Scope)
+			}
+			body, err := xrcache.WriteWorks(xrWorksDir(), scope, base, res, carryAbsent)
+			if err != nil {
+				return err
+			}
+			outputScoped(ctx, cmd, zot.CrossrefWorksResult{
+				Scope: scope, OutPath: body, MetaPath: body + ".meta.json",
+				DOIsInLibrary: len(want.DOIs),
+				RecordsTotal:  len(base) + len(res.Records),
+				Stats:         res.Stats,
+				Errored:       res.Errored,
+			})
+			return nil
+		},
+	}
+}
+
+// xrWorksDir resolves where the works cache lands, mirroring xrSyncDir.
+func xrWorksDir() string {
+	if xrWorksOut != "" {
+		return xrWorksOut
 	}
 	return oaSyncDir()
 }

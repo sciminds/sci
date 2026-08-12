@@ -898,3 +898,46 @@ func (r CrossrefSyncResult) Human() string {
 	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
 	return b.String()
 }
+
+// CrossrefWorksResult reports what `zot crossref works` fetched and wrote.
+//
+// The same two-number discipline as CrossrefSyncResult, by DOI instead of
+// by title: a DOI Crossref 404s is a finding (DataCite-registered DOIs —
+// arXiv, OSF — are structurally absent from Crossref) and joins the
+// sidecar's known-absent set so a delta never re-asks it; a DOI that
+// could not be asked is not evidence of anything and is listed apart.
+type CrossrefWorksResult struct {
+	Scope    string `json:"scope"`
+	OutPath  string `json:"out_path"`
+	MetaPath string `json:"meta_path"`
+	// DOIsInLibrary is the sweep's denominator: every distinct DOI a
+	// bibliographic item carries in the swept scope.
+	DOIsInLibrary int                `json:"dois_in_library"`
+	RecordsTotal  int                `json:"records_total"`
+	Stats         xrcache.WorksStats `json:"stats"`
+	Errored       []string           `json:"errored,omitempty"`
+}
+
+// JSON implements cmdutil.Result.
+func (r CrossrefWorksResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
+func (r CrossrefWorksResult) Human() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %s fetched %d of %d asked DOIs from Crossref (%d requests); cache now holds %d records\n",
+		uikit.SymOK, r.Stats.DOIsFetched, r.Stats.DOIsAsked, r.Stats.Requests, r.RecordsTotal)
+	fmt.Fprintf(&b, "    %s %d already cached or known absent, skipped; %d newly absent\n",
+		uikit.TUI.Dim().Render("delta:"), r.Stats.DOIsSkipped, r.Stats.DOIsAbsent)
+	if r.Stats.DOIsAbsent > 0 {
+		fmt.Fprintf(&b, "      a DOI Crossref lacks is usually DataCite-registered (arXiv, OSF)\n")
+		fmt.Fprintf(&b, "      — recorded in the sidecar so the next run does not re-ask\n")
+	}
+	if n := len(r.Errored); n > 0 {
+		fmt.Fprintf(&b, "    %s %d DOIs could not be asked — listed in the sidecar\n",
+			uikit.TUI.Dim().Render("unknown:"), n)
+		fmt.Fprintf(&b, "      these are NOT absences; they will be re-asked next run\n")
+	}
+	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("out:"), r.OutPath)
+	fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
+	return b.String()
+}
