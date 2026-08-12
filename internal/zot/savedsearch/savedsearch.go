@@ -36,16 +36,13 @@ type APIFilters struct {
 	// /collections/{key}/items).
 	CollectionKey string
 	// TopOnly restricts to top-level items, hitting /items/top instead of
-	// /items. Set when the saved search includes `noChildren=true` (a
-	// childless item is necessarily top-level, so this narrows the API
-	// query) — but TopOnly alone is not sufficient: top-level items can
-	// have children. Pair with NoChildren.
+	// /items. Set when the saved search includes `noChildren=true`, whose
+	// desktop semantics (search.js ~line 1297) are exactly "the result is
+	// not a child item" — a top-level-only filter on results, NOT "item has
+	// zero children". /items/top expresses it completely; a
+	// `meta.numChildren == 0` post-filter would wrongly drop every parent
+	// whose children are notes or non-PDF attachments.
 	TopOnly bool
-	// NoChildren signals the caller must post-filter the API response to
-	// items with `meta.numChildren == 0`. The Zotero Web API has no native
-	// "no children" filter, so this projection is unavoidable. Set
-	// whenever `noChildren=true` appears in the saved search.
-	NoChildren bool
 }
 
 // Unsupported is one saved-search condition the translator could not
@@ -149,18 +146,16 @@ func Translate(conds []client.SearchCondition) (APIFilters, []Unsupported) {
 			out.CollectionKey = c.Value
 
 		case "noChildren":
-			// Pseudo-condition: noChildren=true means "items WITH no
-			// children". Strictly stronger than top-level — a paper with
-			// PDF attachments is top-level but has children. The Web API
-			// has no `?noChildren=` filter, so we project this in two
-			// halves: TopOnly narrows the API call to /items/top, then
-			// NoChildren tells the caller to post-filter on
-			// `meta.numChildren == 0`. noChildren=false is the default
-			// behavior of our list path (we never recurse into children),
-			// so it's a no-op.
+			// Pseudo-condition: noChildren=true means "the result is not a
+			// child item" — desktop's SQL excludes any item with a non-NULL
+			// parent, and nothing else. /items/top is the exact API
+			// equivalent. (An earlier reading projected this as "item has
+			// zero children" plus a numChildren==0 post-filter; that is a
+			// strictly different — and wrong — predicate.) noChildren=false
+			// is the default behavior of our list path (we never recurse
+			// into children), so it's a no-op.
 			if c.Operator == "true" {
 				out.TopOnly = true
-				out.NoChildren = true
 			}
 
 		case "joinMode":

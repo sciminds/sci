@@ -31,17 +31,16 @@ func TestTranslate_MissingPDFSavedSearch(t *testing.T) {
 	if !got.TopOnly {
 		t.Error("TopOnly should be true (noChildren=true)")
 	}
-	if !got.NoChildren {
-		t.Error("NoChildren should be true (noChildren=true)")
-	}
 }
 
-func TestTranslate_NoChildrenSetsBothTopOnlyAndNoChildren(t *testing.T) {
+func TestTranslate_NoChildrenMeansTopLevelOnly(t *testing.T) {
 	t.Parallel()
-	// noChildren=true means "items WITH no children" — strictly stronger than
-	// "top-level". The API has no native filter for it, so we set TopOnly
-	// (closes the door on attachments/notes that live as children) AND
-	// NoChildren (consumed as a post-filter by loadFromSavedSearch).
+	// Desktop semantics (search.js ~line 1297): noChildren=true excludes
+	// items that ARE children — a top-level-only filter on results. It does
+	// NOT mean "item has zero children": a paper with PDF attachments still
+	// matches. So the projection is /items/top and nothing more; any
+	// numChildren==0 post-filter would wrongly drop every parent that has a
+	// note or a non-PDF child.
 	conds := []client.SearchCondition{cond("noChildren", "true", "")}
 	got, unsupported := Translate(conds)
 	if len(unsupported) != 0 {
@@ -49,9 +48,6 @@ func TestTranslate_NoChildrenSetsBothTopOnlyAndNoChildren(t *testing.T) {
 	}
 	if !got.TopOnly {
 		t.Error("TopOnly should be true")
-	}
-	if !got.NoChildren {
-		t.Error("NoChildren should be true — caller must post-filter on numChildren==0")
 	}
 }
 
@@ -83,9 +79,6 @@ func TestTranslate_AllSupportedConditions(t *testing.T) {
 	}
 	if !got.TopOnly {
 		t.Error("TopOnly should be true")
-	}
-	if !got.NoChildren {
-		t.Error("NoChildren should be true")
 	}
 }
 
@@ -198,9 +191,6 @@ func TestTranslate_NoChildrenFalseIsIgnored(t *testing.T) {
 	if got.TopOnly {
 		t.Error("noChildren=false must not force TopOnly")
 	}
-	if got.NoChildren {
-		t.Error("noChildren=false must not force NoChildren")
-	}
 	if len(unsupported) != 0 {
 		t.Errorf("unsupported = %+v, want none", unsupported)
 	}
@@ -212,7 +202,7 @@ func TestTranslate_EmptyConditions(t *testing.T) {
 	if len(unsupported) != 0 {
 		t.Errorf("unsupported = %+v, want none", unsupported)
 	}
-	if got.Tag != "" || got.TopOnly || got.NoChildren || got.CollectionKey != "" {
+	if got.Tag != "" || got.TopOnly || got.CollectionKey != "" {
 		t.Errorf("zero-input should yield zero filters, got %+v", got)
 	}
 }
