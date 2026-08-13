@@ -2,8 +2,8 @@ package cli
 
 // Tests for the `zot browse` REPL core. The loop is driven through
 // scripted readLine input against the shared orient fixture; the
-// system-viewer launch, file stat, and content-index widener are all
-// injected so no test spawns `open` or touches the real user cache.
+// system-viewer launch and file stat are injected so no test spawns
+// `open` or touches the real filesystem.
 
 import (
 	"context"
@@ -16,7 +16,6 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/zot"
 	"github.com/sciminds/sci/pkg/local"
 )
@@ -106,8 +105,7 @@ func newREPLHarness(t *testing.T, scope zot.LibraryScope, lines ...string) *repl
 			h.launched = append(h.launched, path)
 			return nil
 		},
-		stat:    func(string) error { return nil },
-		widener: contentWidener,
+		stat: func(string) error { return nil },
 	}
 	h.ctx = withLibraryHolder(context.Background(), &libraryHolder{
 		HasFlag: true, Partial: scope, Resolved: &ref,
@@ -231,50 +229,6 @@ func TestBrowseREPL_LimitBadArg(t *testing.T) {
 	}
 }
 
-func TestBrowseREPL_ContentRefusedUnderAll(t *testing.T) {
-	h := newREPLHarness(t, zot.LibAll, ":content", ":q")
-	h.run(t)
-
-	if h.repl.csearch != nil {
-		t.Fatal("content toggled on under --library all; per-library index makes that a silently narrower answer")
-	}
-	if !strings.Contains(h.out.String(), ":library") {
-		t.Errorf("refusal should point at :library:\n%s", h.out.String())
-	}
-}
-
-func TestBrowseREPL_ContentMissingIndex(t *testing.T) {
-	h := newREPLHarness(t, zot.LibPersonal, ":content", ":q")
-	// Stub the widener with the same coded error the real one returns
-	// for an unbuilt index — the REPL must print the fix and continue.
-	h.repl.widener = func(context.Context, local.Reader) (*contentSearch, error) {
-		return nil, cmdutil.Coded(cmdutil.CodeNotFound, "no content index for this library").
-			WithFix("sci zot content build --library personal")
-	}
-	h.run(t)
-
-	if h.repl.csearch != nil {
-		t.Fatal("content should stay off when the index is missing")
-	}
-	if !strings.Contains(h.out.String(), "content build") {
-		t.Errorf("expected the build fix to surface:\n%s", h.out.String())
-	}
-}
-
-func TestBrowseREPL_ContentToggleOff(t *testing.T) {
-	h := newREPLHarness(t, zot.LibPersonal, ":content", ":q")
-	closed := false
-	h.repl.csearch = &contentSearch{close: func() { closed = true }}
-	h.run(t)
-
-	if h.repl.csearch != nil {
-		t.Fatal("second :content should toggle off")
-	}
-	if !closed {
-		t.Error("toggling off must close the index handle")
-	}
-}
-
 func TestBrowseREPL_LibrarySwitchNarrowsPool(t *testing.T) {
 	h := newREPLHarness(t, zot.LibAll, ":library personal", "Paper", ":q")
 	h.run(t)
@@ -285,23 +239,6 @@ func TestBrowseREPL_LibrarySwitchNarrowsPool(t *testing.T) {
 	}
 	if h.repl.ref.Scope != zot.LibPersonal {
 		t.Errorf("ref.Scope = %s, want personal", h.repl.ref.Scope)
-	}
-}
-
-func TestBrowseREPL_LibraryAllDisablesContent(t *testing.T) {
-	h := newREPLHarness(t, zot.LibPersonal, ":library all", ":q")
-	closed := false
-	h.repl.csearch = &contentSearch{close: func() { closed = true }}
-	h.run(t)
-
-	if h.repl.csearch != nil {
-		t.Fatal("content must auto-disable when scope widens to all")
-	}
-	if !closed {
-		t.Error("the old index handle must be closed on scope switch")
-	}
-	if !strings.Contains(h.out.String(), "content") {
-		t.Errorf("auto-disable should be announced:\n%s", h.out.String())
 	}
 }
 
@@ -340,8 +277,8 @@ func TestBrowseREPL_UnknownCommandAndHelp(t *testing.T) {
 	if !strings.Contains(out, ":h") {
 		t.Errorf("unknown command should point at :h:\n%s", out)
 	}
-	if !strings.Contains(out, ":content") {
-		t.Errorf("help should list :content:\n%s", out)
+	if !strings.Contains(out, ":library") {
+		t.Errorf("help should list :library:\n%s", out)
 	}
 }
 

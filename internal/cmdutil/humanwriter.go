@@ -12,7 +12,7 @@ import (
 // whatever the destination can actually display.
 //
 // Why this exists: human output is a data stream, not just a screen paint.
-// `sci zot content read KEY | llm` hands a whole paper to a model, and
+// `sci zot bib paper.qmd --json | jq` feeds a bibliography to a script, and
 // `sci zot search … | rg` is an everyday move. Lip Gloss renders true color
 // unconditionally, so without this every piped byte carried escape sequences
 // the consumer had to strip. Wrapping the writer fixes it at one choke point

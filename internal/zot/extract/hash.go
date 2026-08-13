@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // contentHashBytes bounds how much of each PDF we read into the SHA-256
@@ -46,4 +47,21 @@ func HashPDF(path string) (string, error) {
 	}
 	digest := hex.EncodeToString(h.Sum(nil))[:16]
 	return fmt.Sprintf("%d-%d-%s", fi.Size(), fi.ModTime().Unix(), digest), nil
+}
+
+// ContentKey projects a [HashPDF] fingerprint onto its content-only
+// identity by dropping the mtime field: "<size>-<mtime>-<sha16>" →
+// "<size>-<sha16>". Two attachments holding the same PDF bytes almost
+// always differ in mtime (separate downloads/imports), so the full
+// fingerprint cannot answer "is this the same document" — only this
+// projection can. The sha16 covers the first 1 MiB only (see HashPDF);
+// good enough for an advisory duplicate warning that is never acted on
+// automatically. Returns "" for an unparseable or empty hash; callers
+// must never group on "" (a hash failure is not evidence of sameness).
+func ContentKey(hash string) string {
+	parts := strings.Split(hash, "-")
+	if len(parts) != 3 || parts[0] == "" || parts[2] == "" {
+		return ""
+	}
+	return parts[0] + "-" + parts[2]
 }

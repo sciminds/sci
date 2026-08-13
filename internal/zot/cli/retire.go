@@ -2,111 +2,57 @@ package cli
 
 import (
 	"context"
-	"os"
-	"slices"
 	"strings"
 
-	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/urfave/cli/v3"
 )
 
-// retiredCommandError reports that a command has moved, carrying a Fix the
-// caller can resubmit verbatim.
+// This file holds the two shapes a retirement can take, and the difference
+// between them is where the work went:
 //
-// The extraction verbs moved out of `zot notes` because an extraction is the
-// paper's text, not a note: on the live library 4,710 of 4,752 "notes" were
-// docling extractions, so `notes list` showed extractions and `notes delete
-// --all` trashed them. Re-scoping the noun without moving the verbs would
-// have been worse than leaving it alone — `list` would show 42 things while
-// `delete --all` still reached 4,710.
+//   - [movedToZotCommand] — the verb lives on in the sibling `zot` binary.
+//   - [retiredOutrightCommand] — the verb has no home in any binary, and
+//     the remedy is prose (an app to open, a habit to change).
 //
-// extra is appended to the rewritten command (e.g. "--apply", because
-// `notes add` posted immediately while `content extract` dry-runs by
-// default). Pass nothing when the move is a pure rename.
-func retiredCommandError(oldPath, newPath []string, why string, extra ...string) error {
-	err := cmdutil.Coded(cmdutil.CodeUsage,
-		"`zot %s` has moved to `zot %s`",
-		strings.Join(oldPath, " "), strings.Join(newPath, " ")).
-		WithTry(why)
-	if fix := rewriteCommandFix(os.Args, oldPath, newPath, extra...); fix != "" {
-		err = err.WithFix(fix)
-	}
-	return err
-}
-
-// rewriteCommandFix rebuilds the user's command line with one command path
-// swapped for another, so a moved verb yields a runnable Fix.
+// Neither ever fills Fix. A moved verb cannot, because `zot` is a different
+// program and is absent from lab machines; a retired one cannot, because
+// there is no command to hand back at all. Error.Fix is verbatim-runnable
+// or absent, and an agent will run whatever lands there.
 //
-// Returns "" when argv is not a recognizable `sci … zot …` invocation or
-// doesn't actually contain oldPath — under `go test` os.Args belongs to the
-// test binary, and a Fix must be a real command or nothing at all. Same
-// discipline as [rewriteFlagFix].
-// Any trailing flags are appended at the END rather than spliced in after
-// the verb, so the Fix reads the way the docs write it
-// (`… content extract KEY --apply`, not `… content extract --apply KEY`).
-func rewriteCommandFix(argv []string, oldPath, newPath []string, trailing ...string) string {
-	if len(argv) < 2 || !lo.Contains(argv[1:], "zot") || len(oldPath) == 0 {
-		return ""
-	}
-	rest := argv[1:]
-	at := indexOfSubslice(rest, oldPath)
-	if at < 0 {
-		return ""
-	}
-
-	quoted := lo.Map(rest, func(arg string, _ int) string { return shellQuote(arg) })
-	out := slices.Concat(
-		quoted[:at],
-		newPath,
-		quoted[at+len(oldPath):],
-		trailing,
-	)
-	return "sci " + strings.Join(out, " ")
-}
-
-// indexOfSubslice returns the start index of the first occurrence of sub in
-// s, or -1. Used to locate a multi-token command path ("notes", "add")
-// inside an argv that may carry global flags ahead of it.
-func indexOfSubslice(s, sub []string) int {
-	if len(sub) == 0 || len(sub) > len(s) {
-		return -1
-	}
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if slices.Equal(s[i:i+len(sub)], sub) {
-			return i
-		}
-	}
-	return -1
-}
+// The per-verb constructors are in moved.go, where the whole boundary
+// reads as one list.
 
 // movedToZotError reports that a verb now lives in the separate `zot`
 // binary rather than anywhere in sci.
-//
-// The remedy goes in Try, never in Fix, and that is the whole difference
-// from [retiredCommandError]: `zot` is a different program, absent from lab
-// machines, so a rewritten command line would hand back something that
-// cannot run. Fix is verbatim-runnable or absent.
 func movedToZotError(oldPath []string, zotCmd, why string) error {
 	return cmdutil.Coded(cmdutil.CodeUsage,
-		"`zot %s` has been retired from sci — the write half lives in the zot binary",
+		"`zot %s` has been retired from sci — sci's Zotero surface is local and read-only",
 		strings.Join(oldPath, " ")).
 		WithTry(why + "; on a machine that has zot installed, run `" + zotCmd + "`")
 }
 
 // movedToZotCommand builds a stub for a verb that left sci for the `zot`
-// binary. Registered for the same reason as [retiredCommand] — a bare
-// "command not found" teaches nothing — and SkipFlagParsing so a script
-// still passing the old write flags reaches the explanation instead of an
+// binary. Keeping the name registered is deliberate: urfave would
+// otherwise answer `zot item add` with a bare "command not found", which
+// tells the user nothing about where to go next. SkipFlagParsing so a script
+// still passing the old flags reaches the explanation instead of an
 // unknown-flag error.
+//
+// A whole namespace retires as ONE leaf stub rather than a stub per verb:
+// with SkipFlagParsing the subcommand name arrives as a positional
+// argument, so `sci zot content read KEY` reaches this Action intact. Only
+// namespaces that KEPT some verbs (item, collection) stub their children
+// one at a time.
 func movedToZotCommand(name, usage string, oldPath []string, zotCmd, why string) *cli.Command {
 	return &cli.Command{
 		Name:  name,
 		Usage: usage,
 		Description: "Retired from sci. The equivalent verb is `" + zotCmd + "` in the zot binary.\n\n" +
 			why + ".\n\n" +
-			"`sci zot doctor` is read-only reporting: it reads the local Zotero\n" +
-			"database and never writes, fetches, or spends a metered API call.",
+			"sci's Zotero surface reads the local Zotero database and stops there:\n" +
+			"it never writes to your library, fetches from an upstream index, or\n" +
+			"spends a metered API call.",
 		SkipFlagParsing: true,
 		Action: func(_ context.Context, _ *cli.Command) error {
 			return movedToZotError(oldPath, zotCmd, why)
@@ -114,21 +60,34 @@ func movedToZotCommand(name, usage string, oldPath []string, zotCmd, why string)
 	}
 }
 
-// retiredCommand builds a stub command that exists only to explain where its
-// verb went. Keeping the name registered is deliberate: urfave would
-// otherwise answer `zot notes add` with a bare "command not found", which
-// tells the user nothing about where to go next.
-func retiredCommand(name, usage string, oldPath, newPath []string, why string, extra ...string) *cli.Command {
+// retiredOutrightError reports that a verb is gone from every SciMinds
+// binary, and hands back prose instead of a destination.
+//
+// remedy is a sentence, not a command line: it names what to do instead
+// (open an app, change a habit) for the cases where nothing sci or zot can
+// run is the right answer. Writing a plausible-looking `zot …` string here
+// would be worse than saying nothing — an agent would run it and get
+// "command not found" from a second tool.
+func retiredOutrightError(oldPath []string, why, remedy string) error {
+	return cmdutil.Coded(cmdutil.CodeUsage,
+		"`zot %s` has been retired — %s",
+		strings.Join(oldPath, " "), why).
+		WithTry(remedy)
+}
+
+// retiredOutrightCommand builds a stub for a verb that left with no
+// replacement anywhere. Registered and SkipFlagParsing for the same
+// reasons as [movedToZotCommand]: a bare "command not found" teaches
+// nothing, and a script still passing the old flags must reach the
+// explanation rather than an unknown-flag error.
+func retiredOutrightCommand(name, usage string, oldPath []string, why, remedy string) *cli.Command {
 	return &cli.Command{
-		Name:  name,
-		Usage: usage,
-		Description: "Moved to `sci zot " + strings.Join(newPath, " ") + "`.\n\n" +
-			why + ".\n\n" +
-			"Running this command reports the move and hands back the rewritten\n" +
-			"command line, so an agent can resubmit it verbatim.",
+		Name:            name,
+		Usage:           usage,
+		Description:     "Retired from sci — " + why + ".\n\n" + remedy + ".",
 		SkipFlagParsing: true,
 		Action: func(_ context.Context, _ *cli.Command) error {
-			return retiredCommandError(oldPath, newPath, why, extra...)
+			return retiredOutrightError(oldPath, why, remedy)
 		},
 	}
 }

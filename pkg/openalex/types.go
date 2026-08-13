@@ -5,7 +5,7 @@
 // and mirror the curated surface used by the TypeScript sibling at
 // /Users/esh/Documents/webapps/papers/src/openalex/types.ts — only the Works
 // and Authors entities, which is the subset needed to enrich Zotero items
-// (zot find / zot add --openalex / zot doctor --enrich).
+// (`zot find`, `zot item add --openalex`, `zot enrich`).
 //
 // Authentication is optional and additive: Email populates the "polite pool"
 // (~10 req/s) and APIKey unlocks the premium tier (~100 req/s). Both flow as

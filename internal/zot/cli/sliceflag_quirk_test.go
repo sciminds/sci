@@ -102,12 +102,11 @@ func TestSliceFlagLocalQuirk_Reproduction(t *testing.T) {
 // `Local: true` to a slice flag.
 //
 // Subtests run serially (no t.Parallel inside the loop): every Commands()
-// build re-binds the same package-level Destinations (addTag, noteTag,
-// addAuthor, noteTag, condition, …), and urfave/cli's PreParse re-zeroes
-// every flag's destination on every Run — so parallel subtests race on
-// the shared Destination memory and intermittently capture truncated
-// or empty slices. Production never hits this because each user
-// invocation is a fresh process. -race flags it instantly.
+// build re-binds the same package-level flag state, and urfave/cli's
+// PreParse re-zeroes it on every Run — so parallel subtests race on shared
+// memory and intermittently capture truncated or empty slices. Production
+// never hits this because each user invocation is a fresh process.
+// -race flags it instantly.
 func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -121,21 +120,11 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 		// inside a Before hook that also short-circuits the action.
 		flagName string
 	}{
-		{name: "item add --tag", argv: []string{"item", "add", "--title", "x", "--tag", "a", "--tag", "b", "--tag", "c"}, flagName: "tag"},
-		// Comma-bearing values are safe on item add/update — see
-		// TestSliceFlagFix_CommaBearingValuesSurvive. Kept comma-free
-		// here so this case tests only the Local accumulation bug.
-		{name: "item add --author", argv: []string{"item", "add", "--title", "x", "--author", "Alice", "--author", "Bob", "--author", "Carol"}, flagName: "author"},
-		{name: "item note add --tag", argv: []string{"item", "note", "add", "PARENT12", "--body", "x", "--tag", "a", "--tag", "b", "--tag", "c"}, flagName: "tag"},
-		{name: "find works --filter", argv: []string{"find", "works", "--filter", "k1=v1", "--filter", "k2=v2", "--filter", "k3=v3", "q"}, flagName: "filter"},
-		{name: "llm query --key", argv: []string{"llm", "query", "--key", "ABC12345", "--key", "DEF67890", "--key", "GHI34567", "--", "select 1"}, flagName: "key"},
 		// doctor --check was missing from this table and carried
 		// Local: true, so `--check invalid --check missing` ran ONLY
 		// missing — a diagnostic quietly doing less than it was asked
 		// while its report looked complete.
 		{name: "doctor --check", argv: []string{"doctor", "--check", "invalid", "--check", "missing", "--check", "orphans"}, flagName: "check"},
-		{name: "saved-search create --condition", argv: []string{"saved-search", "create", "x", "--condition", "title:contains:a", "--condition", "tag:is:b", "--condition", "itemType:is:c"}, flagName: "condition"},
-		{name: "saved-search update --condition", argv: []string{"saved-search", "update", "ABCD1234", "--condition", "title:contains:a", "--condition", "tag:is:b", "--condition", "itemType:is:c"}, flagName: "condition"},
 	}
 
 	for _, tc := range cases {
@@ -171,90 +160,56 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 	}
 }
 
-// TestSliceFlagFix_CommaBearingValuesSurvive pins the OTHER slice-flag
-// trap, which is orthogonal to the Local bug above and was worse.
+// TestSliceFlagSeparator_Reproduction pins the OTHER slice-flag trap,
+// which is orthogonal to the Local bug above and was worse.
 //
-// urfave/cli splits slice values on comma by default, so `--author
-// "Smith, Alice"` arrived as ["Smith", " Alice"] — and parseCreator reads a
-// comma-less value as an INSTITUTIONAL name, so one author became two
-// organizations. Every value these flags carry is a human name or free
-// text, `--field place="Cambridge, MA"` included, so item add/update set
-// DisableSliceFlagSeparator. Removing it silently corrupts every creator.
+// urfave/cli splits slice values on comma by default, so a free-text value
+// arrives in pieces. `--author "Smith, Alice"` became ["Smith", " Alice"],
+// and parseCreator read each comma-less half as an INSTITUTIONAL name —
+// one author silently became two organizations. `--condition
+// "title:contains:Cambridge, MA"` split into a valid spec plus the
+// unparseable fragment " MA", an error naming something the user never
+// typed. The cure is DisableSliceFlagSeparator, which is a *command*-level
+// setting: no per-flag form, and no inheritance from the root, so each
+// command opts in on its own.
 //
-// NB: NOT t.Parallel(), and neither are its subtests. It drives the same
-// package-level slice Destinations (addAuthor, addField, …) as the table
-// above, and urfave/cli re-zeroes them on every Run — two parallel tests
-// hand each other's values back. Staying serial makes this run to
-// completion before any parallel test resumes.
-func TestSliceFlagFix_CommaBearingValuesSurvive(t *testing.T) {
+// The reproduction is synthetic because no surviving zot command carries a
+// free-text slice flag today — `doctor --check` takes enum names and wants
+// the comma split. That is exactly why this test is worth keeping: the next
+// person to add one needs the trap written down and gated, not rediscovered
+// on a live library. Extend it into a production table the moment such a
+// flag lands.
+func TestSliceFlagSeparator_Reproduction(t *testing.T) {
+	t.Parallel()
+	const commaBearing = "Smith, Alice"
+
 	for _, tc := range []struct {
-		name     string
-		argv     []string
-		flagName string
-		want     []string
+		name    string
+		disable bool
+		want    []string
 	}{
-		{
-			name:     "item add --author",
-			argv:     []string{"item", "add", "--title", "x", "--author", "Smith, Alice", "--author", "Jones, Bob"},
-			flagName: "author",
-			want:     []string{"Smith, Alice", "Jones, Bob"},
-		},
-		{
-			name:     "item add --creator",
-			argv:     []string{"item", "add", "--title", "x", "--creator", "editor:Gazzaniga, Michael"},
-			flagName: "creator",
-			want:     []string{"editor:Gazzaniga, Michael"},
-		},
-		{
-			name:     "item add --field",
-			argv:     []string{"item", "add", "--title", "x", "--field", "place=Cambridge, MA"},
-			flagName: "field",
-			want:     []string{"place=Cambridge, MA"},
-		},
-		{
-			name:     "item update --field",
-			argv:     []string{"item", "update", "ABCD1234", "--field", "place=Cambridge, MA"},
-			flagName: "field",
-			want:     []string{"place=Cambridge, MA"},
-		},
-		{
-			// The live library holds 9 comma-bearing tags, MeSH headings
-			// like "Pattern Recognition, Visual" among them. Splitting
-			// makes one tag into two wrong ones, and `item add --tag`
-			// already does not — the same flag on the same noun behaving
-			// two ways is worse than either rule alone.
-			name:     "item note add --tag",
-			argv:     []string{"item", "note", "add", "PARENT12", "--body", "x", "--tag", "Pattern Recognition, Visual"},
-			flagName: "tag",
-			want:     []string{"Pattern Recognition, Visual"},
-		},
-		{
-			// A condition VALUE is free text. Split, its tail arrives as
-			// " MA" and fails to parse — an error naming a fragment the
-			// user never typed.
-			name:     "saved-search create --condition",
-			argv:     []string{"saved-search", "create", "x", "--condition", "title:contains:Cambridge, MA"},
-			flagName: "condition",
-			want:     []string{"title:contains:Cambridge, MA"},
-		},
-		{
-			name:     "saved-search update --condition",
-			argv:     []string{"saved-search", "update", "ABCD1234", "--condition", "title:contains:Cambridge, MA"},
-			flagName: "condition",
-			want:     []string{"title:contains:Cambridge, MA"},
-		},
+		{name: "default splits on comma", disable: false, want: []string{"Smith", " Alice"}},
+		{name: "DisableSliceFlagSeparator keeps it whole", disable: true, want: []string{commaBearing}},
 	} {
-		// NB: no t.Parallel() — shared package-level Destinations, same
-		// reason as the table above.
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var captured []string
 			root := &cli.Command{
-				Name:     "zot",
-				Flags:    PersistentFlags(),
-				Commands: shadowCommands(t, tc.argv, tc.flagName, &captured),
+				Name: "zot",
+				Commands: []*cli.Command{{
+					Name:                      "demo",
+					DisableSliceFlagSeparator: tc.disable,
+					Flags: []cli.Flag{
+						// lint:no-local — slice-flag Local quirk, see above.
+						&cli.StringSliceFlag{Name: "author"},
+					},
+					Action: func(_ context.Context, cmd *cli.Command) error {
+						captured = slices.Clone(cmd.StringSlice("author"))
+						return nil
+					},
+				}},
 			}
-			argv := slices.Concat([]string{"zot", "--library", "personal"}, tc.argv)
-			if err := root.Run(context.Background(), argv); err != nil {
+			if err := root.Run(context.Background(), []string{"zot", "demo", "--author", commaBearing}); err != nil {
 				t.Fatalf("run: %v", err)
 			}
 			if !slicesEqual(captured, tc.want) {

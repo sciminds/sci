@@ -302,17 +302,13 @@ func TestWriteResult(t *testing.T) {
 func TestConfig_Human_MasksAPIKey(t *testing.T) {
 	t.Parallel()
 	cfg := Config{
-		APIKey:         "sk-very-secret-key-AbCd1234",
-		UserID:         "12345",
-		DataDir:        "/Users/test/Zotero",
-		OpenAlexAPIKey: "oa-secret-XyZ789",
+		APIKey:  "sk-very-secret-key-AbCd1234",
+		UserID:  "12345",
+		DataDir: "/Users/test/Zotero",
 	}
 	out := cfg.Human()
 	if strings.Contains(out, "sk-very-secret-key-AbCd1234") {
 		t.Errorf("raw API key leaked in Human() output:\n%s", out)
-	}
-	if strings.Contains(out, "oa-secret-XyZ789") {
-		t.Errorf("raw OpenAlex API key leaked in Human() output:\n%s", out)
 	}
 	if !strings.Contains(out, "1234") {
 		t.Errorf("expected last-4 hint (1234) so user can confirm which key is loaded:\n%s", out)
@@ -337,10 +333,9 @@ func TestConfig_Human_OmitsAPIKeyLineWhenUnset(t *testing.T) {
 func TestConfig_JSON_StripsSecrets(t *testing.T) {
 	t.Parallel()
 	cfg := Config{
-		APIKey:         "sk-very-secret-key-AbCd1234",
-		UserID:         "12345",
-		DataDir:        "/Users/test/Zotero",
-		OpenAlexAPIKey: "oa-secret-XyZ789",
+		APIKey:  "sk-very-secret-key-AbCd1234",
+		UserID:  "12345",
+		DataDir: "/Users/test/Zotero",
 	}
 	b, err := json.Marshal(cfg.JSON())
 	if err != nil {
@@ -350,20 +345,11 @@ func TestConfig_JSON_StripsSecrets(t *testing.T) {
 	if strings.Contains(s, "sk-very-secret-key-AbCd1234") {
 		t.Errorf("raw API key leaked in JSON output:\n%s", s)
 	}
-	if strings.Contains(s, "oa-secret-XyZ789") {
-		t.Errorf("raw OpenAlex API key leaked in JSON output:\n%s", s)
-	}
 	if strings.Contains(s, `"api_key"`) {
 		t.Errorf("api_key field name still present in JSON (must drop, not mask):\n%s", s)
 	}
-	if strings.Contains(s, `"openalex_api_key"`) {
-		t.Errorf("openalex_api_key field name still present in JSON:\n%s", s)
-	}
 	if !strings.Contains(s, `"has_api_key":true`) {
 		t.Errorf("expected has_api_key:true so agents can verify config is set:\n%s", s)
-	}
-	if !strings.Contains(s, `"has_openalex_api_key":true`) {
-		t.Errorf("expected has_openalex_api_key:true:\n%s", s)
 	}
 	// Non-secret fields must still round-trip.
 	if !strings.Contains(s, `"user_id":"12345"`) {

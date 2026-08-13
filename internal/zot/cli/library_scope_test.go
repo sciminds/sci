@@ -104,7 +104,6 @@ func TestRoot_MissingLibrary_NamespaceShowsHelp(t *testing.T) {
 		{"zot", "collection"},
 		{"zot", "tags"},
 		{"zot", "notes"},
-		{"zot", "llm"},
 		{"zot", "saved-search"},
 	} {
 		buf.Reset()
@@ -115,17 +114,17 @@ func TestRoot_MissingLibrary_NamespaceShowsHelp(t *testing.T) {
 	}
 }
 
-// `find` hits OpenAlex, not Zotero, so --library is meaningless. It simply
-// never reads LibraryFromContext, so the Before hook's no-op behavior on
-// missing --library lets the command run through.
-func TestRoot_FindDoesNotRequireLibrary(t *testing.T) {
+// A command that never reads LibraryFromContext runs through without
+// --library: the Before hook is a validator, not a requirement, so the
+// scope-free verbs (setup, import, guide) reach their Action untouched.
+func TestRoot_ScopeFreeCommandDoesNotRequireLibrary(t *testing.T) {
 	root := &cli.Command{
 		Name:   "zot",
 		Flags:  PersistentFlags(),
 		Before: ValidateLibraryBefore,
 		Commands: []*cli.Command{
 			{
-				Name: "find",
+				Name: "import",
 				Commands: []*cli.Command{
 					{
 						Name: "works",
@@ -137,7 +136,7 @@ func TestRoot_FindDoesNotRequireLibrary(t *testing.T) {
 			},
 		},
 	}
-	err := root.Run(context.Background(), []string{"zot", "find", "works", "query"})
+	err := root.Run(context.Background(), []string{"zot", "import", "works", "query"})
 	if !errors.Is(err, errReachedAction) {
 		t.Fatalf("find should bypass --library, got err=%v", err)
 	}

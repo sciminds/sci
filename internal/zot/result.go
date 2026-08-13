@@ -15,25 +15,21 @@ import (
 // shape on disk under 0600 — only this user-facing surface is masked.
 func (c Config) JSON() any {
 	return configView{
-		HasAPIKey:         c.APIKey != "",
-		UserID:            c.UserID,
-		SharedGroupID:     c.SharedGroupID,
-		SharedGroupName:   c.SharedGroupName,
-		DataDir:           c.DataDir,
-		OpenAlexEmail:     c.OpenAlexEmail,
-		HasOpenAlexAPIKey: c.OpenAlexAPIKey != "",
+		HasAPIKey:       c.APIKey != "",
+		UserID:          c.UserID,
+		SharedGroupID:   c.SharedGroupID,
+		SharedGroupName: c.SharedGroupName,
+		DataDir:         c.DataDir,
 	}
 }
 
 // configView is the secret-stripped shape emitted by Config.JSON.
 type configView struct {
-	HasAPIKey         bool   `json:"has_api_key"`
-	UserID            string `json:"user_id"`
-	SharedGroupID     string `json:"shared_group_id,omitempty"`
-	SharedGroupName   string `json:"shared_group_name,omitempty"`
-	DataDir           string `json:"data_dir"`
-	OpenAlexEmail     string `json:"openalex_email,omitempty"`
-	HasOpenAlexAPIKey bool   `json:"has_openalex_api_key,omitempty"`
+	HasAPIKey       bool   `json:"has_api_key"`
+	UserID          string `json:"user_id"`
+	SharedGroupID   string `json:"shared_group_id,omitempty"`
+	SharedGroupName string `json:"shared_group_name,omitempty"`
+	DataDir         string `json:"data_dir"`
 }
 
 // Human implements cmdutil.Result.
@@ -47,9 +43,6 @@ func (c Config) Human() string {
 	fmt.Fprintf(&b, "    data dir: %s\n", c.DataDir)
 	if c.APIKey != "" {
 		fmt.Fprintf(&b, "    api key:  %s\n", maskKey(c.APIKey))
-	}
-	if c.OpenAlexAPIKey != "" {
-		fmt.Fprintf(&b, "    openalex: %s\n", maskKey(c.OpenAlexAPIKey))
 	}
 	return b.String()
 }

@@ -28,7 +28,6 @@ var toolDescs = map[string]string{
 	"sd":                         "Intuitive find-and-replace (sed alternative)",
 	"jaq":                        "Fast jq clone for querying JSON",
 	"xan":                        "CSV toolkit for slicing and analyzing tables",
-	"mq":                         "jq for Markdown — query and transform .md files",
 	"git-delta":                  "Syntax-highlighted pager for git diffs",
 	"ripgrep-all":                "ripgrep across PDFs, archives, and more",
 	"ast-grep":                   "Structural code search and rewrite via AST patterns",

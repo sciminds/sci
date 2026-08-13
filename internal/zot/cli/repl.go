@@ -8,7 +8,7 @@ package cli
 //
 // Grammar: bare text searches (same DSL as `zot search`), a bare number
 // opens that hit's PDF in the system viewer, and `:commands` steer the
-// session (`:content`, `:library`, `:limit`, `:help`, `:quit`).
+// session (`:library`, `:limit`, `:help`, `:quit`).
 //
 // Terminal discipline: raw mode is held ONLY inside the readLine wrapper
 // (with its own deferred Restore), so every print happens in cooked mode
@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot"
@@ -45,30 +44,23 @@ var browseStdoutIsTTY = func() bool {
 }
 
 // browseREPL is the loop state. Every side effect that would touch the
-// outside world (line input, `open`, stat, the content index) is an
-// injected field so tests can script a session end to end.
+// outside world (line input, `open`, stat) is an injected field so tests
+// can script a session end to end.
 type browseREPL struct {
-	cfg     *zot.Config
-	ref     zot.LibraryRef // current scope; swapped by :library
-	db      local.Reader   // reopened on :library
-	csearch *contentSearch // nil = content search off
-	limit   int            // hits per search; :limit
-	last    []local.Item   // previous hits, indexed by the number grammar
+	cfg   *zot.Config
+	ref   zot.LibraryRef // current scope; swapped by :library
+	db    local.Reader   // reopened on :library
+	limit int            // hits per search; :limit
+	last  []local.Item   // previous hits, indexed by the number grammar
 
 	out      io.Writer
 	readLine func() (string, error)
 	launch   func(path string) error
 	stat     func(path string) error
-	widener  func(ctx context.Context, db local.Reader) (*contentSearch, error)
 }
 
 // run drives the loop until EOF (Ctrl-D / Ctrl-C) or `:q`.
 func (r *browseREPL) run(ctx context.Context) error {
-	defer func() {
-		if r.csearch != nil {
-			r.csearch.close()
-		}
-	}()
 	for {
 		line, err := r.readLine()
 		if errors.Is(err, io.EOF) {
@@ -114,8 +106,6 @@ func (r *browseREPL) command(ctx context.Context, line string) error {
 		return errQuitREPL
 	case ":h", ":help", "?":
 		r.printHelp()
-	case ":c", ":content":
-		r.toggleContent(ctx)
 	case ":lib", ":library":
 		if len(args) != 1 {
 			r.sayf("usage: :library personal|shared|all")
@@ -141,30 +131,18 @@ func (r *browseREPL) command(ctx context.Context, line string) error {
 }
 
 // doSearch runs one query through the same pipeline as `zot search`:
-// DSL parse + rank in SearchWithTotal, content widening when toggled on,
-// snippets only for the hits that survive.
+// the DSL parse and ranking in SearchWithTotal.
 func (r *browseREPL) doSearch(query string) error {
-	var opts local.SearchOptions
-	if r.csearch != nil {
-		opts.Content = r.csearch.widen
-	}
-	items, total, err := r.db.SearchWithTotal(query, r.limit, opts)
+	items, total, err := r.db.SearchWithTotal(query, r.limit, local.SearchOptions{})
 	if err != nil {
 		return err
 	}
 	r.last = items
 	if len(items) == 0 {
-		r.sayf("no hits — searched %s", localSearchScope(r.csearch != nil))
+		r.sayf("no hits — searched %s", localSearchScope())
 		return nil
 	}
-	var snippets map[string]string
-	if r.csearch != nil {
-		snippets = r.csearch.snippets(query, lo.Map(items, func(it local.Item, _ int) string {
-			return it.Key
-		}))
-		snippets = dropTitleEchoes(snippets, items)
-	}
-	_, _ = fmt.Fprint(r.out, renderBrowseHits(items, snippets, total, r.ref.Scope == zot.LibAll))
+	_, _ = fmt.Fprint(r.out, renderBrowseHits(items, nil, total, r.ref.Scope == zot.LibAll))
 	return nil
 }
 
@@ -198,35 +176,9 @@ func (r *browseREPL) doOpen(n int) {
 	r.sayf("%s %s", uikit.TUI.TextGreen().Render("opened"), att.Filename)
 }
 
-// toggleContent flips full-text search. Under a merged scope it refuses
-// with guidance: the content index is per-library, and silently answering
-// from one library would be narrower than what the prompt shows.
-func (r *browseREPL) toggleContent(ctx context.Context) {
-	if r.csearch != nil {
-		r.csearch.close()
-		r.csearch = nil
-		r.sayf("content search off")
-		return
-	}
-	if r.ref.Scope == zot.LibAll {
-		r.sayf("the content index is per-library — switch first: :library personal or :library shared")
-		return
-	}
-	cs, err := r.widener(ctx, r.db)
-	if err != nil {
-		r.sayCoded(err)
-		return
-	}
-	r.csearch = cs
-	for _, w := range cs.warns {
-		r.sayf("%s (fix: %s)", w.Message, w.Fix)
-	}
-	r.sayf("content search on — queries now also match paper full text")
-}
-
-// setLibrary swaps the read pool. Content search follows the scope: it
-// reopens against a new single library, and auto-disables (announced)
-// when the scope widens to all — refusing the switch would trap the user.
+// setLibrary swaps the read pool, reopening the local reader against the
+// new scope and dropping the previous hit list (its numbers indexed rows
+// that are no longer on screen).
 func (r *browseREPL) setLibrary(arg string) {
 	if err := zot.ValidateLibraryScope(arg); err != nil {
 		r.sayf("%v", err)
@@ -254,19 +206,6 @@ func (r *browseREPL) setLibrary(arg string) {
 	}
 	_ = r.db.Close()
 	r.db, r.ref, r.last = db, ref, nil
-
-	if r.csearch != nil {
-		r.csearch.close()
-		r.csearch = nil
-		if scope == zot.LibAll {
-			r.sayf("content search off — the index is per-library and cannot serve a merged scope")
-		} else if cs, err := r.widener(context.Background(), r.db); err != nil {
-			r.sayCoded(err)
-		} else {
-			r.csearch = cs
-			r.sayf("content search re-opened against %s", scope)
-		}
-	}
 	r.sayf("library: %s — %s", uikit.TUI.TextBlue().Render(string(ref.Scope)), refName(ref))
 }
 
@@ -274,7 +213,6 @@ func (r *browseREPL) printHelp() {
 	_, _ = fmt.Fprint(r.out, strings.Join([]string{
 		"  type a query          search (same syntax as `sci zot search`: bare terms, author:, year:, tag:, \"phrases\", -negation)",
 		"  type a number         open that hit's PDF in the system viewer",
-		"  :c, :content          toggle full-text search over extracted papers",
 		"  :lib, :library X      switch scope: personal | shared | all",
 		"  :limit N              hits per search",
 		"  :h, :help, ?          this help",
@@ -286,16 +224,6 @@ func (r *browseREPL) printHelp() {
 // sayf prints one status line inside the loop.
 func (r *browseREPL) sayf(format string, args ...any) {
 	_, _ = fmt.Fprintf(r.out, "  %s %s\n", uikit.SymArrow, fmt.Sprintf(format, args...))
-}
-
-// sayCoded prints a coded error with its fix when one is attached, so
-// the "no content index" guidance survives outside the envelope path.
-func (r *browseREPL) sayCoded(err error) {
-	if coded, ok := errors.AsType[*cmdutil.CodedError](err); ok && coded.Fix != "" {
-		r.sayf("%s (fix: %s)", coded.Message, coded.Fix)
-		return
-	}
-	r.sayf("%v", err)
 }
 
 // refName labels a scope for the human header.
@@ -439,7 +367,6 @@ func browseCommand() *cli.Command {
 					_, err := os.Stat(path)
 					return err
 				},
-				widener: contentWidener,
 			}
 			// Close whichever handle the session ends on — :library
 			// swaps repl.db, closing the superseded one as it goes.

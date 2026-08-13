@@ -150,13 +150,16 @@ func TestItemRead_ByDOI_MissReturnsHelpfulError(t *testing.T) {
 		t.Fatal("expected error for missing DOI")
 	}
 	msg := err.Error()
-	// Error should mention the DOI and point to `find works` for OpenAlex
-	// fallback so an agent knows the next step.
+	// The error quotes the DOI so an agent can see which lookup missed,
+	// and it says what the miss means: a gap in THIS library, never a
+	// claim about the literature. sci has no upstream index to check, and
+	// an error that reads like "no such paper" is worse than none —
+	// rendered on a real manuscript it becomes "likely fabricated".
 	if !strings.Contains(msg, "10.0000/does-not-exist") {
 		t.Errorf("err should quote the DOI: %v", err)
 	}
-	if !strings.Contains(msg, "find works") {
-		t.Errorf("err should suggest `find works` as the OpenAlex fallback: %v", err)
+	if !strings.Contains(msg, "this library") {
+		t.Errorf("err must scope the miss to this library, not the literature: %v", err)
 	}
 }
 

@@ -25,10 +25,10 @@ import (
 //   - Notes call out tradeoffs, gotchas, or compose-with hints.
 func guideContent() zot.GuideResult {
 	return zot.GuideResult{
-		ContractVersion: 1,
+		ContractVersion: 2,
 		Contract: []string{
-			"Probe data.contract_version first — it bumps only on breaking changes to this contract or the extraction layout.",
-			"With extract.dir set in zot.json, extractions also land as <extract.dir>/<KEY>/ dirs: KEY.md, KEY.json (DoclingDocument), KEY_artifacts/, tables/*.csv, result.json, .done (written last). extract.runner=ssh delegates docling to extract.host.",
+			"Probe data.contract_version first — it bumps only on breaking changes to this contract.",
+			"This surface is READ-ONLY and local: every command below opens your own zotero.sqlite and answers from it. sci holds no credential for writing, and never fetches from OpenAlex, Crossref, or any other upstream index. Writing to the library, extracting paper text, and citation traversal live in the separate `zot` binary. Every retired verb is still registered here and says where its work went — usually a `zot` verb, and for saved-search writes the Zotero desktop app, because the Web API stores a saved search but never evaluates it.",
 			"Every command accepts --json: one stream (stdout), one shape. Success: {ok:true, data, warnings}. Failure: {ok:false, error:{code, message, fix, try}} on a single line.",
 			"error.fix is a complete corrected command — resubmit it verbatim. error.try is prose guidance. error.code is a closed vocabulary (usage, conflict, not-found, ambiguous, offline, not-configured, runtime).",
 			"Exit 2 means rewrite the command line and retry; exit 1 means the work itself failed.",
@@ -37,8 +37,7 @@ func guideContent() zot.GuideResult {
 			"Search field clauses work bare: tag:read = @tag: read, and -tag:read excludes the tag.",
 			"--library all (search+bib only) merges personal+shared into one ranked pool; each row's library field is its provenance (library_id reads 0).",
 			"item read accepts cite keys as positionals, not just 8-char Zotero keys. --library goes anywhere in the command.",
-			"With --content, match evidence rides in data.snippets — a map keyed by item key, not a field on each item. Join it yourself: data.snippets[item.key]. A key is absent when the excerpt would only restate the item's own title.",
-			"Human output is for terminals; pipe --json instead. Full paper text is data.body from `content read --json`, never the human stream.",
+			"Human output is for terminals; pipe --json instead.",
 		},
 		Sections: []zot.GuideSection{
 			{
@@ -57,7 +56,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Find papers in my library on a topic",
 						Cmd:  "sci zot search \"large language models\" --library personal",
-						Note: "Local metadata match over title/DOI/pub/creators/citekey, ranked by title relevance then year. Bare words AND across fields ('jolly 2021' = creator + year; a bare 1500-2099 token means the year); quotes make a literal phrase. --content also matches the full TEXT of your papers (one-time `sci zot content build`; quote phrases there too), --remote the Zotero Web fulltext (abstract + notes + PDFs). --notes instead FILTERS to items that have an extraction (no searching inside).",
+						Note: "Local metadata match over title/DOI/pub/creators/citekey, ranked by title relevance then year. Bare words AND across fields ('jolly 2021' = creator + year; a bare 1500-2099 token means the year); quotes make a literal phrase. --remote widens to the Zotero Web fulltext (abstract + notes + PDFs). --notes instead FILTERS to items that have an extraction (no searching inside). Searching the TEXT of your papers is `zot search` in the zot binary.",
 					},
 					{
 						Goal: "Which paper is this cite-key / Zotero key?",
@@ -65,14 +64,9 @@ func guideContent() zot.GuideResult {
 						Note: "Matches the stored citationKey and the 8-char Zotero key; a whole synthesized key resolves via its -ZOTKEY suffix even if the prefix drifted.",
 					},
 					{
-						Goal: "Find papers I don't have yet (OpenAlex)",
-						Cmd:  "sci zot find works \"theory of mind\"",
-						Note: "Compact JSON shape by default (~12 fields/work). --verbose for raw OpenAlex record.",
-					},
-					{
 						Goal: "Lookup an item by exact key",
 						Cmd:  "sci zot item read ABC12345",
-						Note: "Shows tags, collections, attachments, and related items (data.relations — `related` is the user's own dc:relation links, `other` is Zotero-managed owl:sameAs/dc:replaces, `titles` names each far end). Add --remote when the local DB may be stale: a link written seconds ago lives only on the server until Zotero desktop syncs it back, so a fresh `link add` won't show locally (the stale-local warning carries the resubmit).",
+						Note: "Shows tags, collections, attachments, and related items (data.relations — `related` is the user's own dc:relation links, `other` is Zotero-managed owl:sameAs/dc:replaces, `titles` names each far end). Add --remote when the local DB may be stale: an item written seconds ago lives only on the server until Zotero desktop syncs it back (the stale-local warning carries the resubmit).",
 					},
 					{
 						Goal: "Read several items in one call",
@@ -82,72 +76,27 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Lookup an item by DOI",
 						Cmd:  "sci zot item read --doi 10.1038/nature12373",
-						Note: "Local, case-insensitive. Errors point at `find works <doi>` when the DOI isn't in the library.",
+						Note: "Local, case-insensitive. A DOI the library does not hold is a gap in THIS library, not a claim the paper does not exist.",
 					},
 					{
 						Goal: "List all collections / tags",
 						Cmd:  "sci zot collection list",
-						Note: "Or `sci zot tags list`. Both fast/local.",
-					},
-					{
-						Goal: "Walk citation neighbors (incoming/outgoing)",
-						Cmd:  "sci zot graph refs ABC12345",
-						Note: "Splits into in_library (Zotero keys) vs outside_library (OpenAlex ids; pipe into `item add --openalex`). Default --limit 25; pass --limit 0 for the full bibliography.",
+						Note: "Or `sci zot tags list`. Both fast/local. Changing either — creating a collection, tagging an item — is a write and lives in the zot binary.",
 					},
 				},
 			},
 			{
-				Title: "Full-text extraction (has-markdown items)",
+				Title: "Notes and relations",
 				Entries: []zot.GuideEntry{
-					{
-						Goal: "Items tagged `has-markdown` carry a child docling note with the full PDF extraction. Anything you can do with markdown — `llm read`, `llm query`, mq, grep — works on them",
-						Cmd:  "sci zot llm catalog",
-						Note: "Compact index of every paper with an extraction. Add --full to inline citekey + year + authors + abstract per entry.",
-					},
-					{
-						Goal: "Read full markdown content of one or more papers",
-						Cmd:  "sci zot llm read ABC12345 DEF67890",
-						Note: "Returns the docling note body verbatim. Use after `llm catalog` to pick keys. For a single note by note-key rather than parent-key, `sci zot notes read <note-key> --md` adds a `markdown` field (works for HTML notes too, not just extractions).",
-					},
-					{
-						Goal: "Query specific section across many papers (mq pipeline)",
-						Cmd:  "sci zot llm query -s transformers -- '.h2 | select(contains(\"Discussion\"))'",
-						Note: "mq is jq-for-markdown. Selectors: .h1/.h2/.heading/.text/.code. Filter via select(...) + ||/&&.",
-					},
-					{
-						Goal: "Extract a PDF I haven't extracted yet (auto-applies the has-markdown tag)",
-						Cmd:  "sci zot content extract ABC12345 --apply",
-						Note: "Runs docling and posts the paper's text. Dry-runs without --apply. Re-extract in place with `content refresh`, remove with `content drop`, list what has one with `content list`. Bulk: `sci zot extract-lib`; --plan previews.",
-					},
-				},
-			},
-			{
-				Title: "Authoring",
-				Entries: []zot.GuideEntry{
-					{
-						Goal: "Add a paper from OpenAlex / DOI / arXiv",
-						Cmd:  "sci zot item add --openalex 10.1038/nature12373 --collection ABC12345",
-						Note: "Resolves metadata from OpenAlex; layer --tag, --collection, --author over the auto-fill.",
-					},
-					{
-						Goal: "Add a book chapter / proceedings paper by hand",
-						Cmd:  "sci zot item add --type bookSection --title \"A Chapter\" --author \"Manning, Jeremy\" --creator \"editor:Gazzaniga, Michael\" --publication \"The Volume\" --field pages=45-70",
-						Note: "--publication is the VENUE and lands in whichever field the type names it; --field name=value and --creator type:name reach anything else the type declares. All validated against the type's Zotero schema first, so a bad name exits 2 listing the valid ones. --creator is add-only: a PATCH clobbers arrays.",
-					},
 					{
 						Goal: "Drag-drop import a PDF (uses Zotero desktop's recognizer)",
 						Cmd:  "sci zot import paper.pdf",
-						Note: "Requires Zotero desktop running. Bypasses --library (writes to whatever desktop has selected).",
+						Note: "Requires Zotero desktop running. The one write sci can make, and it goes through the user's own app: desktop recognizes the metadata and syncs it. Bypasses --library (writes to whatever desktop has selected).",
 					},
 					{
-						Goal: "Attach a child note (markdown or HTML)",
-						Cmd:  "sci zot item note add ABC12345 --body \"my thoughts\"",
-						Note: "Tag with --tag. This is for notes YOU write; paper text goes through `sci zot content extract`.",
-					},
-					{
-						Goal: "Attach a PDF you already have on disk, safely across a batch",
-						Cmd:  "sci zot item attach ABC12345 ./paper.pdf --skip-existing",
-						Note: "A bare attach is NOT idempotent — twice makes two attachments. --skip-existing no-ops on a same-md5 child, which is what makes a batch resumable. Never resume off local `item children`: it cannot see what this CLI just wrote and answers 0. Use `item children KEY --remote`; both listings carry md5.",
+						Goal: "Read the notes you wrote, separately from the paper text",
+						Cmd:  "sci zot notes list",
+						Note: "Docling extractions are excluded — on the live library they outnumber real notes 4,710 to 42, so an unfiltered listing is a listing of extractions. `sci zot notes read <note-key> --md` adds a `markdown` field.",
 					},
 					{
 						Goal: "Relate a note to the papers it discusses, without doing it by hand",

@@ -6,16 +6,14 @@ import (
 )
 
 // SetupInput gathers all fields Setup accepts. Structured so optional
-// knobs (OpenAlex credentials today, future per-library tuning later)
-// can be added without churning every call site.
+// knobs (per-library tuning, future group handling) can be added without
+// churning every call site.
 type SetupInput struct {
 	APIKey          string // required
 	UserID          string // required — numeric Zotero user ID
 	SharedGroupID   string // optional — explicit pick when GroupProbe returns multiple
 	SharedGroupName string // optional — display name, paired with SharedGroupID
 	DataDir         string // required
-	OpenAlexEmail   string // optional
-	OpenAlexAPIKey  string // optional
 
 	// GroupProbe is injected by the CLI layer and called during setup to
 	// auto-detect the shared group for the account. Tests pass a fake.
@@ -74,8 +72,6 @@ func Setup(in SetupInput) (*SetupResult, error) {
 		SharedGroupID:   sharedID,
 		SharedGroupName: sharedName,
 		DataDir:         in.DataDir,
-		OpenAlexEmail:   in.OpenAlexEmail,
-		OpenAlexAPIKey:  in.OpenAlexAPIKey,
 	}
 	if err := SaveConfig(cfg); err != nil {
 		return nil, err

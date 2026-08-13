@@ -47,7 +47,7 @@ func TestCommandTree(t *testing.T) {
 	t.Run("categories", func(t *testing.T) {
 		cats := map[string][]string{
 			"Getting Started": {"learn", "setup", "help"},
-			"Commands":        {"cloud", "db", "lab", "proj", "py", "vid", "view"},
+			"Commands":        {"cloud", "db", "lab", "proj", "py", "vid", "view", "zot"},
 			"Maintenance":     {"tools", "doctor", "update"},
 		}
 		for cat, expected := range cats {

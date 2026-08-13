@@ -14,13 +14,9 @@ import (
 	"context"
 
 	"github.com/sciminds/sci/internal/cmdutil"
-	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot"
 	"github.com/urfave/cli/v3"
 )
-
-// experimental is the colored "[experimental]" tag prepended to Usage strings.
-var experimental = uikit.TUI.TextPink().Render("[experimental]")
 
 // libraryCtxKey is the unexported context key the Before hook uses to stash
 // the resolved library scope for subcommand actions.
@@ -95,37 +91,37 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 // Commands returns the full zot subcommand tree.
 // Entry points wrap this in their own root cli.Command.
 //
-// Top-level layout:
+// Top-level layout — the live surface first, then the stubs that name
+// where a retired verb went (moved.go):
 //
 //	guide                       agent-friendly cheat sheet of common workflows
-//	setup                       configure API key + library
+//	setup                       configure the library location and scope
 //	info                        library summary (alias: stats)
 //	view                        interactive read-only table viewer
 //	search  <query>             cross-field search (supports --export, --notes)
 //	browse                      interactive search-and-open REPL (PDFs open in the system viewer)
-//	find    <subcommand>        OpenAlex paper/author lookup (works/authors)
-//	export                      full-library BibTeX / CSL-JSON export
+//	export                      full-library BibLaTeX / CSL-JSON / NDJSON export
 //	bib     <file-or-dir>       bibliography of exactly the items a document cites
 //	import  <path>              drag-drop import via Zotero desktop (metadata recognition)
-//	item    <subcommand>        per-item ops (read/add/update/delete/list/open/export)
-//	collection <subcommand>     collections (list/create/delete/add/remove)
-//	saved-search <subcommand>   saved searches (list/show/create/update/delete)
-//	tags    <subcommand>        tags (list/add/remove/delete)
+//	item    <subcommand>        per-item reads (read/list/children/open/export/note)
+//	collection <subcommand>     collections (list)
+//	saved-search <subcommand>   saved searches (list/show)
+//	tags    <subcommand>        tags (list/browse)
 //	notes   <subcommand>        the notes YOU wrote (list/read)
 //	link    <subcommand>        relate items via dc:relation (add/list/suggest)
-//	content <subcommand>        paper text end to end (extract/refresh/list/read/drop/build/stats)
-//	llm     <subcommand>        [experimental] LLM-agent tools for querying paper content
-//	                            llm {catalog,read,query}
-//	doctor  [subcommand]        hygiene: run every check, or drill in via
-//	                            doctor {invalid,missing,orphans,duplicates}
-//	graph   <subcommand>        traverse citation relationships (library + OpenAlex)
-//	openalex sync               build the OpenAlex work cache zot reads (writes staging)
-//	extract <parent-key>        retired stub — rewrites to `content extract`
-//	extract-lib                 [experimental] bulk extract every PDF → child note (via docling)
+//	doctor  [subcommand]        hygiene reports: run every check, or drill in via
+//	                            doctor {invalid,missing,orphans,duplicates,citekeys,dois}
 //
-// `item`, `collection`, and `tags` all reuse the leaf commands defined in
-// read.go / write.go — the wrapper functions below just parent them under
-// the right namespace.
+//	find | openalex | crossref  moved to the zot binary (metered upstream indexes)
+//	graph | content | llm       retired — zot's snapshot plane answers these locally
+//	extract | extract-lib       moved to `zot extract-lib`
+//
+// The item, collection, tags and saved-search namespaces each keep their
+// reads and stub their writes; moved.go lists every stub in one place.
+//
+// `item` and `collection` reuse the leaf commands defined in read.go /
+// write.go — the wrapper functions below just parent them under the right
+// namespace.
 func Commands() []*cli.Command {
 	return []*cli.Command{
 		guideCommand(),
@@ -134,7 +130,6 @@ func Commands() []*cli.Command {
 		viewCommand(),
 		searchCommand(),
 		browseCommand(),
-		findCommand(),
 		libraryExportCommand(),
 		bibCommand(),
 		importCommand(),
@@ -144,40 +139,42 @@ func Commands() []*cli.Command {
 		tagsCommand(),
 		notesCommand(),
 		linkCommand(),
-		contentCommand(),
-		llmCommand(),
 		doctorCommand(),
-		graphCommand(),
-		openalexCommand(),
-		crossrefCommand(),
-		retiredCommand("extract", "moved to `zot content extract`",
-			[]string{"extract"}, []string{"content", "extract"},
-			extractionMoved),
-		extractLibCommand(),
+
+		findStub(),
+		openalexStub(),
+		crossrefStub(),
+		graphStub(),
+		contentStub(),
+		llmStub(),
+		extractStub(),
+		extractLibStub(),
 	}
 }
 
 // itemCommand groups per-item operations under a single namespace. Nothing
-// here is defined inline — the leaf commands live in read.go / write.go.
+// here is defined inline — the leaf commands live in read.go, item_note.go
+// and moved.go.
 func itemCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "item",
-		Usage: "Work with individual items (read, add, update, delete, list, open, export)",
+		Usage: "Work with individual items (read, list, children, open, export, note)",
 		Description: "$ sci zot --library personal item read ABC12345\n" +
-			"$ sci zot --library personal item add --type journalArticle --title \"My Paper\"\n" +
 			"$ sci zot --library personal item list --limit 20\n" +
+			"$ sci zot --library personal item children 6R45EVSB\n" +
 			"$ sci zot --library shared item export ABC12345",
 		Commands: []*cli.Command{
 			readCommand(),
-			addCommand(),
-			itemAttachCommand(),
-			updateCommand(),
-			deleteCommand(),
 			listCommand(),
 			childrenCommand(),
 			openCommand(),
 			exportCommand(),
 			itemNoteCommand(),
+
+			itemAddStub(),
+			itemUpdateStub(),
+			itemDeleteStub(),
+			itemAttachStub(),
 		},
 	}
 }

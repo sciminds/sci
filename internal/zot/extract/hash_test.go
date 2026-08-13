@@ -124,3 +124,26 @@ func TestHashPDF_DifferentMtimeDifferentHash(t *testing.T) {
 		t.Errorf("different mtime produced same fingerprint %q", h1)
 	}
 }
+
+func TestContentKey(t *testing.T) {
+	t.Parallel()
+	// mtime differs, size+digest identical → same identity. This is the
+	// case the full fingerprint misses: two separate downloads of the
+	// same PDF almost never share an mtime.
+	a := ContentKey("1048576-1700000000-abc123")
+	b := ContentKey("1048576-1799999999-abc123")
+	if a == "" || a != b {
+		t.Errorf("mtime must not affect identity: %q vs %q", a, b)
+	}
+	if ContentKey("1048576-1700000000-abc123") == ContentKey("999-1700000000-abc123") {
+		t.Error("size must affect identity")
+	}
+	if ContentKey("1048576-1700000000-abc123") == ContentKey("1048576-1700000000-zzz999") {
+		t.Error("digest must affect identity")
+	}
+	for _, malformed := range []string{"", "garbage", "1-2", "-1-", "1-2-"} {
+		if got := ContentKey(malformed); got != "" {
+			t.Errorf("ContentKey(%q) = %q, want \"\" (no identity)", malformed, got)
+		}
+	}
+}

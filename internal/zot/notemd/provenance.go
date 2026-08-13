@@ -1,4 +1,4 @@
-package content
+package notemd
 
 import "strings"
 
@@ -12,30 +12,27 @@ const maxProvenanceLines = 12
 // note, and the positive evidence that a leading YAML block is ours.
 const provenanceMarker = "zotero_key:"
 
-// StripProvenance removes the YAML provenance block that sci's own
-// extraction notes carry (see extract.MarkdownToNoteRaw), returning the
-// paper's text alone.
+// StripProvenance removes the YAML provenance block that an extraction
+// note carries, returning the paper's text alone.
 //
 // The block is metadata about the extraction — the parent item key, the
-// PDF key, the title, the docling source, a hash and a date — and
-// indexing it costs twice. It ruins snippets, because a query that
-// matches the paper's title matches the block's `title:` line first and
-// the excerpt shows YAML instead of prose. And it corrupts ranking, since
-// every paper then contains its own title as body text, "docling" and
-// "cached" match all 4,376 extractions, and the `generated:` date makes a
-// search for a year hit everything indexed that year.
+// PDF key, the title, the docling source, a hash and a date — so anything
+// that shows the *beginning* of a note has to drop it first. A preview
+// that keeps it reads `--- zotero_key: … title: "…" source…` instead of
+// the paper's first sentence, and the paper's own title is the one line
+// of it a reader can already see.
 //
 // Stripping is gated on positive evidence, the same discipline as
-// notemd.IsHTMLNote: the text must open with a `---` fence, close it
+// [IsHTMLNote]: the text must open with a `---` fence, close it
 // within [maxProvenanceLines], and carry [provenanceMarker] inside.
 // Anything else — a paper that opens with a horizontal rule, a document
 // with its own frontmatter, Zotero's plain-text cache — is returned
 // unchanged. Guessing wrong here silently eats the top of a paper.
 //
-// The HTML note format (extract.MarkdownToNoteHTML, opt-in via --html)
-// writes its provenance as a heading plus an italic line instead, which
-// this does not detect. That is deliberate: it has no unambiguous marker,
-// and in the live library essentially every extraction is markdown.
+// The HTML note format writes its provenance as a heading plus an italic
+// line instead, which this does not detect. That is deliberate: it has no
+// unambiguous marker, and in the live library essentially every
+// extraction is markdown.
 func StripProvenance(text string) string {
 	rest, ok := strings.CutPrefix(text, "---\n")
 	if !ok {

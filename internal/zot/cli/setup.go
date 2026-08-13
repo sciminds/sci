@@ -21,8 +21,6 @@ var (
 	setupSharedGroupID   string
 	setupSharedGroupName string
 	setupDataDir         string
-	setupOpenAlexEmail   string
-	setupOpenAlexAPIKey  string
 	setupLogout          bool
 	setupForce           bool
 )
@@ -30,20 +28,21 @@ var (
 func setupCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "setup",
-		Usage: "Configure Zotero API credentials and data directory",
+		Usage: "Point sci at your Zotero library",
 		Description: "$ sci zot setup\n" +
 			"$ sci zot setup --api <key> --user-id <id>\n" +
 			"$ sci zot setup --api <key> --user-id <id> --data-dir ~/Zotero\n" +
-			"$ sci zot setup --openalex-email you@example.com --openalex-api <key>\n" +
-			"$ sci zot setup --logout",
+			"$ sci zot setup --logout\n\n" +
+			"--data-dir is what the local reads need: search, bib, export and\n" +
+			"the doctor reports all open the zotero.sqlite it names. The API key\n" +
+			"is only for the `--remote` live reads and for naming your shared\n" +
+			"group; sci never writes to a library with it.",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "api", Usage: "Zotero Web API key (required in --json mode)", Destination: &setupAPIKey, Local: true},
 			&cli.StringFlag{Name: "user-id", Usage: "Zotero numeric user ID (required in --json mode)", Destination: &setupUserID, Local: true},
 			&cli.StringFlag{Name: "shared-group-id", Usage: "numeric group ID to use as the shared library (only needed when the account belongs to >1 group)", Destination: &setupSharedGroupID, Local: true},
 			&cli.StringFlag{Name: "shared-group-name", Usage: "display name for the shared group (optional; auto-detected when --shared-group-id is set)", Destination: &setupSharedGroupName, Local: true},
 			&cli.StringFlag{Name: "data-dir", Usage: "path to directory containing zotero.sqlite (auto-detected if omitted)", Destination: &setupDataDir, Local: true},
-			&cli.StringFlag{Name: "openalex-email", Usage: "email for the OpenAlex polite pool (optional, ~10 req/s)", Destination: &setupOpenAlexEmail, Local: true},
-			&cli.StringFlag{Name: "openalex-api", Usage: "OpenAlex premium API key (optional, ~100 req/s)", Destination: &setupOpenAlexAPIKey, Local: true},
 			&cli.BoolFlag{Name: "logout", Usage: "clear saved credentials", Destination: &setupLogout, Local: true},
 			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config without prompting", Destination: &setupForce, Local: true},
 		},
@@ -73,19 +72,6 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 	sharedGroupID := setupSharedGroupID
 	sharedGroupName := setupSharedGroupName
 	dataDir := setupDataDir
-	openAlexEmail := setupOpenAlexEmail
-	openAlexAPIKey := setupOpenAlexAPIKey
-
-	// Prefill OpenAlex fields from any existing config so --openalex-* flags
-	// behave as partial updates rather than wiping the other slot.
-	if existing, _ := zot.LoadConfig(); existing != nil {
-		if openAlexEmail == "" {
-			openAlexEmail = existing.OpenAlexEmail
-		}
-		if openAlexAPIKey == "" {
-			openAlexAPIKey = existing.OpenAlexAPIKey
-		}
-	}
 
 	jsonMode := cmdutil.IsJSON(cmd)
 	// `setup --json` with no creds → print the saved config and exit.
@@ -141,10 +127,6 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 				uikit.FormInput(&dataDir, "Data directory",
 					uikit.WithDescription("Zotero's data dir (contains zotero.sqlite)"),
 					uikit.WithValidation(func(s string) error { return zot.ValidateDataDir(s) })),
-				uikit.FormInput(&openAlexEmail, "OpenAlex email (optional)",
-					uikit.WithDescription("Unlocks the polite pool (~10 req/s). Leave blank to skip.")),
-				uikit.FormInput(&openAlexAPIKey, "OpenAlex API key (optional)",
-					uikit.WithDescription("Premium tier (~100 req/s). Leave blank to skip.")),
 			)).Run(); err != nil {
 				return err
 			}
@@ -162,8 +144,6 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 		SharedGroupID:   sharedGroupID,
 		SharedGroupName: sharedGroupName,
 		DataDir:         dataDir,
-		OpenAlexEmail:   openAlexEmail,
-		OpenAlexAPIKey:  openAlexAPIKey,
 		GroupProbe:      probe,
 	})
 	if err != nil {

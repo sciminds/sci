@@ -572,6 +572,60 @@ if [[ -n "$slice_local" ]]; then
 	fail "sliceflag-no-local"
 fi
 
+# ── Rule 18: the zot namespace must not reach an upstream index ──────────────
+# sci's Zotero surface is the public local read plane: it opens the user's own
+# zotero.sqlite and stops there. The two places it still speaks a network are
+# internal/zot/api (the `--remote` live reads, the live-only saved-search and
+# item-note reads, and the `link` relation writes — all against the user's own
+# library with the user's own key) and internal/zot/connector (localhost,
+# driving the desktop app the user is already running). Everything metered or
+# third-party — OpenAlex, Crossref, doi.org — moved to the sibling `zot` binary
+# with the rest of the operate plane, and pkg/{openalex,crossref,doiorg} stay
+# in this repo only because zot imports them.
+#
+# The fence is a dependency check rather than a grep because the failure it
+# guards is transitive: nothing has to import pkg/openalex directly for a
+# `sci zot search` to start spending someone's rate limit. A `go list -deps`
+# on the command tree is the whole answer.
+#
+# This rule stays at "no upstream index" ON PURPOSE. The link relation writes
+# are the last Web-API writes standing and they MOVE to zot rather than retire
+# (a recorded preprint↔published relation is real bibliographic data), so zot
+# grows the verbs before sci stubs its copies. Tightening the second half to
+# "no net/http outside {api reads, connector}" is the job of the ticket that
+# closes that family — a fence that lies about what it forbids is worse than a
+# looser honest one.
+zot_upstream=$(go list -deps ./internal/zot/cli 2>/dev/null |
+	rg '^github\.com/sciminds/sci/pkg/(openalex|crossref|doiorg)$' || true)
+
+if [[ -n "$zot_upstream" ]]; then
+	echo "FAIL [zot-no-upstream-index] internal/zot/cli reaches a metered upstream index:"
+	echo "$zot_upstream" | sed 's/^/  /'
+	echo "  sci's Zotero surface is local and read-only — a verb that dials"
+	echo "  OpenAlex, Crossref or doi.org belongs in the zot binary."
+	echo "  See internal/zot/CLAUDE.md, 'The boundary'."
+	fail "zot-no-upstream-index"
+fi
+
+# The same check from the other side: which packages under the zot namespace
+# can reach net/http at all. Adding one is a boundary decision, so the list is
+# spelled out here and a newcomer fails the gate rather than arriving quietly.
+# cli is on it because it mounts api and connector; every other package under
+# internal/zot/ answers from the local database and must stay that way.
+zot_http_allowed='github.com/sciminds/sci/internal/zot/(api|cli|client|connector)'
+zot_http=$(for pkg in $(go list ./internal/zot/... 2>/dev/null); do
+	if go list -deps "$pkg" 2>/dev/null | rg -q '^net/http$'; then echo "$pkg"; fi
+done | rg -v "^$zot_http_allowed\$" || true)
+
+if [[ -n "$zot_http" ]]; then
+	echo "FAIL [zot-http-allowlist] package under internal/zot/ newly reaches net/http:"
+	echo "$zot_http" | sed 's/^/  /'
+	echo "  Only internal/zot/{api,cli,client,connector} may — api for the"
+	echo "  --remote live reads against the user's own library, connector for"
+	echo "  localhost. If this is deliberate, widen the allowlist and say why."
+	fail "zot-http-allowlist"
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
 	echo ""

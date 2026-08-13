@@ -58,7 +58,7 @@ func orNotSet(v string) string {
 func setupRegistry() []setupEntry {
 	return []setupEntry{
 		{key: "lab", title: "Lab storage (SSH/SFTP)", status: labSetupStatus, fields: labFields, run: runLabSetup},
-		{key: "zot", title: "Zotero library", status: zotSetupStatus, fields: zotFields, run: zotcli.RunSetup},
+		{key: "zot", title: "Zotero library (read-only)", status: zotSetupStatus, fields: zotFields, run: zotcli.RunSetup},
 		{key: "cass", title: "Canvas LMS (cass)", status: cassSetupStatus, fields: cassFields, run: func(ctx context.Context, cmd *cli.Command) error {
 			return runCassSetup(ctx, cmd, "")
 		}},
@@ -96,8 +96,6 @@ func zotFields() []fieldRow {
 		{label: "user_id", value: orNotSet(cfg.UserID)},
 		{label: "shared_group", value: orNotSet(sharedGroup)},
 		{label: "data_dir", value: orNotSet(cfg.DataDir)},
-		{label: "openalex_email", value: orNotSet(cfg.OpenAlexEmail)},
-		{label: "openalex_api_key", value: orNotSet(cfg.OpenAlexAPIKey)},
 	}
 }
 

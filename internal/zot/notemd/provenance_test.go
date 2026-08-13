@@ -1,12 +1,11 @@
-package content
+package notemd
 
 import (
 	"strings"
 	"testing"
 )
 
-// The provenance block sci writes on every extraction note (see
-// extract.MarkdownToNoteRaw).
+// The provenance block every extraction note carries.
 const sampleProvenance = `---
 zotero_key: 5ABS8B8G
 pdf_key: UIQV9AXD

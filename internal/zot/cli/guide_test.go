@@ -29,7 +29,7 @@ func TestGuide_HumanOutput_HasSections(t *testing.T) {
 		t.Fatalf("guide: %v", err)
 	}
 	got := stripANSI(read())
-	for _, want := range []string{"Discovery", "Full-text extraction", "Authoring", "Hygiene"} {
+	for _, want := range []string{"Discovery", "Notes and relations", "Bibliography", "Hygiene"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("guide output missing section %q:\n%s", want, got)
 		}
@@ -69,9 +69,15 @@ func TestGuide_JSON_MachineReadable(t *testing.T) {
 }
 
 // TestGuide_ContractVersion: `zot guide --json` carries the integer
-// contract_version external consumers (zen) probe before delegating to
-// sci. It only ever moves forward, and additive changes don't bump it —
-// so the pin here is exact: bumping it is a decision, not a side effect.
+// contract_version external consumers probe before delegating to sci. It
+// only ever moves forward, and additive changes don't bump it — so the pin
+// here is exact: bumping it is a decision, not a side effect.
+//
+// v2 (2026-08-12) is the shrink to the local read surface: `find`, `graph`,
+// `content`, `llm`, the item and collection writes and `search --content`
+// all left the catalog, so a consumer holding v1 is holding a map to verbs
+// that now refuse. That is exactly the change this number exists to
+// announce.
 func TestGuide_ContractVersion(t *testing.T) {
 	root := &cli.Command{
 		Name: "zot",
@@ -96,8 +102,8 @@ func TestGuide_ContractVersion(t *testing.T) {
 	if err := json.Unmarshal(unwrapData(t, []byte(raw)), &wire); err != nil {
 		t.Fatalf("decode: %v\nraw: %s", err, raw)
 	}
-	if wire.ContractVersion != 1 {
-		t.Errorf("contract_version = %d, want 1", wire.ContractVersion)
+	if wire.ContractVersion != 2 {
+		t.Errorf("contract_version = %d, want 2", wire.ContractVersion)
 	}
 }
 
@@ -233,7 +239,7 @@ func TestGuide_ContractTeachesTheEnvelope(t *testing.T) {
 		"cite keys", // absorption
 		"--library", // flag placement
 		"not-found", // code vocabulary present
-		"snippets",  // the side-map join for --content match evidence
+		"READ-ONLY", // the boundary an agent must know before it plans a write
 	} {
 		if !strings.Contains(joined, must) {
 			t.Errorf("contract missing %q:\n%s", must, joined)

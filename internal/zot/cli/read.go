@@ -14,7 +14,6 @@ import (
 	"github.com/sciminds/sci/internal/zot"
 	"github.com/sciminds/sci/internal/zot/api"
 	"github.com/sciminds/sci/internal/zot/client"
-	"github.com/sciminds/sci/internal/zot/content"
 	"github.com/sciminds/sci/pkg/citekey"
 	"github.com/sciminds/sci/pkg/local"
 	"github.com/urfave/cli/v3"
@@ -36,12 +35,9 @@ var (
 
 	childrenRemote bool
 
-	searchLimit    int
-	searchRemote   bool
-	searchFull     bool
-	searchContent  bool
-	searchFulltext bool // retired — see retiredSearchFlagError
-	searchNoteText bool // retired — see retiredSearchFlagError
+	searchLimit  int
+	searchRemote bool
+	searchFull   bool
 
 	exportFormat string
 	exportOut    string
@@ -102,50 +98,6 @@ func openLocalDBScoped(ctx context.Context, allowAll bool) (*zot.Config, local.R
 	return cfg, db, nil
 }
 
-// tryOpenLocalDB is the non-prompting flavor of openLocalDB. It opens
-// the local store only when the library scope is resolvable without
-// asking the user (i.e. --library was passed, or only one library is
-// configured). Returns ok=false when any prerequisite is missing — the
-// caller is expected to fall back gracefully (e.g. skip an
-// opportunistic enrichment) rather than error.
-//
-// Used by `find works` to mark in-library hits without forcing every
-// invocation through library scope resolution.
-func tryOpenLocalDB(ctx context.Context) (local.Reader, bool) {
-	holder := libraryHolderFromCtx(ctx)
-	if holder == nil {
-		return nil, false
-	}
-	cfg, err := zot.LoadConfig()
-	if err != nil || cfg == nil {
-		return nil, false
-	}
-	// If --library wasn't set and both libraries are configured, resolving
-	// would prompt (interactive) or error (--json / non-TTY). Bail.
-	if !holder.HasFlag && cfg.SharedGroupID != "" {
-		return nil, false
-	}
-	ref, err := ensureLibraryScope(ctx, cfg)
-	if err != nil {
-		return nil, false
-	}
-	// The opportunistic callers behind this helper still bind a single
-	// libraryID — under a merged scope, skipping the enrichment honestly
-	// beats silently enriching against the personal library only.
-	if ref.Scope == zot.LibAll {
-		return nil, false
-	}
-	sel, err := localSelectorFor(cfg, ref)
-	if err != nil {
-		return nil, false
-	}
-	db, err := local.Open(cfg.DataDir, sel)
-	if err != nil {
-		return nil, false
-	}
-	return db, true
-}
-
 // localSelectorFor picks a local.LibrarySelector for the resolved ref.
 // Shared scope resolves the group's SQLite libraryID via the groups table
 // (see local.ForGroupByAPIID).
@@ -181,8 +133,7 @@ func searchCommand() *cli.Command {
 		Name:  "search",
 		Usage: "Search your library by title, DOI, publication, cite-key, or @field: clauses",
 		Description: "Free text searches title/DOI/publication/creators/cite-keys,\n" +
-			"ranked by title relevance, then (with --content) how well the\n" +
-			"paper's text matches, then year. Prefix a clause with\n" +
+			"ranked by title relevance, then year. Prefix a clause with\n" +
 			"@field: to scope it — fields: author, title, doi, pub, tag,\n" +
 			"type, year, citekey. Bare prefixes work too: tag:read means\n" +
 			"@tag: read, and -tag:read negates it. Clauses AND by default;\n" +
@@ -195,8 +146,6 @@ func searchCommand() *cli.Command {
 			"$ sci zot search '@author: saxe @year: 2022'    # ANDed clauses\n" +
 			"$ sci zot search '@type: book | @type: thesis'  # OR across clauses\n" +
 			"$ sci zot search '@citekey: saxe2022-ment'      # which paper is this key?\n" +
-			"$ sci zot search cortical --content             # also match the text of your papers\n" +
-			"$ sci zot search '\"prediction error\"' --content  # quoted = phrase, not two words\n" +
 			"$ sci zot search attention --export --out hits.bib\n" +
 			"$ sci zot search llm --remote   # Zotero Web API fulltext search (title + creators + year + abstract + notes + PDFs)",
 		ArgsUsage: "<query>",
@@ -208,12 +157,6 @@ func searchCommand() *cli.Command {
 			&cli.StringFlag{Name: "format", Usage: "with --export, output format: biblatex (alias: bibtex), csl-json", Value: "biblatex", Destination: &searchExportFormat, Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
 			&cli.BoolFlag{Name: "notes", Usage: "filter to items that HAVE a docling extraction", Destination: &searchNotes, Local: true},
-			&cli.BoolFlag{Name: "content", Usage: "also match free-text terms against the full text of your papers (needs `sci zot content build`) — local only", Destination: &searchContent, Local: true},
-			// Retired in favor of --content, which subsumes both. Kept as
-			// hidden flags purely so the error can name the replacement
-			// instead of urfave's bare "flag provided but not defined".
-			&cli.BoolFlag{Name: "fulltext", Hidden: true, Destination: &searchFulltext, Local: true},
-			&cli.BoolFlag{Name: "note-text", Hidden: true, Destination: &searchNoteText, Local: true},
 			&cli.BoolFlag{Name: "remote", Usage: "hit the Zotero Web API with qmode=everything (matches abstract + fulltext + notes)", Destination: &searchRemote, Local: true},
 			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "hydrate each hit with abstract + citekey + authors (one extra local read per hit)", Destination: &searchFull, Local: true},
 		},
@@ -231,13 +174,6 @@ func searchCommand() *cli.Command {
 			if searchRemote && searchNotes {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--notes is local-only").
 					WithTry("drop --notes or drop --remote (--remote already matches note text server-side)")
-			}
-			if err := retiredSearchFlagError(); err != nil {
-				return err
-			}
-			if searchRemote && searchContent {
-				return cmdutil.Coded(cmdutil.CodeConflict, "--content is local-only").
-					WithTry("drop --content; --remote already matches PDF text and notes server-side")
 			}
 			if err := searchAllConflicts(ctx); err != nil {
 				return err
@@ -297,19 +233,7 @@ func searchCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			var opts local.SearchOptions
-			var contentWarns []cmdutil.Warning
-			var csearch *contentSearch
-			if searchContent {
-				csearch, err = contentWidener(ctx, db)
-				if err != nil {
-					return err
-				}
-				defer csearch.close()
-				opts.Content, contentWarns = csearch.widen, csearch.warns
-			}
-
-			items, total, err := db.SearchWithTotal(query, searchLimit, opts)
+			items, total, err := db.SearchWithTotal(query, searchLimit, local.SearchOptions{})
 			if err != nil {
 				return err
 			}
@@ -321,7 +245,7 @@ func searchCommand() *cli.Command {
 			if mergedScope {
 				rerunFix = ""
 			}
-			staleWarns := append(localReadWarnings(db, rerunFix), contentWarns...)
+			staleWarns := localReadWarnings(db, rerunFix)
 			if searchNotes {
 				hasNotes, err := db.ParentsWithDoclingNotes()
 				if err != nil {
@@ -345,15 +269,6 @@ func searchCommand() *cli.Command {
 				outputScoped(ctx, cmd, cmdutil.WithWarnings(res, localReadWarnings(db, "")...))
 				return nil
 			}
-			// Excerpts are fetched only for the hits that survived ranking
-			// and filtering — building one reads the paper's whole body.
-			var snippets map[string]string
-			if csearch != nil {
-				snippets = csearch.snippets(query, lo.Map(items, func(it local.Item, _ int) string {
-					return it.Key
-				}))
-				snippets = dropTitleEchoes(snippets, items)
-			}
 			if searchFull {
 				hydrated, err := hydrateSearchHits(db, items)
 				if err != nil {
@@ -369,11 +284,10 @@ func searchCommand() *cli.Command {
 					Truncated: len(briefs) < total,
 					Items:     briefs,
 					Library:   db.LibraryID(),
-					Snippets:  snippets,
 				}
 				if len(briefs) == 0 {
-					bres.Scope = localSearchScope(searchContent)
-					bres.Hint = localSearchHint(searchContent)
+					bres.Scope = localSearchScope()
+					bres.Hint = localSearchHint()
 				}
 				outputScoped(ctx, cmd, cmdutil.WithWarnings(bres, staleWarns...))
 				return nil
@@ -385,11 +299,10 @@ func searchCommand() *cli.Command {
 				Truncated: len(items) < total,
 				Items:     items,
 				Library:   db.LibraryID(),
-				Snippets:  snippets,
 			}
 			if len(items) == 0 {
-				res.Scope = localSearchScope(searchContent)
-				res.Hint = localSearchHint(searchContent)
+				res.Scope = localSearchScope()
+				res.Hint = localSearchHint()
 			}
 			outputScoped(ctx, cmd, cmdutil.WithWarnings(res, staleWarns...))
 			return nil
@@ -413,9 +326,6 @@ func searchAllConflicts(ctx context.Context) error {
 		return nil
 	}
 	switch {
-	case searchContent:
-		return cmdutil.Coded(cmdutil.CodeConflict, "--content is per-library (each library has its own text index) and cannot serve --library all").
-			WithTry("run --content against one library at a time, or drop --content")
 	case searchRemote:
 		return cmdutil.Coded(cmdutil.CodeConflict, "--remote has no merged endpoint — the Zotero Web API serves one library per call").
 			WithTry("fan out --remote per library, or drop --remote")
@@ -495,7 +405,7 @@ func readCommand() *cli.Command {
 				}
 				resolved, ok := hits[strings.ToLower(normDOI)]
 				if !ok {
-					return fmt.Errorf("no item with DOI %q in library — use `sci zot find works %q` to look it up on OpenAlex", normDOI, normDOI)
+					return fmt.Errorf("no item with DOI %q in this library — that is a gap here, not a claim the paper does not exist", normDOI)
 				}
 				keys = []string{resolved}
 			}
@@ -1130,180 +1040,12 @@ func openCommand() *cli.Command {
 
 // localSearchScope describes which fields a local search matched against,
 // shown on empty results so users know what was (and wasn't) searched.
-func localSearchScope(contentSearch bool) string {
-	scope := "title, DOI, publication, creators, citekey"
-	if contentSearch {
-		scope += " + paper full text"
-	}
-	return scope + " (local)"
+func localSearchScope() string {
+	return "title, DOI, publication, creators, citekey (local)"
 }
 
 // localSearchHint suggests the next-wider search when a local query comes
 // back empty.
-func localSearchHint(contentSearch bool) string {
-	var wider []string
-	if !contentSearch {
-		wider = append(wider, "--content to also match the text of your papers")
-	}
-	wider = append(wider, "--remote for the Zotero Web index (abstract + notes + PDFs)")
-	return "try " + strings.Join(wider, ", or ")
-}
-
-// codeContentStale labels the stale-content-index warning.
-const codeContentStale cmdutil.Code = "content-stale"
-
-// staleContentMessage explains a stale index in terms of what the user
-// would have to do differently. The two causes are not the same story:
-// one means their library moved, the other means sci's own indexing
-// changed and nothing they did is wrong.
-func staleContentMessage(reason content.StaleReason) string {
-	switch reason {
-	case content.StaleFormat:
-		return "the content index was built by an older version of sci — its text still " +
-			"includes each extraction's provenance header, which skews ranking and snippets"
-	default:
-		return "the content index is out of date — papers extracted since the last " +
-			"build are not searchable"
-	}
-}
-
-// contentSearch is the search command's handle on the paper-text index:
-// the widening hook [local.SearchOptions] calls while searching, the
-// snippet lookup for the hits that survive, and the warnings and closer
-// that come with holding the index open.
-type contentSearch struct {
-	widen    func(text string) (map[string]float64, error)
-	snippets func(query string, keys []string) map[string]string
-	warns    []cmdutil.Warning
-	close    func()
-}
-
-// contentWidener opens the content index and wires up [contentSearch].
-//
-// A missing index is an error with a runnable fix rather than a silent
-// build: indexing a real library takes about a minute, which is not
-// something to spring on someone who typed a search.
-func contentWidener(ctx context.Context, db local.Reader) (*contentSearch, error) {
-	ix, err := openContentIndex(db)
-	if err != nil {
-		return nil, err
-	}
-	closer := func() { _ = ix.Close() }
-
-	st, err := ix.Stats()
-	if err != nil {
-		closer()
-		return nil, err
-	}
-	if st.Total == 0 {
-		closer()
-		return nil, cmdutil.Coded(cmdutil.CodeNotFound,
-			"no content index for this library").
-			WithFix("sci zot content build --library " + scopeFromCtx(ctx))
-	}
-
-	var warns []cmdutil.Warning
-	reason, err := content.Stale(ix, db)
-	if err != nil {
-		closer()
-		return nil, err
-	}
-	if reason != content.StaleFresh {
-		warns = append(warns, cmdutil.Warning{
-			Code:    codeContentStale,
-			Message: staleContentMessage(reason),
-			Fix:     "sci zot content build --library " + scopeFromCtx(ctx),
-		})
-	}
-
-	widen := func(text string) (map[string]float64, error) {
-		scores, err := ix.Scores(text)
-		if err != nil {
-			// A query with no indexable terms (all punctuation) widens
-			// nothing; the metadata clauses still stand on their own.
-			if errors.Is(err, content.ErrNoTerms) {
-				return nil, nil
-			}
-			return nil, err
-		}
-		return scores, nil
-	}
-	// Snippets are cosmetic: a hit list that loses them is still correct,
-	// so a failed excerpt lookup drops the excerpts instead of the search.
-	snippets := func(query string, keys []string) map[string]string {
-		text := local.QueryFreeText(query)
-		if text == "" || len(keys) == 0 {
-			return nil
-		}
-		snips, err := ix.Snippets(text, keys)
-		if err != nil {
-			return nil
-		}
-		return snips
-	}
-	return &contentSearch{widen: widen, snippets: snippets, warns: warns, close: closer}, nil
-}
-
-// dropTitleEchoes removes excerpts that only restate the hit's own title.
-//
-// The snippet line is there to add evidence beyond what the reader can
-// already see. When a query matches on the title, the highest-scoring span in
-// the body is usually the title again (docling opens each extraction with it
-// as a heading), so the line costs a row and returns nothing. Dropping it is
-// safe: [zot.ListResult] and [zot.ListBriefResult] both render snippets by
-// map lookup, and a missing key renders no line at all.
-func dropTitleEchoes(snippets map[string]string, items []local.Item) map[string]string {
-	if len(snippets) == 0 {
-		return snippets
-	}
-	titles := lo.SliceToMap(items, func(it local.Item) (string, string) {
-		return it.Key, it.Title
-	})
-	return lo.OmitBy(snippets, func(key, snippet string) bool {
-		return content.EchoesTitle(snippet, titles[key])
-	})
-}
-
-// retiredSearchFlagError turns a removed flag into a message that names
-// its replacement. --fulltext (Zotero's PDF word index) and --note-text
-// (a substring scan over note bodies) were two half-answers to one
-// question; --content is the whole answer, and consults both sources
-// through a single index.
-func retiredSearchFlagError() error {
-	retired, replacement := "", "--content"
-	switch {
-	case searchFulltext:
-		retired = "--fulltext"
-	case searchNoteText:
-		retired = "--note-text"
-	default:
-		return nil
-	}
-	err := cmdutil.Coded(cmdutil.CodeUsage,
-		"%s has been replaced by %s", retired, replacement).
-		WithTry("--content searches the full text of your papers (docling extractions, " +
-			"falling back to Zotero's own text); build it once with `sci zot content build`")
-	if fix := rewriteFlagFix(os.Args, retired, replacement); fix != "" {
-		err = err.WithFix(fix)
-	}
-	return err
-}
-
-// rewriteFlagFix rebuilds the user's command line with one flag swapped
-// for another, so a retired flag yields a Fix they can resubmit verbatim.
-//
-// Returns "" when argv is not a recognizable `sci … zot …` invocation —
-// under `go test` os.Args belongs to the test binary, and a Fix must be
-// a real command or nothing at all.
-func rewriteFlagFix(argv []string, retired, replacement string) string {
-	if len(argv) < 2 || !lo.Contains(argv[1:], "zot") {
-		return ""
-	}
-	parts := lo.Map(argv[1:], func(arg string, _ int) string {
-		if arg == retired {
-			return replacement
-		}
-		return shellQuote(arg)
-	})
-	return "sci " + strings.Join(parts, " ")
+func localSearchHint() string {
+	return "try --remote for the Zotero Web index (abstract + notes + PDFs)"
 }

@@ -40,7 +40,6 @@ func withSharedOrientConfig(t *testing.T) string {
 func runZotAll(t *testing.T, args ...string) ([]byte, error) {
 	t.Helper()
 	t.Cleanup(func() {
-		searchContent = false
 		searchRemote = false
 		searchNotes = false
 		searchFull = false
@@ -81,18 +80,6 @@ func TestSearch_LibraryAll_MergesWithProvenance(t *testing.T) {
 	// No single library owns a merged pool; per-row `library` rules.
 	if result.LibraryID != 0 {
 		t.Errorf("top-level library_id = %d under all, want 0", result.LibraryID)
-	}
-}
-
-func TestSearch_LibraryAll_ContentConflicts(t *testing.T) {
-	withSharedOrientConfig(t)
-
-	_, err := runZotAll(t, "--library", "all", "search", "paper", "--content")
-	if err == nil {
-		t.Fatal("--content with --library all must conflict — the content index is per-library and a silent partial answer is worse than an error")
-	}
-	if !strings.Contains(err.Error(), "per-library") {
-		t.Errorf("err should explain the per-library limitation: %v", err)
 	}
 }
 

@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-// HasMarkdownTag is the tag `sci zot extract` auto-applies to every
+// HasMarkdownTag is the tag the extraction pipeline auto-applies to every
 // parent item it generates a docling extraction for. Surfaced as the
-// "can I read full PDF text on this paper" capability signal — agents
-// reading the orient view know any item carrying this tag is queryable
-// via `sci zot llm read|query` (or any markdown tooling).
+// "can I read full PDF text on this paper" capability signal — an item
+// carrying this tag has its extraction on record, so a consumer that
+// holds the corpus (`zot read`) can serve the paper's text.
 const HasMarkdownTag = "has-markdown"
 
 // TagCount is one tag with its item-count usage. Mirrors local.Tag minus
@@ -47,7 +47,7 @@ type RecentItem struct {
 
 // ExtractionCoverage reports how much of the library has full-text
 // markdown extractions available to query. Source: count of items
-// carrying the HasMarkdownTag (auto-applied by `sci zot extract`).
+// carrying the HasMarkdownTag (auto-applied by the extraction pipeline).
 type ExtractionCoverage struct {
 	WithExtraction int     `json:"with_extraction"`
 	TotalItems     int     `json:"total_items"`

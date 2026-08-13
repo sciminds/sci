@@ -36,48 +36,6 @@ func TestSetup_Happy(t *testing.T) {
 	}
 }
 
-func TestSetup_PersistsOpenAlex(t *testing.T) {
-	withXDGConfigHome(t)
-	dir := mkDataDir(t)
-
-	_, err := Setup(SetupInput{
-		APIKey:         "key",
-		UserID:         "123",
-		DataDir:        dir,
-		OpenAlexEmail:  "me@example.com",
-		OpenAlexAPIKey: "oa-secret",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cfg, err := LoadConfig()
-	if err != nil || cfg == nil {
-		t.Fatalf("LoadConfig: cfg=%v err=%v", cfg, err)
-	}
-	if cfg.OpenAlexEmail != "me@example.com" {
-		t.Errorf("OpenAlexEmail = %q", cfg.OpenAlexEmail)
-	}
-	if cfg.OpenAlexAPIKey != "oa-secret" {
-		t.Errorf("OpenAlexAPIKey = %q", cfg.OpenAlexAPIKey)
-	}
-}
-
-func TestSetup_OpenAlexOmittedIsOK(t *testing.T) {
-	// OpenAlex creds are optional — empty values must not fail validation.
-	withXDGConfigHome(t)
-	dir := mkDataDir(t)
-
-	_, err := Setup(SetupInput{APIKey: "key", UserID: "123", DataDir: dir})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
-	cfg, _ := LoadConfig()
-	if cfg.OpenAlexEmail != "" || cfg.OpenAlexAPIKey != "" {
-		t.Errorf("expected empty OpenAlex fields, got %+v", cfg)
-	}
-}
-
 func TestSetup_InvalidInputs(t *testing.T) {
 	dir := mkDataDir(t)
 	withXDGConfigHome(t)

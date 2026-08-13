@@ -122,7 +122,7 @@ commands:
       - id: template-name
         type: uikit.FormInput
         nth: 2
-        line: 119
+        line: 124
         description: "Custom Typst template name"
         bypass: "--template <name>"
         status: covered
@@ -288,7 +288,7 @@ commands:
       - id: api-key
         type: uikit.FormInput
         nth: 1
-        line: 127
+        line: 121
         description: "Zotero API key"
         bypass: "--api"
         status: covered
@@ -296,7 +296,7 @@ commands:
       - id: user-id
         type: uikit.FormInput
         nth: 2
-        line: 130
+        line: 124
         description: "Zotero user ID"
         bypass: "--user-id"
         status: covered
@@ -304,25 +304,9 @@ commands:
       - id: data-dir
         type: uikit.FormInput
         nth: 3
-        line: 133
+        line: 127
         description: "Zotero data directory"
         bypass: "--data-dir"
-        status: covered
-
-      - id: openalex-email
-        type: uikit.FormInput
-        nth: 4
-        line: 136
-        description: "OpenAlex polite-pool email (optional)"
-        bypass: "--openalex-email"
-        status: covered
-
-      - id: openalex-api-key
-        type: uikit.FormInput
-        nth: 5
-        line: 138
-        description: "OpenAlex premium API key (optional)"
-        bypass: "--openalex-api"
         status: covered
 
   # ── zot library scope ──────────────────────────────────────────────────────

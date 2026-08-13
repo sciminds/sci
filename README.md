@@ -28,6 +28,7 @@ Written in Go because:
 |---------|--------------|
 | [`sci py`](#sci-py) | Create ephemeral Python sessions and Marimo notebooks |
 | [`sci proj`](#sci-proj) | Scaffold MyST/Quarto-flavored Python and writing projects |
+| [`sci zot`](#sci-zot) | Query and cite your Zotero library, read-only |
 | [`sci view`](#sci-view) | Interactive viewer for markdown, csv, sqlite, and duckdb files |
 | [`sci db`](#sci-db) | Work with sqlite, duckdb, csv, json, and parquet files |
 | [`sci vid`](#sci-vid) | Common video/audio editing operations (trim, resize, mute, …) |
@@ -55,7 +56,6 @@ Written in Go because:
 | Command | What it does |
 |---------|--------------|
 | [`sci cass`](#sci-cass) | Canvas LMS & GitHub Classroom management |
-| [`sci zot`](#sci-zot) | Interact with Zotero and let an Agent drive |
 
 ---
 
@@ -307,18 +307,20 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 
 ### `sci zot`
 
-Zotero library management — local reads from `zotero.sqlite` (immutable, no contention with the running desktop app); writes go through the Zotero Web API. `sci zot guide` prints an agent-friendly cheat sheet of common workflows.
+**Query and cite your Zotero library, read-only.** Every command opens your own `zotero.sqlite` in immutable mode — no contention with the running desktop app, no credential required, and nothing sci can do to your library. Search it, build a bibliography from what a manuscript actually cites, export the whole thing to BibLaTeX, and run health checks that report and stop. `sci zot guide` prints an agent-friendly cheat sheet of the same surface.
+
+The one write is `sci zot import`, and it goes through Zotero desktop's own connector: sci hands the app a file, the app recognizes the metadata and syncs it. A few verbs read *live* from the Zotero Web API under `--remote`, for the case where the local mirror lags a change you just made elsewhere.
 
 <details>
 <summary><b>sub-commands</b> — click to expand</summary>
 
-**Library scope.** Every zot command (except `setup`, `info`, `find`, `import`, and `guide`) runs against `--library personal` or `--library shared`. Personal is your own Zotero user library; shared is a Zotero group library auto-detected at setup time. When the flag is omitted, sci auto-selects the only configured library, or prompts when both are configured. `search`, `bib`, and `browse` also accept `--library all` — a merged read pool across both libraries with per-row provenance. `sci zot info` without the flag summarizes both libraries side-by-side. Examples below include `--library personal` for the common case.
+**Library scope.** Every zot command (except `setup`, `import`, and `guide`) runs against `--library personal` or `--library shared`. Personal is your own Zotero user library; shared is a Zotero group library auto-detected at setup time. When the flag is omitted, sci auto-selects the only configured library, or prompts when both are configured. `search`, `bib`, and `browse` also accept `--library all` — a merged read pool across both libraries with per-row provenance. `sci zot info` without the flag summarizes both libraries side-by-side. Examples below include `--library personal` for the common case.
 
 **Setup & overview**
 
 | Command | What it does |
 |---------|--------------|
-| [`sci zot setup`](#setup--library-overview) | Save your Zotero API key + user ID + shared group (auto-detected) |
+| [`sci zot setup`](#setup--library-overview) | Point sci at your Zotero data directory (and, optionally, an API key for the `--remote` reads) |
 | [`sci zot info`](#setup--library-overview) | Summarize both libraries (personal + shared) |
 | [`sci zot guide`](#setup--library-overview) | Agent-friendly cheat sheet of common workflows |
 | [`sci zot --library personal view`](#browse) | Browse your library in an interactive table (read-only) |
@@ -327,15 +329,11 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 
 | Command | What it does |
 |---------|--------------|
-| [`sci zot --library personal search <query>`](#search--export) | Search the local library — free-text words AND across metadata fields; `@field:` clauses for author/title/doi/pub/tag/type/year/citekey; a bare year like `2021` filters by year; `--content` widens into extracted paper text (bm25 + snippets); `--remote` hits the Zotero Web API instead |
+| [`sci zot --library personal search <query>`](#search--export) | Search the local library — free-text words AND across metadata fields; `@field:` clauses for author/title/doi/pub/tag/type/year/citekey; a bare year like `2021` filters by year; `--remote` hits the Zotero Web API instead |
 | [`sci zot browse`](#search--export) | Interactive search REPL — type to search, type a hit number to open its PDF |
 | [`sci zot --library personal search <q> --export -o hits.bib`](#search--export) | Route search results through the export pipeline |
 | [`sci zot --library personal bib <file-or-dir>`](#search--export) | Build a bibliography from the `@citekeys`, DOIs, and links cited in markdown/Quarto files (`--recursive`); refs matching 0 or >1 items are always listed, never guessed |
 | [`sci zot --library personal export -o refs.bib`](#search--export) | Full-library BibLaTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
-| [`sci zot --library personal find works <query>`](#search--export) | Look up papers on OpenAlex (no library round-trip) |
-| [`sci zot --library personal find authors <query>`](#search--export) | Look up authors on OpenAlex |
-| [`sci zot --library personal graph refs <key>`](#search--export) | Show works this item cites — in-library vs outside |
-| [`sci zot --library personal graph cites <key>`](#search--export) | Show works that cite this item — in-library vs outside |
 
 **Items**
 
@@ -346,31 +344,18 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 | [`sci zot --library personal item children <key>`](#items) | List child attachments + notes of an item |
 | [`sci zot --library personal item export <key>`](#items) | Export a single item to CSL-JSON or BibLaTeX |
 | [`sci zot --library personal item open <key>`](#items) | Open the item's PDF attachment |
-| [`sci zot --library personal item attach <key> <path>`](#items) | Upload a local file as a new child attachment |
-| [`sci zot --library shared item add` / `update` / `delete`](#items) | Create / patch / trash items via the Zotero Web API |
-| [`sci zot --library personal item note add\|read\|list\|update`](#items) | Create and manage Zotero note items |
+| [`sci zot --library personal item note read\|list`](#items) | Read Zotero note items live from the Web API |
+| [`sci zot --library personal notes list\|read`](#items) | The notes *you* wrote, with docling extractions filtered out |
 | [`sci zot --library personal link add\|list\|rm\|suggest`](#items) | Manage "related items" relations; `suggest` proposes links from a note's own citations |
 | [`sci zot import <path>...`](#import-desktop-assisted-with-metadata-recognition) | Drag-drop equivalent via Zotero desktop: upload + auto-recognize metadata (CrossRef/arXiv); folders recurse |
-
-**Paper content (docling extraction + search index)**
-
-| Command | What it does |
-|---------|--------------|
-| [`sci zot --library personal content extract <key>`](#extraction--llm-workflows) | Convert the item's PDF into markdown paper text (default is dry-run; `--apply` to post as a child note) |
-| [`sci zot --library personal content extract <key> --out DIR --apply`](#extraction--llm-workflows) | Full extraction: md + json + referenced PNGs + CSV tables to `DIR` |
-| [`sci zot --library personal content list\|read\|refresh\|drop`](#extraction--llm-workflows) | Manage extracted paper text (`drop` is the surgical undo) |
-| [`sci zot --library personal content build\|stats`](#extraction--llm-workflows) | Build/inspect the local full-text index behind `search --content` |
-| [`sci zot --library personal extract-lib`](#extraction--llm-workflows) | Bulk-extract every PDF in the library (default is cache-only; `--apply` to post notes; parallelizable with `-j`) |
-| [`sci zot --library personal notes list\|read`](#extraction--llm-workflows) | The notes *you* wrote (extractions live under `content`) |
-| [`sci zot --library personal llm catalog\|query\|read`](#extraction--llm-workflows) | LLM-agent tools for querying extracted paper content |
 
 **Organize**
 
 | Command | What it does |
 |---------|--------------|
-| [`sci zot --library personal collection`](#organize) | Manage collections (list, create, delete, add/remove items) |
-| [`sci zot --library personal tags`](#organize) | Manage tags (list, add/remove per item, delete library-wide) |
-| [`sci zot --library personal saved-search`](#organize) | Manage Zotero saved searches (list, show, create, update, delete) |
+| [`sci zot --library personal collection list`](#organize) | List every collection with item counts |
+| [`sci zot --library personal tags list\|browse`](#organize) | List every tag with usage counts, or browse tags and their items |
+| [`sci zot --library personal saved-search list\|show`](#organize) | Read the saved searches in the library, by key or by name |
 
 **Hygiene**
 
@@ -384,9 +369,9 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 
 `sci zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` picks the group automatically when the account belongs to exactly one, or accepts `--shared-group-id` when multiple groups exist.
 
-**PDF → paper text extraction.** `sci zot content extract <KEY>` pipes the item's PDF attachment through [`docling`](https://github.com/DS4SD/docling) and posts the markdown as a child note on the parent — tagged `docling` and stamped with a sentinel comment so re-runs dedupe by sha256. Default is dry-run; pass `--apply` to actually create the note (`--html` posts rendered HTML instead of raw markdown). `--out DIR` switches to full extraction (md + json + referenced PNGs + CSV tables per `docling`'s always-on TableFormer) persisted for Obsidian-style vault exports; `--no-note` skips the Zotero post entirely. Identical re-runs skip; PDF updates PATCH-in-place so the note key stays stable. `sci zot content drop` is the surgical undo — matches extractions by their embedded sentinel (not tag). Requires `docling` on PATH (`sci doctor` installs it via `uv`).
+**What lives in the `zot` binary instead.** Creating and editing items, managing collection membership and tags, acquiring PDFs, extracting paper text with [`docling`](https://github.com/DS4SD/docling), searching that text, walking a citation graph, and looking papers up on OpenAlex or Crossref all need either a credential or a metered third-party API. They moved to a separate tool. Each retired verb is still registered here and, when run, names its replacement rather than answering "command not found".
 
-For the bulk pipeline, `sci zot extract-lib` runs docling on every PDF in the library and **caches results locally without posting** by default — pass `--apply` to create the child notes. Cached output is reused on re-runs, so a failed run resumes where it left off; `--reextract` discards the cache.
+**Saved searches are the one exception, and they went nowhere.** `saved-search create/update/delete` retired with no replacement in either tool: the Zotero Web API can *store* a saved search's definition but cannot *evaluate* it — only the desktop client runs the query. A search written from a CLI would exist and never run, so writing one is Zotero desktop's job. `list` and `show` stay, because reading back what a search is defined as is still worth doing.
 
 **Library export details.** `sci zot export` honors user-pinned cite-keys (Zotero 7's native `citationKey` field, or legacy Better BibTeX `Citation Key:` lines in `extra`) and synthesizes semantic keys for everything else as `lastname{year}{firstword}-ZOTKEY`. The trailing 8-char Zotero key suffix guarantees uniqueness without collision arithmetic and keeps entries round-trippable back to the source item. Pinned entries also carry a `zotero://select/library/items/<KEY>` URI in the `note` field (appended to any existing user prose, never overwriting). A `.zotero-citekeymap.json` sidecar is written next to the output file; on the next run, any synthesized prefix that drifted (e.g. after a metadata typo fix) gets a biblatex `ids = {oldkey}` alias so manuscripts citing the old form still resolve.
 
@@ -407,6 +392,7 @@ For the bulk pipeline, `sci zot extract-lib` runs docling on every PDF in the li
 #### Items
 
 ![zot item](docs/casts/zot-item.gif)
+![zot notes](docs/casts/zot-notes.gif)
 
 #### Import (desktop-assisted, with metadata recognition)
 
@@ -416,13 +402,6 @@ For the bulk pipeline, `sci zot extract-lib` runs docling on every PDF in the li
 
 ![zot collection](docs/casts/zot-collection.gif)
 ![zot tags](docs/casts/zot-tags.gif)
-
-#### Extraction & LLM workflows
-
-![zot extract](docs/casts/zot-extract.gif)
-![zot extract-lib](docs/casts/zot-extract-lib.gif)
-![zot notes](docs/casts/zot-notes.gif)
-![zot llm](docs/casts/zot-llm.gif)
 
 #### Hygiene
 

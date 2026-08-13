@@ -1,14 +1,20 @@
-// Package zot provides Zotero library management: fast reads from the local
-// zotero.sqlite file (opened in immutable mode to avoid WAL contention with
-// the running desktop app) and writes via the Zotero Web API. Zotero desktop
-// handles sync back to local, so write callers do not need to wait.
+// Package zot is the public local read surface over a Zotero library:
+// search, bibliographies, hygiene reports and exports, all answered from
+// the user's own zotero.sqlite (opened in immutable mode to avoid WAL
+// contention with the running desktop app).
+//
+// It holds no credential for changing a library. The two places it still
+// speaks to Zotero are the `--remote` live reads, which fetch through the
+// Web API when the local mirror is known to lag, and `zot import`, which
+// hands a file to the user's own running desktop app. Everything that
+// writes, extracts, or queries an upstream index lives in the separate
+// `zot` binary.
 //
 // The command tree is defined in [github.com/sciminds/sci/internal/zot/cli]
 // and mounted under `sci zot` from cmd/sci/zot.go.
 package zot
 
 import (
-	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,86 +33,11 @@ import (
 // chosen (via setup or lazy probe) as the "shared" target surfaced by
 // --library shared. Multi-group support is a future extension.
 type Config struct {
-	APIKey          string        `json:"api_key"`
-	UserID          string        `json:"user_id"`                     // numeric Zotero user ID
-	SharedGroupID   string        `json:"shared_group_id,omitempty"`   // numeric Zotero group ID for --library shared
-	SharedGroupName string        `json:"shared_group_name,omitempty"` // human-readable group name (display only)
-	DataDir         string        `json:"data_dir"`
-	OpenAlexEmail   string        `json:"openalex_email,omitempty"`
-	OpenAlexAPIKey  string        `json:"openalex_api_key,omitempty"`
-	Extract         ExtractConfig `json:"extract,omitzero"`
-}
-
-// ExtractConfig configures where and how docling PDF extraction runs.
-// The zero value means "local extraction, no persistent artifact dir" —
-// the behavior every config had before this section existed, so the
-// section is purely additive (omitzero keeps it off disk until used).
-type ExtractConfig struct {
-	// Runner selects the extraction backend: RunnerLocal (default)
-	// shells out to docling on this machine; RunnerSSH re-invokes
-	// `sci zot …` on Host, which resolves its own config there (the
-	// Zotero data_dir differs per machine even when Zotero desktop
-	// sync keeps the libraries identical).
-	Runner string `json:"runner,omitempty"`
-	// Host is the ssh destination for RunnerSSH (alias or host name,
-	// resolved by the user's ssh config).
-	Host string `json:"host,omitempty"`
-	// Dir, when set, is the persistent extract_dir: bulk and single
-	// extractions write the full per-parent-key artifact layout
-	// (KEY/KEY.md + KEY.json + images + tables) there, the shape
-	// downstream consumers like zen read.
-	Dir string `json:"dir,omitempty"`
-	// Jobs is the default number of parallel docling processes for bulk
-	// extraction. 0 means "use the device-derived default". Each process
-	// holds ~14 GB resident and loads its own models, so raise this only
-	// on a machine with the RAM to match, and keep jobs × --num-threads
-	// at or under the core count. The --jobs flag overrides it. No env
-	// var on purpose: the ssh runner's remote resolves its own per-machine
-	// zot.json, and a worker count has no business crossing machines.
-	Jobs int `json:"jobs,omitempty"`
-}
-
-// Extraction runner backends for [ExtractConfig.Runner].
-const (
-	// RunnerLocal runs docling on this machine (the default).
-	RunnerLocal = "local"
-	// RunnerSSH delegates the whole command to ExtractConfig.Host over ssh.
-	RunnerSSH = "ssh"
-)
-
-// EnvExtractRunner overrides ExtractConfig.Runner when set. The ssh
-// delegation path injects it (set to RunnerLocal) into the remote
-// command line so a remote config that itself says runner=ssh can't
-// recurse forever.
-const EnvExtractRunner = "SCI_ZOT_RUNNER"
-
-// ExtractRunner resolves the effective extraction backend: environment
-// (EnvExtractRunner) beats config, and empty means RunnerLocal. For
-// RunnerSSH the configured Host is returned and required. Errors name
-// the bad value so `sci zot` surfaces a fixable message rather than
-// silently running locally.
-func (c *Config) ExtractRunner() (runner, host string, err error) {
-	runner = cmp.Or(os.Getenv(EnvExtractRunner), c.Extract.Runner, RunnerLocal)
-	switch runner {
-	case RunnerLocal:
-		return RunnerLocal, "", nil
-	case RunnerSSH:
-		if c.Extract.Host == "" {
-			return "", "", fmt.Errorf("extract.runner is %q but extract.host is empty — set it in %s", RunnerSSH, ConfigPath())
-		}
-		return RunnerSSH, c.Extract.Host, nil
-	default:
-		return "", "", fmt.Errorf("unknown extract runner %q (expected %q or %q) — check %s and $%s", runner, RunnerLocal, RunnerSSH, ConfigPath(), EnvExtractRunner)
-	}
-}
-
-// ExtractJobs resolves the docling worker count for bulk extraction: an
-// explicit --jobs flag wins, then extract.jobs from zot.json, then the
-// device-derived default; the result is never below 1. cmp.Or is
-// exactly the first-non-zero precedence rule, so an explicit `--jobs 1`
-// can still reduce below a configured higher value.
-func (c *Config) ExtractJobs(flagJobs, deviceDefault int) int {
-	return max(cmp.Or(flagJobs, c.Extract.Jobs, deviceDefault), 1)
+	APIKey          string `json:"api_key"`
+	UserID          string `json:"user_id"`                     // numeric Zotero user ID
+	SharedGroupID   string `json:"shared_group_id,omitempty"`   // numeric Zotero group ID for --library shared
+	SharedGroupName string `json:"shared_group_name,omitempty"` // human-readable group name (display only)
+	DataDir         string `json:"data_dir"`
 }
 
 // configFile is the typed handle to ~/.config/sci/zot.json. Path/save/exists
