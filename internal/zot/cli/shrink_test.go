@@ -40,6 +40,9 @@ var movedToZot = []struct {
 	{argv: []string{"tags", "add"}, zotVerb: "zot tags"},
 	{argv: []string{"tags", "remove"}, zotVerb: "zot tags"},
 	{argv: []string{"tags", "delete"}, zotVerb: "zot tags"},
+	{argv: []string{"link", "add"}, zotVerb: "zot link add"},
+	{argv: []string{"link", "rm"}, zotVerb: "zot link rm"},
+	{argv: []string{"link", "suggest"}, zotVerb: "zot link suggest"},
 	{argv: []string{"find"}, zotVerb: "zot find"},
 	{argv: []string{"openalex"}, zotVerb: "zot openalex sync"},
 	{argv: []string{"crossref"}, zotVerb: "zot crossref"},
@@ -110,6 +113,9 @@ func TestMovedVerbsSwallowTheirOldFlags(t *testing.T) {
 		{"collection", "add", "--from-file", "keys.txt", "COLLXXX1"},
 		{"tags", "add", "ABC12345", "neuroimaging"},
 		{"tags", "delete", "deprecated", "--yes"},
+		{"link", "add", "NOTE0001", "PAPER001"},
+		{"link", "rm", "NOTE0001", "PAPER001", "--yes"},
+		{"link", "suggest", "NOTE0001", "--apply", "--yes", "--remote"},
 		{"saved-search", "create", "Recent ML", "--condition", "tag:is:ml", "--any"},
 		{"saved-search", "delete", "ABCD1234", "--yes"},
 		{"find", "works", "--filter", "type=article", "llm"},
@@ -149,6 +155,7 @@ func TestSurvivingReadVerbsStillAnswer(t *testing.T) {
 		{"collection", "list"}, {"collection", "browse"},
 		{"saved-search", "list"}, {"saved-search", "show"},
 		{"tags", "list"}, {"tags", "browse"},
+		{"link", "list"},
 		{"notes", "list"}, {"notes", "read"},
 		{"doctor", "invalid"}, {"doctor", "missing"}, {"doctor", "orphans"},
 		{"doctor", "duplicates"}, {"doctor", "citekeys"}, {"doctor", "dois"},
@@ -190,6 +197,54 @@ func TestRetiredContentFlagsAreGone(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "content") {
 		t.Errorf("error should name the unknown flag, got %q", err)
+	}
+}
+
+// TestLinkSuggestStubSaysTheNoteScanRetired — `link suggest` is the one
+// moved verb whose ANSWER changed, and a stub that only named the
+// destination would send someone looking for a port that does not exist.
+//
+// sci's arm read ONE note and proposed a relation per reference in its
+// body. zot's reads the corpus and proposes the filings its snapshot
+// already resolved to one work — the preprint beside its published
+// version, the duplicate filing. The note-scanning signal was retired
+// deliberately on 2026-08-13 (no `bib` promotion), so the message has to
+// say retired rather than let "moved to `zot link suggest`" imply the same
+// verb arrived somewhere else.
+func TestLinkSuggestStubSaysTheNoteScanRetired(t *testing.T) {
+	t.Parallel()
+	err := zotRoot().Run(context.Background(), []string{"zot", "link", "suggest", "NOTE0001"})
+	coded, ok := errors.AsType[*cmdutil.CodedError](err)
+	if !ok {
+		t.Fatalf("want CodedError, got %T: %v", err, err)
+	}
+	for _, want := range []string{"retired", "work-identity", "note"} {
+		if !strings.Contains(strings.ToLower(coded.Try), want) {
+			t.Errorf("Try must say %q so nobody hunts for the missing port; got %q", want, coded.Try)
+		}
+	}
+	leaf := walkToLeaf(Commands(), []string{"link", "suggest"})
+	if leaf == nil || !strings.Contains(strings.ToLower(leaf.Description), "retired") {
+		t.Error("`link suggest`'s Description must carry the same honesty as its Try")
+	}
+}
+
+// TestLinkRmStubKeepsItsAliases — a script still running `sci zot link
+// unlink A B` has to reach the explanation. An alias dropped with the verb
+// turns the move back into "command not found", which is the failure the
+// stubs exist to prevent.
+func TestLinkRmStubKeepsItsAliases(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"rm", "remove", "unlink"} {
+		err := zotRoot().Run(context.Background(),
+			[]string{"zot", "link", name, "NOTE0001", "PAPER001"})
+		coded, ok := errors.AsType[*cmdutil.CodedError](err)
+		if !ok {
+			t.Fatalf("`link %s`: want CodedError, got %T: %v", name, err, err)
+		}
+		if !strings.Contains(coded.Try, "zot link rm") {
+			t.Errorf("`link %s`: Try must name `zot link rm`, got %q", name, coded.Try)
+		}
 	}
 }
 

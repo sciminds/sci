@@ -102,6 +102,53 @@ func tagsDeleteStub() *cli.Command {
 		[]string{"tags", "delete"}, "zot tags delete", tagWriteWhy)
 }
 
+// Relation writes. `dc:relation` is real bibliographic data, which is why
+// this family MOVED rather than retired — and why it moved last: zot grew
+// the verbs first (2026-08-13, zot 68b380d) and sci stubbed its copies
+// after, so there was never a moment with zero homes. `link list` stays:
+// it reads the local mirror, and `--remote` reads the user's own library.
+const linkWriteWhy = "writing and removing dc:relation item relations is a credentialed write against the Zotero Web API"
+
+func linkAddStub() *cli.Command {
+	return movedToZotCommand("add", "moved to `zot link add`",
+		[]string{"link", "add"}, "zot link add", linkWriteWhy)
+}
+
+func linkRmStub() *cli.Command {
+	c := movedToZotCommand("rm", "moved to `zot link rm`",
+		[]string{"link", "rm"}, "zot link rm", linkWriteWhy)
+	// The aliases move with the verb. A script still running `sci zot link
+	// unlink A B` must reach the explanation rather than the bare
+	// "command not found" the stubs exist to replace.
+	c.Aliases = []string{"remove", "unlink"}
+	return c
+}
+
+// linkSuggestStub carries more than a destination, because this is the one
+// verb whose ANSWER changed rather than its address.
+//
+// sci's arm read ONE note, scanned its body for the references it cited —
+// zotero:// links, @citekeys, DOIs, arXiv ids, wikilinks — and proposed a
+// relation per resolved reference. zot's asks the corpus instead: two
+// filings in one library that its snapshot resolved to the same work, which
+// is the preprint beside its published version and the duplicate filing.
+// The note-scanning signal was retired DELIBERATELY on 2026-08-13 — `bib`,
+// which did the scanning, was not promoted for it — so the stub says
+// retired out loud. Without that sentence "moved to `zot link suggest`"
+// reads as a relocation, and the next person spends an afternoon looking
+// for a port that was never written.
+func linkSuggestStub() *cli.Command {
+	return movedToZotCommand("suggest",
+		"moved to `zot link suggest` — which proposes from a different signal",
+		[]string{"link", "suggest"}, "zot link suggest",
+		linkWriteWhy+", and the SIGNAL is not the same one: `zot link suggest` proposes "+
+			"work-identity twins read out of zot's corpus (two filings in one library that "+
+			"resolved to a single work — the preprint beside its published version, the "+
+			"duplicate filing), where this scanned a NOTE's body for the references it cited. "+
+			"That note-scanning arm was retired deliberately on 2026-08-13 rather than ported, "+
+			"so there is no port of it to go looking for")
+}
+
 // Saved-search writes. These retire with no home in either binary, and
 // that is the decision rather than an omission: the Zotero Web API stores a
 // saved search's definition but never evaluates it — the desktop client is

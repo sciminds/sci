@@ -346,7 +346,7 @@ The one write is `sci zot import`, and it goes through Zotero desktop's own conn
 | [`sci zot --library personal item open <key>`](#items) | Open the item's PDF attachment |
 | [`sci zot --library personal item note read\|list`](#items) | Read Zotero note items live from the Web API |
 | [`sci zot --library personal notes list\|read`](#items) | The notes *you* wrote, with docling extractions filtered out |
-| [`sci zot --library personal link add\|list\|rm\|suggest`](#items) | Manage "related items" relations; `suggest` proposes links from a note's own citations |
+| [`sci zot --library personal link list <key>`](#items) | Show an item's "related items" relations (`--remote` for ones written seconds ago) |
 | [`sci zot import <path>...`](#import-desktop-assisted-with-metadata-recognition) | Drag-drop equivalent via Zotero desktop: upload + auto-recognize metadata (CrossRef/arXiv); folders recurse |
 
 **Organize**
@@ -369,7 +369,9 @@ The one write is `sci zot import`, and it goes through Zotero desktop's own conn
 
 `sci zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` picks the group automatically when the account belongs to exactly one, or accepts `--shared-group-id` when multiple groups exist.
 
-**What lives in the `zot` binary instead.** Creating and editing items, managing collection membership and tags, acquiring PDFs, extracting paper text with [`docling`](https://github.com/DS4SD/docling), searching that text, walking a citation graph, and looking papers up on OpenAlex or Crossref all need either a credential or a metered third-party API. They moved to a separate tool. Each retired verb is still registered here and, when run, names its replacement rather than answering "command not found".
+**What lives in the `zot` binary instead.** Creating and editing items, managing collection membership and tags, relating items to each other, acquiring PDFs, extracting paper text with [`docling`](https://github.com/DS4SD/docling), searching that text, walking a citation graph, and looking papers up on OpenAlex or Crossref all need either a credential or a metered third-party API. They moved to a separate tool. Each retired verb is still registered here and, when run, names its replacement rather than answering "command not found".
+
+`zot link suggest` is worth one extra line, because it is the one verb whose *answer* changed rather than its address: it proposes relations from work identity — two filings of one work in a single library, which is the preprint sitting beside its published version — where sci's version scanned a note's body for the references it cited. That note-scanning arm was retired, not relocated, and the stub says so.
 
 **Saved searches are the one exception, and they went nowhere.** `saved-search create/update/delete` retired with no replacement in either tool: the Zotero Web API can *store* a saved search's definition but cannot *evaluate* it — only the desktop client runs the query. A search written from a CLI would exist and never run, so writing one is Zotero desktop's job. `list` and `show` stay, because reading back what a search is defined as is still worth doing.
 

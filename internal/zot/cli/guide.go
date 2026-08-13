@@ -99,9 +99,9 @@ func guideContent() zot.GuideResult {
 						Note: "Docling extractions are excluded — on the live library they outnumber real notes 4,710 to 42, so an unfiltered listing is a listing of extractions. `sci zot notes read <note-key> --md` adds a `markdown` field.",
 					},
 					{
-						Goal: "Relate a note to the papers it discusses, without doing it by hand",
-						Cmd:  "sci zot link suggest NOTEKEY1",
-						Note: "Reads the note and resolves every reference in it — zotero:// item links, @citekeys, DOIs, arXiv ids, [[wikilinks]] — into proposed dc:relation links. Dry-run by default; --apply writes (--yes skips the confirm). Each suggestion carries a status: proposed | already-linked (relation exists, reported not rewritten, so a re-run reads as \"nothing to do\") | unresolved (matched 0 or >1 items — listed, never guessed). Pass --remote to read the note's CURRENT relations live: after a recent `link add` the local mirror still lags, so a stale read re-proposes links that already exist. Refuses docling extractions: those references are the PAPER's bibliography, not yours. Manual pairs: `link add A B`, `link rm A B`, `link list KEY --remote`.",
+						Goal: "See what an item is related to",
+						Cmd:  "sci zot link list NOTEKEY1",
+						Note: "The dc:relation set: `related` is what a person linked by hand, `other` is Zotero's own bookkeeping (owl:sameAs, dc:replaces), `titles` names each far end. Reads the local mirror; pass --remote when the relation was written seconds ago, because the mirror lags until Zotero desktop syncs. WRITING a relation is a credentialed write and lives in the zot binary — `zot link add|rm`, plus `zot link suggest`, which proposes pairs from work IDENTITY (two filings of one work in one library — the preprint beside its published version). The note-scanning suggest this surface used to carry was retired, not moved.",
 					},
 				},
 			},
