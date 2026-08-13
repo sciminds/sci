@@ -204,7 +204,7 @@ func TestClient_Get_surfaces4xxError(t *testing.T) {
 	}
 }
 
-// TestClient_Get_statusErrorIsTyped — `bib --verify` reports a 404 as
+// TestClient_Get_statusErrorIsTyped — a citation checker reports a 404 as
 // "this citation resolves nowhere", which is an accusation. That verdict has
 // to rest on the HTTP status code, not on sniffing "404" out of a message
 // that a DOI containing the digits 404 would also satisfy.

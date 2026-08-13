@@ -7,12 +7,8 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/cmdutil"
-	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot"
-	"github.com/sciminds/sci/internal/zot/enrich"
-	"github.com/sciminds/sci/internal/zot/fix"
 	"github.com/sciminds/sci/internal/zot/hygiene"
-	"github.com/sciminds/sci/pkg/local"
 	"github.com/urfave/cli/v3"
 )
 
@@ -20,9 +16,6 @@ import (
 var (
 	missingFields string
 	missingLimit  int
-	missingEnrich bool
-	missingApply  bool
-	missingYes    bool
 
 	dupStrategy  string
 	dupFuzzy     bool
@@ -37,11 +30,6 @@ var (
 	orphansCheckFiles bool
 
 	citekeysLimit int
-	citekeysFix   bool
-	citekeysApply bool
-	citekeysKind  []string
-	citekeysItem  []string
-	citekeysYes   bool
 )
 
 func missingCommand() *cli.Command {
@@ -52,17 +40,13 @@ func missingCommand() *cli.Command {
 $ sci zot doctor missing --field title,creators
 $ sci zot doctor missing --field doi,abstract
 $ sci zot doctor missing --limit 0 --json > coverage.json
-$ sci zot doctor missing --enrich                    # dry-run: what OpenAlex would fill
-$ sci zot doctor missing --enrich --apply --yes      # actually patch the library
 
 Fields: title, creators, date, doi, abstract, url, pdf, tags. Defaults to all.
 Severity: title=error, creators/date=warn, others=info.
 
---enrich looks up OpenAlex for every item that (a) has a missing field AND
-(b) has a DOI locally, and proposes filling the gap from the OpenAlex Work.
-Only the specific missing fields are patched — existing values are never
-overwritten. --apply submits the patches (confirmation required; skip with
---yes).`,
+This is a report over the local database. Filling the gaps from an upstream
+index is a metered lookup plus a Zotero write, and lives in the zot binary
+as ` + "`zot enrich`" + `, which fills from data already on disk.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "field",
@@ -79,32 +63,9 @@ overwritten. --apply submits the patches (confirmation required; skip with
 				Destination: &missingLimit,
 				Local:       true,
 			},
-			&cli.BoolFlag{Name: "enrich", Usage: "look up missing fields on OpenAlex (dry-run)", Destination: &missingEnrich, Local: true},
-			&cli.BoolFlag{Name: "apply", Usage: "write the enrichment patches (requires --enrich)", Destination: &missingApply, Local: true},
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation for --apply", Destination: &missingYes, Local: true},
 		},
 		Action: runMissing,
 	}
-}
-
-// capFindings truncates findings to at most max distinct ItemKeys,
-// preserving order of first appearance. 0 means "no cap".
-func capFindings(findings []hygiene.Finding, max int) []hygiene.Finding {
-	if max <= 0 {
-		return findings
-	}
-	seen := map[string]bool{}
-	out := make([]hygiene.Finding, 0, len(findings))
-	for _, f := range findings {
-		if !seen[f.ItemKey] {
-			if len(seen) == max {
-				break
-			}
-			seen[f.ItemKey] = true
-		}
-		out = append(out, f)
-	}
-	return out
 }
 
 func runMissing(ctx context.Context, cmd *cli.Command) error {
@@ -123,51 +84,7 @@ func runMissing(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	if !missingEnrich {
-		if missingApply {
-			return cmdutil.UsageErrorf(cmd, "--apply requires --enrich")
-		}
-		outputScoped(ctx, cmd, zot.MissingResult{Report: rep, Limit: missingLimit})
-		return nil
-	}
-
-	oa, err := openalexClient()
-	if err != nil {
-		return err
-	}
-	// --enrich makes one HTTP call per unique item, so --limit bounds the
-	// network round-trips here, not just print output. 0 keeps the full set.
-	findings := capFindings(rep.Findings, missingLimit)
-	targets, skipped, err := enrich.PlanFromMissing(ctx, db, oa, findings)
-	if err != nil {
-		return err
-	}
-
-	out := enrich.FromMissingResult{
-		Targets: targets,
-		Skipped: skipped,
-		Applied: missingApply,
-	}
-	if !missingApply || len(targets) == 0 {
-		outputScoped(ctx, cmd, out)
-		return nil
-	}
-
-	if !missingYes {
-		if err := cmdutil.ConfirmYes(fmt.Sprintf("Patch %d item(s) via OpenAlex enrichment?", len(targets))); err != nil {
-			return err
-		}
-	}
-	w, err := requireAPIClient(ctx)
-	if err != nil {
-		return err
-	}
-	applied, err := enrich.Apply(ctx, w, targets)
-	if err != nil {
-		return err
-	}
-	out.Apply = applied
-	outputScoped(ctx, cmd, out)
+	outputScoped(ctx, cmd, zot.MissingResult{Report: rep, Limit: missingLimit})
 	return nil
 }
 
@@ -384,14 +301,8 @@ func citekeysCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "citekeys",
 		Usage: "Validate stored cite-keys against the {author}{year}-{words}-{ZOTKEY} spec",
-		Description: `$ sci zot doctor citekeys                     # read-only check
+		Description: `$ sci zot doctor citekeys
 $ sci zot doctor citekeys --limit 0 --json > citekeys.json
-
-$ sci zot doctor citekeys --fix               # dry-run: preview what would change
-$ sci zot doctor citekeys --fix --apply       # actually write through Zotero Web API
-$ sci zot doctor citekeys --fix --apply --kind invalid,collision
-$ sci zot doctor citekeys --fix --apply --item ABCD1234
-$ sci zot doctor citekeys --fix --apply --yes
 
 Categories and severities:
   invalid       SevError   structurally broken (whitespace, BibTeX-illegal chars)
@@ -400,64 +311,22 @@ Categories and severities:
                            (BBT camelCase, hand-authored, drifted v1)
 
 Items with no stored cite-key at all are counted as 'unstored' in the
-summary but emit no finding — ` + "`--fix`" + ` will synthesize canonical keys for
-them and write them back through the Zotero Web API.
+summary but emit no finding.
 
-Fix safety: --fix is dry-run by default. --apply is required to
-actually patch items. --kind defaults to every bucket (invalid +
-collision + non-canonical + unstored); narrow it on a BBT-managed
-library to avoid rewriting every key in one pass. --item restricts
-to a specific Zotero key, useful for smoke-testing a single write.`,
+This is a report. Synthesizing canonical keys and writing them back
+through the Zotero Web API is destructive against a BBT-managed library,
+and lives in the zot binary as ` + "`zot fix citekeys`" + `.`,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:        "limit",
 				Aliases:     []string{"n"},
 				Value:       25,
-				Usage:       "max findings (or targets) to print (0 = all)",
+				Usage:       "max findings to print (0 = all)",
 				Destination: &citekeysLimit,
-				Local:       true,
-			},
-			&cli.BoolFlag{
-				Name:        "fix",
-				Usage:       "switch from read-only check to repair mode (dry-run unless --apply)",
-				Destination: &citekeysFix,
-				Local:       true,
-			},
-			&cli.BoolFlag{
-				Name:        "apply",
-				Usage:       "with --fix, actually write cite-key patches through the Zotero Web API",
-				Destination: &citekeysApply,
-				Local:       true,
-			},
-			// lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
-			&cli.StringSliceFlag{
-				Name:        "kind",
-				Aliases:     []string{"k"},
-				Usage:       "with --fix, limit to buckets (invalid,collision,non-canonical,unstored)",
-				Destination: &citekeysKind,
-			},
-			// lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go
-			&cli.StringSliceFlag{
-				Name:        "item",
-				Usage:       "with --fix, only touch these Zotero item keys (repeatable)",
-				Destination: &citekeysItem,
-			},
-			&cli.BoolFlag{
-				Name:        "yes",
-				Aliases:     []string{"y"},
-				Usage:       "with --fix --apply, skip the confirmation prompt",
-				Destination: &citekeysYes,
 				Local:       true,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			if !citekeysFix && (citekeysApply || len(citekeysKind) > 0 || len(citekeysItem) > 0) {
-				return cmdutil.UsageErrorf(cmd, "--apply, --kind, and --item require --fix")
-			}
-			if citekeysFix {
-				return runCitekeysFix(ctx, cmd)
-			}
-			// Read-only path: unchanged from the earlier slice.
 			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
@@ -472,111 +341,6 @@ to a specific Zotero key, useful for smoke-testing a single write.`,
 			return nil
 		},
 	}
-}
-
-// runCitekeysFix is the --fix path: plan targets, optionally apply, and
-// render a FixResult. Kept in its own function so the read-only action
-// stays small and obvious.
-func runCitekeysFix(ctx context.Context, cmd *cli.Command) error {
-	// Resolve kind bitmask from --kind flags. Empty = all buckets.
-	kinds, err := parseCitekeyFixKinds(citekeysKind)
-	if err != nil {
-		return cmdutil.UsageErrorf(cmd, "%s", err.Error())
-	}
-
-	_, db, err := openLocalDB(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = db.Close() }()
-
-	// ListAll with no filter gives us every content item already
-	// hydrated with Fields + Creators — the planner needs both.
-	items, err := db.ListAll(local.ListFilter{})
-	if err != nil {
-		return fmt.Errorf("list items: %w", err)
-	}
-	targets := fix.PlanCitekeys(items, fix.CitekeyOptions{
-		Kinds:    kinds,
-		ItemKeys: citekeysItem,
-	})
-
-	if !citekeysApply {
-		// Dry-run: render the plan and exit. No API client needed.
-		outputScoped(ctx, cmd, fix.CitekeyFixResult{
-			Result: fix.DryRunCitekeys(targets),
-			Limit:  citekeysLimit,
-		})
-		return nil
-	}
-
-	if len(targets) == 0 {
-		// Nothing to apply — still render so JSON callers see the empty
-		// totals and human callers get the "nothing to do" line.
-		outputScoped(ctx, cmd, fix.CitekeyFixResult{
-			Result: fix.DryRunCitekeys(targets),
-			Limit:  citekeysLimit,
-		})
-		return nil
-	}
-
-	// Destructive confirm, matching the pattern every other write
-	// command uses. --yes bypasses for non-interactive runs.
-	prompt := fmt.Sprintf("patch %d item(s) citationKey field via Zotero Web API?", len(targets))
-	if done, err := cmdutil.ConfirmOrSkip(citekeysYes, prompt); done || err != nil {
-		return err
-	}
-
-	apiClient, err := requireAPIClient(ctx)
-	if err != nil {
-		return err
-	}
-
-	var res *fix.CitekeyResult
-	err = uikit.RunWithProgress("Fixing cite-keys", func(t *uikit.ProgressTracker) error {
-		t.SetTotal(len(targets))
-		var applyErr error
-		res, applyErr = fix.ApplyCitekeys(ctx, apiClient, targets, fix.ApplyOptions{
-			OnProgress: func(done, total int) {
-				counter := "patched"
-				t.Advance(counter, "")
-			},
-		})
-		return applyErr
-	})
-	if err != nil {
-		return err
-	}
-	outputScoped(ctx, cmd, fix.CitekeyFixResult{Result: res, Limit: citekeysLimit})
-	return nil
-}
-
-// parseCitekeyFixKinds turns --kind values into a fix.CitekeyKind mask.
-// Empty input → fix.CitekeyAll. Accepts repeatable + comma-separated
-// forms uniformly so `--kind invalid --kind collision` and
-// `--kind invalid,collision` behave the same.
-func parseCitekeyFixKinds(values []string) (fix.CitekeyKind, error) {
-	if len(values) == 0 {
-		return fix.CitekeyAll, nil
-	}
-	var mask fix.CitekeyKind
-	for _, raw := range values {
-		for p := range strings.SplitSeq(raw, ",") {
-			p = strings.TrimSpace(p)
-			if p == "" {
-				continue
-			}
-			bit, ok := fix.ParseCitekeyKind(p)
-			if !ok {
-				return 0, fmt.Errorf("unknown --kind %q (want invalid, collision, non-canonical, unstored)", p)
-			}
-			mask |= bit
-		}
-	}
-	if mask == 0 {
-		return fix.CitekeyAll, nil
-	}
-	return mask, nil
 }
 
 func parseOrphanKindList(s string) ([]hygiene.OrphanKind, error) {

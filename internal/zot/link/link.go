@@ -5,7 +5,7 @@
 // were derivable from the note body the whole time; this package derives
 // them, and `zot link suggest` writes them.
 //
-// The shape follows internal/zot/fix: a pure Plan* over materialized
+// The shape is the house plan/apply contract: a pure Plan* over materialized
 // inputs, an Apply* taking a narrow writer interface, and ONE Result type
 // carrying an Applied bool — so a dry-run and the apply that follows it are
 // trivially diffable. Nothing here does I/O; the CLI reads the note,

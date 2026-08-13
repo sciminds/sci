@@ -5,7 +5,7 @@
 // Lives in its own sub-package so it can import both
 // internal/zot/api (the Web API client) and pkg/local
 // (the read-only library reader) without cycling through the parent
-// zot package. Same split rationale as internal/zot/fix.
+// zot package. Same split rationale as internal/zot/enrich.
 //
 // Shape: a pure PlanExtract decides Create or Skip based on whether the
 // parent already has a docling-tagged child note (queried from the local

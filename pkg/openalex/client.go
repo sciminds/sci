@@ -59,7 +59,7 @@ func NewClient(email, apiKey string) *Client {
 // StatusError is a non-2xx response from the OpenAlex API. Callers that need
 // to distinguish "the index says no such work" (404) from "we couldn't ask"
 // (429, 5xx, transport) should match on this with [errors.AsType] rather than
-// sniff the message — `zot bib --verify` reports a 404 as a probably-invented
+// sniff the message — a citation checker reports a 404 as a probably-invented
 // citation, so that verdict has to rest on the status code.
 //
 // The rendered message keeps its historical `openalex <path>: <code> — <body>`

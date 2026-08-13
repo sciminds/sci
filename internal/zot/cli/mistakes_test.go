@@ -184,58 +184,6 @@ func TestItemRead_NotFound_CodedWithRemoteFix(t *testing.T) {
 	}
 }
 
-// --- collection resolution: did-you-mean + coded ambiguity ---
-
-func TestResolveCollectionKey_NotFound_SuggestsNearest(t *testing.T) {
-	t.Parallel()
-	db := &fakeCollectionReader{collections: []local.Collection{
-		{Key: "AAAA1111", Name: "Active reading"},
-		{Key: "BBBB2222", Name: "Archive"},
-	}}
-	_, _, err := resolveCollectionKey(db, "active readng")
-	coded, ok := errors.AsType[*cmdutil.CodedError](err)
-	if !ok {
-		t.Fatalf("want CodedError, got %T: %v", err, err)
-	}
-	if coded.Code != cmdutil.CodeNotFound {
-		t.Errorf("Code = %q, want not-found", coded.Code)
-	}
-	if !strings.Contains(coded.Try, "Active reading") {
-		t.Errorf("Try should suggest the nearest collection name, got %q", coded.Try)
-	}
-}
-
-func TestResolveCollectionKey_NoNearMatch_StillGuides(t *testing.T) {
-	t.Parallel()
-	db := &fakeCollectionReader{collections: []local.Collection{
-		{Key: "AAAA1111", Name: "Archive"},
-	}}
-	_, _, err := resolveCollectionKey(db, "zzzzzzzzzz")
-	coded, ok := errors.AsType[*cmdutil.CodedError](err)
-	if !ok {
-		t.Fatalf("want CodedError, got %T: %v", err, err)
-	}
-	if coded.Try == "" {
-		t.Error("even with no near match, Try must point at collection list")
-	}
-}
-
-func TestResolveCollectionKey_Ambiguous_Coded(t *testing.T) {
-	t.Parallel()
-	db := &fakeCollectionReader{collections: []local.Collection{
-		{Key: "AAAA1111", Name: "notes"},
-		{Key: "BBBB2222", Name: "notes"},
-	}}
-	_, _, err := resolveCollectionKey(db, "notes")
-	coded, ok := errors.AsType[*cmdutil.CodedError](err)
-	if !ok {
-		t.Fatalf("want CodedError, got %T: %v", err, err)
-	}
-	if coded.Code != cmdutil.CodeAmbiguous {
-		t.Errorf("Code = %q, want ambiguous", coded.Code)
-	}
-}
-
 // --- not configured ---
 
 func TestRequireConfigCoded_NotConfigured(t *testing.T) {

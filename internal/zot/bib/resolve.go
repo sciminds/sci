@@ -46,7 +46,6 @@ type libraryIndex struct {
 }
 
 // RefMatch pairs one reference with the library item it resolved to.
-// (Not Match — that name belongs to verify.go's upstream-index hit.)
 type RefMatch struct {
 	Ref  Ref        `json:"ref"`
 	Item local.Item `json:"item"`

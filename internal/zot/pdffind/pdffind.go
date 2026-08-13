@@ -2,11 +2,10 @@
 // PDF attachments and reports what's retrievable — PDF URL, landing-page URL,
 // DOI, open-access status — plus (optionally) downloads the PDF.
 //
-// Read-only on the Zotero side: this package only reads item metadata and
-// emits findings. Writing discovered metadata back to Zotero (fill DOI, fill
-// URL) is a follow-up that can reuse enrich.Apply; attaching the downloaded
-// file as a child attachment is a separate workstream requiring new Writer
-// methods for Zotero's 3-step file-upload dance.
+// No longer reachable from the sci CLI: `sci zot doctor pdfs` retired to the
+// zot binary when sci's doctor became read-only reporting (2026-08-12), and
+// this package is left standing for the shrink pass that removes the rest of
+// sci's OpenAlex surface.
 package pdffind
 
 import (

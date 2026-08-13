@@ -80,6 +80,40 @@ func indexOfSubslice(s, sub []string) int {
 	return -1
 }
 
+// movedToZotError reports that a verb now lives in the separate `zot`
+// binary rather than anywhere in sci.
+//
+// The remedy goes in Try, never in Fix, and that is the whole difference
+// from [retiredCommandError]: `zot` is a different program, absent from lab
+// machines, so a rewritten command line would hand back something that
+// cannot run. Fix is verbatim-runnable or absent.
+func movedToZotError(oldPath []string, zotCmd, why string) error {
+	return cmdutil.Coded(cmdutil.CodeUsage,
+		"`zot %s` has been retired from sci — the write half lives in the zot binary",
+		strings.Join(oldPath, " ")).
+		WithTry(why + "; on a machine that has zot installed, run `" + zotCmd + "`")
+}
+
+// movedToZotCommand builds a stub for a verb that left sci for the `zot`
+// binary. Registered for the same reason as [retiredCommand] — a bare
+// "command not found" teaches nothing — and SkipFlagParsing so a script
+// still passing the old write flags reaches the explanation instead of an
+// unknown-flag error.
+func movedToZotCommand(name, usage string, oldPath []string, zotCmd, why string) *cli.Command {
+	return &cli.Command{
+		Name:  name,
+		Usage: usage,
+		Description: "Retired from sci. The equivalent verb is `" + zotCmd + "` in the zot binary.\n\n" +
+			why + ".\n\n" +
+			"`sci zot doctor` is read-only reporting: it reads the local Zotero\n" +
+			"database and never writes, fetches, or spends a metered API call.",
+		SkipFlagParsing: true,
+		Action: func(_ context.Context, _ *cli.Command) error {
+			return movedToZotError(oldPath, zotCmd, why)
+		},
+	}
+}
+
 // retiredCommand builds a stub command that exists only to explain where its
 // verb went. Keeping the name registered is deliberate: urfave would
 // otherwise answer `zot notes add` with a bare "command not found", which

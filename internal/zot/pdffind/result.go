@@ -9,9 +9,8 @@ import (
 )
 
 // CLIResult is the cmdutil.Result shell around a Scan (and optional Download).
-// Lives in the pdffind package — same pattern as enrich.FromMissingResult —
-// so the command-layer wiring stays thin and the renderer can reach into
-// Finding fields directly.
+// Lives in the pdffind package so the command-layer wiring stays thin and
+// the renderer can reach into Finding fields directly.
 type CLIResult struct {
 	Collection  string    `json:"collection,omitempty"` // collection name/key the scan targeted
 	Scanned     int       `json:"scanned"`

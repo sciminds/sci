@@ -311,7 +311,7 @@ func TestS3Client_HasTimeout(t *testing.T) {
 	t.Parallel()
 	// The phase-3 S3 upload must not use http.DefaultClient (no timeout).
 	// A stalled or hostile S3 endpoint with no ctx deadline from the caller
-	// would otherwise hang `sci zot doctor pdfs --attach` indefinitely.
+	// would otherwise hang a bulk attach run indefinitely.
 	if s3Client.Timeout <= 0 {
 		t.Errorf("s3Client.Timeout = %v, want >0 to bound phase-3 upload time", s3Client.Timeout)
 	}

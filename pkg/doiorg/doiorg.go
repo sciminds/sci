@@ -6,8 +6,8 @@
 // chapters and unindexed preprints. doi.org sits in front of every registrar
 // (Crossref, DataCite, mEDRA…), so a 404 there means the DOI was never
 // registered by anyone. That is the difference between "our index doesn't
-// have it" and "this citation was invented", and `zot bib --verify` reports
-// those very differently.
+// have it" and "this citation was invented", and a citation checker has to
+// report those two very differently.
 //
 // The mechanism is content negotiation: asking doi.org for
 // application/vnd.citationstyles.csl+json returns CSL JSON metadata instead

@@ -1,26 +1,29 @@
 package cli
 
 // mistakes.go is the zot LLM-mistake corpus: the helpers that turn the
-// failures agents predictably hit (missing --library, typo'd collection
-// names, unsynced keys, no config) into CodedErrors carrying a resubmittable
+// failures agents predictably hit (missing --library, cite keys pasted
+// where item keys go, unsynced keys, no config) into CodedErrors carrying a resubmittable
 // Fix or an actionable Try. The rule, borrowed from the dabble/gundam evals:
 // a common mistake that dead-ends with neither is a bug — agents don't
 // infer their way out, they thrash. mistakes_test.go is the audit gate.
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"slices"
+	"regexp"
 	"strings"
 
 	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/zot"
-	"github.com/sciminds/sci/internal/zot/hygiene"
 	"github.com/sciminds/sci/pkg/local"
 )
+
+// zoteroKeyRE matches an 8-character Zotero-style key. Used to tell a key
+// apart from the other things a user can put in the same position — a cite
+// key, a collection name.
+var zoteroKeyRE = regexp.MustCompile(`^[A-Z0-9]{8}$`)
 
 // insertLibraryFix rebuilds the user's command line with `--library personal`
 // inserted right after the zot token, quoting arguments that need it. Returns
@@ -82,26 +85,6 @@ func requireConfigCoded() (*zot.Config, error) {
 	return cfg, nil
 }
 
-// suggestCollections returns up to three collection names similar to input,
-// best match first. The 0.5 similarity floor keeps garbage out of the nudge.
-func suggestCollections(input string, cols []local.Collection) []string {
-	const floor = 0.5
-	type scored struct {
-		name  string
-		ratio float64
-	}
-	ranked := lo.FilterMap(cols, func(c local.Collection, _ int) (scored, bool) {
-		r := hygiene.SimilarityRatio(strings.ToLower(input), strings.ToLower(c.Name))
-		return scored{name: c.Name, ratio: r}, r >= floor
-	})
-	slices.SortFunc(ranked, func(a, b scored) int { return cmp.Compare(b.ratio, a.ratio) })
-	names := lo.Map(ranked, func(s scored, _ int) string { return s.name })
-	if len(names) > 3 {
-		names = names[:3]
-	}
-	return names
-}
-
 // resolveCiteKeyArg best-effort resolves a non-key positional as a cite key
 // against the local library. Returns the resolved 8-char item key, or "" when
 // resolution isn't unambiguous (never guess — the caller falls through to a
@@ -148,15 +131,4 @@ func itemsNotFoundErr(ctx context.Context, requested, missing []string) error {
 	return cmdutil.Coded(cmdutil.CodeNotFound, "item(s) not found: %s", strings.Join(missing, ", ")).
 		WithFix(fmt.Sprintf("sci zot --library %s item read %s --remote", scope, strings.Join(requested, " "))).
 		WithTry(fmt.Sprintf("if a key came from a search elsewhere, re-find it: sci zot --library %s search <title words> (cite keys also work as positionals)", scope))
-}
-
-// notFoundCollectionErr builds the coded not-found error for a collection
-// name, with a did-you-mean Try when the library has something close.
-func notFoundCollectionErr(input string, cols []local.Collection) error {
-	coded := cmdutil.Coded(cmdutil.CodeNotFound, "collection %q not found", input)
-	if suggestions := suggestCollections(input, cols); len(suggestions) > 0 {
-		quoted := lo.Map(suggestions, func(s string, _ int) string { return fmt.Sprintf("%q", s) })
-		return coded.WithTry(fmt.Sprintf("similar collections exist: %s — use one of those names, or the 8-char key from 'sci zot collection list'", strings.Join(quoted, ", ")))
-	}
-	return coded.WithTry("run 'sci zot collection list' to see available names and keys")
 }

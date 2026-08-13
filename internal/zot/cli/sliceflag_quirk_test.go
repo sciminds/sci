@@ -103,7 +103,7 @@ func TestSliceFlagLocalQuirk_Reproduction(t *testing.T) {
 //
 // Subtests run serially (no t.Parallel inside the loop): every Commands()
 // build re-binds the same package-level Destinations (addTag, noteTag,
-// addAuthor, citekeysItem, …), and urfave/cli's PreParse re-zeroes
+// addAuthor, noteTag, condition, …), and urfave/cli's PreParse re-zeroes
 // every flag's destination on every Run — so parallel subtests race on
 // the shared Destination memory and intermittently capture truncated
 // or empty slices. Production never hits this because each user
@@ -134,8 +134,6 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 		// missing — a diagnostic quietly doing less than it was asked
 		// while its report looked complete.
 		{name: "doctor --check", argv: []string{"doctor", "--check", "invalid", "--check", "missing", "--check", "orphans"}, flagName: "check"},
-		{name: "doctor citekeys --kind", argv: []string{"doctor", "citekeys", "--fix", "--kind", "invalid", "--kind", "collision", "--kind", "non-canonical"}, flagName: "kind"},
-		{name: "doctor citekeys --item", argv: []string{"doctor", "citekeys", "--fix", "--item", "AAAA1111", "--item", "BBBB2222", "--item", "CCCC3333"}, flagName: "item"},
 		{name: "saved-search create --condition", argv: []string{"saved-search", "create", "x", "--condition", "title:contains:a", "--condition", "tag:is:b", "--condition", "itemType:is:c"}, flagName: "condition"},
 		{name: "saved-search update --condition", argv: []string{"saved-search", "update", "ABCD1234", "--condition", "title:contains:a", "--condition", "tag:is:b", "--condition", "itemType:is:c"}, flagName: "condition"},
 	}

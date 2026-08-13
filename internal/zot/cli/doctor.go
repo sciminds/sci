@@ -14,6 +14,15 @@ var (
 	doctorDeep bool
 )
 
+// pdfAcquisitionMoved is the one-sentence explanation the retired `doctor
+// pdfs` stub carries. It says what changed and why, so the error teaches
+// the boundary rather than just redirecting: finding a missing PDF means
+// a metered OpenAlex lookup, an HTTP download, and an upload into Zotero —
+// three writes wearing a check's clothes.
+const pdfAcquisitionMoved = "PDF acquisition is a credentialed, metered, " +
+	"network-writing job, not a hygiene check — it moved to the zot binary, " +
+	"which owns the Zotero credential and runs it unattended"
+
 func doctorCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "doctor",
@@ -31,8 +40,14 @@ $ sci zot doctor citekeys
 
 Bare 'sci zot doctor' runs every hygiene check in order — invalid, missing,
 orphans, duplicates, citekeys — and prints a one-line summary per check
-plus an aggregate totals footer. Doctor is strictly read-only; use the
-sub-commands ('sci zot doctor invalid', etc.) for per-finding detail.
+plus an aggregate totals footer. Use the sub-commands ('sci zot doctor
+invalid', etc.) for per-finding detail.
+
+Doctor is reporting only. Every check reads the local Zotero database and
+nothing else: no writes, no network, no metered lookups. The repairs the
+reports point at (DOI rewrites, cite-key rewrites, metadata enrichment,
+PDF acquisition) belong to the zot binary, which owns the credential and
+runs them unattended.
 
 Deep mode flips the slow/accurate paths: duplicate detection adds the
 fuzzy title pass (~30s on a 5k-item library) and orphans additionally
@@ -46,7 +61,9 @@ for that.`,
 			duplicatesCommand(),
 			citekeysCommand(),
 			doisCommand(),
-			pdfsCommand(),
+			movedToZotCommand("pdfs", "moved to `zot doctor pdfs`",
+				[]string{"doctor", "pdfs"}, "zot doctor pdfs",
+				pdfAcquisitionMoved),
 		},
 		Flags: []cli.Flag{
 			// lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go

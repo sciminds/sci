@@ -3,9 +3,10 @@ package local
 import "fmt"
 
 // MissingPDFKeys returns the keys of bibliographic items that have no PDF
-// attachment — the predicate `doctor pdfs` actually wants, computed from
-// local data in one query instead of being outsourced to a saved search
-// whose conditions cannot express it.
+// attachment, computed from local data in one query. No saved search can
+// express this predicate — noChildren means top-level-only, and the Zotero
+// Web API has no has-a-PDF-child filter — so PDF-acquisition tooling asks
+// here rather than outsourcing it.
 //
 // "No PDF attachment" means no non-trashed child whose contentType is
 // application/pdf or whose path ends in .pdf — the same two-sided test the

@@ -1,10 +1,16 @@
 // Package enrich converts OpenAlex Work metadata into Zotero ItemData.
 //
-// Lives in a sub-package for the same reason as internal/zot/fix/: it imports
-// both openalex (read) and client (write-side ItemData shapes), so parking it
-// here avoids a cycle with the parent zot package's Config. The openalex
-// client itself has zero awareness of Zotero types — all coupling lives in
-// this package.
+// Lives in a sub-package because it imports both openalex (read) and client
+// (write-side ItemData shapes), so parking it here avoids a cycle with the
+// parent zot package's Config. The openalex client itself has zero awareness
+// of Zotero types — all coupling lives in this package.
+//
+// It is a MAPPER, not a planner. The planning half — look an item up on
+// OpenAlex, decide which blank fields to fill, patch them back — moved to
+// the zot binary as `zot enrich` when sci's doctor became read-only
+// reporting (2026-08-12). What remains serves `zot item add --openalex`,
+// which builds a new item from a Work the user named, and graph traversal,
+// which reads the OpenAlex id back out of an item's Extra.
 package enrich
 
 import (

@@ -330,7 +330,7 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 | [`sci zot --library personal search <query>`](#search--export) | Search the local library — free-text words AND across metadata fields; `@field:` clauses for author/title/doi/pub/tag/type/year/citekey; a bare year like `2021` filters by year; `--content` widens into extracted paper text (bm25 + snippets); `--remote` hits the Zotero Web API instead |
 | [`sci zot browse`](#search--export) | Interactive search REPL — type to search, type a hit number to open its PDF |
 | [`sci zot --library personal search <q> --export -o hits.bib`](#search--export) | Route search results through the export pipeline |
-| [`sci zot --library personal bib <file-or-dir>`](#search--export) | Build a bibliography from the `@citekeys`, DOIs, and links cited in markdown/Quarto files (`--recursive`, `--verify`) |
+| [`sci zot --library personal bib <file-or-dir>`](#search--export) | Build a bibliography from the `@citekeys`, DOIs, and links cited in markdown/Quarto files (`--recursive`); refs matching 0 or >1 items are always listed, never guessed |
 | [`sci zot --library personal export -o refs.bib`](#search--export) | Full-library BibLaTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
 | [`sci zot --library personal find works <query>`](#search--export) | Look up papers on OpenAlex (no library round-trip) |
 | [`sci zot --library personal find authors <query>`](#search--export) | Look up authors on OpenAlex |
@@ -378,8 +378,9 @@ Zotero library management — local reads from `zotero.sqlite` (immutable, no co
 |---------|--------------|
 | [`sci zot --library personal doctor`](#hygiene) | Run all hygiene checks (invalid → missing → orphans → duplicates → citekeys) |
 | [`sci zot --library personal doctor {invalid,missing,orphans,duplicates,citekeys,dois}`](#hygiene) | Drill into individual hygiene reports |
-| [`sci zot --library personal doctor pdfs`](#hygiene) | Find missing-PDF candidates via OpenAlex; `--collection` (local), `--saved-search NAME\|KEY` (live API), or `--keys-from FILE\|-` |
-| [`sci zot --library personal doctor dois --fix --apply`](#hygiene) | Patch publisher-subobject DOIs (Frontiers `/abstract`, PLOS `.tNNN`, PNAS supplements) so OpenAlex resolves them |
+| [`sci zot --library personal doctor dois`](#hygiene) | Flag publisher-subobject DOIs (Frontiers `/abstract`, PLOS `.tNNN`, PNAS supplements) — the ones metadata APIs 404 on |
+
+**Doctor reports; it does not repair.** Every check reads the local Zotero database and stops there: no writes, no network, no metered lookups. That is the whole contract — a health check you can run on any machine, against a library you have not synced, without a credential. The repairs the reports point at (rewriting a subobject DOI to its parent, synthesizing canonical cite-keys, filling blank fields, acquiring missing PDFs) are credentialed writes and belong to the separate `zot` binary, which owns the API key and runs them unattended.
 
 `sci zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` picks the group automatically when the account belongs to exactly one, or accepts `--shared-group-id` when multiple groups exist.
 
