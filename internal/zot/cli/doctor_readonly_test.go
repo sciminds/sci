@@ -1,23 +1,13 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/sciminds/sci/internal/cmdutil"
-	"github.com/urfave/cli/v3"
 )
-
-// doctorRoot builds the production tree under a bare `zot` root. The library
-// Before hook is deliberately not installed: every assertion here lands
-// during flag parsing or in a stub Action, so no config or database is
-// needed.
-func doctorRoot() *cli.Command {
-	return &cli.Command{Name: "zot", Flags: PersistentFlags(), Commands: Commands()}
-}
 
 // TestDoctorWriteFlagsAreGone pins the boundary decided 2026-08-12: sci's
 // doctor reports, the zot binary repairs. Two tools answering one question
@@ -57,7 +47,7 @@ func TestDoctorWriteFlagsAreGone(t *testing.T) {
 			}
 
 			argv := slices.Concat([]string{"zot", "--library", "personal"}, tc.argv)
-			err := doctorRoot().Run(context.Background(), argv)
+			err := runZotTree(t, argv...)
 			if err == nil {
 				t.Fatalf("`%s` should fail on the removed flag, got nil", strings.Join(argv, " "))
 			}
@@ -149,7 +139,7 @@ func TestDoctorPDFsIsRetiredStub(t *testing.T) {
 		t.Fatal("`doctor pdfs` must stay registered so the move is discoverable")
 	}
 
-	err := doctorRoot().Run(context.Background(), []string{"zot", "doctor", "pdfs"})
+	err := runZotTree(t, "zot", "doctor", "pdfs")
 	if err == nil {
 		t.Fatal("`doctor pdfs` should refuse, got nil")
 	}
@@ -174,7 +164,7 @@ func TestDoctorPDFsIsRetiredStub(t *testing.T) {
 func TestDoctorPDFsStubTakesAnyArgs(t *testing.T) {
 	t.Parallel()
 	argv := []string{"zot", "doctor", "pdfs", "--missing", "--download", "/tmp/x", "--attach", "--yes"}
-	err := doctorRoot().Run(context.Background(), argv)
+	err := runZotTree(t, argv...)
 	coded, ok := errors.AsType[*cmdutil.CodedError](err)
 	if !ok {
 		t.Fatalf("want CodedError, got %T: %v", err, err)

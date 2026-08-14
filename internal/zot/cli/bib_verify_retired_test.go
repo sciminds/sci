@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -29,8 +28,7 @@ func TestBibVerifyIsGone(t *testing.T) {
 		}
 	}
 
-	err := doctorRoot().Run(context.Background(),
-		[]string{"zot", "--library", "personal", "bib", "draft.md", "--verify"})
+	err := runZotTree(t, "zot", "--library", "personal", "bib", "draft.md", "--verify")
 	if err == nil {
 		t.Fatal("`bib --verify` should fail on the removed flag, got nil")
 	}

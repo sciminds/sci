@@ -131,6 +131,10 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 		// NB: no t.Parallel() — see test comment above. Subtests share
 		// package-level slice-flag Destinations and PreParse races them.
 		t.Run(tc.name, func(t *testing.T) {
+			// Serial subtests are not enough: OTHER parallel tests in
+			// this package run the production tree too, and they write
+			// the same destinations. See treeRunMu.
+			lockProductionFlags(t)
 			var captured []string
 			// Build a shadow tree mirroring the production root, but with
 			// every leaf command's Action replaced by one that captures

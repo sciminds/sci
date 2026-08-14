@@ -1,23 +1,13 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/sciminds/sci/internal/cmdutil"
-	"github.com/urfave/cli/v3"
 )
-
-// zotRoot builds the production tree under a bare `zot` root, the way
-// cmd/sci/zot.go mounts it. No Before hook: every assertion below lands
-// during flag parsing or inside a stub Action, so no config or database
-// is needed.
-func zotRoot() *cli.Command {
-	return &cli.Command{Name: "zot", Flags: PersistentFlags(), Commands: Commands()}
-}
 
 // movedToZot is the table of verbs that left sci for the zot binary when
 // sci's Zotero surface shrank to the public local read plane
@@ -79,7 +69,7 @@ func TestMovedVerbsAreRegisteredStubs(t *testing.T) {
 			}
 
 			argv := slices.Concat([]string{"zot"}, tc.argv)
-			err := zotRoot().Run(context.Background(), argv)
+			err := runZotTree(t, argv...)
 			if err == nil {
 				t.Fatalf("`%s` should refuse, got nil", strings.Join(argv, " "))
 			}
@@ -128,7 +118,7 @@ func TestMovedVerbsSwallowTheirOldFlags(t *testing.T) {
 	} {
 		t.Run(strings.Join(argv, " "), func(t *testing.T) {
 			t.Parallel()
-			err := zotRoot().Run(context.Background(), slices.Concat([]string{"zot"}, argv))
+			err := runZotTree(t, slices.Concat([]string{"zot"}, argv)...)
 			coded, ok := errors.AsType[*cmdutil.CodedError](err)
 			if !ok {
 				t.Fatalf("want CodedError, got %T: %v", err, err)
@@ -191,7 +181,7 @@ func TestRetiredContentFlagsAreGone(t *testing.T) {
 			t.Fatal("--content is still declared on `zot search`")
 		}
 	}
-	err := zotRoot().Run(context.Background(), []string{"zot", "search", "--content", "x"})
+	err := runZotTree(t, "zot", "search", "--content", "x")
 	if err == nil {
 		t.Fatal("`search --content` should fail on the removed flag, got nil")
 	}
@@ -213,7 +203,7 @@ func TestRetiredContentFlagsAreGone(t *testing.T) {
 // verb arrived somewhere else.
 func TestLinkSuggestStubSaysTheNoteScanRetired(t *testing.T) {
 	t.Parallel()
-	err := zotRoot().Run(context.Background(), []string{"zot", "link", "suggest", "NOTE0001"})
+	err := runZotTree(t, "zot", "link", "suggest", "NOTE0001")
 	coded, ok := errors.AsType[*cmdutil.CodedError](err)
 	if !ok {
 		t.Fatalf("want CodedError, got %T: %v", err, err)
@@ -236,8 +226,7 @@ func TestLinkSuggestStubSaysTheNoteScanRetired(t *testing.T) {
 func TestLinkRmStubKeepsItsAliases(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"rm", "remove", "unlink"} {
-		err := zotRoot().Run(context.Background(),
-			[]string{"zot", "link", name, "NOTE0001", "PAPER001"})
+		err := runZotTree(t, "zot", "link", name, "NOTE0001", "PAPER001")
 		coded, ok := errors.AsType[*cmdutil.CodedError](err)
 		if !ok {
 			t.Fatalf("`link %s`: want CodedError, got %T: %v", name, err, err)
@@ -283,7 +272,7 @@ func TestRetiredOutrightVerbsPointAtTheDesktop(t *testing.T) {
 					strings.Join(tc.argv, " "))
 			}
 
-			err := zotRoot().Run(context.Background(), slices.Concat([]string{"zot"}, tc.argv))
+			err := runZotTree(t, slices.Concat([]string{"zot"}, tc.argv)...)
 			if err == nil {
 				t.Fatalf("`zot %s` should refuse, got nil", strings.Join(tc.argv, " "))
 			}
