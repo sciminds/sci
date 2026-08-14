@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/sciminds/sci/internal/tuitest"
 	"github.com/urfave/cli/v3"
@@ -40,8 +41,8 @@ func testGroups() []CommandGroup {
 			Category: "Commands",
 			FullName: "sci alpha",
 			Subs: []SubCommand{
-				{Name: "one", Usage: "Do thing one", FullName: "sci alpha one", CastFile: ""},
-				{Name: "two", Usage: "Do thing two", FullName: "sci alpha two", CastFile: ""},
+				{Name: "one", Usage: "Do thing one", FullName: "sci alpha one"},
+				{Name: "two", Usage: "Do thing two", FullName: "sci alpha two"},
 			},
 		},
 		{
@@ -50,7 +51,7 @@ func testGroups() []CommandGroup {
 			Category: "Commands",
 			FullName: "sci beta",
 			Subs: []SubCommand{
-				{Name: "run", Usage: "Run beta", FullName: "sci beta run", CastFile: ""},
+				{Name: "run", Usage: "Run beta", FullName: "sci beta run"},
 			},
 		},
 	}
@@ -318,5 +319,155 @@ func TestHelpDirectGroupQuitOnEsc(t *testing.T) {
 	fm := tFinalModel(t, tm)
 	if !fm.quitting {
 		t.Error("esc from direct group should quit")
+	}
+}
+
+// TestHelpCyclesMultipleDemos covers the row that carries more than one
+// recording. `sci cass canvas` is one picker row whose demos were recorded
+// per leaf verb, so the overlay has to name which one is playing and offer a
+// way to reach the others — without that, three of the four are as invisible
+// as they were when nothing resolved to them at all.
+func TestHelpCyclesMultipleDemos(t *testing.T) {
+	groups := []CommandGroup{{
+		Name:     "cass",
+		Desc:     "Canvas LMS",
+		Category: "Commands",
+		FullName: "sci cass",
+		Subs: []SubCommand{{
+			Name:      "canvas",
+			Usage:     "Canvas operations",
+			FullName:  "sci cass canvas",
+			CastFiles: []string{"cass-canvas-announce.cast", "cass-canvas-files.cast"},
+		}},
+	}}
+	m := newModel(groups)
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
+	tWaitFor(t, tm, "cass")
+
+	tSendSpecial(tm, tea.KeyEnter) // into the subcommand list
+	tWaitFor(t, tm, "operations")
+
+	// Short substrings only: the alt screen repaints by cursor diff, so a
+	// longer phrase gets fragmented across moves and never matches whole.
+	tSendSpecial(tm, tea.KeyEnter) // open the first demo
+	tWaitFor(t, tm, "1/2")
+
+	tSendKey(tm, "n") // advance to the second
+	tWaitFor(t, tm, "2/2")
+
+	// The wrap is asserted on model state, not output: teatest's Output()
+	// accumulates, so waiting for "1/2" again would match the first frame
+	// and pass no matter what "n" did.
+	tSendKey(tm, "n")
+	tSendSpecial(tm, tea.KeyEscape)
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelSubs {
+		t.Errorf("esc should return to subs, got level %d", fm.level)
+	}
+	if len(fm.casts) != 2 {
+		t.Fatalf("row should carry 2 demos, got %d", len(fm.casts))
+	}
+	if fm.castIdx != 0 {
+		t.Errorf("third `n` should wrap to demo 0, got %d", fm.castIdx)
+	}
+}
+
+// TestHelpDetailPaneRendersFlagsAndExamples exercises the renderer directly.
+//
+// BuildGroups already extracts each subcommand's args, flags and examples off
+// the live command tree. Before this view existed they were computed on every
+// build and rendered nowhere, so `sci help` could tell you a command existed
+// but not how to call it.
+//
+// Asserted against renderDetail's output rather than through teatest: the
+// panel's whole point is its CONTENT, and alt-screen frames fragment long
+// strings across cursor-diff repaints, so a rendered-output match can only
+// ever check short tokens. Key wiring is covered separately below.
+func TestHelpDetailPaneRendersFlagsAndExamples(t *testing.T) {
+	g := CommandGroup{
+		Name:     "zot",
+		Desc:     "Zotero",
+		Category: "Commands",
+		FullName: "sci zot",
+		Subs: []SubCommand{{
+			Name:      "search",
+			Usage:     "Cross-field search over the local library",
+			FullName:  "sci zot search",
+			ArgsUsage: "<query>",
+			Flags: []Flag{
+				{Names: "--library, -l", Usage: "which library to target"},
+				{Names: "--limit", Usage: "max results"},
+			},
+			Examples: "$ sci zot search \"predictive coding\"",
+		}},
+	}
+	m := newModel([]CommandGroup{g})
+	m.Update(tea.WindowSizeMsg{Width: testTermW, Height: testTermH})
+	m.openGroup(g)
+
+	got := ansi.Strip(m.renderDetail())
+	for _, want := range []string{
+		"sci zot search <query>",  // invocation + declared args
+		"Cross-field search",      // one-line usage
+		"Flags",                   // section header
+		"--library, -l",           // flag names, as declared
+		"which library to target", // and their usage
+		"--limit",
+		"max results",
+		"Examples",
+		"predictive coding",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("detail panel missing %q\n--- panel ---\n%s", want, got)
+		}
+	}
+}
+
+// TestHelpDetailPaneWithoutFlagsOrExamples pins the sparse case: a command
+// with neither flags nor examples still gets a usable panel — the invocation
+// and usage line — rather than an empty box with a title.
+func TestHelpDetailPaneWithoutFlagsOrExamples(t *testing.T) {
+	g := CommandGroup{
+		Name:     "alpha",
+		Desc:     "Alpha",
+		Category: "Commands",
+		FullName: "sci alpha",
+		Subs: []SubCommand{{
+			Name:     "bare",
+			Usage:    "A command with nothing extra",
+			FullName: "sci alpha bare",
+		}},
+	}
+	m := newModel([]CommandGroup{g})
+	m.Update(tea.WindowSizeMsg{Width: testTermW, Height: testTermH})
+	m.openGroup(g)
+
+	got := ansi.Strip(m.renderDetail())
+	if !strings.Contains(got, "sci alpha bare") {
+		t.Errorf("sparse panel should still show the invocation:\n%s", got)
+	}
+	if !strings.Contains(got, "nothing extra") {
+		t.Errorf("sparse panel should still show the usage line:\n%s", got)
+	}
+	if strings.Contains(got, "Flags") || strings.Contains(got, "Examples") {
+		t.Errorf("sparse panel should omit empty sections:\n%s", got)
+	}
+}
+
+// TestHelpDetailPaneKeyWiring covers the navigation half: "d" opens the panel
+// from the subcommand list and "esc" closes it back to the list.
+func TestHelpDetailPaneKeyWiring(t *testing.T) {
+	tm := startHelpTeatest(t)
+
+	tSendSpecial(tm, tea.KeyEnter)
+	tWaitFor(t, tm, "one")
+
+	tSendKey(tm, "d")
+	tSendSpecial(tm, tea.KeyEscape)
+
+	fm := tFinalModel(t, tm)
+	if fm.level != levelSubs {
+		t.Errorf("esc should return to subs, got level %d", fm.level)
 	}
 }

@@ -62,9 +62,10 @@ func TestCastsResolveAgainstTheCommandTree(t *testing.T) {
 	}
 }
 
-// checkRecorded resolves one recorded command line against cmd's tree.
-func checkRecorded(t *testing.T, cmd *cli.Command, rc help.RecordedCommand, tokens []string) {
+// checkRecorded resolves one recorded command line against root's tree.
+func checkRecorded(t *testing.T, root *cli.Command, rc help.RecordedCommand, tokens []string) {
 	t.Helper()
+	cmd := root
 
 	path := []string{"sci"}
 	var positional int
@@ -78,7 +79,7 @@ func checkRecorded(t *testing.T, cmd *cli.Command, rc help.RecordedCommand, toke
 				name = strings.TrimPrefix(tok, "-")
 			}
 			name, hasValue := cutFlagValue(name)
-			flag := lookupFlag(cmd, name)
+			flag := lookupFlag(cmd, root, name)
 			if flag == nil {
 				t.Errorf("%s: `%s` passes --%s, which `%s` does not declare",
 					rc.Cast, rc.Line, name, strings.Join(path, " "))
@@ -131,20 +132,27 @@ func lookupSub(cmd *cli.Command, name string) *cli.Command {
 	return nil
 }
 
-// lookupFlag finds a flag declared on cmd, by name or alias. It does not
-// walk the lineage: the test threads the persistent root flags in by
-// starting the walk at the root, and urfave resolves the rest the same
-// way at run time.
-func lookupFlag(cmd *cli.Command, name string) cli.Flag {
-	for _, f := range cmd.Flags {
-		for _, n := range f.Names() {
-			if n == name {
-				return f
+// lookupFlag finds a flag declared on cmd or on root, by name or alias.
+//
+// root is threaded in explicitly rather than reached via cmd.Root(): urfave
+// only wires a command's parent link while Run walks the tree, so on the
+// freshly built tree this test inspects, cmd.Root() answers cmd itself. That
+// made every root-level persistent flag — `--json`, declared once in
+// cmdutil.JSONFlag and inherited by every subcommand — look undeclared, so a
+// cast demoing `sci <anything> --json` failed the gate for a flag that works.
+//
+// Intermediate namespace flags (e.g. `--library` on `sci zot`) need no
+// special handling: the walk descends through those commands, so their flags
+// are already in scope as cmd when their subcommands are reached.
+func lookupFlag(cmd, root *cli.Command, name string) cli.Flag {
+	for _, c := range []*cli.Command{cmd, root} {
+		for _, f := range c.Flags {
+			for _, n := range f.Names() {
+				if n == name {
+					return f
+				}
 			}
 		}
-	}
-	if cmd.Root() != cmd {
-		return lookupFlag(cmd.Root(), name)
 	}
 	return nil
 }

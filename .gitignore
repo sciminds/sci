@@ -47,3 +47,12 @@ rodney/
 .claude/worktrees/
 /templates/
 frontmatter/
+
+# One-time behavior-freeze corpus handed to zot for its port off pkg/local
+# (zot issue #29). Generated here, delivered by rsync, deliberately not part
+# of sci's history. The generator stays alongside it so the corpus can be
+# regenerated while the port is live:
+#     ZOT_HANDOFF_OUT=testdata/zot-handoff just test-pkg ./pkg/local -run TestWriteZotHandoffGoldens
+# Both go away once zot's dependency guard is green.
+pkg/local/testdata/zot-handoff/
+pkg/local/zothandoff_test.go

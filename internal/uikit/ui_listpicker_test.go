@@ -1,7 +1,10 @@
 package uikit
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -222,5 +225,31 @@ func TestItemsConvertsSlice(t *testing.T) {
 		if ti.title != src[i].title {
 			t.Errorf("items[%d].title = %q, want %q", i, ti.title, src[i].title)
 		}
+	}
+}
+
+// TestListFooterAdvertisesQuitOnce guards against a duplicated hint.
+//
+// The bubbles list already carries its own Quit binding and renders it in
+// ShortHelp. Adding listQuit to AdditionalShortHelpKeys on top of that made
+// every picker footer in sci read "… q quit • q quit • ? more" — harmless,
+// but it makes the footer look broken and eats width that real hints need.
+func TestListFooterAdvertisesQuitOnce(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		core ListCore
+	}{
+		{"picker", NewListPicker("Commands", sampleItems())},
+		{"compact", NewCompactListPicker("Commands", sampleItems())},
+		{"viewer", NewListViewer("Packages", sampleItems())},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := tc.core
+			c.SetSize(100, 30)
+			got := ansi.Strip(c.View())
+			if n := strings.Count(got, "quit"); n != 1 {
+				t.Errorf("footer advertises quit %d times, want 1:\n%s", n, got)
+			}
+		})
 	}
 }

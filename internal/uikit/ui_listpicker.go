@@ -1,6 +1,8 @@
 package uikit
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
@@ -116,8 +118,9 @@ type ListCore struct {
 }
 
 // NewListPicker creates a pre-styled filterable list. extraHints are
-// surfaced in the footer *after* the standard open/back/quit keys — pass
-// action keys here (e.g. cloud's x→delete); navigation help is automatic.
+// surfaced in the footer *after* the standard open/back keys — pass action
+// keys here (e.g. cloud's x→delete); navigation help is automatic, and quit
+// is advertised by the underlying list (see newListPicker).
 func NewListPicker(title string, items []list.Item, extraHints ...key.Binding) ListCore {
 	return newListPicker(title, items, NewListDelegate(), extraHints...)
 }
@@ -138,20 +141,26 @@ func newListPicker(title string, items []list.Item, d list.DefaultDelegate, extr
 	l.Styles.Title = TUI.TextBlueBold()
 	l.SetFilteringEnabled(true)
 	l.SetShowStatusBar(true)
+	// listQuit is deliberately absent: the bubbles list carries its own Quit
+	// binding and already renders it in ShortHelp, so adding ours produced
+	// "… q quit • q quit • ? more" in every sci picker. Quit still WORKS via
+	// listQuit in Classify — this list is only what the footer advertises.
 	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return append([]key.Binding{listOpen, listBack, listQuit}, extraHints...)
+		return slices.Concat([]key.Binding{listOpen, listBack}, extraHints)
 	}
 	return ListCore{inner: l}
 }
 
 // NewListViewer creates a pre-styled filterable list for *non-navigable*
 // surfaces — a scroll / filter / quit viewer with nothing to "open" (e.g. the
-// brew package list). Its footer advertises only quit plus any extraHints,
-// not open/back. Reach for [NewListPicker] when the user descends into rows.
+// brew package list). Its footer drops open/back, leaving the list's own
+// quit hint plus any extraHints. Reach for [NewListPicker] when the user
+// descends into rows.
 func NewListViewer(title string, items []list.Item, extraHints ...key.Binding) ListCore {
 	c := NewListPicker(title, items, extraHints...)
+	// Quit comes from the bubbles list's own ShortHelp — see newListPicker.
 	c.inner.AdditionalShortHelpKeys = func() []key.Binding {
-		return append([]key.Binding{listQuit}, extraHints...)
+		return slices.Clone(extraHints)
 	}
 	return c
 }

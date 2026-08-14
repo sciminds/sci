@@ -4,7 +4,10 @@ package help
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/sciminds/sci/internal/uikit"
@@ -17,6 +20,15 @@ const (
 	levelCommands level = iota // top-level command picker
 	levelSubs                  // subcommand list within a command
 	levelOverlay               // cast player overlay
+	levelDetail                // flags/args/examples panel for one subcommand
+)
+
+// detailKey opens the level-1 detail panel. Registered as an extra hint on
+// the subcommand list so the footer advertises it — the panel is no use if
+// nobody knows the key exists.
+var detailKey = key.NewBinding(
+	key.WithKeys("d"),
+	key.WithHelp("d", "details"),
 )
 
 // model is the Bubble Tea model for the interactive help TUI.
@@ -30,6 +42,12 @@ type model struct {
 	width    int
 	height   int
 	quitting bool
+
+	// casts are the demos the open overlay can play and castIdx is which
+	// one is on screen. Length > 1 only for rows whose demos were recorded
+	// per child (see castsFor); "n" advances through them.
+	casts   []string
+	castIdx int
 }
 
 func newModel(groups []CommandGroup) *model {
@@ -60,7 +78,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.level {
 		case levelCommands:
 			m.commands.SetSize(msg.Width, msg.Height)
-		case levelSubs, levelOverlay:
+		case levelSubs, levelOverlay, levelDetail:
 			m.subs.SetSize(msg.Width, msg.Height-m.descHeight())
 		}
 		if m.player != nil {
@@ -79,6 +97,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		switch m.level {
+		case levelDetail:
+			return m.updateDetail(msg)
 		case levelOverlay:
 			return m.updateOverlay(msg)
 		case levelSubs:
@@ -124,7 +144,7 @@ func (m *model) updateCommands(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m *model) openGroup(g CommandGroup) {
 	m.group = &g
-	m.subs = uikit.NewListPicker(g.Name, uikit.Items(g.Subs))
+	m.subs = uikit.NewListPicker(g.Name, uikit.Items(g.Subs), detailKey)
 	m.subs.SetSize(m.width, m.height-m.descHeight())
 	m.level = levelSubs
 }
@@ -139,36 +159,50 @@ func (m *model) updateSubs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.quitting = true
 		return m, tea.Quit
 	}
+	// Checked before Classify so it can't be swallowed by the shared keymap,
+	// and skipped while filtering so "d" types into the filter input.
+	if key.Matches(msg, detailKey) && !m.subs.IsFiltering() {
+		m.level = levelDetail
+		return m, nil
+	}
 	switch m.subs.Classify(msg) {
 	case uikit.IntentBack, uikit.IntentQuit:
 		return m.goBack()
 	case uikit.IntentOpen:
 		sub, ok := m.subs.SelectedItem().(SubCommand)
-		if !ok || sub.CastFile == "" {
+		if !ok || len(sub.CastFiles) == 0 {
 			m.subs.StatusMessage("no demo available")
 			break
 		}
-		data, err := loadCast(sub.CastFile)
-		if err != nil {
-			m.subs.StatusMessage(fmt.Sprintf("error: %v", err))
-			break
-		}
-		cast, err := uikit.ParseCast(data)
-		if err != nil {
-			m.subs.StatusMessage(fmt.Sprintf("error: %v", err))
-			break
-		}
-		visH := uikit.OverlayBodyHeight(m.height, 4)
-		visW := uikit.OverlayContentWidth(m.width)
-		m.player = uikit.NewCastPlayer(cast, visH)
-		m.player.SetWidth(visW)
-		m.level = levelOverlay
-		return m, m.player.Init()
+		m.casts = sub.CastFiles
+		return m.openCast(0)
 	}
 
 	var cmd tea.Cmd
 	m.subs, cmd = m.subs.Update(msg)
 	return m, cmd
+}
+
+// openCast loads m.casts[i] into a fresh player and raises the overlay.
+// Errors surface on the level-1 list, which stays visible behind it.
+func (m *model) openCast(i int) (tea.Model, tea.Cmd) {
+	data, err := loadCast(m.casts[i])
+	if err != nil {
+		m.subs.StatusMessage(fmt.Sprintf("error: %v", err))
+		return m, nil
+	}
+	cast, err := uikit.ParseCast(data)
+	if err != nil {
+		m.subs.StatusMessage(fmt.Sprintf("error: %v", err))
+		return m, nil
+	}
+	visH := uikit.OverlayBodyHeight(m.height, 4)
+	visW := uikit.OverlayContentWidth(m.width)
+	m.player = uikit.NewCastPlayer(cast, visH)
+	m.player.SetWidth(visW)
+	m.castIdx = i
+	m.level = levelOverlay
+	return m, m.player.Init()
 }
 
 func (m *model) goBack() (tea.Model, tea.Cmd) {
@@ -191,11 +225,88 @@ func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.player = nil
 		m.level = levelSubs
 		return m, nil
+	case "n":
+		// Only meaningful when the row carries several demos; otherwise fall
+		// through so "n" stays available to the player.
+		if len(m.casts) > 1 {
+			return m.openCast((m.castIdx + 1) % len(m.casts))
+		}
 	}
 
 	var cmd tea.Cmd
 	m.player, cmd = m.player.Update(msg)
 	return m, cmd
+}
+
+// ── Level 2: detail panel ──────────────────────────────────────────────────
+
+func (m *model) updateDetail(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		m.quitting = true
+		return m, tea.Quit
+	case "esc", "q", "d", "h", "left":
+		m.level = levelSubs
+	}
+	return m, nil
+}
+
+// renderDetail draws the selected subcommand's calling convention: how to
+// invoke it, what it takes, its flags, and its examples.
+//
+// The data has always been on SubCommand — BuildGroups reads it off the live
+// command tree — but nothing displayed it, so the picker could tell you a
+// command existed without telling you how to call it.
+func (m *model) renderDetail() string {
+	sub, ok := m.subs.SelectedItem().(SubCommand)
+	if !ok {
+		return ""
+	}
+	w := uikit.OverlayContentWidth(m.width)
+
+	var b strings.Builder
+	invocation := sub.FullName
+	if sub.ArgsUsage != "" {
+		invocation += " " + sub.ArgsUsage
+	}
+	b.WriteString(uikit.TUI.HelpUsage().Render(invocation))
+
+	if sub.Usage != "" {
+		b.WriteString("\n\n")
+		b.WriteString(uikit.TUI.HelpDesc().Width(w).Render(sub.Usage))
+	}
+
+	if len(sub.Flags) > 0 {
+		b.WriteString("\n\n")
+		b.WriteString(uikit.TUI.HelpSection().Render("Flags"))
+		// Align the usage column against the widest flag name, measured
+		// rather than guessed, so a long --flag can't shove it off-screen.
+		nameW := 0
+		for _, f := range sub.Flags {
+			nameW = max(nameW, lipgloss.Width(f.Names))
+		}
+		for _, f := range sub.Flags {
+			b.WriteString("\n  ")
+			b.WriteString(uikit.TUI.TextBlue().Render(fmt.Sprintf("%-*s", nameW, f.Names)))
+			if f.Usage != "" {
+				b.WriteString("  " + uikit.TUI.HelpDesc().Render(f.Usage))
+			}
+		}
+	}
+
+	if ex := strings.TrimSpace(sub.Examples); ex != "" {
+		b.WriteString("\n\n")
+		b.WriteString(uikit.TUI.HelpSection().Render("Examples"))
+		for line := range strings.Lines(ex) {
+			b.WriteString("\n  " + uikit.TUI.HelpDesc().Render(strings.TrimSuffix(line, "\n")))
+		}
+	}
+
+	return uikit.OverlayBox{
+		Title: sub.Name,
+		Body:  b.String(),
+		Hints: []string{"esc close"},
+	}.Render(m.width, m.height)
 }
 
 // ── Description block ──────────────────────────────────────────────────────
@@ -245,12 +356,18 @@ func (m *model) View() tea.View {
 	switch m.level {
 	case levelCommands:
 		bg = m.commands.View()
-	case levelSubs, levelOverlay:
+	case levelSubs, levelOverlay, levelDetail:
 		if desc := m.renderDesc(); desc != "" {
 			bg = desc + m.subs.View()
 		} else {
 			bg = m.subs.View()
 		}
+	}
+
+	if m.level == levelDetail {
+		v := tea.NewView(uikit.Compose(m.renderDetail(), bg))
+		v.AltScreen = true
+		return v
 	}
 
 	if m.player == nil {
@@ -267,11 +384,31 @@ func (m *model) View() tea.View {
 
 func (m *model) renderOverlay() string {
 	sub, _ := m.subs.SelectedItem().(SubCommand)
+	title := sub.Name
+	hints := []string{"space pause/play", "r restart", "esc close"}
+	// With several demos on one row, name the one playing and how to reach
+	// the rest — otherwise the others are as invisible as when nothing
+	// resolved to them at all.
+	if len(m.casts) > 1 {
+		title = fmt.Sprintf("%s — %s (%d/%d)",
+			sub.Name, castLabel(m.casts[m.castIdx]), m.castIdx+1, len(m.casts))
+		hints = slices.Concat([]string{"n next demo"}, hints)
+	}
 	return uikit.OverlayBox{
-		Title: sub.Name,
+		Title: title,
 		Body:  m.player.View(),
-		Hints: []string{"space pause/play", "r restart", "esc close"},
+		Hints: hints,
 	}.Render(m.width, m.height)
+}
+
+// castLabel turns a cast filename into the leaf verb it demos:
+// "cass-canvas-announce.cast" reads as "announce".
+func castLabel(name string) string {
+	base := strings.TrimSuffix(name, ".cast")
+	if i := strings.LastIndex(base, "-"); i >= 0 {
+		return base[i+1:]
+	}
+	return base
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────

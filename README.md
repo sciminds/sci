@@ -61,6 +61,16 @@ Written in Go because:
 
 ## Examples
 
+### `sci setup`
+
+One front door over every tool's configuration. The menu lists each domain sci can configure with a ✓/✗ status mark, and drilling into one shows its current values before launching that tool's own wizard. Each tool still has its own entry point (`sci lab setup`, `sci zot setup`, …) — this is the hub over them. `sci setup --json` prints the same status non-interactively.
+
+<details>
+<summary><b>demo</b> — click to expand</summary>
+
+![sci setup](docs/casts/setup.gif)
+</details>
+
 ### `sci doctor`
 
 Setup your Mac for scientific work — installs Homebrew if missing, walks you through `hf auth login` / `gh auth login`, and reports anything that needs attention.
