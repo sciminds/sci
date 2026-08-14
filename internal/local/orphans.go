@@ -33,6 +33,9 @@ type StandaloneNote struct {
 // items are also considered empty (trashed items are invisible to the
 // user, so the collection is effectively empty).
 func (d *DB) ScanEmptyCollections() ([]Collection, error) {
+	if err := d.requireSingleLibrary("scan empty collections"); err != nil {
+		return nil, err
+	}
 	q := `
 SELECT c.key, c.collectionName, COALESCE(p.key, '')
 FROM collections c
@@ -71,6 +74,9 @@ ORDER BY c.collectionName
 // or accidental (parent got removed). The check reports them all and
 // lets the user decide.
 func (d *DB) ScanStandaloneAttachments() ([]StandaloneAttachment, error) {
+	if err := d.requireSingleLibrary("scan standalone attachments"); err != nil {
+		return nil, err
+	}
 	q := `
 SELECT ch.key, ia.contentType, ia.path, ia.linkMode
 FROM itemAttachments ia
@@ -105,6 +111,9 @@ ORDER BY ch.dateAdded DESC
 // allows these intentionally, so the finding severity is Info. The
 // renderer uses the note title when present.
 func (d *DB) ScanStandaloneNotes() ([]StandaloneNote, error) {
+	if err := d.requireSingleLibrary("scan standalone notes"); err != nil {
+		return nil, err
+	}
 	q := `
 SELECT ch.key, COALESCE(n.title, '')
 FROM itemNotes n
@@ -136,6 +145,9 @@ ORDER BY ch.dateAdded DESC
 // membership. Attachment/note rows are excluded (they belong to their
 // parent item, not directly to collections).
 func (d *DB) ScanUncollectedItems() ([]Item, error) {
+	if err := d.requireSingleLibrary("scan uncollected items"); err != nil {
+		return nil, err
+	}
 	args := listArgs()
 	args = append(args, d.libraryID)
 	q := baseSelect() + `
@@ -170,6 +182,9 @@ ORDER BY i.dateAdded DESC
 // Trashed attachments are excluded — if the user empties trash, those
 // rows disappear anyway, so flagging their missing files adds noise.
 func (d *DB) ScanAttachmentFiles() ([]StandaloneAttachment, error) {
+	if err := d.requireSingleLibrary("scan attachment files"); err != nil {
+		return nil, err
+	}
 	q := `
 SELECT ch.key, COALESCE(ia.contentType, ''), COALESCE(ia.path, ''), ia.linkMode
 FROM itemAttachments ia

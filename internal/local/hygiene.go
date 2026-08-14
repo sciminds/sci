@@ -76,6 +76,9 @@ type ItemFieldPresence struct {
 // Attachments and notes are excluded, matching the same filter used by
 // List/Search/Stats.
 func (d *DB) ScanFieldPresence() ([]ItemFieldPresence, error) {
+	if err := d.requireSingleLibrary("scan field presence"); err != nil {
+		return nil, err
+	}
 	q := `
 SELECT i.key,
 	(SELECT idv.value FROM itemData id
@@ -151,6 +154,9 @@ ORDER BY i.dateAdded DESC
 // Dates are emitted raw (Zotero's "YYYY-MM-DD originalText" dual-encoding).
 // The display layer trims them via cleanDate as needed.
 func (d *DB) ScanDuplicateCandidates() ([]DuplicateCandidate, error) {
+	if err := d.requireSingleLibrary("scan duplicate candidates"); err != nil {
+		return nil, err
+	}
 	q := `
 SELECT i.key,
 	COALESCE((SELECT idv.value FROM itemData id
@@ -205,6 +211,9 @@ ORDER BY i.dateAdded DESC
 // library. One query with two correlated subqueries is adequate at the
 // 10k-item ceiling we care about.
 func (d *DB) ScanCiteKeys() ([]CiteKeyRow, error) {
+	if err := d.requireSingleLibrary("scan cite keys"); err != nil {
+		return nil, err
+	}
 	q := `
 SELECT i.key,
 	COALESCE((SELECT idv.value FROM itemData id
@@ -256,6 +265,9 @@ ORDER BY i.key
 // scales with the number of matching itemData rows — much cheaper than
 // one correlated subquery per field.
 func (d *DB) ScanFieldValues(fields []string) ([]FieldValue, error) {
+	if err := d.requireSingleLibrary("scan field values"); err != nil {
+		return nil, err
+	}
 	if len(fields) == 0 {
 		return nil, nil
 	}

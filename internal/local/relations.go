@@ -54,16 +54,21 @@ var relationURIRe = regexp.MustCompile(`^https?://zotero\.org/(?:users|groups)/\
 // caller acting on the absence of a relation is asserting that sync has
 // already happened.
 func (d *DB) ItemRelations(itemKey string) (ItemRelationSet, error) {
-	const q = `
+	// Converted through libIn: [DB.Read] enriches with this, and Read serves
+	// merged handles. Binding one library here would drop the relations of an
+	// item that lives in the other half of the pool while still returning the
+	// item — a partial answer that reads as "no relations".
+	libFrag, libArgs := d.libIn("i")
+	q := `
 SELECT p.predicate, r.object
 FROM items i
 JOIN itemRelations r ON r.itemID = i.itemID
 JOIN relationPredicates p ON p.predicateID = r.predicateID
-WHERE i.libraryID = ?
+WHERE ` + libFrag + `
   AND i.key = ?
 ORDER BY p.predicate, r.object
 `
-	rows, err := d.db.Query(q, d.libraryID, itemKey)
+	rows, err := d.db.Query(q, slices.Concat(libArgs, []any{itemKey})...)
 	if err != nil {
 		return ItemRelationSet{}, fmt.Errorf("item relations for %s: %w", itemKey, err)
 	}
@@ -114,15 +119,19 @@ func (d *DB) ItemLabels(keys []string) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 
+	// Converted through libIn for the same reason as [DB.ItemRelations]: this
+	// resolves the far ends of a relation, and under a merged handle those
+	// legitimately sit in the other library.
+	libFrag, libArgs := d.libIn("i")
 	q := `
 SELECT i.key, ` + fieldValueSubquery + ` AS title, n.title, n.note
 FROM items i
 LEFT JOIN itemNotes n ON n.itemID = i.itemID
 LEFT JOIN deletedItems di ON di.itemID = i.itemID
-WHERE i.libraryID = ? AND di.itemID IS NULL
+WHERE ` + libFrag + ` AND di.itemID IS NULL
   AND i.key IN (` + strings.TrimSuffix(strings.Repeat("?,", len(keys)), ",") + `)
 `
-	args := slices.Concat([]any{"title", d.libraryID}, lo.ToAnySlice(keys))
+	args := slices.Concat([]any{"title"}, libArgs, lo.ToAnySlice(keys))
 	rows, err := d.db.Query(q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("item labels: %w", err)

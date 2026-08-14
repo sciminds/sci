@@ -1,10 +1,10 @@
 package local
 
 // Tests for the all-libraries mode: Open with ForAll merges the personal
-// library and the configured shared group into one read pool. Only the
-// converted query paths (Search, List/ListAll/CountList) honor the
-// merged scope — the CLI gates which commands may open a multi-library
-// DB, so the unconverted paths are unreachable under `all`.
+// library and the configured shared group into one read pool. The converted
+// query paths (Search, List/ListAll/CountList, Read and its enrichment) honor
+// the merged scope; every other query refuses a merged handle rather than
+// answering personal-only, which is what requireSingleLibrary is for.
 //
 // Every row carries Library ("personal" | "shared") regardless of mode —
 // consumers render it per row, and a constant value on single-library reads
@@ -120,5 +120,58 @@ func TestForAll_UnknownGroupErrors(t *testing.T) {
 	dir := buildFixture(t)
 	if _, err := Open(dir, ForAll(999)); err == nil {
 		t.Fatal("ForAll with an unsynced group should error, not degrade to personal-only")
+	}
+}
+
+// TestForAll_ReadResolvesCrossLibraryRelations pins the enrichment half of
+// Read's merged-handle support.
+//
+// Read resolves the item through libIn, so it found a group item under `all`
+// even while ItemRelations and ItemLabels still bound a single library. The
+// result was an item that came back successfully with its relations silently
+// missing — the failure mode a merged handle is most likely to produce and
+// least likely to be noticed, since "no relations" is a normal answer.
+//
+// GRPITEM01 lives in the group library and relates to AAAA1111 in the personal
+// one, so both the relation lookup and the far-end label cross the line.
+func TestForAll_ReadResolvesCrossLibraryRelations(t *testing.T) {
+	t.Parallel()
+	db := openFixtureAll(t)
+
+	it, err := db.Read("GRPITEM01")
+	if err != nil {
+		t.Fatalf("Read(GRPITEM01): %v", err)
+	}
+	if it.Relations == nil {
+		t.Fatal("Read(GRPITEM01).Relations is nil — the relation on a group item was not found under a merged handle")
+	}
+	if !slices.Contains(it.Relations.Related, "AAAA1111") {
+		t.Errorf("Related = %v, want it to contain the personal-library far end AAAA1111", it.Relations.Related)
+	}
+	if it.Relations.Titles["AAAA1111"] == "" {
+		t.Errorf("no label resolved for AAAA1111: ItemLabels did not reach the personal library (titles: %v)", it.Relations.Titles)
+	}
+}
+
+// TestForAll_UnconvertedQueryErrorsRatherThanUnderreporting is the other half
+// of the contract: a query that still binds one library must REFUSE a merged
+// handle, not answer personal-only. Silently returning the personal library's
+// tags for a pool spanning two is a wrong answer shaped exactly like a right
+// one, and no caller can tell the difference from the outside.
+func TestForAll_UnconvertedQueryErrorsRatherThanUnderreporting(t *testing.T) {
+	t.Parallel()
+	db := openFixtureAll(t)
+
+	if _, err := db.ListTags(); err == nil {
+		t.Fatal("ListTags on a merged handle returned nil error — it binds one library, so it must refuse rather than answer personal-only")
+	}
+	if _, err := db.ReadNote("ORPHNNOTE"); err == nil {
+		t.Fatal("ReadNote on a merged handle returned nil error")
+	}
+
+	// The same calls on a single-library handle are unaffected.
+	single := openFixture(t)
+	if _, err := single.ListTags(); err != nil {
+		t.Errorf("ListTags on a single-library handle: %v", err)
 	}
 }

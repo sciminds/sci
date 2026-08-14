@@ -317,7 +317,12 @@ func seedFixture(dir string) error {
 		`INSERT INTO itemRelations VALUES
 			(70,3,'http://zotero.org/users/1/items/BBBB2222'),
 			(20,3,'http://zotero.org/users/1/items/ORPHNNOTE'),
-			(10,1,'http://zotero.org/groups/6506098/items/GRPCOPY1')`,
+			(10,1,'http://zotero.org/groups/6506098/items/GRPCOPY1'),
+			-- A relation ON a group item pointing INTO the personal library.
+			-- Both ends cross the library line, so this row is what proves
+			-- ItemRelations and ItemLabels honor a merged handle instead of
+			-- binding one library (see TestForAll_ReadResolvesCrossLibraryRelations).
+			(200,3,'http://zotero.org/users/1/items/AAAA1111')`,
 
 		// has-markdown is auto-applied to the parent item when a docling
 		// extraction child note is created. The orient

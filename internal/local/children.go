@@ -57,6 +57,9 @@ ORDER BY ch.dateAdded
 // (key, typeName, title, note, contentType, filename, storageHash) and
 // hydrates tags in a second pass.
 func (d *DB) queryChildren(q, errPrefix, parentKey string) ([]ChildItem, error) {
+	if err := d.requireSingleLibrary(errPrefix); err != nil {
+		return nil, err
+	}
 	rows, err := d.db.Query(q, d.libraryID, parentKey)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", errPrefix, parentKey, err)
@@ -88,6 +91,9 @@ func (d *DB) queryChildren(q, errPrefix, parentKey string) ([]ChildItem, error) 
 
 // childTags returns the tag names for a single item key.
 func (d *DB) childTags(itemKey string) ([]string, error) {
+	if err := d.requireSingleLibrary("child tags"); err != nil {
+		return nil, err
+	}
 	const q = `
 SELECT t.name
 FROM tags t

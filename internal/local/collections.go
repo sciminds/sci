@@ -11,6 +11,9 @@ import (
 // collection was likely created moments ago and has not reached this mirror
 // yet, rather than that it does not exist.
 func (d *DB) CollectionByKey(key string) (*Collection, error) {
+	if err := d.requireSingleLibrary("collection by key"); err != nil {
+		return nil, err
+	}
 	row := d.db.QueryRow(`
 		SELECT
 			c.key,

@@ -61,6 +61,9 @@ type ExtractionCoverage struct {
 //
 // n <= 0 returns no rows.
 func (d *DB) TopTags(n int) ([]TagCount, error) {
+	if err := d.requireSingleLibrary("top tags"); err != nil {
+		return nil, err
+	}
 	if n <= 0 {
 		return nil, nil
 	}
@@ -100,6 +103,9 @@ func (d *DB) TopTags(n int) ([]TagCount, error) {
 //
 // n <= 0 returns no rows.
 func (d *DB) TopCollections(n int) ([]CollectionRef, error) {
+	if err := d.requireSingleLibrary("top collections"); err != nil {
+		return nil, err
+	}
 	if n <= 0 {
 		return nil, nil
 	}
@@ -135,6 +141,9 @@ func (d *DB) TopCollections(n int) ([]CollectionRef, error) {
 //
 // n <= 0 returns no rows.
 func (d *DB) RecentlyAdded(n int) ([]RecentItem, error) {
+	if err := d.requireSingleLibrary("recently added"); err != nil {
+		return nil, err
+	}
 	if n <= 0 {
 		return nil, nil
 	}
@@ -200,6 +209,9 @@ func (d *DB) RecentlyAdded(n int) ([]RecentItem, error) {
 // Percent is rounded to one decimal place; zero-item libraries return
 // (0, 0, 0) without a divide-by-zero.
 func (d *DB) ExtractionCoverage() (*ExtractionCoverage, error) {
+	if err := d.requireSingleLibrary("extraction coverage"); err != nil {
+		return nil, err
+	}
 	cov := &ExtractionCoverage{}
 	if err := d.db.QueryRow(`
 		SELECT COUNT(*)

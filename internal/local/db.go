@@ -59,10 +59,10 @@ const (
 // DB is a read-only handle to a zotero.sqlite file, pinned to a libraryID.
 type DB struct {
 	db *sql.DB
-	// libraryID is the primary (first-resolved) library. The ~40 legacy
-	// single-library query sites bind it directly; they are correct for
-	// every selector but ForAll, whose handles the CLI only hands to the
-	// converted paths (Search, List*, Read) — those go through libIn.
+	// libraryID is the primary (first-resolved) library. Binding it directly
+	// is correct for every selector but ForAll, so a query that does must
+	// call requireSingleLibrary first — see that method. Queries that span
+	// the pool go through libIn instead.
 	libraryID int64
 	// libraryIDs is every library the handle spans; len>1 only for ForAll.
 	libraryIDs []int64
@@ -167,6 +167,30 @@ func (d *DB) LibraryID() int64 {
 		return 0
 	}
 	return d.libraryID
+}
+
+// requireSingleLibrary rejects op on a merged (ForAll) handle.
+//
+// A query that binds [DB.libraryID] answers for one library. Run against a
+// handle spanning several, it does not fail — it answers personal-only, which
+// is indistinguishable from a correct short answer and so is the worst
+// available outcome. Callers that bind libraryID call this first; callers that
+// went through [DB.libIn] do not need it, because their WHERE clause already
+// widens to every library in the handle.
+//
+// op names the operation for the error ("list tags", "read note"). The fix is
+// never to catch this error — it is either to open a single-library handle, or
+// to convert the query through libIn so the merged answer is real.
+//
+// TestSingleLibraryQueriesAreGuarded enforces the pairing, so a new query
+// cannot reintroduce the silent case by forgetting this call.
+func (d *DB) requireSingleLibrary(op string) error {
+	if len(d.libraryIDs) > 1 {
+		return fmt.Errorf("%s: this query resolves one library at a time, but the handle spans %d "+
+			"(open with ForPersonal/ForGroup, or convert the query through libIn)",
+			op, len(d.libraryIDs))
+	}
+	return nil
 }
 
 // libIn returns a SQL fragment filtering alias.libraryID to the handle's

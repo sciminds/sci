@@ -109,6 +109,9 @@ type PDFParent struct {
 // content-type / extension heuristic, same dateAdded ordering — so
 // bulk results are consistent with per-item lookups.
 func (d *DB) ListAllPDFAttachments() ([]PDFParent, error) {
+	if err := d.requireSingleLibrary("list PDF attachments"); err != nil {
+		return nil, err
+	}
 	const q = `
 SELECT p.key, ch.key, COALESCE(ia.path, ''),
        COALESCE((
@@ -168,6 +171,9 @@ ORDER BY p.dateAdded DESC
 // have at least one non-trashed child note tagged "docling". Used by
 // extract-lib to skip parents that already have an extraction.
 func (d *DB) ParentsWithDoclingNotes() (map[string]bool, error) {
+	if err := d.requireSingleLibrary("parents with docling notes"); err != nil {
+		return nil, err
+	}
 	const q = `
 SELECT DISTINCT p.key
 FROM items p

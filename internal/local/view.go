@@ -55,6 +55,9 @@ ORDER BY i.dateAdded DESC
 // ListViewRows returns every top-level content item in the user library as a
 // denormalized ViewRow, sorted by dateAdded descending.
 func (d *DB) ListViewRows() ([]ViewRow, error) {
+	if err := d.requireSingleLibrary("list view rows"); err != nil {
+		return nil, err
+	}
 	rows, err := d.db.Query(viewRowSelect, d.libraryID)
 	if err != nil {
 		return nil, fmt.Errorf("list view rows: %w", err)
@@ -102,6 +105,9 @@ func (d *DB) ListViewRows() ([]ViewRow, error) {
 // CountViewRows returns the number of top-level content items — same filter
 // as ListViewRows, but just a count.
 func (d *DB) CountViewRows() (int, error) {
+	if err := d.requireSingleLibrary("count view rows"); err != nil {
+		return 0, err
+	}
 	const q = `
 SELECT COUNT(*)
 FROM items i
@@ -119,6 +125,9 @@ WHERE i.libraryID = ? AND di.itemID IS NULL ` + hygieneItemTypeFilter
 // HTML) for every non-trashed docling-tagged child note in the library. When
 // an item has multiple docling notes only the most recently added is returned.
 func (d *DB) DoclingNoteBodyByItemID() (map[int64]string, error) {
+	if err := d.requireSingleLibrary("docling note bodies"); err != nil {
+		return nil, err
+	}
 	const q = `
 SELECT n.parentItemID, COALESCE(n.note, '')
 FROM items ni

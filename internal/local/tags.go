@@ -5,6 +5,9 @@ import "fmt"
 // ListTags returns every tag attached to at least one item in the library,
 // with its usage count, ordered by count descending.
 func (d *DB) ListTags() ([]Tag, error) {
+	if err := d.requireSingleLibrary("list tags"); err != nil {
+		return nil, err
+	}
 	rows, err := d.db.Query(`
 		SELECT tg.name, COUNT(DISTINCT it.itemID), MIN(it.type)
 		FROM tags tg

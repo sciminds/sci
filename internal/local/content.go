@@ -19,6 +19,9 @@ const itemIDBatch = 500
 // by item key (stable, and what the Zotero API speaks) while the search
 // clauses filter on row ids, so this is the bridge between them.
 func (d *DB) ItemIDsForKeys(keys []string) ([]int64, error) {
+	if err := d.requireSingleLibrary("item IDs for keys"); err != nil {
+		return nil, err
+	}
 	var out []int64
 	for chunk := range slices.Chunk(keys, itemIDBatch) {
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(chunk)), ",")

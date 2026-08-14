@@ -342,6 +342,9 @@ func inClauseStrings(keys []string) (string, []any) {
 // works are already in the user's library, so the agent-facing JSON can
 // split the result into in_library vs outside_library buckets.
 func (d *DB) ItemKeysByDOI(dois []string) (map[string]string, error) {
+	if err := d.requireSingleLibrary("item keys by DOI"); err != nil {
+		return nil, err
+	}
 	if len(dois) == 0 {
 		return map[string]string{}, nil
 	}
@@ -1213,6 +1216,9 @@ func (d *DB) itemAttachments(parentID int64) ([]Attachment, error) {
 
 // Stats returns a library-wide summary.
 func (d *DB) Stats() (*Stats, error) {
+	if err := d.requireSingleLibrary("library stats"); err != nil {
+		return nil, err
+	}
 	s := &Stats{ByType: map[string]int{}}
 
 	// Total + by type (content items only).
@@ -1280,6 +1286,9 @@ func (d *DB) Stats() (*Stats, error) {
 }
 
 func (d *DB) countFieldPresent(fieldName string, out *int) error {
+	if err := d.requireSingleLibrary("count field present"); err != nil {
+		return err
+	}
 	return d.db.QueryRow(`
 		SELECT COUNT(DISTINCT i.itemID)
 		FROM items i

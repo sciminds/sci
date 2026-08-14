@@ -98,13 +98,21 @@ func ForGroupByAPIID(apiGroupID int64) LibrarySelector {
 }
 
 // ForAll selects the merged read pool: the personal library plus the
-// shared group identified by its Zotero Web API groupID. Multi-library
-// handles serve ONLY the converted query paths — Search, List/ListAll/
-// CountList, Read, and their enrichment — and it is the CLI's job to
-// gate which commands may open one (`--library all` is rejected
-// elsewhere). An unsynced group is an error, not a silent degrade to
-// personal-only: a merged pool that quietly lost half its libraries
-// would answer a different question than the one asked.
+// shared group identified by its Zotero Web API groupID.
+//
+// A multi-library handle serves the converted query paths — Search,
+// List/ListAll/CountList, Read and its enrichment — which filter through
+// [DB.libIn] and so span every library in the pool. Every other query binds a
+// single library and REFUSES this handle via [DB.requireSingleLibrary] rather
+// than answering personal-only; TestSingleLibraryQueriesAreGuarded keeps the
+// two sets from drifting. Callers may still gate earlier for a better message
+// (sci's CLI names which commands accept `--library all`), but the refusal
+// does not depend on their doing so.
+//
+// An unsynced group is an error, not a silent degrade to personal-only: a
+// merged pool that quietly lost half its libraries would answer a different
+// question than the one asked. That is the same principle the guard enforces
+// one layer down.
 func ForAll(apiGroupID int64) LibrarySelector {
 	return LibrarySelector{
 		label: fmt.Sprintf("all(personal+group api=%d)", apiGroupID),

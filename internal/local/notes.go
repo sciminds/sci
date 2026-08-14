@@ -78,6 +78,9 @@ ORDER BY ni.dateAdded DESC
 // notes"); the query must select key, parentKey, parentTitle, body,
 // dateAdded in that order and take libraryID as its only parameter.
 func (d *DB) queryNoteSummaries(q, what string) ([]NoteSummary, error) {
+	if err := d.requireSingleLibrary(what); err != nil {
+		return nil, err
+	}
 	rows, err := d.db.Query(q, d.libraryID)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", what, err)
@@ -111,6 +114,9 @@ func (d *DB) queryNoteSummaries(q, what string) ([]NoteSummary, error) {
 // Returns an error if the key doesn't exist, is trashed, or is not a
 // note item type.
 func (d *DB) ReadNote(noteKey string) (*NoteDetail, error) {
+	if err := d.requireSingleLibrary("read note"); err != nil {
+		return nil, err
+	}
 	const q = `
 SELECT ni.key, COALESCE(p.key, ''),
        COALESCE(n.title, ''),
