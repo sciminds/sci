@@ -245,8 +245,8 @@ func TestLoadConfig_ReadIsNonDestructive(t *testing.T) {
 
 // TestSaveConfig_PreservesForeignFields is the write half of the same rule.
 // `sci zot setup` marshals a Config, which declares three fields — so a plain
-// overwrite would delete every key the sibling binary put in this file. The
-// keys sci owns are updated; nothing else is touched.
+// overwrite would delete every key another tool put in this file. The keys
+// sci owns are updated; nothing else is touched.
 func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 	withXDGConfigHome(t)
 	path := ConfigPath()
@@ -281,10 +281,10 @@ func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 	}
 }
 
-// TestClearConfig_LeavesForeignFields: `setup --logout` no longer clears a
-// credential — there is none — so it means "forget where the library is".
-// Deleting a shared file to do that would take the sibling binary's api_key
-// with it, which is a far larger act than the one the user asked for.
+// TestClearConfig_LeavesForeignFields: `setup --logout` means "forget where
+// the library is" — there is no credential here to clear. Deleting the whole
+// file to do that would take another tool's api_key with it, a far larger act
+// than the one the user asked for.
 func TestClearConfig_LeavesForeignFields(t *testing.T) {
 	withXDGConfigHome(t)
 	path := ConfigPath()
@@ -312,7 +312,7 @@ func TestClearConfig_LeavesForeignFields(t *testing.T) {
 		}
 	}
 	if _, ok := m["api_key"]; !ok {
-		t.Errorf("ClearConfig took the sibling binary's credential with it: %+v", m)
+		t.Errorf("ClearConfig took another tool's credential with it: %+v", m)
 	}
 }
 

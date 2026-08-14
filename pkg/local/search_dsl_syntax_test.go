@@ -3,8 +3,8 @@ package local
 // Tests for the bare-prefix search syntax: `tag:cats` and `-tag:cats`
 // work without the `@` sigil, normalized by NormalizeQuery into the
 // @field:/Negate forms match.ParseClauses already understands. This makes
-// sci the single DSL owner for downstream consumers (zen) whose queries
-// use the bare form — semantics were always shared, only syntax differed.
+// sci the single DSL owner for downstream consumers whose queries use the
+// bare form — semantics are shared, only syntax differs.
 
 import (
 	"slices"
@@ -64,7 +64,7 @@ func TestSearch_BareFieldNegation(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 	// `-tag:cats` excludes the cats book and keeps everything else —
-	// the clause-leading negation zen's DSL uses.
+	// the clause-leading negation the bare dialect uses.
 	items, err := db.Search("-tag:cats", 50)
 	if err != nil {
 		t.Fatal(err)

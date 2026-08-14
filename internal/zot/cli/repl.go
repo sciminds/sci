@@ -1,12 +1,12 @@
 package cli
 
-// `zot browse` — an inline search-and-open REPL: the fast alternative to
+// `sci zot browse` — an inline search-and-open REPL: the fast alternative to
 // booting the Zotero desktop app when all you want is "find the paper,
 // open the PDF". A readline-style loop (history + emacs editing via
 // x/term) in normal terminal flow, so results land in scrollback instead
 // of an alternate screen.
 //
-// Grammar: bare text searches (same DSL as `zot search`), a bare number
+// Grammar: bare text searches (same DSL as `sci zot search`), a bare number
 // opens that hit's PDF in the system viewer, and `:commands` steer the
 // session (`:library`, `:limit`, `:help`, `:quit`).
 //
@@ -130,7 +130,7 @@ func (r *browseREPL) command(ctx context.Context, line string) error {
 	return nil
 }
 
-// doSearch runs one query through the same pipeline as `zot search`:
+// doSearch runs one query through the same pipeline as `sci zot search`:
 // the DSL parse and ranking in SearchWithTotal.
 func (r *browseREPL) doSearch(query string) error {
 	items, total, err := r.db.SearchWithTotal(query, r.limit, local.SearchOptions{})

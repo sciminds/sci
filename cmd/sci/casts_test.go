@@ -23,11 +23,10 @@ import (
 
 // TestCastsInvokeTheBinaryByName pins the prompt. Every cast under
 // internal/help/casts demos sci, so every line typed in one starts with
-// `sci `. It matters more than house style since the shrink: `zot` is now
-// a real sibling binary owning exactly the verbs the zot casts demo, so a
-// bare `zot …` prompt is accidentally correct for a different program —
-// a user copying it either gets "command not found" or silently runs the
-// other tool.
+// `sci `. It matters more than house style: `zot` is also the name of a
+// different program, so a bare `zot …` prompt reads as naming that one —
+// a user copying it either gets "command not found" or silently runs
+// something else.
 func TestCastsInvokeTheBinaryByName(t *testing.T) {
 	cmds, err := help.RecordedCommands()
 	if err != nil {
@@ -45,9 +44,8 @@ func TestCastsInvokeTheBinaryByName(t *testing.T) {
 
 // TestCastsResolveAgainstTheCommandTree walks each recorded command down
 // the real tree and reports the ways a cast can go stale: a verb that is
-// no longer a subcommand, a flag the command no longer declares, a
-// retired stub presented as if it worked, and an argument count the
-// command would reject.
+// no longer a subcommand, a flag the command no longer declares, and an
+// argument count the command would reject.
 func TestCastsResolveAgainstTheCommandTree(t *testing.T) {
 	cmds, err := help.RecordedCommands()
 	if err != nil {
@@ -93,11 +91,6 @@ func checkRecorded(t *testing.T, cmd *cli.Command, rc help.RecordedCommand, toke
 		}
 
 		if sub := lookupSub(cmd, tok); sub != nil {
-			if isRetiredStub(sub) {
-				t.Errorf("%s: `%s` demos `%s %s`, which is a retired stub — the cast teaches a verb that now refuses",
-					rc.Cast, rc.Line, strings.Join(path, " "), tok)
-				return
-			}
 			cmd = sub
 			path = append(path, tok)
 			positional = 0
@@ -121,15 +114,6 @@ func checkRecorded(t *testing.T, cmd *cli.Command, rc help.RecordedCommand, toke
 		t.Errorf("%s: `%s` passes %d argument(s); `%s` takes %s",
 			rc.Cast, rc.Line, positional, strings.Join(path, " "), cmd.ArgsUsage)
 	}
-}
-
-// isRetiredStub reports whether cmd is one of the refusal stubs left
-// behind by the Phase-3 shrink. They keep SkipFlagParsing so a script
-// passing the old write flags still reaches the explanation, and they say
-// where the verb went in their Usage.
-func isRetiredStub(cmd *cli.Command) bool {
-	return cmd.SkipFlagParsing &&
-		(strings.HasPrefix(cmd.Usage, "moved to") || strings.HasPrefix(cmd.Usage, "retired"))
 }
 
 // lookupSub finds a direct child of cmd by name or alias.

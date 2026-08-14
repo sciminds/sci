@@ -40,7 +40,7 @@ func guideContent() zot.GuideResult {
 		ContractVersion: 4,
 		Contract: []string{
 			"Probe data.contract_version first — it bumps only on breaking changes to this contract.",
-			"This surface is READ-ONLY, local, and STANDALONE: every command below opens your own zotero.sqlite and answers from it. There is no Zotero Web API client here and no credential of any kind — setup records a data directory and nothing else, so nothing has a live plane to fall back on. Writing to the library, extracting paper text, upstream indexes (OpenAlex, Crossref) and citation traversal live in the separate `zot` binary; those verbs are not registered here and fail as unknown commands.",
+			"This surface is READ-ONLY, local, and STANDALONE: every command below opens your own zotero.sqlite and answers from it. There is no Zotero Web API client here and no credential of any kind — setup records a data directory and nothing else, so nothing has a live plane to fall back on. Writing to the library, extracting paper text, upstream indexes (OpenAlex, Crossref) and citation traversal are all out of scope: those verbs are not registered here and fail as unknown commands.",
 			"Every command accepts --json: one stream (stdout), one shape. Success: {ok:true, data, warnings}. Failure: {ok:false, error:{code, message, fix, try}} on a single line.",
 			"error.fix is a complete corrected command — resubmit it verbatim. error.try is prose guidance. error.code is a closed vocabulary (usage, conflict, not-found, ambiguous, offline, not-configured, runtime).",
 			"Exit 2 means rewrite the command line and retry; exit 1 means the work itself failed.",
@@ -68,7 +68,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Find papers in my library on a topic",
 						Cmd:  "sci zot search \"large language models\" --library personal",
-						Note: "Metadata match over title/DOI/pub/creators/citekey, ranked by title relevance then year. Bare words AND across fields ('jolly 2021' = creator + year; a bare 1500-2099 token means the year); quotes make a literal phrase. --notes FILTERS to items that have an extraction (it does not search inside one). Searching the TEXT of your papers is `zot search` in the zot binary.",
+						Note: "Metadata match over title/DOI/pub/creators/citekey, ranked by title relevance then year. Bare words AND across fields ('jolly 2021' = creator + year; a bare 1500-2099 token means the year); quotes make a literal phrase. --notes FILTERS to items that have an extraction (it does not search inside one). The TEXT of your papers is not indexed here — this matches metadata only.",
 					},
 					{
 						Goal: "Which paper is this cite-key / Zotero key?",
@@ -103,7 +103,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "List all collections / tags",
 						Cmd:  "sci zot collection list",
-						Note: "Or `sci zot tags list`. Both fast/local. Changing either — creating a collection, tagging an item — is a write and lives in the zot binary.",
+						Note: "Or `sci zot tags list`. Both fast/local. Changing either — creating a collection, tagging an item — is a write, and this surface never writes.",
 					},
 				},
 			},
@@ -118,7 +118,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "See what an item is related to",
 						Cmd:  "sci zot link list NOTEKEY1",
-						Note: "The dc:relation set: `related` is what a person linked by hand, `other` is Zotero's own bookkeeping (owl:sameAs, dc:replaces), `titles` names each far end. Reads the local database, which lags until Zotero desktop syncs — a relation written seconds ago is not here yet. WRITING a relation lives in the zot binary (`zot link add|rm`), as does `zot link suggest`, which proposes pairs from work IDENTITY (two filings of one work in one library — the preprint beside its published version).",
+						Note: "The dc:relation set: `related` is what a person linked by hand, `other` is Zotero's own bookkeeping (owl:sameAs, dc:replaces), `titles` names each far end. Reads the local database, which lags until Zotero desktop syncs — a relation written seconds ago is not here yet. Relations are read here and never written.",
 					},
 				},
 			},
@@ -143,7 +143,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "See which of a draft's citations your library cannot account for",
 						Cmd:  "sci zot bib draft.md --json",
-						Note: "`unresolved` lists every ref that matched 0 or >1 items, with the reason and (on an ambiguity) the competing keys. It is a statement about THIS library, not about the literature — a ref absent here may be a real paper you have not filed. Deciding which is which needs an upstream index and lives on the zot side.",
+						Note: "`unresolved` lists every ref that matched 0 or >1 items, with the reason and (on an ambiguity) the competing keys. It is a statement about THIS library, not about the literature — a ref absent here may be a real paper you have not filed. Deciding which is which needs an upstream index, and this surface never queries one.",
 					},
 				},
 			},
@@ -153,7 +153,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Health check the whole library",
 						Cmd:  "sci zot doctor",
-						Note: "Runs invalid → missing → orphans → duplicates → citekeys; drill in with any of those as a sub-command. Every check reports over the local database — doctor never writes, dials out, or spends a metered lookup. The repairs they point at live in the zot binary.",
+						Note: "Runs invalid → missing → orphans → duplicates → citekeys; drill in with any of those as a sub-command. Every check reports over the local database — doctor never writes, dials out, or spends a metered lookup. Repairing what it finds is a Zotero write, which happens in Zotero itself.",
 					},
 					{
 						Goal: "See which items lack the fields you cite with",
@@ -163,7 +163,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Flag publisher-subobject DOIs (article sections, tables, figures, supplements, eLife assets) so OpenAlex can resolve them",
 						Cmd:  "sci zot doctor dois",
-						Note: "A report. Rewriting each DOI to its parent-paper form is a Zotero write and lives in the zot binary as `zot fix dois`.",
+						Note: "A report. Rewriting each DOI to its parent-paper form is a Zotero write, which this surface never makes.",
 					},
 				},
 			},

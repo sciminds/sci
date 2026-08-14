@@ -1,16 +1,12 @@
 package cli
 
-// What survives of the shrink tests once the refusal stubs are gone.
+// The fence around the shape of the surface: which verbs answer, which are
+// unknown commands, and which flags must fail rather than be ignored.
 //
-// The 2026-08-12 shrink kept every retired verb REGISTERED as a stub that
-// named where its work went, and most of this file was the table pinning
-// those stubs. The 2026-08-14 standalone-local cut removed them: with no
-// Zotero Web API left, an old verb is an ordinary unknown command and
-// cmdutil.WireNamespaceDefaults rejects it like any other typo.
-//
-// What still needs a fence is the inverse — the READ surface sci kept, and
-// the flags a removed feature must not have left behind silently accepting
-// input.
+// A verb that is not part of the local read surface is not registered at
+// all, so cmdutil.WireNamespaceDefaults rejects it like any other typo. The
+// two halves below pin both directions — a read verb must keep its Action,
+// and a retired verb must not quietly come back.
 
 import (
 	"slices"
@@ -54,13 +50,12 @@ func TestSurvivingReadVerbsStillAnswer(t *testing.T) {
 	}
 }
 
-// TestRetiredVerbsAreUnknownCommands is the standalone-local cut's own
-// fence, and it replaces the stub table. Every verb below left sci for the
-// zot binary or retired outright, and none of them is registered any more —
-// so the tree must not resolve them to something that parses. Registering
-// one again by accident (a copy-pasted namespace, a revived file) would put
-// a verb back on the public surface that cannot work without the credential
-// this cut removed.
+// TestRetiredVerbsAreUnknownCommands fences the inverse of the read surface.
+// Every verb below writes a library, extracts paper text, or asks an upstream
+// index, so none is registered and the tree must not resolve any of them to
+// something that parses. Registering one again by accident (a copy-pasted
+// namespace, a revived file) would put a verb back on the public surface
+// that this tool has no way to answer.
 func TestRetiredVerbsAreUnknownCommands(t *testing.T) {
 	t.Parallel()
 	for _, argv := range [][]string{
@@ -85,7 +80,7 @@ func TestRetiredVerbsAreUnknownCommands(t *testing.T) {
 			// which would call `zot item add` "found" because `item` is.
 			root := &cli.Command{Name: "zot", Commands: Commands()}
 			if commandExists(root, argv) {
-				t.Errorf("`zot %s` is registered again — it belongs to the zot binary, not this surface",
+				t.Errorf("`zot %s` is registered again — this surface is local and read-only, and that verb is not part of it",
 					strings.Join(argv, " "))
 			}
 		})
@@ -96,10 +91,10 @@ func TestRetiredVerbsAreUnknownCommands(t *testing.T) {
 // flag has to FAIL rather than be silently ignored, or a script still
 // passing it looks like it worked.
 //
-//   - --content widened a query with the per-library BM25 index that
-//     retired with `zot content` (2026-08-12).
-//   - --remote routed a read to the Zotero Web API, which left with the
-//     whole API client (2026-08-14).
+//   - --content widened a query with a per-library BM25 index this surface
+//     does not build.
+//   - --remote routed a read to the Zotero Web API, which this surface does
+//     not speak.
 func TestRetiredFlagsAreGone(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

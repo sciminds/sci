@@ -82,8 +82,8 @@ func TestGuide_JSON_MachineReadable(t *testing.T) {
 // v3 (2026-08-14) is the same class of change, twice over. The relations
 // entry that read `sci zot link suggest NOTEKEY1` (and named `link add` /
 // `link rm` / `--apply` in its note) became `sci zot link list NOTEKEY1`
-// when the link writes left for the zot binary, so a consumer cached at v2
-// holds a map to three verbs that now refuse. The catalog also gained the
+// when the link writes were removed, so a consumer cached at v2 holds a map
+// to three verbs that now refuse. The catalog also gained the
 // item-plane routes an agent was missing — `item list`, `item children`,
 // `saved-search list`, `export --format ndjson` — and corrected the
 // `--library all` scope, which v2 stated as search+bib only.
@@ -111,7 +111,7 @@ func TestGuide_ContractVersion(t *testing.T) {
 	raw := read()
 
 	// Assert on the wire field name, not just the struct round-trip —
-	// zen reads `.data.contract_version`.
+	// consumers read `.data.contract_version`.
 	var wire struct {
 		ContractVersion int `json:"contract_version"`
 	}

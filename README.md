@@ -5,7 +5,7 @@ A small smart CLI toolkit for academic work on macOS in a single command: `sci`
 Highlights:
 - Wraps `brew` and `uv` tool installs to reliably auto-sync with a `Brewfile`
 - TUIs for browsing: files, databases, hugging-face buckets, remote lab servers (ssh)
-- Query and cite your Zotero library read-only: search it, build a bibliography from exactly what a manuscript cites, export BibLaTeX, and run health checks that report and stop
+- Query and cite your Zotero library read-only, with no account and no API key: search it, build a bibliography from exactly what a manuscript cites, export BibLaTeX, and run health checks that report and stop
 - Control Canvas LMS from the command-line (experimental): manage assignments, modules, grades, files, etc
 
 ## Install
@@ -307,20 +307,22 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 
 ### `sci zot`
 
-**Query and cite your Zotero library, read-only.** Every command opens your own `zotero.sqlite` in immutable mode — no contention with the running desktop app, no credential required, and nothing sci can do to your library. Search it, build a bibliography from what a manuscript actually cites, export the whole thing to BibLaTeX, and run health checks that report and stop. `sci zot guide` prints an agent-friendly cheat sheet of the same surface.
+**Query and cite your Zotero library, read-only — no account, no API key, no network.** Every command opens the `zotero.sqlite` already sitting on your disk, in immutable mode: nothing to log into, no contention with the running desktop app, and nothing sci can do to your library. Search it, build a bibliography from what a manuscript actually cites, export the whole thing to BibLaTeX, and run health checks that report and stop. `sci zot guide` prints an agent-friendly cheat sheet of the same surface, and `sci zot guide --json` is its machine-readable contract.
 
-The one write is `sci zot import`, and it goes through Zotero desktop's own connector: sci hands the app a file, the app recognizes the metadata and syncs it. A few verbs read *live* from the Zotero Web API under `--remote`, for the case where the local mirror lags a change you just made elsewhere.
+Nothing here writes. No verb creates, edits, or deletes an item, a collection, a tag, or a note — editing your library stays Zotero's job, and sci only ever reads what Zotero has already written down.
+
+`sci zot setup` records exactly one thing: the directory holding `zotero.sqlite`. The trade for that simplicity is staleness — reading the file in immutable mode means anything Zotero has committed but not yet checkpointed, or not yet synced down from the server, is invisible until the desktop app catches up. sci reports that gap rather than hiding it, as a `stale-local` warning on the results it affects.
 
 <details>
 <summary><b>sub-commands</b> — click to expand</summary>
 
-**Library scope.** Every zot command (except `setup`, `import`, and `guide`) runs against `--library personal` or `--library shared`. Personal is your own Zotero user library; shared is a Zotero group library auto-detected at setup time. When the flag is omitted, sci auto-selects the only configured library, or prompts when both are configured. `search`, `bib`, and `browse` also accept `--library all` — a merged read pool across both libraries with per-row provenance. `sci zot info` without the flag summarizes both libraries side-by-side. Examples below include `--library personal` for the common case.
+**Library scope.** Every zot command (except `setup` and `guide`) runs against `--library personal` or `--library shared`. Personal is your own Zotero user library; shared is a Zotero group library, read straight out of the same local database at setup time. When the flag is omitted, sci auto-selects the only configured library, or prompts when both are configured. `search`, `bib`, `browse`, and `export --format ndjson` also accept `--library all` — a merged read pool across both libraries with per-row provenance. `sci zot info` without the flag summarizes both libraries side-by-side. Examples below include `--library personal` for the common case.
 
 **Setup & overview**
 
 | Command | What it does |
 |---------|--------------|
-| [`sci zot setup`](#setup--library-overview) | Point sci at your Zotero data directory (and, optionally, an API key for the `--remote` reads) |
+| [`sci zot setup`](#setup--library-overview) | Point sci at your Zotero data directory — the only thing sci stores |
 | [`sci zot info`](#setup--library-overview) | Summarize both libraries (personal + shared) |
 | [`sci zot guide`](#setup--library-overview) | Agent-friendly cheat sheet of common workflows |
 | [`sci zot --library personal view`](#browse) | Browse your library in an interactive table (read-only) |
@@ -329,11 +331,11 @@ The one write is `sci zot import`, and it goes through Zotero desktop's own conn
 
 | Command | What it does |
 |---------|--------------|
-| [`sci zot --library personal search <query>`](#search--export) | Search the local library — free-text words AND across metadata fields; `@field:` clauses for author/title/doi/pub/tag/type/year/citekey; a bare year like `2021` filters by year; `--remote` hits the Zotero Web API instead |
+| [`sci zot --library personal search <query>`](#search--export) | Search the local library — free-text words AND across metadata fields; `@field:` clauses for author/title/doi/pub/tag/type/year/citekey; a bare year like `2021` filters by year; `--full` hydrates each hit with abstract, cite-key, and authors |
 | [`sci zot browse`](#search--export) | Interactive search REPL — type to search, type a hit number to open its PDF |
 | [`sci zot --library personal search <q> --export -o hits.bib`](#search--export) | Route search results through the export pipeline |
 | [`sci zot --library personal bib <file-or-dir>`](#search--export) | Build a bibliography from the `@citekeys`, DOIs, and links cited in markdown/Quarto files (`--recursive`); refs matching 0 or >1 items are always listed, never guessed |
-| [`sci zot --library personal export -o refs.bib`](#search--export) | Full-library BibLaTeX / CSL-JSON export (filters: `--collection`, `--tag`, `--type`) |
+| [`sci zot --library personal export -o refs.bib`](#search--export) | Full-library BibLaTeX / CSL-JSON export, or `--format ndjson` for a kind-tagged item-plane mirror (filters: `--collection`, `--tag`, `--type`) |
 
 **Items**
 
@@ -344,18 +346,15 @@ The one write is `sci zot import`, and it goes through Zotero desktop's own conn
 | [`sci zot --library personal item children <key>`](#items) | List child attachments + notes of an item |
 | [`sci zot --library personal item export <key>`](#items) | Export a single item to CSL-JSON or BibLaTeX |
 | [`sci zot --library personal item open <key>`](#items) | Open the item's PDF attachment |
-| [`sci zot --library personal item note read\|list`](#items) | Read Zotero note items live from the Web API |
-| [`sci zot --library personal notes list\|read`](#items) | The notes *you* wrote, with docling extractions filtered out |
-| [`sci zot --library personal link list <key>`](#items) | Show an item's "related items" relations (`--remote` for ones written seconds ago) |
-| [`sci zot import <path>...`](#import-desktop-assisted-with-metadata-recognition) | Drag-drop equivalent via Zotero desktop: upload + auto-recognize metadata (CrossRef/arXiv); folders recurse |
+| [`sci zot --library personal notes list\|read`](#items) | The notes *you* wrote — machine-generated full-text extractions are filtered out (`--md` renders a note's body as markdown) |
+| [`sci zot --library personal link list <key>`](#items) | Show an item's "related items" relations |
 
 **Organize**
 
 | Command | What it does |
 |---------|--------------|
-| [`sci zot --library personal collection list`](#organize) | List every collection with item counts |
+| [`sci zot --library personal collection list\|browse`](#organize) | List every collection with item counts, or browse collections and their items |
 | [`sci zot --library personal tags list\|browse`](#organize) | List every tag with usage counts, or browse tags and their items |
-| [`sci zot --library personal saved-search list\|show`](#organize) | Read the saved searches in the library, by key or by name |
 
 **Hygiene**
 
@@ -365,17 +364,11 @@ The one write is `sci zot import`, and it goes through Zotero desktop's own conn
 | [`sci zot --library personal doctor {invalid,missing,orphans,duplicates,citekeys,dois}`](#hygiene) | Drill into individual hygiene reports |
 | [`sci zot --library personal doctor dois`](#hygiene) | Flag publisher-subobject DOIs (Frontiers `/abstract`, PLOS `.tNNN`, PNAS supplements) — the ones metadata APIs 404 on |
 
-**Doctor reports; it does not repair.** Every check reads the local Zotero database and stops there: no writes, no network, no metered lookups. That is the whole contract — a health check you can run on any machine, against a library you have not synced, without a credential. The repairs the reports point at (rewriting a subobject DOI to its parent, synthesizing canonical cite-keys, filling blank fields, acquiring missing PDFs) are credentialed writes and belong to the separate `zot` binary, which owns the API key and runs them unattended.
+**Doctor reports; it does not repair.** Every check reads the local Zotero database and stops there: no writes, no network, no metered lookups. That is the whole contract — a health check you can run on any machine, against a library you have not synced, without a credential. Findings name the item and the field they are about, so the fix is one you make deliberately in Zotero rather than one a CLI applies to 5,000 rows while you watch.
 
-`sci zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` picks the group automatically when the account belongs to exactly one, or accepts `--shared-group-id` when multiple groups exist.
+`sci zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` reads the group out of the local database automatically when there is exactly one, or takes `--shared-group-id` when the library holds several.
 
-**What lives in the `zot` binary instead.** Creating and editing items, managing collection membership and tags, relating items to each other, acquiring PDFs, extracting paper text with [`docling`](https://github.com/DS4SD/docling), searching that text, walking a citation graph, and looking papers up on OpenAlex or Crossref all need either a credential or a metered third-party API. They moved to a separate tool. Each retired verb is still registered here and, when run, names its replacement rather than answering "command not found".
-
-`zot link suggest` is worth one extra line, because it is the one verb whose *answer* changed rather than its address: it proposes relations from work identity — two filings of one work in a single library, which is the preprint sitting beside its published version — where sci's version scanned a note's body for the references it cited. That note-scanning arm was retired, not relocated, and the stub says so.
-
-**Saved searches are the one exception, and they went nowhere.** `saved-search create/update/delete` retired with no replacement in either tool: the Zotero Web API can *store* a saved search's definition but cannot *evaluate* it — only the desktop client runs the query. A search written from a CLI would exist and never run, so writing one is Zotero desktop's job. `list` and `show` stay, because reading back what a search is defined as is still worth doing.
-
-**Library export details.** `sci zot export` honors user-pinned cite-keys (Zotero 7's native `citationKey` field, or legacy Better BibTeX `Citation Key:` lines in `extra`) and synthesizes semantic keys for everything else as `lastname{year}{firstword}-ZOTKEY`. The trailing 8-char Zotero key suffix guarantees uniqueness without collision arithmetic and keeps entries round-trippable back to the source item. Pinned entries also carry a `zotero://select/library/items/<KEY>` URI in the `note` field (appended to any existing user prose, never overwriting). A `.zotero-citekeymap.json` sidecar is written next to the output file; on the next run, any synthesized prefix that drifted (e.g. after a metadata typo fix) gets a biblatex `ids = {oldkey}` alias so manuscripts citing the old form still resolve.
+**Library export details.** `sci zot export` honors user-pinned cite-keys (Zotero 7's native `citationKey` field, or legacy Better BibTeX `Citation Key:` lines in `extra`) and synthesizes semantic keys for everything else as `{lastname}{year}-{words}-{ZOTKEY}` (e.g. `miao2026-commdistneur-MB5NEVSP`). The trailing 8-char Zotero key suffix guarantees uniqueness without collision arithmetic and keeps entries round-trippable back to the source item. Pinned entries also carry a `zotero://select/library/items/<KEY>` URI in the `note` field (appended to any existing user prose, never overwriting). A `.zotero-citekeymap.json` sidecar is written next to the output file; on the next run, any synthesized prefix that drifted (e.g. after a metadata typo fix) gets a biblatex `ids = {oldkey}` alias so manuscripts citing the old form still resolve.
 
 #### Setup & library overview
 

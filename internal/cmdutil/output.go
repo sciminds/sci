@@ -112,7 +112,7 @@ func Output(cmd *cli.Command, r Result) {
 //
 // Behavior depends on whether the user gave us anything to work with:
 //
-//   - No positional args (bare `sci zot import`) → dump the full help page
+//   - No positional args (bare `sci zot search`) → dump the full help page
 //     first, then return a short error. The user had nothing to go on; show
 //     them what the command expects the same way `--help` would.
 //   - Args present (flag conflict, wrong count) → keep the terse "Usage: …"

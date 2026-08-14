@@ -17,7 +17,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// bibDocExts are the file extensions `zot bib` scans when given a
+// bibDocExts are the file extensions `sci zot bib` scans when given a
 // directory: markdown (vault notes), Quarto, and R Markdown manuscripts.
 // Matched case-insensitively via bibDocExt — R Markdown conventionally
 // capitalizes its extension (.Rmd).
@@ -72,10 +72,10 @@ func bibCommand() *cli.Command {
 			})
 
 			// bib opts into --library all: a manuscript's refs legitimately
-			// cross libraries, and resolving against the merged ListAll pool
-			// is exactly the one-pass resolution zen deleted its own copy of.
-			// Cross-library duplicates surface through the existing honesty
-			// gate — >1 distinct match is ambiguous, never a guess.
+			// cross libraries, so resolving against the merged ListAll pool
+			// is one pass instead of one per library. Cross-library
+			// duplicates surface through the existing honesty gate — >1
+			// distinct match is ambiguous, never a guess.
 			_, db, err := openLocalDBAllowAll(ctx)
 			if err != nil {
 				return err

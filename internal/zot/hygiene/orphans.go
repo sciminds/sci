@@ -28,7 +28,7 @@ const (
 )
 
 // AllOrphanKinds lists every kind the parser recognizes. The *default*
-// set (what `zot doctor orphans` with no --kind flag runs) is defaultOrphanKinds
+// set (what `sci zot doctor orphans` with no --kind flag runs) is defaultOrphanKinds
 // below, which excludes the noisy and expensive kinds.
 var AllOrphanKinds = []OrphanKind{
 	OrphanEmptyCollection,

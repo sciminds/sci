@@ -15,9 +15,10 @@
 // This package FETCHES AND DOES NOT CHOOSE. Crossref ranks fuzzily, and
 // its top hit for "The serial position effect of free recall" is a
 // PsycEXTRA dataset with a similar name rather than Murdock 1962. Deciding
-// which candidate IS the item requires title_norm, which is defined
-// exactly once, in zot. So Search returns every candidate in Crossref's
-// order and lets the caller apply that rule.
+// which candidate IS the item takes a title-normalization rule this package
+// deliberately does not own — one such rule, defined once, beats a copy per
+// index. So Search returns every candidate in Crossref's order and lets the
+// caller apply it.
 package crossref
 
 import (

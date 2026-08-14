@@ -25,8 +25,7 @@ type Item struct {
 	// Library names the library scope this row came from — "personal" or
 	// "shared", the same vocabulary as the --library flag. Stamped by
 	// every local read; load-bearing under --library all, a constant
-	// otherwise. Items built from the Web API leave it empty (the caller
-	// asked a single library by construction).
+	// otherwise.
 	Library      string            `json:"library,omitempty"`
 	Type         string            `json:"type"`
 	Version      int               `json:"version"`
@@ -46,9 +45,9 @@ type Item struct {
 	Fields       map[string]string `json:"fields,omitempty"`
 	DateAdded    string            `json:"date_added,omitempty"`
 	DateModified string            `json:"date_modified,omitempty"`
-	// NumChildren is the count of attachments+notes for this item, populated
-	// when items come from the Zotero Web API (`meta.numChildren`). Local DB
-	// queries leave it zero — the local path doesn't filter on it.
+	// NumChildren is the count of attachments+notes for this item. Local
+	// queries leave it zero — counting children costs a second query and no
+	// read here filters on it; use [DB.ListChildren] when the count matters.
 	NumChildren int `json:"num_children,omitempty"`
 	// Relations is the item's related items (Zotero's dc:relation) plus the
 	// predicates Zotero maintains itself. Intrinsic to the item, like Tags
@@ -116,7 +115,7 @@ type ListFilter struct {
 	CollectionKey string
 	Tag           string
 	// Keys restricts results to these 8-char Zotero item keys. Used by
-	// bulk hydration paths (search --export, zot bib) to avoid per-item
+	// bulk hydration paths (search --export, `sci zot bib`) to avoid per-item
 	// Read round-trips.
 	Keys    []string
 	Limit   int // 0 → default 50

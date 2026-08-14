@@ -66,7 +66,7 @@ func (e *CodedError) Error() string { return e.Message }
 // Coded builds a [CodedError] printf-style. Chain [CodedError.WithFix] /
 // [CodedError.WithTry] to attach remediation:
 //
-//	return cmdutil.Coded(cmdutil.CodeConflict, "--fulltext and --remote are mutually exclusive").
+//	return cmdutil.Coded(cmdutil.CodeConflict, "--full and --export are mutually exclusive").
 //		WithTry("drop one of the two flags")
 func Coded(code Code, format string, args ...any) *CodedError {
 	return &CodedError{Code: code, Message: fmt.Sprintf(format, args...)}

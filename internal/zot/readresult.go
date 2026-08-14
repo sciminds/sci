@@ -28,10 +28,9 @@ type ListResult struct {
 	Scope     string       `json:"searched,omitempty"`
 	Hint      string       `json:"hint,omitempty"`
 	// Snippets carries the matched excerpt from the paper's text, keyed
-	// by item key, for the hits that `search --content` matched on
-	// content rather than metadata. Absent for every other search — it
-	// rides beside Items rather than inside local.Item so the item shape
-	// stays the same one every other command emits.
+	// by item key, for hits matched on content rather than on metadata.
+	// It rides beside Items rather than inside local.Item so the item
+	// shape stays the same one every other command emits.
 	Snippets map[string]string `json:"snippets,omitempty"`
 }
 
@@ -112,7 +111,7 @@ func writeItemLine(b *strings.Builder, it local.Item) {
 	fmt.Fprintf(b, "    %s\n", uikit.TUI.Dim().Render(meta))
 }
 
-// ItemResult is returned for `zot read <key>`.
+// ItemResult is returned for `sci zot item read <key>` with a single key.
 type ItemResult struct {
 	Item local.Item `json:"item"`
 }
@@ -165,7 +164,7 @@ func (r ItemResult) Human() string {
 	return b.String() + "\n"
 }
 
-// ItemsResult is returned for `zot item read` with more than one key —
+// ItemsResult is returned for `sci zot item read` with more than one key —
 // every requested item, fully hydrated, in request order. The single-key
 // form keeps emitting the bare item via ItemResult, so existing consumers
 // see a byte-identical shape; the wrapper appears only when the request
@@ -198,11 +197,12 @@ func (r ItemsResult) Human() string {
 
 // writeRelationsBlock renders an item's related items under its
 // attachments, so what a paper is linked to is visible where you already
-// look for its tags — without having to know `zot link list` exists.
+// look for its tags — without having to know `sci zot link list` exists.
 //
 // Predicate handling mirrors LinkListResult.Human: dc:relation renders as
-// "related" (it is the user's own link), and Zotero's own predicates render
-// last, under their real names, so nothing invites `link rm` to touch them.
+// "related" (it is the user's own link), and Zotero's own bookkeeping
+// predicates render last, under their real names, so they are never mistaken
+// for something the user put there.
 func writeRelationsBlock(b *strings.Builder, rels *local.ItemRelationSet) {
 	if rels == nil {
 		return
@@ -240,7 +240,7 @@ func writeField(b *strings.Builder, label, value string) {
 }
 
 // ChildItemView is the zot-package-facing view of a child item as
-// returned by `zot item children`. Mirrors local.ChildItem verbatim —
+// returned by `sci zot item children`. Mirrors local.ChildItem verbatim —
 // duplicated instead of aliased because local → zot would cycle.
 // The CLI layer converts from local.ChildItem at the call site.
 type ChildItemView struct {
@@ -254,11 +254,11 @@ type ChildItemView struct {
 	Tags        []string `json:"tags,omitempty"`
 }
 
-// ChildrenListResult is returned for `zot item children <KEY>`:
+// ChildrenListResult is returned for `sci zot item children <KEY>`:
 // a flat listing of a parent item's child items (attachments + notes),
-// as reported by the Zotero Web API. Used both by humans and by
-// scripts that want to feed note or attachment keys into other zot
-// commands (e.g. `zot item delete`).
+// read from the local database. Used both by humans and by scripts that
+// feed the child keys into a later read (`sci zot notes read`,
+// `sci zot item open`).
 type ChildrenListResult struct {
 	ParentKey string          `json:"parent_key"`
 	Count     int             `json:"count"`
@@ -359,7 +359,7 @@ func noteSnippet(html string) string {
 	return s
 }
 
-// CollectionListResult is returned for `zot collection list`.
+// CollectionListResult is returned for `sci zot collection list`.
 type CollectionListResult struct {
 	Count       int                `json:"count"`
 	Collections []local.Collection `json:"collections"`
@@ -385,7 +385,7 @@ func (r CollectionListResult) Human() string {
 	return b.String()
 }
 
-// TagListResult is returned for `zot tags list`.
+// TagListResult is returned for `sci zot tags list`.
 type TagListResult struct {
 	Count int         `json:"count"`
 	Tags  []local.Tag `json:"tags"`
@@ -410,14 +410,14 @@ func (r TagListResult) Human() string {
 	return b.String()
 }
 
-// StatsResult is returned for `zot info --library X` and as the building
+// StatsResult is returned for `sci zot info --library X` and as the building
 // block of MultiStatsResult (one entry per library).
 //
 // Scope is the bare scope token ("personal" or "shared"); Library is the
 // human label ("shared (sciminds)"). LibraryAPIID carries the numeric
-// Zotero Web API id — UserID for personal, GroupID for shared — so agents
-// can build `zotero://select/groups/{id}/...` deeplinks without having to
-// grep the on-disk config.
+// Zotero group id for a shared library — so agents can build
+// `zotero://select/groups/{id}/...` deeplinks without grepping the on-disk
+// config — and is empty for personal, which has no such id.
 type StatsResult struct {
 	Library      string      `json:"library"`
 	Scope        string      `json:"scope,omitempty"`
@@ -491,7 +491,7 @@ func (r StatsResult) writeOrientBlock(b *strings.Builder) {
 	if r.ExtractionCoverage != nil {
 		cov := r.ExtractionCoverage
 		fmt.Fprintf(b, "  %s\n", uikit.TUI.Dim().Render("full-text extractions (has-markdown):"))
-		fmt.Fprintf(b, "    %d / %d items (%.1f%%) — reading that text is `zot read` / `zot query` in the zot binary\n\n",
+		fmt.Fprintf(b, "    %d / %d items (%.1f%%)\n\n",
 			cov.WithExtraction, cov.TotalItems, cov.Percent)
 	}
 
@@ -529,7 +529,7 @@ func (r StatsResult) writeOrientBlock(b *strings.Builder) {
 	}
 }
 
-// ExportResult is returned for `zot item export` (single-item).
+// ExportResult is returned for `sci zot item export` (single-item).
 type ExportResult struct {
 	Key    string `json:"key"`
 	Format string `json:"format"`
@@ -542,8 +542,8 @@ func (r ExportResult) JSON() any { return r }
 // Human implements cmdutil.Result.
 func (r ExportResult) Human() string { return r.Body + "\n" }
 
-// LibraryExportResult is returned for `zot export` (full library) and for
-// `zot search --export` (filtered subset). Body holds the emitted document
+// LibraryExportResult is returned for `sci zot export` (full library) and
+// for `sci zot search --export` (filtered subset). Body holds the emitted document
 // when streaming to stdout; when the user passed -o, Body is empty and
 // OutPath/KeymapPath point at the on-disk artifacts.
 type LibraryExportResult struct {
@@ -591,7 +591,7 @@ func (r LibraryExportResult) Human() string {
 	return b.String()
 }
 
-// LibraryDumpResult is returned for `zot export --format ndjson` — the
+// LibraryDumpResult is returned for `sci zot export --format ndjson` — the
 // item-plane mirror. Distinct from LibraryExportResult because a dump has
 // no cite-key stats and does carry a completeness sidecar.
 type LibraryDumpResult struct {
@@ -628,7 +628,7 @@ func (r LibraryDumpResult) Human() string {
 	return b.String()
 }
 
-// OpenResult is returned for `zot open`.
+// OpenResult is returned for `sci zot item open`.
 type OpenResult struct {
 	Key      string `json:"key"`
 	Path     string `json:"path"`
@@ -648,10 +648,11 @@ func (r OpenResult) Human() string {
 	return fmt.Sprintf("  %s %s\n    %s\n", sym, r.Message, uikit.TUI.Dim().Render(r.Path))
 }
 
-// MultiStatsResult is returned for `zot info` without --library — summarizes
-// every library the Zotero account has access to (personal + configured
-// shared group). PerLibrary entries are rendered in order; errors are stashed
-// so partial output still ships (e.g. shared group not synced yet).
+// MultiStatsResult is returned for `sci zot info` without --library —
+// summarizes every library the local database holds (personal + the
+// configured shared group). PerLibrary entries are rendered in order; errors
+// are stashed so partial output still ships (e.g. shared group not synced
+// yet).
 type MultiStatsResult struct {
 	PerLibrary []StatsResult `json:"per_library"`
 	Errors     []string      `json:"errors,omitempty"`

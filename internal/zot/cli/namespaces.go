@@ -12,7 +12,7 @@ func collectionCommand() *cli.Command {
 		Name:        "collection",
 		Aliases:     []string{"coll"},
 		Usage:       "List the collections in your library",
-		Description: "$ sci zot collection list\n$ sci zot collection browse\n\nCreating collections and moving items between them is a write, and\nwrites live in the zot binary (`zot collection create`).",
+		Description: "$ sci zot collection list\n$ sci zot collection browse\n\nRead-only: creating collections and moving items between them are\nwrites, and this surface never writes to your library.",
 		Commands: []*cli.Command{
 			{
 				Name:        "list",
@@ -42,7 +42,7 @@ func tagsCommand() *cli.Command {
 		Name:        "tags",
 		Aliases:     []string{"tag"},
 		Usage:       "List the tags in your library",
-		Description: "$ sci zot tags list\n$ sci zot tags browse\n\nAttaching, removing and deleting tags is a write, and writes live in\nthe zot binary (`zot tags add`).",
+		Description: "$ sci zot tags list\n$ sci zot tags browse\n\nRead-only: attaching, removing and deleting tags are writes, and this\nsurface never writes to your library.",
 		Commands: []*cli.Command{
 			{
 				Name:        "list",

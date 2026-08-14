@@ -28,8 +28,7 @@ Patterns recognized (anchored to the publisher prefix, case-insensitive):
   PeerJ subobjects   10.7717/peerj.NNN/supp-N  /fig-N  /table-N
 
 This is a report. Rewriting the stored DOI to its parent-paper form is a
-write against the Zotero Web API and lives in the zot binary, as
-` + "`zot fix dois`" + `.`,
+write, and this surface never writes to your library.`,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:    "limit",

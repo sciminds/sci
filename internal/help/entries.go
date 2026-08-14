@@ -70,7 +70,7 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 			if sub.Hidden || sub.Name == "help" {
 				continue
 			}
-			// For parents with their own subcommands (e.g. `zot item`, `cass canvas`),
+			// For parents with their own subcommands (e.g. `sci zot item`, `sci cass canvas`),
 			// keep a single entry and list the child names in Usage so the picker
 			// surfaces the full command surface without exploding into one row per leaf.
 			usage := sub.Usage

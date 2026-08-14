@@ -8,7 +8,7 @@ import (
 	"github.com/sciminds/sci/internal/zot/bib"
 )
 
-// BibResult is returned by `zot bib` — a document-driven bibliography.
+// BibResult is returned by `sci zot bib` — a document-driven bibliography.
 // It wraps the shared library-export result with citation coverage: how
 // many references the document(s) contained, how many resolved, and the
 // full list of unresolved references. Unresolved references are always
@@ -18,7 +18,7 @@ import (
 // The unresolved list is the whole answer to "what didn't resolve". It is a
 // statement about THIS library, never about the literature: classifying a
 // reference as real-but-missing or as resolving nowhere takes an upstream
-// index, and that lookup lives on the zot side.
+// index, which this surface never queries.
 type BibResult struct {
 	Export     LibraryExportResult `json:"export"`
 	Files      []string            `json:"files"`

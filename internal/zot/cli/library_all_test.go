@@ -1,6 +1,6 @@
 package cli
 
-// Tests for `--library all` — the merged read pool zen asked for (G1).
+// Tests for `--library all` — the merged read pool over every configured library.
 // search and bib accept it: one call spans personal + shared with a
 // single interleaved ranking and per-row `library` provenance. Every
 // other command rejects it with a rewrite hint, and the --notes conflict
@@ -79,8 +79,8 @@ func TestSearch_LibraryAll_MergesWithProvenance(t *testing.T) {
 
 // TestSearch_LibraryAll_EmptyHintIsFollowable: a zero-hit hint is read the
 // same way a Fix is — as the next thing to run. `all` is already the widest
-// pool sci has, so a hint that suggests widening within sci would hand back
-// a command that cannot help.
+// pool there is, so a hint that suggests widening would hand back a command
+// that cannot help.
 func TestSearch_LibraryAll_EmptyHintIsFollowable(t *testing.T) {
 	withSharedOrientConfig(t)
 
@@ -100,12 +100,16 @@ func TestSearch_LibraryAll_EmptyHintIsFollowable(t *testing.T) {
 	}
 	// An agent follows a hint the way it follows a Fix, so the hint has to
 	// be true under the scope that produced it. `all` is already the widest
-	// pool sci has, so the only honest next step is a different tool.
+	// pool there is, so the honest hint states what WAS searched instead of
+	// naming a follow-up that would miss for the same reason.
 	if strings.Contains(result.Hint, "--library personal") {
 		t.Errorf("hint must not send a merged search back to one library — that narrows, it does not widen: %q", result.Hint)
 	}
-	if !strings.Contains(result.Hint, "zot search") {
-		t.Errorf("hint should name the tool that searches paper TEXT, got %q", result.Hint)
+	if strings.Contains(result.Hint, "--library all") {
+		t.Errorf("hint must not suggest widening to the scope the search already used: %q", result.Hint)
+	}
+	if !strings.Contains(result.Hint, "metadata") {
+		t.Errorf("hint should say what the search actually matched, got %q", result.Hint)
 	}
 }
 

@@ -7,7 +7,7 @@ package local
 // DB, so the unconverted paths are unreachable under `all`.
 //
 // Every row carries Library ("personal" | "shared") regardless of mode —
-// zen renders it per row, and a constant value on single-library reads
+// consumers render it per row, and a constant value on single-library reads
 // is harmless where a missing one is a client-side join.
 
 import (

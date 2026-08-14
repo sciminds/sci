@@ -14,9 +14,9 @@ func notesCommand() *cli.Command {
 		Name:    "notes",
 		Aliases: []string{"note"},
 		Usage:   "The notes YOU wrote (list, read)",
-		Description: "Notes you authored — not docling extractions. Extractions are the\n" +
-			"paper's text, and both making them and reading them live in the zot\n" +
-			"binary (`zot extract-lib`, `zot read`).\n\n" +
+		Description: "Notes you authored — not docling extractions. An extraction is the\n" +
+			"paper's text stored as a child note, and this surface leaves those\n" +
+			"out of every listing here.\n\n" +
 			"$ sci zot notes list              # your notes, attached and standalone\n" +
 			"$ sci zot notes read NOTECH11     # one note's body\n" +
 			"$ sci zot notes read NOTECH11 --md --json   # markdown, for piping",
@@ -35,7 +35,7 @@ func notesListCommand() *cli.Command {
 			"$ sci zot notes list --limit 0       # all of them\n" +
 			"$ sci zot notes list --limit 25 --offset 50   # paginate\n\n" +
 			"Docling extractions are excluded — they are the paper's text, not\n" +
-			"a note. Read those with `zot read` in the zot binary.",
+			"a note. `sci zot search --notes` filters to the items that have one.",
 		Flags: []cli.Flag{
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max notes to surface (0 = unlimited)", Local: true},
 			&cli.IntFlag{Name: "offset", Value: 0, Usage: "pagination offset", Local: true},

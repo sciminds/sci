@@ -38,7 +38,7 @@ func WithColHints(hints map[string]ColHint) RunOption {
 
 // WithReadOnly forces every tab into read-only mode regardless of the
 // underlying store type. Use for projection stores where no write path
-// makes sense (e.g. zot view).
+// makes sense (e.g. `sci zot view`).
 func WithReadOnly() RunOption {
 	return func(c *runConfig) { c.readOnly = true }
 }

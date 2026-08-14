@@ -88,7 +88,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 	return ref, ok
 }
 
-// Commands returns the full zot subcommand tree.
+// Commands returns the full `sci zot` subcommand tree.
 // Entry points wrap this in their own root cli.Command.
 //
 // Top-level layout — every verb here answers from the local
@@ -110,14 +110,12 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	doctor  [subcommand]        hygiene reports: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates,citekeys,dois}
 //
-// Verbs that once lived here and now belong to the sibling `zot` binary
-// (every write, every upstream index, every extraction) are NOT registered:
-// they are plain unknown commands, rejected by
+// Writing to the library, querying an upstream index and extracting paper
+// text are NOT registered here: they are plain unknown commands, rejected by
 // cmdutil.WireNamespaceDefaults like any other typo.
 //
-// `item` and `collection` reuse the leaf commands defined in read.go /
-// write.go — the wrapper functions below just parent them under the right
-// namespace.
+// `item` reuses the leaf commands defined in read.go — itemCommand below just
+// parents them under the namespace.
 func Commands() []*cli.Command {
 	return []*cli.Command{
 		guideCommand(),

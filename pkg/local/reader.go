@@ -10,11 +10,11 @@ import (
 // Every method is a pure query — the underlying connection enforces
 // mode=ro, immutable=1, and _pragma=query_only(1) as defence-in-depth.
 // Consumers that accept Reader instead of *DB make the firewall visible
-// in the type system: local reads go through Reader, writes go through
-// the Web API (internal/zot/api).
+// in the type system.
 //
-// Do NOT add write methods to this interface. If you need to mutate the
-// library, use the Zotero Web API — see internal/zot/api.
+// Do NOT add write methods to this interface. Mutating a Zotero library is
+// not this package's job: zotero.sqlite is Zotero desktop's private store,
+// and writing to it behind the app's back corrupts its sync state.
 type Reader interface {
 	io.Closer
 

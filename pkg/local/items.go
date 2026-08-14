@@ -532,8 +532,8 @@ var bareFieldTokenRe = regexp.MustCompile(`(?i)^(-?)(author|creator|title|doi|pu
 // clause-leading `-tag:cats` → `@tag: -cats`, where applyNegate already
 // picks the `-` up off the value. This is the compatibility shim that
 // makes sci the single owner of the search DSL — downstream consumers
-// (zen) write the bare form, and the two dialects were always
-// semantically identical where their syntax overlapped.
+// write the bare form, and the two dialects are semantically identical
+// where their syntax overlaps.
 //
 // Quoted spans are opaque: a colon inside `"attention: review"` is
 // prose, not a field. A detached `-tag:` (negation with the value in the

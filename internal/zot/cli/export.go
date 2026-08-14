@@ -19,7 +19,7 @@ import (
 // design rationale.
 const keymapFilename = ".zotero-citekeymap.json"
 
-// libraryExportCommand implements `zot export` — a top-level command that
+// libraryExportCommand implements `sci zot export` — a top-level command that
 // writes every item (optionally filtered) to stdout or a file.
 func libraryExportCommand() *cli.Command {
 	return &cli.Command{
@@ -160,8 +160,8 @@ func runLibraryDump(ctx context.Context, db local.Reader, items []local.Item, ou
 	return res, nil
 }
 
-// runLibraryExport is the shared pipeline used by `zot export` and
-// `zot search --export`. It loads the prior keymap (if -o was given),
+// runLibraryExport is the shared pipeline used by `sci zot export` and
+// `sci zot search --export`. It loads the prior keymap (if -o was given),
 // invokes zot.ExportLibrary, writes the body to the chosen sink, and
 // persists the updated keymap alongside the .bib file for next-run drift
 // detection.

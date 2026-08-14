@@ -1,7 +1,7 @@
 package local
 
 // Tests for search-row enrichment: Search results carry Creators, Tags,
-// and URL so downstream consumers (zen's result rows) render authorship
+// and URL so downstream consumers render authorship in their result rows
 // without an N+1 `item read` per hit. Enrichment runs on the ≤limit
 // ranked hits only — three batched IN queries, not per-item reads — so
 // broad queries stay cheap. Abstract/Fields/attachments remain `item

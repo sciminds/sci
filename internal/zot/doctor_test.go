@@ -204,11 +204,10 @@ func TestDoctorResult_DeepLabel(t *testing.T) {
 }
 
 // TestSubobjectDOIsResult_FooterNamesNoRemovedFlag pins the human footer of
-// `zot doctor dois`. The check reports and stops — `--fix` left with the
-// rest of the write plane and now fails as an unknown flag — so a footer
-// telling the reader to "run with --fix" hands back a command line that
-// errors, and contradicts the command's own Description. The repair lives
-// in the zot binary.
+// `sci zot doctor dois`. The check reports and stops, so the footer must not
+// hand back a command line at all: `--fix` is not a flag this command
+// accepts, and no other binary is a destination. Naming either contradicts
+// the command's own Description and gives the reader something that errors.
 func TestSubobjectDOIsResult_FooterNamesNoRemovedFlag(t *testing.T) {
 	t.Parallel()
 	res := SubobjectDOIsResult{Report: &hygiene.Report{
@@ -226,7 +225,12 @@ func TestSubobjectDOIsResult_FooterNamesNoRemovedFlag(t *testing.T) {
 			t.Errorf("footer advertises %s, which the command no longer accepts:\n%s", banned, out)
 		}
 	}
-	if !strings.Contains(out, "zot fix dois") {
-		t.Errorf("footer should name the zot binary's repair verb:\n%s", out)
+	for _, banned := range []string{"zot fix", "zot binary"} {
+		if strings.Contains(out, banned) {
+			t.Errorf("footer names %q, which is not a command this surface has:\n%s", banned, out)
+		}
+	}
+	if !strings.Contains(out, "1 finding(s)") {
+		t.Errorf("footer should report the finding count:\n%s", out)
 	}
 }

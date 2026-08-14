@@ -4,12 +4,13 @@
 // /Users/esh/Documents/webapps/apis/openalex/openapi.yaml
 // and mirror the curated surface used by the TypeScript sibling at
 // /Users/esh/Documents/webapps/papers/src/openalex/types.ts — only the Works
-// and Authors entities, which is the subset needed to enrich Zotero items
-// (`zot find`, `zot item add --openalex`, `zot enrich`).
+// and Authors entities, which is the subset needed to enrich Zotero item
+// metadata.
 //
 // Authentication is optional and additive: Email populates the "polite pool"
-// (~10 req/s) and APIKey unlocks the premium tier (~100 req/s). Both flow as
-// query parameters, not headers.
+// (~10 req/s) and APIKey unlocks the premium tier (~100 req/s). Email travels
+// as the `mailto` query parameter, APIKey as an Authorization header — see
+// [Client.Get] for why the key must not ride in the URL.
 package openalex
 
 // Work is a scholarly document (article, preprint, book chapter, etc.).

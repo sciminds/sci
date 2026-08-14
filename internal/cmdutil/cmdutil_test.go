@@ -208,7 +208,7 @@ func TestErrCancelled_NotEqualToOtherErrors(t *testing.T) {
 // --- UsageErrorf ---
 //
 // Behavior split by cmd.Args().Len():
-//   - 0 args (user ran bare `sci zot import`) → dump full help to the root
+//   - 0 args (user ran bare `sci zot search`) → dump full help to the root
 //     writer; return a short error (no "Usage: / Run --help" tail).
 //   - ≥1 args (user is mid-attempt, hit a flag conflict / wrong count) →
 //     keep the terse usage line so the real error isn't buried.

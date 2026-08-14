@@ -201,9 +201,8 @@ WHERE p.libraryID = ?
 
 // ParentsWithDoclingNotesMissingTag returns parent item keys that own
 // at least one non-trashed child note tagged "docling" AND do NOT carry
-// the named tag on the parent itself. Drives the extract-lib --apply
-// backfill that retroactively adds the parent-level "has-markdown"
-// marker so saved-search workflows ("PDFs without an extraction") work.
+// the named tag on the parent itself — the items whose parent-level
+// "has-markdown" marker is missing even though the extraction exists.
 //
 // Note the asymmetry: the docling tag must live on a *child* note,
 // while the excluded tag is checked on the *parent*. The two tags live

@@ -11,7 +11,7 @@ import (
 
 // MissingField names a field the Missing check knows how to inspect. The
 // values double as the stable Kind emitted in Findings and on the command
-// line (`zot doctor missing --field doi,abstract`).
+// line (`sci zot doctor missing --field doi,abstract`).
 type MissingField string
 
 // MissingField constants for each field the Missing check can inspect.

@@ -471,9 +471,13 @@ for f in $huh_files; do
 	# We look for huh.NewForm in the file AND a .Run() call on a line that
 	# contains huh or form (case-insensitive) but not exec.Command.
 	if rg -q 'huh\.NewForm' "$f" 2>/dev/null; then
-		raw_run=$(rg -n '\.Run\(\)' "$f" 2>/dev/null | rg -iv 'exec\.Command|cmd\.Run|\.Start' | rg -i 'form\|huh\|WithTheme\|WithKeyMap' || true)
+		# NB: the alternation must be a real group. `rg -i 'a\|b'` matches the
+		# LITERAL string "a|b" in ripgrep's default regex, so an escaped-pipe
+		# filter here silently passes every file and the rule stops guarding
+		# anything.
+		raw_run=$(rg -n '\.Run\(\)' "$f" 2>/dev/null | rg -iv 'exec\.Command|cmd\.Run|\.Start' | rg -i '(form|huh|WithTheme|WithKeyMap)' || true)
 		if [[ -n "$raw_run" ]]; then
-			echo "FAIL [no-raw-huh-run] $f calls .Run() on a huh form directly — use uikit.RunForm():"
+			echo "FAIL [no-raw-huh-run] $f calls .Run() on a huh form directly — build it with uikit.NewForm(uikit.FormGroup(...)) and run that, or use the single-prompt helpers (uikit.Input/Select/MultiSelect):"
 			echo "$raw_run"
 			fail "no-raw-huh-run"
 		fi

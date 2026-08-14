@@ -153,10 +153,9 @@ func TestItemRead_ShortLegacyKey_StillReadsDirectly(t *testing.T) {
 }
 
 // A read miss has two causes an agent must tell apart — a wrong key, and a
-// key newer than the local database — so the error names both. There is no
-// Fix any more: the old one resubmitted with --remote, and sci has no live
-// plane to resubmit against; the remaining remedy for sync lag is Zotero
-// desktop, which is not a command line.
+// key newer than the local database — so the error names both. There is
+// deliberately no Fix: the remedy for sync lag is Zotero desktop, which is
+// not a command line an agent can resubmit.
 func TestItemRead_NotFound_CodedWithSearchTry(t *testing.T) {
 	withOrientConfig(t)
 

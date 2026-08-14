@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-// HasMarkdownTag is the tag the extraction pipeline auto-applies to every
+// HasMarkdownTag is the tag an extraction pipeline auto-applies to every
 // parent item it generates a docling extraction for. Surfaced as the
 // "can I read full PDF text on this paper" capability signal — an item
-// carrying this tag has its extraction on record, so a consumer that
-// holds the corpus (`zot read`) can serve the paper's text.
+// carrying this tag has its extraction on record, so a consumer holding the
+// extracted corpus can serve the paper's text.
 const HasMarkdownTag = "has-markdown"
 
 // TagCount is one tag with its item-count usage. Mirrors local.Tag minus

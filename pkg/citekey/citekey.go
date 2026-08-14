@@ -1,10 +1,10 @@
-// Package citekey owns BibTeX cite-key policy for the zot tools: the v2
-// synthesis format, the validator that scores stored keys against it, and
-// the legacy BBT `Citation Key:` extractor. Lives in a sub-package so
-// both `zot` (for library export) and `zot/hygiene` (for the citekeys
-// check) can depend on it without an import cycle — package zot already
-// imports zot/hygiene for the doctor dispatch, so cite-key policy cannot
-// live up there alongside it.
+// Package citekey owns BibTeX cite-key policy: the v2 synthesis format, the
+// validator that scores stored keys against it, and the legacy BBT
+// `Citation Key:` extractor. It lives in its own package so both the zot
+// package (for library export) and zot/hygiene (for the citekeys check) can
+// depend on it without an import cycle — package zot already imports
+// zot/hygiene for the doctor dispatch, so cite-key policy cannot live up
+// there alongside it.
 package citekey
 
 import (

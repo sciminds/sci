@@ -406,9 +406,9 @@ func TestOutputScoped_JSON_NoHolder_Passthrough(t *testing.T) {
 }
 
 // The "Library: …" line is a diagnostic — which library answered — not part
-// of the result. It goes to stderr so `sci zot content read KEY | llm` pipes
-// the paper and nothing else, while a human at a terminal still sees both
-// streams interleaved exactly as before.
+// of the result. It goes to stderr so `sci zot notes read KEY | pbcopy` pipes
+// the answer and nothing else, while a human at a terminal still sees both
+// streams interleaved.
 func TestOutputScoped_Human_LibraryHeaderGoesToStderr(t *testing.T) {
 	cmd := &cli.Command{} // no --json
 	holder := &libraryHolder{Resolved: &zot.LibraryRef{Scope: zot.LibPersonal, Name: "Personal"}}

@@ -125,7 +125,7 @@ func searchCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max results", Local: true},
 			// --export routes the hit list through the same pipeline as
-			// `zot export`.
+			// `sci zot export`.
 			&cli.BoolFlag{Name: "export", Usage: "emit results as a bibliography instead of the normal hit list", Local: true},
 			&cli.StringFlag{Name: "format", Usage: "with --export, output format: biblatex (alias: bibtex), csl-json", Value: "biblatex", Local: true},
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Local: true},
@@ -148,7 +148,7 @@ func searchCommand() *cli.Command {
 					WithTry("use --full for reading hits inline, --export for generating a bibliography")
 			}
 			// Join all positional args so unquoted multi-clause queries
-			// like `zot search @author: jolly @title: gossip` work without
+			// like `sci zot search @author: jolly @title: gossip` work without
 			// requiring the user to wrap the whole thing in shell quotes.
 			query := strings.Join(cmd.Args().Slice(), " ")
 			mergedScope := requestedScopeIsAll(ctx)
@@ -231,12 +231,12 @@ func searchCommand() *cli.Command {
 	}
 }
 
-// searchFlags is one `zot search` invocation's flag state, read off the
+// searchFlags is one `sci zot search` invocation's flag state, read off the
 // *cli.Command once at the top of the Action and passed down by value.
 //
 // Export, ExportFormat and ExportOut are the seam with the library
 // exporter: `search --export` hands them to runLibraryExport, the same
-// pipeline `zot export` and `zot bib` use. Carrying them in a value the
+// pipeline `sci zot export` and `sci zot bib` use. Carrying them in a value the
 // Action owns is what keeps that sharing a function call — the three
 // used to be package-level flag destinations declared over in export.go,
 // so two files wrote the same memory to describe one invocation.
@@ -249,7 +249,7 @@ type searchFlags struct {
 	ExportOut    string
 }
 
-// searchFlagsFrom reads the `zot search` flags off cmd. A flag absent
+// searchFlagsFrom reads the `sci zot search` flags off cmd. A flag absent
 // from the command line reports its declared default, so the conflict
 // checks and the query below see exactly what the user asked for.
 func searchFlagsFrom(cmd *cli.Command) searchFlags {
@@ -604,7 +604,7 @@ func statsForRef(cfg *zot.Config, ref zot.LibraryRef, orient bool) (zot.StatsRes
 	}
 	label := "personal"
 	scope := "personal"
-	// The personal library has no Web API id to report — it is
+	// The personal library has no Zotero group id to report — it is
 	// `libraries.type='user'` in the local database and nothing else.
 	apiID := ""
 	if ref.Scope == zot.LibShared {
@@ -873,12 +873,12 @@ func localSearchScope() string {
 //
 // Every hint here has to stay inside this library: sci searches metadata in
 // the local database and has no wider index behind it. Widening the SCOPE is
-// the honest suggestion under a single library; searching the text of the
-// papers themselves is `zot search` in the sibling binary, which is a
-// pointer, not a rewrite of this command.
+// the only honest suggestion, and under a merged pool there is nothing left
+// to widen — so the hint says what was searched instead of inventing a
+// follow-up that would miss for the same reason.
 func localSearchHint(mergedScope bool) string {
 	if mergedScope {
-		return "the merged pool already spans every configured library; searching the TEXT of your papers (not their metadata) is `zot search` in the zot binary"
+		return "the merged pool already spans every configured library; this matches metadata only, never the text inside your papers"
 	}
-	return "widen with --library all to search personal and shared together; searching the TEXT of your papers (not their metadata) is `zot search` in the zot binary"
+	return "widen with --library all to search personal and shared together; this matches metadata only, never the text inside your papers"
 }

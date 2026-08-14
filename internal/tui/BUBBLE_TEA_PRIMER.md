@@ -1,7 +1,6 @@
 # Bubble Tea Primer
 
-Bubble Tea is the TUI framework used by all interactive components in sci.
-If you're new to Go (or to terminal UIs), this explains the core pattern.
+Bubble Tea is the TUI framework used by all interactive components in sci. If you're new to Go (or to terminal UIs), this explains the core pattern. Every model in this repo is Bubble Tea **v2** (`charm.land/bubbletea/v2`), which is what the signatures below reflect.
 
 ## The MVU Pattern (Model-View-Update)
 
@@ -16,7 +15,7 @@ type Model struct {
 }
 
 // 2. Update — receives a message, returns new state + optional side effect.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
     case tea.KeyPressMsg:
         switch msg.String() {
@@ -29,8 +28,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     return m, nil
 }
 
-// 3. View — pure function that renders the model to a string.
-func (m Model) View() tea.View {
+// 3. View — renders the model to a tea.View.
+func (m *Model) View() tea.View {
     var s string
     for i, item := range m.items {
         if i == m.cursor {
@@ -43,20 +42,18 @@ func (m Model) View() tea.View {
 }
 ```
 
-**Key insight:** Update never directly modifies the screen. It returns a new
-Model, and Bubble Tea calls View to render it. This separation makes the logic
-testable without a real terminal.
+**Key insight:** Update never directly modifies the screen. It updates the Model and returns it, and Bubble Tea calls View to render. This separation makes the logic testable without a real terminal.
+
+sci's models use pointer receivers (`*Model`) throughout, so `tea.Model` values coming back out of teatest type-assert to `*Model`.
 
 ## Messages and Commands
 
-A **message** (`tea.Msg`) is any Go value that arrives in Update. Messages
-come from:
+A **message** (`tea.Msg`) is any Go value that arrives in Update. Messages come from:
 - Keyboard input (`tea.KeyPressMsg`)
 - Window resizes (`tea.WindowSizeMsg`)
 - Your own commands (see below)
 
-A **command** (`tea.Cmd`) is a function that performs a side effect and
-returns a message:
+A **command** (`tea.Cmd`) is a function that performs a side effect and returns a message:
 
 ```go
 // A Cmd that loads data from the database. Wrap the closure in
@@ -70,14 +67,9 @@ func loadData(store *Store) tea.Cmd {
 }
 ```
 
-Commands run asynchronously. When they finish, Bubble Tea delivers the
-returned message to Update. This is how you do I/O without blocking the UI.
+Commands run asynchronously. When they finish, Bubble Tea delivers the returned message to Update. This is how you do I/O without blocking the UI.
 
-In this project, **always** wrap a command closure in `uikit.SafeCmd` (or
-`uikit.AsyncCmd` / `uikit.AsyncCmdCtx` for the `(T, error)` shape). Bubble Tea
-does not recover panics that happen inside a command's goroutine, so an
-unguarded panic leaves the terminal in raw mode. `rules/recover-command-panic.yml`
-enforces this.
+In this project, **always** wrap a command closure in `uikit.SafeCmd` (or `uikit.AsyncCmd` / `uikit.AsyncCmdCtx` for the `(T, error)` shape, which apply the same guard internally). Bubble Tea does not recover panics that happen inside a command's goroutine, so an unguarded panic leaves the terminal in raw mode. `rules/recover-command-panic.yml` enforces this; the recovered panic arrives as a `uikit.CommandPanicMsg` that `uikit.Run`/`RunModel` intercepts to quit cleanly and restore the terminal.
 
 ## How to Read the dbtui Code
 
@@ -91,9 +83,7 @@ Start with these files in `internal/tui/dbtui/app/`:
 | `keys.go` | Key binding constants (never bare string literals) |
 | `doc.go` | Architecture overview with more detail |
 
-The pattern is always the same: a message arrives in Update, the handler
-modifies the Model, and View re-renders. Side effects (database queries,
-file I/O) are returned as Cmds that eventually deliver result messages.
+The pattern is always the same: a message arrives in Update, the handler modifies the Model, and View re-renders. Side effects (database queries, file I/O) are returned as Cmds that eventually deliver result messages.
 
 ## Testing with teatest
 
@@ -101,6 +91,7 @@ The `teatest` library lets you test Bubble Tea programs without a real terminal:
 
 ```go
 func TestMyFeature(t *testing.T) {
+    t.Parallel()
     m := NewModel(store)
     tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(100, 30))
 
@@ -116,7 +107,7 @@ func TestMyFeature(t *testing.T) {
 
     // Get final model state
     tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-    final := tm.FinalModel(t).(*Model)
+    final := tm.FinalModel(t, teatest.WithFinalTimeout(testFinal)).(*Model)
 
     // Assert on model state
     if final.cursor != 1 {
@@ -125,4 +116,6 @@ func TestMyFeature(t *testing.T) {
 }
 ```
 
-See `internal/tui/dbtui/app/teatest_*.go` for real examples.
+`tuitest.WaitFor` lives in `internal/tuitest`. Never `time.Sleep` — lint-guard rule 2 rejects it in any test file.
+
+See `internal/tui/dbtui/app/teatest_*_test.go` for real examples, and `internal/tui/dbtui/app/TESTING.md` for the full protocol, checklist, and shared helpers.

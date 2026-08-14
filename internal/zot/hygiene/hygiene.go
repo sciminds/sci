@@ -1,11 +1,13 @@
 // Package hygiene implements library-quality checks over a local Zotero
 // database. Each check scans the read-only `local.DB` and returns a Report
-// made up of Findings. The `zot doctor` command runs every check and merges
-// their reports; individual `zot <check>` commands run one check in isolation.
+// made up of Findings. The `sci zot doctor` command runs every check and
+// merges their reports; individual `sci zot doctor <check>` commands run one
+// check in isolation.
 //
-// Checks in this package are pure — they observe, they never mutate. Any
-// `--fix` behavior lives in the command layer, which dispatches to the write
-// API under `internal/zot/api` based on Finding.Fixable.
+// Checks in this package are pure — they observe, they never mutate, and
+// there is no repair path behind them. Finding.Fixable records whether an
+// issue is mechanically repairable at all, which is reporting, not a promise
+// that anything here will repair it.
 package hygiene
 
 // Severity ranks findings for display and filtering. Checks pick the level
@@ -32,7 +34,7 @@ func (s Severity) String() string {
 }
 
 // Finding is one issue discovered by a hygiene check. Every check emits a
-// slice of these so `zot doctor` can merge reports uniformly.
+// slice of these so `sci zot doctor` can merge reports uniformly.
 type Finding struct {
 	Check    string   `json:"check"` // top-level check, e.g. "missing"
 	Kind     string   `json:"kind"`  // sub-kind, e.g. "doi"

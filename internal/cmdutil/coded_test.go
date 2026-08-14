@@ -58,7 +58,7 @@ func TestCodedError_FluentFixAndTry(t *testing.T) {
 
 func TestCodedError_ErrorsAsThroughWrap(t *testing.T) {
 	t.Parallel()
-	inner := Coded(CodeConflict, "--fulltext and --remote are mutually exclusive")
+	inner := Coded(CodeConflict, "--full and --export are mutually exclusive")
 	wrapped := fmt.Errorf("search: %w", inner)
 	coded, ok := errors.AsType[*CodedError](wrapped)
 	if !ok {
@@ -217,7 +217,7 @@ func TestOutput_JSONEnvelopeIncludesWarnings(t *testing.T) {
 		warns: []Warning{{
 			Code:    CodeStaleLocal,
 			Message: "local DB last synced 107 days ago",
-			Fix:     "sci zot search --library personal --remote foo",
+			Fix:     "sci zot search --library personal foo",
 		}},
 	}
 
@@ -261,7 +261,7 @@ func TestOutput_HumanRendersWarnings(t *testing.T) {
 		warns: []Warning{{
 			Code:    CodeStaleLocal,
 			Message: "local DB last synced 107 days ago",
-			Fix:     "sci zot search --remote foo",
+			Fix:     "sci zot search --library personal foo",
 		}},
 	}
 
@@ -275,7 +275,7 @@ func TestOutput_HumanRendersWarnings(t *testing.T) {
 	if !strings.Contains(got, "local DB last synced 107 days ago") {
 		t.Errorf("missing warning message: %q", got)
 	}
-	if !strings.Contains(got, "sci zot search --remote foo") {
+	if !strings.Contains(got, "sci zot search --library personal foo") {
 		t.Errorf("missing warning fix: %q", got)
 	}
 }

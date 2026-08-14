@@ -1,7 +1,6 @@
 # Teatest Protocol
 
-Integration tests using [teatest](https://pkg.go.dev/github.com/charmbracelet/x/exp/teatest/v2)
-cover the **full message loop**: key → Update() → state change → View().
+Integration tests using [teatest](https://pkg.go.dev/github.com/charmbracelet/x/exp/teatest/v2) cover the **full message loop**: key → Update() → state change → View().
 
 ## When to write a teatest
 
@@ -9,21 +8,17 @@ cover the **full message loop**: key → Update() → state change → View().
 - A key triggers a DB mutation (cell edit, row delete, table create/drop)
 - A user-facing mode transition is introduced
 
-Do NOT use teatest to re-test pure logic already covered by unit tests in
-`app_test.go`, `visual_test.go`, or `tabstate/tabstate_test.go`.
+Do NOT use teatest to re-test pure logic already covered by unit tests in `app_test.go`, `visual_test.go`, or `tabstate/tabstate_test.go`.
 
-Visual output is asserted on rendered content (substrings of the stripped
-frame), never on raw byte streams: lipgloss/termenv emit equivalent-but-different
-escape sequences depending on the terminal environment, so byte-exact golden
-files were deliberately removed.
+Visual output is asserted on rendered content (substrings of the stripped frame), never on raw byte streams: lipgloss/termenv emit equivalent-but-different escape sequences depending on the terminal environment, so byte-exact golden files were deliberately removed.
 
 ## Checklist for new features
 
 - [ ] Trace dispatch path: `handleKey` → overlay/mode → handler
 - [ ] Write teatest covering key → state change (full loop)
-- [ ] Use `finalModel` for state, `WaitFor` for async/output
-- [ ] No `time.Sleep` — use `WaitFor` for async, nothing for sync key messages
-- [ ] `WaitFor`/output assertions go through `tuitest.WaitFor` (strips ANSI) or `ansi.Strip` first — never raw `bytes.Contains` on alt-screen output (cursor-diff repaints fragment words → `-race`-only timeouts); gate on level-unique tokens (a breadcrumb path), not list items that flicker through transient frames
+- [ ] Use `finalModel` for state, `waitForOutput` for async/output
+- [ ] No `time.Sleep` — `waitForOutput` for async, nothing for sync key messages
+- [ ] Output assertions go through `waitForOutput` / `tuitest.WaitFor` (strips ANSI) or `ansi.Strip` first — never raw `bytes.Contains` on alt-screen output (cursor-diff repaints fragment words → `-race`-only timeouts); gate on level-unique tokens (a breadcrumb path), not list items that flicker through transient frames
 - [ ] DB mutations verified by querying store directly
 - [ ] Read-only variant tested if feature should be blocked on RO tables
 - [ ] Test placed in correct file by feature area
@@ -46,6 +41,7 @@ files were deliberately removed.
 
 ```go
 func TestTeatest<Feature>(t *testing.T) {
+    t.Parallel()
     tm, store := startTeatest(t)   // creates DB + model + waits for render
 
     sendKey(tm, "x")               // simulate user action
@@ -69,15 +65,14 @@ func TestTeatest<Feature>(t *testing.T) {
 | `sendKey(tm, "x")` | Send a rune key |
 | `sendSpecial(tm, tea.KeyEnter)` | Send a special key |
 | `finalModel(t, tm)` | Ctrl+C + wait + type-assert to `*Model` |
-| `waitForOutput(t, tm, "text")` | Poll output for substring |
+| `waitForOutput(t, tm, "text")` | Poll output for substring (delegates to `tuitest.WaitFor`) |
 | `waitForTable(t, tm)` | Wait for initial table render |
 | `newReadOnlyTeatestModel(t)` | Model with `forceRO=true` |
 | `newEmptyTeatestModel(t)` | Model with zero tables |
-| `newTeatestModelWithSchema(t, stmts)` | Model with custom SQL schema |
+| `newTeatestModelWithSchema(t, stmts)` | Model with custom SQL schema, returns `(*Model, *sqlite.Store)` |
 
-Tests render at `testTermW=100`, `testTermH=30` (constants in `teatest_test.go`).
+Tests render at `testTermW=100`, `testTermH=30`, wait up to `testWait=5s` for output and `testFinal=8s` for exit (constants in `teatest_test.go`).
 
 ## Performance
 
-Target: all teatests complete in < 8 seconds.
-Key: no `time.Sleep` (except for truly async tab loads), `t.Parallel()` where DBs are isolated.
+Target: all teatests complete in < 8 seconds. Key: no `time.Sleep` anywhere (lint-guard rule 2 rejects it in any test file), and `t.Parallel()` on new tests — every helper builds its DB under `t.TempDir()`, so they are already isolated.

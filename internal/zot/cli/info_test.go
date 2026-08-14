@@ -192,7 +192,7 @@ func TestInfo_WithLibraryFlag_NarrowsToScope(t *testing.T) {
 	if result.Scope != "personal" {
 		t.Errorf("Scope = %q, want personal", result.Scope)
 	}
-	// The personal library has no Web API id: it is libraries.type='user'
+	// The personal library has no Zotero group id: it is libraries.type='user'
 	// in the local database, and sci no longer knows the account behind it.
 	// A group still does, which the shared test below pins.
 	if result.LibraryAPIID != "" {

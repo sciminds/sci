@@ -43,7 +43,7 @@ func TestOutput_Warnings_StripANSIWhenNotATerminal(t *testing.T) {
 	out := captureStdout(t, func() {
 		Output(cmd, warnResult{
 			stubResult: stubResult{human: "body\n"},
-			warns:      []Warning{{Message: "index is stale", Fix: "sci zot content build"}},
+			warns:      []Warning{{Message: "index is stale", Fix: "sci zot search foo"}},
 		})
 	})
 

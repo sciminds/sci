@@ -25,8 +25,7 @@ Fields: title, creators, date, doi, abstract, url, pdf, tags. Defaults to all.
 Severity: title=error, creators/date=warn, others=info.
 
 This is a report over the local database. Filling the gaps from an upstream
-index is a metered lookup plus a Zotero write, and lives in the zot binary
-as ` + "`zot enrich`" + `, which fills from data already on disk.`,
+index is a metered lookup plus a write, and this surface does neither.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "field",
@@ -283,9 +282,9 @@ Categories and severities:
 Items with no stored cite-key at all are counted as 'unstored' in the
 summary but emit no finding.
 
-This is a report. Synthesizing canonical keys and writing them back
-through the Zotero Web API is destructive against a BBT-managed library,
-and lives in the zot binary as ` + "`zot fix citekeys`" + `.`,
+This is a report. Synthesizing canonical keys and writing them back is
+destructive against a BBT-managed library, and this surface never writes
+to your library.`,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:    "limit",

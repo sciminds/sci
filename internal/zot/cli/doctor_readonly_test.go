@@ -6,11 +6,10 @@ import (
 	"testing"
 )
 
-// TestDoctorWriteFlagsAreGone pins the boundary decided 2026-08-12: sci's
-// doctor reports, the zot binary repairs. Two tools answering one question
-// is what the three-tool split forbids, so every write arm was removed
-// rather than deprecated — and a removed flag has to FAIL, not be quietly
-// ignored, or a script that still passes it looks like it worked.
+// TestDoctorWriteFlagsAreGone pins the boundary: doctor reports and stops.
+// Every write arm is absent rather than deprecated — and an absent flag has
+// to FAIL, not be quietly ignored, or a script that still passes it looks
+// like it worked.
 func TestDoctorWriteFlagsAreGone(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

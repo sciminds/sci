@@ -44,7 +44,7 @@ func TestListResult_ZeroHit_WithScopeAndHint(t *testing.T) {
 		Count: 0,
 		Query: "mcp",
 		Scope: "title, DOI, publication (local)",
-		Hint:  "try --remote to also match abstract and fulltext",
+		Hint:  "widen with --library all to search personal and shared together",
 	}
 	out := r.Human()
 	if !strings.Contains(out, "no results for") {
@@ -53,7 +53,7 @@ func TestListResult_ZeroHit_WithScopeAndHint(t *testing.T) {
 	if !strings.Contains(out, "title, DOI, publication") {
 		t.Errorf("scope not shown on zero-hit:\n%s", out)
 	}
-	if !strings.Contains(out, "--remote") {
+	if !strings.Contains(out, "--library all") {
 		t.Errorf("hint not shown on zero-hit:\n%s", out)
 	}
 }
@@ -259,12 +259,11 @@ func TestStatsResult_Human(t *testing.T) {
 	}
 }
 
-// TestStatsResult_OrientCoverageRoutesToTheZotBinary pins the pointer on
-// the first output the guide tells an agent to run. `sci zot llm` is a
-// refusal stub, and the line named it explicitly with the `sci zot` prefix,
-// so it could not even be read as naming the sibling binary. Reading an
-// extraction lives in the zot binary now.
-func TestStatsResult_OrientCoverageRoutesToTheZotBinary(t *testing.T) {
+// TestStatsResult_OrientCoverageReportsAndStops pins the first output the
+// guide tells an agent to run: `info --orient` reports how much of the
+// library has an extraction and stops there. Naming a verb that reads that
+// text would send the reader to a command this surface does not register.
+func TestStatsResult_OrientCoverageReportsAndStops(t *testing.T) {
 	t.Parallel()
 	r := StatsResult{
 		ExtractionCoverage: &local.ExtractionCoverage{
@@ -272,11 +271,13 @@ func TestStatsResult_OrientCoverageRoutesToTheZotBinary(t *testing.T) {
 		},
 	}
 	out := r.Human()
-	if strings.Contains(out, "sci zot llm") {
-		t.Errorf("orient block points at `sci zot llm`, a retired stub:\n%s", out)
+	if !strings.Contains(out, "87 / 100") {
+		t.Errorf("orient block should report the coverage counts:\n%s", out)
 	}
-	if !strings.Contains(out, "zot read") {
-		t.Errorf("orient block should name the zot binary's read verb:\n%s", out)
+	for _, banned := range []string{"zot llm", "zot read", "zot query", "zot binary"} {
+		if strings.Contains(out, banned) {
+			t.Errorf("orient block names %q, which is not a command this surface has:\n%s", banned, out)
+		}
 	}
 }
 

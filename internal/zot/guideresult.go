@@ -30,11 +30,11 @@ type GuideSection struct {
 type GuideResult struct {
 	// ContractVersion is the integer version of the machine contract —
 	// the envelope shape, error vocabulary, and the extraction-layout
-	// format. External consumers that drive sci as a subprocess (zen)
-	// probe it before delegating. Additive changes don't bump it;
+	// format. External consumers that drive sci as a subprocess probe it
+	// before delegating. Additive changes don't bump it;
 	// breaking ones do.
 	ContractVersion int `json:"contract_version"`
-	// Contract states the machine rules for driving zot under --json: the
+	// Contract states the machine rules for driving `sci zot` under --json: the
 	// envelope shape and what to do with fix / warnings / truncated fields.
 	// Rendered first — an agent that reads nothing else should still absorb
 	// these.

@@ -49,10 +49,10 @@ var relationURIRe = regexp.MustCompile(`^https?://zotero\.org/(?:users|groups)/\
 // the column is free-form text and a library can hold relations pointing at
 // arbitrary URIs.
 //
-// This reads the local mirror, so a relation written through the Web API
-// won't appear until Zotero desktop syncs it back. Callers that need
-// ground truth immediately after a write should go through
-// api.Client.ItemRelations instead.
+// This reads the local mirror, so a relation another tool wrote against the
+// Zotero server won't appear until Zotero desktop syncs it back down. A
+// caller acting on the absence of a relation is asserting that sync has
+// already happened.
 func (d *DB) ItemRelations(itemKey string) (ItemRelationSet, error) {
 	const q = `
 SELECT p.predicate, r.object
@@ -146,12 +146,12 @@ WHERE i.libraryID = ? AND di.itemID IS NULL
 // relationLabel picks one item's display label: its title when it has one,
 // otherwise a snippet of the note body.
 //
-// The fallback matters because a standalone note is the far end sci links
-// most often, and Zotero only derives a note title on save — a note posted
-// through the Web API can arrive with none. The snippet is plain text via
+// The fallback matters because a standalone note is the far end of most
+// relations, and Zotero only derives a note title on save — a note written
+// by another tool can arrive with none. The snippet is plain text via
 // [NoteText], so a docling extraction's YAML provenance header would show
-// through; that is accepted rather than fixed here, because stripping it
-// lives in internal/zot/content, which imports this package.
+// through; that is accepted rather than fixed here, because this package
+// reads rows and does not interpret note bodies.
 func relationLabel(title, noteBody string) string {
 	if title != "" {
 		return title

@@ -5,9 +5,9 @@
 //
 // It is standalone, local and read-only. There is no Zotero Web API client
 // here and no credential of any kind: the only thing `sci zot setup` records
-// is where the Zotero data directory lives. Everything that writes a library,
-// extracts paper text, or queries an upstream index lives in the separate
-// `zot` binary.
+// is where the Zotero data directory lives. Writing to a library, extracting
+// paper text and querying a metered upstream index are all out of scope —
+// this surface observes and reports.
 //
 // The command tree is defined in [github.com/sciminds/sci/internal/zot/cli]
 // and mounted under `sci zot` from cmd/sci/zot.go.
@@ -25,8 +25,8 @@ import (
 )
 
 // Config records where the Zotero library lives. It holds no credential:
-// every zot command opens DataDir/zotero.sqlite read-only and answers from
-// it, so the data directory is the whole configuration.
+// every `sci zot` command opens DataDir/zotero.sqlite read-only and answers
+// from it, so the data directory is the whole configuration.
 //
 // SharedGroupID + SharedGroupName identify one group library — read out of
 // the local `groups` table by setup or the lazy probe — as the "shared"
@@ -40,9 +40,9 @@ type Config struct {
 
 // configFile is the typed handle to ~/.config/sci/zot.json. Path/exists
 // mechanics live in sciconfig, but every read and write here goes through the
-// RAW helpers: the file is shared with the sibling `zot` binary, so sci reads
-// past the keys it does not declare and writes without deleting them (see
-// [LoadConfig] and [SaveConfig]).
+// RAW helpers: the file is not sci's alone, so sci reads past the keys it does
+// not declare and writes without deleting them (see [LoadConfig] and
+// [SaveConfig]).
 var configFile = sciconfig.File[Config]{Name: "zot.json"}
 
 // ConfigPath returns the zot config file path (typically
@@ -57,13 +57,13 @@ func ConfigPath() string { return configFile.Path() }
 // them for free, which IS the migration: a config carrying only those plus a
 // data directory is complete, and must never surface as "zot not configured".
 //
-// It deliberately does not rewrite the file to remove them. ~/.config/sci/zot.json
-// is shared: the sibling `zot` binary reads the SAME path and its operate
-// verbs are gated on `api_key`, and the file on this author's machine also
-// carries `openalex_email`, `openalex_api_key` and an `extract` block that
-// sci has never owned. Stripping a key sci stopped reading would take a
-// credential another program still needs, on nothing more than a `sci zot
-// search` — tidying someone else's file is not a migration, it is data loss.
+// It deliberately does not rewrite the file to remove them.
+// ~/.config/sci/zot.json is not sci's alone — real files carry
+// `openalex_email`, `openalex_api_key` and an `extract` block sci has never
+// owned, written by whatever else the user points at that path. Stripping a
+// key sci stopped reading would take a credential another program still
+// needs, on nothing more than a `sci zot search` — tidying someone else's
+// file is not a migration, it is data loss.
 // A stale key sits in a 0600 file that sci never opens for the network; the
 // user revokes it when they choose.
 func LoadConfig() (*Config, error) {
@@ -90,11 +90,10 @@ var sciOwnedConfigFields = []string{"data_dir", "shared_group_id", "shared_group
 // MERGING into whatever is already there rather than replacing it.
 //
 // The merge is the load-bearing part, for the reason spelled out on
-// [LoadConfig]: this file is shared with the sibling `zot` binary, and
-// marshalling a Config emits only the three fields sci declares. A plain
-// overwrite would delete `api_key` — which zot's operate verbs require — plus
-// the OpenAlex and extraction settings, turning `sci zot setup` into an
-// uninstall for the other tool.
+// [LoadConfig]: this file is not sci's alone, and marshalling a Config emits
+// only the three fields sci declares. A plain overwrite would delete
+// `api_key` plus the OpenAlex and extraction settings, turning `sci zot
+// setup` into an uninstall for whatever tool owns them.
 func SaveConfig(cfg *Config) error {
 	merged, err := mergeConfigInto(existingConfigObject(), cfg)
 	if err != nil {
@@ -106,10 +105,10 @@ func SaveConfig(cfg *Config) error {
 // ClearConfig removes the fields sci owns, leaving every other key intact, and
 // deletes the file outright once nothing is left in it.
 //
-// `setup --logout` used to forget a credential; there is none any more, so it
-// now means "forget where the library is". Deleting a shared file to
-// accomplish that would take the sibling binary's credential with it — a much
-// larger act than the one the user asked for.
+// `setup --logout` means "forget where the library is" — there is no
+// credential here to forget. Deleting the whole file to accomplish that would
+// take another tool's keys with it, a much larger act than the one the user
+// asked for.
 func ClearConfig() error {
 	obj := existingConfigObject()
 	if obj == nil {

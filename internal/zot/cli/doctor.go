@@ -32,8 +32,7 @@ invalid', etc.) for per-finding detail.
 Doctor is reporting only. Every check reads the local Zotero database and
 nothing else: no writes, no network, no metered lookups. The repairs the
 reports point at (DOI rewrites, cite-key rewrites, metadata enrichment,
-PDF acquisition) belong to the zot binary, which owns the credential and
-runs them unattended.
+PDF acquisition) all mutate the library, which this surface never does.
 
 Deep mode flips the slow/accurate paths: duplicate detection adds the
 fuzzy title pass (~30s on a 5k-item library) and orphans additionally

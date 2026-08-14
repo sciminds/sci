@@ -37,7 +37,7 @@ const (
 	// KindURL is any other http(s) URL.
 	KindURL RefKind = "url"
 	// KindZoteroKey is a zotero:// item URI — the link form Zotero's own UI
-	// writes and `item note add` documents — normalized to the 8-char key.
+	// writes — normalized to the 8-char key.
 	KindZoteroKey RefKind = "zotero-key"
 )
 
@@ -84,9 +84,10 @@ const trailingPunct = ".,;:!?"
 // Parentheses need the balance check because both forms are real: prose
 // writes "(doi:10.1038/xyz)" and Wiley's SICI DOIs are literally
 // "10.1002/(SICI)1097-0258(19980815)". Trimming every trailing ")" would
-// corrupt the second; trimming none leaves the first unresolvable — and
-// under `bib --verify` an unresolvable DOI reads as a fabricated citation,
-// so this is a correctness fix, not cosmetics.
+// corrupt the second; trimming none leaves the first unresolvable, and a
+// mangled DOI surfaces as an `Unresolved.Reason` that accuses the document
+// of citing something it does not — so this is a correctness fix, not
+// cosmetics.
 func trimRefTail(s string) string {
 	for {
 		trimmed := strings.TrimRight(s, trailingPunct)

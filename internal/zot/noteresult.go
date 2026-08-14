@@ -9,7 +9,7 @@ import (
 	"github.com/sciminds/sci/pkg/local"
 )
 
-// NoteReadResult is returned by `zot notes read <note-key>`.
+// NoteReadResult is returned by `sci zot notes read <note-key>`.
 type NoteReadResult struct {
 	Note local.NoteDetail `json:"note"`
 	// Markdown is the body converted out of Zotero's HTML, set by --md.
@@ -73,7 +73,7 @@ func noteBodyForDisplay(body string) string {
 	return md
 }
 
-// RealNotesListResult is returned by `zot notes list` — the notes the user
+// RealNotesListResult is returned by `sci zot notes list` — the notes the user
 // wrote, as distinct from the docling extractions that share Zotero's note
 // storage. On the live library the two counts differ by two orders of
 // magnitude (4,719 notes, 4,710 of them extractions), which is why the
@@ -92,7 +92,7 @@ func (r RealNotesListResult) JSON() any { return r }
 func (r RealNotesListResult) Human() string {
 	if r.Count == 0 {
 		return fmt.Sprintf("  %s no notes of your own in this library\n"+
-			"    %s docling extractions are the paper's text, not notes — read them with `zot read`\n",
+			"    %s docling extractions are the paper's text, not notes, and are filtered out here\n",
 			uikit.SymArrow, uikit.SymArrow)
 	}
 	total := max(r.Total, r.Count)

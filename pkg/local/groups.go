@@ -18,10 +18,9 @@ type Group struct {
 // Groups lists every group library the local Zotero database holds, ordered
 // by name.
 //
-// This is where the shared-library scope comes from. Naming a group used to
-// mean asking the Web API for `/users/{id}/groups`, which made a credential a
-// precondition for a purely local read; the `groups` table has had the same
-// answer all along, and it is available offline.
+// This is where the shared-library scope comes from. Naming a group is a
+// local fact — the `groups` table carries it — so resolving `--library
+// shared` needs no credential and no network.
 //
 // The result is independent of which library the handle is pinned to — a
 // personal-scoped handle lists groups just as well.

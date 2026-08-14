@@ -102,7 +102,7 @@ func resolveCiteKeyArg(ctx context.Context, arg string) string {
 	}
 	exact := lo.Filter(hits, func(it local.Item, _ int) bool {
 		// Stored key match, or a drifted synthesized key resolving via its
-		// -ZOTKEY suffix (same convention as zot bib / export round-trips).
+		// -ZOTKEY suffix (same convention as `sci zot bib` / export round-trips).
 		return strings.EqualFold(it.Citekey, arg) || strings.HasSuffix(arg, "-"+it.Key)
 	})
 	if len(exact) == 1 {
@@ -115,12 +115,10 @@ func resolveCiteKeyArg(ctx context.Context, arg string) string {
 // tell apart: a key that is wrong, and a key that is merely newer than the
 // local database.
 //
-// There is no Fix, and that is a change worth naming: the Fix used to be the
-// same read with --remote, which asked the Zotero Web API for ground truth.
-// sci no longer has that plane, and the remaining remedy for sync lag is to
-// let Zotero desktop sync — prose, not a command. What the Try can still
-// hand back is a real rewrite for the other cause, a mistyped or
-// misremembered key.
+// There is deliberately no Fix: the remedy for sync lag is to let Zotero
+// desktop sync, which is prose rather than a command line an agent can
+// resubmit verbatim. What the Try can still hand back is a real rewrite for
+// the other cause, a mistyped or misremembered key.
 func itemNotFoundErr(ctx context.Context, key string, err error) error {
 	scope := scopeFromCtx(ctx)
 	return cmdutil.Coded(cmdutil.CodeNotFound, "%v", err).
