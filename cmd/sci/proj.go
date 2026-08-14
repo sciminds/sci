@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/proj"
@@ -116,6 +117,16 @@ func projRunCommand() *cli.Command {
 			args := cmd.Args().Slice()
 			if len(args) == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected at least 1 argument")
+			}
+			// SkipFlagParsing is what forwards a task's own flags
+			// (`sci proj run lint --fix`) to the runner untouched, but it
+			// also hands `--help` over as if it were a task name — which
+			// reported "no project detected in …" and made this the only
+			// leaf in the tree whose help could not be obtained. Only a
+			// LEADING help flag is sci's own; anything after the task name
+			// belongs to the task.
+			if slices.Contains([]string{"--help", "-help", "-h"}, args[0]) {
+				return cli.ShowSubcommandHelp(cmd)
 			}
 			dir, err := os.Getwd()
 			if err != nil {

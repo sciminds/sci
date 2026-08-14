@@ -15,6 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
 	"github.com/samber/lo"
+	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot"
 	"github.com/sciminds/sci/pkg/local"
@@ -388,12 +389,31 @@ func (m *browseModel) View() tea.View {
 
 // ── CLI commands ─────────────────────────────────────────────────────
 
+// refuseJSONForTUI is the up-front --json guard every interactive read
+// carries (see browseCommand in repl.go for the original). Without it the
+// library-scope check answers first, and its Fix — which callers are told
+// to resubmit verbatim — launches a TUI with no terminal, so the caller
+// collects bubbletea's "error opening TTY" and no remedy at all.
+//
+// No rewrite of the command line makes a browser scriptable, so the
+// scriptable verb rides in try (prose) and Fix stays empty.
+func refuseJSONForTUI(cmd *cli.Command, name, try string) error {
+	if !cmdutil.IsJSON(cmd) {
+		return nil
+	}
+	return cmdutil.Coded(cmdutil.CodeUsage, "%s is interactive-only and has no --json mode", name).
+		WithTry(try)
+}
+
 func tagsBrowseCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "browse",
 		Usage:       "Interactively browse tags and their items",
 		Description: "$ sci zot tags browse",
-		Action: func(ctx context.Context, _ *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if err := refuseJSONForTUI(cmd, "tags browse", "use `sci zot tags list --json` for a scriptable listing"); err != nil {
+				return err
+			}
 			cfg, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err
@@ -413,7 +433,10 @@ func collBrowseCommand() *cli.Command {
 		Name:        "browse",
 		Usage:       "Interactively browse collections and their items",
 		Description: "$ sci zot collection browse",
-		Action: func(ctx context.Context, _ *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if err := refuseJSONForTUI(cmd, "collection browse", "use `sci zot collection list --json` for a scriptable listing"); err != nil {
+				return err
+			}
 			cfg, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err

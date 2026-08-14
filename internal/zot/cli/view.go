@@ -20,6 +20,9 @@ func viewCommand() *cli.Command {
 		Usage:       "Browse your library in an interactive table (read-only)",
 		Description: "$ sci zot view",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
+			if err := refuseJSONForTUI(cmd, "view", "use `sci zot item list --json` to enumerate, or `sci zot search <query> --json` to filter"); err != nil {
+				return err
+			}
 			_, db, err := openLocalDB(ctx)
 			if err != nil {
 				return err

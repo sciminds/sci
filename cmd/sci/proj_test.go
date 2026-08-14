@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
@@ -9,6 +10,50 @@ import (
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/urfave/cli/v3"
 )
+
+// TestProjRunHelpIsReachable — `sci proj run` sets SkipFlagParsing so a
+// task's own flags reach the task runner, which also means `--help`
+// arrives as args[0] and used to be dispatched as if it were a task name:
+// the user got "no project detected in …" instead of the command's help.
+// It was the only leaf in the tree whose help could not be obtained.
+func TestProjRunHelpIsReachable(t *testing.T) {
+	for _, flag := range []string{"--help", "-h"} {
+		t.Run(flag, func(t *testing.T) {
+			var out bytes.Buffer
+			root := buildRoot()
+			root.Writer = &out
+
+			if err := root.Run(context.Background(), []string{"sci", "proj", "run", flag}); err != nil {
+				t.Fatalf("`sci proj run %s` should print help and succeed, got %v", flag, err)
+			}
+			for _, want := range []string{"<task> [args...]", "sci proj run test", "sci proj run lint --fix"} {
+				if !strings.Contains(out.String(), want) {
+					t.Errorf("help must carry %q; got:\n%s", want, out.String())
+				}
+			}
+		})
+	}
+}
+
+// TestProjRunForwardsNonLeadingFlags is the other half: only a LEADING
+// help flag is the command's own. `sci proj run lint --help` is asking the
+// lint task for its help, and swallowing it here would break the
+// pass-through that SkipFlagParsing exists for.
+func TestProjRunForwardsNonLeadingFlags(t *testing.T) {
+	var out bytes.Buffer
+	root := buildRoot()
+	root.Writer = &out
+
+	// No project in cmd/sci, so the task dispatch fails — which is itself
+	// the evidence that --help was forwarded rather than intercepted.
+	err := root.Run(context.Background(), []string{"sci", "proj", "run", "lint", "--help"})
+	if err == nil {
+		t.Fatal("`sci proj run lint --help` must reach the task runner, not print sci's help")
+	}
+	if out.Len() > 0 {
+		t.Errorf("sci printed its own help for a trailing --help:\n%s", out.String())
+	}
+}
 
 func TestProjNew_JSONRequiresNameArg(t *testing.T) {
 	uikit.SetQuiet(false)
