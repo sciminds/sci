@@ -58,8 +58,11 @@ func (l ToastLevel) Icon() string {
 	}
 }
 
-// style returns the lipgloss style for the level from the shared TUI singleton.
-func (l ToastLevel) style() lipgloss.Style {
+// Style returns the lipgloss style for the level from the shared TUI singleton.
+// Exported because it is the shared severity vocabulary: surfaces that render
+// their own status line (uikit/browser) style it from here rather than
+// re-deriving a parallel switch over the same four palette calls.
+func (l ToastLevel) Style() lipgloss.Style {
 	switch l {
 	case ToastInfo:
 		return TUI.TextBlue()
@@ -201,7 +204,7 @@ func (m ToastModel) scheduleTick() tea.Cmd {
 }
 
 func (m ToastModel) renderOne(e toastEntry, width int) string {
-	sty := e.Level.style()
+	sty := e.Level.Style()
 	icon := sty.Render(e.Level.Icon())
 	msg := TUI.Dim().Render(e.Message)
 	content := icon + " " + msg

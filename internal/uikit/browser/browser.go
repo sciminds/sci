@@ -76,18 +76,21 @@ type ChildrenMsg struct {
 // data flow.
 type RefreshMsg struct{}
 
-// StatusKind selects the visual treatment for a [StatusMsg].
-type StatusKind int
+// StatusKind selects the visual treatment for a [StatusMsg]. It is an alias
+// for [uikit.ToastLevel], not a parallel enum: this package used to declare
+// its own four levels and its own switch over the same four palette calls,
+// which is two definitions of one idea and two places to forget a level.
+type StatusKind = uikit.ToastLevel
 
 const (
 	// StatusInfo is neutral progress text ("Deleting foo…").
-	StatusInfo StatusKind = iota
+	StatusInfo = uikit.ToastInfo
 	// StatusSuccess is green pass styling ("Deleted foo").
-	StatusSuccess
+	StatusSuccess = uikit.ToastSuccess
 	// StatusWarn is yellow warning styling ("cannot delete folders").
-	StatusWarn
+	StatusWarn = uikit.ToastWarning
 	// StatusError is red failure styling ("Delete failed: timeout").
-	StatusError
+	StatusError = uikit.ToastError
 )
 
 // StatusMsg renders text in the list's status bar with the given kind.
@@ -404,18 +407,9 @@ func (m Model) Selected() (Entry, bool) {
 	return e, ok
 }
 
-// renderStatus applies the uikit palette to a StatusMsg.
+// renderStatus applies the shared severity styling to a StatusMsg.
 func renderStatus(s StatusMsg) string {
-	switch s.Kind {
-	case StatusSuccess:
-		return uikit.TUI.Pass().Render(s.Text)
-	case StatusWarn:
-		return uikit.TUI.Warn().Render(s.Text)
-	case StatusError:
-		return uikit.TUI.Fail().Render(s.Text)
-	default: // StatusInfo
-		return uikit.TUI.Dim().Render(s.Text)
-	}
+	return s.Kind.Style().Render(s.Text)
 }
 
 // SendMsg is a convenience helper for Actions: returns a tea.Cmd that
