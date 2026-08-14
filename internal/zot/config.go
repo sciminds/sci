@@ -52,20 +52,16 @@ func ConfigPath() string { return configFile.Path() }
 // LoadConfig reads the zot config from disk.
 // Returns (nil, nil) if the file does not exist.
 //
-// Older configs carry credential fields — `api_key`, `user_id`, and before
-// that `library_id` — that this surface no longer declares. Decoding drops
-// them for free, which IS the migration: a config carrying only those plus a
-// data directory is complete, and must never surface as "zot not configured".
+// Decoding keeps only the fields [Config] declares and ignores every other
+// key, which is what lets an older config stay valid with no migration step: a
+// file carrying a data directory plus keys sci no longer reads is complete,
+// and must never surface as "zot not configured".
 //
-// It deliberately does not rewrite the file to remove them.
-// ~/.config/sci/zot.json is not sci's alone — real files carry
-// `openalex_email`, `openalex_api_key` and an `extract` block sci has never
-// owned, written by whatever else the user points at that path. Stripping a
-// key sci stopped reading would take a credential another program still
-// needs, on nothing more than a `sci zot search` — tidying someone else's
-// file is not a migration, it is data loss.
-// A stale key sits in a 0600 file that sci never opens for the network; the
-// user revokes it when they choose.
+// It deliberately does not rewrite the file to drop those keys. Sci declares
+// three fields (see [sciOwnedConfigFields]) and treats the rest of the file as
+// none of its business — deleting a key on the strength of "sci does not read
+// it" would destroy data sci never owned, triggered by nothing heavier than a
+// `sci zot search`. Whatever put a key there decides when it goes.
 func LoadConfig() (*Config, error) {
 	data, err := configFile.LoadRaw()
 	if err != nil {
@@ -90,10 +86,9 @@ var sciOwnedConfigFields = []string{"data_dir", "shared_group_id", "shared_group
 // MERGING into whatever is already there rather than replacing it.
 //
 // The merge is the load-bearing part, for the reason spelled out on
-// [LoadConfig]: this file is not sci's alone, and marshalling a Config emits
-// only the three fields sci declares. A plain overwrite would delete
-// `api_key` plus the OpenAlex and extraction settings, turning `sci zot
-// setup` into an uninstall for whatever tool owns them.
+// [LoadConfig]: marshalling a Config emits only the three fields sci declares,
+// so a plain overwrite would delete every other key in the file — turning
+// `sci zot setup` into an uninstall for whatever owns them.
 func SaveConfig(cfg *Config) error {
 	merged, err := mergeConfigInto(existingConfigObject(), cfg)
 	if err != nil {
@@ -107,7 +102,7 @@ func SaveConfig(cfg *Config) error {
 //
 // `setup --logout` means "forget where the library is" — there is no
 // credential here to forget. Deleting the whole file to accomplish that would
-// take another tool's keys with it, a much larger act than the one the user
+// take keys sci never owned with it, a much larger act than the one the user
 // asked for.
 func ClearConfig() error {
 	obj := existingConfigObject()

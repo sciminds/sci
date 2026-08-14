@@ -14,7 +14,7 @@ For the package layout, command tree, and type definitions, read the source — 
 
 ## sci does not own the config file it reads
 
-`~/.config/sci/zot.json` is shared with a separate `zot` binary and carries keys sci never declared — `api_key`, `openalex_email`, `openalex_api_key`, an `extract` block. **sci drops the keys it no longer reads from what it LOADS, and never from the file.**
+`~/.config/sci/zot.json` can carry keys sci never declared, including credentials, written by whatever else the user points at that path. sci declares exactly three (`data_dir`, `shared_group_id`, `shared_group_name`). **sci drops the keys it does not read from what it LOADS, and never from the file** — read, save and clear all preserve them.
 
 - `LoadConfig` decodes into a three-field struct (`data_dir`, `shared_group_id`, `shared_group_name`); `encoding/json` ignores everything else, and that free drop IS the migration. A config carrying only legacy credential fields plus a data directory is complete and must never surface as "zot not configured".
 - `SaveConfig` merges its three fields into the existing JSON object through `sciconfig.SaveRaw`. A plain overwrite would delete another program's credential on nothing more than a `sci zot setup`.

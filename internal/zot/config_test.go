@@ -204,12 +204,10 @@ func TestLoadConfig_MigratesLegacyLibraryID(t *testing.T) {
 // TestLoadConfig_ReadIsNonDestructive is the correction to an instinct that
 // looked like hygiene and was actually data loss.
 //
-// ~/.config/sci/zot.json is SHARED. The sibling `zot` binary reads the same
-// path and refuses its operate verbs without `api_key`; the live file on this
-// author's machine also carries `openalex_email`, `openalex_api_key` and an
-// `extract` block sci has never declared. Scrubbing the keys sci stopped
-// reading would decapitate the other tool on nothing more than a `sci zot
-// search`. A read writes nothing.
+// ~/.config/sci/zot.json can hold keys sci never declared, put there by
+// whatever else the user points at that path. Some of them are credentials.
+// Scrubbing the ones sci does not read would break their owner on nothing more
+// than a `sci zot search`, so a read writes nothing at all.
 func TestLoadConfig_ReadIsNonDestructive(t *testing.T) {
 	withXDGConfigHome(t)
 	path := ConfigPath()
@@ -220,8 +218,8 @@ func TestLoadConfig_ReadIsNonDestructive(t *testing.T) {
   "api_key": "zXXXXXXXXXXXXXXXXXXXXXXXX",
   "user_id": "17450224",
   "data_dir": ` + strconv.Quote(seedDataDir(t)) + `,
-  "openalex_api_key": "someone-elses-key",
-  "extract": {"runner": "ssh", "host": "mbp"}
+  "other_tool_key": "someone-elses-key",
+  "other_tool_settings": {"runner": "ssh", "host": "elsewhere"}
 }`)
 	if err := os.WriteFile(path, original, 0o600); err != nil {
 		t.Fatal(err)
@@ -245,8 +243,8 @@ func TestLoadConfig_ReadIsNonDestructive(t *testing.T) {
 
 // TestSaveConfig_PreservesForeignFields is the write half of the same rule.
 // `sci zot setup` marshals a Config, which declares three fields — so a plain
-// overwrite would delete every key another tool put in this file. The keys
-// sci owns are updated; nothing else is touched.
+// overwrite would delete every key sci does not own. Those three are updated;
+// nothing else in the file is touched.
 func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 	withXDGConfigHome(t)
 	path := ConfigPath()
@@ -256,8 +254,8 @@ func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 	existing := []byte(`{
   "api_key": "zXXXXXXXXXXXXXXXXXXXXXXXX",
   "data_dir": "/old/place",
-  "openalex_api_key": "someone-elses-key",
-  "extract": {"runner": "ssh", "host": "mbp"}
+  "other_tool_key": "someone-elses-key",
+  "other_tool_settings": {"runner": "ssh", "host": "elsewhere"}
 }`)
 	if err := os.WriteFile(path, existing, 0o600); err != nil {
 		t.Fatal(err)
@@ -274,7 +272,7 @@ func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 	if m["shared_group_name"] != "sciminds" {
 		t.Errorf("shared_group_name = %v", m["shared_group_name"])
 	}
-	for _, kept := range []string{"api_key", "openalex_api_key", "extract"} {
+	for _, kept := range []string{"api_key", "other_tool_key", "other_tool_settings"} {
 		if _, ok := m[kept]; !ok {
 			t.Errorf("SaveConfig destroyed %q, which sci does not own:\n%+v", kept, m)
 		}
@@ -283,8 +281,8 @@ func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 
 // TestClearConfig_LeavesForeignFields: `setup --logout` means "forget where
 // the library is" — there is no credential here to clear. Deleting the whole
-// file to do that would take another tool's api_key with it, a far larger act
-// than the one the user asked for.
+// file to do that would take a credential sci never owned with it, a far
+// larger act than the one the user asked for.
 func TestClearConfig_LeavesForeignFields(t *testing.T) {
 	withXDGConfigHome(t)
 	path := ConfigPath()

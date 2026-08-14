@@ -58,7 +58,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Orient yourself in this library (top tags, collections, recent items, extraction coverage)",
 						Cmd:  "sci zot info --orient",
-						Note: "Run this first. top_tags may include auto-applied tags (docling, _no-openalex, arXiv subject categories) — eyeball the names: high-count + system-looking is noise; the user's curated taxonomy is usually the long tail. top_collections, recent_added, and extraction_coverage are clean signal.",
+						Note: "Run this first. top_tags may include auto-applied tags (docling, arXiv subject categories, and whatever else has written to the library) — eyeball the names: high-count + system-looking is noise; the user's curated taxonomy is usually the long tail. top_collections, recent_added, and extraction_coverage are clean signal.",
 					},
 				},
 			},

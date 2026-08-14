@@ -553,20 +553,14 @@ fi
 # there is no request it could legitimately make — not to Zotero, not to a
 # metered index, not to localhost.
 #
-# This replaced a three-part fence on 2026-08-14, and the collapse is the
-# point. The old rule allowed net/http inside internal/zot/{api,cli,client,
-# connector} and then needed two more halves to say what those packages were
-# allowed to do with it: a `go list -deps` check that the command tree could
-# not reach pkg/{openalex,crossref,doiorg}, and a method-level grep asserting
-# no Zotero WRITE was called outside internal/zot/api (with a classification
-# gate in front, because the write list was derived). All three existed
-# because api was one package holding both halves of the Zotero Web API, and
-# `go list` cannot ask whether the reachable half writes.
+# State it as one sentence with no allowlist, and resist any pressure to add
+# one. The moment a package here is permitted net/http, this rule needs a
+# second half saying what it may do with it — and `go list` cannot ask whether
+# the reachable code reads or writes, so that half has to be a derived grep
+# over method names, which rots. An allowlist with no entries cannot.
 #
-# With the API client deleted the boundary is a single sentence a dependency
-# check can state exactly, and an allowlist with no entries cannot rot. A new
-# import of net/http here is not a policy question — it is the whole surface
-# changing, and it fails the gate.
+# A new import of net/http here is therefore not a policy question to be
+# settled with an exemption — it is the whole surface changing, and it fails.
 zot_http=$(for pkg in $(go list ./internal/zot/... 2>/dev/null); do
 	if go list -deps "$pkg" 2>/dev/null | rg -q '^net/http$'; then echo "$pkg"; fi
 done)
@@ -576,7 +570,7 @@ if [[ -n "$zot_http" ]]; then
 	echo "$zot_http" | sed 's/^/  /'
 	echo "  sci's Zotero surface is standalone, local and read-only — it holds no"
 	echo "  credential and makes no request. Anything that needs the network"
-	echo "  belongs in the sibling zot binary."
+	echo "  does not belong on this surface."
 	echo "  See internal/zot/CLAUDE.md, 'The boundary'."
 	fail "zot-no-http"
 fi
