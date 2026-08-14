@@ -293,7 +293,7 @@ func TestTeatestSearchMultiTokenCrossColumn(t *testing.T) {
 	}
 	m, _ := newTeatestModelWithSchema(t, stmts)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	waitForOutput(t, tm, "people")
+	waitForOutput(t, tm, "Building 210") // a row cell: the body has loaded
 
 	sendKey(tm, "/")
 	tm.Type("alice 210") // "alice" in name, "210" in location → row 1 only

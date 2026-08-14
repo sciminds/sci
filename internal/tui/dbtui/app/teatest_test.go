@@ -155,6 +155,13 @@ func waitForTable(t *testing.T, tm *teatest.TestModel) {
 // Delegates to tuitest.WaitFor, which strips ANSI before matching so a
 // cursor-diff repaint can't fragment substr across escape sequences (the
 // source of -race-only WaitFor timeouts on alt-screen models).
+//
+// Pass a substring that only a LOADED table can produce — a row value or the
+// "<n> rows" status line. A table NAME is not one: the tab bar paints every
+// name on the first frame, before any table body has loaded, so waiting on one
+// returns immediately and hands the test a race against the very load it meant
+// to wait for. Output also accumulates, so once a string has appeared any later
+// wait on it is a no-op too.
 func waitForOutput(t *testing.T, tm *teatest.TestModel, substr string) {
 	t.Helper()
 	tuitest.WaitFor(t, tm, substr, testWait)
@@ -240,8 +247,9 @@ func TestTeatestTabSwitch(t *testing.T) {
 	tm, _ := startTeatest(t)
 
 	sendSpecial(tm, tea.KeyTab)
-	// Wait for the second tab to render after async load.
-	waitForOutput(t, tm, "users")
+	// Wait on a users ROW, not the tab name: "users" is in the tab bar from
+	// the first frame, so waiting on it would race the load asserted below.
+	waitForOutput(t, tm, "alice@example.com")
 
 	fm := finalModel(t, tm)
 

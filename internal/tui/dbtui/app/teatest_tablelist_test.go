@@ -417,7 +417,7 @@ func TestTeatestTableListDedup(t *testing.T) {
 	}
 	m, store := newTeatestModelWithSchema(t, stmts)
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	waitForOutput(t, tm, "items")
+	waitForOutput(t, tm, "banana") // a row cell: the body has loaded
 
 	sendKey(tm, "t") // open table list
 	sendKey(tm, "u") // dedup

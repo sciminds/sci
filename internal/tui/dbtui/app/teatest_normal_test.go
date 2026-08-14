@@ -644,7 +644,7 @@ func TestTeatestHalfPageWithLargeData(t *testing.T) {
 		('u'),('v'),('w'),('x'),('y'),('z'),('aa'),('bb'),('cc'),('dd')`,
 	})
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	waitForOutput(t, tm, "big")
+	waitForOutput(t, tm, "30 rows") // the status line: all rows have loaded
 
 	// Half-page down should jump roughly half the viewport height.
 	sendKey(tm, "d") // half page down
