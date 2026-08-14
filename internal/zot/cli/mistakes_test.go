@@ -15,7 +15,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/sciminds/sci/internal/cmdutil"
-	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/internal/local"
 )
 
 // --- missing --library ---

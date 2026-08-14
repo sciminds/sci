@@ -6,8 +6,8 @@ import (
 	"slices"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/sci/pkg/doi"
-	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/internal/doi"
+	"github.com/sciminds/sci/internal/local"
 )
 
 // SubobjectDOIStats summarizes a dois check run. Subobject is the count

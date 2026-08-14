@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/internal/local"
 )
 
 func TestNoteReadResult_Human(t *testing.T) {

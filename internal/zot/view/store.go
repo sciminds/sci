@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/store"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 // TableName is the single virtual table the store exposes.

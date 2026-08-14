@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/internal/local"
 )
 
 // PickAttachment returns the first imported-file attachment from an item

@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/zot"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 // dumpReader is a local.Reader stub exposing only what runLibraryDump

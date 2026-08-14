@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sciminds/sci/internal/citekey"
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/zot"
-	"github.com/sciminds/sci/pkg/citekey"
-	"github.com/sciminds/sci/pkg/local"
 	"github.com/urfave/cli/v3"
 )
 

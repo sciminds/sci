@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/internal/local"
 )
 
 func TestItemRead_JSONCarriesRelations(t *testing.T) {

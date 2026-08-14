@@ -9,7 +9,7 @@ sci's Zotero surface opens the user's own `zotero.sqlite` and answers from it. T
                           &_pragma=query_only(1)
                                   │
                         ┌─────────▼──────────┐
-                        │    local.Reader    │   pkg/local
+                        │    local.Reader    │   internal/local
                         │    (*local.DB)     │   the one door in
                         └─────────┬──────────┘
                                   │

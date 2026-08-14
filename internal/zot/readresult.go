@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot/notemd"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 // ListResult wraps a slice of items for search/list/recent outputs.

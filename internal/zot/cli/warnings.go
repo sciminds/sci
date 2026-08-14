@@ -17,7 +17,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/cmdutil"
-	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/internal/local"
 )
 
 // staleLocalDaysDefault is how far behind the local zotero.sqlite may lag

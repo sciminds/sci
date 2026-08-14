@@ -42,7 +42,7 @@ fmt:
     goimports -w .
 
 lint:
-    golangci-lint run ./internal/... ./pkg/... ./cmd/...
+    golangci-lint run ./internal/... ./cmd/...
 
 # Structural style rules enforced via ast-grep.
 # No lipgloss.NewStyle() outside internal/uikit/; no hardcoded lipgloss.Color() outside palette/style files;
@@ -50,7 +50,7 @@ lint:
 lint-style:
     ast-grep test
     ast-grep scan
-    semgrep --config .semgrep/ --error --quiet ./internal/ ./pkg/ ./cmd/
+    semgrep --config .semgrep/ --error --quiet ./internal/ ./cmd/
 
 # Project-specific guards: import boundaries, flag conventions, API usage rules.
 lint-guard:
@@ -60,7 +60,7 @@ lint-guard:
 scriptable: lint-guard
 
 vet:
-    go vet ./internal/... ./pkg/... ./cmd/...
+    go vet ./internal/... ./cmd/...
 
 test:
     go test ./... -count=1
@@ -97,7 +97,7 @@ test-canvas:
 
 # Real-Zotero-DB smoke (opt-in; reads ./zotero.sqlite or $ZOT_REAL_DB)
 test-zot-real:
-    SLOW=1 go test ./pkg/local/ ./internal/zot/hygiene/ -v -count=1
+    SLOW=1 go test ./internal/local/ ./internal/zot/hygiene/ -v -count=1
 
 test-all: test test-slow
 
@@ -121,11 +121,11 @@ check-ci:
     out=$(gofmt -l .); if [ -n "$out" ]; then echo "gofmt drift:"; echo "$out"; exit 1; fi
     out=$(goimports -l .); if [ -n "$out" ]; then echo "goimports drift:"; echo "$out"; exit 1; fi
     echo "==> vet"
-    go vet ./internal/... ./pkg/... ./cmd/...
+    go vet ./internal/... ./cmd/...
     echo "==> lint"
-    golangci-lint run ./internal/... ./pkg/... ./cmd/...
+    golangci-lint run ./internal/... ./cmd/...
     echo "==> lint-docs"
-    golangci-lint run --config .golangci-docs.yml ./internal/... ./pkg/...
+    golangci-lint run --config .golangci-docs.yml ./internal/...
     echo "==> lint-guard"
     ./scripts/lint-guard.sh
     echo "==> test -race"
@@ -191,7 +191,7 @@ casts-gif FILTER='*':
 # Check Go doc comments (package-level + exported symbols) via revive.
 # Part of the `check`/`ok` gate; also runnable standalone for doc-audit sessions.
 lint-docs:
-    golangci-lint run --config .golangci-docs.yml ./internal/... ./pkg/...
+    golangci-lint run --config .golangci-docs.yml ./internal/...
 
 # Report gaps in user-facing CLI documentation (casts, gifs, README embeds, help descriptions).
 doc-coverage:

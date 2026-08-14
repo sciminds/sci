@@ -11,10 +11,10 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot"
 	"github.com/sciminds/sci/internal/zot/extract"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 // hashLibraryPDFs is [buildContentKeys] behind a spinner. The scan

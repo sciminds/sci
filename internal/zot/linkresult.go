@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/uikit"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 // LinkListResult is returned by `zot link list <key>`.

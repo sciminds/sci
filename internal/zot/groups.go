@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/samber/lo"
-	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/internal/local"
 )
 
 // LocalGroupProbe returns a [GroupProbeFunc] that lists the group libraries

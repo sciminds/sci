@@ -9,8 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
+	"github.com/sciminds/sci/internal/local"
 	dbtui "github.com/sciminds/sci/internal/tui/dbtui/app"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 const (

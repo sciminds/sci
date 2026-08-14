@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/zot"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 // withSharedOrientConfig is withOrientConfig plus the shared group the

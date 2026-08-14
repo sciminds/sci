@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot/notemd"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 // NoteReadResult is returned by `sci zot notes read <note-key>`.

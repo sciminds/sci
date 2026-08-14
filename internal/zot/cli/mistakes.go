@@ -16,8 +16,8 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/zot"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 // zoteroKeyRE matches an 8-character Zotero-style key. Used to tell a key

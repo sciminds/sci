@@ -11,9 +11,9 @@ import (
 	"charm.land/bubbles/v2/table"
 	_ "modernc.org/sqlite"
 
+	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/store"
 	"github.com/sciminds/sci/internal/tui/dbtui/tabstate"
-	"github.com/sciminds/sci/pkg/local"
 )
 
 func TestStoreTableNames(t *testing.T) {

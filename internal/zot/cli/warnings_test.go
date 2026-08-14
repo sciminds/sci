@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/sciminds/sci/internal/cmdutil"
-	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/internal/local"
 )
 
 // seedLastSync writes the version-table lastsync row Zotero maintains.

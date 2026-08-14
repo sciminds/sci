@@ -12,8 +12,8 @@ import (
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
 
-	"github.com/sciminds/sci/pkg/citekey"
-	"github.com/sciminds/sci/pkg/local"
+	"github.com/sciminds/sci/internal/citekey"
+	"github.com/sciminds/sci/internal/local"
 )
 
 // Unresolved is a reference that could not be matched to exactly one
