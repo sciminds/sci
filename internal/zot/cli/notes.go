@@ -9,20 +9,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// extractionMoved is the shared explanation on every retired extraction
-// verb under `notes`: one sentence on what changed and why, so the error
-// teaches the model rather than just redirecting.
-//
-// Two moves are folded into it, because a user typing `zot notes add`
-// today is two renames behind. The verbs first left `notes` for `content`
-// (an extraction is the paper's text, not a note — 4,710 of 4,752 "notes"
-// in the live library were extractions), and then extraction itself left
-// sci, because running docling and posting the result back is a
-// credentialed write.
-const extractionMoved = "an extraction is the paper's text, not a note, and producing one " +
-	"is a credentialed write — extraction lives in the zot binary now, and `zot notes` " +
-	"means the notes you wrote"
-
 func notesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "notes",
@@ -37,16 +23,6 @@ func notesCommand() *cli.Command {
 		Commands: []*cli.Command{
 			notesListCommand(),
 			notesReadCommand(),
-
-			// The moved verbs stay registered so they can explain
-			// themselves; urfave would otherwise answer with a bare
-			// "command not found".
-			movedToZotCommand("add", "moved to `zot extract-lib`",
-				[]string{"notes", "add"}, "zot extract-lib", extractionMoved),
-			movedToZotCommand("update", "moved to `zot extract-lib --reextract`",
-				[]string{"notes", "update"}, "zot extract-lib --reextract", extractionMoved),
-			movedToZotCommand("delete", "moved to `zot extract-lib`",
-				[]string{"notes", "delete"}, "zot extract-lib", extractionMoved),
 		},
 	}
 }

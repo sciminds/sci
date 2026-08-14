@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/adrg/xdg"
@@ -44,19 +46,24 @@ func TestZotSetupStatus(t *testing.T) {
 		t.Error("zot should be unconfigured in a fresh config dir")
 	}
 
-	// A file present but missing credentials reads as incomplete, not configured.
-	if err := zot.SaveConfig(&zot.Config{DataDir: "/tmp"}); err != nil {
+	// A file naming a directory with no zotero.sqlite reads as incomplete,
+	// not configured — that file IS the configuration.
+	if err := zot.SaveConfig(&zot.Config{DataDir: filepath.Join(t.TempDir(), "gone")}); err != nil {
 		t.Fatal(err)
 	}
 	if configured, summary := zotSetupStatus(); configured {
 		t.Errorf("incomplete zot config should not read as configured (summary=%q)", summary)
 	}
 
-	if err := zot.SaveConfig(&zot.Config{APIKey: "k", UserID: "123", DataDir: "/tmp"}); err != nil {
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dataDir, "zotero.sqlite"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := zot.SaveConfig(&zot.Config{DataDir: dataDir}); err != nil {
 		t.Fatal(err)
 	}
 	if configured, _ := zotSetupStatus(); !configured {
-		t.Error("zot with api key + user id should read as configured")
+		t.Error("zot pointed at a real zotero.sqlite should read as configured")
 	}
 }
 

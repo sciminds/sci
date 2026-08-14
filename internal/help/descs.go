@@ -62,6 +62,7 @@ var longDescs = map[string]string{
 		"Zotero database directly — fast search over every metadata field, " +
 		"a bibliography built from exactly what a manuscript cites, " +
 		"BibLaTeX/CSL-JSON export, and health checks that report and stop. " +
-		"Run `sci zot setup` once with a Zotero API key — it also unlocks the --remote live reads. " +
-		"The one thing that changes your library is `sci zot import`, and your own Zotero desktop makes that write.",
+		"Run `sci zot setup` once to point it at your Zotero data directory — " +
+		"there is no account to connect and no API key to paste, and nothing here " +
+		"ever writes to your library.",
 }

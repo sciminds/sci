@@ -326,7 +326,7 @@ func browseCommand() *cli.Command {
 				uikit.TUI.Dim().Render(refName(ref)),
 				uikit.TUI.Dim().Render("(:h for help, Ctrl-D to exit)"),
 			)
-			for _, w := range localReadWarnings(db, "") {
+			for _, w := range localReadWarnings(db) {
 				_, _ = fmt.Fprintf(out, "  %s %s\n", uikit.SymArrow, w.Message)
 			}
 

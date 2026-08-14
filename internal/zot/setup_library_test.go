@@ -15,12 +15,7 @@ func TestSetup_AutoDetectsSingleGroup(t *testing.T) {
 		return []GroupRef{{ID: "6506098", Name: "sciminds"}}, nil
 	}
 
-	_, err := Setup(SetupInput{
-		APIKey:     "k",
-		UserID:     "17450224",
-		DataDir:    dir,
-		GroupProbe: probe,
-	})
+	_, err := Setup(SetupInput{DataDir: dir, GroupProbe: probe})
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
@@ -29,8 +24,8 @@ func TestSetup_AutoDetectsSingleGroup(t *testing.T) {
 	if err != nil || cfg == nil {
 		t.Fatalf("LoadConfig: cfg=%v err=%v", cfg, err)
 	}
-	if cfg.UserID != "17450224" {
-		t.Errorf("UserID = %q", cfg.UserID)
+	if cfg.DataDir != dir {
+		t.Errorf("DataDir = %q, want %q", cfg.DataDir, dir)
 	}
 	if cfg.SharedGroupID != "6506098" {
 		t.Errorf("SharedGroupID = %q, want auto-detected 6506098", cfg.SharedGroupID)
@@ -41,20 +36,20 @@ func TestSetup_AutoDetectsSingleGroup(t *testing.T) {
 }
 
 func TestSetup_ZeroGroupsIsOK(t *testing.T) {
-	// An account with no groups is a valid state — setup saves only the
-	// personal fields and a later `--library shared` command surfaces
-	// the account-state error.
+	// A library with no groups is a valid state — setup saves only the
+	// data directory and a later `--library shared` command surfaces the
+	// no-such-group error.
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 
 	probe := func() ([]GroupRef, error) { return nil, nil }
 
-	_, err := Setup(SetupInput{APIKey: "k", UserID: "17450224", DataDir: dir, GroupProbe: probe})
+	_, err := Setup(SetupInput{DataDir: dir, GroupProbe: probe})
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
 	cfg, _ := LoadConfig()
-	if cfg == nil || cfg.UserID != "17450224" {
+	if cfg == nil || cfg.DataDir != dir {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
 	if cfg.SharedGroupID != "" {
@@ -73,9 +68,9 @@ func TestSetup_MultipleGroupsRequiresExplicitChoice(t *testing.T) {
 		}, nil
 	}
 
-	_, err := Setup(SetupInput{APIKey: "k", UserID: "17450224", DataDir: dir, GroupProbe: probe})
+	_, err := Setup(SetupInput{DataDir: dir, GroupProbe: probe})
 	if err == nil {
-		t.Fatal("expected error when account has multiple groups and none is pre-selected")
+		t.Fatal("expected error when the library holds multiple groups and none is pre-selected")
 	}
 	if !strings.Contains(err.Error(), "alpha") || !strings.Contains(err.Error(), "beta") {
 		t.Errorf("err=%v, want groups listed", err)
@@ -83,8 +78,6 @@ func TestSetup_MultipleGroupsRequiresExplicitChoice(t *testing.T) {
 
 	// Now pre-select one via SharedGroupID — should succeed.
 	_, err = Setup(SetupInput{
-		APIKey:          "k",
-		UserID:          "17450224",
 		DataDir:         dir,
 		SharedGroupID:   "2",
 		SharedGroupName: "beta",
@@ -100,12 +93,11 @@ func TestSetup_MultipleGroupsRequiresExplicitChoice(t *testing.T) {
 }
 
 func TestSetup_NilProbeLeavesSharedBlank(t *testing.T) {
-	// No probe (offline / missing API key) — setup completes with
-	// shared unconfigured; no error.
+	// No probe — setup completes with shared unconfigured; no error.
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 
-	_, err := Setup(SetupInput{APIKey: "k", UserID: "17450224", DataDir: dir})
+	_, err := Setup(SetupInput{DataDir: dir})
 	if err != nil {
 		t.Fatalf("Setup(nil probe): %v", err)
 	}

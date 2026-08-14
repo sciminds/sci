@@ -41,10 +41,15 @@ func staleThreshold() (time.Duration, bool) {
 }
 
 // staleLocalWarning checks the local DB's lastsync age and returns a
-// stale-local warning when it exceeds the threshold. fix, when non-empty, is
-// the complete command to resubmit for API ground truth (callers with a
-// --remote twin pass it; bib/export have none and pass "").
-func staleLocalWarning(db local.Reader, fix string) []cmdutil.Warning {
+// stale-local warning when it exceeds the threshold.
+//
+// Fix stays empty, and that is not an omission. The caveat is real — the
+// mirror genuinely lags the server — but the remedy is "open Zotero desktop
+// and let it sync", which is an app to launch, not a command line. sci's
+// Zotero surface is local and read-only, so there is no second plane to
+// resubmit against; a Fix here would be a command an agent runs and a claim
+// it cannot honour.
+func staleLocalWarning(db local.Reader) []cmdutil.Warning {
 	threshold, enabled := staleThreshold()
 	if !enabled {
 		return nil
@@ -62,7 +67,6 @@ func staleLocalWarning(db local.Reader, fix string) []cmdutil.Warning {
 		Code: cmdutil.CodeStaleLocal,
 		Message: fmt.Sprintf(
 			"local Zotero DB last synced %d days ago — results may be missing recent items (open Zotero desktop to sync)", days),
-		Fix: fix,
 	}}
 }
 
@@ -119,19 +123,12 @@ func humanBytes(n int64) string {
 // localReadWarnings bundles every freshness caveat that applies to a local
 // read: the mirror-vs-server lag and the connection-vs-file lag. Call sites
 // take both or neither — a read is only as trustworthy as its weakest link.
-func localReadWarnings(db local.Reader, fix string) []cmdutil.Warning {
-	return append(staleLocalWarning(db, fix), walStaleWarning(db)...)
-}
-
-// remoteRerunFix rebuilds the current command line with --remote appended —
-// the ground-truth resubmit for a stale-local warning. Empty when argv has
-// no zot token (test binaries, exotic invocations): no fix beats a wrong fix.
-func remoteRerunFix(argv []string) string {
-	if len(argv) < 2 || !lo.Contains(argv[1:], "zot") {
-		return ""
-	}
-	parts := lo.Map(argv[1:], func(arg string, _ int) string { return shellQuote(arg) })
-	return "sci " + strings.Join(parts, " ") + " --remote"
+//
+// Neither carries a Fix. Both are true, both change what a caller should
+// conclude, and both are fixed by Zotero desktop rather than by re-running
+// anything sci can offer.
+func localReadWarnings(db local.Reader) []cmdutil.Warning {
+	return append(staleLocalWarning(db), walStaleWarning(db)...)
 }
 
 // codeBibQuality labels the bibliography-quality warning. Error codes are a

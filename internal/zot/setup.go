@@ -9,14 +9,13 @@ import (
 // knobs (per-library tuning, future group handling) can be added without
 // churning every call site.
 type SetupInput struct {
-	APIKey          string // required
-	UserID          string // required — numeric Zotero user ID
 	SharedGroupID   string // optional — explicit pick when GroupProbe returns multiple
 	SharedGroupName string // optional — display name, paired with SharedGroupID
 	DataDir         string // required
 
 	// GroupProbe is injected by the CLI layer and called during setup to
-	// auto-detect the shared group for the account. Tests pass a fake.
+	// auto-detect the shared group. It reads the local Zotero database's
+	// `groups` table — there is no account to ask. Tests pass a fake.
 	// When nil, setup skips auto-detection and relies on the explicit
 	// SharedGroupID/Name inputs (or leaves shared unconfigured).
 	GroupProbe GroupProbeFunc
@@ -28,18 +27,12 @@ type SetupInput struct {
 //
 // Shared-group handling:
 //   - If SharedGroupID is non-empty, it is written through as-is (explicit pick).
-//   - Else if GroupProbe is non-nil, probe the Zotero API:
+//   - Else if GroupProbe is non-nil, read the local `groups` table:
 //   - 1 group → auto-populate SharedGroupID + SharedGroupName
-//   - 0 groups → leave shared unconfigured (account has no groups)
+//   - 0 groups → leave shared unconfigured (the library has no groups)
 //   - ≥2 groups → error, listing the options
 //   - Else (no probe, no explicit pick) → shared stays unconfigured.
 func Setup(in SetupInput) (*SetupResult, error) {
-	if err := ValidateAPIKey(in.APIKey); err != nil {
-		return nil, err
-	}
-	if err := ValidateUserID(in.UserID); err != nil {
-		return nil, err
-	}
 	if err := ValidateDataDir(in.DataDir); err != nil {
 		return nil, err
 	}
@@ -49,11 +42,11 @@ func Setup(in SetupInput) (*SetupResult, error) {
 	if sharedID == "" && in.GroupProbe != nil {
 		groups, err := in.GroupProbe()
 		if err != nil {
-			return nil, fmt.Errorf("probe Zotero groups: %w", err)
+			return nil, fmt.Errorf("read Zotero groups: %w", err)
 		}
 		switch len(groups) {
 		case 0:
-			// Leave shared blank; account has no groups.
+			// Leave shared blank; the library has no groups.
 		case 1:
 			sharedID = groups[0].ID
 			sharedName = groups[0].Name
@@ -62,13 +55,11 @@ func Setup(in SetupInput) (*SetupResult, error) {
 			for _, g := range groups {
 				names = append(names, g.Name)
 			}
-			return nil, fmt.Errorf("account has multiple groups (%s) — pass --shared-group-id to pick one", strings.Join(names, ", "))
+			return nil, fmt.Errorf("this Zotero library holds multiple groups (%s) — pass --shared-group-id to pick one", strings.Join(names, ", "))
 		}
 	}
 
 	cfg := &Config{
-		APIKey:          in.APIKey,
-		UserID:          in.UserID,
 		SharedGroupID:   sharedID,
 		SharedGroupName: sharedName,
 		DataDir:         in.DataDir,
@@ -78,17 +69,18 @@ func Setup(in SetupInput) (*SetupResult, error) {
 	}
 
 	return &SetupResult{
-		OK:      true,
-		UserID:  in.UserID,
-		DataDir: in.DataDir,
-		Message: "zot configured",
+		OK:          true,
+		DataDir:     in.DataDir,
+		SharedGroup: sharedName,
+		Message:     "zot configured",
 	}, nil
 }
 
-// Logout clears saved credentials.
+// Logout clears the saved configuration. There is no credential to
+// forget — this only makes sci stop knowing where the library is.
 func Logout() (*SetupResult, error) {
 	if err := ClearConfig(); err != nil {
 		return nil, err
 	}
-	return &SetupResult{OK: true, Message: "zot credentials cleared"}, nil
+	return &SetupResult{OK: true, Message: "zot configuration cleared"}, nil
 }

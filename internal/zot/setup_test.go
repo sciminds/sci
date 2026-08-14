@@ -19,11 +19,11 @@ func TestSetup_Happy(t *testing.T) {
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 
-	res, err := Setup(SetupInput{APIKey: "key", UserID: "123", DataDir: dir})
+	res, err := Setup(SetupInput{DataDir: dir})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.OK || res.UserID != "123" || res.DataDir != dir {
+	if !res.OK || res.DataDir != dir {
 		t.Errorf("unexpected result: %+v", res)
 	}
 
@@ -31,28 +31,28 @@ func TestSetup_Happy(t *testing.T) {
 	if err != nil || cfg == nil {
 		t.Fatalf("LoadConfig: cfg=%v err=%v", cfg, err)
 	}
-	if cfg.APIKey != "key" || cfg.UserID != "123" || cfg.DataDir != dir {
+	if cfg.DataDir != dir {
 		t.Errorf("persisted config mismatch: %+v", cfg)
 	}
 }
 
+// The data directory is the only input left, so it is the only one that can
+// be invalid — and "invalid" means specifically "holds no zotero.sqlite",
+// since that file is the entire configuration.
 func TestSetup_InvalidInputs(t *testing.T) {
-	dir := mkDataDir(t)
 	withXDGConfigHome(t)
 
 	tests := []struct {
-		name           string
-		key, lib, data string
+		name string
+		data string
 	}{
-		{"empty key", "", "1", dir},
-		{"empty lib", "k", "", dir},
-		{"non-numeric lib", "k", "abc", dir},
-		{"bad dir", "k", "1", filepath.Join(t.TempDir(), "nonexistent")},
+		{"empty dir", ""},
+		{"nonexistent dir", filepath.Join(t.TempDir(), "nonexistent")},
+		{"dir without zotero.sqlite", t.TempDir()},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			in := SetupInput{APIKey: tt.key, UserID: tt.lib, DataDir: tt.data}
-			if _, err := Setup(in); err == nil {
+			if _, err := Setup(SetupInput{DataDir: tt.data}); err == nil {
 				t.Error("expected error")
 			}
 		})
@@ -65,7 +65,7 @@ func TestConfigExists(t *testing.T) {
 		t.Fatal("expected ConfigExists=false before setup")
 	}
 	dir := mkDataDir(t)
-	if _, err := Setup(SetupInput{APIKey: "k", UserID: "1", DataDir: dir}); err != nil {
+	if _, err := Setup(SetupInput{DataDir: dir}); err != nil {
 		t.Fatal(err)
 	}
 	if !ConfigExists() {
@@ -82,7 +82,7 @@ func TestConfigExists(t *testing.T) {
 func TestLogout(t *testing.T) {
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
-	if _, err := Setup(SetupInput{APIKey: "k", UserID: "1", DataDir: dir}); err != nil {
+	if _, err := Setup(SetupInput{DataDir: dir}); err != nil {
 		t.Fatal(err)
 	}
 	res, err := Logout()

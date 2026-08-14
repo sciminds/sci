@@ -7,62 +7,27 @@ import (
 	"github.com/sciminds/sci/internal/uikit"
 )
 
-// JSON implements cmdutil.Result.
-//
-// Returns a sanitized view of Config: API keys are replaced with
-// has_* booleans so the rendered JSON cannot expose credentials in
-// logs, CI artifacts, or screen captures. SaveConfig keeps the full
-// shape on disk under 0600 — only this user-facing surface is masked.
-func (c Config) JSON() any {
-	return configView{
-		HasAPIKey:       c.APIKey != "",
-		UserID:          c.UserID,
-		SharedGroupID:   c.SharedGroupID,
-		SharedGroupName: c.SharedGroupName,
-		DataDir:         c.DataDir,
-	}
-}
-
-// configView is the secret-stripped shape emitted by Config.JSON.
-type configView struct {
-	HasAPIKey       bool   `json:"has_api_key"`
-	UserID          string `json:"user_id"`
-	SharedGroupID   string `json:"shared_group_id,omitempty"`
-	SharedGroupName string `json:"shared_group_name,omitempty"`
-	DataDir         string `json:"data_dir"`
-}
+// JSON implements cmdutil.Result. The config carries no credential, so this
+// is the whole stored shape.
+func (c Config) JSON() any { return c }
 
 // Human implements cmdutil.Result.
 func (c Config) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s zot config\n", uikit.SymOK)
-	fmt.Fprintf(&b, "    user id:  %s\n", c.UserID)
+	fmt.Fprintf(&b, "    data dir: %s\n", c.DataDir)
 	if c.SharedGroupID != "" {
 		fmt.Fprintf(&b, "    shared:   %s (groupID %s)\n", c.SharedGroupName, c.SharedGroupID)
-	}
-	fmt.Fprintf(&b, "    data dir: %s\n", c.DataDir)
-	if c.APIKey != "" {
-		fmt.Fprintf(&b, "    api key:  %s\n", maskKey(c.APIKey))
 	}
 	return b.String()
 }
 
-// maskKey returns "****" plus the last four characters of key, so the
-// user can confirm which key is loaded without exposing material that
-// would let a shoulder-surfer reconstruct it. Short keys mask fully.
-func maskKey(key string) string {
-	if len(key) <= 4 {
-		return "****"
-	}
-	return "****" + key[len(key)-4:]
-}
-
 // SetupResult is returned by `zot setup` / `sci zot setup`.
 type SetupResult struct {
-	OK      bool   `json:"ok"`
-	UserID  string `json:"user_id,omitempty"`
-	DataDir string `json:"data_dir,omitempty"`
-	Message string `json:"message"`
+	OK          bool   `json:"ok"`
+	DataDir     string `json:"data_dir,omitempty"`
+	SharedGroup string `json:"shared_group,omitempty"`
+	Message     string `json:"message"`
 }
 
 // JSON implements cmdutil.Result.
@@ -77,11 +42,11 @@ func (r SetupResult) Human() string {
 	}
 	fmt.Fprintf(&b, "  %s %s\n", sym, r.Message)
 	if r.OK {
-		if r.UserID != "" {
-			fmt.Fprintf(&b, "    user id: %s\n", r.UserID)
-		}
 		if r.DataDir != "" {
 			fmt.Fprintf(&b, "    data dir: %s\n", r.DataDir)
+		}
+		if r.SharedGroup != "" {
+			fmt.Fprintf(&b, "    shared:   %s\n", r.SharedGroup)
 		}
 	}
 	return b.String()

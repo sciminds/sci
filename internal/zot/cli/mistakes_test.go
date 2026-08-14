@@ -79,10 +79,10 @@ func TestErrLibraryRequired_CodedWithFixAndTry(t *testing.T) {
 
 // --- search flag conflicts ---
 
-func TestSearch_RemoteExport_CodeConflict(t *testing.T) {
+func TestSearch_FullExport_CodeConflict(t *testing.T) {
 	withOrientConfig(t)
 
-	_, err := runItemRead(t, "--json", "--library", "personal", "search", "--remote", "--export", "foo")
+	_, err := runItemRead(t, "--json", "--library", "personal", "search", "--full", "--export", "foo")
 	coded, ok := errors.AsType[*cmdutil.CodedError](err)
 	if !ok {
 		t.Fatalf("want CodedError, got %T: %v", err, err)
@@ -152,7 +152,12 @@ func TestItemRead_ShortLegacyKey_StillReadsDirectly(t *testing.T) {
 	}
 }
 
-func TestItemRead_NotFound_CodedWithRemoteFix(t *testing.T) {
+// A read miss has two causes an agent must tell apart — a wrong key, and a
+// key newer than the local database — so the error names both. There is no
+// Fix any more: the old one resubmitted with --remote, and sci has no live
+// plane to resubmit against; the remaining remedy for sync lag is Zotero
+// desktop, which is not a command line.
+func TestItemRead_NotFound_CodedWithSearchTry(t *testing.T) {
 	withOrientConfig(t)
 
 	_, err := runItemRead(t, "--json", "--library", "personal", "item", "read", "ZZZZ9999")
@@ -163,11 +168,17 @@ func TestItemRead_NotFound_CodedWithRemoteFix(t *testing.T) {
 	if coded.Code != cmdutil.CodeNotFound {
 		t.Errorf("Code = %q, want not-found", coded.Code)
 	}
-	if !strings.Contains(coded.Fix, "--remote") || !strings.HasPrefix(coded.Fix, "sci ") {
-		t.Errorf("Fix should be a complete --remote resubmit, got %q", coded.Fix)
+	if coded.Fix != "" {
+		t.Errorf("Fix must be empty — there is no live plane to resubmit against; got %q", coded.Fix)
 	}
-	if !strings.Contains(coded.Fix, "ZZZZ9999") {
-		t.Errorf("Fix should carry the key, got %q", coded.Fix)
+	if !strings.Contains(coded.Try, "sci zot --library personal search") {
+		t.Errorf("Try should hand back a re-find command, got %q", coded.Try)
+	}
+	if !strings.Contains(coded.Try, "ZZZZ9999") {
+		t.Errorf("Try should carry the key, got %q", coded.Try)
+	}
+	if !strings.Contains(coded.Try, "sync") {
+		t.Errorf("Try should name sync lag as the other cause, got %q", coded.Try)
 	}
 }
 

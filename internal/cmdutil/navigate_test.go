@@ -297,3 +297,58 @@ func TestWireNamespaceDefaults_PreservesExistingBefore(t *testing.T) {
 		t.Error("existing Before was not preserved in the chain")
 	}
 }
+
+// TestRejectUnknownSubcommand_IsACodedUsageError pins the error type.
+//
+// A bare fmt.Errorf here reaches HandleError with no Code, so the --json
+// envelope carries no `code` an agent can branch on and the process exits
+// 1 where every other misuse exits 2. Mistyping a subcommand is a usage
+// error like any other.
+func TestRejectUnknownSubcommand_IsACodedUsageError(t *testing.T) {
+	t.Parallel()
+	root := &cli.Command{
+		Name:     "test",
+		Commands: []*cli.Command{{Name: "child", Action: func(context.Context, *cli.Command) error { return nil }}},
+		Before:   RejectUnknownSubcommand,
+		Action:   func(context.Context, *cli.Command) error { return nil },
+	}
+	err := root.Run(context.Background(), []string{"test", "bogus"})
+	if err == nil {
+		t.Fatal("unknown subcommand should error")
+	}
+	coded, ok := errors.AsType[*CodedError](err)
+	if !ok {
+		t.Fatalf("want *CodedError so the envelope carries a code, got %T: %v", err, err)
+	}
+	if coded.Code != CodeUsage {
+		t.Errorf("Code = %q, want %q", coded.Code, CodeUsage)
+	}
+	if !strings.Contains(coded.Message, "bogus") {
+		t.Errorf("message should name the token the user typed, got %q", coded.Message)
+	}
+}
+
+// TestRejectUnknownSubcommand_JSONLeavesStdoutClean is the machine half.
+//
+// The hook dumps the parent's help to orient a human. Under --json stdout
+// is the envelope and nothing else, so a help dump there hands an agent
+// ANSI-styled prose where it expects one line of JSON — the same failure
+// the retired-verb stubs used to cause, inherited by every unknown name
+// once those stubs were deleted.
+func TestRejectUnknownSubcommand_JSONLeavesStdoutClean(t *testing.T) {
+	var out strings.Builder
+	root := &cli.Command{
+		Name:     "test",
+		Writer:   &out,
+		Flags:    []cli.Flag{JSONFlag(new(bool))}, // lint:destination-ok — test harness, never read back
+		Commands: []*cli.Command{{Name: "child", Action: func(context.Context, *cli.Command) error { return nil }}},
+		Before:   RejectUnknownSubcommand,
+		Action:   func(context.Context, *cli.Command) error { return nil },
+	}
+	if err := root.Run(context.Background(), []string{"test", "--json", "bogus"}); err == nil {
+		t.Fatal("unknown subcommand should error")
+	}
+	if out.Len() != 0 {
+		t.Errorf("--json must leave stdout for the envelope; got %d bytes of help:\n%s", out.Len(), out.String())
+	}
+}

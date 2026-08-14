@@ -1,12 +1,9 @@
 package cli
 
 import (
-	"errors"
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/sciminds/sci/internal/cmdutil"
 )
 
 // TestDoctorWriteFlagsAreGone pins the boundary decided 2026-08-12: sci's
@@ -126,50 +123,8 @@ func TestDoctorHelpAdvertisesNoWrites(t *testing.T) {
 	}
 }
 
-// TestDoctorPDFsIsRetiredStub pins the stub contract for the one check that
-// left entirely. It stays REGISTERED so urfave answers with the move rather
-// than a bare "command not found", and the destination rides in Try, never
-// in Fix: the zot binary is not installed on lab machines, and Fix is
-// verbatim-runnable or absent.
-func TestDoctorPDFsIsRetiredStub(t *testing.T) {
-	t.Parallel()
-
-	leaf := walkToLeaf(Commands(), []string{"doctor", "pdfs"})
-	if leaf == nil {
-		t.Fatal("`doctor pdfs` must stay registered so the move is discoverable")
-	}
-
-	err := runZotTree(t, "zot", "doctor", "pdfs")
-	if err == nil {
-		t.Fatal("`doctor pdfs` should refuse, got nil")
-	}
-	coded, ok := errors.AsType[*cmdutil.CodedError](err)
-	if !ok {
-		t.Fatalf("want CodedError, got %T: %v", err, err)
-	}
-	if coded.Code != cmdutil.CodeUsage {
-		t.Errorf("Code = %q, want %q", coded.Code, cmdutil.CodeUsage)
-	}
-	if coded.Fix != "" {
-		t.Errorf("Fix must stay empty — zot is not installed here; got %q", coded.Fix)
-	}
-	if !strings.Contains(coded.Try, "zot doctor pdfs") {
-		t.Errorf("Try must name the verb that replaces it, got %q", coded.Try)
-	}
-}
-
-// TestDoctorPDFsStubTakesAnyArgs guards the flag-parsing half: a script
-// still passing --download/--attach must reach the explanation, not a
-// bare "flag provided but not defined".
-func TestDoctorPDFsStubTakesAnyArgs(t *testing.T) {
-	t.Parallel()
-	argv := []string{"zot", "doctor", "pdfs", "--missing", "--download", "/tmp/x", "--attach", "--yes"}
-	err := runZotTree(t, argv...)
-	coded, ok := errors.AsType[*cmdutil.CodedError](err)
-	if !ok {
-		t.Fatalf("want CodedError, got %T: %v", err, err)
-	}
-	if coded.Code != cmdutil.CodeUsage {
-		t.Errorf("Code = %q, want %q", coded.Code, cmdutil.CodeUsage)
-	}
-}
+// `doctor pdfs` is not registered at all any more. It was a stub naming
+// `zot doctor pdfs` while the refusal stubs existed; the 2026-08-14
+// standalone-local cut removed every stub, so it is now an unknown
+// subcommand like any typo. shrink_test.go's TestRetiredVerbsAreUnknownCommands
+// is where that is pinned, alongside every other retired verb.

@@ -11,9 +11,10 @@ package cmdutil
 //   - silently run the parent's Action with "bogus" as a positional arg
 //     (for mixed Action+Commands shapes like `sci zot doctor`).
 //
-// Neither is acceptable. We want a consistent, scripted response: dump help,
-// print "unknown command %q. Did you mean %q?", and exit 1 — the same shape
-// UsageErrorf uses for the empty-args case.
+// Neither is acceptable. We want a consistent, scripted response: a
+// [CodeUsage] error reading "unknown command %q. Did you mean %q?" — the same
+// shape UsageErrorf uses for the empty-args case, down to the exit code and
+// the rule that the help dump is suppressed under --json.
 //
 // Why not urfave's CommandNotFound? Two hard limits:
 //
@@ -68,7 +69,9 @@ func MarkDeprecatedChildren(cmd *cli.Command, redirects map[string]string) {
 
 // RejectUnknownSubcommand is a Before hook for commands that group
 // subcommands. If the first positional arg doesn't name a direct subcommand,
-// it dumps the parent's help and returns an error.
+// it returns a [CodeUsage] error naming the token, with the closest real
+// subcommand suggested when there is one, and dumps the parent's help in
+// human mode to orient the reader.
 //
 // No-op when:
 //   - the first arg is empty (pure namespaces get urfave's auto-help via
@@ -84,17 +87,25 @@ func RejectUnknownSubcommand(ctx context.Context, cmd *cli.Command) (context.Con
 		if replacement, ok := redirects[first]; ok {
 			// Skip the help dump on a known-deprecated name: the tailored
 			// "use X instead" line is already the answer the user needs.
-			return ctx, fmt.Errorf("%q was removed — use %q instead",
+			return ctx, Coded(CodeUsage, "%q was removed — use %q instead",
 				cmd.FullName()+" "+first,
-				cmd.FullName()+" "+replacement)
+				cmd.FullName()+" "+replacement).
+				WithFix(cmd.FullName() + " " + replacement)
 		}
 	}
-	_ = cli.ShowSubcommandHelp(cmd)
+	// Human mode gets the parent's help to orient by. Under --json stdout
+	// belongs to the envelope alone, so the dump is suppressed there — a
+	// page of styled prose where an agent expects one line of JSON is a
+	// parse error, not a hint.
+	if !IsJSON(cmd) {
+		_ = cli.ShowSubcommandHelp(cmd)
+	}
 	msg := fmt.Sprintf("unknown command %q", first)
 	if s := cli.SuggestCommand(cmd.Commands, first); s != "" {
 		msg += fmt.Sprintf(". Did you mean %q?", s)
 	}
-	return ctx, fmt.Errorf("%s", msg)
+	return ctx, Coded(CodeUsage, "%s", msg).
+		WithTry(fmt.Sprintf("run '%s --help' to see the available commands", cmd.FullName()))
 }
 
 // ChainBefore composes multiple Before hooks into one, running each in order.

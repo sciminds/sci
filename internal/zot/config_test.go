@@ -1,10 +1,11 @@
 package zot
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
+	"strconv"
 	"testing"
 
 	"github.com/adrg/xdg"
@@ -63,7 +64,7 @@ func TestLoadConfig_Missing(t *testing.T) {
 func TestSaveAndLoadConfig(t *testing.T) {
 	withXDGConfigHome(t)
 
-	cfg := &Config{APIKey: "abc123", UserID: "7654321", DataDir: "/tmp/z"}
+	cfg := &Config{SharedGroupID: "6506098", SharedGroupName: "sciminds", DataDir: "/tmp/z"}
 	if err := SaveConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +84,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 func TestSaveConfig_Permissions(t *testing.T) {
 	withXDGConfigHome(t)
 
-	if err := SaveConfig(&Config{APIKey: "k", UserID: "1"}); err != nil {
+	if err := SaveConfig(&Config{DataDir: "/tmp/z"}); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(ConfigPath())
@@ -104,24 +105,82 @@ func TestRequireConfig_NotConfigured(t *testing.T) {
 
 func TestRequireConfig_IncompleteConfig(t *testing.T) {
 	withXDGConfigHome(t)
-	if err := SaveConfig(&Config{APIKey: "k"}); err != nil {
+	if err := SaveConfig(&Config{SharedGroupID: "6506098"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := RequireConfig(); err == nil {
-		t.Error("expected error for missing user_id")
+		t.Error("expected error for missing data_dir")
 	}
 }
 
+// TestLoadConfig_DropsRetiredCredentials is the migration that matters most
+// for the credential removal: every existing user's ~/.config/sci/zot.json
+// carries `api_key` and `user_id`, and the fields no longer exist. Those keys
+// must be dropped SILENTLY on the next load — the config is still complete
+// (it names a data directory), so surfacing "zot not configured" would break
+// every already-working install for a field nothing reads any more.
+//
+// Dropped means dropped from what sci LOADS, not scrubbed from the file: the
+// disk half is TestLoadConfig_ReadIsNonDestructive below, and it asserts the
+// opposite of the tidy-up instinct.
+func TestLoadConfig_DropsRetiredCredentials(t *testing.T) {
+	withXDGConfigHome(t)
+	path := ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dataDir := seedDataDir(t)
+	legacy := []byte(`{
+  "api_key": "zXXXXXXXXXXXXXXXXXXXXXXXX",
+  "user_id": "17450224",
+  "shared_group_id": "6506098",
+  "shared_group_name": "sciminds",
+  "data_dir": ` + strconv.Quote(dataDir) + `
+}`)
+	if err := os.WriteFile(path, legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("LoadConfig returned nil for a present config file")
+	}
+	if cfg.DataDir != dataDir {
+		t.Errorf("DataDir = %q, want %q", cfg.DataDir, dataDir)
+	}
+	if cfg.SharedGroupID != "6506098" || cfg.SharedGroupName != "sciminds" {
+		t.Errorf("shared group lost: %+v", cfg)
+	}
+
+	// The whole point: a config carrying only retired credentials is still a
+	// configured install.
+	live, err := RequireConfig()
+	if err != nil {
+		t.Fatalf("RequireConfig on a credential-carrying legacy config: %v", err)
+	}
+	if live.DataDir != dataDir {
+		t.Errorf("RequireConfig DataDir = %q, want %q", live.DataDir, dataDir)
+	}
+}
+
+// TestLoadConfig_MigratesLegacyLibraryID covers the older rename
+// (library_id → user_id) reaching a config shape that has neither field: the
+// pre-rename file is still readable, its data_dir still lands, and nothing
+// asks for a credential.
 func TestLoadConfig_MigratesLegacyLibraryID(t *testing.T) {
 	withXDGConfigHome(t)
 	path := ConfigPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	dataDir := seedDataDir(t)
 	legacy := []byte(`{
   "api_key": "abc123",
   "library_id": "17450224",
-  "data_dir": "/tmp/z"
+  "data_dir": ` + strconv.Quote(dataDir) + `
 }`)
 	if err := os.WriteFile(path, legacy, 0o600); err != nil {
 		t.Fatal(err)
@@ -134,41 +193,158 @@ func TestLoadConfig_MigratesLegacyLibraryID(t *testing.T) {
 	if cfg == nil {
 		t.Fatal("LoadConfig returned nil for present legacy file")
 	}
-	if cfg.UserID != "17450224" {
-		t.Errorf("UserID not migrated: got %q", cfg.UserID)
+	if cfg.DataDir != dataDir {
+		t.Errorf("DataDir = %q, want %q", cfg.DataDir, dataDir)
 	}
-	if cfg.APIKey != "abc123" {
-		t.Errorf("APIKey lost: %q", cfg.APIKey)
-	}
-
-	// RequireConfig must now accept it (legacy config → live).
-	live, err := RequireConfig()
-	if err != nil {
+	if _, err := RequireConfig(); err != nil {
 		t.Fatalf("RequireConfig after migration: %v", err)
 	}
-	if live.UserID != "17450224" {
-		t.Errorf("RequireConfig UserID = %q", live.UserID)
+}
+
+// TestLoadConfig_ReadIsNonDestructive is the correction to an instinct that
+// looked like hygiene and was actually data loss.
+//
+// ~/.config/sci/zot.json is SHARED. The sibling `zot` binary reads the same
+// path and refuses its operate verbs without `api_key`; the live file on this
+// author's machine also carries `openalex_email`, `openalex_api_key` and an
+// `extract` block sci has never declared. Scrubbing the keys sci stopped
+// reading would decapitate the other tool on nothing more than a `sci zot
+// search`. A read writes nothing.
+func TestLoadConfig_ReadIsNonDestructive(t *testing.T) {
+	withXDGConfigHome(t)
+	path := ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte(`{
+  "api_key": "zXXXXXXXXXXXXXXXXXXXXXXXX",
+  "user_id": "17450224",
+  "data_dir": ` + strconv.Quote(seedDataDir(t)) + `,
+  "openalex_api_key": "someone-elses-key",
+  "extract": {"runner": "ssh", "host": "mbp"}
+}`)
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatal(err)
 	}
 
-	// The file on disk should have been rewritten in the new shape:
-	// - include "user_id"
-	// - NOT include "library_id"
-	onDisk, err := os.ReadFile(path)
+	if _, err := LoadConfig(); err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if _, err := RequireConfig(); err != nil {
+		t.Fatalf("RequireConfig: %v", err)
+	}
+
+	after, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := string(onDisk)
-	if !strings.Contains(s, `"user_id"`) {
-		t.Errorf("disk config not rewritten with user_id: %s", s)
+	if string(after) != string(original) {
+		t.Errorf("reading the config rewrote it:\n--- before ---\n%s\n--- after ---\n%s", original, after)
 	}
-	if strings.Contains(s, `"library_id"`) {
-		t.Errorf("disk config still carries legacy library_id: %s", s)
+}
+
+// TestSaveConfig_PreservesForeignFields is the write half of the same rule.
+// `sci zot setup` marshals a Config, which declares three fields — so a plain
+// overwrite would delete every key the sibling binary put in this file. The
+// keys sci owns are updated; nothing else is touched.
+func TestSaveConfig_PreservesForeignFields(t *testing.T) {
+	withXDGConfigHome(t)
+	path := ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
 	}
+	existing := []byte(`{
+  "api_key": "zXXXXXXXXXXXXXXXXXXXXXXXX",
+  "data_dir": "/old/place",
+  "openalex_api_key": "someone-elses-key",
+  "extract": {"runner": "ssh", "host": "mbp"}
+}`)
+	if err := os.WriteFile(path, existing, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SaveConfig(&Config{DataDir: "/new/place", SharedGroupID: "6506098", SharedGroupName: "sciminds"}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := readConfigObject(t, path)
+	if m["data_dir"] != "/new/place" {
+		t.Errorf("data_dir = %v, want the newly saved value", m["data_dir"])
+	}
+	if m["shared_group_name"] != "sciminds" {
+		t.Errorf("shared_group_name = %v", m["shared_group_name"])
+	}
+	for _, kept := range []string{"api_key", "openalex_api_key", "extract"} {
+		if _, ok := m[kept]; !ok {
+			t.Errorf("SaveConfig destroyed %q, which sci does not own:\n%+v", kept, m)
+		}
+	}
+}
+
+// TestClearConfig_LeavesForeignFields: `setup --logout` no longer clears a
+// credential — there is none — so it means "forget where the library is".
+// Deleting a shared file to do that would take the sibling binary's api_key
+// with it, which is a far larger act than the one the user asked for.
+func TestClearConfig_LeavesForeignFields(t *testing.T) {
+	withXDGConfigHome(t)
+	path := ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	existing := []byte(`{
+  "api_key": "zXXXXXXXXXXXXXXXXXXXXXXXX",
+  "data_dir": "/some/place",
+  "shared_group_id": "6506098",
+  "shared_group_name": "sciminds"
+}`)
+	if err := os.WriteFile(path, existing, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ClearConfig(); err != nil {
+		t.Fatal(err)
+	}
+
+	m := readConfigObject(t, path)
+	for _, gone := range sciOwnedConfigFields {
+		if _, ok := m[gone]; ok {
+			t.Errorf("ClearConfig left sci's own field %q behind: %+v", gone, m)
+		}
+	}
+	if _, ok := m["api_key"]; !ok {
+		t.Errorf("ClearConfig took the sibling binary's credential with it: %+v", m)
+	}
+}
+
+// readConfigObject decodes the config file as a bare map so a test can assert
+// on keys the Config struct does not declare.
+func readConfigObject(t *testing.T, path string) map[string]any {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatalf("config is not valid JSON: %v\n%s", err, raw)
+	}
+	return m
+}
+
+// seedDataDir builds a temp directory holding a zotero.sqlite, which is what
+// RequireConfig now treats as "configured".
+func seedDataDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "zotero.sqlite"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }
 
 func TestClearConfig(t *testing.T) {
 	withXDGConfigHome(t)
-	if err := SaveConfig(&Config{APIKey: "k", UserID: "1"}); err != nil {
+	if err := SaveConfig(&Config{DataDir: "/tmp/z"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := ClearConfig(); err != nil {
@@ -180,24 +356,6 @@ func TestClearConfig(t *testing.T) {
 	// Clearing a missing file is a no-op.
 	if err := ClearConfig(); err != nil {
 		t.Errorf("ClearConfig on missing file: %v", err)
-	}
-}
-
-func TestValidateUserID(t *testing.T) {
-	tests := []struct {
-		id      string
-		wantErr bool
-	}{
-		{"", true},
-		{"123", false},
-		{"abc", true},
-		{"12a3", true},
-	}
-	for _, tt := range tests {
-		err := ValidateUserID(tt.id)
-		if (err != nil) != tt.wantErr {
-			t.Errorf("ValidateUserID(%q) err = %v, wantErr %v", tt.id, err, tt.wantErr)
-		}
 	}
 }
 
@@ -274,7 +432,7 @@ func TestValidateLibraryScope_AcceptsAll(t *testing.T) {
 }
 
 func TestResolve_All(t *testing.T) {
-	cfg := &Config{UserID: "12345", SharedGroupID: "6506098", SharedGroupName: "sciminds"}
+	cfg := &Config{SharedGroupID: "6506098", SharedGroupName: "sciminds"}
 	ref, err := cfg.Resolve(LibAll)
 	if err != nil {
 		t.Fatalf("Resolve(all): %v", err)
@@ -282,14 +440,25 @@ func TestResolve_All(t *testing.T) {
 	if ref.Scope != LibAll {
 		t.Errorf("Scope = %q, want all", ref.Scope)
 	}
-	if ref.APIPath != "" {
-		t.Errorf("APIPath = %q — a merged scope has no single API path; it must stay empty so an API client can never be built from it", ref.APIPath)
-	}
 }
 
 func TestResolve_All_RequiresSharedGroup(t *testing.T) {
-	cfg := &Config{UserID: "12345"}
+	cfg := &Config{DataDir: "/tmp/z"}
 	if _, err := cfg.Resolve(LibAll); err == nil {
 		t.Fatal("Resolve(all) without a shared group must error, not degrade to personal-only")
+	}
+}
+
+// TestResolve_Personal_NeedsNoCredential pins the credential removal at the
+// resolver: the personal library is `libraries.type='user'` in the local
+// database, so nothing about naming it requires a Zotero account ID.
+func TestResolve_Personal_NeedsNoCredential(t *testing.T) {
+	cfg := &Config{DataDir: "/tmp/z"}
+	ref, err := cfg.Resolve(LibPersonal)
+	if err != nil {
+		t.Fatalf("Resolve(personal) on a credential-free config: %v", err)
+	}
+	if ref.Scope != LibPersonal {
+		t.Errorf("Scope = %q, want personal", ref.Scope)
 	}
 }

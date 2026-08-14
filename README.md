@@ -396,10 +396,6 @@ The one write is `sci zot import`, and it goes through Zotero desktop's own conn
 ![zot item](docs/casts/zot-item.gif)
 ![zot notes](docs/casts/zot-notes.gif)
 
-#### Import (desktop-assisted, with metadata recognition)
-
-![zot import](docs/casts/zot-import.gif)
-
 #### Organize
 
 ![zot collection](docs/casts/zot-collection.gif)

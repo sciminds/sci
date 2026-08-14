@@ -68,7 +68,11 @@ func runZot(t *testing.T, args ...string) ([]byte, error) {
 	return stdout, runErr
 }
 
-func TestItemList_MissingCollection_HintsAboutRemote(t *testing.T) {
+// A collection key the local database does not know is most often sync lag,
+// not a typo — so the empty result says which, rather than reading as a
+// confident "no items". The remedy is Zotero desktop; there is no second
+// plane to point at.
+func TestItemList_MissingCollection_HintsAboutSyncLag(t *testing.T) {
 	withTestConfig(t, "42", "")
 
 	out, err := runZot(t, "--json", "--library", "personal", "item", "list", "--collection", "NOTREAL1")
@@ -83,10 +87,13 @@ func TestItemList_MissingCollection_HintsAboutRemote(t *testing.T) {
 		t.Fatalf("Count = %d, want 0", result.Count)
 	}
 	if result.Hint == "" {
-		t.Fatal("Hint empty; want a --remote suggestion when collection key is unknown locally")
+		t.Fatal("Hint empty; want the sync-lag explanation when a collection key is unknown locally")
 	}
-	if !strings.Contains(result.Hint, "--remote") {
-		t.Errorf("Hint = %q, want mention of --remote", result.Hint)
+	if !strings.Contains(result.Hint, "sync") {
+		t.Errorf("Hint = %q, want the sync-lag explanation", result.Hint)
+	}
+	if strings.Contains(result.Hint, "--remote") {
+		t.Errorf("Hint = %q still advertises --remote, which no longer exists", result.Hint)
 	}
 	if !strings.Contains(result.Hint, "NOTREAL1") {
 		t.Errorf("Hint = %q, want the missing collection key called out", result.Hint)

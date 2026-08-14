@@ -23,19 +23,31 @@ import (
 //   - Cmd lines always start with `sci zot …` so agents can copy-paste.
 //   - Library scope is omitted — the resolver auto-selects / prompts.
 //   - Notes call out tradeoffs, gotchas, or compose-with hints.
+//
+// ContractVersion 4 (2026-08-14) is the standalone-local cut, and it is the
+// widest break so far: sci's Zotero surface lost the Web API entirely, so
+// `--remote` is gone from every verb that had it (search, item read / list /
+// children, collection list, link list), `saved-search` and `item note` are
+// gone with the API that was their only source, and `import` went with the
+// desktop connector. A consumer cached at v3 holds a map to six flags and
+// three verbs that no longer parse. The retirement STUBS went too: an old
+// verb is now an ordinary unknown command, so a consumer that probed by
+// running one gets urfave's rejection instead of a routed explanation.
+// Setup changed shape underneath all of it — there is no API key or user ID
+// to supply, only a data directory.
 func guideContent() zot.GuideResult {
 	return zot.GuideResult{
-		ContractVersion: 3,
+		ContractVersion: 4,
 		Contract: []string{
 			"Probe data.contract_version first — it bumps only on breaking changes to this contract.",
-			"This surface is READ-ONLY and local: every command below opens your own zotero.sqlite and answers from it. sci holds no credential for writing, and never fetches from OpenAlex, Crossref, or any other upstream index. Writing to the library, extracting paper text, and citation traversal live in the separate `zot` binary. Every retired verb is still registered here and says where its work went — usually a `zot` verb, and for saved-search writes the Zotero desktop app, because the Web API stores a saved search but never evaluates it.",
+			"This surface is READ-ONLY, local, and STANDALONE: every command below opens your own zotero.sqlite and answers from it. There is no Zotero Web API client here and no credential of any kind — setup records a data directory and nothing else, so nothing has a live plane to fall back on. Writing to the library, extracting paper text, upstream indexes (OpenAlex, Crossref) and citation traversal live in the separate `zot` binary; those verbs are not registered here and fail as unknown commands.",
 			"Every command accepts --json: one stream (stdout), one shape. Success: {ok:true, data, warnings}. Failure: {ok:false, error:{code, message, fix, try}} on a single line.",
 			"error.fix is a complete corrected command — resubmit it verbatim. error.try is prose guidance. error.code is a closed vocabulary (usage, conflict, not-found, ambiguous, offline, not-configured, runtime).",
 			"Exit 2 means rewrite the command line and retry; exit 1 means the work itself failed.",
-			"Act on warnings[] before trusting data — stale-local means the local mirror lags Zotero sync (warning carries the --remote resubmit); bib-quality means entries will be incomplete.",
+			"Act on warnings[] before trusting data — stale-local means this read cannot see everything Zotero has (the mirror lags the server, or the connection lags the file), and the remedy is Zotero desktop, so the warning carries prose and no fix; bib-quality means entries will be incomplete.",
 			"truncated:true means count < total — raise --limit to see the rest.",
 			"Search field clauses work bare: tag:read = @tag: read, and -tag:read excludes the tag.",
-			"--library all merges personal+shared into one ranked pool — accepted by search, bib, export --format ndjson and browse; each row's library field is its provenance (library_id reads 0). Under all, --remote conflicts (the Web API serves one library per call), so narrow to one library before widening.",
+			"--library all merges personal+shared into one ranked pool — accepted by search, bib, export --format ndjson and browse; each row's library field is its provenance (library_id reads 0). Everything else takes --library personal|shared.",
 			"item read accepts cite keys as positionals, not just 8-char Zotero keys. --library goes anywhere in the command.",
 			"Human output is for terminals; pipe --json instead.",
 		},
@@ -56,7 +68,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Find papers in my library on a topic",
 						Cmd:  "sci zot search \"large language models\" --library personal",
-						Note: "Local metadata match over title/DOI/pub/creators/citekey, ranked by title relevance then year. Bare words AND across fields ('jolly 2021' = creator + year; a bare 1500-2099 token means the year); quotes make a literal phrase. --remote widens to the Zotero Web fulltext (abstract + notes + PDFs). --notes instead FILTERS to items that have an extraction (no searching inside). Searching the TEXT of your papers is `zot search` in the zot binary.",
+						Note: "Metadata match over title/DOI/pub/creators/citekey, ranked by title relevance then year. Bare words AND across fields ('jolly 2021' = creator + year; a bare 1500-2099 token means the year); quotes make a literal phrase. --notes FILTERS to items that have an extraction (it does not search inside one). Searching the TEXT of your papers is `zot search` in the zot binary.",
 					},
 					{
 						Goal: "Which paper is this cite-key / Zotero key?",
@@ -66,7 +78,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Lookup an item by exact key",
 						Cmd:  "sci zot item read ABC12345",
-						Note: "Shows tags, collections, attachments, and related items (data.relations — `related` is the user's own dc:relation links, `other` is Zotero-managed owl:sameAs/dc:replaces, `titles` names each far end). Add --remote when the local DB may be stale: an item written seconds ago lives only on the server until Zotero desktop syncs it back (the stale-local warning carries the resubmit).",
+						Note: "Shows tags, collections, attachments, and related items (data.relations — `related` is the user's own dc:relation links, `other` is Zotero-managed owl:sameAs/dc:replaces, `titles` names each far end). An item or link written seconds ago lives only on the server until Zotero desktop syncs it back, so a miss here can be sync lag rather than absence — the stale-local warning says when that is likely.",
 					},
 					{
 						Goal: "Read several items in one call",
@@ -81,17 +93,12 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "List or filter the items in a collection, tag, or type",
 						Cmd:  "sci zot item list --collection ABC12345 --limit 25",
-						Note: "The plain enumerate verb — combine --type / --collection / --tag with --limit / --offset / --order (added, modified, title). Local by default; --remote sees items not yet synced down.",
+						Note: "The plain enumerate verb — combine --type / --collection / --tag with --limit / --offset / --order (added, modified, title).",
 					},
 					{
 						Goal: "See an item's attachments and child notes",
 						Cmd:  "sci zot item children ABC12345",
-						Note: "One parent's children with filename and md5. A ZERO answer is ambiguous and says so in a stale-local warning: the local mirror cannot tell a childless item from one whose children were written since the last Zotero desktop sync — never read it as permission to write. --remote is ground truth.",
-					},
-					{
-						Goal: "Read a saved search's definition",
-						Cmd:  "sci zot saved-search list",
-						Note: "`sci zot saved-search show <name-or-key>` prints the {condition, operator, value} triples. Live-only (a saved search has no local row) and read-only: the Web API stores a definition but never evaluates it, so creating one anywhere but Zotero desktop yields a search that returns nothing to anybody.",
+						Note: "One parent's children with filename and md5. A ZERO answer is ambiguous and says so in a stale-local warning: the local database cannot tell a childless item from one whose children were written since the last Zotero desktop sync — never read it as permission to write.",
 					},
 					{
 						Goal: "List all collections / tags",
@@ -104,11 +111,6 @@ func guideContent() zot.GuideResult {
 				Title: "Notes and relations",
 				Entries: []zot.GuideEntry{
 					{
-						Goal: "Drag-drop import a PDF (uses Zotero desktop's recognizer)",
-						Cmd:  "sci zot import paper.pdf",
-						Note: "Requires Zotero desktop running. The one write sci can make, and it goes through the user's own app: desktop recognizes the metadata and syncs it. Bypasses --library (writes to whatever desktop has selected).",
-					},
-					{
 						Goal: "Read the notes you wrote, separately from the paper text",
 						Cmd:  "sci zot notes list",
 						Note: "Docling extractions are excluded — on the live library they run to thousands per library against dozens of notes a person actually wrote, so an unfiltered listing is a listing of extractions. `sci zot notes read <note-key> --md` adds a `markdown` field.",
@@ -116,7 +118,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "See what an item is related to",
 						Cmd:  "sci zot link list NOTEKEY1",
-						Note: "The dc:relation set: `related` is what a person linked by hand, `other` is Zotero's own bookkeeping (owl:sameAs, dc:replaces), `titles` names each far end. Reads the local mirror; pass --remote when the relation was written seconds ago, because the mirror lags until Zotero desktop syncs. WRITING a relation is a credentialed write and lives in the zot binary — `zot link add|rm`, plus `zot link suggest`, which proposes pairs from work IDENTITY (two filings of one work in one library — the preprint beside its published version). The note-scanning suggest this surface used to carry was retired, not moved.",
+						Note: "The dc:relation set: `related` is what a person linked by hand, `other` is Zotero's own bookkeeping (owl:sameAs, dc:replaces), `titles` names each far end. Reads the local database, which lags until Zotero desktop syncs — a relation written seconds ago is not here yet. WRITING a relation lives in the zot binary (`zot link add|rm`), as does `zot link suggest`, which proposes pairs from work IDENTITY (two filings of one work in one library — the preprint beside its published version).",
 					},
 				},
 			},
@@ -166,7 +168,7 @@ func guideContent() zot.GuideResult {
 				},
 			},
 		},
-		Tip: "All commands accept --json for machine-readable output. On multi-library accounts pass --library personal|shared in any position (`sci zot --library personal item list` and `sci zot item list --library personal` are equivalent). On single-library accounts it's auto-selected.",
+		Tip: "All commands accept --json for machine-readable output. On multi-library setups pass --library personal|shared in any position (`sci zot --library personal item list` and `sci zot item list --library personal` are equivalent). On single-library accounts it's auto-selected.",
 	}
 }
 

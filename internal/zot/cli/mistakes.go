@@ -111,24 +111,27 @@ func resolveCiteKeyArg(ctx context.Context, arg string) string {
 	return ""
 }
 
-// itemNotFoundErr wraps a local read miss with the two escape hatches agents
-// need: resubmit with --remote (sync lag — items just created via the API
-// aren't in the local mirror yet), or search for the right key.
+// itemNotFoundErr wraps a read miss with the two things an agent needs to
+// tell apart: a key that is wrong, and a key that is merely newer than the
+// local database.
+//
+// There is no Fix, and that is a change worth naming: the Fix used to be the
+// same read with --remote, which asked the Zotero Web API for ground truth.
+// sci no longer has that plane, and the remaining remedy for sync lag is to
+// let Zotero desktop sync — prose, not a command. What the Try can still
+// hand back is a real rewrite for the other cause, a mistyped or
+// misremembered key.
 func itemNotFoundErr(ctx context.Context, key string, err error) error {
 	scope := scopeFromCtx(ctx)
 	return cmdutil.Coded(cmdutil.CodeNotFound, "%v", err).
-		WithFix(fmt.Sprintf("sci zot --library %s item read %s --remote", scope, key)).
-		WithTry(fmt.Sprintf("if the key came from a search elsewhere, re-find it: sci zot --library %s search <title words> (cite keys also work as the positional)", scope))
+		WithTry(fmt.Sprintf("re-find the key by title: sci zot --library %s search <title words> (cite keys also work as the positional). If %s was created in Zotero very recently, the local database has not seen it yet — let Zotero desktop sync and re-run", scope, key))
 }
 
 // itemsNotFoundErr is itemNotFoundErr's batch sibling: a multi-key read
 // with any missing key fails whole, naming every straggler — a partial
 // result would be the same silent drop the multi-key form exists to fix.
-// The Fix resubmits ALL requested keys with --remote, not just the missing
-// ones, so the agent gets one coherent result instead of stitching two.
-func itemsNotFoundErr(ctx context.Context, requested, missing []string) error {
+func itemsNotFoundErr(ctx context.Context, _, missing []string) error {
 	scope := scopeFromCtx(ctx)
 	return cmdutil.Coded(cmdutil.CodeNotFound, "item(s) not found: %s", strings.Join(missing, ", ")).
-		WithFix(fmt.Sprintf("sci zot --library %s item read %s --remote", scope, strings.Join(requested, " "))).
-		WithTry(fmt.Sprintf("if a key came from a search elsewhere, re-find it: sci zot --library %s search <title words> (cite keys also work as positionals)", scope))
+		WithTry(fmt.Sprintf("re-find each key by title: sci zot --library %s search <title words> (cite keys also work as positionals). Keys created in Zotero very recently are not in the local database yet — let Zotero desktop sync and re-run", scope))
 }

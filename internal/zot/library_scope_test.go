@@ -48,8 +48,6 @@ func TestLibraryScopeConstants(t *testing.T) {
 func TestResolveLibrary_PersonalAndShared(t *testing.T) {
 	t.Parallel()
 	cfg := &Config{
-		APIKey:          "k",
-		UserID:          "17450224",
 		SharedGroupID:   "6506098",
 		SharedGroupName: "sciminds",
 		DataDir:         "/tmp/z",
@@ -62,9 +60,6 @@ func TestResolveLibrary_PersonalAndShared(t *testing.T) {
 	if ref.Scope != LibPersonal {
 		t.Errorf("Scope = %q, want personal", ref.Scope)
 	}
-	if ref.APIPath != "users/17450224" {
-		t.Errorf("APIPath = %q, want users/17450224", ref.APIPath)
-	}
 
 	ref, err = cfg.Resolve(LibShared)
 	if err != nil {
@@ -73,9 +68,6 @@ func TestResolveLibrary_PersonalAndShared(t *testing.T) {
 	if ref.Scope != LibShared {
 		t.Errorf("Scope = %q, want shared", ref.Scope)
 	}
-	if ref.APIPath != "groups/6506098" {
-		t.Errorf("APIPath = %q, want groups/6506098", ref.APIPath)
-	}
 	if ref.Name != "sciminds" {
 		t.Errorf("Name = %q, want sciminds", ref.Name)
 	}
@@ -83,39 +75,39 @@ func TestResolveLibrary_PersonalAndShared(t *testing.T) {
 
 func TestResolveLibrary_UnknownScope(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{APIKey: "k", UserID: "1"}
+	cfg := &Config{DataDir: "/tmp/z"}
 	_, err := cfg.Resolve(LibraryScope("bogus"))
 	if err == nil {
 		t.Fatal("expected error for unknown scope")
 	}
 }
 
-func TestResolveLibrary_PersonalWithoutUserID(t *testing.T) {
+// TestResolveLibrary_PersonalNeverFails: the personal library is
+// `libraries.type='user'` in the local database, and every Zotero
+// installation has exactly one. Nothing about naming it depends on config,
+// which is why the old "personal library not configured" branch is gone with
+// the user ID it checked.
+func TestResolveLibrary_PersonalNeverFails(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{APIKey: "k"} // no UserID
-	_, err := cfg.Resolve(LibPersonal)
-	if err == nil {
-		t.Fatal("expected error when UserID is unset")
+	cfg := &Config{}
+	ref, err := cfg.Resolve(LibPersonal)
+	if err != nil {
+		t.Fatalf("Resolve(personal) on an empty config: %v", err)
 	}
-	if !strings.Contains(strings.ToLower(err.Error()), "setup") {
-		t.Errorf("err=%v, want mention of setup command", err)
+	if ref.Scope != LibPersonal {
+		t.Errorf("Scope = %q, want personal", ref.Scope)
 	}
 }
 
 func TestResolveLibrary_SharedWithoutGroupID_TriggersProbe(t *testing.T) {
 	// When SharedGroupID is empty, Resolve(LibShared) should invoke a
 	// configured probe func (lazy auto-detect) rather than failing
-	// outright. The probe returns the current account's groups from the
-	// Zotero Web API; Resolve picks the single group (or errors with a
-	// multi-group message), writes the result back to the Config, and
-	// returns the ref.
+	// outright. The probe lists the local database's group libraries;
+	// Resolve picks the single group (or errors with a multi-group
+	// message), writes the result back to the Config, and returns the ref.
 	withXDGConfigHome(t)
 
-	cfg := &Config{
-		APIKey:  "k",
-		UserID:  "17450224",
-		DataDir: "/tmp/z",
-	}
+	cfg := &Config{DataDir: "/tmp/z"}
 	if err := SaveConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -133,8 +125,8 @@ func TestResolveLibrary_SharedWithoutGroupID_TriggersProbe(t *testing.T) {
 	if probed != 1 {
 		t.Errorf("probe called %d times, want 1", probed)
 	}
-	if ref.APIPath != "groups/6506098" {
-		t.Errorf("APIPath = %q", ref.APIPath)
+	if ref.Name != "sciminds" {
+		t.Errorf("Name = %q, want sciminds", ref.Name)
 	}
 	if cfg.SharedGroupID != "6506098" || cfg.SharedGroupName != "sciminds" {
 		t.Errorf("probe did not update cfg: %+v", cfg)
@@ -152,7 +144,7 @@ func TestResolveLibrary_SharedWithoutGroupID_TriggersProbe(t *testing.T) {
 
 func TestResolveLibrary_SharedAccountHasNoGroups(t *testing.T) {
 	t.Parallel()
-	cfg := &Config{APIKey: "k", UserID: "17450224"}
+	cfg := &Config{DataDir: "/tmp/z"}
 	probe := func() ([]GroupRef, error) { return nil, nil }
 
 	_, err := cfg.ResolveWithProbe(LibShared, probe)
@@ -169,7 +161,7 @@ func TestResolveLibrary_SharedAccountHasMultipleGroups(t *testing.T) {
 	// With multiple groups the probe cannot pick one automatically;
 	// Resolve returns an error naming the options.
 	t.Parallel()
-	cfg := &Config{APIKey: "k", UserID: "17450224"}
+	cfg := &Config{DataDir: "/tmp/z"}
 	probe := func() ([]GroupRef, error) {
 		return []GroupRef{
 			{ID: "1", Name: "alpha"},
@@ -185,15 +177,14 @@ func TestResolveLibrary_SharedAccountHasMultipleGroups(t *testing.T) {
 	}
 }
 
-func TestSaveConfig_EmitsNewFieldNames(t *testing.T) {
-	// On save, the JSON must use the new field names (user_id,
-	// shared_group_id, shared_group_name) and must not emit the legacy
-	// library_id.
+// TestSaveConfig_EmitsOnlyTheLocalFields: a saved config names a data
+// directory and (optionally) a shared group, and nothing else. The
+// credential fields are not merely unset — they must not appear at all, or
+// the migration in LoadConfig would keep rewriting a file it just wrote.
+func TestSaveConfig_EmitsOnlyTheLocalFields(t *testing.T) {
 	withXDGConfigHome(t)
 
 	cfg := &Config{
-		APIKey:          "k",
-		UserID:          "1",
 		SharedGroupID:   "2",
 		SharedGroupName: "g",
 		DataDir:         "/tmp/z",
@@ -209,12 +200,14 @@ func TestSaveConfig_EmitsNewFieldNames(t *testing.T) {
 	if err := json.Unmarshal(raw, &m); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"user_id", "shared_group_id", "shared_group_name"} {
+	for _, want := range []string{"data_dir", "shared_group_id", "shared_group_name"} {
 		if _, ok := m[want]; !ok {
 			t.Errorf("missing field %q in serialized config: %s", want, raw)
 		}
 	}
-	if _, ok := m["library_id"]; ok {
-		t.Errorf("legacy library_id still emitted on save: %s", raw)
+	for _, gone := range []string{"api_key", "user_id", "library_id"} {
+		if _, ok := m[gone]; ok {
+			t.Errorf("retired field %q still emitted on save: %s", gone, raw)
+		}
 	}
 }

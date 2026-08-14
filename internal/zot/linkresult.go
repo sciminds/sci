@@ -17,9 +17,6 @@ import (
 type LinkListResult struct {
 	Key       string                `json:"key"`
 	Relations local.ItemRelationSet `json:"relations"`
-	// Remote records that this came from the Zotero Web API rather than
-	// the local mirror — relations written seconds ago are only there.
-	Remote bool `json:"remote,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
@@ -34,9 +31,6 @@ func (r LinkListResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n  %s %s\n", uikit.TUI.Dim().Render("relations for"),
 		uikit.TUI.TextBlue().Render(r.Key))
-	if r.Remote {
-		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("(live from Zotero)"))
-	}
 
 	if len(r.Relations.Related) > 0 {
 		fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Dim().Render("related"))

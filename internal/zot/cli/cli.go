@@ -5,9 +5,9 @@
 //
 // The persistent `--library` flag threads through every non-setup command via
 // PersistentFlags + ValidateLibraryBefore. cmd/sci/zot.go installs both on
-// the zot subcommand. The resolved zot.LibraryRef lives on ctx;
-// requireAPIClient and openLocalDB pull it back out and route the api client
-// / local reader to the user or group library accordingly.
+// the zot subcommand. The resolved zot.LibraryRef lives on ctx; openLocalDB
+// pulls it back out and scopes the local reader to the user or group
+// library accordingly.
 package cli
 
 import (
@@ -45,12 +45,12 @@ func PersistentFlags() []cli.Flag {
 // It deliberately does NOT enforce that --library is present — doing so at
 // this level would shadow help for sub-namespaces (`sci zot item` with no
 // further args would error instead of dumping help). Leaves call
-// ensureLibraryScope (via openLocalDB / requireAPIClient) which auto-
-// selects when only one library is configured, prompts when both are and
-// the session is interactive, or errors in --json mode.
+// ensureLibraryScope (via openLocalDB) which auto-selects when only one
+// library is configured, prompts when both are and the session is
+// interactive, or errors in --json mode.
 //
 // Commands that don't need --library at all (`setup`, `info` without a
-// flag, `import`, `guide`) simply never call ensureLibraryScope.
+// flag, `guide`) simply never call ensureLibraryScope.
 // The holder is still installed on ctx — that's harmless and keeps the
 // hook uniform.
 //
@@ -80,9 +80,9 @@ func ValidateLibraryBefore(ctx context.Context, cmd *cli.Command) (context.Conte
 
 // LibraryFromContext returns the (partial) library ref the Before hook
 // stashed when --library was set. Returns false if --library was unset.
-// Most leaves now consult ensureLibraryScope via openLocalDB /
-// requireAPIClient instead — those drive the auto-select / prompt / error
-// flow and return a fully-resolved LibraryRef.
+// Most leaves now consult ensureLibraryScope via openLocalDB instead — that
+// drives the auto-select / prompt / error flow and returns a fully-resolved
+// LibraryRef.
 func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 	ref, ok := ctx.Value(libraryCtxKey{}).(zot.LibraryRef)
 	return ref, ok
@@ -91,33 +91,29 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 // Commands returns the full zot subcommand tree.
 // Entry points wrap this in their own root cli.Command.
 //
-// Top-level layout — the live surface first, then the stubs that name
-// where a retired verb went (moved.go):
+// Top-level layout — every verb here answers from the local
+// zotero.sqlite, and there is nothing else:
 //
 //	guide                       agent-friendly cheat sheet of common workflows
-//	setup                       configure the library location and scope
+//	setup                       locate the Zotero data directory
 //	info                        library summary (alias: stats)
 //	view                        interactive read-only table viewer
 //	search  <query>             cross-field search (supports --export, --notes)
 //	browse                      interactive search-and-open REPL (PDFs open in the system viewer)
 //	export                      full-library BibLaTeX / CSL-JSON / NDJSON export
 //	bib     <file-or-dir>       bibliography of exactly the items a document cites
-//	import  <path>              drag-drop import via Zotero desktop (metadata recognition)
-//	item    <subcommand>        per-item reads (read/list/children/open/export/note)
-//	collection <subcommand>     collections (list)
-//	saved-search <subcommand>   saved searches (list/show)
+//	item    <subcommand>        per-item reads (read/list/children/open/export)
+//	collection <subcommand>     collections (list/browse)
 //	tags    <subcommand>        tags (list/browse)
 //	notes   <subcommand>        the notes YOU wrote (list/read)
 //	link    <subcommand>        read an item's dc:relation links (list)
 //	doctor  [subcommand]        hygiene reports: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates,citekeys,dois}
 //
-//	find | openalex | crossref  moved to the zot binary (metered upstream indexes)
-//	graph | content | llm       retired — zot's snapshot plane answers these locally
-//	extract | extract-lib       moved to `zot extract-lib`
-//
-// The item, collection, tags and saved-search namespaces each keep their
-// reads and stub their writes; moved.go lists every stub in one place.
+// Verbs that once lived here and now belong to the sibling `zot` binary
+// (every write, every upstream index, every extraction) are NOT registered:
+// they are plain unknown commands, rejected by
+// cmdutil.WireNamespaceDefaults like any other typo.
 //
 // `item` and `collection` reuse the leaf commands defined in read.go /
 // write.go — the wrapper functions below just parent them under the right
@@ -132,33 +128,21 @@ func Commands() []*cli.Command {
 		browseCommand(),
 		libraryExportCommand(),
 		bibCommand(),
-		importCommand(),
 		itemCommand(),
 		collectionCommand(),
-		savedSearchCommand(),
 		tagsCommand(),
 		notesCommand(),
 		linkCommand(),
 		doctorCommand(),
-
-		findStub(),
-		openalexStub(),
-		crossrefStub(),
-		graphStub(),
-		contentStub(),
-		llmStub(),
-		extractStub(),
-		extractLibStub(),
 	}
 }
 
 // itemCommand groups per-item operations under a single namespace. Nothing
-// here is defined inline — the leaf commands live in read.go, item_note.go
-// and moved.go.
+// here is defined inline — the leaf commands live in read.go.
 func itemCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "item",
-		Usage: "Work with individual items (read, list, children, open, export, note)",
+		Usage: "Work with individual items (read, list, children, open, export)",
 		Description: "$ sci zot --library personal item read ABC12345\n" +
 			"$ sci zot --library personal item list --limit 20\n" +
 			"$ sci zot --library personal item children 6R45EVSB\n" +
@@ -169,12 +153,6 @@ func itemCommand() *cli.Command {
 			childrenCommand(),
 			openCommand(),
 			exportCommand(),
-			itemNoteCommand(),
-
-			itemAddStub(),
-			itemUpdateStub(),
-			itemDeleteStub(),
-			itemAttachStub(),
 		},
 	}
 }

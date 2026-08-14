@@ -110,13 +110,9 @@ func captureStderr(t *testing.T) (read func() string, restore func()) {
 }
 
 // ensureScopeCfg builds the minimal Config most ensureLibraryScope tests
-// need. UserID is always set; SharedGroupID controls the "both libraries
-// configured" branch.
+// need. SharedGroupID controls the "both libraries configured" branch.
 func ensureScopeCfg(sharedGroupID string) *zot.Config {
-	return &zot.Config{
-		UserID:        "42",
-		SharedGroupID: sharedGroupID,
-	}
+	return &zot.Config{SharedGroupID: sharedGroupID}
 }
 
 func TestEnsureLibraryScope_FlagSet_UsesIt(t *testing.T) {

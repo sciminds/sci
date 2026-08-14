@@ -24,7 +24,6 @@ import (
 	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot"
-	"github.com/sciminds/sci/internal/zot/api"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 )
@@ -155,20 +154,11 @@ func errLibraryRequired(reason string) error {
 	return errLibraryRequiredArgs(reason, os.Args)
 }
 
-// resolveScopeWithProbe wraps cfg.ResolveWithProbe with the standard
-// API-backed group probe used everywhere in zot cli.
-func resolveScopeWithProbe(ctx context.Context, cfg *zot.Config, scope zot.LibraryScope) (zot.LibraryRef, error) {
-	probe := func() ([]zot.GroupRef, error) {
-		tmp, err := api.New(cfg, api.WithLibrary(zot.LibraryRef{
-			Scope:   zot.LibPersonal,
-			APIPath: "users/" + cfg.UserID,
-		}))
-		if err != nil {
-			return nil, err
-		}
-		return tmp.ListGroups(ctx)
-	}
-	return cfg.ResolveWithProbe(scope, probe)
+// resolveScopeWithProbe wraps cfg.ResolveWithProbe with the standard group
+// probe used everywhere in zot cli — a read of the local database's `groups`
+// table (see [zot.LocalGroupProbe]).
+func resolveScopeWithProbe(_ context.Context, cfg *zot.Config, scope zot.LibraryScope) (zot.LibraryRef, error) {
+	return cfg.ResolveWithProbe(scope, zot.LocalGroupProbe(cfg.DataDir))
 }
 
 // outputScoped is the zot-cli wrapper around cmdutil.Output that surfaces

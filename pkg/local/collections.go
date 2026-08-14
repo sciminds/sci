@@ -8,8 +8,8 @@ import (
 // CollectionByKey returns the collection with the given key, or (nil, nil)
 // when no such collection exists in this library. Used by the CLI to detect
 // "this key isn't in the local DB" — the agent-friendly hint that the
-// collection was likely created moments ago and a `--remote` lookup is
-// needed before Zotero desktop syncs.
+// collection was likely created moments ago and has not reached this mirror
+// yet, rather than that it does not exist.
 func (d *DB) CollectionByKey(key string) (*Collection, error) {
 	row := d.db.QueryRow(`
 		SELECT

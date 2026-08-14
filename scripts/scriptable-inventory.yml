@@ -282,31 +282,16 @@ commands:
         status: covered
 
   # ── zot setup ──────────────────────────────────────────────────────────────
+  # The API-key and user-ID prompts left on 2026-08-14 with the Zotero Web
+  # API itself: setup records a data directory and nothing else.
   zot-setup:
     file: internal/zot/cli/setup.go
     prompts:
-      - id: api-key
-        type: uikit.FormInput
-        nth: 1
-        line: 121
-        description: "Zotero API key"
-        bypass: "--api"
-        status: covered
-
-      - id: user-id
-        type: uikit.FormInput
-        nth: 2
-        line: 124
-        description: "Zotero user ID"
-        bypass: "--user-id"
-        status: covered
-
       - id: data-dir
         type: uikit.FormInput
-        nth: 3
-        line: 127
+        nth: 1
         description: "Zotero data directory"
-        bypass: "--data-dir"
+        bypass: "--data-dir (auto-detected from the platform candidates when omitted)"
         status: covered
 
   # ── zot library scope ──────────────────────────────────────────────────────

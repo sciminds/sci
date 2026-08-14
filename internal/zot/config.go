@@ -3,11 +3,10 @@
 // the user's own zotero.sqlite (opened in immutable mode to avoid WAL
 // contention with the running desktop app).
 //
-// It holds no credential for changing a library. The two places it still
-// speaks to Zotero are the `--remote` live reads, which fetch through the
-// Web API when the local mirror is known to lag, and `zot import`, which
-// hands a file to the user's own running desktop app. Everything that
-// writes, extracts, or queries an upstream index lives in the separate
+// It is standalone, local and read-only. There is no Zotero Web API client
+// here and no credential of any kind: the only thing `sci zot setup` records
+// is where the Zotero data directory lives. Everything that writes a library,
+// extracts paper text, or queries an upstream index lives in the separate
 // `zot` binary.
 //
 // The command tree is defined in [github.com/sciminds/sci/internal/zot/cli]
@@ -25,24 +24,25 @@ import (
 	"github.com/sciminds/sci/internal/sciconfig"
 )
 
-// Config holds Zotero credentials and library targets.
+// Config records where the Zotero library lives. It holds no credential:
+// every zot command opens DataDir/zotero.sqlite read-only and answers from
+// it, so the data directory is the whole configuration.
 //
-// A single API key backs both the user's personal library and any group
-// libraries they belong to. UserID identifies the personal library.
-// SharedGroupID + SharedGroupName identify one accessible group library
-// chosen (via setup or lazy probe) as the "shared" target surfaced by
-// --library shared. Multi-group support is a future extension.
+// SharedGroupID + SharedGroupName identify one group library — read out of
+// the local `groups` table by setup or the lazy probe — as the "shared"
+// target surfaced by --library shared. Multi-group support is a future
+// extension.
 type Config struct {
-	APIKey          string `json:"api_key"`
-	UserID          string `json:"user_id"`                     // numeric Zotero user ID
 	SharedGroupID   string `json:"shared_group_id,omitempty"`   // numeric Zotero group ID for --library shared
 	SharedGroupName string `json:"shared_group_name,omitempty"` // human-readable group name (display only)
 	DataDir         string `json:"data_dir"`
 }
 
-// configFile is the typed handle to ~/.config/sci/zot.json. Path/save/exists
-// mechanics live in sciconfig; LoadConfig layers schema migration on top (see
-// below), so it reads raw bytes rather than using sciconfig's typed Load.
+// configFile is the typed handle to ~/.config/sci/zot.json. Path/exists
+// mechanics live in sciconfig, but every read and write here goes through the
+// RAW helpers: the file is shared with the sibling `zot` binary, so sci reads
+// past the keys it does not declare and writes without deleting them (see
+// [LoadConfig] and [SaveConfig]).
 var configFile = sciconfig.File[Config]{Name: "zot.json"}
 
 // ConfigPath returns the zot config file path (typically
@@ -52,12 +52,20 @@ func ConfigPath() string { return configFile.Path() }
 // LoadConfig reads the zot config from disk.
 // Returns (nil, nil) if the file does not exist.
 //
-// Migrates legacy schemas transparently: pre-rename configs carry
-// `library_id` instead of `user_id`. When we spot one we populate
-// the current field and rewrite the file in the new shape, so the
-// user sees "it just works" on the next run instead of a misleading
-// "not configured" error. The legacy detection needs the original
-// bytes, so this decodes raw rather than using sciconfig's typed Load.
+// Older configs carry credential fields — `api_key`, `user_id`, and before
+// that `library_id` — that this surface no longer declares. Decoding drops
+// them for free, which IS the migration: a config carrying only those plus a
+// data directory is complete, and must never surface as "zot not configured".
+//
+// It deliberately does not rewrite the file to remove them. ~/.config/sci/zot.json
+// is shared: the sibling `zot` binary reads the SAME path and its operate
+// verbs are gated on `api_key`, and the file on this author's machine also
+// carries `openalex_email`, `openalex_api_key` and an `extract` block that
+// sci has never owned. Stripping a key sci stopped reading would take a
+// credential another program still needs, on nothing more than a `sci zot
+// search` — tidying someone else's file is not a migration, it is data loss.
+// A stale key sits in a 0600 file that sci never opens for the network; the
+// user revokes it when they choose.
 func LoadConfig() (*Config, error) {
 	data, err := configFile.LoadRaw()
 	if err != nil {
@@ -70,40 +78,96 @@ func LoadConfig() (*Config, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse zot config: %w", err)
 	}
-	migrated := migrateLegacyConfig(&cfg, data)
-	if migrated {
-		// Best-effort persist. If the rewrite fails the in-memory
-		// config is still correct for this process; the next run
-		// will migrate again.
-		_ = SaveConfig(&cfg)
-	}
 	return &cfg, nil
 }
 
-// migrateLegacyConfig patches cfg in-place from deprecated field names.
-// Returns true when anything changed (caller persists).
+// sciOwnedConfigFields are the keys sci writes into ~/.config/sci/zot.json.
+// Everything else in that file belongs to someone else (see [LoadConfig]) and
+// survives every write sci makes.
+var sciOwnedConfigFields = []string{"data_dir", "shared_group_id", "shared_group_name"}
+
+// SaveConfig writes the zot config to disk with restricted permissions (0600),
+// MERGING into whatever is already there rather than replacing it.
 //
-// Currently handles: library_id → user_id (renamed when the zot config
-// grew a distinct UserID + SharedGroupID split).
-func migrateLegacyConfig(cfg *Config, raw []byte) bool {
-	if cfg.UserID != "" {
-		return false
+// The merge is the load-bearing part, for the reason spelled out on
+// [LoadConfig]: this file is shared with the sibling `zot` binary, and
+// marshalling a Config emits only the three fields sci declares. A plain
+// overwrite would delete `api_key` — which zot's operate verbs require — plus
+// the OpenAlex and extraction settings, turning `sci zot setup` into an
+// uninstall for the other tool.
+func SaveConfig(cfg *Config) error {
+	merged, err := mergeConfigInto(existingConfigObject(), cfg)
+	if err != nil {
+		return err
 	}
-	var legacy struct {
-		LibraryID string `json:"library_id"`
-	}
-	if err := json.Unmarshal(raw, &legacy); err != nil {
-		return false
-	}
-	if legacy.LibraryID == "" {
-		return false
-	}
-	cfg.UserID = legacy.LibraryID
-	return true
+	return configFile.SaveRaw(merged)
 }
 
-// SaveConfig writes the zot config to disk with restricted permissions (0600).
-func SaveConfig(cfg *Config) error { return configFile.Save(cfg) }
+// ClearConfig removes the fields sci owns, leaving every other key intact, and
+// deletes the file outright once nothing is left in it.
+//
+// `setup --logout` used to forget a credential; there is none any more, so it
+// now means "forget where the library is". Deleting a shared file to
+// accomplish that would take the sibling binary's credential with it — a much
+// larger act than the one the user asked for.
+func ClearConfig() error {
+	obj := existingConfigObject()
+	if obj == nil {
+		return configFile.Clear()
+	}
+	for _, k := range sciOwnedConfigFields {
+		delete(obj, k)
+	}
+	if len(obj) == 0 {
+		return configFile.Clear()
+	}
+	out, err := json.MarshalIndent(obj, "", "  ")
+	if err != nil {
+		return err
+	}
+	return configFile.SaveRaw(out)
+}
+
+// existingConfigObject decodes the config file as a bare JSON object, or nil
+// when there is no readable object there. Callers merge into it; a nil result
+// simply means the write starts from scratch.
+func existingConfigObject() map[string]json.RawMessage {
+	data, err := configFile.LoadRaw()
+	if err != nil || data == nil {
+		return nil
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return nil
+	}
+	return obj
+}
+
+// mergeConfigInto overlays cfg's fields onto obj and serializes the result.
+// An empty optional field (no shared group) is REMOVED rather than written as
+// "", so re-running setup on a library whose group went away does not leave a
+// stale name behind.
+func mergeConfigInto(obj map[string]json.RawMessage, cfg *Config) ([]byte, error) {
+	if obj == nil {
+		obj = map[string]json.RawMessage{}
+	}
+	own, err := json.Marshal(cfg)
+	if err != nil {
+		return nil, err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(own, &fields); err != nil {
+		return nil, err
+	}
+	for _, k := range sciOwnedConfigFields {
+		if v, ok := fields[k]; ok {
+			obj[k] = v
+		} else {
+			delete(obj, k)
+		}
+	}
+	return json.MarshalIndent(obj, "", "  ")
+}
 
 // ErrNotConfigured is the sentinel wrapped by [RequireConfig] when no usable
 // zot config exists. The CLI layer matches it with errors.Is to attach the
@@ -111,22 +175,27 @@ func SaveConfig(cfg *Config) error { return configFile.Save(cfg) }
 var ErrNotConfigured = errors.New("zot not configured")
 
 // RequireConfig loads config and errors if zot is not set up.
+//
+// "Set up" means exactly one thing: a data directory holding a readable
+// zotero.sqlite. There is no credential to check — a pure local search must
+// not be gated behind a Zotero account, which is what requiring an API key
+// used to do to every command in the tree.
 func RequireConfig() (*Config, error) {
 	cfg, err := LoadConfig()
 	if err != nil {
 		return nil, err
 	}
-	if cfg == nil || cfg.APIKey == "" || cfg.UserID == "" {
+	if cfg == nil || cfg.DataDir == "" {
 		return nil, fmt.Errorf("%w — run 'sci zot setup' first", ErrNotConfigured)
+	}
+	if err := ValidateDataDir(cfg.DataDir); err != nil {
+		return nil, fmt.Errorf("%w — %v; run 'sci zot setup' to point sci at your Zotero data directory", ErrNotConfigured, err)
 	}
 	return cfg, nil
 }
 
 // ConfigExists reports whether a saved zot config file is present on disk.
 func ConfigExists() bool { return configFile.Exists() }
-
-// ClearConfig removes the config file if it exists.
-func ClearConfig() error { return configFile.Clear() }
 
 // DefaultDataDir probes common Zotero data directory locations in order and
 // returns the first that contains a zotero.sqlite file. Returns "" if none
@@ -169,29 +238,6 @@ func ValidateDataDir(dir string) error {
 	return nil
 }
 
-// ValidateUserID checks that the user ID is a non-empty numeric string.
-func ValidateUserID(id string) error {
-	if id == "" {
-		return fmt.Errorf("user ID is required")
-	}
-	for _, r := range id {
-		if r < '0' || r > '9' {
-			return fmt.Errorf("user ID must be numeric, got %q", id)
-		}
-	}
-	return nil
-}
-
-// ValidateAPIKey checks that the API key is non-empty. The Zotero API does not
-// document a fixed format so we only check presence; real validation happens
-// on first API call.
-func ValidateAPIKey(key string) error {
-	if key == "" {
-		return fmt.Errorf("API key is required")
-	}
-	return nil
-}
-
 // LibraryScope names the logical library a command targets.
 type LibraryScope string
 
@@ -201,10 +247,10 @@ const (
 	// LibShared is the Zotero group library configured as the shared target.
 	LibShared LibraryScope = "shared"
 	// LibAll is the merged read pool: personal plus the shared group in
-	// one call, per-row provenance in Item.Library. Local-read-only —
-	// requireAPIClient rejects it (there is no merged API path), and only
-	// commands that opted into multi-library handles accept it (search,
-	// bib); the rest error with the per-library rewrite.
+	// one call, per-row provenance in Item.Library. Only commands that
+	// opted into multi-library handles accept it (search, bib, export
+	// --format ndjson, browse); the rest error with the per-library
+	// rewrite.
 	LibAll LibraryScope = "all"
 )
 
@@ -230,11 +276,9 @@ func ValidateLibraryScope(s string) error {
 }
 
 // LibraryRef identifies a concrete Zotero library for one command.
-// Scope + APIPath together are sufficient to build any Web API URL;
 // LocalID selects the matching row in zotero.sqlite.
 type LibraryRef struct {
 	Scope   LibraryScope
-	APIPath string // "users/17450224" or "groups/6506098"
 	LocalID int64  // Zotero SQLite libraryID
 	Name    string // display-only ("Personal" or group name)
 }
@@ -246,28 +290,24 @@ type GroupRef struct {
 	Name string
 }
 
-// GroupProbeFunc fetches the list of groups accessible to the current
-// Zotero account. The setup flow and ResolveWithProbe inject a real
-// implementation (api.Client.ListGroups); tests use fakes. Credentials
-// are captured via closure by the caller — the probe takes no args so
-// call sites don't have to re-thread them.
+// GroupProbeFunc lists the group libraries present in the local Zotero
+// database. The setup flow and ResolveWithProbe inject a real implementation
+// (a read of the `groups` table); tests use fakes. The data directory is
+// captured via closure by the caller — the probe takes no args so call sites
+// don't have to re-thread it.
 type GroupProbeFunc func() ([]GroupRef, error)
 
 // Resolve returns a LibraryRef for the given scope using only the
 // fields already in Config. Shared-scope resolution without a cached
 // SharedGroupID is an error here — use ResolveWithProbe for lazy
 // auto-detection.
+//
+// Personal never fails: it is `libraries.type='user'` in the local database,
+// and there is exactly one of those per Zotero installation.
 func (c *Config) Resolve(scope LibraryScope) (LibraryRef, error) {
 	switch scope {
 	case LibPersonal:
-		if c.UserID == "" {
-			return LibraryRef{}, fmt.Errorf("personal library not configured — run 'sci zot setup' first")
-		}
-		return LibraryRef{
-			Scope:   LibPersonal,
-			APIPath: "users/" + c.UserID,
-			Name:    "Personal",
-		}, nil
+		return LibraryRef{Scope: LibPersonal, Name: "Personal"}, nil
 	case LibShared:
 		if c.SharedGroupID == "" {
 			return LibraryRef{}, fmt.Errorf("shared library not configured — run 'sci zot setup' to auto-detect")
@@ -276,19 +316,10 @@ func (c *Config) Resolve(scope LibraryScope) (LibraryRef, error) {
 		if name == "" {
 			name = "shared"
 		}
-		return LibraryRef{
-			Scope:   LibShared,
-			APIPath: "groups/" + c.SharedGroupID,
-			Name:    name,
-		}, nil
+		return LibraryRef{Scope: LibShared, Name: name}, nil
 	case LibAll:
 		// Both member libraries must resolve — a merged pool that quietly
 		// lost one would answer a different question than the one asked.
-		// APIPath stays empty on purpose: no single path serves a merged
-		// scope, and an empty path is what keeps api.New unreachable.
-		if _, err := c.Resolve(LibPersonal); err != nil {
-			return LibraryRef{}, err
-		}
 		if _, err := c.Resolve(LibShared); err != nil {
 			return LibraryRef{}, err
 		}
@@ -303,9 +334,9 @@ func (c *Config) Resolve(scope LibraryScope) (LibraryRef, error) {
 
 // ResolveWithProbe is like Resolve but, when the requested scope is
 // LibShared and SharedGroupID is empty, it calls probe once to
-// auto-detect the account's groups. On exactly one group, it writes
-// the result back to disk (so subsequent commands stay fast) and
-// returns the ref. Zero-group and multi-group accounts error with
+// auto-detect the group libraries the local database holds. On exactly one
+// group, it writes the result back to disk (so subsequent commands stay
+// fast) and returns the ref. Zero-group and multi-group libraries error with
 // guidance.
 func (c *Config) ResolveWithProbe(scope LibraryScope, probe GroupProbeFunc) (LibraryRef, error) {
 	if scope != LibShared || c.SharedGroupID != "" || probe == nil {
@@ -314,11 +345,11 @@ func (c *Config) ResolveWithProbe(scope LibraryScope, probe GroupProbeFunc) (Lib
 
 	groups, err := probe()
 	if err != nil {
-		return LibraryRef{}, fmt.Errorf("probe Zotero groups: %w", err)
+		return LibraryRef{}, fmt.Errorf("read Zotero groups: %w", err)
 	}
 	switch len(groups) {
 	case 0:
-		return LibraryRef{}, fmt.Errorf("zotero account %s has no accessible group libraries — --library shared cannot resolve", c.UserID)
+		return LibraryRef{}, fmt.Errorf("this Zotero library holds no group libraries — --library shared cannot resolve")
 	case 1:
 		c.SharedGroupID = groups[0].ID
 		c.SharedGroupName = groups[0].Name
@@ -331,6 +362,6 @@ func (c *Config) ResolveWithProbe(scope LibraryScope, probe GroupProbeFunc) (Lib
 		for _, g := range groups {
 			names = append(names, g.Name)
 		}
-		return LibraryRef{}, fmt.Errorf("zotero account has multiple groups (%s) — re-run 'sci zot setup' and pick one with --shared-group-id", strings.Join(names, ", "))
+		return LibraryRef{}, fmt.Errorf("this Zotero library holds multiple groups (%s) — re-run 'sci zot setup' and pick one with --shared-group-id", strings.Join(names, ", "))
 	}
 }

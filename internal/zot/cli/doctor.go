@@ -9,15 +9,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// pdfAcquisitionMoved is the one-sentence explanation the retired `doctor
-// pdfs` stub carries. It says what changed and why, so the error teaches
-// the boundary rather than just redirecting: finding a missing PDF means
-// a metered OpenAlex lookup, an HTTP download, and an upload into Zotero —
-// three writes wearing a check's clothes.
-const pdfAcquisitionMoved = "PDF acquisition is a credentialed, metered, " +
-	"network-writing job, not a hygiene check — it moved to the zot binary, " +
-	"which owns the Zotero credential and runs it unattended"
-
 func doctorCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "doctor",
@@ -56,9 +47,6 @@ for that.`,
 			duplicatesCommand(),
 			citekeysCommand(),
 			doisCommand(),
-			movedToZotCommand("pdfs", "moved to `zot doctor pdfs`",
-				[]string{"doctor", "pdfs"}, "zot doctor pdfs",
-				pdfAcquisitionMoved),
 		},
 		Flags: []cli.Flag{
 			// lint:no-local — slice-flag Local quirk: see internal/zot/cli/sliceflag_quirk_test.go

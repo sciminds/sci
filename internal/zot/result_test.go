@@ -307,101 +307,55 @@ func TestOpenResult(t *testing.T) {
 	}
 }
 
-func TestWriteResult(t *testing.T) {
-	t.Parallel()
-	r := WriteResult{Action: "trashed", Kind: "item", Target: "ABC12345"}
-	if !strings.Contains(r.Human(), "trashed item ABC12345") {
-		t.Errorf("default Human = %q", r.Human())
-	}
-	// Explicit message overrides the default sentence.
-	r = WriteResult{Action: "trashed", Kind: "item", Target: "ABC12345", Message: "custom"}
-	if !strings.Contains(r.Human(), "custom") || strings.Contains(r.Human(), "trashed item") {
-		t.Errorf("custom message should replace default: %q", r.Human())
-	}
-}
-
-func TestConfig_Human_MasksAPIKey(t *testing.T) {
+// TestConfig_HasNoSecretToMask replaces the masking tests that lived here.
+// A zot config is a data directory and an optional shared group — there is
+// no credential in it, so both surfaces emit the stored shape verbatim and
+// there is nothing to strip. The fence that matters now is the inverse:
+// neither surface may resurrect a credential field.
+func TestConfig_HasNoSecretToMask(t *testing.T) {
 	t.Parallel()
 	cfg := Config{
-		APIKey:  "sk-very-secret-key-AbCd1234",
-		UserID:  "12345",
-		DataDir: "/Users/test/Zotero",
+		SharedGroupID:   "6506098",
+		SharedGroupName: "sciminds",
+		DataDir:         "/Users/test/Zotero",
 	}
-	out := cfg.Human()
-	if strings.Contains(out, "sk-very-secret-key-AbCd1234") {
-		t.Errorf("raw API key leaked in Human() output:\n%s", out)
-	}
-	if !strings.Contains(out, "1234") {
-		t.Errorf("expected last-4 hint (1234) so user can confirm which key is loaded:\n%s", out)
-	}
-	if !strings.Contains(out, "****") {
-		t.Errorf("expected mask marker (****) in Human() output:\n%s", out)
-	}
-}
 
-func TestConfig_Human_OmitsAPIKeyLineWhenUnset(t *testing.T) {
-	t.Parallel()
-	cfg := Config{UserID: "12345", DataDir: "/Z"}
 	out := cfg.Human()
-	if strings.Contains(out, "****") {
-		t.Errorf("mask should not appear when no key is set:\n%s", out)
+	for _, want := range []string{"/Users/test/Zotero", "sciminds", "6506098"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("Human() missing %q:\n%s", want, out)
+		}
 	}
-	if strings.Contains(out, "api key:") {
-		t.Errorf("api key line should be omitted when unset:\n%s", out)
+	if strings.Contains(out, "api key") || strings.Contains(out, "user id") {
+		t.Errorf("Human() still renders a credential line:\n%s", out)
 	}
-}
 
-func TestConfig_JSON_StripsSecrets(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		APIKey:  "sk-very-secret-key-AbCd1234",
-		UserID:  "12345",
-		DataDir: "/Users/test/Zotero",
-	}
 	b, err := json.Marshal(cfg.JSON())
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := string(b)
-	if strings.Contains(s, "sk-very-secret-key-AbCd1234") {
-		t.Errorf("raw API key leaked in JSON output:\n%s", s)
+	js := string(b)
+	if !strings.Contains(js, `"data_dir":"/Users/test/Zotero"`) {
+		t.Errorf("data_dir missing from JSON:\n%s", js)
 	}
-	if strings.Contains(s, `"api_key"`) {
-		t.Errorf("api_key field name still present in JSON (must drop, not mask):\n%s", s)
-	}
-	if !strings.Contains(s, `"has_api_key":true`) {
-		t.Errorf("expected has_api_key:true so agents can verify config is set:\n%s", s)
-	}
-	// Non-secret fields must still round-trip.
-	if !strings.Contains(s, `"user_id":"12345"`) {
-		t.Errorf("user_id missing from JSON:\n%s", s)
-	}
-}
-
-func TestConfig_JSON_NoKeysSet(t *testing.T) {
-	t.Parallel()
-	cfg := Config{UserID: "12345", DataDir: "/Z"}
-	b, err := json.Marshal(cfg.JSON())
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := string(b)
-	if !strings.Contains(s, `"has_api_key":false`) {
-		t.Errorf("has_api_key should be explicit false when no key set:\n%s", s)
+	for _, gone := range []string{"api_key", "has_api_key", "user_id"} {
+		if strings.Contains(js, gone) {
+			t.Errorf("JSON still carries retired field %q:\n%s", gone, js)
+		}
 	}
 }
 
 func TestSetupResult(t *testing.T) {
 	t.Parallel()
-	r := SetupResult{OK: true, UserID: "42", DataDir: "/z", Message: "configured"}
+	r := SetupResult{OK: true, SharedGroup: "sciminds", DataDir: "/z", Message: "configured"}
 	out := r.Human()
-	for _, want := range []string{"configured", "42", "/z"} {
+	for _, want := range []string{"configured", "sciminds", "/z"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
 	}
 	// Failure case hides library/data dir details.
-	r = SetupResult{OK: false, UserID: "42", DataDir: "/z", Message: "failed"}
+	r = SetupResult{OK: false, SharedGroup: "sciminds", DataDir: "/z", Message: "failed"}
 	out = r.Human()
 	if !strings.Contains(out, "failed") {
 		t.Errorf("missing 'failed' in: %q", out)

@@ -505,44 +505,15 @@ for f in $huh_files; do
 	fail "no-huh-outside-uikit"
 done
 
-# ── Rule 16: a version-carrying api.ItemPatch must declare a Rebuild hook ────
-# Zotero has no field-level write: a PATCH replaces `collections`/`tags`/etc
-# wholesale. A patch that sets Version is declaring "my payload was composed
-# from a read at this version" — and UpdateItemsBatch answers the resulting 412
-# by re-reading. Without a Rebuild hook it then resubmits the STALE payload,
-# turning a correct optimistic-concurrency rejection into silent data loss.
-# That is the `zot collection add` clobber; see api.ItemPatch.Rebuild.
+# ── Rule 16: RETIRED ─────────────────────────────────────────────────────────
+# Rule 16 fenced api.ItemPatch: a Zotero PATCH replaces whole arrays, so a
+# patch carrying Version had to declare a Rebuild hook or a 412 would be
+# answered by resubmitting a locally-derived payload — silent data loss.
 #
-# The hook either re-derives the payload from the server's copy (collection
-# add, enrich) or refuses because the plan's premise moved (fix/ DOI + citekey).
-# Both are correct answers; resubmitting unchanged is not.
-patch_files=$(rg -l 'api\.ItemPatch\{' --type go --glob '!*_test.go' \
-	--glob '!.agents/**' --glob '!vendor/**' . 2>/dev/null || true)
-
-for f in $patch_files; do
-	# Walk each composite literal by brace depth: awk's gsub returns the match
-	# count, so `n - m` is the net depth change per line. Simple line-wise
-	# counting is enough here — every literal in the tree is gofmt'd.
-	offenders=$(awk '
-		!inlit && /api\.ItemPatch\{/ { inlit = 1; depth = 0; start = NR; hasver = 0; hasreb = 0 }
-		inlit {
-			n = gsub(/\{/, "{"); m = gsub(/\}/, "}")
-			depth += n - m
-			if ($0 ~ /(^|[^[:alnum:]_])Version:/) hasver = 1
-			if ($0 ~ /(^|[^[:alnum:]_])Rebuild:/) hasreb = 1
-			if (depth <= 0) { if (hasver && !hasreb) print start; inlit = 0 }
-		}
-	' "$f")
-	[[ -z "$offenders" ]] && continue
-
-	for line in $offenders; do
-		echo "FAIL [itempatch-needs-rebuild] $f:$line api.ItemPatch sets Version without a Rebuild hook."
-		echo "  The version says the payload came from a read that a 412 invalidates."
-		echo "  Add Rebuild: re-derive from the server's copy, or return an error to"
-		echo "  abandon the patch when the plan's premise no longer holds."
-		fail "itempatch-needs-rebuild"
-	done
-done
+# internal/zot/api is gone (2026-08-14): sci's Zotero surface is standalone,
+# local and read-only, with no Web API client and no credential. There is no
+# patch to fence. The number is retired rather than reused so the rule
+# numbers in commit history keep meaning what they said.
 
 # ── Rule 17: a slice flag must NOT carry Local: true ─────────────────────────
 # The exact inverse of rule 4, and the reason it needs its own rule: rule 4
@@ -572,120 +543,38 @@ if [[ -n "$slice_local" ]]; then
 	fail "sliceflag-no-local"
 fi
 
-# ── Rule 18: the zot namespace is a local READ plane, in three halves ────────
-# sci's Zotero surface is the public local read plane: it opens the user's own
-# zotero.sqlite and stops there. The two places it still speaks a network are
-# internal/zot/api (the `--remote` live reads, plus the live-only saved-search
-# and item-note reads — the user's own key against the user's own library) and
-# internal/zot/connector (localhost, driving the desktop app the user is
-# already running). Everything metered or third-party — OpenAlex, Crossref,
-# doi.org — moved to the sibling `zot` binary with the rest of the operate
-# plane, and pkg/{openalex,crossref,doiorg} stay in this repo only because zot
-# imports them.
+# ── Rule 18: nothing under internal/zot/ may reach net/http ──────────────────
+# sci's Zotero surface is standalone, local and read-only: it opens the user's
+# own zotero.sqlite and stops there. It holds no credential of any kind, so
+# there is no request it could legitimately make — not to Zotero, not to a
+# metered index, not to localhost.
 #
-# The fence is a dependency check rather than a grep because the failure it
-# guards is transitive: nothing has to import pkg/openalex directly for a
-# `sci zot search` to start spending someone's rate limit. A `go list -deps`
-# on the command tree is the whole answer.
+# This replaced a three-part fence on 2026-08-14, and the collapse is the
+# point. The old rule allowed net/http inside internal/zot/{api,cli,client,
+# connector} and then needed two more halves to say what those packages were
+# allowed to do with it: a `go list -deps` check that the command tree could
+# not reach pkg/{openalex,crossref,doiorg}, and a method-level grep asserting
+# no Zotero WRITE was called outside internal/zot/api (with a classification
+# gate in front, because the write list was derived). All three existed
+# because api was one package holding both halves of the Zotero Web API, and
+# `go list` cannot ask whether the reachable half writes.
 #
-# The rule tightened on 2026-08-13, when `link add`/`rm`/`suggest --apply`
-# became stubs and the last Web-API WRITE left sci. What it can now assert is
-# not just "no upstream index" but "no Zotero write at all" — see the third
-# half, which is where the tightening actually lives.
-zot_upstream=$(go list -deps ./internal/zot/cli 2>/dev/null |
-	rg '^github\.com/sciminds/sci/pkg/(openalex|crossref|doiorg)$' || true)
-
-if [[ -n "$zot_upstream" ]]; then
-	echo "FAIL [zot-no-upstream-index] internal/zot/cli reaches a metered upstream index:"
-	echo "$zot_upstream" | sed 's/^/  /'
-	echo "  sci's Zotero surface is local and read-only — a verb that dials"
-	echo "  OpenAlex, Crossref or doi.org belongs in the zot binary."
-	echo "  See internal/zot/CLAUDE.md, 'The boundary'."
-	fail "zot-no-upstream-index"
-fi
-
-# The same check from the other side: which packages under the zot namespace
-# can reach net/http at all. Adding one is a boundary decision, so the list is
-# spelled out here and a newcomer fails the gate rather than arriving quietly.
-# cli is on it because it mounts api and connector; every other package under
-# internal/zot/ answers from the local database and must stay that way.
-#
-# This half cannot say more than it does, and the reason is granularity: api
-# is ONE package holding both halves of the Zotero Web API, so `go list` can
-# only ask whether it is reachable, never whether the reachable part writes.
-# "no net/http outside {api READS, connector}" is the sentence the boundary
-# wants, and the third half below is the only place it can be said.
-zot_http_allowed='github.com/sciminds/sci/internal/zot/(api|cli|client|connector)'
+# With the API client deleted the boundary is a single sentence a dependency
+# check can state exactly, and an allowlist with no entries cannot rot. A new
+# import of net/http here is not a policy question — it is the whole surface
+# changing, and it fails the gate.
 zot_http=$(for pkg in $(go list ./internal/zot/... 2>/dev/null); do
 	if go list -deps "$pkg" 2>/dev/null | rg -q '^net/http$'; then echo "$pkg"; fi
-done | rg -v "^$zot_http_allowed\$" || true)
+done)
 
 if [[ -n "$zot_http" ]]; then
-	echo "FAIL [zot-http-allowlist] package under internal/zot/ newly reaches net/http:"
+	echo "FAIL [zot-no-http] package under internal/zot/ reaches net/http:"
 	echo "$zot_http" | sed 's/^/  /'
-	echo "  Only internal/zot/{api,cli,client,connector} may — api for the"
-	echo "  --remote live reads against the user's own library, connector for"
-	echo "  localhost. If this is deliberate, widen the allowlist and say why."
-	fail "zot-http-allowlist"
-fi
-
-# The third half, and the one the 2026-08-13 tightening added: NOTHING outside
-# internal/zot/api may call a Zotero WRITE. internal/zot/api is the Web API
-# client and legitimately holds both halves of that API — deleting the write
-# methods would only mean re-deriving them the day sci needs one — so the
-# boundary is about callers, and callers are methods, which is a granularity
-# `go list` does not have. Hence a grep, and hence the care below.
-#
-# The method set is DERIVED rather than typed out, so a write method added
-# next year is fenced the day it lands instead of the day someone remembers
-# this list. What makes a derived list trustworthy is the classification check
-# that comes first: every exported *Client method must match the write
-# vocabulary or the read one, and a method matching NEITHER fails the gate
-# instead of slipping through as an unfenced write. Adding a verb to either
-# list is the deliberate act; forgetting to is not possible.
-zot_write_verbs='Create|Update|Delete|Trash|Add|Remove|Link|Unlink|Upload|Put|Post|Patch|Set|Move|Merge|Replace|Import'
-zot_read_verbs='Get|List|Item|Read|Fetch|Find|Count|Has|Resolve|Current|Venue|Group'
-
-zot_api_methods=$(rg -o --no-filename --type go --glob '!*_test.go' \
-	'^func \(c \*Client\) [A-Z][A-Za-z0-9]*' internal/zot/api/ 2>/dev/null |
-	sed 's/^func (c \*Client) //' | sort -u)
-
-if [[ -z "$zot_api_methods" ]]; then
-	# A silent zero here would make every check below pass vacuously, which
-	# is the one way a derived fence fails dangerously rather than loudly.
-	echo "FAIL [zot-api-write-fence] found no exported *Client methods in internal/zot/api:"
-	echo "  the derivation is broken, so the write fence below is not fencing anything."
-	echo "  Fix the pattern in scripts/lint-guard.sh rule 18 before trusting a green gate."
-	fail "zot-api-write-fence"
-else
-	zot_unclassified=$(echo "$zot_api_methods" |
-		rg -v "^($zot_write_verbs|$zot_read_verbs)[A-Za-z0-9]*\$" || true)
-
-	if [[ -n "$zot_unclassified" ]]; then
-		echo "FAIL [zot-api-write-fence] api *Client method matches neither vocabulary:"
-		echo "$zot_unclassified" | sed 's/^/  /'
-		echo "  Rule 18's write fence derives its method list from these prefixes, so an"
-		echo "  unclassified name would be an UNFENCED write. Add its verb to"
-		echo "  zot_write_verbs or zot_read_verbs in scripts/lint-guard.sh and say which."
-		fail "zot-api-write-fence"
-	fi
-
-	zot_api_writes=$(echo "$zot_api_methods" | rg "^($zot_write_verbs)[A-Za-z0-9]*\$" || true)
-	if [[ -n "$zot_api_writes" ]]; then
-		zot_write_calls=$(rg -n --type go --glob '!*_test.go' \
-			--glob '!internal/zot/api/**' --glob '!internal/zot/client/**' --glob '!vendor/**' \
-			"\.($(echo "$zot_api_writes" | paste -sd'|' -))\(" . 2>/dev/null || true)
-
-		if [[ -n "$zot_write_calls" ]]; then
-			echo "FAIL [zot-api-write-fence] a Zotero write is called outside internal/zot/api:"
-			echo "$zot_write_calls" | sed 's/^/  /'
-			echo "  sci's Zotero surface reads the local database and never writes the"
-			echo "  library. The one sanctioned write is \`sci zot import\`, and the user's"
-			echo "  own Zotero desktop makes it (internal/zot/connector)."
-			echo "  A new write verb belongs in the zot binary — see internal/zot/CLAUDE.md."
-			fail "zot-api-write-fence"
-		fi
-	fi
+	echo "  sci's Zotero surface is standalone, local and read-only — it holds no"
+	echo "  credential and makes no request. Anything that needs the network"
+	echo "  belongs in the sibling zot binary."
+	echo "  See internal/zot/CLAUDE.md, 'The boundary'."
+	fail "zot-no-http"
 fi
 
 # ── Rule 19: a flag must not park its value in a package-level variable ──────

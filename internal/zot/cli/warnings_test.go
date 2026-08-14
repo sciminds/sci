@@ -2,7 +2,8 @@ package cli
 
 // warnings_test.go — Phase C of the agent-surface hardening pass: the
 // success-path warning rules. Warnings must fail open (no lastsync row → no
-// claim) and carry a resubmittable fix when a --remote twin exists.
+// claim), and none of them carries a Fix: every remedy on this surface is
+// Zotero desktop, which is prose rather than a command to resubmit.
 
 import (
 	"database/sql"
@@ -110,15 +111,31 @@ func TestSearch_StaleRule_EnvDisable(t *testing.T) {
 	}
 }
 
-func TestRemoteRerunFix(t *testing.T) {
-	t.Parallel()
-	got := remoteRerunFix([]string{"/bin/sci", "zot", "search", "--json", "foo bar"})
-	want := "sci zot search --json 'foo bar' --remote"
-	if got != want {
-		t.Errorf("remoteRerunFix = %q, want %q", got, want)
+// TestFreshnessWarnings_CarryNoFix pins the shape every staleness rule now
+// takes. sci reads the local Zotero database and has no second plane to
+// check against, so no caveat here has a command to resubmit — the remedy is
+// Zotero desktop, which is prose. Warning.Fix is verbatim-runnable or empty,
+// and an agent that runs prose collects "command not found".
+func TestFreshnessWarnings_CarryNoFix(t *testing.T) {
+	dataDir := withOrientConfig(t)
+	seedLastSync(t, dataDir, time.Now().Add(-90*24*time.Hour))
+
+	out, err := runItemRead(t, "--json", "--library", "personal", "search", "Paper")
+	if err != nil {
+		t.Fatalf("search: %v", err)
 	}
-	if fix := remoteRerunFix([]string{"go-test-binary", "-test.v"}); fix != "" {
-		t.Errorf("no zot token should yield no fix, got %q", fix)
+	env := searchEnvelope(t, out)
+	if len(env.Warnings) != 1 {
+		t.Fatalf("warnings = %+v, want exactly one stale-local", env.Warnings)
+	}
+	if env.Warnings[0].Fix != "" {
+		t.Errorf("stale-local Fix must be empty, got %q", env.Warnings[0].Fix)
+	}
+	if !strings.Contains(env.Warnings[0].Message, "Zotero desktop") {
+		t.Errorf("stale-local message must still name the remedy: %q", env.Warnings[0].Message)
+	}
+	if empty := emptyChildrenWarning("KEY3", 0); len(empty) != 1 || empty[0].Fix != "" {
+		t.Errorf("empty-children Fix must be empty, got %+v", empty)
 	}
 }
 
@@ -187,8 +204,8 @@ func TestWALStaleWarning_FiresOnPendingWAL(t *testing.T) {
 // CodedError), and the remedy here is not a command: it is "quit Zotero
 // desktop". An agent that resubmits a Fix of prose collects `command not
 // found: quit`, so the remedy belongs in the message and Fix stays empty —
-// the same call remoteRerunFix already makes when it has no honest command
-// to hand back.
+// the same call every freshness rule here makes: no honest command means no
+// Fix.
 func TestWALStaleWarning_RemedyRidesTheMessage(t *testing.T) {
 	got := walStaleWarning(fakeFreshness{walBytes: 2_542_072, walOK: true})
 	if len(got) != 1 {
@@ -222,7 +239,7 @@ func TestItemChildren_ZeroChildrenWarnsAboutTheMirror(t *testing.T) {
 	env := searchEnvelope(t, out)
 	found := false
 	for _, w := range env.Warnings {
-		if w.Code == cmdutil.CodeStaleLocal && strings.Contains(w.Message, "no children in the local mirror") {
+		if w.Code == cmdutil.CodeStaleLocal && strings.Contains(w.Message, "no children in the local database") {
 			found = true
 		}
 	}
@@ -235,7 +252,7 @@ func TestItemChildren_ZeroChildrenWarnsAboutTheMirror(t *testing.T) {
 // scoped to the answer that changes what a caller does.
 func TestItemChildren_WithChildrenHasNoEmptyWarning(t *testing.T) {
 	t.Parallel()
-	if w := emptyChildrenWarning("KEY1", 2, ""); w != nil {
+	if w := emptyChildrenWarning("KEY1", 2); w != nil {
 		t.Errorf("non-empty listing warned anyway: %+v", w)
 	}
 }

@@ -87,6 +87,13 @@ func TestGuide_JSON_MachineReadable(t *testing.T) {
 // item-plane routes an agent was missing — `item list`, `item children`,
 // `saved-search list`, `export --format ndjson` — and corrected the
 // `--library all` scope, which v2 stated as search+bib only.
+//
+// v4 (2026-08-14) is the standalone-local cut and the widest break yet: the
+// Zotero Web API left sci altogether, taking `--remote` off every verb that
+// had it, `saved-search` and `item note` (API-only), and `import` (the
+// desktop connector). The refusal stubs left with them, so an old verb is
+// now an ordinary unknown command rather than a routed explanation — a
+// consumer that probed by running one sees a different failure shape.
 func TestGuide_ContractVersion(t *testing.T) {
 	root := &cli.Command{
 		Name: "zot",
@@ -111,8 +118,8 @@ func TestGuide_ContractVersion(t *testing.T) {
 	if err := json.Unmarshal(unwrapData(t, []byte(raw)), &wire); err != nil {
 		t.Fatalf("decode: %v\nraw: %s", err, raw)
 	}
-	if wire.ContractVersion != 3 {
-		t.Errorf("contract_version = %d, want 3", wire.ContractVersion)
+	if wire.ContractVersion != 4 {
+		t.Errorf("contract_version = %d, want 4", wire.ContractVersion)
 	}
 }
 
@@ -148,66 +155,14 @@ func TestGuide_ReferencedCommandsExist(t *testing.T) {
 	}
 }
 
-// TestGuide_ReferencesNoRefusalStub is the other half of the drift fence,
-// and the half that matters more. A retired verb stays REGISTERED so its
-// move is discoverable, which means commandExists happily resolves it —
-// exactly the drift that let the catalog keep pointing at `link suggest`
-// after the link writes left. Existing is not the same as answering.
-//
-// The discriminator is structural rather than prose: both retirement shapes
-// are built by movedToZotCommand / retiredOutrightCommand in retire.go, and
-// both set SkipFlagParsing (so a script passing the old write flags reaches
-// the explanation) AND open their Description with "Retired from sci".
-// Those two facts are authored in one file each, so a new stub inherits the
-// discriminator instead of having to remember it — unlike a Usage-prefix
-// match, which every per-verb call site in moved.go would own.
-func TestGuide_ReferencesNoRefusalStub(t *testing.T) {
-	root := &cli.Command{Name: "zot", Commands: Commands()}
-
-	// Self-check first: a discriminator that stops recognising stubs turns
-	// this fence into a test that passes on everything.
-	if known := resolveGuidePath(root, []string{"item", "add"}); known == nil || !isRefusalStub(known) {
-		t.Fatal("`item add` is no longer recognised as a retired stub — retire.go's shape changed and this fence is now vacuous")
-	}
-
-	for _, sec := range guideContent().Sections {
-		for _, e := range sec.Entries {
-			path, ok := parseGuideCmd(e.Cmd)
-			if !ok {
-				continue // TestGuide_ReferencedCommandsExist owns this failure
-			}
-			leaf := resolveGuidePath(root, path)
-			if leaf == nil {
-				continue // ditto
-			}
-			if isRefusalStub(leaf) {
-				t.Errorf("section %q: cmd %q resolves to a retired stub (`sci zot %s` refuses) — the guide must only advertise verbs that answer",
-					sec.Title, e.Cmd, strings.Join(path, " "))
-			}
-		}
-	}
-}
-
-// resolveGuidePath walks path from root and returns the command it lands
-// on, or nil.
-func resolveGuidePath(root *cli.Command, path []string) *cli.Command {
-	cur := root
-	for _, name := range path {
-		next := findChild(cur, name)
-		if next == nil {
-			return nil
-		}
-		cur = next
-	}
-	return cur
-}
-
-// isRefusalStub reports whether cmd is one of retire.go's two stub shapes.
-// See TestGuide_ReferencesNoRefusalStub for why these two facts and not the
-// Usage prose.
-func isRefusalStub(cmd *cli.Command) bool {
-	return cmd.SkipFlagParsing && strings.HasPrefix(cmd.Description, "Retired from sci")
-}
+// TestGuide_ReferencesNoRefusalStub is GONE, deliberately, and this note is
+// what remains of it. It existed because a retired verb stayed REGISTERED as
+// a refusal stub, which meant commandExists happily resolved a catalog entry
+// pointing at something that refuses — existing was not the same as
+// answering. The 2026-08-14 standalone-local cut removed every stub: an old
+// verb is now a plain unknown command, so TestGuide_ReferencedCommandsExist
+// above catches exactly the drift the stub fence was invented to cover, and
+// a second check would have nothing left to discriminate on.
 
 // parseGuideCmd extracts the leaf path from a `sci zot foo bar …` example.
 // Returns (path, true) where path is e.g. ["item", "add"] or

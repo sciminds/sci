@@ -3,9 +3,9 @@ package cli
 // Tests for `--library all` — the merged read pool zen asked for (G1).
 // search and bib accept it: one call spans personal + shared with a
 // single interleaved ranking and per-row `library` provenance. Every
-// other command rejects it with a rewrite hint, and the conflicts
-// (--content, --remote, --notes) error instead of silently answering a
-// narrower question than the one asked.
+// other command rejects it with a rewrite hint, and the --notes conflict
+// errors instead of silently answering a narrower question than the one
+// asked.
 
 import (
 	"encoding/json"
@@ -77,20 +77,10 @@ func TestSearch_LibraryAll_MergesWithProvenance(t *testing.T) {
 	}
 }
 
-func TestSearch_LibraryAll_RemoteConflicts(t *testing.T) {
-	withSharedOrientConfig(t)
-
-	_, err := runZotAll(t, "--library", "all", "search", "paper", "--remote")
-	if err == nil {
-		t.Fatal("--remote with --library all must conflict — the Web API has no merged endpoint")
-	}
-}
-
 // TestSearch_LibraryAll_EmptyHintIsFollowable: a zero-hit hint is read the
-// same way a Fix is — as the next thing to run. Under the merged pool the
-// usual "try --remote" is a hard conflict (searchAllConflicts), so pointing
-// there hands back a command that cannot succeed. The rerun Fix is already
-// blanked under `all` for exactly this reason; the hint owes the same.
+// same way a Fix is — as the next thing to run. `all` is already the widest
+// pool sci has, so a hint that suggests widening within sci would hand back
+// a command that cannot help.
 func TestSearch_LibraryAll_EmptyHintIsFollowable(t *testing.T) {
 	withSharedOrientConfig(t)
 
@@ -108,16 +98,20 @@ func TestSearch_LibraryAll_EmptyHintIsFollowable(t *testing.T) {
 	if result.Count != 0 {
 		t.Fatalf("expected an empty result to hint on, got %d hits", result.Count)
 	}
-	if strings.Contains(result.Hint, "--remote") {
-		t.Errorf("hint must not point at --remote under --library all — it conflicts there: %q", result.Hint)
+	// An agent follows a hint the way it follows a Fix, so the hint has to
+	// be true under the scope that produced it. `all` is already the widest
+	// pool sci has, so the only honest next step is a different tool.
+	if strings.Contains(result.Hint, "--library personal") {
+		t.Errorf("hint must not send a merged search back to one library — that narrows, it does not widen: %q", result.Hint)
 	}
-	if !strings.Contains(result.Hint, "--library personal") {
-		t.Errorf("hint should point at narrowing to one library, got %q", result.Hint)
+	if !strings.Contains(result.Hint, "zot search") {
+		t.Errorf("hint should name the tool that searches paper TEXT, got %q", result.Hint)
 	}
 }
 
 // TestSearch_SingleLibrary_EmptyHintStillWidens pins the other half: with a
-// single library resolved, --remote IS the honest next step.
+// single library resolved, widening to the merged pool is the honest next
+// step, and it is a scope sci actually has.
 func TestSearch_SingleLibrary_EmptyHintStillWidens(t *testing.T) {
 	withSharedOrientConfig(t)
 
@@ -131,8 +125,8 @@ func TestSearch_SingleLibrary_EmptyHintStillWidens(t *testing.T) {
 	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
 		t.Fatalf("parse: %v\n%s", err, string(out))
 	}
-	if !strings.Contains(result.Hint, "--remote") {
-		t.Errorf("single-library hint should still widen to --remote, got %q", result.Hint)
+	if !strings.Contains(result.Hint, "--library all") {
+		t.Errorf("single-library hint should widen to the merged pool, got %q", result.Hint)
 	}
 }
 

@@ -245,24 +245,6 @@ modernize-deadcode *ARGS:
 run *ARGS:
     go run ./cmd/sci {{ARGS}}
 
-zot-spec := "/Users/esh/Documents/webapps/apis/zotero/openapi.yaml"
-
-# Regenerate the Zotero API Go client from the OpenAPI spec.
-# Downgrades 3.1 -> 3.0 on the fly (type:[T,null] -> nullable:true) because
-# oapi-codegen v2 does not yet support 3.1 union types.
-zot-gen:
-    @tmp=$(mktemp -t zotero-spec.XXXXXX.yaml); \
-    sd '^openapi: 3\.1\.0$' 'openapi: 3.0.3' < {{zot-spec}} \
-        | sd 'type: \[string, "null"\]' 'type: string\n          nullable: true' \
-        | sd 'type: \[integer, "null"\]' 'type: integer\n          nullable: true' \
-        | sd '^    tag:$' '    tagFilter:' \
-        | sd '#/components/parameters/tag"' '#/components/parameters/tagFilter"' \
-        | yq eval-all "$(cat scripts/zotero-mirror-paths.yq)" - \
-        > $tmp; \
-    (cd internal/zot/client && oapi-codegen -config config.yaml $tmp); \
-    rm -f $tmp
-    gofmt -w internal/zot/client/zotero.gen.go
-
 # Open package documentation in the browser
 docs:
     @echo "Starting pkgsite at http://localhost:6060/github.com/sciminds/sci"

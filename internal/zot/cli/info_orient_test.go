@@ -154,11 +154,7 @@ func withOrientConfig(t *testing.T) string {
 	dataDir := t.TempDir()
 	seedOrientDB(t, dataDir)
 
-	cfg := &zot.Config{
-		APIKey:  "k",
-		UserID:  "42",
-		DataDir: dataDir,
-	}
+	cfg := &zot.Config{DataDir: dataDir}
 	if err := zot.SaveConfig(cfg); err != nil {
 		t.Fatalf("SaveConfig: %v", err)
 	}

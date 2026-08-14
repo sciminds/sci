@@ -41,8 +41,6 @@ func withTestConfig(t *testing.T, userID, sharedGroupID string) string {
 	seedMinimalDB(t, dataDir, sharedGroupID)
 
 	cfg := &zot.Config{
-		APIKey:          "k",
-		UserID:          userID,
 		SharedGroupID:   sharedGroupID,
 		SharedGroupName: "sciminds",
 		DataDir:         dataDir,
@@ -191,13 +189,14 @@ func TestInfo_WithLibraryFlag_NarrowsToScope(t *testing.T) {
 	if result.Library != "personal" {
 		t.Errorf("Library = %q, want personal", result.Library)
 	}
-	// Web API ID surfacing — agents need this to build
-	// zotero://select/library/items/... deeplinks.
 	if result.Scope != "personal" {
 		t.Errorf("Scope = %q, want personal", result.Scope)
 	}
-	if result.LibraryAPIID != "42" {
-		t.Errorf("LibraryAPIID = %q, want 42 (the user_id)", result.LibraryAPIID)
+	// The personal library has no Web API id: it is libraries.type='user'
+	// in the local database, and sci no longer knows the account behind it.
+	// A group still does, which the shared test below pins.
+	if result.LibraryAPIID != "" {
+		t.Errorf("LibraryAPIID = %q, want empty for the personal library", result.LibraryAPIID)
 	}
 }
 

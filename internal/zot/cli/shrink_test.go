@@ -1,149 +1,37 @@
 package cli
 
+// What survives of the shrink tests once the refusal stubs are gone.
+//
+// The 2026-08-12 shrink kept every retired verb REGISTERED as a stub that
+// named where its work went, and most of this file was the table pinning
+// those stubs. The 2026-08-14 standalone-local cut removed them: with no
+// Zotero Web API left, an old verb is an ordinary unknown command and
+// cmdutil.WireNamespaceDefaults rejects it like any other typo.
+//
+// What still needs a fence is the inverse — the READ surface sci kept, and
+// the flags a removed feature must not have left behind silently accepting
+// input.
+
 import (
-	"errors"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/urfave/cli/v3"
 )
 
-// movedToZot is the table of verbs that left sci for the zot binary when
-// sci's Zotero surface shrank to the public local read plane
-// (2026-08-12). argv is the command path; zotVerb is the string the
-// remedy has to name.
-var movedToZot = []struct {
-	argv    []string
-	zotVerb string
-}{
-	{argv: []string{"item", "add"}, zotVerb: "zot item add"},
-	{argv: []string{"item", "update"}, zotVerb: "zot item update"},
-	{argv: []string{"item", "delete"}, zotVerb: "zot item delete"},
-	{argv: []string{"item", "attach"}, zotVerb: "zot item attach"},
-	{argv: []string{"item", "note", "add"}, zotVerb: "zot item note add"},
-	{argv: []string{"item", "note", "update"}, zotVerb: "zot item note update"},
-	{argv: []string{"collection", "create"}, zotVerb: "zot collection create"},
-	{argv: []string{"collection", "delete"}, zotVerb: "zot collection delete"},
-	{argv: []string{"collection", "add"}, zotVerb: "zot collection add"},
-	{argv: []string{"collection", "remove"}, zotVerb: "zot collection remove"},
-	{argv: []string{"tags", "add"}, zotVerb: "zot tags"},
-	{argv: []string{"tags", "remove"}, zotVerb: "zot tags"},
-	{argv: []string{"tags", "delete"}, zotVerb: "zot tags"},
-	{argv: []string{"link", "add"}, zotVerb: "zot link add"},
-	{argv: []string{"link", "rm"}, zotVerb: "zot link rm"},
-	{argv: []string{"link", "suggest"}, zotVerb: "zot link suggest"},
-	{argv: []string{"find"}, zotVerb: "zot find"},
-	{argv: []string{"openalex"}, zotVerb: "zot openalex sync"},
-	{argv: []string{"crossref"}, zotVerb: "zot crossref"},
-	{argv: []string{"graph"}, zotVerb: "zot cites"},
-	{argv: []string{"content"}, zotVerb: "zot read"},
-	{argv: []string{"llm"}, zotVerb: "zot read"},
-	{argv: []string{"extract"}, zotVerb: "zot extract-lib"},
-	{argv: []string{"extract-lib"}, zotVerb: "zot extract-lib"},
-	{argv: []string{"doctor", "pdfs"}, zotVerb: "zot doctor pdfs"},
-}
-
-// TestMovedVerbsAreRegisteredStubs pins the whole retirement contract at
-// once. Each verb stays REGISTERED — urfave would otherwise answer with a
-// bare "command not found", which teaches nothing about where the verb
-// went — and each refuses with CodeUsage naming its replacement in Try.
-//
-// Try, never Fix: the zot binary is a different program and is absent
-// from lab machines, so a rewritten command line would hand back
-// something that cannot run. Error.Fix is verbatim-runnable or absent.
-func TestMovedVerbsAreRegisteredStubs(t *testing.T) {
-	t.Parallel()
-	for _, tc := range movedToZot {
-		t.Run(strings.Join(tc.argv, " "), func(t *testing.T) {
-			t.Parallel()
-
-			leaf := walkToLeaf(Commands(), tc.argv)
-			if leaf == nil {
-				t.Fatalf("`zot %s` must stay registered so the move is discoverable",
-					strings.Join(tc.argv, " "))
-			}
-			if !leaf.SkipFlagParsing {
-				t.Errorf("`zot %s` must SkipFlagParsing so old flags reach the explanation",
-					strings.Join(tc.argv, " "))
-			}
-
-			argv := slices.Concat([]string{"zot"}, tc.argv)
-			err := runZotTree(t, argv...)
-			if err == nil {
-				t.Fatalf("`%s` should refuse, got nil", strings.Join(argv, " "))
-			}
-			coded, ok := errors.AsType[*cmdutil.CodedError](err)
-			if !ok {
-				t.Fatalf("want CodedError, got %T: %v", err, err)
-			}
-			if coded.Code != cmdutil.CodeUsage {
-				t.Errorf("Code = %q, want %q", coded.Code, cmdutil.CodeUsage)
-			}
-			if coded.Fix != "" {
-				t.Errorf("Fix must stay empty — zot is not installed here; got %q", coded.Fix)
-			}
-			if !strings.Contains(coded.Try, tc.zotVerb) {
-				t.Errorf("Try must name %q, got %q", tc.zotVerb, coded.Try)
-			}
-		})
-	}
-}
-
-// TestMovedVerbsSwallowTheirOldFlags is the flag-parsing half: a script
-// still passing the write flags must reach the explanation rather than a
-// bare "flag provided but not defined", which reads like a typo instead
-// of a move.
-func TestMovedVerbsSwallowTheirOldFlags(t *testing.T) {
-	t.Parallel()
-	for _, argv := range [][]string{
-		{"item", "add", "--type", "journalArticle", "--title", "X", "--openalex", "10.1/2"},
-		{"item", "update", "ABC12345", "--from-json", "plan.ndjson"},
-		{"item", "attach", "ABC12345", "/tmp/x.pdf", "--skip-existing"},
-		{"collection", "add", "--from-file", "keys.txt", "COLLXXX1"},
-		{"tags", "add", "ABC12345", "neuroimaging"},
-		{"tags", "delete", "deprecated", "--yes"},
-		{"link", "add", "NOTE0001", "PAPER001"},
-		{"link", "rm", "NOTE0001", "PAPER001", "--yes"},
-		{"link", "suggest", "NOTE0001", "--apply", "--yes", "--remote"},
-		{"saved-search", "create", "Recent ML", "--condition", "tag:is:ml", "--any"},
-		{"saved-search", "delete", "ABCD1234", "--yes"},
-		{"find", "works", "--filter", "type=article", "llm"},
-		{"openalex", "sync", "--apply", "--limit", "10"},
-		{"crossref", "works", "--apply"},
-		{"graph", "cites", "ABC12345", "--limit", "50"},
-		{"content", "build", "--rebuild"},
-		{"llm", "query", "-s", "transformers", "--", ".h2"},
-		{"extract-lib", "--apply", "--jobs", "2"},
-	} {
-		t.Run(strings.Join(argv, " "), func(t *testing.T) {
-			t.Parallel()
-			err := runZotTree(t, slices.Concat([]string{"zot"}, argv)...)
-			coded, ok := errors.AsType[*cmdutil.CodedError](err)
-			if !ok {
-				t.Fatalf("want CodedError, got %T: %v", err, err)
-			}
-			if coded.Code != cmdutil.CodeUsage {
-				t.Errorf("Code = %q, want %q", coded.Code, cmdutil.CodeUsage)
-			}
-		})
-	}
-}
-
-// TestSurvivingReadVerbsStillAnswer is the other half of the shrink: the
-// local read surface is what sci keeps, so every verb below must still
-// carry a real Action. A retirement that took a read verb with it would
-// pass every test above and still be wrong.
+// TestSurvivingReadVerbsStillAnswer is the half of the shrink that matters
+// now: the local read surface is what sci keeps, so every verb below must
+// still carry a real Action. A retirement that took a read verb with it
+// would otherwise pass unnoticed.
 func TestSurvivingReadVerbsStillAnswer(t *testing.T) {
 	t.Parallel()
 	for _, argv := range [][]string{
-		{"search"}, {"browse"}, {"view"}, {"bib"}, {"export"}, {"import"},
+		{"search"}, {"browse"}, {"view"}, {"bib"}, {"export"},
 		{"info"}, {"setup"}, {"guide"},
 		{"item", "read"}, {"item", "list"}, {"item", "children"},
 		{"item", "open"}, {"item", "export"},
-		{"item", "note", "read"}, {"item", "note", "list"},
 		{"collection", "list"}, {"collection", "browse"},
-		{"saved-search", "list"}, {"saved-search", "show"},
 		{"tags", "list"}, {"tags", "browse"},
 		{"link", "list"},
 		{"notes", "list"}, {"notes", "read"},
@@ -166,134 +54,86 @@ func TestSurvivingReadVerbsStillAnswer(t *testing.T) {
 	}
 }
 
-// TestRetiredContentFlagsAreGone pins the search half of the content
-// retirement. --content widened a query with the per-library BM25 index
-// that retired with `zot content`; a removed flag has to FAIL rather than
-// be silently ignored, or a script still passing it looks like it worked.
-func TestRetiredContentFlagsAreGone(t *testing.T) {
+// TestRetiredVerbsAreUnknownCommands is the standalone-local cut's own
+// fence, and it replaces the stub table. Every verb below left sci for the
+// zot binary or retired outright, and none of them is registered any more —
+// so the tree must not resolve them to something that parses. Registering
+// one again by accident (a copy-pasted namespace, a revived file) would put
+// a verb back on the public surface that cannot work without the credential
+// this cut removed.
+func TestRetiredVerbsAreUnknownCommands(t *testing.T) {
 	t.Parallel()
-	leaf := walkToLeaf(Commands(), []string{"search"})
-	if leaf == nil {
-		t.Fatal("`zot search` went missing")
-	}
-	for _, f := range leaf.Flags {
-		if slices.Contains(f.Names(), "content") {
-			t.Fatal("--content is still declared on `zot search`")
-		}
-	}
-	err := runZotTree(t, "zot", "search", "--content", "x")
-	if err == nil {
-		t.Fatal("`search --content` should fail on the removed flag, got nil")
-	}
-	if !strings.Contains(err.Error(), "content") {
-		t.Errorf("error should name the unknown flag, got %q", err)
+	for _, argv := range [][]string{
+		{"import"},
+		{"find"}, {"openalex"}, {"crossref"},
+		{"graph"}, {"content"}, {"llm"},
+		{"extract"}, {"extract-lib"},
+		{"saved-search"},
+		{"item", "add"}, {"item", "update"}, {"item", "delete"}, {"item", "attach"},
+		{"item", "note"},
+		{"collection", "create"}, {"collection", "delete"},
+		{"collection", "add"}, {"collection", "remove"},
+		{"tags", "add"}, {"tags", "remove"}, {"tags", "delete"},
+		{"link", "add"}, {"link", "rm"}, {"link", "suggest"},
+		{"notes", "add"}, {"notes", "update"}, {"notes", "delete"},
+		{"doctor", "pdfs"},
+	} {
+		t.Run(strings.Join(argv, " "), func(t *testing.T) {
+			t.Parallel()
+			// Strict resolution, not walkToLeaf: that helper treats an
+			// unmatched token as a positional and hands back the parent,
+			// which would call `zot item add` "found" because `item` is.
+			root := &cli.Command{Name: "zot", Commands: Commands()}
+			if commandExists(root, argv) {
+				t.Errorf("`zot %s` is registered again — it belongs to the zot binary, not this surface",
+					strings.Join(argv, " "))
+			}
+		})
 	}
 }
 
-// TestLinkSuggestStubSaysTheNoteScanRetired — `link suggest` is the one
-// moved verb whose ANSWER changed, and a stub that only named the
-// destination would send someone looking for a port that does not exist.
+// TestRetiredFlagsAreGone pins the flag half of the same rule. A removed
+// flag has to FAIL rather than be silently ignored, or a script still
+// passing it looks like it worked.
 //
-// sci's arm read ONE note and proposed a relation per reference in its
-// body. zot's reads the corpus and proposes the filings its snapshot
-// already resolved to one work — the preprint beside its published
-// version, the duplicate filing. The note-scanning signal was retired
-// deliberately on 2026-08-13 (no `bib` promotion), so the message has to
-// say retired rather than let "moved to `zot link suggest`" imply the same
-// verb arrived somewhere else.
-func TestLinkSuggestStubSaysTheNoteScanRetired(t *testing.T) {
+//   - --content widened a query with the per-library BM25 index that
+//     retired with `zot content` (2026-08-12).
+//   - --remote routed a read to the Zotero Web API, which left with the
+//     whole API client (2026-08-14).
+func TestRetiredFlagsAreGone(t *testing.T) {
 	t.Parallel()
-	err := runZotTree(t, "zot", "link", "suggest", "NOTE0001")
-	coded, ok := errors.AsType[*cmdutil.CodedError](err)
-	if !ok {
-		t.Fatalf("want CodedError, got %T: %v", err, err)
-	}
-	for _, want := range []string{"retired", "work-identity", "note"} {
-		if !strings.Contains(strings.ToLower(coded.Try), want) {
-			t.Errorf("Try must say %q so nobody hunts for the missing port; got %q", want, coded.Try)
-		}
-	}
-	leaf := walkToLeaf(Commands(), []string{"link", "suggest"})
-	if leaf == nil || !strings.Contains(strings.ToLower(leaf.Description), "retired") {
-		t.Error("`link suggest`'s Description must carry the same honesty as its Try")
-	}
-}
-
-// TestLinkRmStubKeepsItsAliases — a script still running `sci zot link
-// unlink A B` has to reach the explanation. An alias dropped with the verb
-// turns the move back into "command not found", which is the failure the
-// stubs exist to prevent.
-func TestLinkRmStubKeepsItsAliases(t *testing.T) {
-	t.Parallel()
-	for _, name := range []string{"rm", "remove", "unlink"} {
-		err := runZotTree(t, "zot", "link", name, "NOTE0001", "PAPER001")
-		coded, ok := errors.AsType[*cmdutil.CodedError](err)
-		if !ok {
-			t.Fatalf("`link %s`: want CodedError, got %T: %v", name, err, err)
-		}
-		if !strings.Contains(coded.Try, "zot link rm") {
-			t.Errorf("`link %s`: Try must name `zot link rm`, got %q", name, coded.Try)
-		}
-	}
-}
-
-// retiredOutright is the table of verbs that left sci with no home in any
-// binary. They are a different kind of retirement from [movedToZot] and
-// need their own assertion: the remedy is prose, so a Try that names a
-// `zot` command would send the caller somewhere that has no such verb.
-var retiredOutright = []struct {
-	argv   []string
-	remedy string
-}{
-	{argv: []string{"saved-search", "create"}, remedy: "Zotero desktop"},
-	{argv: []string{"saved-search", "update"}, remedy: "Zotero desktop"},
-	{argv: []string{"saved-search", "delete"}, remedy: "Zotero desktop"},
-}
-
-// TestRetiredOutrightVerbsPointAtTheDesktop pins the second retirement
-// shape. A saved search is a stored QUERY, and the Zotero Web API can hold
-// its definition but cannot evaluate it — only the desktop client runs one.
-// So a write verb for a thing only the desktop can use belongs to the
-// desktop's own UI, and the stub has to say that rather than hand the
-// caller a `zot` command that does not exist.
-func TestRetiredOutrightVerbsPointAtTheDesktop(t *testing.T) {
-	t.Parallel()
-	for _, tc := range retiredOutright {
+	for _, tc := range []struct {
+		path []string
+		argv []string
+		flag string
+	}{
+		{path: []string{"search"}, argv: []string{"zot", "search", "--content", "x"}, flag: "content"},
+		{path: []string{"search"}, argv: []string{"zot", "search", "--remote", "x"}, flag: "remote"},
+		{path: []string{"item", "read"}, argv: []string{"zot", "item", "read", "--remote", "ABC12345"}, flag: "remote"},
+		{path: []string{"item", "list"}, argv: []string{"zot", "item", "list", "--remote"}, flag: "remote"},
+		{path: []string{"item", "children"}, argv: []string{"zot", "item", "children", "--remote", "ABC12345"}, flag: "remote"},
+		{path: []string{"collection", "list"}, argv: []string{"zot", "collection", "list", "--remote"}, flag: "remote"},
+		{path: []string{"link", "list"}, argv: []string{"zot", "link", "list", "--remote", "ABC12345"}, flag: "remote"},
+	} {
 		t.Run(strings.Join(tc.argv, " "), func(t *testing.T) {
 			t.Parallel()
 
-			leaf := walkToLeaf(Commands(), tc.argv)
+			leaf := walkToLeaf(Commands(), tc.path)
 			if leaf == nil {
-				t.Fatalf("`zot %s` must stay registered so the retirement is discoverable",
-					strings.Join(tc.argv, " "))
+				t.Fatalf("`zot %s` went missing", strings.Join(tc.path, " "))
 			}
-			if !leaf.SkipFlagParsing {
-				t.Errorf("`zot %s` must SkipFlagParsing so old flags reach the explanation",
-					strings.Join(tc.argv, " "))
+			for _, f := range leaf.Flags {
+				if slices.Contains(f.Names(), tc.flag) {
+					t.Fatalf("--%s is still declared on `zot %s`", tc.flag, strings.Join(tc.path, " "))
+				}
 			}
 
-			err := runZotTree(t, slices.Concat([]string{"zot"}, tc.argv)...)
+			err := runZotTree(t, tc.argv...)
 			if err == nil {
-				t.Fatalf("`zot %s` should refuse, got nil", strings.Join(tc.argv, " "))
+				t.Fatalf("`%s` should fail on the removed flag, got nil", strings.Join(tc.argv, " "))
 			}
-			coded, ok := errors.AsType[*cmdutil.CodedError](err)
-			if !ok {
-				t.Fatalf("want CodedError, got %T: %v", err, err)
-			}
-			if coded.Code != cmdutil.CodeUsage {
-				t.Errorf("Code = %q, want %q", coded.Code, cmdutil.CodeUsage)
-			}
-			if coded.Fix != "" {
-				t.Errorf("Fix must stay empty — the remedy is an app, not a command; got %q", coded.Fix)
-			}
-			if !strings.Contains(coded.Try, tc.remedy) {
-				t.Errorf("Try must name %q, got %q", tc.remedy, coded.Try)
-			}
-			// The moved shape ends "on a machine that has zot installed,
-			// run `zot …`". Borrowing that sentence here would send the
-			// caller to a second binary that has no such verb either.
-			if strings.Contains(coded.Try, "zot installed") {
-				t.Errorf("Try routes to the zot binary, which has no home for this verb: %q", coded.Try)
+			if !strings.Contains(err.Error(), tc.flag) {
+				t.Errorf("error should name the unknown flag %q, got %q", tc.flag, err)
 			}
 		})
 	}

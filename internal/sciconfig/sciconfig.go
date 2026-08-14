@@ -104,6 +104,23 @@ func (f File[T]) Save(cfg *T) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
+// SaveRaw writes pre-serialized JSON bytes to the config path with the same
+// directory creation and 0600 permissions as [File.Save].
+//
+// It exists for the one thing Save cannot do: rewrite a config file WITHOUT
+// passing it through the typed struct. Marshalling T emits only the fields
+// this program declares, so any key another tool wrote into the same file is
+// silently deleted by a round trip. A schema migration that prunes one key
+// has no business destroying the rest, so it prunes the original object and
+// hands the result here.
+func (f File[T]) SaveRaw(data []byte) error {
+	path := f.Path()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o600)
+}
+
 // Clear removes the config file. A missing file is not an error.
 func (f File[T]) Clear() error {
 	if err := os.Remove(f.Path()); err != nil && !os.IsNotExist(err) {

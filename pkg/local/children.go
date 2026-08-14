@@ -18,9 +18,9 @@ type ChildItem struct {
 	ContentType string `json:"content_type,omitempty"` // attachments only
 	Filename    string `json:"filename,omitempty"`     // attachments only
 	// Md5 is the hex digest of the stored file, from itemAttachments
-	// .storageHash — the same value the Web API reports as `md5`, so the
-	// local and --remote listings agree field for field. Empty for notes
-	// and for attachments Zotero has not hashed yet.
+	// .storageHash — the same value the Zotero Web API reports as `md5`, so
+	// a consumer joining this listing against an API-derived one matches on
+	// it. Empty for notes and for attachments Zotero has not hashed yet.
 	Md5  string   `json:"md5,omitempty"`
 	Tags []string `json:"tags,omitempty"`
 }

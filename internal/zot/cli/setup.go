@@ -7,32 +7,27 @@ import (
 	"os"
 
 	"github.com/sciminds/sci/internal/cmdutil"
-	"github.com/sciminds/sci/internal/netutil"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot"
-	"github.com/sciminds/sci/internal/zot/api"
 	"github.com/urfave/cli/v3"
 )
 
 func setupCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "setup",
-		Usage: "Point sci at your Zotero library",
+		Usage: "Point sci at your Zotero data directory",
 		Description: "$ sci zot setup\n" +
-			"$ sci zot setup --api <key> --user-id <id>\n" +
-			"$ sci zot setup --api <key> --user-id <id> --data-dir ~/Zotero\n" +
+			"$ sci zot setup --data-dir ~/Zotero\n" +
 			"$ sci zot setup --logout\n\n" +
-			"--data-dir is what the local reads need: search, bib, export and\n" +
-			"the doctor reports all open the zotero.sqlite it names. The API key\n" +
-			"is only for the `--remote` live reads and for naming your shared\n" +
-			"group; sci never writes to a library with it.",
+			"Setup records one thing: where zotero.sqlite lives. Every zot\n" +
+			"command opens it read-only and answers from it — there is no\n" +
+			"account to log into and no API key to paste. The shared group\n" +
+			"backing `--library shared` is read out of that same database.",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "api", Usage: "Zotero Web API key (required in --json mode)", Local: true},
-			&cli.StringFlag{Name: "user-id", Usage: "Zotero numeric user ID (required in --json mode)", Local: true},
-			&cli.StringFlag{Name: "shared-group-id", Usage: "numeric group ID to use as the shared library (only needed when the account belongs to >1 group)", Local: true},
+			&cli.StringFlag{Name: "shared-group-id", Usage: "numeric group ID to use as the shared library (only needed when the library holds >1 group)", Local: true},
 			&cli.StringFlag{Name: "shared-group-name", Usage: "display name for the shared group (optional; auto-detected when --shared-group-id is set)", Local: true},
 			&cli.StringFlag{Name: "data-dir", Usage: "path to directory containing zotero.sqlite (auto-detected if omitted)", Local: true},
-			&cli.BoolFlag{Name: "logout", Usage: "clear saved credentials", Local: true},
+			&cli.BoolFlag{Name: "logout", Usage: "clear the saved configuration", Local: true},
 			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config without prompting", Local: true},
 		},
 		Action: runSetup,
@@ -43,14 +38,14 @@ func setupCommand() *cli.Command {
 // `sci zot setup`. Exported so the top-level `sci setup` menu can delegate to
 // it: one implementation, two entry points.
 //
-// Every pre-fill (--api, --user-id, --data-dir, …) is read off cmd, so the
+// Every pre-fill (--data-dir, --shared-group-id, …) is read off cmd, so the
 // menu's cmd — which declares none of those flags — lands on the fully
 // interactive path, which is what a menu pick means.
 func RunSetup(ctx context.Context, cmd *cli.Command) error {
 	return runSetup(ctx, cmd)
 }
 
-func runSetup(ctx context.Context, cmd *cli.Command) error {
+func runSetup(_ context.Context, cmd *cli.Command) error {
 	if cmd.Bool("logout") {
 		result, err := zot.Logout()
 		if err != nil {
@@ -60,22 +55,21 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	apiKey := cmd.String("api")
-	userID := cmd.String("user-id")
 	sharedGroupID := cmd.String("shared-group-id")
 	sharedGroupName := cmd.String("shared-group-name")
 	dataDir := cmd.String("data-dir")
 
 	jsonMode := cmdutil.IsJSON(cmd)
-	// `setup --json` with no creds → print the saved config and exit.
-	if jsonMode && apiKey == "" && userID == "" {
+	// `setup --json` with nothing to set → print the saved config and exit.
+	// Nothing here is secret any more, so the whole stored shape is emitted.
+	if jsonMode && dataDir == "" && sharedGroupID == "" {
 		cfg, err := zot.LoadConfig()
 		if err != nil {
 			return err
 		}
 		if cfg == nil {
 			return cmdutil.Coded(cmdutil.CodeNotConfigured, "zot not configured").
-				WithTry("run 'sci zot setup' interactively, or pass --api and --user-id in --json mode")
+				WithTry("run 'sci zot setup' interactively, or pass --data-dir in --json mode")
 		}
 		cmdutil.Output(cmd, cfg)
 		return nil
@@ -93,47 +87,32 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	if jsonMode {
-		if apiKey == "" || userID == "" {
-			return fmt.Errorf("--api and --user-id are required in --json mode")
-		}
-		if dataDir == "" {
-			dataDir = zot.DefaultDataDir()
-			if dataDir == "" {
-				return fmt.Errorf("--data-dir is required when zotero.sqlite is not in a default location")
-			}
-		}
-	} else {
-		// Interactive: prompt for anything missing, prefilling detected defaults.
-		if dataDir == "" {
-			dataDir = zot.DefaultDataDir()
-		}
-		needForm := apiKey == "" || userID == "" || dataDir == ""
-		if needForm {
-			if err := uikit.NewForm(uikit.FormGroup(
-				uikit.FormInput(&apiKey, "Zotero API key",
-					uikit.WithDescription("From https://www.zotero.org/settings/keys"),
-					uikit.WithValidation(func(s string) error { return zot.ValidateAPIKey(s) })),
-				uikit.FormInput(&userID, "User ID",
-					uikit.WithDescription("Numeric user ID (https://www.zotero.org/settings/keys — \"Your userID for use in API calls\")"),
-					uikit.WithValidation(func(s string) error { return zot.ValidateUserID(s) })),
-				uikit.FormInput(&dataDir, "Data directory",
-					uikit.WithDescription("Zotero's data dir (contains zotero.sqlite)"),
-					uikit.WithValidation(func(s string) error { return zot.ValidateDataDir(s) })),
-			)).Run(); err != nil {
-				return err
-			}
+	// Probing the platform candidates first is what makes setup a no-argument
+	// command on a standard install: DefaultDataDir finds ~/Zotero (and the
+	// Linux native / snap / Flatpak paths) without asking.
+	if dataDir == "" {
+		dataDir = zot.DefaultDataDir()
+	}
+	switch {
+	case jsonMode && dataDir == "":
+		return fmt.Errorf("--data-dir is required when zotero.sqlite is not in a default location")
+	case !jsonMode && zot.ValidateDataDir(dataDir) != nil:
+		// Prompt only when the probe came back empty or wrong — a detected
+		// directory is the answer, not a question.
+		if err := uikit.NewForm(uikit.FormGroup(
+			uikit.FormInput(&dataDir, "Data directory",
+				uikit.WithDescription("Zotero's data dir (contains zotero.sqlite)"),
+				uikit.WithValidation(func(s string) error { return zot.ValidateDataDir(s) })),
+		)).Run(); err != nil {
+			return err
 		}
 	}
 
-	// Auto-detect the shared group when the account has network access and
-	// the user didn't pre-specify one. Non-fatal on failure (offline, API
-	// hiccup) — setup still succeeds with personal-only config.
-	probe := setupGroupProbe(ctx, apiKey, userID)
+	// Auto-detect the shared group from the local database when the user
+	// didn't pre-specify one.
+	probe := zot.LocalGroupProbe(dataDir)
 
 	result, err := zot.Setup(zot.SetupInput{
-		APIKey:          apiKey,
-		UserID:          userID,
 		SharedGroupID:   sharedGroupID,
 		SharedGroupName: sharedGroupName,
 		DataDir:         dataDir,
@@ -144,25 +123,4 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 	}
 	cmdutil.Output(cmd, result)
 	return nil
-}
-
-// setupGroupProbe returns a GroupProbeFunc that calls the Zotero Web API to
-// enumerate the groups an account belongs to. Returns nil (no-op probe) when
-// offline or when the API key is missing — Setup treats a nil probe as
-// "shared auto-detect skipped" rather than an error.
-func setupGroupProbe(ctx context.Context, apiKey, userID string) zot.GroupProbeFunc {
-	if apiKey == "" || !netutil.Online() {
-		return nil
-	}
-	return func() ([]zot.GroupRef, error) {
-		cfg := &zot.Config{APIKey: apiKey, UserID: userID}
-		c, err := api.New(cfg, api.WithLibrary(zot.LibraryRef{
-			Scope:   zot.LibPersonal,
-			APIPath: "users/" + userID,
-		}))
-		if err != nil {
-			return nil, err
-		}
-		return c.ListGroups(ctx)
-	}
 }

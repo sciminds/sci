@@ -79,9 +79,9 @@ func labFields() []fieldRow {
 	}
 }
 
-// zotFields lists the Zotero config values for the drill-in view. Credentials
-// are shown in plaintext — this is a local, single-user config viewer and the
-// point is to read the values back quickly.
+// zotFields lists the Zotero config values for the drill-in view. There is
+// no credential in a zot config — it records where zotero.sqlite lives and
+// which group library backs `--library shared`, and nothing else.
 func zotFields() []fieldRow {
 	cfg, _ := zot.LoadConfig()
 	if cfg == nil {
@@ -94,10 +94,8 @@ func zotFields() []fieldRow {
 		sharedGroup = cfg.SharedGroupID
 	}
 	return []fieldRow{
-		{label: "api_key", value: orNotSet(cfg.APIKey)},
-		{label: "user_id", value: orNotSet(cfg.UserID)},
-		{label: "shared_group", value: orNotSet(sharedGroup)},
 		{label: "data_dir", value: orNotSet(cfg.DataDir)},
+		{label: "shared_group", value: orNotSet(sharedGroup)},
 	}
 }
 
@@ -130,13 +128,14 @@ func labSetupStatus() (bool, string) {
 	return false, "not configured"
 }
 
-// zotSetupStatus reports Zotero config state. A file present but missing the
-// required credentials reads as "incomplete" rather than configured.
+// zotSetupStatus reports Zotero config state. Configured means one thing —
+// a data directory holding a readable zotero.sqlite — so a file present but
+// naming a directory that moved reads as "incomplete" rather than configured.
 func zotSetupStatus() (bool, string) {
 	cfg, _ := zot.LoadConfig()
 	switch {
-	case cfg != nil && cfg.APIKey != "" && cfg.UserID != "":
-		summary := "user ID " + cfg.UserID
+	case cfg != nil && cfg.DataDir != "" && zot.ValidateDataDir(cfg.DataDir) == nil:
+		summary := cfg.DataDir
 		if cfg.SharedGroupName != "" {
 			summary += " · shared: " + cfg.SharedGroupName
 		}

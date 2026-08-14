@@ -16,17 +16,11 @@ func linkCommand() *cli.Command {
 		Usage: "Read what an item is related to",
 		Description: "Zotero's \"related items\" (dc:relation), the link its desktop UI\n" +
 			"shows in the Related pane.\n\n" +
-			"$ sci zot link list NOTEKEY1           # what is this related to?\n" +
-			"$ sci zot link list NOTEKEY1 --remote  # live from Zotero\n\n" +
-			"Reading is what sci keeps. Writing a relation — `link add`,\n" +
-			"`link rm`, and the apply half of `link suggest` — is a credentialed\n" +
-			"write, so it lives in the zot binary; those names stay registered\n" +
-			"here and say where they went.",
+			"$ sci zot link list NOTEKEY1   # what is this related to?\n\n" +
+			"Reading is what sci keeps. Writing a relation is a credentialed\n" +
+			"write and lives in the zot binary (`zot link add` / `zot link rm`).",
 		Commands: []*cli.Command{
-			linkAddStub(),
 			linkListCommand(),
-			linkRmStub(),
-			linkSuggestStub(),
 		},
 	}
 }
@@ -35,23 +29,18 @@ func linkListCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "list",
 		Usage: "Show what an item is related to",
-		Description: "$ sci zot link list NOTEKEY1\n" +
-			"$ sci zot link list NOTEKEY1 --remote   # live from Zotero\n\n" +
-			"Reads the local mirror by default. A relation written seconds\n" +
-			"ago lives only on the server until Zotero desktop syncs it back,\n" +
-			"so pass --remote to see one `zot link add` just made.",
+		Description: "$ sci zot link list NOTEKEY1\n\n" +
+			"Reads the local Zotero database. A relation written seconds ago\n" +
+			"lives only on the server until Zotero desktop syncs it back, so a\n" +
+			"link that is missing here may simply be newer than the mirror.",
 		ArgsUsage: "<item-key>",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "remote", Usage: "read from the Zotero Web API instead of the local mirror", Local: true},
-		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return cmdutil.UsageErrorf(cmd, "expected exactly one item key")
 			}
 			key := cmd.Args().First()
-			remote := cmd.Bool("remote")
 
-			rels, err := readRelations(ctx, key, remote)
+			rels, err := readRelations(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -62,51 +51,20 @@ func linkListCommand() *cli.Command {
 			outputScoped(ctx, cmd, zot.LinkListResult{
 				Key:       key,
 				Relations: rels,
-				Remote:    remote,
 			})
 			return nil
 		},
 	}
 }
 
-// readRelations fetches an item's relations from whichever source
-// remote (`link list --remote`) selected, normalizing the API's predicate
-// map into the same shape the local reader returns.
-func readRelations(ctx context.Context, key string, remote bool) (local.ItemRelationSet, error) {
-	if !remote {
-		_, db, err := openLocalDB(ctx)
-		if err != nil {
-			return local.ItemRelationSet{}, err
-		}
-		defer func() { _ = db.Close() }()
-		return db.ItemRelations(key)
-	}
-	return remoteRelations(ctx, key)
-}
-
-// remoteRelations reads an item's relations from the Zotero Web API,
-// normalizing the predicate map into the local reader's shape. This is
-// ground truth — the local mirror only catches up when Zotero desktop syncs.
-func remoteRelations(ctx context.Context, key string) (local.ItemRelationSet, error) {
-	apiClient, err := requireAPIClient(ctx)
+// readRelations fetches an item's relations from the local database.
+func readRelations(ctx context.Context, key string) (local.ItemRelationSet, error) {
+	_, db, err := openLocalDB(ctx)
 	if err != nil {
 		return local.ItemRelationSet{}, err
 	}
-	byPredicate, err := apiClient.ItemRelations(ctx, key)
-	if err != nil {
-		return local.ItemRelationSet{}, err
-	}
-	out := local.ItemRelationSet{Related: byPredicate[local.RelatedPredicate]}
-	for pred, keys := range byPredicate {
-		if pred == local.RelatedPredicate {
-			continue
-		}
-		if out.Other == nil {
-			out.Other = map[string][]string{}
-		}
-		out.Other[pred] = keys
-	}
-	return out, nil
+	defer func() { _ = db.Close() }()
+	return db.ItemRelations(key)
 }
 
 // linkTitles resolves item keys to display labels, best-effort.

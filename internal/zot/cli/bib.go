@@ -99,7 +99,7 @@ func bibCommand() *cli.Command {
 				Resolved:   len(resolved),
 				Unresolved: unresolved,
 			}
-			warns := append(localReadWarnings(db, ""), bibQualityWarning(resolved, scopeFromCtx(ctx))...)
+			warns := append(localReadWarnings(db), bibQualityWarning(resolved, scopeFromCtx(ctx))...)
 			outputScoped(ctx, cmd, cmdutil.WithWarnings(res, warns...))
 			return nil
 		},

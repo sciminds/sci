@@ -104,7 +104,6 @@ func TestRoot_MissingLibrary_NamespaceShowsHelp(t *testing.T) {
 		{"zot", "collection"},
 		{"zot", "tags"},
 		{"zot", "notes"},
-		{"zot", "saved-search"},
 	} {
 		buf.Reset()
 		err := root.Run(context.Background(), path)
@@ -116,7 +115,7 @@ func TestRoot_MissingLibrary_NamespaceShowsHelp(t *testing.T) {
 
 // A command that never reads LibraryFromContext runs through without
 // --library: the Before hook is a validator, not a requirement, so the
-// scope-free verbs (setup, import, guide) reach their Action untouched.
+// scope-free verbs (setup, guide) reach their Action untouched.
 func TestRoot_ScopeFreeCommandDoesNotRequireLibrary(t *testing.T) {
 	root := &cli.Command{
 		Name:   "zot",
