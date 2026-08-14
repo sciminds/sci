@@ -32,7 +32,6 @@ type Reader interface {
 	List(f ListFilter) ([]Item, error)
 	CountList(f ListFilter) (int, error)
 	ListAll(f ListFilter) ([]Item, error)
-	Search(query string, limit int) ([]Item, error)
 	SearchWith(query string, limit int, opts SearchOptions) ([]Item, error)
 	SearchWithTotal(query string, limit int, opts SearchOptions) ([]Item, int, error)
 	Read(key string) (*Item, error)
@@ -54,9 +53,7 @@ type Reader interface {
 	// Children
 	ListChildren(parentKey string) ([]ChildItem, error)
 
-	// Notes (docling extraction notes)
-	ListDoclingNotes(parentKey string) ([]ChildItem, error)
-	ListAllDoclingNotes() ([]DoclingNoteSummary, error)
+	// Notes
 	ListNotes() ([]NoteSummary, error)
 	ReadNote(noteKey string) (*NoteDetail, error)
 	ItemRelations(itemKey string) (ItemRelationSet, error)
@@ -73,7 +70,6 @@ type Reader interface {
 	MissingPDFKeys() ([]string, error)
 	ParentsWithDoclingNotes() (map[string]bool, error)
 	ParentsWithDoclingNotesMissingTag(tag string) ([]string, error)
-	DoclingNoteKeys(parentKey string) ([]string, error)
 
 	// View (denormalized reads for UI)
 	ListViewRows() ([]ViewRow, error)
@@ -82,12 +78,6 @@ type Reader interface {
 
 	// Fulltext search (Zotero's word-level PDF content index)
 	SearchFulltext(words []string, exact bool) ([]int64, error)
-
-	// Content index sources (see internal/zot/content)
-	ContentSources() ([]ContentSource, error)
-	NoteBodyByID(noteID int64) (string, error)
-	ContentSignature() (string, error)
-	ItemIDsForKeys(keys []string) ([]int64, error)
 
 	// Hygiene Scans
 	ScanFieldPresence() ([]ItemFieldPresence, error)

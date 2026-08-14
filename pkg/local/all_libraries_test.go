@@ -31,7 +31,7 @@ func TestForAll_SearchMergesLibraries(t *testing.T) {
 	db := openFixtureAll(t)
 	// "cats" lives only in the personal library, "shared" only in the
 	// group — one call, one ranked pool, hits from both.
-	items, err := db.Search("cats | shared", 50)
+	items, err := db.SearchWith("cats | shared", 50, SearchOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestForAll_SearchMergesLibraries(t *testing.T) {
 func TestForAll_RowsCarryLibraryProvenance(t *testing.T) {
 	t.Parallel()
 	db := openFixtureAll(t)
-	items, err := db.Search("cats | shared", 50)
+	items, err := db.SearchWith("cats | shared", 50, SearchOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestForAll_RowsCarryLibraryProvenance(t *testing.T) {
 func TestSingleLibrary_RowsCarryConstantProvenance(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.Search("cats", 10)
+	items, err := db.SearchWith("cats", 10, SearchOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

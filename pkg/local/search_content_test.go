@@ -226,25 +226,6 @@ func TestItemIDsForKeysEmpty(t *testing.T) {
 	}
 }
 
-func TestContentSignatureChangesWithLibrary(t *testing.T) {
-	db := openFixture(t)
-
-	sig, err := db.ContentSignature()
-	if err != nil {
-		t.Fatalf("ContentSignature: %v", err)
-	}
-	if sig == "" {
-		t.Fatal("ContentSignature returned empty")
-	}
-	again, err := db.ContentSignature()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sig != again {
-		t.Errorf("signature is not stable: %q then %q", sig, again)
-	}
-}
-
 func contains(xs []string, want string) bool {
 	for _, x := range xs {
 		if x == want {

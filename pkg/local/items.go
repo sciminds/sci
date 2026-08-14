@@ -460,9 +460,10 @@ WHERE i.libraryID = ?
 // SearchOptions tunes SearchWith behavior beyond the query string.
 type SearchOptions struct {
 	// Content, when non-nil, widens positive free-text clauses with the
-	// items whose paper text matches — see internal/zot/content. It is
-	// called once per OR group and returns each matching item key with
-	// its relevance score (higher is better).
+	// items whose paper text matches. It is called once per OR group and
+	// returns each matching item key with its relevance score (higher is
+	// better). sci itself supplies no such index — the hook is part of
+	// this package's shared API, for consumers that maintain one.
 	//
 	// The scores are not decoration: content hits carry no title
 	// relevance, so without them the whole tail of a broad search ties
@@ -477,12 +478,6 @@ type SearchOptions struct {
 	// Field-scoped and negated clauses never consult it, matching how
 	// the metadata search treats them.
 	Content func(text string) (map[string]float64, error)
-}
-
-// Search returns items matching the query, ranked by title relevance.
-// Shorthand for [DB.SearchWith] with zero options.
-func (d *DB) Search(query string, limit int) ([]Item, error) {
-	return d.SearchWith(query, limit, SearchOptions{})
 }
 
 // SearchWith returns items matching the query. The query is parsed by

@@ -96,7 +96,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //
 //	guide                       agent-friendly cheat sheet of common workflows
 //	setup                       locate the Zotero data directory
-//	info                        library summary (alias: stats)
+//	info                        library summary
 //	view                        interactive read-only table viewer
 //	search  <query>             cross-field search (supports --export, --notes)
 //	browse                      interactive search-and-open REPL (PDFs open in the system viewer)

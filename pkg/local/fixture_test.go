@@ -304,8 +304,8 @@ func seedFixture(dir string) error {
 			(40,10,10,NULL,NULL),
 			(81,5,5,NULL,NULL)`,
 
-		// Tag item 90 with "docling" (exercises ListChildren tag path +
-		// DoclingNoteKeys).
+		// Tag item 90 with "docling" (exercises the ListChildren tag path
+		// and the docling-parent queries in resolve.go).
 		`INSERT INTO itemTags VALUES (90,5,0)`,
 		`INSERT INTO tags VALUES (5,'docling',0)`,
 

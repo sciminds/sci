@@ -1,24 +1,18 @@
-// Package notemd converts between markdown and the sanitized HTML that
-// Zotero's note items store in their `note` field. Entry points:
+// Package notemd reads the HTML that Zotero's note items store in their
+// `note` field back out as markdown. Entry points:
 //
-//   - MarkdownToHTML: goldmark-render + bluemonday-sanitize
-//   - SanitizeHTML:   bluemonday-sanitize only (for --html passthrough)
-//   - HTMLToMarkdown: the inverse — Zotero note HTML back to markdown
+//   - IsHTMLNote:     is this body real HTML, or markdown Zotero merely wrapped?
+//   - HTMLToMarkdown: a Zotero note body rendered as markdown
+//   - StripProvenance: drop the YAML header an extraction note opens with
 //
-// The two write paths share one sanitizer policy, so the allow-list is
-// identical across the markdown and raw-HTML paths — what you can write as
-// HTML directly is exactly what markdown output is allowed to produce.
-//
-// HTMLToMarkdown closes the loop. Without it Zotero is a write-only store:
-// sci can put a literature note in and never cleanly get it back out, which
-// makes the library useless as a document store for anything downstream —
-// an agent re-reading its own note, a bibliography pass, an external index.
-// The round trip is pinned by tests over exactly the tag vocabulary the
-// sanitizer permits.
+// sci reads a Zotero library and never writes one, so this is a one-way
+// street. Without it Zotero is an opaque store: sci can see that a
+// literature note exists and never cleanly get it back out, which makes
+// the library useless as a document source for anything downstream — an
+// agent reading a note, a bibliography pass, an external index.
 package notemd
 
 import (
-	"bytes"
 	stdhtml "html"
 	"regexp"
 	"strings"
@@ -26,54 +20,21 @@ import (
 	htmltomd "github.com/JohannesKaufmann/html-to-markdown/v2/converter"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/commonmark"
-	"github.com/microcosm-cc/bluemonday"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/renderer/html"
 )
 
-// md renders CommonMark + GFM (tables, strikethrough, task lists,
-// autolinks) into HTML. Initialized once at package load.
-var md = goldmark.New(
-	goldmark.WithExtensions(extension.GFM),
-	goldmark.WithRendererOptions(html.WithXHTML()),
-)
-
-// policy is the shared sanitizer. UGCPolicy covers everything lab notes
-// want (headings, lists, code, links, tables, blockquotes) while stripping
-// scripts, iframes, event handlers, and unknown attributes.
-//
-// `zotero` is allowed alongside the UGC defaults (http/https/mailto) so
-// `zotero://select/…` cross-links in summary notes survive rendering —
-// Zotero's desktop app resolves these to an item/collection select action.
-var policy = bluemonday.UGCPolicy().
-	AllowURLSchemes("http", "https", "mailto", "zotero")
-
-// MarkdownToHTML parses src as CommonMark, renders to HTML, and sanitizes
-// the result with the package policy. Empty input returns "", nil.
-func MarkdownToHTML(src []byte) (string, error) {
-	if len(src) == 0 {
-		return "", nil
-	}
-	var buf bytes.Buffer
-	if err := md.Convert(src, &buf); err != nil {
-		return "", err
-	}
-	return policy.Sanitize(buf.String()), nil
-}
-
-// toMarkdown is the reverse converter. Initialized once at package load.
+// toMarkdown is the HTML→markdown converter. Initialized once at package
+// load.
 //
 // base + commonmark is deliberately the whole plugin set: it covers the
-// sanitizer's vocabulary (headings, emphasis, code, lists, links, rules,
-// blockquotes, tables) and nothing else, so the converter can't invent
-// syntax for markup the write path would have stripped anyway.
+// vocabulary Zotero's own editor emits (headings, emphasis, code, lists,
+// links, rules, blockquotes, tables) and nothing else, so the converter
+// can't invent syntax for markup no note actually carries.
 var toMarkdown = htmltomd.NewConverter(
 	htmltomd.WithPlugins(
 		base.NewBasePlugin(),
 		commonmark.NewCommonmarkPlugin(
-			// Match what MarkdownToHTML round-trips from, so a note that
-			// went out as "---" comes back as "---" and not "* * *".
+			// A note whose source rule was "---" comes back as "---"
+			// rather than "* * *".
 			commonmark.WithHorizontalRule("---"),
 		),
 	),
@@ -110,7 +71,7 @@ var (
 // in order:
 //
 //  1. A block-level tag opening the body means HTML, full stop. That is what
-//     MarkdownToHTML always emits, and what Zotero's editor writes.
+//     Zotero's editor writes.
 //  2. Otherwise the body is markdown only if it carries a markdown block
 //     construct (frontmatter fence, ATX heading, list, code fence).
 //
@@ -153,14 +114,4 @@ func HTMLToMarkdown(noteHTML string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(out), nil
-}
-
-// SanitizeHTML runs src through the package policy. Intended for the
-// `--html` passthrough path — callers who want to write literal HTML still
-// get the same tag/attribute allow-list as the markdown path.
-func SanitizeHTML(src string) string {
-	if src == "" {
-		return ""
-	}
-	return policy.Sanitize(src)
 }

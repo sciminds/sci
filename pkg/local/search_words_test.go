@@ -17,7 +17,7 @@ import (
 
 func searchKeys(t *testing.T, db *DB, query string) []string {
 	t.Helper()
-	items, err := db.Search(query, 50)
+	items, err := db.SearchWith(query, 50, SearchOptions{})
 	if err != nil {
 		t.Fatalf("Search(%q): %v", query, err)
 	}

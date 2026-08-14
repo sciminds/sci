@@ -72,7 +72,7 @@ Six sub-commands live under `sci zot doctor` (`invalid`, `missing`, `orphans`, `
 
 The noun split is load-bearing: **an extraction is the paper, not a note.** Live counts — personal 5,153 notes of which 5,137 are docling, shared 573 of which 527 — so an unfiltered listing of every note is a listing of extractions with 16 real notes lost inside it.
 
-- `local.ListNotes` is the inverse of `local.ListAllDoclingNotes` (`NOT EXISTS` on the `docling` tag); the two partition the library's notes. It **LEFT-joins the parent** where the docling query inner-joins — standalone notes have no parent and are exactly the ones worth surfacing.
+- `local.ListNotes` excludes the extractions with a `NOT EXISTS` on the `docling` tag, so what comes back is the human-written remainder. It **LEFT-joins the parent** rather than inner-joining it — standalone notes have no parent and are exactly the ones worth surfacing.
 - `search --notes` is the other side of the same split: it FILTERS to items that HAVE an extraction (`ParentsWithDoclingNotes`), and does not search inside anything. `local.HasMarkdownTag` (`has-markdown`) is a different signal — the parent-side tag `info --orient` reports coverage on.
 - `notemd.StripProvenance` drops the YAML provenance block an extraction note opens with. Detection is positive-evidence gated (leading `---` fence + `zotero_key:` within `maxProvenanceLines`), same discipline as `notemd.IsHTMLNote` — guessing wrong eats the top of a paper. It is what keeps `noteSnippet` showing prose instead of `--- zotero_key: … title: "…" source…`.
 

@@ -55,7 +55,7 @@ ORDER BY ch.dateAdded
 
 // queryChildren runs a query that returns ChildItem-shaped rows
 // (key, typeName, title, note, contentType, filename, storageHash) and
-// hydrates tags in a second pass. Used by ListChildren and ListDoclingNotes.
+// hydrates tags in a second pass.
 func (d *DB) queryChildren(q, errPrefix, parentKey string) ([]ChildItem, error) {
 	rows, err := d.db.Query(q, d.libraryID, parentKey)
 	if err != nil {

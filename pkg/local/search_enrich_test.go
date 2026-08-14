@@ -16,7 +16,7 @@ func TestSearch_RowsCarryCreators(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 	// Item 10 (AAAA1111) has two creators in the fixture, ordered.
-	items, err := db.Search("@citekey: smith2024", 10)
+	items, err := db.SearchWith("@citekey: smith2024", 10, SearchOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestSearch_RowsCarryCreators(t *testing.T) {
 func TestSearch_RowsCarryTags(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.Search("@citekey: smith2024", 10)
+	items, err := db.SearchWith("@citekey: smith2024", 10, SearchOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestSearch_RowsCarryTags(t *testing.T) {
 func TestSearch_RowsCarryURL(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.Search("@citekey: smith2024", 10)
+	items, err := db.SearchWith("@citekey: smith2024", 10, SearchOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestSearch_RowsWithoutExtrasStayLean(t *testing.T) {
 	db := openFixture(t)
 	// GGGG7777 has no creators, tags, or url — enrichment must leave the
 	// zero values (omitempty keeps the JSON shape identical to before).
-	items, err := db.Search("@citekey: gggg7777", 10)
+	items, err := db.SearchWith("@citekey: gggg7777", 10, SearchOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

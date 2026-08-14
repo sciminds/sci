@@ -16,10 +16,9 @@ var tagRe = regexp.MustCompile(`<[^>]*>`)
 // Tags become a space rather than nothing so `<h1>Title</h1><p>Body` can't
 // weld "TitleBody" into a token that matches queries spanning neither word.
 //
-// This is the indexing path for extraction notes (see
-// internal/zot/content). Without it every note's wrapper —
-// `<div class="zotero-note znv1">` — would make "div", "class" and "znv1"
-// searchable terms present on every paper in the library.
+// This is the indexing path for extraction notes. Without it every note's
+// wrapper — `<div class="zotero-note znv1">` — would make "div", "class"
+// and "znv1" searchable terms present on every paper in the library.
 //
 // Not a display renderer: for that, notemd.HTMLToMarkdown preserves
 // headings, lists and links that this deliberately flattens.

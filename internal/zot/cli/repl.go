@@ -142,7 +142,7 @@ func (r *browseREPL) doSearch(query string) error {
 		r.sayf("no hits — searched %s", localSearchScope())
 		return nil
 	}
-	_, _ = fmt.Fprint(r.out, renderBrowseHits(items, nil, total, r.ref.Scope == zot.LibAll))
+	_, _ = fmt.Fprint(r.out, renderBrowseHits(items, total, r.ref.Scope == zot.LibAll))
 	return nil
 }
 
@@ -234,8 +234,7 @@ func refName(ref zot.LibraryRef) string {
 // renderBrowseHits formats the numbered hit list: number, year, first
 // author, title, dim citekey when present, and a [shared]/[personal]
 // provenance marker only under the merged scope (constant otherwise).
-// Snippets ride under their row, dimmed, one line each.
-func renderBrowseHits(items []local.Item, snippets map[string]string, total int, mergedScope bool) string {
+func renderBrowseHits(items []local.Item, total int, mergedScope bool) string {
 	var b strings.Builder
 	for i, it := range items {
 		title := it.Title
@@ -256,10 +255,6 @@ func renderBrowseHits(items []local.Item, snippets map[string]string, total int,
 			line += " " + uikit.TUI.TextPink().Render("["+it.Library+"]")
 		}
 		b.WriteString(line + "\n")
-		if snip := snippets[it.Key]; snip != "" {
-			flat := strings.Join(strings.Fields(snip), " ")
-			fmt.Fprintf(&b, "     %s\n", uikit.TUI.Dim().Render(flat))
-		}
 	}
 	if len(items) < total {
 		fmt.Fprintf(&b, "  %s %d of %d — :limit to see more\n", uikit.SymArrow, len(items), total)
