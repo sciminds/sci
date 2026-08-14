@@ -35,17 +35,11 @@ func withSharedOrientConfig(t *testing.T) string {
 	return dataDir
 }
 
-// runZotAll is the runItemRead harness with the search flag state reset
-// between tests (package-level Destinations leak otherwise).
+// runZotAll runs argv through the same harness runItemRead builds. Each
+// invocation parses its own flags off the command tree, so nothing leaks
+// between tests and the alias exists only to name the intent.
 func runZotAll(t *testing.T, args ...string) ([]byte, error) {
 	t.Helper()
-	t.Cleanup(func() {
-		searchRemote = false
-		searchNotes = false
-		searchFull = false
-		searchExport = false
-		searchLimit = 50
-	})
 	return runItemRead(t, args...)
 }
 

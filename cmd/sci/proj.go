@@ -15,20 +15,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	projNewKind       string
-	projNewPkgManager string
-	projNewDocSystem  string
-	projNewMdLayout   string
-	projNewTemplate   string
-	projNewAuthor     string
-	projNewEmail      string
-	projNewDesc       string
-	projNewDryRun     bool
-	projConfigDryRun  bool
-	projConfigApply   bool
-)
-
 func projCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "proj",
@@ -54,15 +40,15 @@ func projNewCommand() *cli.Command {
 		Description: "$ sci proj new\n$ sci proj new my-analysis --pkg-manager pixi\n$ sci proj new my-paper --kind writing --md-layout composed\n$ sci proj new my-paper --kind typst",
 		ArgsUsage:   "[name]",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "kind", Usage: "project kind (python, writing, or typst)", Destination: &projNewKind, Local: true},
-			&cli.StringFlag{Name: "pkg-manager", Usage: "package manager (pixi or uv)", Destination: &projNewPkgManager, Local: true},
-			&cli.StringFlag{Name: "doc-system", Usage: "doc system (quarto, myst, or none)", Destination: &projNewDocSystem, Local: true},
-			&cli.StringFlag{Name: "md-layout", Usage: "manuscript layout (single-file or composed)", Destination: &projNewMdLayout, Local: true},
-			&cli.StringFlag{Name: "template", Usage: "Typst template (lab, default, or any MyST template name)", Destination: &projNewTemplate, Local: true},
-			&cli.StringFlag{Name: "author", Usage: "author name", Destination: &projNewAuthor, Local: true},
-			&cli.StringFlag{Name: "email", Usage: "author email", Destination: &projNewEmail, Local: true},
-			&cli.StringFlag{Name: "description", Usage: "project description", Destination: &projNewDesc, Local: true},
-			&cli.BoolFlag{Name: "dry-run", Usage: "show what would be created without writing", Destination: &projNewDryRun, Local: true},
+			&cli.StringFlag{Name: "kind", Usage: "project kind (python, writing, or typst)", Local: true},
+			&cli.StringFlag{Name: "pkg-manager", Usage: "package manager (pixi or uv)", Local: true},
+			&cli.StringFlag{Name: "doc-system", Usage: "doc system (quarto, myst, or none)", Local: true},
+			&cli.StringFlag{Name: "md-layout", Usage: "manuscript layout (single-file or composed)", Local: true},
+			&cli.StringFlag{Name: "template", Usage: "Typst template (lab, default, or any MyST template name)", Local: true},
+			&cli.StringFlag{Name: "author", Usage: "author name", Local: true},
+			&cli.StringFlag{Name: "email", Usage: "author email", Local: true},
+			&cli.StringFlag{Name: "description", Usage: "project description", Local: true},
+			&cli.BoolFlag{Name: "dry-run", Usage: "show what would be created without writing", Local: true},
 		},
 		Action: runProjNew,
 	}
@@ -74,8 +60,8 @@ func projConfigCommand() *cli.Command {
 		Usage:       "Refresh config files in your project",
 		Description: "$ sci proj config\n$ sci proj config --dry-run\n$ sci proj config --apply   # non-interactive",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "dry-run", Usage: "show changes without applying", Destination: &projConfigDryRun, Local: true},
-			&cli.BoolFlag{Name: "apply", Usage: "apply all changes without TUI review", Destination: &projConfigApply, Local: true},
+			&cli.BoolFlag{Name: "dry-run", Usage: "show changes without applying", Local: true},
+			&cli.BoolFlag{Name: "apply", Usage: "apply all changes without TUI review", Local: true},
 		},
 		Action: runProjConfig,
 	}
@@ -175,19 +161,26 @@ func projPreviewCommand() *cli.Command {
 	}
 }
 
-func runProjNew(_ context.Context, cmd *cli.Command) error {
-	opts := projnew.CreateOptions{
+// projNewOptions reads the `sci proj new` flags off cmd into the scaffolder's
+// option struct. Split out from [runProjNew] so the flag→option wiring can be
+// asserted directly in tests.
+func projNewOptions(cmd *cli.Command) projnew.CreateOptions {
+	return projnew.CreateOptions{
 		Dir:         ".",
-		Kind:        projNewKind,
-		PkgManager:  projNewPkgManager,
-		DocSystem:   projNewDocSystem,
-		MdLayout:    projNewMdLayout,
-		Template:    projNewTemplate,
-		AuthorName:  projNewAuthor,
-		AuthorEmail: projNewEmail,
-		Description: projNewDesc,
-		DryRun:      projNewDryRun,
+		Kind:        cmd.String("kind"),
+		PkgManager:  cmd.String("pkg-manager"),
+		DocSystem:   cmd.String("doc-system"),
+		MdLayout:    cmd.String("md-layout"),
+		Template:    cmd.String("template"),
+		AuthorName:  cmd.String("author"),
+		AuthorEmail: cmd.String("email"),
+		Description: cmd.String("description"),
+		DryRun:      cmd.Bool("dry-run"),
 	}
+}
+
+func runProjNew(_ context.Context, cmd *cli.Command) error {
+	opts := projNewOptions(cmd)
 
 	if cmd.Args().Len() > 0 {
 		opts.Name = cmd.Args().First()
@@ -232,8 +225,9 @@ func runProjConfig(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("cannot determine working directory: %w", err)
 	}
 
-	if cmdutil.IsJSON(cmd) || projConfigDryRun || projConfigApply {
-		result, err := projnew.Sync(dir, projConfigDryRun)
+	dryRun := cmd.Bool("dry-run")
+	if cmdutil.IsJSON(cmd) || dryRun || cmd.Bool("apply") {
+		result, err := projnew.Sync(dir, dryRun)
 		if err != nil {
 			return err
 		}

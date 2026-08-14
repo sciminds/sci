@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	projnew "github.com/sciminds/sci/internal/proj/new"
 	"github.com/sciminds/sci/internal/uikit"
+	"github.com/urfave/cli/v3"
 )
 
 func TestProjNew_JSONRequiresNameArg(t *testing.T) {
@@ -29,13 +31,6 @@ func TestProjNew_WritingDryRunSmoke(t *testing.T) {
 	uikit.SetQuiet(true)
 	t.Cleanup(func() { uikit.SetQuiet(false) })
 
-	// Reset shared state — these globals leak across tests since flag
-	// destinations are package-level.
-	t.Cleanup(func() {
-		projNewKind = ""
-		projNewDryRun = false
-	})
-
 	root := buildRoot()
 	err := root.Run(context.Background(), []string{
 		"sci", "--json", "proj", "new", "paper-test",
@@ -51,14 +46,20 @@ func TestProjNew_MdLayoutTemplateFlags(t *testing.T) {
 	uikit.SetQuiet(true)
 	t.Cleanup(func() { uikit.SetQuiet(false) })
 
-	t.Cleanup(func() {
-		projNewKind = ""
-		projNewMdLayout = ""
-		projNewTemplate = ""
-		projNewDryRun = false
-	})
-
+	// Tap the real `proj new` Action so we can assert the flag → CreateOptions
+	// wiring on the live *cli.Command, then still run the command for real.
 	root := buildRoot()
+	newCmd := findCmd(findCmd(root.Commands, "proj").Commands, "new")
+	if newCmd == nil {
+		t.Fatal("proj new command not found")
+	}
+	inner := newCmd.Action
+	var got projnew.CreateOptions
+	newCmd.Action = func(ctx context.Context, cmd *cli.Command) error {
+		got = projNewOptions(cmd)
+		return inner(ctx, cmd)
+	}
+
 	err := root.Run(context.Background(), []string{
 		"sci", "--json", "proj", "new", "paper-flags",
 		"--kind", "writing", "--md-layout", "composed", "--template", "default",
@@ -67,10 +68,16 @@ func TestProjNew_MdLayoutTemplateFlags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dry-run with --md-layout composed --template default failed: %v", err)
 	}
-	if projNewMdLayout != "composed" {
-		t.Errorf("expected --md-layout to set projNewMdLayout=composed, got %q", projNewMdLayout)
+	if got.MdLayout != "composed" {
+		t.Errorf("expected --md-layout to set MdLayout=composed, got %q", got.MdLayout)
 	}
-	if projNewTemplate != "default" {
-		t.Errorf("expected --template to set projNewTemplate=default, got %q", projNewTemplate)
+	if got.Template != "default" {
+		t.Errorf("expected --template to set Template=default, got %q", got.Template)
+	}
+	if got.Kind != "writing" {
+		t.Errorf("expected --kind to set Kind=writing, got %q", got.Kind)
+	}
+	if !got.DryRun {
+		t.Error("expected --dry-run to set DryRun=true")
 	}
 }

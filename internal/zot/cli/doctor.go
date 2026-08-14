@@ -9,11 +9,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// doctor flag destinations.
-var (
-	doctorDeep bool
-)
-
 // pdfAcquisitionMoved is the one-sentence explanation the retired `doctor
 // pdfs` stub carries. It says what changed and why, so the error teaches
 // the boundary rather than just redirecting: finding a missing PDF means
@@ -72,10 +67,9 @@ for that.`,
 				Usage: "limit run to specific checks (repeatable): invalid, missing, orphans, duplicates, citekeys",
 			},
 			&cli.BoolFlag{
-				Name:        "deep",
-				Usage:       "enable slow/accurate paths (fuzzy duplicates + uncollected-item)",
-				Destination: &doctorDeep,
-				Local:       true,
+				Name:  "deep",
+				Usage: "enable slow/accurate paths (fuzzy duplicates + uncollected-item)",
+				Local: true,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -104,7 +98,7 @@ for that.`,
 
 			res, err := zot.Doctor(db, cfg, zot.DoctorOptions{
 				Checks: checks,
-				Deep:   doctorDeep,
+				Deep:   cmd.Bool("deep"),
 			})
 			if err != nil {
 				return err

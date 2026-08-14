@@ -9,14 +9,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// notes-command flag destinations (package-scoped).
-var (
-	notesReadMD bool
-
-	notesListLimit  int
-	notesListOffset int
-)
-
 // extractionMoved is the shared explanation on every retired extraction
 // verb under `notes`: one sentence on what changed and why, so the error
 // teaches the model rather than just redirecting.
@@ -69,8 +61,8 @@ func notesListCommand() *cli.Command {
 			"Docling extractions are excluded — they are the paper's text, not\n" +
 			"a note. Read those with `zot read` in the zot binary.",
 		Flags: []cli.Flag{
-			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max notes to surface (0 = unlimited)", Destination: &notesListLimit, Local: true},
-			&cli.IntFlag{Name: "offset", Value: 0, Usage: "pagination offset", Destination: &notesListOffset, Local: true},
+			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max notes to surface (0 = unlimited)", Local: true},
+			&cli.IntFlag{Name: "offset", Value: 0, Usage: "pagination offset", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			_, db, err := openLocalDB(ctx)
@@ -83,11 +75,12 @@ func notesListCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			page := paginate(notes, notesListOffset, notesListLimit)
+			offset := cmd.Int("offset")
+			page := paginate(notes, offset, cmd.Int("limit"))
 			outputScoped(ctx, cmd, zot.RealNotesListResult{
 				Count:  len(page),
 				Total:  len(notes),
-				Offset: notesListOffset,
+				Offset: offset,
 				Notes:  page,
 			})
 			return nil
@@ -121,7 +114,7 @@ func notesReadCommand() *cli.Command {
 			"$ sci zot notes read NOTECH10 --md --json   # body as markdown, for piping into a model",
 		ArgsUsage: "<note-key>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "md", Usage: "also emit the body converted to markdown (--json adds a `markdown` field)", Destination: &notesReadMD, Local: true},
+			&cli.BoolFlag{Name: "md", Usage: "also emit the body converted to markdown (--json adds a `markdown` field)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
@@ -139,7 +132,7 @@ func notesReadCommand() *cli.Command {
 				return err
 			}
 			res := zot.NoteReadResult{Note: *nd}
-			if notesReadMD {
+			if cmd.Bool("md") {
 				md, err := notemd.HTMLToMarkdown(nd.Body)
 				if err != nil {
 					return err

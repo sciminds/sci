@@ -16,10 +16,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	cassForce bool
-)
-
 func cassCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "cass",
@@ -50,7 +46,6 @@ func cassCommand() *cli.Command {
 // --- setup: one-time Canvas API token ---
 
 func cassSetupCommand() *cli.Command {
-	var tokenFlag string
 	return &cli.Command{
 		Name:  "setup",
 		Usage: "Configure Canvas API token (one-time setup)",
@@ -62,10 +57,10 @@ func cassSetupCommand() *cli.Command {
 			"  $ sci cass setup\n" +
 			"  $ sci cass setup --token TOKEN   # non-interactive",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "token", Usage: "Canvas API token (required with --json)", Destination: &tokenFlag, Local: true},
+			&cli.StringFlag{Name: "token", Usage: "Canvas API token (required with --json)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runCassSetup(ctx, cmd, tokenFlag)
+			return runCassSetup(ctx, cmd, cmd.String("token"))
 		},
 	}
 }
@@ -150,7 +145,6 @@ func (r *setupResult) Human() string {
 // --- init: per-project cass.yaml ---
 
 func cassInitCommand() *cli.Command {
-	var canvasURLFlag, classroomURLFlag string
 	return &cli.Command{
 		Name:  "init",
 		Usage: "Initialize a course directory (creates cass.yaml)",
@@ -159,22 +153,22 @@ func cassInitCommand() *cli.Command {
 			"  $ sci cass init --force   # overwrite existing cass.yaml\n" +
 			"  $ sci cass init --canvas-url URL   # non-interactive",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config", Destination: &cassForce, Local: true},
-			&cli.StringFlag{Name: "canvas-url", Usage: "Canvas course URL (required with --json)", Destination: &canvasURLFlag, Local: true},
-			&cli.StringFlag{Name: "classroom-url", Usage: "GitHub Classroom URL (optional)", Destination: &classroomURLFlag, Local: true},
+			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config", Local: true},
+			&cli.StringFlag{Name: "canvas-url", Usage: "Canvas course URL (required with --json)", Local: true},
+			&cli.StringFlag{Name: "classroom-url", Usage: "GitHub Classroom URL (optional)", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			dir, _ := os.Getwd()
 			configPath := filepath.Join(dir, cass.ConfigFile)
 
 			// Check for existing config.
-			if !cassForce {
+			if !cmd.Bool("force") {
 				if _, err := os.Stat(configPath); err == nil {
 					return fmt.Errorf("cass.yaml already exists — use --force to overwrite")
 				}
 			}
 
-			canvasURL, classroomURL := canvasURLFlag, classroomURLFlag
+			canvasURL, classroomURL := cmd.String("canvas-url"), cmd.String("classroom-url")
 
 			if cmdutil.IsJSON(cmd) {
 				if canvasURL == "" {
@@ -425,14 +419,13 @@ func cassStatusCommand() *cli.Command {
 }
 
 func cassDiffCommand() *cli.Command {
-	var remote bool
 	return &cli.Command{
 		Name:  "diff",
 		Usage: "Show pending grade changes",
 		Description: "$ sci cass diff            # local baseline vs local edits\n" +
 			"$ sci cass diff --remote   # 3-way: baseline vs Canvas vs local",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "remote", Usage: "fetch live Canvas scores for 3-way diff", Destination: &remote, Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "fetch live Canvas scores for 3-way diff", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfg, db, err := cassLoadContext()
@@ -441,7 +434,7 @@ func cassDiffCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			if remote {
+			if cmd.Bool("remote") {
 				credPath := cass.CredentialsPath()
 				token, err := cass.RequireCanvasToken(credPath)
 				if err != nil {
@@ -476,13 +469,12 @@ func cassDiffCommand() *cli.Command {
 }
 
 func cassPushCommand() *cli.Command {
-	var force bool
 	return &cli.Command{
 		Name:        "push",
 		Usage:       "Push grade changes to Canvas",
 		Description: "$ sci cass push\n$ sci cass push --force",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "force", Usage: "skip conflict check", Destination: &force, Local: true},
+			&cli.BoolFlag{Name: "force", Usage: "skip conflict check", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfg, db, err := cassLoadContext()
@@ -507,7 +499,7 @@ func cassPushCommand() *cli.Command {
 			// Show preview.
 			fmt.Fprint(os.Stderr, diff.Human())
 
-			if !force {
+			if !cmd.Bool("force") {
 				if done, err := cmdutil.ConfirmOrSkip(false, fmt.Sprintf("Push %d grade(s) to Canvas?", len(diff.Changes))); done || err != nil {
 					return err
 				}
@@ -548,7 +540,6 @@ func cassPushCommand() *cli.Command {
 }
 
 func cassMatchCommand() *cli.Command {
-	var auto bool
 	return &cli.Command{
 		Name:  "match",
 		Usage: "Interactively match GitHub usernames to Canvas students",
@@ -558,7 +549,7 @@ func cassMatchCommand() *cli.Command {
 			"  $ sci cass match\n" +
 			"  $ sci cass match --auto   # skip manual matching, only auto-match",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "auto", Usage: "only apply exact matches, skip interactive", Destination: &auto, Local: true},
+			&cli.BoolFlag{Name: "auto", Usage: "only apply exact matches, skip interactive", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			cfg, db, err := cassLoadContext()
@@ -573,9 +564,7 @@ func cassMatchCommand() *cli.Command {
 			}
 
 			// JSON mode forces auto-only matching (no interactive prompts).
-			if cmdutil.IsJSON(cmd) {
-				auto = true
-			}
+			auto := cmd.Bool("auto") || cmdutil.IsJSON(cmd)
 
 			result, err := cass.RunMatch(db, auto)
 			if err != nil {
@@ -590,13 +579,12 @@ func cassMatchCommand() *cli.Command {
 }
 
 func cassRevertCommand() *cli.Command {
-	var yes bool
 	return &cli.Command{
 		Name:        "revert",
 		Usage:       "Discard unpushed grade edits",
 		Description: "$ sci cass revert",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Destination: &yes, Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			_, db, err := cassLoadContext()
@@ -614,7 +602,7 @@ func cassRevertCommand() *cli.Command {
 				return nil
 			}
 
-			if done, err := cmdutil.ConfirmOrSkip(yes, fmt.Sprintf("Revert %d pending grade change(s)?", len(diff.Changes))); done || err != nil {
+			if done, err := cmdutil.ConfirmOrSkip(cmd.Bool("yes"), fmt.Sprintf("Revert %d pending grade change(s)?", len(diff.Changes))); done || err != nil {
 				return err
 			}
 
@@ -671,9 +659,6 @@ func cassCanvasCommand() *cli.Command {
 }
 
 func cassCanvasModulesCommand() *cli.Command {
-	var createName string
-	var publishID, unpublishID int
-	var deleteID int
 	return &cli.Command{
 		Name:  "modules",
 		Usage: "List, create, publish, or delete course modules",
@@ -682,16 +667,20 @@ func cassCanvasModulesCommand() *cli.Command {
 			"$ sci cass canvas modules --publish 123\n" +
 			"$ sci cass canvas modules --delete 123",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "create", Usage: "create a new module with this name", Destination: &createName, Local: true},
-			&cli.IntFlag{Name: "publish", Usage: "publish module by ID", Destination: &publishID, Local: true},
-			&cli.IntFlag{Name: "unpublish", Usage: "unpublish module by ID", Destination: &unpublishID, Local: true},
-			&cli.IntFlag{Name: "delete", Usage: "delete module by ID", Destination: &deleteID, Local: true},
+			&cli.StringFlag{Name: "create", Usage: "create a new module with this name", Local: true},
+			&cli.IntFlag{Name: "publish", Usage: "publish module by ID", Local: true},
+			&cli.IntFlag{Name: "unpublish", Usage: "unpublish module by ID", Local: true},
+			&cli.IntFlag{Name: "delete", Usage: "delete module by ID", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			baseURL, courseID, token, err := cassCanvasContext()
 			if err != nil {
 				return err
 			}
+
+			createName := cmd.String("create")
+			publishID, unpublishID := cmd.Int("publish"), cmd.Int("unpublish")
+			deleteID := cmd.Int("delete")
 
 			if createName != "" {
 				result, err := cass.CreateModule(ctx, baseURL, token, courseID, createName)
@@ -739,10 +728,6 @@ func cassCanvasModulesCommand() *cli.Command {
 }
 
 func cassCanvasAssignmentsCommand() *cli.Command {
-	var createName string
-	var points float64
-	var deleteID int
-	var publishID, unpublishID int
 	return &cli.Command{
 		Name:  "assignments",
 		Usage: "List, create, publish, or delete assignments",
@@ -751,11 +736,11 @@ func cassCanvasAssignmentsCommand() *cli.Command {
 			"$ sci cass canvas assignments --publish 123\n" +
 			"$ sci cass canvas assignments --delete 123",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "create", Usage: "create a new assignment with this name", Destination: &createName, Local: true},
-			&cli.FloatFlag{Name: "points", Usage: "points possible (for create/update)", Destination: &points, Local: true},
-			&cli.IntFlag{Name: "publish", Usage: "publish assignment by ID", Destination: &publishID, Local: true},
-			&cli.IntFlag{Name: "unpublish", Usage: "unpublish assignment by ID", Destination: &unpublishID, Local: true},
-			&cli.IntFlag{Name: "delete", Usage: "delete assignment by ID", Destination: &deleteID, Local: true},
+			&cli.StringFlag{Name: "create", Usage: "create a new assignment with this name", Local: true},
+			&cli.FloatFlag{Name: "points", Usage: "points possible (for create/update)", Local: true},
+			&cli.IntFlag{Name: "publish", Usage: "publish assignment by ID", Local: true},
+			&cli.IntFlag{Name: "unpublish", Usage: "unpublish assignment by ID", Local: true},
+			&cli.IntFlag{Name: "delete", Usage: "delete assignment by ID", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			baseURL, courseID, token, err := cassCanvasContext()
@@ -763,10 +748,14 @@ func cassCanvasAssignmentsCommand() *cli.Command {
 				return err
 			}
 
+			createName := cmd.String("create")
+			publishID, unpublishID := cmd.Int("publish"), cmd.Int("unpublish")
+			deleteID := cmd.Int("delete")
+
 			if createName != "" {
 				result, err := cass.CreateCanvasAssignment(ctx, baseURL, token, courseID, cass.AssignmentSpec{
 					Name:   createName,
-					Points: points,
+					Points: cmd.Float64("points"),
 				})
 				if err != nil {
 					return err
@@ -812,9 +801,6 @@ func cassCanvasAssignmentsCommand() *cli.Command {
 }
 
 func cassCanvasAnnounceCommand() *cli.Command {
-	var title, message string
-	var list bool
-	var deleteID int
 	return &cli.Command{
 		Name:  "announce",
 		Usage: "List, post, or delete course announcements",
@@ -822,10 +808,10 @@ func cassCanvasAnnounceCommand() *cli.Command {
 			"$ sci cass canvas announce --title 'Hello' --message 'Welcome!'\n" +
 			"$ sci cass canvas announce --delete 123",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "list", Aliases: []string{"l"}, Usage: "list announcements", Destination: &list, Local: true},
-			&cli.StringFlag{Name: "title", Aliases: []string{"t"}, Usage: "announcement title", Destination: &title, Local: true},
-			&cli.StringFlag{Name: "message", Aliases: []string{"m"}, Usage: "announcement body (HTML)", Destination: &message, Local: true},
-			&cli.IntFlag{Name: "delete", Usage: "delete announcement by ID", Destination: &deleteID, Local: true},
+			&cli.BoolFlag{Name: "list", Aliases: []string{"l"}, Usage: "list announcements", Local: true},
+			&cli.StringFlag{Name: "title", Aliases: []string{"t"}, Usage: "announcement title", Local: true},
+			&cli.StringFlag{Name: "message", Aliases: []string{"m"}, Usage: "announcement body (HTML)", Local: true},
+			&cli.IntFlag{Name: "delete", Usage: "delete announcement by ID", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			baseURL, courseID, token, err := cassCanvasContext()
@@ -833,7 +819,10 @@ func cassCanvasAnnounceCommand() *cli.Command {
 				return err
 			}
 
-			if list {
+			title, message := cmd.String("title"), cmd.String("message")
+			deleteID := cmd.Int("delete")
+
+			if cmd.Bool("list") {
 				result, err := cass.ListAnnouncements(ctx, baseURL, token, courseID)
 				if err != nil {
 					return err

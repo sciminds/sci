@@ -14,19 +14,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	dbDryRun       bool
-	dbAddTableName string
-	dbDeleteYes    bool
-	dbResetYes     bool
-	dbRenameYes    bool
-	dbInspectTable string
-	dbHeadN        int
-	dbTailN        int
-	dbGlimpseN     int
-	dbConvertAs    string
-)
-
 func dbCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "db",
@@ -34,7 +21,7 @@ func dbCommand() *cli.Command {
 		Description: "$ sci db add results.csv mydb.db\n$ sci db info project.duckdb\n$ sci db head data.parquet",
 		Category:    "Commands",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &dbDryRun}, // lint:no-local — propagates to subcommands
+			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing"}, // lint:no-local — propagates to subcommands
 		},
 		Commands: []*cli.Command{
 			dbCreateCommand(),
@@ -62,11 +49,10 @@ func dbCommand() *cli.Command {
 // xlsx-shaped UX feel natural.
 func duckTableFlag() *cli.StringFlag {
 	return &cli.StringFlag{
-		Name:        "table",
-		Aliases:     []string{"t", "sheet"},
-		Usage:       "table name (sqlite/duckdb) or sheet name (xlsx); required when ambiguous",
-		Destination: &dbInspectTable,
-		Local:       true,
+		Name:    "table",
+		Aliases: []string{"t", "sheet"},
+		Usage:   "table name (sqlite/duckdb) or sheet name (xlsx); required when ambiguous",
+		Local:   true,
 	}
 }
 
@@ -77,7 +63,9 @@ func dbColsCommand() *cli.Command {
 		Description: "$ sci db cols data.csv\n$ sci db cols workbook.xlsx --table extras",
 		ArgsUsage:   "<file>",
 		Flags:       []cli.Flag{duckTableFlag()},
-		Action:      duckInspectAction(func(path string) (any, error) { return duck.Cols(path, dbInspectTable) }),
+		Action: duckInspectAction(func(cmd *cli.Command, path string) (any, error) {
+			return duck.Cols(path, cmd.String("table"))
+		}),
 	}
 }
 
@@ -89,9 +77,11 @@ func dbHeadCommand() *cli.Command {
 		ArgsUsage:   "<file>",
 		Flags: []cli.Flag{
 			duckTableFlag(),
-			&cli.IntFlag{Name: "n", Usage: "number of rows", Value: 10, Destination: &dbHeadN, Local: true},
+			&cli.IntFlag{Name: "n", Usage: "number of rows", Value: 10, Local: true},
 		},
-		Action: duckInspectAction(func(path string) (any, error) { return duck.Head(path, dbInspectTable, dbHeadN) }),
+		Action: duckInspectAction(func(cmd *cli.Command, path string) (any, error) {
+			return duck.Head(path, cmd.String("table"), cmd.Int("n"))
+		}),
 	}
 }
 
@@ -103,9 +93,11 @@ func dbTailCommand() *cli.Command {
 		ArgsUsage:   "<file>",
 		Flags: []cli.Flag{
 			duckTableFlag(),
-			&cli.IntFlag{Name: "n", Usage: "number of rows", Value: 10, Destination: &dbTailN, Local: true},
+			&cli.IntFlag{Name: "n", Usage: "number of rows", Value: 10, Local: true},
 		},
-		Action: duckInspectAction(func(path string) (any, error) { return duck.Tail(path, dbInspectTable, dbTailN) }),
+		Action: duckInspectAction(func(cmd *cli.Command, path string) (any, error) {
+			return duck.Tail(path, cmd.String("table"), cmd.Int("n"))
+		}),
 	}
 }
 
@@ -117,9 +109,11 @@ func dbGlimpseCommand() *cli.Command {
 		ArgsUsage:   "<file>",
 		Flags: []cli.Flag{
 			duckTableFlag(),
-			&cli.IntFlag{Name: "samples", Usage: "values per column", Value: 5, Destination: &dbGlimpseN, Local: true},
+			&cli.IntFlag{Name: "samples", Usage: "values per column", Value: 5, Local: true},
 		},
-		Action: duckInspectAction(func(path string) (any, error) { return duck.Glimpse(path, dbInspectTable, dbGlimpseN) }),
+		Action: duckInspectAction(func(cmd *cli.Command, path string) (any, error) {
+			return duck.Glimpse(path, cmd.String("table"), cmd.Int("samples"))
+		}),
 	}
 }
 
@@ -130,7 +124,9 @@ func dbShapeCommand() *cli.Command {
 		Description: "$ sci db shape data.csv",
 		ArgsUsage:   "<file>",
 		Flags:       []cli.Flag{duckTableFlag()},
-		Action:      duckInspectAction(func(path string) (any, error) { return duck.Shape(path, dbInspectTable) }),
+		Action: duckInspectAction(func(cmd *cli.Command, path string) (any, error) {
+			return duck.Shape(path, cmd.String("table"))
+		}),
 	}
 }
 
@@ -141,7 +137,9 @@ func dbSummarizeCommand() *cli.Command {
 		Description: "$ sci db summarize data.csv",
 		ArgsUsage:   "<file>",
 		Flags:       []cli.Flag{duckTableFlag()},
-		Action:      duckInspectAction(func(path string) (any, error) { return duck.Summarize(path, dbInspectTable) }),
+		Action: duckInspectAction(func(cmd *cli.Command, path string) (any, error) {
+			return duck.Summarize(path, cmd.String("table"))
+		}),
 	}
 }
 
@@ -158,10 +156,9 @@ func dbConvertCommand() *cli.Command {
 		Flags: []cli.Flag{
 			duckTableFlag(),
 			&cli.StringFlag{
-				Name:        "as",
-				Usage:       "destination table name (sqlite/duckdb output only; defaults to source basename)",
-				Destination: &dbConvertAs,
-				Local:       true,
+				Name:  "as",
+				Usage: "destination table name (sqlite/duckdb output only; defaults to source basename)",
+				Local: true,
 			},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
@@ -170,14 +167,14 @@ func dbConvertCommand() *cli.Command {
 				return cmdutil.UsageErrorf(cmd, "expected 2 arguments: <in> <out>, got %d", len(args))
 			}
 			in, out := args[0], args[1]
-			if dbDryRun {
+			if cmd.Bool("dry-run") {
 				uikit.Hint(fmt.Sprintf("would convert %s → %s", in, out))
 				return nil
 			}
 			if _, err := os.Stat(out); err == nil {
 				return fmt.Errorf("output file already exists: %s (delete it first)", out)
 			}
-			result, err := duck.Convert(in, dbInspectTable, out, dbConvertAs)
+			result, err := duck.Convert(in, cmd.String("table"), out, cmd.String("as"))
 			if err != nil {
 				return wrapDuckErr(err)
 			}
@@ -223,13 +220,14 @@ func dbQueryCommand() *cli.Command {
 }
 
 // duckInspectAction wraps the common shape of read-only inspect verbs:
-// require one positional file arg, call run, render the result.
-func duckInspectAction(run func(path string) (any, error)) cli.ActionFunc {
+// require one positional file arg, call run, render the result. run receives
+// the live *cli.Command so it can read its verb's flags (--table, -n, …).
+func duckInspectAction(run func(cmd *cli.Command, path string) (any, error)) cli.ActionFunc {
 	return func(_ context.Context, cmd *cli.Command) error {
 		if cmd.Args().Len() == 0 {
 			return cmdutil.UsageErrorf(cmd, "expected a file argument")
 		}
-		raw, err := run(cmd.Args().First())
+		raw, err := run(cmd, cmd.Args().First())
 		if err != nil {
 			return wrapDuckErr(err)
 		}
@@ -279,18 +277,18 @@ func dbResetCommand() *cli.Command {
 		Description: "$ sci db reset mydb.db\n$ sci db reset lab.duckdb",
 		ArgsUsage:   "<file>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &dbResetYes, Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected a file argument")
 			}
 			dbPath := cmd.Args().First()
-			if dbDryRun {
+			if cmd.Bool("dry-run") {
 				uikit.Hint(fmt.Sprintf("would delete and recreate %s", dbPath))
 				return nil
 			}
-			if done, err := cmdutil.ConfirmOrSkip(dbResetYes, fmt.Sprintf("This will delete all data in %s. Continue?", dbPath)); done || err != nil {
+			if done, err := cmdutil.ConfirmOrSkip(cmd.Bool("yes"), fmt.Sprintf("This will delete all data in %s. Continue?", dbPath)); done || err != nil {
 				return err
 			}
 			result, err := db.Reset(dbPath)
@@ -331,7 +329,7 @@ func dbAddCommand() *cli.Command {
 			"$ sci db add results.csv lab.duckdb -t experiment_1",
 		ArgsUsage: "<csv>... <database>",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "table", Aliases: []string{"t"}, Usage: "override table name (single file only)", Destination: &dbAddTableName, Local: true},
+			&cli.StringFlag{Name: "table", Aliases: []string{"t"}, Usage: "override table name (single file only)", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			args := cmd.Args().Slice()
@@ -340,9 +338,10 @@ func dbAddCommand() *cli.Command {
 			}
 			dbPath := args[len(args)-1]
 			csvFiles := args[:len(args)-1]
-			if dbDryRun {
+			tableName := cmd.String("table")
+			if cmd.Bool("dry-run") {
 				for _, f := range csvFiles {
-					tbl := dbAddTableName
+					tbl := tableName
 					if tbl == "" {
 						tbl = store.TableNameFromFile(f)
 					}
@@ -350,7 +349,7 @@ func dbAddCommand() *cli.Command {
 				}
 				return nil
 			}
-			result, err := db.AddCSV(csvFiles, dbPath, dbAddTableName)
+			result, err := db.AddCSV(csvFiles, dbPath, tableName)
 			if err != nil {
 				return err
 			}
@@ -371,7 +370,7 @@ func dbAppendCommand() *cli.Command {
 			"$ sci db append batch_*.csv lab.duckdb -t events",
 		ArgsUsage: "<csv>... <database>",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "table", Aliases: []string{"t"}, Usage: "override table name (single file only)", Destination: &dbAddTableName, Local: true},
+			&cli.StringFlag{Name: "table", Aliases: []string{"t"}, Usage: "override table name (single file only)", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			args := cmd.Args().Slice()
@@ -380,9 +379,10 @@ func dbAppendCommand() *cli.Command {
 			}
 			dbPath := args[len(args)-1]
 			csvFiles := args[:len(args)-1]
-			if dbDryRun {
+			tableName := cmd.String("table")
+			if cmd.Bool("dry-run") {
 				for _, f := range csvFiles {
-					tbl := dbAddTableName
+					tbl := tableName
 					if tbl == "" {
 						tbl = store.TableNameFromFile(f)
 					}
@@ -390,7 +390,7 @@ func dbAppendCommand() *cli.Command {
 				}
 				return nil
 			}
-			result, err := db.AppendCSV(csvFiles, dbPath, dbAddTableName)
+			result, err := db.AppendCSV(csvFiles, dbPath, tableName)
 			if err != nil {
 				return err
 			}
@@ -407,7 +407,7 @@ func dbDeleteCommand() *cli.Command {
 		Description: "$ sci db delete old_experiments mydb.db\n$ sci db delete vec_cache lab.duckdb",
 		ArgsUsage:   "<table> <database>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &dbDeleteYes, Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			args := cmd.Args().Slice()
@@ -416,11 +416,11 @@ func dbDeleteCommand() *cli.Command {
 			}
 			table := args[0]
 			dbPath := args[1]
-			if dbDryRun {
+			if cmd.Bool("dry-run") {
 				uikit.Hint(fmt.Sprintf("would delete table %q from %s", table, dbPath))
 				return nil
 			}
-			if done, err := cmdutil.ConfirmOrSkip(dbDeleteYes, fmt.Sprintf("Drop table %q from %s?", table, dbPath)); done || err != nil {
+			if done, err := cmdutil.ConfirmOrSkip(cmd.Bool("yes"), fmt.Sprintf("Drop table %q from %s?", table, dbPath)); done || err != nil {
 				return err
 			}
 			result, err := db.DeleteTable(table, dbPath)
@@ -440,7 +440,7 @@ func dbRenameCommand() *cli.Command {
 		Description: "$ sci db rename raw_data cleaned_data mydb.db\n$ sci db rename documents articles lab.duckdb",
 		ArgsUsage:   "<old> <new> <database>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &dbRenameYes, Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			args := cmd.Args().Slice()
@@ -449,11 +449,11 @@ func dbRenameCommand() *cli.Command {
 			}
 			oldName, newName := args[0], args[1]
 			dbPath := args[2]
-			if dbDryRun {
+			if cmd.Bool("dry-run") {
 				uikit.Hint(fmt.Sprintf("would rename table %q → %q in %s", oldName, newName, dbPath))
 				return nil
 			}
-			if done, err := cmdutil.ConfirmOrSkip(dbRenameYes, fmt.Sprintf("Rename table %q to %q in %s?", oldName, newName, dbPath)); done || err != nil {
+			if done, err := cmdutil.ConfirmOrSkip(cmd.Bool("yes"), fmt.Sprintf("Rename table %q to %q in %s?", oldName, newName, dbPath)); done || err != nil {
 				return err
 			}
 			result, err := db.RenameTable(oldName, newName, dbPath)

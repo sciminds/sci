@@ -18,18 +18,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	toolsFile    string
-	toolsDryRun  bool
-	toolsCask    bool
-	toolsTap     bool
-	toolsUv      bool
-	toolsGo      bool
-	toolsCargo   bool
-	toolsFormula bool
-	toolsAll     bool
-)
-
 func toolsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "tools",
@@ -39,15 +27,14 @@ func toolsCommand() *cli.Command {
 		Flags: []cli.Flag{
 			// lint:no-local — propagates to subcommands
 			&cli.StringFlag{
-				Name:        "file",
-				Usage:       "path to Brewfile",
-				Value:       brew.DefaultBrewfile,
-				Destination: &toolsFile,
+				Name:  "file",
+				Usage: "path to Brewfile",
+				Value: brew.DefaultBrewfile,
 			},
-			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing", Destination: &toolsDryRun}, // lint:no-local
+			&cli.BoolFlag{Name: "dry-run", Usage: "show what would happen without executing"}, // lint:no-local
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			if file, err := resolveToolsFile(); err == nil {
+			if file, err := resolveToolsFile(cmd); err == nil {
 				syncBrewfile(file)
 			}
 			return cli.ShowSubcommandHelp(cmd)
@@ -71,12 +58,12 @@ func toolsInstallCommand() *cli.Command {
 		Description: "$ sci tools install\n$ sci tools install pandoc\n$ sci tools install --cask firefox",
 		ArgsUsage:   "[package]",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "formula", Usage: "add as a brew formula", Destination: &toolsFormula, Local: true},
-			&cli.BoolFlag{Name: "cask", Usage: "add as a cask", Destination: &toolsCask, Local: true},
-			&cli.BoolFlag{Name: "tap", Usage: "add as a tap", Destination: &toolsTap, Local: true},
-			&cli.BoolFlag{Name: "uv", Usage: "add as a uv tool", Destination: &toolsUv, Local: true},
-			&cli.BoolFlag{Name: "go", Usage: "add as a Go package", Destination: &toolsGo, Local: true},
-			&cli.BoolFlag{Name: "cargo", Usage: "add as a Cargo package", Destination: &toolsCargo, Local: true},
+			&cli.BoolFlag{Name: "formula", Usage: "add as a brew formula", Local: true},
+			&cli.BoolFlag{Name: "cask", Usage: "add as a cask", Local: true},
+			&cli.BoolFlag{Name: "tap", Usage: "add as a tap", Local: true},
+			&cli.BoolFlag{Name: "uv", Usage: "add as a uv tool", Local: true},
+			&cli.BoolFlag{Name: "go", Usage: "add as a Go package", Local: true},
+			&cli.BoolFlag{Name: "cargo", Usage: "add as a Cargo package", Local: true},
 		},
 		Action: runToolsInstall,
 	}
@@ -89,12 +76,12 @@ func toolsUninstallCommand() *cli.Command {
 		Description: "$ sci tools uninstall pandoc\n$ sci tools uninstall --cask firefox",
 		ArgsUsage:   "<package>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "formula", Usage: "remove a formula", Destination: &toolsFormula, Local: true},
-			&cli.BoolFlag{Name: "cask", Usage: "remove a cask", Destination: &toolsCask, Local: true},
-			&cli.BoolFlag{Name: "tap", Usage: "remove a tap", Destination: &toolsTap, Local: true},
-			&cli.BoolFlag{Name: "uv", Usage: "remove a uv tool", Destination: &toolsUv, Local: true},
-			&cli.BoolFlag{Name: "go", Usage: "remove a Go package", Destination: &toolsGo, Local: true},
-			&cli.BoolFlag{Name: "cargo", Usage: "remove a Cargo package", Destination: &toolsCargo, Local: true},
+			&cli.BoolFlag{Name: "formula", Usage: "remove a formula", Local: true},
+			&cli.BoolFlag{Name: "cask", Usage: "remove a cask", Local: true},
+			&cli.BoolFlag{Name: "tap", Usage: "remove a tap", Local: true},
+			&cli.BoolFlag{Name: "uv", Usage: "remove a uv tool", Local: true},
+			&cli.BoolFlag{Name: "go", Usage: "remove a Go package", Local: true},
+			&cli.BoolFlag{Name: "cargo", Usage: "remove a Cargo package", Local: true},
 		},
 		Action: runToolsUninstall,
 	}
@@ -106,13 +93,13 @@ func toolsListCommand() *cli.Command {
 		Usage:       "List packages in the Brewfile",
 		Description: "$ sci tools list\n$ sci tools list --cask",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "formula", Usage: "list formulae only", Destination: &toolsFormula, Local: true},
-			&cli.BoolFlag{Name: "cask", Usage: "list casks only", Destination: &toolsCask, Local: true},
-			&cli.BoolFlag{Name: "tap", Usage: "list taps only", Destination: &toolsTap, Local: true},
-			&cli.BoolFlag{Name: "uv", Usage: "list uv tools only", Destination: &toolsUv, Local: true},
-			&cli.BoolFlag{Name: "go", Usage: "list Go packages only", Destination: &toolsGo, Local: true},
-			&cli.BoolFlag{Name: "cargo", Usage: "list Cargo packages only", Destination: &toolsCargo, Local: true},
-			&cli.BoolFlag{Name: "all", Usage: "list all package types", Destination: &toolsAll, Local: true},
+			&cli.BoolFlag{Name: "formula", Usage: "list formulae only", Local: true},
+			&cli.BoolFlag{Name: "cask", Usage: "list casks only", Local: true},
+			&cli.BoolFlag{Name: "tap", Usage: "list taps only", Local: true},
+			&cli.BoolFlag{Name: "uv", Usage: "list uv tools only", Local: true},
+			&cli.BoolFlag{Name: "go", Usage: "list Go packages only", Local: true},
+			&cli.BoolFlag{Name: "cargo", Usage: "list Cargo packages only", Local: true},
+			&cli.BoolFlag{Name: "all", Usage: "list all package types", Local: true},
 		},
 		Action: runToolsList,
 	}
@@ -145,22 +132,31 @@ type reccsOpts struct {
 	dryRun      bool
 }
 
-// reccsFlags builds the flag set shared by reccs and apps, binding into o.
-func reccsFlags(o *reccsOpts) []cli.Flag {
+// reccsFlags builds the flag set shared by reccs and apps.
+func reccsFlags() []cli.Flag {
 	return []cli.Flag{
-		&cli.StringFlag{Name: "install", Usage: "install a named tool without the picker", Destination: &o.installName, Local: true},
-		&cli.BoolFlag{Name: "all", Usage: "install every missing recommendation", Destination: &o.all, Local: true},
-		&cli.StringFlag{Name: "include", Usage: "comma-separated tools to install (skips already-installed)", Destination: &o.includeCSV, Local: true},
-		&cli.StringFlag{Name: "exclude", Usage: "comma-separated tools to skip; install the rest", Destination: &o.excludeCSV, Local: true},
-		&cli.BoolFlag{Name: "dry-run", Usage: "preview the resolved set without installing", Destination: &o.dryRun, Local: true},
+		&cli.StringFlag{Name: "install", Usage: "install a named tool without the picker", Local: true},
+		&cli.BoolFlag{Name: "all", Usage: "install every missing recommendation", Local: true},
+		&cli.StringFlag{Name: "include", Usage: "comma-separated tools to install (skips already-installed)", Local: true},
+		&cli.StringFlag{Name: "exclude", Usage: "comma-separated tools to skip; install the rest", Local: true},
+		&cli.BoolFlag{Name: "dry-run", Usage: "preview the resolved set without installing", Local: true},
+	}
+}
+
+// reccsOptsFrom reads the shared reccs/apps flags off cmd.
+func reccsOptsFrom(cmd *cli.Command) reccsOpts {
+	return reccsOpts{
+		installName: cmd.String("install"),
+		all:         cmd.Bool("all"),
+		includeCSV:  cmd.String("include"),
+		excludeCSV:  cmd.String("exclude"),
+		dryRun:      cmd.Bool("dry-run"),
 	}
 }
 
 func toolsReccsCommand() *cli.Command {
-	var o reccsOpts
-	var apps bool
-	flags := append(reccsFlags(&o),
-		&cli.BoolFlag{Name: "apps", Usage: "limit to recommended GUI apps (casks)", Destination: &apps, Local: true},
+	flags := append(reccsFlags(),
+		&cli.BoolFlag{Name: "apps", Usage: "limit to recommended GUI apps (casks)", Local: true},
 	)
 	return &cli.Command{
 		Name:  "reccs",
@@ -174,7 +170,7 @@ func toolsReccsCommand() *cli.Command {
 			"$ sci tools reccs --apps --all --dry-run       # preview all missing apps",
 		Flags: flags,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runToolsReccs(ctx, cmd, o, apps)
+			return runToolsReccs(ctx, cmd, reccsOptsFrom(cmd), cmd.Bool("apps"))
 		},
 	}
 }
@@ -182,7 +178,6 @@ func toolsReccsCommand() *cli.Command {
 // toolsAppsCommand is a discoverable alias for `tools reccs --apps`: the
 // recommendations surface pre-scoped to GUI apps (casks).
 func toolsAppsCommand() *cli.Command {
-	var o reccsOpts
 	return &cli.Command{
 		Name:  "apps",
 		Usage: "Pick recommended GUI apps (casks) to install",
@@ -190,17 +185,21 @@ func toolsAppsCommand() *cli.Command {
 			"$ sci tools apps --all                         # install every missing app\n" +
 			"$ sci tools apps --include obsidian,raycast    # install just these\n" +
 			"$ sci tools apps --all --dry-run               # preview without installing",
-		Flags: reccsFlags(&o),
+		Flags: reccsFlags(),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return runToolsReccs(ctx, cmd, o, true)
+			return runToolsReccs(ctx, cmd, reccsOptsFrom(cmd), true)
 		},
 	}
 }
 
-func resolveToolsFile() (string, error) {
+// resolveToolsFile picks the Brewfile to operate on: the `sci tools --file`
+// value when the user overrode the default, otherwise whatever brew itself
+// would find. cmd carries the flag, which is persistent on `sci tools` and so
+// readable from every subcommand.
+func resolveToolsFile(cmd *cli.Command) (string, error) {
 	// If the user passed an explicit --file flag, honour it.
-	if toolsFile != brew.DefaultBrewfile {
-		return brew.ExpandPath(toolsFile)
+	if file := cmd.String("file"); file != brew.DefaultBrewfile {
+		return brew.ExpandPath(file)
 	}
 	// Otherwise search the candidate paths brew recognises.
 	if found := brew.LocateBrewfile(); found != "" {
@@ -228,19 +227,22 @@ func syncBrewfile(file string) {
 	}
 }
 
-func resolveToolsPkgType() string {
+// resolveToolsPkgType maps the mutually exclusive package-type flags
+// (--cask, --tap, --uv, --go, --cargo, --formula) to brew's type string, or
+// "" when the user gave none.
+func resolveToolsPkgType(cmd *cli.Command) string {
 	switch {
-	case toolsCask:
+	case cmd.Bool("cask"):
 		return "cask"
-	case toolsTap:
+	case cmd.Bool("tap"):
 		return "tap"
-	case toolsUv:
+	case cmd.Bool("uv"):
 		return "uv"
-	case toolsGo:
+	case cmd.Bool("go"):
 		return "go"
-	case toolsCargo:
+	case cmd.Bool("cargo"):
 		return "cargo"
-	case toolsFormula:
+	case cmd.Bool("formula"):
 		return "formula"
 	default:
 		return ""
@@ -291,17 +293,18 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no internet connection — sci tools install requires network access")
 	}
 
-	file, err := resolveToolsFile()
+	file, err := resolveToolsFile(cmd)
 	if err != nil {
 		return err
 	}
 
 	runner := brew.CLI{}
+	dryRun := cmd.Bool("dry-run")
 
 	// With a package argument: update registry, install directly, sync Brewfile.
 	if cmd.NArg() > 0 {
 		pkg := cmd.Args().First()
-		pkgType := resolveToolsPkgType()
+		pkgType := resolveToolsPkgType(cmd)
 
 		// Auto-detect if no explicit type flag was given.
 		if pkgType == "" {
@@ -314,7 +317,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 			}
 		}
 
-		if toolsDryRun {
+		if dryRun {
 			uikit.Hint(fmt.Sprintf("would add %s (%s) to %s", pkg, pkgType, file))
 			return nil
 		}
@@ -339,7 +342,7 @@ func runToolsInstall(_ context.Context, cmd *cli.Command) error {
 	// aren't installed yet, which is exactly the set Install is about to
 	// install. The Brewfile is user intent; we don't overwrite intent with
 	// current system state before acting on it.
-	if toolsDryRun {
+	if dryRun {
 		uikit.Hint(fmt.Sprintf("would install all packages from %s", file))
 		return nil
 	}
@@ -361,20 +364,20 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 	if cmd.NArg() < 1 {
 		return cmdutil.UsageErrorf(cmd, "expected a package name")
 	}
-	file, err := resolveToolsFile()
+	file, err := resolveToolsFile(cmd)
 	if err != nil {
 		return err
 	}
 
 	pkg := cmd.Args().First()
 
-	if toolsDryRun {
+	if cmd.Bool("dry-run") {
 		uikit.Hint(fmt.Sprintf("would remove %s from %s", pkg, file))
 		return nil
 	}
 
 	fmt.Fprintf(os.Stderr, "  Removing %s…\n", pkg)
-	result, rmErr := brew.Remove(brew.CLI{}, file, pkg, resolveToolsPkgType())
+	result, rmErr := brew.Remove(brew.CLI{}, file, pkg, resolveToolsPkgType(cmd))
 	if rmErr != nil {
 		return rmErr
 	}
@@ -384,7 +387,7 @@ func runToolsUninstall(_ context.Context, cmd *cli.Command) error {
 }
 
 func runToolsList(_ context.Context, cmd *cli.Command) error {
-	file, err := resolveToolsFile()
+	file, err := resolveToolsFile(cmd)
 	if err != nil {
 		return err
 	}
@@ -394,9 +397,9 @@ func runToolsList(_ context.Context, cmd *cli.Command) error {
 	runner := brew.CLI{}
 
 	// Type-specific filter or --json: plain text list.
-	pkgType := resolveToolsPkgType()
+	pkgType := resolveToolsPkgType(cmd)
 	if pkgType != "" || cmdutil.IsJSON(cmd) {
-		if toolsAll {
+		if cmd.Bool("all") {
 			pkgType = ""
 		}
 		result, listErr := brew.List(file, pkgType)
@@ -426,7 +429,7 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no internet connection — sci tools update requires network access")
 	}
 
-	if toolsDryRun {
+	if cmd.Bool("dry-run") {
 		uikit.Hint("would update the registry and upgrade outdated packages")
 		return nil
 	}
@@ -439,7 +442,7 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	if file, err := resolveToolsFile(); err == nil {
+	if file, err := resolveToolsFile(cmd); err == nil {
 		syncBrewfile(file)
 	}
 	cmdutil.Output(cmd, result)
@@ -451,7 +454,7 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("no internet connection — sci tools outdated requires network access")
 	}
 
-	if toolsDryRun {
+	if cmd.Bool("dry-run") {
 		uikit.Hint("would update the registry and list outdated packages")
 		return nil
 	}
@@ -523,7 +526,7 @@ func runToolsReccs(_ context.Context, cmd *cli.Command, o reccsOpts, apps bool) 
 	}
 
 	// Resolve Brewfile path so install functions can sync it afterward.
-	brewfilePath, _ := resolveToolsFile()
+	brewfilePath, _ := resolveToolsFile(cmd)
 
 	// Bulk paths: --all / --include / --exclude (and dry-run, which implies bulk).
 	if o.all || len(include) > 0 || len(exclude) > 0 || o.dryRun {

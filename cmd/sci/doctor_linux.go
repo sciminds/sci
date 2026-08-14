@@ -18,8 +18,9 @@ import (
 
 func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	isJSON := cmdutil.IsJSON(cmd)
+	gitName, gitEmail := cmd.String("git-name"), cmd.String("git-email")
 
-	if err := applyGitIdentityFlags(); err != nil {
+	if err := applyGitIdentityFlags(gitName, gitEmail); err != nil {
 		return err
 	}
 
@@ -36,7 +37,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	cmdutil.Output(cmd, result)
 
-	if err := promptGitIdentity(result); err != nil {
+	if err := promptGitIdentity(result, gitName, gitEmail); err != nil {
 		return err
 	}
 

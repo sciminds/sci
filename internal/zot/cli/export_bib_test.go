@@ -10,8 +10,10 @@ package cli
 
 import (
 	"database/sql"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -45,10 +47,46 @@ func seedNonBibliographicItems(t *testing.T, dataDir string) {
 	}
 }
 
+// TestFormatFlagDefaults_StayPerCommand pins the three same-named
+// --format flags apart. `zot export` and `zot search --export` default to
+// biblatex; `zot item export` defaults to csl-json. Each Action reads the
+// value off its own *cli.Command, and urfave resolves a name up the
+// command lineage — so a flag renamed onto a parent, or a lookup spelled
+// with an alias, would silently hand one command another's default.
+func TestFormatFlagDefaults_StayPerCommand(t *testing.T) {
+	withOrientConfig(t)
+
+	cases := []struct {
+		name string
+		argv []string
+		want string // the format each result reports having used
+	}{
+		{"library export", []string{"export", "--library", "personal"}, "biblatex"},
+		{"search export", []string{"search", "--library", "personal", "--export", "Paper"}, "biblatex"},
+		{"item export", []string{"item", "export", "--library", "personal", "KEY1"}, "csl-json"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := runOrient(t, slices.Concat([]string{"--json"}, tc.argv)...)
+			if err != nil {
+				t.Fatalf("%v: %v\n%s", tc.argv, err, string(out))
+			}
+			var result struct {
+				Format string `json:"format"`
+			}
+			if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+				t.Fatalf("parse: %v\n%s", err, string(out))
+			}
+			if result.Format != tc.want {
+				t.Errorf("default --format for %v = %q, want %q", tc.argv, result.Format, tc.want)
+			}
+		})
+	}
+}
+
 func TestExport_BibLaTeXOmitsNonBibliographicItems(t *testing.T) {
 	dataDir := withOrientConfig(t)
 	seedNonBibliographicItems(t, dataDir)
-	t.Cleanup(func() { libExportFormat, libExportOut = "", "" })
 
 	out := filepath.Join(t.TempDir(), "refs.bib")
 	if _, err := runOrient(t, "--json", "export", "--library", "personal",

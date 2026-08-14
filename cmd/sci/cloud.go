@@ -16,17 +16,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	putName     string
-	putPublic   bool
-	putForce    bool
-	getPublic   bool
-	removeYes   bool
-	removePub   bool
-	lsPublic    bool
-	setupLogout bool
-)
-
 func cloudCommand() *cli.Command {
 	cmd := &cli.Command{
 		Name:    "cloud",
@@ -65,10 +54,10 @@ func cloudSetupCommand() *cli.Command {
 		Usage:       "Authenticate with Hugging Face (sciminds org)",
 		Description: "$ sci cloud setup\n$ sci cloud setup --logout",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "logout", Usage: "log out of Hugging Face", Destination: &setupLogout, Local: true},
+			&cli.BoolFlag{Name: "logout", Usage: "log out of Hugging Face", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			if setupLogout {
+			if cmd.Bool("logout") {
 				result, err := share.AuthLogout()
 				if err != nil {
 					return err
@@ -97,10 +86,10 @@ func cloudLsCommand() *cli.Command {
 			"$ sci cloud ls --public",
 		ArgsUsage: "[path]",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "list the public bucket", Destination: &lsPublic, Local: true},
+			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "list the public bucket", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
-			_, c, err := cloud.Setup(share.BucketFor(lsPublic))
+			_, c, err := cloud.Setup(share.BucketFor(cmd.Bool("public")))
 			if err != nil {
 				return err
 			}
@@ -126,14 +115,15 @@ func cloudGetCommand() *cli.Command {
 			"$ sci cloud get alice/data.csv --public      # someone else's public file",
 		ArgsUsage: "[name [local]]",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "fetch from / browse the public bucket", Destination: &getPublic, Local: true},
+			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "fetch from / browse the public bucket", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
+			public := cmd.Bool("public")
 			if cmd.Args().Len() == 0 {
 				if cmdutil.IsJSON(cmd) {
 					return fmt.Errorf("get requires a file name in JSON mode")
 				}
-				_, c, err := cloud.Setup(share.BucketFor(getPublic))
+				_, c, err := cloud.Setup(share.BucketFor(public))
 				if err != nil {
 					return err
 				}
@@ -155,7 +145,7 @@ func cloudGetCommand() *cli.Command {
 				local = cmd.Args().Get(1)
 			}
 
-			result, err := share.Get(name, local, getPublic)
+			result, err := share.Get(name, local, public)
 			if err != nil {
 				return err
 			}
@@ -176,11 +166,14 @@ func cloudPutCommand() *cli.Command {
 			"$ sci cloud put                              # interactive picker (u=upload, U=force)",
 		ArgsUsage: "[file-or-dir]",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "upload name (default: filename)", Destination: &putName, Local: true},
-			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "upload to the public bucket (world-readable URL)", Destination: &putPublic, Local: true},
-			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing file without prompting", Destination: &putForce, Local: true},
+			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "upload name (default: filename)", Local: true},
+			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "upload to the public bucket (world-readable URL)", Local: true},
+			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing file without prompting", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
+			public := cmd.Bool("public")
+			force := cmd.Bool("force")
+
 			var filePath string
 			switch cmd.Args().Len() {
 			case 1:
@@ -199,7 +192,7 @@ func cloudPutCommand() *cli.Command {
 				}
 				filePath = res.Path
 				if res.Force {
-					putForce = true
+					force = true
 				}
 			default:
 				return fmt.Errorf("put takes at most one file path\n\n" +
@@ -209,17 +202,16 @@ func cloudPutCommand() *cli.Command {
 					"  Run 'sci cloud put --help' for more options")
 			}
 
-			if putPublic {
+			if public {
 				fmt.Fprintf(os.Stderr, "\n  %s --public creates a world-readable URL. Do not share sensitive or personally identifying information.\n", uikit.SymWarn)
 				fmt.Fprintf(os.Stderr, "    Omit --public to keep this file in the private sciminds bucket.\n\n")
 			}
 
-			name := putName
+			name := cmd.String("name")
 			if name == "" {
 				name = share.DefaultShareName(filePath)
 			}
 
-			force := putForce
 			if cmdutil.IsJSON(cmd) {
 				force = true
 			}
@@ -230,7 +222,7 @@ func cloudPutCommand() *cli.Command {
 					return statErr
 				}
 				isDir := info.IsDir()
-				exists, err := share.CheckExists(name, putPublic, isDir)
+				exists, err := share.CheckExists(name, public, isDir)
 				if err != nil {
 					return err
 				}
@@ -250,7 +242,7 @@ func cloudPutCommand() *cli.Command {
 				}
 			}
 
-			result, err := share.Share(filePath, share.ShareOpts{Name: name, Public: putPublic, Force: force})
+			result, err := share.Share(filePath, share.ShareOpts{Name: name, Public: public, Force: force})
 			if err != nil {
 				return err
 			}
@@ -268,18 +260,18 @@ func cloudRemoveCommand() *cli.Command {
 		Description: "$ sci cloud remove results.csv\n$ sci cloud remove results.csv --public",
 		ArgsUsage:   "<name>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "remove from the public bucket", Destination: &removePub, Local: true},
-			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Destination: &removeYes, Local: true},
+			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "remove from the public bucket", Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return cmdutil.UsageErrorf(cmd, "expected exactly 1 argument, got %d", cmd.Args().Len())
 			}
 			name := cmd.Args().First()
-			if done, err := cmdutil.ConfirmOrSkip(removeYes, fmt.Sprintf("Remove shared file %q?", name)); done || err != nil {
+			if done, err := cmdutil.ConfirmOrSkip(cmd.Bool("yes"), fmt.Sprintf("Remove shared file %q?", name)); done || err != nil {
 				return err
 			}
-			result, err := share.Unshare(name, removePub)
+			result, err := share.Unshare(name, cmd.Bool("public"))
 			if err != nil {
 				return err
 			}

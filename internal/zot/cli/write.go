@@ -13,10 +13,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// collListRemote is the destination for `collection list --remote`, the
-// one flag left in this file that reaches the Zotero Web API.
-var collListRemote bool
-
 // requireAPIClient builds an API client from the loaded config, short-circuiting
 // if the machine is offline or not configured. The library scope is resolved
 // via ensureLibraryScope (auto-select / prompt / error per the holder set up
@@ -54,10 +50,10 @@ func collectionCommand() *cli.Command {
 				Usage:       "List every collection in the library with item counts",
 				Description: "$ sci zot collection list\n$ sci zot collection list --remote   # bypass local SQLite, hit the Zotero Web API",
 				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API (shows collections not yet synced locally)", Destination: &collListRemote, Local: true},
+					&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API (shows collections not yet synced locally)", Local: true},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					if collListRemote {
+					if cmd.Bool("remote") {
 						c, err := requireAPIClient(ctx)
 						if err != nil {
 							return err

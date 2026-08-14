@@ -25,9 +25,11 @@ import (
 func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	runner := brew.CLI{}
 	isJSON := cmdutil.IsJSON(cmd)
+	gitName, gitEmail := cmd.String("git-name"), cmd.String("git-email")
+	skipUpgrade := skipUpgradeCheck(cmd.Bool("skip-upgrade-check"))
 
 	// ── Step 0: Apply git identity flags ────────────────────────────────
-	if err := applyGitIdentityFlags(); err != nil {
+	if err := applyGitIdentityFlags(gitName, gitEmail); err != nil {
 		return err
 	}
 
@@ -42,7 +44,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// Prompt for missing git identity (interactive mode only, when flags weren't used).
 	if !isJSON {
-		if err := promptGitIdentity(result); err != nil {
+		if err := promptGitIdentity(result, gitName, gitEmail); err != nil {
 			return err
 		}
 	}
@@ -61,7 +63,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// Bail early if Homebrew isn't installed — remaining steps need it.
 	if !hasHomebrew(result) {
-		if isJSON && !doctorYes {
+		if isJSON && !cmd.Bool("yes") {
 			// JSON without --yes: report state and exit. Installing
 			// Homebrew is a side effect we don't take silently.
 			cmdutil.Output(cmd, result)
@@ -115,7 +117,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	if isJSON {
 		// Non-interactive: RunSetup handles everything, auto-confirms.
 		setup := doctor.RunSetup(runner, brewfilePath, created, doctor.SetupOpts{
-			SkipUpgradeCheck: skipUpgradeCheck(),
+			SkipUpgradeCheck: skipUpgrade,
 		})
 		result.BrewfilePath = setup.BrewfilePath
 		result.BrewfileCreated = setup.BrewfileCreated
@@ -193,7 +195,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 			uikit.SymWarn, uikit.TUI.Warn().Render("Could not check tools: "+toolCheckErr.Error()))
 		// Can't install if we don't know what's missing — skip to update check.
-		if skipUpgradeCheck() {
+		if skipUpgrade {
 			return nil
 		}
 		return runDoctorUpdateCheck(runner)
@@ -241,7 +243,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// ── Step 5: Check for outdated packages ─────────────────────────────
-	if skipUpgradeCheck() {
+	if skipUpgrade {
 		printDoctorClosing()
 		return nil
 	}

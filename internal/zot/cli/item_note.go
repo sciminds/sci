@@ -22,12 +22,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// Flag destinations for `item note read`.
-var (
-	noteReadHTML bool
-	noteReadMD   bool
-)
-
 // itemNoteCommand is the `zot item note` subcommand tree. Registered from
 // cli.go under `item`.
 func itemNoteCommand() *cli.Command {
@@ -64,8 +58,8 @@ func itemNoteReadCommand() *cli.Command {
 			"$ sci zot item note read NOTE1234 --html       # raw stored body\n" +
 			"$ sci zot item note read NOTE1234 --md --json  # structured, plus a markdown field",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "html", Usage: "show the raw stored body instead of rendering markdown (human mode only)", Destination: &noteReadHTML, Local: true},
-			&cli.BoolFlag{Name: "md", Usage: "also emit the body converted to markdown (--json adds a `markdown` field)", Destination: &noteReadMD, Local: true},
+			&cli.BoolFlag{Name: "html", Usage: "show the raw stored body instead of rendering markdown (human mode only)", Local: true},
+			&cli.BoolFlag{Name: "md", Usage: "also emit the body converted to markdown (--json adds a `markdown` field)", Local: true},
 		},
 		Action: runItemNoteRead,
 	}
@@ -87,8 +81,8 @@ func runItemNoteRead(ctx context.Context, cmd *cli.Command) error {
 	if err := assertNoteType(string(it.Data.ItemType)); err != nil {
 		return err
 	}
-	res := noteReadResultFromItem(it, noteReadHTML)
-	if noteReadMD {
+	res := noteReadResultFromItem(it, cmd.Bool("html"))
+	if cmd.Bool("md") {
 		md, err := notemd.HTMLToMarkdown(res.Body)
 		if err != nil {
 			return err

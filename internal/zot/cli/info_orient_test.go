@@ -203,9 +203,6 @@ func runOrient(t *testing.T, args ...string) ([]byte, error) {
 func TestInfo_OrientFlag_PopulatesAllFields(t *testing.T) {
 	withOrientConfig(t)
 
-	// Ensure no leftover state between subtests.
-	t.Cleanup(func() { infoOrient = false })
-
 	out, err := runOrient(t, "--json", "info", "--library", "personal", "--orient")
 	if err != nil {
 		t.Fatalf("info --orient: %v\n%s", err, string(out))
@@ -271,7 +268,6 @@ func TestInfo_OrientFlag_PopulatesAllFields(t *testing.T) {
 
 func TestInfo_NoOrientFlag_OmitsOrientFields(t *testing.T) {
 	withOrientConfig(t)
-	t.Cleanup(func() { infoOrient = false })
 
 	out, err := runOrient(t, "--json", "info", "--library", "personal")
 	if err != nil {
@@ -293,7 +289,6 @@ func TestInfo_NoOrientFlag_OmitsOrientFields(t *testing.T) {
 
 func TestInfo_OrientFlag_NoLibraryFlag_PopulatesEachLibrary(t *testing.T) {
 	withTestConfig(t, "42", "6506098") // both libraries configured (minimal DB)
-	t.Cleanup(func() { infoOrient = false })
 
 	out, err := runOrient(t, "--json", "info", "--orient")
 	if err != nil {

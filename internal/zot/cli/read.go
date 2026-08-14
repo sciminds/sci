@@ -19,30 +19,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// Read-command flag destinations.
-var (
-	listType       string
-	listCollection string
-	listTag        string
-	listLimit      int
-	listOffset     int
-	listOrder      string
-	listRemote     bool
-
-	readRemote    bool
-	readDOI       string
-	readMissingOK bool
-
-	childrenRemote bool
-
-	searchLimit  int
-	searchRemote bool
-	searchFull   bool
-
-	exportFormat string
-	exportOut    string
-)
-
 // openLocalDB loads config, ensures the library scope is resolved (auto-
 // selecting / prompting / erroring per ensureLibraryScope), opens the local
 // zotero.sqlite scoped accordingly, and warns if the schema version is
@@ -150,35 +126,36 @@ func searchCommand() *cli.Command {
 			"$ sci zot search llm --remote   # Zotero Web API fulltext search (title + creators + year + abstract + notes + PDFs)",
 		ArgsUsage: "<query>",
 		Flags: []cli.Flag{
-			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max results", Destination: &searchLimit, Local: true},
+			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 50, Usage: "max results", Local: true},
 			// --export routes the hit list through the same pipeline as
 			// `zot export`.
-			&cli.BoolFlag{Name: "export", Usage: "emit results as a bibliography instead of the normal hit list", Destination: &searchExport, Local: true},
-			&cli.StringFlag{Name: "format", Usage: "with --export, output format: biblatex (alias: bibtex), csl-json", Value: "biblatex", Destination: &searchExportFormat, Local: true},
-			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Destination: &searchExportOut, Local: true},
-			&cli.BoolFlag{Name: "notes", Usage: "filter to items that HAVE a docling extraction", Destination: &searchNotes, Local: true},
-			&cli.BoolFlag{Name: "remote", Usage: "hit the Zotero Web API with qmode=everything (matches abstract + fulltext + notes)", Destination: &searchRemote, Local: true},
-			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "hydrate each hit with abstract + citekey + authors (one extra local read per hit)", Destination: &searchFull, Local: true},
+			&cli.BoolFlag{Name: "export", Usage: "emit results as a bibliography instead of the normal hit list", Local: true},
+			&cli.StringFlag{Name: "format", Usage: "with --export, output format: biblatex (alias: bibtex), csl-json", Value: "biblatex", Local: true},
+			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Local: true},
+			&cli.BoolFlag{Name: "notes", Usage: "filter to items that HAVE a docling extraction", Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "hit the Zotero Web API with qmode=everything (matches abstract + fulltext + notes)", Local: true},
+			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "hydrate each hit with abstract + citekey + authors (one extra local read per hit)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
+			f := searchFlagsFrom(cmd)
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected a query")
 			}
-			if searchExportOut != "" && !searchExport {
+			if f.ExportOut != "" && !f.Export {
 				return cmdutil.UsageErrorf(cmd, "--out requires --export")
 			}
-			if searchRemote && searchExport {
+			if f.Remote && f.Export {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--remote and --export are mutually exclusive (export needs full local hydration)").
 					WithTry("drop --remote; export always hydrates from the local library")
 			}
-			if searchRemote && searchNotes {
+			if f.Remote && f.Notes {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--notes is local-only").
 					WithTry("drop --notes or drop --remote (--remote already matches note text server-side)")
 			}
-			if err := searchAllConflicts(ctx); err != nil {
+			if err := searchAllConflicts(ctx, f); err != nil {
 				return err
 			}
-			if searchFull && searchExport {
+			if f.Full && f.Export {
 				return cmdutil.Coded(cmdutil.CodeConflict, "--full and --export are mutually exclusive").
 					WithTry("use --full for reading hits inline, --export for generating a bibliography")
 			}
@@ -188,7 +165,7 @@ func searchCommand() *cli.Command {
 			query := strings.Join(cmd.Args().Slice(), " ")
 			mergedScope := requestedScopeIsAll(ctx)
 
-			if searchRemote {
+			if f.Remote {
 				c, err := requireAPIClient(ctx)
 				if err != nil {
 					return err
@@ -196,7 +173,7 @@ func searchCommand() *cli.Command {
 				raw, err := c.ListItems(ctx, api.ListItemsOptions{
 					Query: query,
 					QMode: "everything",
-					Limit: searchLimit,
+					Limit: f.Limit,
 				})
 				if err != nil {
 					return err
@@ -206,7 +183,7 @@ func searchCommand() *cli.Command {
 				})
 				// Remote items already carry abstract + citekey fields
 				// from the API, so --full just reshapes — no extra fetch.
-				if searchFull {
+				if f.Full {
 					briefs := lo.Map(items, func(it local.Item, _ int) zot.ItemBrief {
 						return zot.ToBrief(&it)
 					})
@@ -233,7 +210,7 @@ func searchCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			items, total, err := db.SearchWithTotal(query, searchLimit, local.SearchOptions{})
+			items, total, err := db.SearchWithTotal(query, f.Limit, local.SearchOptions{})
 			if err != nil {
 				return err
 			}
@@ -246,7 +223,7 @@ func searchCommand() *cli.Command {
 				rerunFix = ""
 			}
 			staleWarns := localReadWarnings(db, rerunFix)
-			if searchNotes {
+			if f.Notes {
 				hasNotes, err := db.ParentsWithDoclingNotes()
 				if err != nil {
 					return err
@@ -257,19 +234,19 @@ func searchCommand() *cli.Command {
 			}
 			// Need full Fields + Creators hydration before export —
 			// Search() only returns list-view metadata.
-			if searchExport {
+			if f.Export {
 				hydrated, err := hydrateSearchHits(db, items)
 				if err != nil {
 					return err
 				}
-				res, err := runLibraryExport(hydrated, searchExportFormat, searchExportOut)
+				res, err := runLibraryExport(hydrated, f.ExportFormat, f.ExportOut)
 				if err != nil {
 					return err
 				}
 				outputScoped(ctx, cmd, cmdutil.WithWarnings(res, localReadWarnings(db, "")...))
 				return nil
 			}
-			if searchFull {
+			if f.Full {
 				hydrated, err := hydrateSearchHits(db, items)
 				if err != nil {
 					return err
@@ -310,6 +287,40 @@ func searchCommand() *cli.Command {
 	}
 }
 
+// searchFlags is one `zot search` invocation's flag state, read off the
+// *cli.Command once at the top of the Action and passed down by value.
+//
+// Export, ExportFormat and ExportOut are the seam with the library
+// exporter: `search --export` hands them to runLibraryExport, the same
+// pipeline `zot export` and `zot bib` use. Carrying them in a value the
+// Action owns is what keeps that sharing a function call — the three
+// used to be package-level flag destinations declared over in export.go,
+// so two files wrote the same memory to describe one invocation.
+type searchFlags struct {
+	Limit        int
+	Remote       bool
+	Full         bool
+	Notes        bool
+	Export       bool
+	ExportFormat string
+	ExportOut    string
+}
+
+// searchFlagsFrom reads the `zot search` flags off cmd. A flag absent
+// from the command line reports its declared default, so the conflict
+// checks and the query below see exactly what the user asked for.
+func searchFlagsFrom(cmd *cli.Command) searchFlags {
+	return searchFlags{
+		Limit:        cmd.Int("limit"),
+		Remote:       cmd.Bool("remote"),
+		Full:         cmd.Bool("full"),
+		Notes:        cmd.Bool("notes"),
+		Export:       cmd.Bool("export"),
+		ExportFormat: cmd.String("format"),
+		ExportOut:    cmd.String("out"),
+	}
+}
+
 // requestedScopeIsAll reports whether this invocation asked for the
 // merged --library all pool. Read off the pre-resolution holder so
 // conflict checks can fire before any config or DB work.
@@ -321,15 +332,15 @@ func requestedScopeIsAll(ctx context.Context) bool {
 // searchAllConflicts rejects the search flags that cannot honestly serve
 // a merged pool — each would silently answer against a single library
 // (or none), which is worse than an error that names the limitation.
-func searchAllConflicts(ctx context.Context) error {
+func searchAllConflicts(ctx context.Context, f searchFlags) error {
 	if !requestedScopeIsAll(ctx) {
 		return nil
 	}
 	switch {
-	case searchRemote:
+	case f.Remote:
 		return cmdutil.Coded(cmdutil.CodeConflict, "--remote has no merged endpoint — the Zotero Web API serves one library per call").
 			WithTry("fan out --remote per library, or drop --remote")
-	case searchNotes:
+	case f.Notes:
 		return cmdutil.Coded(cmdutil.CodeConflict, "--notes filters per-library and cannot serve --library all yet").
 			WithTry("run --notes against one library at a time, or drop --notes")
 	}
@@ -370,11 +381,14 @@ func readCommand() *cli.Command {
 			"$ sci zot item read ABC12345 --remote   # bypass local SQLite, hit the Zotero Web API",
 		ArgsUsage: "<key> [key...]",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (for items not yet synced)", Destination: &readRemote, Local: true},
-			&cli.StringFlag{Name: "doi", Usage: "look up the item by DOI instead of key (case-insensitive; accepts bare 10.x/y, https://doi.org/..., or doi:... forms; local-only — try `find works <doi>` for OpenAlex)", Destination: &readDOI, Local: true},
-			&cli.BoolFlag{Name: "missing-ok", Usage: "return the items that exist and report the rest in data.missing instead of failing the whole batch; always emits the {count, items} wrapper", Destination: &readMissingOK, Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (for items not yet synced)", Local: true},
+			&cli.StringFlag{Name: "doi", Usage: "look up the item by DOI instead of key (case-insensitive; accepts bare 10.x/y, https://doi.org/..., or doi:... forms; local-only — try `find works <doi>` for OpenAlex)", Local: true},
+			&cli.BoolFlag{Name: "missing-ok", Usage: "return the items that exist and report the rest in data.missing instead of failing the whole batch; always emits the {count, items} wrapper", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
+			readRemote := cmd.Bool("remote")
+			readDOI := cmd.String("doi")
+			readMissingOK := cmd.Bool("missing-ok")
 			keys := cmd.Args().Slice()
 			switch {
 			case readDOI != "" && len(keys) > 0:
@@ -579,16 +593,22 @@ func listCommand() *cli.Command {
 		Usage:       "List items in your library with optional filters",
 		Description: "$ sci zot item list\n$ sci zot item list --type journalArticle --limit 25\n$ sci zot item list --collection ABC12345\n$ sci zot item list --tag neuroimaging --order title\n$ sci zot item list --collection ABC12345 --remote   # bypass local SQLite (for items not yet synced)",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "type", Aliases: []string{"t"}, Usage: "filter by item type (e.g. journalArticle, book)", Destination: &listType, Local: true},
-			&cli.StringFlag{Name: "collection", Aliases: []string{"c"}, Usage: "filter by collection key", Destination: &listCollection, Local: true},
-			&cli.StringFlag{Name: "tag", Usage: "filter by tag name (local only)", Destination: &listTag, Local: true},
-			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 25, Usage: "max results", Destination: &listLimit, Local: true},
-			&cli.IntFlag{Name: "offset", Value: 0, Usage: "pagination offset", Destination: &listOffset, Local: true},
-			&cli.StringFlag{Name: "order", Value: "added", Usage: "sort order: added, modified, title (local only)", Destination: &listOrder, Local: true},
-			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API (shows items not yet synced locally)", Destination: &listRemote, Local: true},
+			&cli.StringFlag{Name: "type", Aliases: []string{"t"}, Usage: "filter by item type (e.g. journalArticle, book)", Local: true},
+			&cli.StringFlag{Name: "collection", Aliases: []string{"c"}, Usage: "filter by collection key", Local: true},
+			&cli.StringFlag{Name: "tag", Usage: "filter by tag name (local only)", Local: true},
+			&cli.IntFlag{Name: "limit", Aliases: []string{"n"}, Value: 25, Usage: "max results", Local: true},
+			&cli.IntFlag{Name: "offset", Value: 0, Usage: "pagination offset", Local: true},
+			&cli.StringFlag{Name: "order", Value: "added", Usage: "sort order: added, modified, title (local only)", Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API (shows items not yet synced locally)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			if listRemote {
+			listType := cmd.String("type")
+			listCollection := cmd.String("collection")
+			listTag := cmd.String("tag")
+			listLimit := cmd.Int("limit")
+			listOffset := cmd.Int("offset")
+			listOrder := cmd.String("order")
+			if cmd.Bool("remote") {
 				if listTag != "" {
 					return cmdutil.UsageErrorf(cmd, "--tag is local-only; drop it or drop --remote")
 				}
@@ -675,8 +695,6 @@ func listCommand() *cli.Command {
 	}
 }
 
-var infoOrient bool
-
 func infoCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "info",
@@ -686,16 +704,17 @@ func infoCommand() *cli.Command {
 			"$ sci zot info --library shared      # narrow to shared\n" +
 			"$ sci zot info --orient              # add agent-bootstrap signals (top tags/collections, recent items, has-markdown coverage)",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "orient", Usage: "include top tags + top collections + recent items + has-markdown extraction coverage", Destination: &infoOrient, Local: true},
+			&cli.BoolFlag{Name: "orient", Usage: "include top tags + top collections + recent items + has-markdown extraction coverage", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfg, err := requireConfigCoded()
 			if err != nil {
 				return err
 			}
+			orient := cmd.Bool("orient")
 			// Flag supplied → narrow to one library.
 			if _, ok := LibraryFromContext(ctx); ok {
-				entry, err := statsForScope(ctx, cfg)
+				entry, err := statsForScope(ctx, cfg, orient)
 				if err != nil {
 					return err
 				}
@@ -703,7 +722,7 @@ func infoCommand() *cli.Command {
 				return nil
 			}
 			// No flag → summarize every library the account has access to.
-			return runInfoAllLibraries(ctx, cmd, cfg)
+			return runInfoAllLibraries(ctx, cmd, cfg, orient)
 		},
 	}
 }
@@ -711,20 +730,20 @@ func infoCommand() *cli.Command {
 // statsForScope opens the local DB scoped to ctx's library ref and returns
 // a single StatsResult labeled with the scope. Used by `info --library …`
 // (single scope) and runInfoAllLibraries (loops once per library).
-func statsForScope(ctx context.Context, cfg *zot.Config) (zot.StatsResult, error) {
+func statsForScope(ctx context.Context, cfg *zot.Config, orient bool) (zot.StatsResult, error) {
 	ref, err := ensureLibraryScope(ctx, cfg)
 	if err != nil {
 		return zot.StatsResult{}, err
 	}
-	return statsForRef(cfg, ref)
+	return statsForRef(cfg, ref, orient)
 }
 
 // statsForRef opens the local DB for an explicit ref. Lets the multi-library
 // path (runInfoAllLibraries) iterate without re-priming a holder per call.
-// Reads the package-level infoOrient flag to decide whether to populate
-// the agent-bootstrap signals — keeps the call sites uniform across the
-// flag-set / multi-library / orient combinations.
-func statsForRef(cfg *zot.Config, ref zot.LibraryRef) (zot.StatsResult, error) {
+// orient carries `info --orient` down from the Action and decides whether
+// the agent-bootstrap signals are populated — keeps the call sites uniform
+// across the flag-set / multi-library / orient combinations.
+func statsForRef(cfg *zot.Config, ref zot.LibraryRef, orient bool) (zot.StatsResult, error) {
 	sel, err := localSelectorFor(cfg, ref)
 	if err != nil {
 		return zot.StatsResult{}, err
@@ -757,7 +776,7 @@ func statsForRef(cfg *zot.Config, ref zot.LibraryRef) (zot.StatsResult, error) {
 		DataDir:      cfg.DataDir,
 		Schema:       db.SchemaVersion(),
 	}
-	if infoOrient {
+	if orient {
 		if err := populateOrient(db, &out); err != nil {
 			return zot.StatsResult{}, err
 		}
@@ -798,12 +817,12 @@ func populateOrient(db local.Reader, out *zot.StatsResult) error {
 // runInfoAllLibraries gathers stats for every library the account has
 // access to. Shared-library failures are collected as non-fatal errors so
 // personal still renders when the group isn't synced yet.
-func runInfoAllLibraries(ctx context.Context, cmd *cli.Command, cfg *zot.Config) error {
+func runInfoAllLibraries(ctx context.Context, cmd *cli.Command, cfg *zot.Config, orient bool) error {
 	out := zot.MultiStatsResult{}
 
 	if ref, err := cfg.Resolve(zot.LibPersonal); err != nil {
 		out.Errors = append(out.Errors, "personal: "+err.Error())
-	} else if entry, err := statsForRef(cfg, ref); err != nil {
+	} else if entry, err := statsForRef(cfg, ref, orient); err != nil {
 		out.Errors = append(out.Errors, "personal: "+err.Error())
 	} else {
 		out.PerLibrary = append(out.PerLibrary, entry)
@@ -812,7 +831,7 @@ func runInfoAllLibraries(ctx context.Context, cmd *cli.Command, cfg *zot.Config)
 	if cfg.SharedGroupID != "" {
 		if ref, err := cfg.Resolve(zot.LibShared); err != nil {
 			out.Errors = append(out.Errors, "shared: "+err.Error())
-		} else if entry, err := statsForRef(cfg, ref); err != nil {
+		} else if entry, err := statsForRef(cfg, ref, orient); err != nil {
 			out.Errors = append(out.Errors, "shared: "+err.Error())
 		} else {
 			out.PerLibrary = append(out.PerLibrary, entry)
@@ -830,13 +849,14 @@ func exportCommand() *cli.Command {
 		Description: "$ sci zot item export ABC12345\n$ sci zot item export ABC12345 --format biblatex\n$ sci zot item export ABC12345 --format biblatex --out ref.bib",
 		ArgsUsage:   "<key>",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csl-json", Usage: "output format: csl-json, biblatex (alias: bibtex)", Destination: &exportFormat, Local: true},
-			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file instead of stdout", Destination: &exportOut, Local: true},
+			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csl-json", Usage: "output format: csl-json, biblatex (alias: bibtex)", Local: true},
+			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file instead of stdout", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() == 0 {
 				return cmdutil.UsageErrorf(cmd, "expected an item key")
 			}
+			exportOut := cmd.String("out")
 			key := cmd.Args().First()
 			_, db, err := openLocalDB(ctx)
 			if err != nil {
@@ -848,7 +868,7 @@ func exportCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			format := zot.ExportFormat(exportFormat).Canon()
+			format := zot.ExportFormat(cmd.String("format")).Canon()
 			body, err := zot.ExportItem(it, format)
 			if err != nil {
 				return err
@@ -880,14 +900,14 @@ func childrenCommand() *cli.Command {
 			"`zot item delete` to prune specific notes or attachments.",
 		ArgsUsage: "<parent-item-key>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (sees children written since the last desktop sync)", Destination: &childrenRemote, Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (sees children written since the last desktop sync)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return cmdutil.UsageErrorf(cmd, "expected exactly one item key")
 			}
 			parentKey := cmd.Args().First()
-			if childrenRemote {
+			if cmd.Bool("remote") {
 				return runChildrenRemote(ctx, cmd, parentKey)
 			}
 			_, db, err := openLocalDB(ctx)

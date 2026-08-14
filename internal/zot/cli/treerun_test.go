@@ -10,18 +10,20 @@ import (
 
 // treeRunMu serializes runs of the production command tree.
 //
-// urfave/cli parks a flag's parsed value in the package-level variable
-// named by its Destination (doctorDeep, missingLimit, searchLimit, …),
-// and FlagBase.PreParse writes every declared flag's default on every
-// run — not just the flags that appeared on the command line. Two trees
-// parsing concurrently therefore write the same memory, which `go test
-// -race` (CI's gate, not the local `just ok` one) reports as a data
-// race even though the assertions all pass.
+// urfave/cli writes a flag's parsed value through its Destination
+// pointer, and FlagBase.PreParse does so for every declared flag's
+// default on every run — not just the flags that appeared on the command
+// line. A Destination aimed at a package-level variable therefore makes
+// two concurrently-parsing trees write the same memory, which `go test
+// -race` (CI's gate, not the local `just ok` one) reports as a data race
+// even though the assertions all pass.
 //
-// The tables that exercise the tree are worth keeping t.Parallel, so the
-// runs take this lock instead. Sequential tests need not: Go holds every
-// parallel test until the package's sequential ones have finished, so
-// the two groups never overlap.
+// This package no longer aims a Destination anywhere: each Action reads
+// its flags off the parsed *cli.Command. The lock stays while the rest of
+// the repo is swept, so the tables that exercise the tree can keep
+// t.Parallel. Sequential tests need not take it: Go holds every parallel
+// test until the package's sequential ones have finished, so the two
+// groups never overlap.
 var treeRunMu sync.Mutex
 
 // lockProductionFlags takes treeRunMu for the rest of t, for a parallel

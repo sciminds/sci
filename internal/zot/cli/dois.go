@@ -8,11 +8,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// dois flag destinations.
-var (
-	doisLimit int
-)
-
 func doisCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "dois",
@@ -37,12 +32,11 @@ write against the Zotero Web API and lives in the zot binary, as
 ` + "`zot fix dois`" + `.`,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
-				Name:        "limit",
-				Aliases:     []string{"n"},
-				Value:       25,
-				Usage:       "max findings to print (0 = all)",
-				Destination: &doisLimit,
-				Local:       true,
+				Name:    "limit",
+				Aliases: []string{"n"},
+				Value:   25,
+				Usage:   "max findings to print (0 = all)",
+				Local:   true,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -56,7 +50,7 @@ write against the Zotero Web API and lives in the zot binary, as
 			if err != nil {
 				return err
 			}
-			outputScoped(ctx, cmd, zot.SubobjectDOIsResult{Report: rep, Limit: doisLimit})
+			outputScoped(ctx, cmd, zot.SubobjectDOIsResult{Report: rep, Limit: cmd.Int("limit")})
 			return nil
 		},
 	}

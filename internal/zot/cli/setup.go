@@ -14,17 +14,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// setup command flag destinations (package-scoped like other sci commands).
-var (
-	setupAPIKey          string
-	setupUserID          string
-	setupSharedGroupID   string
-	setupSharedGroupName string
-	setupDataDir         string
-	setupLogout          bool
-	setupForce           bool
-)
-
 func setupCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "setup",
@@ -38,13 +27,13 @@ func setupCommand() *cli.Command {
 			"is only for the `--remote` live reads and for naming your shared\n" +
 			"group; sci never writes to a library with it.",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "api", Usage: "Zotero Web API key (required in --json mode)", Destination: &setupAPIKey, Local: true},
-			&cli.StringFlag{Name: "user-id", Usage: "Zotero numeric user ID (required in --json mode)", Destination: &setupUserID, Local: true},
-			&cli.StringFlag{Name: "shared-group-id", Usage: "numeric group ID to use as the shared library (only needed when the account belongs to >1 group)", Destination: &setupSharedGroupID, Local: true},
-			&cli.StringFlag{Name: "shared-group-name", Usage: "display name for the shared group (optional; auto-detected when --shared-group-id is set)", Destination: &setupSharedGroupName, Local: true},
-			&cli.StringFlag{Name: "data-dir", Usage: "path to directory containing zotero.sqlite (auto-detected if omitted)", Destination: &setupDataDir, Local: true},
-			&cli.BoolFlag{Name: "logout", Usage: "clear saved credentials", Destination: &setupLogout, Local: true},
-			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config without prompting", Destination: &setupForce, Local: true},
+			&cli.StringFlag{Name: "api", Usage: "Zotero Web API key (required in --json mode)", Local: true},
+			&cli.StringFlag{Name: "user-id", Usage: "Zotero numeric user ID (required in --json mode)", Local: true},
+			&cli.StringFlag{Name: "shared-group-id", Usage: "numeric group ID to use as the shared library (only needed when the account belongs to >1 group)", Local: true},
+			&cli.StringFlag{Name: "shared-group-name", Usage: "display name for the shared group (optional; auto-detected when --shared-group-id is set)", Local: true},
+			&cli.StringFlag{Name: "data-dir", Usage: "path to directory containing zotero.sqlite (auto-detected if omitted)", Local: true},
+			&cli.BoolFlag{Name: "logout", Usage: "clear saved credentials", Local: true},
+			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config without prompting", Local: true},
 		},
 		Action: runSetup,
 	}
@@ -53,12 +42,16 @@ func setupCommand() *cli.Command {
 // RunSetup runs the interactive Zotero setup flow — the exact flow behind
 // `sci zot setup`. Exported so the top-level `sci setup` menu can delegate to
 // it: one implementation, two entry points.
+//
+// Every pre-fill (--api, --user-id, --data-dir, …) is read off cmd, so the
+// menu's cmd — which declares none of those flags — lands on the fully
+// interactive path, which is what a menu pick means.
 func RunSetup(ctx context.Context, cmd *cli.Command) error {
 	return runSetup(ctx, cmd)
 }
 
 func runSetup(ctx context.Context, cmd *cli.Command) error {
-	if setupLogout {
+	if cmd.Bool("logout") {
 		result, err := zot.Logout()
 		if err != nil {
 			return err
@@ -67,11 +60,11 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	apiKey := setupAPIKey
-	userID := setupUserID
-	sharedGroupID := setupSharedGroupID
-	sharedGroupName := setupSharedGroupName
-	dataDir := setupDataDir
+	apiKey := cmd.String("api")
+	userID := cmd.String("user-id")
+	sharedGroupID := cmd.String("shared-group-id")
+	sharedGroupName := cmd.String("shared-group-name")
+	dataDir := cmd.String("data-dir")
 
 	jsonMode := cmdutil.IsJSON(cmd)
 	// `setup --json` with no creds → print the saved config and exit.
@@ -90,7 +83,7 @@ func runSetup(ctx context.Context, cmd *cli.Command) error {
 
 	// Interactive overwrite guard. In --json (non-interactive) mode the caller
 	// is expected to know what they're doing; --force bypasses the prompt.
-	if !jsonMode && !setupForce && zot.ConfigExists() {
+	if !jsonMode && !cmd.Bool("force") && zot.ConfigExists() {
 		if err := cmdutil.ConfirmYes("zot is already configured. Overwrite?"); err != nil {
 			if errors.Is(err, cmdutil.ErrCancelled) {
 				fmt.Fprintln(os.Stderr, "cancelled")

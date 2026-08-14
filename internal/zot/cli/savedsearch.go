@@ -10,9 +10,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// savedSearchListAll is the destination for `saved-search list --all`.
-var savedSearchListAll bool
-
 func savedSearchCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "saved-search",
@@ -44,7 +41,7 @@ func savedSearchListCommand() *cli.Command {
 		Description: "$ sci zot saved-search list             # active searches only (matches Zotero desktop sidebar)\n" +
 			"$ sci zot saved-search list --all       # include trashed searches",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "all", Usage: "include trashed saved searches", Destination: &savedSearchListAll, Local: true},
+			&cli.BoolFlag{Name: "all", Usage: "include trashed saved searches", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			c, err := requireAPIClient(ctx)
@@ -55,9 +52,10 @@ func savedSearchListCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			all := cmd.Bool("all")
 			searches := lo.FilterMap(raw, func(s client.Search, _ int) (zot.SavedSearch, bool) {
 				ss := savedSearchFromClient(&s)
-				if ss.Deleted && !savedSearchListAll {
+				if ss.Deleted && !all {
 					return ss, false
 				}
 				return ss, true

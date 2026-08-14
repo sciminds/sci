@@ -19,22 +19,6 @@ import (
 // design rationale.
 const keymapFilename = ".zotero-citekeymap.json"
 
-// Library export flag destinations. Kept separate from the single-item
-// exporter's flags (exportFormat/exportOut in read.go) so the two commands
-// don't trample each other when both parse state from a shared test process.
-var (
-	libExportFormat     string
-	libExportOut        string
-	libExportCollection string
-	libExportTag        string
-	libExportType       string
-
-	searchExport       bool   // --export on `zot search`: emit a bibliography
-	searchExportFormat string // --format on `zot search`: biblatex (default) or csl-json
-	searchExportOut    string
-	searchNotes        bool // --notes on `zot search`: filter to items with docling notes
-)
-
 // libraryExportCommand implements `zot export` — a top-level command that
 // writes every item (optionally filtered) to stdout or a file.
 func libraryExportCommand() *cli.Command {
@@ -50,20 +34,22 @@ func libraryExportCommand() *cli.Command {
 			"stamped with its library. With --out it also writes a .meta.json\n" +
 			"sidecar last, so a consumer can tell a finished dump from a partial one.",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "biblatex", Usage: "output format: biblatex (alias: bibtex), csl-json, ndjson", Destination: &libExportFormat, Local: true},
-			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file (enables the keymap or completeness sidecar)", Destination: &libExportOut, Local: true},
-			&cli.StringFlag{Name: "collection", Aliases: []string{"c"}, Usage: "filter by collection key", Destination: &libExportCollection, Local: true},
-			&cli.StringFlag{Name: "tag", Usage: "filter by tag name", Destination: &libExportTag, Local: true},
-			&cli.StringFlag{Name: "type", Aliases: []string{"t"}, Usage: "filter by item type (e.g. journalArticle)", Destination: &libExportType, Local: true},
+			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "biblatex", Usage: "output format: biblatex (alias: bibtex), csl-json, ndjson", Local: true},
+			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file (enables the keymap or completeness sidecar)", Local: true},
+			&cli.StringFlag{Name: "collection", Aliases: []string{"c"}, Usage: "filter by collection key", Local: true},
+			&cli.StringFlag{Name: "tag", Usage: "filter by tag name", Local: true},
+			&cli.StringFlag{Name: "type", Aliases: []string{"t"}, Usage: "filter by item type (e.g. journalArticle)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
+			format := cmd.String("format")
+			outPath := cmd.String("out")
 			// ndjson is the one format that opts into --library all: its
 			// consumer wants the whole corpus in one file, and both
 			// ListAll and ListCollections are converted through libIn.
 			// The citation formats stay single-library — merging two
 			// libraries into one .bib would emit the deliberate
 			// cross-library duplicates as separate entries.
-			isDump := zot.ExportFormat(libExportFormat).Canon() == zot.ExportNDJSON
+			isDump := zot.ExportFormat(format).Canon() == zot.ExportNDJSON
 			open := openLocalDB
 			if isDump {
 				open = openLocalDBAllowAll
@@ -75,22 +61,22 @@ func libraryExportCommand() *cli.Command {
 			defer func() { _ = db.Close() }()
 
 			items, err := db.ListAll(local.ListFilter{
-				ItemType:      libExportType,
-				CollectionKey: libExportCollection,
-				Tag:           libExportTag,
+				ItemType:      cmd.String("type"),
+				CollectionKey: cmd.String("collection"),
+				Tag:           cmd.String("tag"),
 			})
 			if err != nil {
 				return err
 			}
 			if isDump {
-				result, err := runLibraryDump(ctx, db, items, libExportOut)
+				result, err := runLibraryDump(ctx, db, items, outPath)
 				if err != nil {
 					return err
 				}
 				outputScoped(ctx, cmd, result)
 				return nil
 			}
-			result, err := runLibraryExport(items, libExportFormat, libExportOut)
+			result, err := runLibraryExport(items, format, outPath)
 			if err != nil {
 				return err
 			}

@@ -12,26 +12,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// Flag destinations for hygiene commands.
-var (
-	missingFields string
-	missingLimit  int
-
-	dupStrategy  string
-	dupFuzzy     bool
-	dupThreshold float64
-	dupLimit     int
-
-	invalidFields string
-	invalidLimit  int
-
-	orphansKinds      string
-	orphansLimit      int
-	orphansCheckFiles bool
-
-	citekeysLimit int
-)
-
 func missingCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "missing",
@@ -49,19 +29,17 @@ index is a metered lookup plus a Zotero write, and lives in the zot binary
 as ` + "`zot enrich`" + `, which fills from data already on disk.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "field",
-				Aliases:     []string{"f"},
-				Usage:       "comma-separated fields to check (title,creators,date,doi,abstract,url,pdf,tags)",
-				Destination: &missingFields,
-				Local:       true,
+				Name:    "field",
+				Aliases: []string{"f"},
+				Usage:   "comma-separated fields to check (title,creators,date,doi,abstract,url,pdf,tags)",
+				Local:   true,
 			},
 			&cli.IntFlag{
-				Name:        "limit",
-				Aliases:     []string{"n"},
-				Value:       25,
-				Usage:       "max findings to print (0 = all)",
-				Destination: &missingLimit,
-				Local:       true,
+				Name:    "limit",
+				Aliases: []string{"n"},
+				Value:   25,
+				Usage:   "max findings to print (0 = all)",
+				Local:   true,
 			},
 		},
 		Action: runMissing,
@@ -69,7 +47,7 @@ as ` + "`zot enrich`" + `, which fills from data already on disk.`,
 }
 
 func runMissing(ctx context.Context, cmd *cli.Command) error {
-	fields, err := parseMissingFieldList(missingFields)
+	fields, err := parseMissingFieldList(cmd.String("field"))
 	if err != nil {
 		return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 	}
@@ -84,7 +62,7 @@ func runMissing(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	outputScoped(ctx, cmd, zot.MissingResult{Report: rep, Limit: missingLimit})
+	outputScoped(ctx, cmd, zot.MissingResult{Report: rep, Limit: cmd.Int("limit")})
 	return nil
 }
 
@@ -115,41 +93,38 @@ identity needs no corroboration) and hashes every PDF in the library,
 so it costs tens of seconds where the metadata passes cost none.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "strategy",
-				Aliases:     []string{"s"},
-				Value:       "both",
-				Usage:       "match strategy: doi, title, both, content",
-				Destination: &dupStrategy,
-				Local:       true,
+				Name:    "strategy",
+				Aliases: []string{"s"},
+				Value:   "both",
+				Usage:   "match strategy: doi, title, both, content",
+				Local:   true,
 			},
 			&cli.BoolFlag{
-				Name:        "fuzzy",
-				Usage:       "enable slow fuzzy title matching (Levenshtein)",
-				Destination: &dupFuzzy,
-				Local:       true,
+				Name:  "fuzzy",
+				Usage: "enable slow fuzzy title matching (Levenshtein)",
+				Local: true,
 			},
 			&cli.FloatFlag{
-				Name:        "threshold",
-				Aliases:     []string{"t"},
-				Value:       0.85,
-				Usage:       "fuzzy title similarity floor (0..1, requires --fuzzy)",
-				Destination: &dupThreshold,
-				Local:       true,
+				Name:    "threshold",
+				Aliases: []string{"t"},
+				Value:   0.85,
+				Usage:   "fuzzy title similarity floor (0..1, requires --fuzzy)",
+				Local:   true,
 			},
 			&cli.IntFlag{
-				Name:        "limit",
-				Aliases:     []string{"n"},
-				Value:       20,
-				Usage:       "max clusters to print (0 = all)",
-				Destination: &dupLimit,
-				Local:       true,
+				Name:    "limit",
+				Aliases: []string{"n"},
+				Value:   20,
+				Usage:   "max clusters to print (0 = all)",
+				Local:   true,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			strategy, err := parseStrategy(dupStrategy)
+			strategy, err := parseStrategy(cmd.String("strategy"))
 			if err != nil {
 				return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 			}
+			dupThreshold := cmd.Float("threshold")
 			if dupThreshold < 0 || dupThreshold > 1 {
 				return cmdutil.UsageErrorf(cmd, "--threshold must be in [0, 1]")
 			}
@@ -172,14 +147,14 @@ so it costs tens of seconds where the metadata passes cost none.`,
 
 			rep, err := hygiene.Duplicates(db, hygiene.DuplicatesOptions{
 				Strategy:    strategy,
-				Fuzzy:       dupFuzzy,
+				Fuzzy:       cmd.Bool("fuzzy"),
 				Threshold:   dupThreshold,
 				ContentKeys: contentKeys,
 			})
 			if err != nil {
 				return err
 			}
-			outputScoped(ctx, cmd, zot.DuplicatesResult{Report: rep, Limit: dupLimit})
+			outputScoped(ctx, cmd, zot.DuplicatesResult{Report: rep, Limit: cmd.Int("limit")})
 			return nil
 		},
 	}
@@ -197,23 +172,21 @@ Fields: doi, isbn, url, date. Defaults to all.
 All invalid findings are graded SevWarn (citation-affecting).`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "field",
-				Aliases:     []string{"f"},
-				Usage:       "comma-separated fields to validate (doi,isbn,url,date)",
-				Destination: &invalidFields,
-				Local:       true,
+				Name:    "field",
+				Aliases: []string{"f"},
+				Usage:   "comma-separated fields to validate (doi,isbn,url,date)",
+				Local:   true,
 			},
 			&cli.IntFlag{
-				Name:        "limit",
-				Aliases:     []string{"n"},
-				Value:       25,
-				Usage:       "max findings to print (0 = all)",
-				Destination: &invalidLimit,
-				Local:       true,
+				Name:    "limit",
+				Aliases: []string{"n"},
+				Value:   25,
+				Usage:   "max findings to print (0 = all)",
+				Local:   true,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			fields, err := parseInvalidFieldList(invalidFields)
+			fields, err := parseInvalidFieldList(cmd.String("field"))
 			if err != nil {
 				return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 			}
@@ -227,7 +200,7 @@ All invalid findings are graded SevWarn (citation-affecting).`,
 			if err != nil {
 				return err
 			}
-			outputScoped(ctx, cmd, zot.InvalidResult{Report: rep, Limit: invalidLimit})
+			outputScoped(ctx, cmd, zot.InvalidResult{Report: rep, Limit: cmd.Int("limit")})
 			return nil
 		},
 	}
@@ -250,29 +223,26 @@ Opt-in kinds (pass via --kind):
   missing-file      Requires --check-files; stats every attachment.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "kind",
-				Aliases:     []string{"k"},
-				Usage:       "comma-separated orphan kinds to scan",
-				Destination: &orphansKinds,
-				Local:       true,
+				Name:    "kind",
+				Aliases: []string{"k"},
+				Usage:   "comma-separated orphan kinds to scan",
+				Local:   true,
 			},
 			&cli.BoolFlag{
-				Name:        "check-files",
-				Usage:       "stat each imported attachment to detect missing files (slow)",
-				Destination: &orphansCheckFiles,
-				Local:       true,
+				Name:  "check-files",
+				Usage: "stat each imported attachment to detect missing files (slow)",
+				Local: true,
 			},
 			&cli.IntFlag{
-				Name:        "limit",
-				Aliases:     []string{"n"},
-				Value:       25,
-				Usage:       "max findings per kind (0 = all)",
-				Destination: &orphansLimit,
-				Local:       true,
+				Name:    "limit",
+				Aliases: []string{"n"},
+				Value:   25,
+				Usage:   "max findings per kind (0 = all)",
+				Local:   true,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			kinds, err := parseOrphanKindList(orphansKinds)
+			kinds, err := parseOrphanKindList(cmd.String("kind"))
 			if err != nil {
 				return cmdutil.UsageErrorf(cmd, "%s", err.Error())
 			}
@@ -284,14 +254,14 @@ Opt-in kinds (pass via --kind):
 
 			opts := hygiene.OrphansOptions{
 				Kinds:      kinds,
-				CheckFiles: orphansCheckFiles,
+				CheckFiles: cmd.Bool("check-files"),
 				DataDir:    cfg.DataDir,
 			}
 			rep, err := hygiene.Orphans(db, opts)
 			if err != nil {
 				return err
 			}
-			outputScoped(ctx, cmd, zot.OrphansResult{Report: rep, Limit: orphansLimit})
+			outputScoped(ctx, cmd, zot.OrphansResult{Report: rep, Limit: cmd.Int("limit")})
 			return nil
 		},
 	}
@@ -318,12 +288,11 @@ through the Zotero Web API is destructive against a BBT-managed library,
 and lives in the zot binary as ` + "`zot fix citekeys`" + `.`,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
-				Name:        "limit",
-				Aliases:     []string{"n"},
-				Value:       25,
-				Usage:       "max findings to print (0 = all)",
-				Destination: &citekeysLimit,
-				Local:       true,
+				Name:    "limit",
+				Aliases: []string{"n"},
+				Value:   25,
+				Usage:   "max findings to print (0 = all)",
+				Local:   true,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -337,7 +306,7 @@ and lives in the zot binary as ` + "`zot fix citekeys`" + `.`,
 			if err != nil {
 				return err
 			}
-			outputScoped(ctx, cmd, zot.CitekeysResult{Report: rep, Limit: citekeysLimit})
+			outputScoped(ctx, cmd, zot.CitekeysResult{Report: rep, Limit: cmd.Int("limit")})
 			return nil
 		},
 	}

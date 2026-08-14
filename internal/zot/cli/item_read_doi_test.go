@@ -20,15 +20,12 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// runItemRead is like runOrient/runInfo but tailored for item read so the
-// flag-destination state used by readCommand is reset between tests
-// (otherwise --doi from one test leaks into the next).
+// runItemRead is runOrient/runInfo's twin for `item read`: it builds the
+// production tree, captures stdout, and runs argv through it. Flag values
+// are read off the parsed *cli.Command inside each Action, so nothing
+// carries over from one call to the next.
 func runItemRead(t *testing.T, args ...string) ([]byte, error) {
 	t.Helper()
-	t.Cleanup(func() {
-		readDOI = ""
-		readRemote = false
-	})
 
 	oldStdout := os.Stdout
 	r, w, err := os.Pipe()

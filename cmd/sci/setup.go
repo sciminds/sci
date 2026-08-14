@@ -57,7 +57,9 @@ func orNotSet(v string) string {
 // re-reads current on-disk status.
 func setupRegistry() []setupEntry {
 	return []setupEntry{
-		{key: "lab", title: "Lab storage (SSH/SFTP)", status: labSetupStatus, fields: labFields, run: runLabSetup},
+		{key: "lab", title: "Lab storage (SSH/SFTP)", status: labSetupStatus, fields: labFields, run: func(ctx context.Context, cmd *cli.Command) error {
+			return runLabSetup(ctx, cmd, "")
+		}},
 		{key: "zot", title: "Zotero library (read-only)", status: zotSetupStatus, fields: zotFields, run: zotcli.RunSetup},
 		{key: "cass", title: "Canvas LMS (cass)", status: cassSetupStatus, fields: cassFields, run: func(ctx context.Context, cmd *cli.Command) error {
 			return runCassSetup(ctx, cmd, "")

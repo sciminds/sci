@@ -10,9 +10,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// link-command flag destinations (package-scoped).
-var linkListRemote bool
-
 func linkCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "link",
@@ -45,15 +42,16 @@ func linkListCommand() *cli.Command {
 			"so pass --remote to see one `zot link add` just made.",
 		ArgsUsage: "<item-key>",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "remote", Usage: "read from the Zotero Web API instead of the local mirror", Destination: &linkListRemote, Local: true},
+			&cli.BoolFlag{Name: "remote", Usage: "read from the Zotero Web API instead of the local mirror", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return cmdutil.UsageErrorf(cmd, "expected exactly one item key")
 			}
 			key := cmd.Args().First()
+			remote := cmd.Bool("remote")
 
-			rels, err := readRelations(ctx, key)
+			rels, err := readRelations(ctx, key, remote)
 			if err != nil {
 				return err
 			}
@@ -64,18 +62,18 @@ func linkListCommand() *cli.Command {
 			outputScoped(ctx, cmd, zot.LinkListResult{
 				Key:       key,
 				Relations: rels,
-				Remote:    linkListRemote,
+				Remote:    remote,
 			})
 			return nil
 		},
 	}
 }
 
-// readRelations fetches an item's relations from whichever source the
-// --remote flag selected, normalizing the API's predicate map into the same
-// shape the local reader returns.
-func readRelations(ctx context.Context, key string) (local.ItemRelationSet, error) {
-	if !linkListRemote {
+// readRelations fetches an item's relations from whichever source
+// remote (`link list --remote`) selected, normalizing the API's predicate
+// map into the same shape the local reader returns.
+func readRelations(ctx context.Context, key string, remote bool) (local.ItemRelationSet, error) {
+	if !remote {
 		_, db, err := openLocalDB(ctx)
 		if err != nil {
 			return local.ItemRelationSet{}, err

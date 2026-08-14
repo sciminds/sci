@@ -17,13 +17,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// Bib-command flag destinations.
-var (
-	bibFormat    string
-	bibOut       string
-	bibRecursive bool
-)
-
 // bibDocExts are the file extensions `zot bib` scans when given a
 // directory: markdown (vault notes), Quarto, and R Markdown manuscripts.
 // Matched case-insensitively via bibDocExt — R Markdown conventionally
@@ -49,15 +42,15 @@ func bibCommand() *cli.Command {
 			"$ sci zot bib draft.md            # biblatex to stdout",
 		ArgsUsage: "<file-or-dir>",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "biblatex", Usage: "output format: biblatex (alias: bibtex), csl-json", Destination: &bibFormat, Local: true},
-			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file (enables drift-detection keymap sidecar)", Destination: &bibOut, Local: true},
-			&cli.BoolFlag{Name: "recursive", Aliases: []string{"r"}, Usage: "with a directory, descend into subdirectories", Destination: &bibRecursive, Local: true},
+			&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "biblatex", Usage: "output format: biblatex (alias: bibtex), csl-json", Local: true},
+			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "write to file (enables drift-detection keymap sidecar)", Local: true},
+			&cli.BoolFlag{Name: "recursive", Aliases: []string{"r"}, Usage: "with a directory, descend into subdirectories", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() != 1 {
 				return cmdutil.UsageErrorf(cmd, "expected exactly one file or directory")
 			}
-			files, err := collectBibTargets(cmd.Args().First(), bibRecursive)
+			files, err := collectBibTargets(cmd.Args().First(), cmd.Bool("recursive"))
 			if err != nil {
 				return err
 			}
@@ -95,7 +88,7 @@ func bibCommand() *cli.Command {
 			}
 			resolved, unresolved := bib.Resolve(refs, items)
 
-			export, err := runLibraryExport(resolved, bibFormat, bibOut)
+			export, err := runLibraryExport(resolved, cmd.String("format"), cmd.String("out"))
 			if err != nil {
 				return err
 			}

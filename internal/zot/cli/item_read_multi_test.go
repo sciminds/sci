@@ -84,7 +84,6 @@ func TestItemRead_MultipleKeys_DOIConflictErrors(t *testing.T) {
 
 func TestItemRead_MissingOK_PartialWithReport(t *testing.T) {
 	withOrientConfig(t)
-	t.Cleanup(func() { readMissingOK = false })
 
 	out, err := runItemRead(t, "--json", "--library", "personal", "item", "read", "--missing-ok", "KEY1", "MISSING1", "KEY3")
 	if err != nil {
@@ -117,7 +116,6 @@ func TestItemRead_MissingOK_PartialWithReport(t *testing.T) {
 
 func TestItemRead_MissingOK_SingleKeyKeepsWrapper(t *testing.T) {
 	withOrientConfig(t)
-	t.Cleanup(func() { readMissingOK = false })
 
 	// Under --missing-ok the wrapper shape is unconditional — the flag is
 	// the shape signal, so a batch caller never has to branch on arity.

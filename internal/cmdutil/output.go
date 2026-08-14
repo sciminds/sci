@@ -60,7 +60,7 @@ type Result interface {
 
 // JSONFlag returns a --json BoolFlag that can be included in a command's Flags slice.
 func JSONFlag(dst *bool) *cli.BoolFlag {
-	return &cli.BoolFlag{Name: "json", Usage: "LLM friendly output", Destination: dst} // lint:no-local — on root command, propagates to all subcommands
+	return &cli.BoolFlag{Name: "json", Usage: "LLM friendly output", Destination: dst} // lint:no-local — on root command, propagates to all subcommands; lint:destination-ok — main() reads the destination after root.Run() returns, where no *cli.Command is in scope
 }
 
 // IsJSON returns whether --json was set on the command.

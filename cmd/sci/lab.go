@@ -19,11 +19,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	putDryRun bool
-	setupUser string
-)
-
 // warmMaster is the SSH ControlMaster warmup hook. Indirecting through this
 // var lets unit tests stub the warm step without spinning up real ssh; it
 // also gives every lab subcommand that shells out to ssh/rsync a single
@@ -69,17 +64,18 @@ func labSetupCommand() *cli.Command {
 		Usage:       "Configure SSH access to lab storage",
 		Description: "$ sci lab setup\n$ sci lab setup --user myname",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "user", Aliases: []string{"u"}, Usage: "SSH username (required in --json mode)", Destination: &setupUser, Local: true},
+			&cli.StringFlag{Name: "user", Aliases: []string{"u"}, Usage: "SSH username (required in --json mode)", Local: true},
 		},
-		Action: runLabSetup,
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return runLabSetup(ctx, cmd, cmd.String("user"))
+		},
 	}
 }
 
 // runLabSetup is the lab setup flow, shared by `sci lab setup` and the
-// top-level `sci setup` menu so there is exactly one implementation.
-func runLabSetup(_ context.Context, cmd *cli.Command) error {
-	user := setupUser
-
+// top-level `sci setup` menu (which passes an empty user, so the flow is
+// always interactive there). In --json mode user is required.
+func runLabSetup(_ context.Context, cmd *cli.Command, user string) error {
 	if cmdutil.IsJSON(cmd) && user == "" {
 		return fmt.Errorf("--user is required in --json mode")
 	}
@@ -212,7 +208,7 @@ func labPutCommand() *cli.Command {
 			"$ sci lab put results.csv --dry-run",
 		ArgsUsage: "[local [remote]]",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "show what would be transferred without uploading", Destination: &putDryRun, Local: true},
+			&cli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "show what would be transferred without uploading", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			cfg, err := lab.RequireConfig()
@@ -258,7 +254,7 @@ func labPutCommand() *cli.Command {
 				return err
 			}
 
-			argv := lab.BuildPutArgs(cfg, localPath, remotePath, putDryRun)
+			argv := lab.BuildPutArgs(cfg, localPath, remotePath, cmd.Bool("dry-run"))
 			bin, err := exec.LookPath(argv[0])
 			if err != nil {
 				return fmt.Errorf("rsync not found in PATH")

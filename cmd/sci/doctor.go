@@ -16,13 +16,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	doctorGitName          string
-	doctorGitEmail         string
-	doctorYes              bool
-	doctorSkipUpgradeCheck bool
-)
-
 func doctorCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "doctor",
@@ -31,28 +24,24 @@ func doctorCommand() *cli.Command {
 		Category:    "Maintenance",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "git-name",
-				Usage:       "set git user.name (skips interactive prompt)",
-				Destination: &doctorGitName,
-				Local:       true,
+				Name:  "git-name",
+				Usage: "set git user.name (skips interactive prompt)",
+				Local: true,
 			},
 			&cli.StringFlag{
-				Name:        "git-email",
-				Usage:       "set git user.email (skips interactive prompt)",
-				Destination: &doctorGitEmail,
-				Local:       true,
+				Name:  "git-email",
+				Usage: "set git user.email (skips interactive prompt)",
+				Local: true,
 			},
 			&cli.BoolFlag{
-				Name:        "yes",
-				Usage:       "auto-confirm prerequisite installs (e.g. Homebrew) — required to drive a fresh-machine setup under --json",
-				Destination: &doctorYes,
-				Local:       true,
+				Name:  "yes",
+				Usage: "auto-confirm prerequisite installs (e.g. Homebrew) — required to drive a fresh-machine setup under --json",
+				Local: true,
 			},
 			&cli.BoolFlag{
-				Name:        "skip-upgrade-check",
-				Usage:       "skip the brew/uv outdated check and upgrade prompt (used by `sci update`)",
-				Destination: &doctorSkipUpgradeCheck,
-				Local:       true,
+				Name:  "skip-upgrade-check",
+				Usage: "skip the brew/uv outdated check and upgrade prompt (used by `sci update`)",
+				Local: true,
 			},
 		},
 		Action: runDoctorCheck,
@@ -66,9 +55,10 @@ func doctorCommand() *cli.Command {
 const postUpdateEnvVar = "SCI_SKIP_UPGRADE_CHECK"
 
 // skipUpgradeCheck reports whether the upgrade-check step should be
-// suppressed — either via the flag or the env var set by `sci update`.
-func skipUpgradeCheck() bool {
-	return doctorSkipUpgradeCheck || os.Getenv(postUpdateEnvVar) == "1"
+// suppressed — either via the --skip-upgrade-check flag (passed in as
+// flagSet) or the env var set by `sci update`.
+func skipUpgradeCheck(flagSet bool) bool {
+	return flagSet || os.Getenv(postUpdateEnvVar) == "1"
 }
 
 // closingSummary returns the trailing message printed at the end of doctor.
@@ -117,15 +107,16 @@ func printClosingSummary(sections []doctor.CheckSection) {
 }
 
 // applyGitIdentityFlags writes any --git-name / --git-email values straight
-// to global git config. Shared by both platform Action bodies.
-func applyGitIdentityFlags() error {
-	if doctorGitName != "" {
-		if err := exec.Command("git", "config", "--global", "user.name", doctorGitName).Run(); err != nil {
+// to global git config. Shared by both platform Action bodies, which read the
+// two flag values off their *cli.Command and pass them in.
+func applyGitIdentityFlags(gitName, gitEmail string) error {
+	if gitName != "" {
+		if err := exec.Command("git", "config", "--global", "user.name", gitName).Run(); err != nil {
 			return fmt.Errorf("set git user.name: %w", err)
 		}
 	}
-	if doctorGitEmail != "" {
-		if err := exec.Command("git", "config", "--global", "user.email", doctorGitEmail).Run(); err != nil {
+	if gitEmail != "" {
+		if err := exec.Command("git", "config", "--global", "user.email", gitEmail).Run(); err != nil {
 			return fmt.Errorf("set git user.email: %w", err)
 		}
 	}
@@ -133,10 +124,11 @@ func applyGitIdentityFlags() error {
 }
 
 // promptGitIdentity checks whether git user.name or user.email are missing
-// (and weren't supplied via flags) and prompts the user to set them.
-func promptGitIdentity(result doctor.DocResult) error {
-	needName := doctorGitName == "" && gitIdentityMissing(result, "Git user.name")
-	needEmail := doctorGitEmail == "" && gitIdentityMissing(result, "Git user.email")
+// (and weren't supplied via the --git-name / --git-email flags, passed in as
+// gitName and gitEmail) and prompts the user to set them.
+func promptGitIdentity(result doctor.DocResult, gitName, gitEmail string) error {
+	needName := gitName == "" && gitIdentityMissing(result, "Git user.name")
+	needEmail := gitEmail == "" && gitIdentityMissing(result, "Git user.email")
 	if !needName && !needEmail {
 		return nil
 	}

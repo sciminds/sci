@@ -4,6 +4,12 @@ ldflags := "-s -w -X github.com/sciminds/sci/internal/version.Commit=" + commit
 build:
     go build -ldflags="{{ldflags}}" -o sci ./cmd/sci
 
+# Type-check the build-tagged files the host platform never compiles
+# (doctor_linux.go, tools_linux.go, …). CI cross-compiles for release; this
+# is the local equivalent, so a _linux.go edit can't silently break the build.
+build-linux:
+    GOOS=linux GOARCH=amd64 go build -o /dev/null ./cmd/sci
+
 # A symlink, not a copy, is what makes every rebuild land instantly:
 # `go build` writes a fresh inode each time, so macOS never sees a
 # mutated ad-hoc signature (the exit-137 SIGKILL that forces zen's

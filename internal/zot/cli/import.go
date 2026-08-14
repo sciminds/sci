@@ -33,11 +33,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	importTimeout time.Duration
-	importNoWait  bool
-)
-
 func importCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "import",
@@ -66,17 +61,15 @@ func importCommand() *cli.Command {
 			"standalone attachment), use `sci zot item add --file` instead.",
 		Flags: []cli.Flag{
 			&cli.DurationFlag{
-				Name:        "timeout",
-				Value:       connector.DefaultTimeout,
-				Usage:       "how long to wait for recognition before returning a partial result (single-file mode only)",
-				Destination: &importTimeout,
-				Local:       true,
+				Name:  "timeout",
+				Value: connector.DefaultTimeout,
+				Usage: "how long to wait for recognition before returning a partial result (single-file mode only)",
+				Local: true,
 			},
 			&cli.BoolFlag{
-				Name:        "no-wait",
-				Usage:       "return immediately after upload; skip polling for recognition (single-file mode only — batch always skips)",
-				Destination: &importNoWait,
-				Local:       true,
+				Name:  "no-wait",
+				Usage: "return immediately after upload; skip polling for recognition (single-file mode only — batch always skips)",
+				Local: true,
 			},
 		},
 		Action: runImport,
@@ -95,21 +88,25 @@ func runImport(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	c := connector.NewClient()
+	timeout := cmd.Duration("timeout")
 
 	// Single-file fast path: keep current UX (no progress bar, blocking wait
 	// for recognition). The user explicitly named one PDF, so we owe them
 	// the title right there in the result line.
 	if len(paths) == 1 && len(args) == 1 && skippedNonPDF == 0 {
-		return runImportSingle(ctx, cmd, c, paths[0])
+		return runImportSingle(ctx, cmd, c, paths[0], timeout, cmd.Bool("no-wait"))
 	}
 
-	return runImportBatch(ctx, cmd, c, paths, skippedNonPDF)
+	return runImportBatch(ctx, cmd, c, paths, skippedNonPDF, timeout)
 }
 
-func runImportSingle(ctx context.Context, cmd *cli.Command, c *connector.Client, path string) error {
+// runImportSingle imports one PDF and, unless noWait is set, blocks up to
+// timeout for Zotero desktop's metadata recognition so the result line can
+// carry the recognized title.
+func runImportSingle(ctx context.Context, cmd *cli.Command, c *connector.Client, path string, timeout time.Duration, noWait bool) error {
 	res, err := connector.Import(ctx, c, path, connector.Options{
-		Timeout: importTimeout,
-		NoWait:  importNoWait,
+		Timeout: timeout,
+		NoWait:  noWait,
 	})
 	if err != nil {
 		return fmt.Errorf("zot import: %w", err)
@@ -122,12 +119,15 @@ func runImportSingle(ctx context.Context, cmd *cli.Command, c *connector.Client,
 	return nil
 }
 
-func runImportBatch(ctx context.Context, cmd *cli.Command, c *connector.Client, paths []string, skippedNonPDF int) error {
+// runImportBatch imports many PDFs behind a progress bar. Recognition is
+// never awaited per file (that would multiply latency by N), so timeout
+// bounds each upload rather than a recognition poll.
+func runImportBatch(ctx context.Context, cmd *cli.Command, c *connector.Client, paths []string, skippedNonPDF int, timeout time.Duration) error {
 	var batch *connector.BatchResult
 	err := uikit.RunWithProgress("Importing PDFs", func(t *uikit.ProgressTracker) error {
 		t.SetTotal(len(paths))
 		res, berr := connector.ImportBatch(ctx, c, paths, connector.BatchOptions{
-			Timeout: importTimeout,
+			Timeout: timeout,
 			OnStart: func(_, _ int, p string) {
 				t.Status(filepath.Base(p))
 			},

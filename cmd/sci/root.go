@@ -35,6 +35,10 @@ func buildRoot() *cli.Command {
 		Description: "# agents: every command accepts --json ({ok,data,warnings} / {ok:false,error:{code,message,fix,try}});\n" +
 			"# resubmit error.fix verbatim when present. For Zotero work run `sci zot guide --json` once first.",
 		Flags: []cli.Flag{
+			// lint:destination-ok — the sole flag destination left in this
+			// package: main() reads jsonOutput at the cmdutil.HandleError
+			// call below, after root.Run() has returned and no *cli.Command
+			// is in scope. Every other flag is read via cmd.<Type>("name").
 			cmdutil.JSONFlag(&jsonOutput),
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {

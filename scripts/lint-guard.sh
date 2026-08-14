@@ -688,6 +688,52 @@ else
 	fi
 fi
 
+# ── Rule 19: a flag must not park its value in a package-level variable ──────
+# `Destination: &someGlobal` makes flag state shared mutable global state, and
+# urfave/cli v3 writes through that pointer far more often than it looks:
+# FlagBase.PreParse stamps EVERY declared flag's default on EVERY Run, not just
+# the flags that appeared on the command line. Two consequences, both of which
+# bit this repo:
+#
+#   1. Two command trees parsing at once write the same memory. Harmless in
+#      production (one tree per process) but a genuine data race in tests, and
+#      `just check-ci` runs the suite under -race while `just ok` does not — so
+#      it fails in CI on a green local gate.
+#   2. In a single package, two flags on unrelated commands that name the same
+#      destination ARE the same variable. Nothing warns; one command silently
+#      reads the other's value.
+#
+# Fix: drop Destination and read the value off the command inside the Action —
+# cmd.String("name") / cmd.Bool / cmd.Int / cmd.Duration / cmd.StringSlice, on
+# the flag's PRIMARY name. urfave returns the flag's Value: default when the
+# flag is absent, which is exactly what the global held. A helper that needs
+# the value takes it as a parameter; that makes the dependency visible in the
+# signature instead of hiding it in package scope.
+#
+# Waiver: `// lint:destination-ok — <reason>` on the same line, for the one
+# case the accessor cannot serve — a value read after Run() has returned, when
+# no *cli.Command is in scope any more (cmd/sci's --json, which HandleError
+# needs to pick the error envelope).
+dest_files=$(rg -l --type go --glob '!*_test.go' --glob '!vendor/**' \
+	'urfave/cli' . 2>/dev/null || true)
+
+if [[ -n "$dest_files" ]]; then
+	flag_dest=$(echo "$dest_files" | tr '\n' '\0' |
+		xargs -0 rg -n 'Destination:' 2>/dev/null |
+		rg -v 'lint:destination-ok' || true)
+
+	if [[ -n "$flag_dest" ]]; then
+		echo "FAIL [flag-no-global-destination] flag parks its value in a package variable:"
+		echo "$flag_dest" | sed 's/^/  /'
+		echo "  PreParse writes every declared flag's default through this pointer on"
+		echo "  every Run, so the value is shared across command trees and across any"
+		echo "  other flag naming the same variable."
+		echo "  Read it in the Action instead: cmd.String(\"name\") / cmd.Bool / cmd.Int,"
+		echo "  on the flag's primary name, and pass it to helpers as a parameter."
+		fail "flag-no-global-destination"
+	fi
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 if [[ $errors -gt 0 ]]; then
 	echo ""
