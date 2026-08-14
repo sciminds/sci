@@ -86,6 +86,56 @@ func TestSearch_LibraryAll_RemoteConflicts(t *testing.T) {
 	}
 }
 
+// TestSearch_LibraryAll_EmptyHintIsFollowable: a zero-hit hint is read the
+// same way a Fix is — as the next thing to run. Under the merged pool the
+// usual "try --remote" is a hard conflict (searchAllConflicts), so pointing
+// there hands back a command that cannot succeed. The rerun Fix is already
+// blanked under `all` for exactly this reason; the hint owes the same.
+func TestSearch_LibraryAll_EmptyHintIsFollowable(t *testing.T) {
+	withSharedOrientConfig(t)
+
+	out, err := runZotAll(t, "--json", "--library", "all", "search", "zzzznosuchterm")
+	if err != nil {
+		t.Fatalf("search --library all: %v\n%s", err, string(out))
+	}
+	var result struct {
+		Count int    `json:"count"`
+		Hint  string `json:"hint"`
+	}
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse: %v\n%s", err, string(out))
+	}
+	if result.Count != 0 {
+		t.Fatalf("expected an empty result to hint on, got %d hits", result.Count)
+	}
+	if strings.Contains(result.Hint, "--remote") {
+		t.Errorf("hint must not point at --remote under --library all — it conflicts there: %q", result.Hint)
+	}
+	if !strings.Contains(result.Hint, "--library personal") {
+		t.Errorf("hint should point at narrowing to one library, got %q", result.Hint)
+	}
+}
+
+// TestSearch_SingleLibrary_EmptyHintStillWidens pins the other half: with a
+// single library resolved, --remote IS the honest next step.
+func TestSearch_SingleLibrary_EmptyHintStillWidens(t *testing.T) {
+	withSharedOrientConfig(t)
+
+	out, err := runZotAll(t, "--json", "--library", "personal", "search", "zzzznosuchterm")
+	if err != nil {
+		t.Fatalf("search --library personal: %v\n%s", err, string(out))
+	}
+	var result struct {
+		Hint string `json:"hint"`
+	}
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse: %v\n%s", err, string(out))
+	}
+	if !strings.Contains(result.Hint, "--remote") {
+		t.Errorf("single-library hint should still widen to --remote, got %q", result.Hint)
+	}
+}
+
 func TestSearch_LibraryAll_NotesFilterConflicts(t *testing.T) {
 	withSharedOrientConfig(t)
 
@@ -103,8 +153,13 @@ func TestItemRead_LibraryAll_RejectedWithGuidance(t *testing.T) {
 		t.Fatal("item read must reject --library all until its full read path is converted")
 	}
 	msg := err.Error()
-	if !strings.Contains(msg, "search and bib") || !strings.Contains(msg, "single library") {
-		t.Errorf("rejection should name which commands accept all and why this one can't: %v", err)
+	// The list must stay complete: `export --format ndjson` and `browse`
+	// accept `all` too, and an error naming only two of the four teaches a
+	// caller that the other two refuse it.
+	for _, want := range []string{"search", "bib", "export --format ndjson", "browse", "single library"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("rejection should name %q — which commands accept all, and why this one can't: %v", want, err)
+		}
 	}
 }
 

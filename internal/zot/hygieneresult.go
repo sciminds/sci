@@ -536,9 +536,9 @@ func (r SubobjectDOIsResult) Human() string {
 		fmt.Fprintf(&b, "    %s %d more (use --limit 0 or --json for all)\n",
 			uikit.TUI.Dim().Render("…"), truncated)
 	}
-	fmt.Fprintf(&b, "\n  %s %d finding(s) — run with %s to repair\n",
+	fmt.Fprintf(&b, "\n  %s %d finding(s) — rewriting each DOI to its parent-paper form is %s in the zot binary\n",
 		uikit.SymArrow, len(r.Report.Findings),
-		uikit.TUI.TextBlue().Render("--fix"),
+		uikit.TUI.TextBlue().Render("zot fix dois"),
 	)
 	return b.String()
 }

@@ -202,3 +202,31 @@ func TestDoctorResult_DeepLabel(t *testing.T) {
 		t.Errorf("Human() should mark fast mode")
 	}
 }
+
+// TestSubobjectDOIsResult_FooterNamesNoRemovedFlag pins the human footer of
+// `zot doctor dois`. The check reports and stops — `--fix` left with the
+// rest of the write plane and now fails as an unknown flag — so a footer
+// telling the reader to "run with --fix" hands back a command line that
+// errors, and contradicts the command's own Description. The repair lives
+// in the zot binary.
+func TestSubobjectDOIsResult_FooterNamesNoRemovedFlag(t *testing.T) {
+	t.Parallel()
+	res := SubobjectDOIsResult{Report: &hygiene.Report{
+		Check:   "dois",
+		Scanned: 2,
+		Findings: []hygiene.Finding{{
+			Check: "dois", Kind: "subobject", ItemKey: "ABC12345",
+			Title: "A paper", Severity: hygiene.SevWarn,
+			Message: "DOI points at a figure, not the paper",
+		}},
+	}}
+	out := res.Human()
+	for _, banned := range []string{"--fix", "--apply"} {
+		if strings.Contains(out, banned) {
+			t.Errorf("footer advertises %s, which the command no longer accepts:\n%s", banned, out)
+		}
+	}
+	if !strings.Contains(out, "zot fix dois") {
+		t.Errorf("footer should name the zot binary's repair verb:\n%s", out)
+	}
+}

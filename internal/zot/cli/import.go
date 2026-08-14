@@ -15,10 +15,12 @@ package cli
 //     keeps recognizing in the background and the user sees titles populate
 //     in Zotero shortly after the batch finishes.
 //
-// This is intentionally a separate command from `zot item add --file` (Web
-// API, headless, no recognition). Users pick based on whether desktop is
-// available: import when you want real metadata, item add --file when you
-// don't care or don't have desktop up.
+// This is intentionally a separate operation from the zot binary's
+// `zot item add --file` (Web API, headless, no recognition). Users pick based
+// on whether desktop is available: import when you want real metadata,
+// `zot item add --file` when you don't care or don't have desktop up. sci
+// keeps only the desktop-connector half — the Web-API upload is a credentialed
+// write and lives in the other binary.
 
 import (
 	"context"
@@ -57,8 +59,8 @@ func importCommand() *cli.Command {
 			"\n" +
 			"Requires Zotero desktop to be running. Uses desktop's currently\n" +
 			"selected library — not the --library flag — which is why this command\n" +
-			"is exempt from --library. For a headless Web-API upload (no recognition,\n" +
-			"standalone attachment), use `sci zot item add --file` instead.",
+			"is exempt from --library. A headless Web-API upload (no recognition,\n" +
+			"standalone attachment) is `zot item add --file` in the zot binary.",
 		Flags: []cli.Flag{
 			&cli.DurationFlag{
 				Name:  "timeout",

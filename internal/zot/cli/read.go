@@ -28,10 +28,11 @@ func openLocalDB(ctx context.Context) (*zot.Config, local.Reader, error) {
 }
 
 // openLocalDBAllowAll is openLocalDB for the commands that opted into
-// the merged --library all pool (search, bib). Everything else goes
-// through openLocalDB, which rejects `all` with the rewrite hint —
-// their query paths still bind a single libraryID and would silently
-// answer personal-only.
+// the merged --library all pool (search, bib, export --format ndjson).
+// Everything else goes through openLocalDB, which rejects `all` with the
+// rewrite hint — their query paths still bind a single libraryID and would
+// silently answer personal-only. (`browse` is the fourth `all` surface and
+// opens local.Open directly, so it never reaches either helper.)
 func openLocalDBAllowAll(ctx context.Context) (*zot.Config, local.Reader, error) {
 	return openLocalDBScoped(ctx, true)
 }
@@ -47,7 +48,7 @@ func openLocalDBScoped(ctx context.Context, allowAll bool) (*zot.Config, local.R
 	}
 	if ref.Scope == zot.LibAll && !allowAll {
 		return nil, nil, cmdutil.Coded(cmdutil.CodeUsage,
-			"--library all is supported by search and bib only (so far) — this command reads a single library").
+			"--library all is supported by search, bib, export --format ndjson, and browse (so far) — this command reads a single library").
 			WithTry("re-run with --library personal or --library shared")
 	}
 	sel, err := localSelectorFor(cfg, ref)
@@ -69,7 +70,7 @@ func openLocalDBScoped(ctx context.Context, allowAll bool) (*zot.Config, local.R
 	// drift from the enveloped copy. Diagnostics go to stderr, so this is
 	// safe under --json.
 	for _, w := range walStaleWarning(db) {
-		fmt.Fprintf(os.Stderr, "  %s %s — %s\n", uikit.SymArrow, w.Message, w.Fix)
+		fmt.Fprintf(os.Stderr, "  %s %s\n", uikit.SymArrow, w.Message)
 	}
 	return cfg, db, nil
 }
@@ -134,7 +135,7 @@ func searchCommand() *cli.Command {
 			&cli.StringFlag{Name: "out", Aliases: []string{"o"}, Usage: "with --export, write to file", Local: true},
 			&cli.BoolFlag{Name: "notes", Usage: "filter to items that HAVE a docling extraction", Local: true},
 			&cli.BoolFlag{Name: "remote", Usage: "hit the Zotero Web API with qmode=everything (matches abstract + fulltext + notes)", Local: true},
-			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "hydrate each hit with abstract + citekey + authors (one extra local read per hit)", Local: true},
+			&cli.BoolFlag{Name: "full", Aliases: []string{"f"}, Usage: "hydrate each hit with abstract + citekey + authors (one batched local read for the whole hit list)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			f := searchFlagsFrom(cmd)
@@ -264,7 +265,7 @@ func searchCommand() *cli.Command {
 				}
 				if len(briefs) == 0 {
 					bres.Scope = localSearchScope()
-					bres.Hint = localSearchHint()
+					bres.Hint = localSearchHint(mergedScope)
 				}
 				outputScoped(ctx, cmd, cmdutil.WithWarnings(bres, staleWarns...))
 				return nil
@@ -279,7 +280,7 @@ func searchCommand() *cli.Command {
 			}
 			if len(items) == 0 {
 				res.Scope = localSearchScope()
-				res.Hint = localSearchHint()
+				res.Hint = localSearchHint(mergedScope)
 			}
 			outputScoped(ctx, cmd, cmdutil.WithWarnings(res, staleWarns...))
 			return nil
@@ -382,7 +383,7 @@ func readCommand() *cli.Command {
 		ArgsUsage: "<key> [key...]",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (for items not yet synced)", Local: true},
-			&cli.StringFlag{Name: "doi", Usage: "look up the item by DOI instead of key (case-insensitive; accepts bare 10.x/y, https://doi.org/..., or doi:... forms; local-only — try `find works <doi>` for OpenAlex)", Local: true},
+			&cli.StringFlag{Name: "doi", Usage: "look up the item by DOI instead of key (case-insensitive; accepts bare 10.x/y, https://doi.org/..., or doi:... forms; local-only — a DOI this library does not hold is a gap here, not a claim the paper does not exist)", Local: true},
 			&cli.BoolFlag{Name: "missing-ok", Usage: "return the items that exist and report the rest in data.missing instead of failing the whole batch; always emits the {count, items} wrapper", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -891,13 +892,13 @@ func childrenCommand() *cli.Command {
 		Usage: "List the child items (attachments + notes) of a parent item",
 		Description: "$ sci zot item children 6R45EVSB\n" +
 			"$ sci zot item children 6R45EVSB --remote   # bypass local sqlite; ground truth\n" +
-			"$ sci zot --json item children 6R45EVSB | jq '.children[] | select(.item_type==\"note\") | .key'\n" +
+			"$ sci zot --json item children 6R45EVSB | jq '.data.children[] | select(.item_type==\"note\") | .key'\n" +
 			"\n" +
 			"Reads the local Zotero database by default. Pass --remote when the\n" +
-			"answer must reflect writes this CLI just made — the local mirror does\n" +
-			"not see them until Zotero desktop syncs, so a local read of a\n" +
-			"freshly-attached parent reports zero children. Use together with\n" +
-			"`zot item delete` to prune specific notes or attachments.",
+			"answer must reflect writes the zot binary or Zotero desktop just\n" +
+			"made — the local mirror does not see them until Zotero desktop\n" +
+			"syncs, so a local read of a freshly-attached parent reports zero\n" +
+			"children. Never read that zero as permission to write.",
 		ArgsUsage: "<parent-item-key>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "remote", Usage: "fetch from the Zotero Web API instead of the local SQLite (sees children written since the last desktop sync)", Local: true},
@@ -1064,8 +1065,16 @@ func localSearchScope() string {
 	return "title, DOI, publication, creators, citekey (local)"
 }
 
-// localSearchHint suggests the next-wider search when a local query comes
-// back empty.
-func localSearchHint() string {
+// localSearchHint suggests the next step when a local query comes back
+// empty. An agent follows a hint the way it follows a Fix, so the hint has
+// to be runnable under the scope that produced it: with one library
+// resolved the honest widening is --remote, but under the merged pool
+// --remote is a hard conflict (searchAllConflicts — the Web API serves one
+// library per call), so the next step there is narrowing instead. This is
+// the same rule that blanks the rerun Fix under `all`.
+func localSearchHint(mergedScope bool) string {
+	if mergedScope {
+		return "narrow to one library (--library personal or --library shared); the merged pool has no wider index behind it, and a single-library search can then widen to the Zotero Web index"
+	}
 	return "try --remote for the Zotero Web index (abstract + notes + PDFs)"
 }

@@ -259,6 +259,27 @@ func TestStatsResult_Human(t *testing.T) {
 	}
 }
 
+// TestStatsResult_OrientCoverageRoutesToTheZotBinary pins the pointer on
+// the first output the guide tells an agent to run. `sci zot llm` is a
+// refusal stub, and the line named it explicitly with the `sci zot` prefix,
+// so it could not even be read as naming the sibling binary. Reading an
+// extraction lives in the zot binary now.
+func TestStatsResult_OrientCoverageRoutesToTheZotBinary(t *testing.T) {
+	t.Parallel()
+	r := StatsResult{
+		ExtractionCoverage: &local.ExtractionCoverage{
+			TotalItems: 100, WithExtraction: 87, Percent: 87.0,
+		},
+	}
+	out := r.Human()
+	if strings.Contains(out, "sci zot llm") {
+		t.Errorf("orient block points at `sci zot llm`, a retired stub:\n%s", out)
+	}
+	if !strings.Contains(out, "zot read") {
+		t.Errorf("orient block should name the zot binary's read verb:\n%s", out)
+	}
+}
+
 func TestExportResult(t *testing.T) {
 	t.Parallel()
 	r := ExportResult{Key: "K", Format: "biblatex", Body: "@article{K,}\n"}

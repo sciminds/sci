@@ -78,6 +78,15 @@ func TestGuide_JSON_MachineReadable(t *testing.T) {
 // all left the catalog, so a consumer holding v1 is holding a map to verbs
 // that now refuse. That is exactly the change this number exists to
 // announce.
+//
+// v3 (2026-08-14) is the same class of change, twice over. The relations
+// entry that read `sci zot link suggest NOTEKEY1` (and named `link add` /
+// `link rm` / `--apply` in its note) became `sci zot link list NOTEKEY1`
+// when the link writes left for the zot binary, so a consumer cached at v2
+// holds a map to three verbs that now refuse. The catalog also gained the
+// item-plane routes an agent was missing — `item list`, `item children`,
+// `saved-search list`, `export --format ndjson` — and corrected the
+// `--library all` scope, which v2 stated as search+bib only.
 func TestGuide_ContractVersion(t *testing.T) {
 	root := &cli.Command{
 		Name: "zot",
@@ -102,8 +111,8 @@ func TestGuide_ContractVersion(t *testing.T) {
 	if err := json.Unmarshal(unwrapData(t, []byte(raw)), &wire); err != nil {
 		t.Fatalf("decode: %v\nraw: %s", err, raw)
 	}
-	if wire.ContractVersion != 2 {
-		t.Errorf("contract_version = %d, want 2", wire.ContractVersion)
+	if wire.ContractVersion != 3 {
+		t.Errorf("contract_version = %d, want 3", wire.ContractVersion)
 	}
 }
 
@@ -137,6 +146,67 @@ func TestGuide_ReferencedCommandsExist(t *testing.T) {
 	if checked == 0 {
 		t.Fatal("no guide entries were checked — parser is broken")
 	}
+}
+
+// TestGuide_ReferencesNoRefusalStub is the other half of the drift fence,
+// and the half that matters more. A retired verb stays REGISTERED so its
+// move is discoverable, which means commandExists happily resolves it —
+// exactly the drift that let the catalog keep pointing at `link suggest`
+// after the link writes left. Existing is not the same as answering.
+//
+// The discriminator is structural rather than prose: both retirement shapes
+// are built by movedToZotCommand / retiredOutrightCommand in retire.go, and
+// both set SkipFlagParsing (so a script passing the old write flags reaches
+// the explanation) AND open their Description with "Retired from sci".
+// Those two facts are authored in one file each, so a new stub inherits the
+// discriminator instead of having to remember it — unlike a Usage-prefix
+// match, which every per-verb call site in moved.go would own.
+func TestGuide_ReferencesNoRefusalStub(t *testing.T) {
+	root := &cli.Command{Name: "zot", Commands: Commands()}
+
+	// Self-check first: a discriminator that stops recognising stubs turns
+	// this fence into a test that passes on everything.
+	if known := resolveGuidePath(root, []string{"item", "add"}); known == nil || !isRefusalStub(known) {
+		t.Fatal("`item add` is no longer recognised as a retired stub — retire.go's shape changed and this fence is now vacuous")
+	}
+
+	for _, sec := range guideContent().Sections {
+		for _, e := range sec.Entries {
+			path, ok := parseGuideCmd(e.Cmd)
+			if !ok {
+				continue // TestGuide_ReferencedCommandsExist owns this failure
+			}
+			leaf := resolveGuidePath(root, path)
+			if leaf == nil {
+				continue // ditto
+			}
+			if isRefusalStub(leaf) {
+				t.Errorf("section %q: cmd %q resolves to a retired stub (`sci zot %s` refuses) — the guide must only advertise verbs that answer",
+					sec.Title, e.Cmd, strings.Join(path, " "))
+			}
+		}
+	}
+}
+
+// resolveGuidePath walks path from root and returns the command it lands
+// on, or nil.
+func resolveGuidePath(root *cli.Command, path []string) *cli.Command {
+	cur := root
+	for _, name := range path {
+		next := findChild(cur, name)
+		if next == nil {
+			return nil
+		}
+		cur = next
+	}
+	return cur
+}
+
+// isRefusalStub reports whether cmd is one of retire.go's two stub shapes.
+// See TestGuide_ReferencesNoRefusalStub for why these two facts and not the
+// Usage prose.
+func isRefusalStub(cmd *cli.Command) bool {
+	return cmd.SkipFlagParsing && strings.HasPrefix(cmd.Description, "Retired from sci")
 }
 
 // parseGuideCmd extracts the leaf path from a `sci zot foo bar …` example.

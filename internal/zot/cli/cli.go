@@ -33,7 +33,7 @@ func PersistentFlags() []cli.Flag {
 		// lint:no-local — persistent flag intentionally cascades to subcommands.
 		&cli.StringFlag{
 			Name:  "library",
-			Usage: "Zotero library to target: personal, shared, or all (auto-selected or prompted when omitted)",
+			Usage: "Zotero library to target: personal, shared, or all (auto-selected or prompted when omitted; `all` merges both and is accepted by search, bib, export --format ndjson, and browse)",
 		},
 	}
 }
@@ -50,7 +50,7 @@ func PersistentFlags() []cli.Flag {
 // the session is interactive, or errors in --json mode.
 //
 // Commands that don't need --library at all (`setup`, `info` without a
-// flag, `find`, `import`, `guide`) simply never call ensureLibraryScope.
+// flag, `import`, `guide`) simply never call ensureLibraryScope.
 // The holder is still installed on ctx — that's harmless and keeps the
 // hook uniform.
 //
@@ -108,7 +108,7 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	saved-search <subcommand>   saved searches (list/show)
 //	tags    <subcommand>        tags (list/browse)
 //	notes   <subcommand>        the notes YOU wrote (list/read)
-//	link    <subcommand>        relate items via dc:relation (add/list/suggest)
+//	link    <subcommand>        read an item's dc:relation links (list)
 //	doctor  [subcommand]        hygiene reports: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates,citekeys,dois}
 //

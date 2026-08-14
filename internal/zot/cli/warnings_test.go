@@ -182,9 +182,14 @@ func TestWALStaleWarning_FiresOnPendingWAL(t *testing.T) {
 	}
 }
 
-// TestWALStaleWarning_CarriesActionableFix — the remedy is the whole point.
-// A user who is told their read may be stale needs to know what to do.
-func TestWALStaleWarning_CarriesActionableFix(t *testing.T) {
+// TestWALStaleWarning_RemedyRidesTheMessage — the remedy is the whole point,
+// but Warning.Fix is a command to resubmit verbatim (same contract as
+// CodedError), and the remedy here is not a command: it is "quit Zotero
+// desktop". An agent that resubmits a Fix of prose collects `command not
+// found: quit`, so the remedy belongs in the message and Fix stays empty —
+// the same call remoteRerunFix already makes when it has no honest command
+// to hand back.
+func TestWALStaleWarning_RemedyRidesTheMessage(t *testing.T) {
 	got := walStaleWarning(fakeFreshness{walBytes: 2_542_072, walOK: true})
 	if len(got) != 1 {
 		t.Fatalf("got %d warnings, want 1", len(got))
@@ -195,8 +200,11 @@ func TestWALStaleWarning_CarriesActionableFix(t *testing.T) {
 	if !strings.Contains(strings.ToLower(got[0].Message), "zotero") {
 		t.Errorf("message does not name Zotero as the cause: %q", got[0].Message)
 	}
-	if got[0].Fix == "" {
-		t.Error("warning carries no fix — the user is told they may be stale with no remedy")
+	if !strings.Contains(strings.ToLower(got[0].Message), "quit zotero") {
+		t.Errorf("message does not carry the remedy: %q", got[0].Message)
+	}
+	if got[0].Fix != "" {
+		t.Errorf("Fix must be a resubmittable command or empty; %q is prose", got[0].Fix)
 	}
 }
 

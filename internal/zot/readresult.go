@@ -491,7 +491,7 @@ func (r StatsResult) writeOrientBlock(b *strings.Builder) {
 	if r.ExtractionCoverage != nil {
 		cov := r.ExtractionCoverage
 		fmt.Fprintf(b, "  %s\n", uikit.TUI.Dim().Render("full-text extractions (has-markdown):"))
-		fmt.Fprintf(b, "    %d / %d items (%.1f%%) — query via `sci zot llm read|query`\n\n",
+		fmt.Fprintf(b, "    %d / %d items (%.1f%%) — reading that text is `zot read` / `zot query` in the zot binary\n\n",
 			cov.WithExtraction, cov.TotalItems, cov.Percent)
 	}
 

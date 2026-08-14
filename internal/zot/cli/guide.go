@@ -25,7 +25,7 @@ import (
 //   - Notes call out tradeoffs, gotchas, or compose-with hints.
 func guideContent() zot.GuideResult {
 	return zot.GuideResult{
-		ContractVersion: 2,
+		ContractVersion: 3,
 		Contract: []string{
 			"Probe data.contract_version first — it bumps only on breaking changes to this contract.",
 			"This surface is READ-ONLY and local: every command below opens your own zotero.sqlite and answers from it. sci holds no credential for writing, and never fetches from OpenAlex, Crossref, or any other upstream index. Writing to the library, extracting paper text, and citation traversal live in the separate `zot` binary. Every retired verb is still registered here and says where its work went — usually a `zot` verb, and for saved-search writes the Zotero desktop app, because the Web API stores a saved search but never evaluates it.",
@@ -35,7 +35,7 @@ func guideContent() zot.GuideResult {
 			"Act on warnings[] before trusting data — stale-local means the local mirror lags Zotero sync (warning carries the --remote resubmit); bib-quality means entries will be incomplete.",
 			"truncated:true means count < total — raise --limit to see the rest.",
 			"Search field clauses work bare: tag:read = @tag: read, and -tag:read excludes the tag.",
-			"--library all (search+bib only) merges personal+shared into one ranked pool; each row's library field is its provenance (library_id reads 0).",
+			"--library all merges personal+shared into one ranked pool — accepted by search, bib, export --format ndjson and browse; each row's library field is its provenance (library_id reads 0). Under all, --remote conflicts (the Web API serves one library per call), so narrow to one library before widening.",
 			"item read accepts cite keys as positionals, not just 8-char Zotero keys. --library goes anywhere in the command.",
 			"Human output is for terminals; pipe --json instead.",
 		},
@@ -79,6 +79,21 @@ func guideContent() zot.GuideResult {
 						Note: "Local, case-insensitive. A DOI the library does not hold is a gap in THIS library, not a claim the paper does not exist.",
 					},
 					{
+						Goal: "List or filter the items in a collection, tag, or type",
+						Cmd:  "sci zot item list --collection ABC12345 --limit 25",
+						Note: "The plain enumerate verb — combine --type / --collection / --tag with --limit / --offset / --order (added, modified, title). Local by default; --remote sees items not yet synced down.",
+					},
+					{
+						Goal: "See an item's attachments and child notes",
+						Cmd:  "sci zot item children ABC12345",
+						Note: "One parent's children with filename and md5. A ZERO answer is ambiguous and says so in a stale-local warning: the local mirror cannot tell a childless item from one whose children were written since the last Zotero desktop sync — never read it as permission to write. --remote is ground truth.",
+					},
+					{
+						Goal: "Read a saved search's definition",
+						Cmd:  "sci zot saved-search list",
+						Note: "`sci zot saved-search show <name-or-key>` prints the {condition, operator, value} triples. Live-only (a saved search has no local row) and read-only: the Web API stores a definition but never evaluates it, so creating one anywhere but Zotero desktop yields a search that returns nothing to anybody.",
+					},
+					{
 						Goal: "List all collections / tags",
 						Cmd:  "sci zot collection list",
 						Note: "Or `sci zot tags list`. Both fast/local. Changing either — creating a collection, tagging an item — is a write and lives in the zot binary.",
@@ -96,7 +111,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Read the notes you wrote, separately from the paper text",
 						Cmd:  "sci zot notes list",
-						Note: "Docling extractions are excluded — on the live library they outnumber real notes 4,710 to 42, so an unfiltered listing is a listing of extractions. `sci zot notes read <note-key> --md` adds a `markdown` field.",
+						Note: "Docling extractions are excluded — on the live library they run to thousands per library against dozens of notes a person actually wrote, so an unfiltered listing is a listing of extractions. `sci zot notes read <note-key> --md` adds a `markdown` field.",
 					},
 					{
 						Goal: "See what an item is related to",
@@ -112,6 +127,11 @@ func guideContent() zot.GuideResult {
 						Goal: "Export the whole library (or a slice) to BibLaTeX / CSL-JSON",
 						Cmd:  "sci zot export --out refs.bib",
 						Note: "Filter with --collection / --tag / --type; --format csl-json for a processor-friendly dump. With --out, writes a .zotero-citekeymap.json sidecar so drifted synthesized keys get a biblatex `ids = {oldkey}` alias next run.",
+					},
+					{
+						Goal: "Mirror the whole item plane for a downstream store",
+						Cmd:  "sci zot export --format ndjson --out zotero-items.ndjson",
+						Note: "A mirror, not a bibliography: one kind-tagged JSON object per line (collections first so a streaming consumer can resolve membership as it goes), keeping versions, tags, collections and attachment metadata. Accepts --library all — every record carries its own `library`. With --out, a .meta.json sidecar is written LAST carrying the body's sha256, so its presence is the completeness signal; it also reports last_sync and pending_wal_bytes. No local filesystem paths.",
 					},
 					{
 						Goal: "Build a .bib of exactly what a manuscript cites",

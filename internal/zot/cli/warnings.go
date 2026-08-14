@@ -83,6 +83,10 @@ type freshnessReader interface {
 // connection behind the *local file*, measured in bytes, fixed by letting
 // Zotero checkpoint. Both reuse CodeStaleLocal — agents branch on "this read
 // may be behind ground truth", which is true either way.
+//
+// The remedy rides the message, and Fix stays empty on purpose: Fix is a
+// command to resubmit verbatim, and "quit Zotero desktop" is not one — an
+// agent that treats prose as a command collects `command not found`.
 func walStaleWarning(db freshnessReader) []cmdutil.Warning {
 	pending, ok := db.PendingWAL()
 	if !ok {
@@ -92,9 +96,9 @@ func walStaleWarning(db freshnessReader) []cmdutil.Warning {
 		Code: cmdutil.CodeStaleLocal,
 		Message: fmt.Sprintf(
 			"Zotero has %s of changes not yet written to the database file, and local reads "+
-				"cannot see them — recent edits and deletions may be missing",
+				"cannot see them — recent edits and deletions may be missing; quit Zotero "+
+				"desktop to let it checkpoint, then re-run",
 			humanBytes(pending)),
-		Fix: "quit Zotero desktop and re-run",
 	}}
 }
 

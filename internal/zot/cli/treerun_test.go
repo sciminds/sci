@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/urfave/cli/v3"
 )
 
@@ -40,7 +41,9 @@ func lockProductionFlags(t *testing.T) {
 //
 // The library Before hook is deliberately not installed: every assertion
 // in these tests lands during flag parsing or inside a stub Action, so
-// no config or database is needed.
+// no config or database is needed. --json IS installed, because the
+// interactive commands refuse it before touching config, and asserting
+// that refusal is exactly the kind of check this helper exists for.
 //
 // Run the tree through this helper and nothing else — a bare
 // `root.Run(...)` inside a parallel test reintroduces the race described
@@ -49,6 +52,10 @@ func runZotTree(t *testing.T, argv ...string) error {
 	t.Helper()
 	treeRunMu.Lock()
 	defer treeRunMu.Unlock()
-	root := &cli.Command{Name: "zot", Flags: PersistentFlags(), Commands: Commands()}
+	root := &cli.Command{
+		Name:     "zot",
+		Flags:    append([]cli.Flag{cmdutil.JSONFlag(new(bool))}, PersistentFlags()...),
+		Commands: Commands(),
+	}
 	return root.Run(context.Background(), argv)
 }
