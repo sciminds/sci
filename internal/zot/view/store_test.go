@@ -582,3 +582,21 @@ func sliceEqual[T comparable](a, b []T) bool {
 	}
 	return true
 }
+
+// TestErrReadOnly_MatchesSharedSentinel pins the wrapping.
+//
+// This store reaches dbtui as a plain store.DataStore, so the only sentinel a
+// consumer can match on is store.ErrReadOnly. A standalone error here would
+// make errors.Is(err, store.ErrReadOnly) false for `sci zot view` alone —
+// true for every other read-only store, false for this one, with nothing at
+// the call site to suggest why.
+func TestErrReadOnly_MatchesSharedSentinel(t *testing.T) {
+	t.Parallel()
+	if !errors.Is(ErrReadOnly, store.ErrReadOnly) {
+		t.Fatal("view.ErrReadOnly must wrap store.ErrReadOnly, or consumers matching the shared sentinel silently miss this store")
+	}
+	// The local message still has to survive for humans reading stderr.
+	if !strings.Contains(ErrReadOnly.Error(), "zot view") {
+		t.Errorf("ErrReadOnly lost its own context: %q", ErrReadOnly.Error())
+	}
+}

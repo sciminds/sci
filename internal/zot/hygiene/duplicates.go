@@ -66,7 +66,7 @@ const (
 // under a second. `sci zot doctor duplicates --fuzzy` (and `sci zot doctor --deep`)
 // enable it.
 //
-// Threshold is the minimum SimilarityRatio (in [0,1]) the fuzzy pass
+// Threshold is the minimum title-similarity ratio (in [0,1]) the fuzzy pass
 // uses to pair singletons. Only consulted when Fuzzy is true. A typical
 // value is 0.85.
 type DuplicatesOptions struct {
@@ -241,7 +241,7 @@ const minFuzzyTitleLen = 20
 // by normalized title and emits any bucket with ≥2 members as a
 // "title-exact" cluster (Score 1.0). Second, if fuzzy is true, it runs a
 // slow fuzzy pass over the *singletons* from the first pass, pairing
-// titles whose SimilarityRatio meets threshold — emitted as "title-fuzzy"
+// titles whose similarity ratio meets threshold — emitted as "title-fuzzy"
 // clusters with the pair's actual ratio as the Score.
 //
 // The exact pass is a hash-bucket operation and is effectively free. The

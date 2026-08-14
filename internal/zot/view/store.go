@@ -5,14 +5,13 @@
 // without touching the live Zotero DB.
 //
 // Every write method returns ErrReadOnly — the store is a projection over
-// pkg/local, which itself opens zotero.sqlite in
+// internal/local, which itself opens zotero.sqlite in
 // mode=ro&immutable=1. The store also implements data.ViewLister and
 // returns IsView(items)=true so dbtui forces the tab into read-only mode
 // as a belt-and-suspenders against future key bindings.
 package view
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -64,7 +63,13 @@ var dateAddedLayouts = []string{
 const humanDateAddedFormat = "01/02/06, 3:04pm"
 
 // ErrReadOnly is returned by every mutating DataStore method.
-var ErrReadOnly = errors.New("zot view: read-only store")
+//
+// It WRAPS [store.ErrReadOnly] rather than standing alone. This store is
+// handed to dbtui as a plain [store.DataStore], so the only sentinel a
+// consumer can reasonably match on is the interface package's — a private
+// error here would make errors.Is(err, store.ErrReadOnly) silently false for
+// `sci zot view` while returning true for every other read-only store.
+var ErrReadOnly = fmt.Errorf("zot view: read-only store: %w", store.ErrReadOnly)
 
 // Store implements [store.DataStore] and [store.ViewLister] over a local.DB.
 // Store takes ownership of the passed local.DB — calling Close on the
