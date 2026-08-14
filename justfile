@@ -97,7 +97,7 @@ test-canvas:
 
 # Real-Zotero-DB smoke (opt-in; reads ./zotero.sqlite or $ZOT_REAL_DB)
 test-zot-real:
-    SLOW=1 go test ./internal/zot/local/ ./internal/zot/hygiene/ -v -count=1
+    SLOW=1 go test ./pkg/local/ ./internal/zot/hygiene/ -v -count=1
 
 test-all: test test-slow
 

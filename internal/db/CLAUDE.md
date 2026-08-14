@@ -2,8 +2,8 @@
 
 The `sci db` verbs that need dual-backend dispatch (`create`, `reset`, `info`,
 `add`, `append`, `delete`, `rename`) and the dbtui-launching `view` command.
-The read-only inspection verbs (`query`, `table`, `cols`, `head`, `tail`,
-`glimpse`, `shape`, `summarize`, `convert`) live in `cmd/sci/db.go` and dispatch
+The read-only inspection verbs (`query`, `cols`, `head`, `tail`, `glimpse`,
+`shape`, `summarize`, `convert`) live in `cmd/sci/db.go` and dispatch
 straight to `internal/duck` — they never enter this package.
 
 ## Dual-backend dispatch (load-bearing)

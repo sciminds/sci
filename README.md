@@ -5,7 +5,7 @@ A small smart CLI toolkit for academic work on macOS in a single command: `sci`
 Highlights:
 - Wraps `brew` and `uv` tool installs to reliably auto-sync with a `Brewfile`
 - TUIs for browsing: files, databases, hugging-face buckets, remote lab servers (ssh)
-- Control Zotero from the command-line (write cloud, read local) with OpenAlex integration, pdf-to-markdown extraction, and LLM tools
+- Query and cite your Zotero library read-only: search it, build a bibliography from exactly what a manuscript cites, export BibLaTeX, and run health checks that report and stop
 - Control Canvas LMS from the command-line (experimental): manage assignments, modules, grades, files, etc
 
 ## Install
@@ -29,7 +29,7 @@ Written in Go because:
 | [`sci py`](#sci-py) | Create ephemeral Python sessions and Marimo notebooks |
 | [`sci proj`](#sci-proj) | Scaffold MyST/Quarto-flavored Python and writing projects |
 | [`sci zot`](#sci-zot) | Query and cite your Zotero library, read-only |
-| [`sci view`](#sci-view) | Interactive viewer for markdown, csv, sqlite, and duckdb files |
+| [`sci view`](#sci-view) | Interactive viewer for markdown, csv, json, parquet, sqlite, and duckdb files |
 | [`sci db`](#sci-db) | Work with sqlite, duckdb, csv, json, and parquet files |
 | [`sci vid`](#sci-vid) | Common video/audio editing operations (trim, resize, mute, …) |
 | [`sci tools`](#sci-tools) | Manage `brew` and `uv` packages and keep Brewfile up-to-date |

@@ -1,6 +1,6 @@
 # Bubble Tea Primer
 
-Bubble Tea is the TUI framework used by all interactive components in sci-go.
+Bubble Tea is the TUI framework used by all interactive components in sci.
 If you're new to Go (or to terminal UIs), this explains the core pattern.
 
 ## The MVU Pattern (Model-View-Update)
@@ -108,10 +108,11 @@ func TestMyFeature(t *testing.T) {
     tm.Type("j")                                        // type a character
     tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})        // send special key
 
-    // Wait for output to contain expected text
-    teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-        return bytes.Contains(bts, []byte("expected text"))
-    })
+    // Wait for output to contain expected text. Always go through
+    // tuitest.WaitFor — it strips ANSI before matching. A raw
+    // bytes.Contains on alt-screen output fragments words across
+    // cursor-diff repaints and times out only under -race.
+    tuitest.WaitFor(t, tm, "expected text", testWait)
 
     // Get final model state
     tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})

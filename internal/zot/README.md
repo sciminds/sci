@@ -39,6 +39,9 @@ paper text, or asks a metered upstream index lives in the sibling `zot` binary.
        │   find · openalex · crossref                │
        │   graph · content · llm                     │
        │   extract · extract-lib                     │
+       │   link add/rm/suggest                       │
+       │   notes add/update/delete                   │
+       │   doctor pdfs                               │
        │                                             │
        │   Each names its `zot` replacement in Try,  │
        │   never in Fix — zot is a different program │

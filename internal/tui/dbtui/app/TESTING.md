@@ -1,6 +1,6 @@
 # Teatest Protocol
 
-Integration tests using [teatest](https://pkg.go.dev/github.com/charmbracelet/x/exp/teatest)
+Integration tests using [teatest](https://pkg.go.dev/github.com/charmbracelet/x/exp/teatest/v2)
 cover the **full message loop**: key → Update() → state change → View().
 
 ## When to write a teatest
