@@ -42,7 +42,7 @@ const (
 	wordMaxLen = 4
 )
 
-// Synthesize builds a deterministic BibTeX cite-key from item metadata.
+// synthesize builds a deterministic BibTeX cite-key from item metadata.
 // Format (v2):
 //
 //	{author}{year}-{words}-{zoteroKey}
@@ -59,7 +59,7 @@ const (
 // segment — including its leading hyphen — is omitted entirely. The
 // Zotero key suffix is always present and guarantees uniqueness without
 // collision arithmetic.
-func Synthesize(it *local.Item) string {
+func synthesize(it *local.Item) string {
 	author := firstCreatorToken(it.Creators)
 	if author == "" {
 		author = "anon"
@@ -95,7 +95,7 @@ func Enrich(it *local.Item) {
 //
 //  1. Native Zotero 7 `citationKey` field
 //  2. Legacy BBT `Citation Key:` line in the `extra` field
-//  3. Synthesized via Synthesize
+//  3. Synthesized via synthesize
 //
 // The boolean return is true when we synthesized the key — exported
 // entries flagged this way are subject to drift and should be tracked
@@ -107,7 +107,7 @@ func Resolve(it *local.Item) (string, bool) {
 	if k := FromExtra(it.Fields["extra"]); k != "" {
 		return k, false
 	}
-	return Synthesize(it), true
+	return synthesize(it), true
 }
 
 // Status is the validation verdict for a cite-key string. See Validate
@@ -303,7 +303,7 @@ func normalizeToken(s string) string {
 // 0 if none is parseable. Handles both raw "YYYY" and Zotero's
 // "YYYY-MM-DD originalText" dual-encoding. Kept here (rather than in the
 // parent package's export.go) so the citekey package has everything
-// Synthesize needs without a back-import.
+// synthesize needs without a back-import.
 func yearFromDate(date string) int {
 	s := strings.TrimSpace(date)
 	if s == "" {

@@ -191,7 +191,7 @@ func (d *DB) RecentlyAdded(n int) ([]RecentItem, error) {
 			r.Title = *title
 		}
 		if dt != nil {
-			r.Year = ParseYear(*dt)
+			r.Year = parseYear(*dt)
 		}
 		// Zotero stores dateAdded in UTC as "YYYY-MM-DD HH:MM:SS"; emit
 		// the date portion only — agents care about the day, not the

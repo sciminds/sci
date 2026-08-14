@@ -11,10 +11,10 @@ import (
 	"github.com/samber/lo"
 )
 
-// RelatedPredicate is Zotero's predicate for user-facing "related items" —
-// the only one sci writes. Kept in sync with api.RelatedPredicate; the two
-// packages don't import each other, and the string is Zotero's, not ours.
-const RelatedPredicate = "dc:relation"
+// relatedPredicate is Zotero's predicate for the user-facing "related items"
+// list, as opposed to the bookkeeping predicates Zotero maintains itself
+// (owl:sameAs, dc:replaces). The string is Zotero's, not ours.
+const relatedPredicate = "dc:relation"
 
 // ItemRelationSet is the relations stored on one item, split by who owns
 // them.
@@ -85,7 +85,7 @@ ORDER BY p.predicate, r.object
 			continue
 		}
 		key := m[1]
-		if predicate == RelatedPredicate {
+		if predicate == relatedPredicate {
 			out.Related = append(out.Related, key)
 			continue
 		}
@@ -158,14 +158,14 @@ WHERE ` + libFrag + ` AND di.itemID IS NULL
 // The fallback matters because a standalone note is the far end of most
 // relations, and Zotero only derives a note title on save — a note written
 // by another tool can arrive with none. The snippet is plain text via
-// [NoteText], so a docling extraction's YAML provenance header would show
+// [noteText], so a docling extraction's YAML provenance header would show
 // through; that is accepted rather than fixed here, because this package
 // reads rows and does not interpret note bodies.
 func relationLabel(title, noteBody string) string {
 	if title != "" {
 		return title
 	}
-	s := NoteText(UnwrapZoteroDiv(noteBody))
+	s := noteText(UnwrapZoteroDiv(noteBody))
 	if len(s) > relationLabelMax {
 		s = s[:relationLabelMax-3] + "..."
 	}

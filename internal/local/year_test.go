@@ -2,7 +2,7 @@ package local
 
 import "testing"
 
-// ParseYear is the fast path that both scan sites (List/Search via
+// parseYear is the fast path that both scan sites (List/Search via
 // scanListRow, Read directly) use to derive a clean int year from the
 // dual-encoded "YYYY-MM-DD originalText" Zotero date string. Table-
 // driven because the input shapes are varied in real libraries — four
@@ -24,8 +24,8 @@ func TestParseYear(t *testing.T) {
 		{"not-a-year", 0},
 	}
 	for _, c := range cases {
-		if got := ParseYear(c.in); got != c.want {
-			t.Errorf("ParseYear(%q) = %d, want %d", c.in, got, c.want)
+		if got := parseYear(c.in); got != c.want {
+			t.Errorf("parseYear(%q) = %d, want %d", c.in, got, c.want)
 		}
 	}
 }

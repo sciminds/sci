@@ -54,7 +54,7 @@ func TestSynthesize_Basic(t *testing.T) {
 			{Type: "author", First: "Jane", Last: "Smith"},
 		},
 	}
-	got := Synthesize(it)
+	got := synthesize(it)
 	// v2 format: {author}{year}-{up to 3 title words × 4 chars}-{ZOTKEY}.
 	// Title "Deep Learning for Neuroimaging" → deep + lear + neur (for is stopword).
 	want := "smith2020-deeplearneur-ABCD1234"
@@ -80,7 +80,7 @@ func TestSynthesize_SkipsStopwords(t *testing.T) {
 			Date:     "2020",
 			Creators: []local.Creator{{Type: "author", Last: "Smith"}},
 		}
-		if got := Synthesize(it); got != want {
+		if got := synthesize(it); got != want {
 			t.Errorf("title=%q: got %q, want %q", title, got, want)
 		}
 	}
@@ -96,7 +96,7 @@ func TestSynthesize_AllStopwordsFallsBackToFirstWord(t *testing.T) {
 	}
 	// No non-stopword available — fall back to first raw word.
 	want := "band1980-the-ABCD1234"
-	if got := Synthesize(it); got != want {
+	if got := synthesize(it); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -110,7 +110,7 @@ func TestSynthesize_InstitutionalAuthor(t *testing.T) {
 		Creators: []local.Creator{{Type: "author", Name: "NASA"}},
 	}
 	want := "nasa1969-missrepo-ABCD1234"
-	if got := Synthesize(it); got != want {
+	if got := synthesize(it); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -127,7 +127,7 @@ func TestSynthesize_ASCIIFold(t *testing.T) {
 	// english stopword list so it survives; "l'hystérie" folds to lhysterie
 	// then truncates to lhys.
 	want := "freud1895-etudsurlhys-ABCD1234"
-	if got := Synthesize(it); got != want {
+	if got := synthesize(it); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -140,7 +140,7 @@ func TestSynthesize_NoAuthor(t *testing.T) {
 		Date:  "1776",
 	}
 	want := "anon1776-anonpamp-ABCD1234"
-	if got := Synthesize(it); got != want {
+	if got := synthesize(it); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -154,7 +154,7 @@ func TestSynthesize_NoYear(t *testing.T) {
 	}
 	// No year — author has no digits fused to it, then words, then ZOTKEY.
 	want := "smith-undamanu-ABCD1234"
-	if got := Synthesize(it); got != want {
+	if got := synthesize(it); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -167,7 +167,7 @@ func TestSynthesize_NoTitle(t *testing.T) {
 		Creators: []local.Creator{{Type: "author", Last: "Smith"}},
 	}
 	want := "smith2020-ABCD1234"
-	if got := Synthesize(it); got != want {
+	if got := synthesize(it); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -182,7 +182,7 @@ func TestSynthesize_NoTitleNoYear(t *testing.T) {
 		Creators: []local.Creator{{Type: "author", Last: "Smith"}},
 	}
 	want := "smith-ABCD1234"
-	if got := Synthesize(it); got != want {
+	if got := synthesize(it); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -200,7 +200,7 @@ func TestSynthesize_UsesFirstAuthor(t *testing.T) {
 	}
 	// First by OrderIdx, not slice order.
 	want := "alpha2020-multauthpape-ABCD1234"
-	if got := Synthesize(it); got != want {
+	if got := synthesize(it); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -215,7 +215,7 @@ func TestSynthesize_EditorsCountAsCreators(t *testing.T) {
 		Creators: []local.Creator{{Type: "editor", Last: "Doe"}},
 	}
 	want := "doe2020-editvolu-ABCD1234"
-	if got := Synthesize(it); got != want {
+	if got := synthesize(it); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -279,7 +279,7 @@ func TestResolve_SynthesizesWhenAbsent(t *testing.T) {
 func TestValidate_CanonicalShapes(t *testing.T) {
 	t.Parallel()
 	// Every canonical shape our synthesizer can produce must pass the
-	// validator. If this table drifts from Synthesize, one of the two has
+	// validator. If this table drifts from synthesize, one of the two has
 	// a bug.
 	good := []string{
 		"smith2020-deeplearneur-ABCD1234",

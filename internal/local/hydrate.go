@@ -18,9 +18,9 @@ import (
 	"strings"
 )
 
-// TagsByItem returns every item's tag names in the handle's library
+// tagsByItem returns every item's tag names in the handle's library
 // scope, keyed by item key. Items with no tags are absent from the map.
-func (d *DB) TagsByItem() (map[string][]string, error) {
+func (d *DB) tagsByItem() (map[string][]string, error) {
 	where, args := d.libIn("i")
 	rows, err := d.db.Query(`
 		SELECT i.key, tg.name
@@ -46,9 +46,9 @@ func (d *DB) TagsByItem() (map[string][]string, error) {
 	return out, rows.Err()
 }
 
-// CollectionsByItem returns every item's collection keys in the handle's
+// collectionsByItem returns every item's collection keys in the handle's
 // library scope, keyed by item key. Items in no collection are absent.
-func (d *DB) CollectionsByItem() (map[string][]string, error) {
+func (d *DB) collectionsByItem() (map[string][]string, error) {
 	where, args := d.libIn("i")
 	rows, err := d.db.Query(`
 		SELECT i.key, c.key
@@ -74,13 +74,13 @@ func (d *DB) CollectionsByItem() (map[string][]string, error) {
 	return out, rows.Err()
 }
 
-// AttachmentsByItem returns every parent item's attachments in the
+// attachmentsByItem returns every parent item's attachments in the
 // handle's library scope, keyed by PARENT item key. Parents with no
 // attachments are absent from the map.
 //
 // ParentKey is populated on each Attachment so a row stays meaningful
 // once lifted out of the map.
-func (d *DB) AttachmentsByItem() (map[string][]Attachment, error) {
+func (d *DB) attachmentsByItem() (map[string][]Attachment, error) {
 	where, args := d.libIn("p")
 	rows, err := d.db.Query(`
 		SELECT p.key, ch.key, ia.contentType, ia.path, ia.linkMode
@@ -115,15 +115,15 @@ func (d *DB) AttachmentsByItem() (map[string][]Attachment, error) {
 // HydrateAll fills Tags, Collections, and Attachments on every item in
 // place, using three set-based queries regardless of len(items).
 func (d *DB) HydrateAll(items []Item) error {
-	tags, err := d.TagsByItem()
+	tags, err := d.tagsByItem()
 	if err != nil {
 		return err
 	}
-	colls, err := d.CollectionsByItem()
+	colls, err := d.collectionsByItem()
 	if err != nil {
 		return err
 	}
-	atts, err := d.AttachmentsByItem()
+	atts, err := d.attachmentsByItem()
 	if err != nil {
 		return err
 	}

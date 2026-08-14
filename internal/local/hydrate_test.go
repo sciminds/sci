@@ -13,7 +13,7 @@ func TestTagsByItem_MatchesReadPerItem(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 
-	byItem, err := db.TagsByItem()
+	byItem, err := db.tagsByItem()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestCollectionsByItem_MatchesReadPerItem(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 
-	byItem, err := db.CollectionsByItem()
+	byItem, err := db.collectionsByItem()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestAttachmentsByItem_KeyedByParentWithParentKeySet(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 
-	byItem, err := db.AttachmentsByItem()
+	byItem, err := db.attachmentsByItem()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestHydrateAll_ScopedUnderForAll(t *testing.T) {
 	t.Parallel()
 	db := openFixtureAll(t)
 
-	atts, err := db.AttachmentsByItem()
+	atts, err := db.attachmentsByItem()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -137,12 +137,12 @@ const (
 	OrderTitleAsc
 )
 
-// ParseYear extracts a publication year from a Zotero date string. Zotero
+// parseYear extracts a publication year from a Zotero date string. Zotero
 // stores dates as "YYYY-MM-DD originalText" with "00" padding for
 // unspecified components (year-only is "1871-00-00 1871"). The first
 // four bytes are always the year when present. Returns 0 for empty
 // strings or strings that don't start with 4 digits.
-func ParseYear(date string) int {
+func parseYear(date string) int {
 	if len(date) < 4 {
 		return 0
 	}

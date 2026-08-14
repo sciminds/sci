@@ -62,7 +62,7 @@ func (d *DB) scanListRow(rows *sql.Rows) (Item, error) {
 	it.Library = d.scopeLabel(libID)
 	it.Title = title.String
 	it.Date = date.String
-	it.Year = ParseYear(it.Date)
+	it.Year = parseYear(it.Date)
 	it.DOI = doi.String
 	it.Publication = pub.String
 	it.Citekey = citekey.String
@@ -395,7 +395,7 @@ WHERE i.libraryID = ?
 //   - OR groups:        "@type: book | @type: thesis"
 //   - negation:         "@author: -smith"         (bare "-author:smith" works too)
 //
-// The bare forms are rewritten by [NormalizeQuery] before parsing, and
+// The bare forms are rewritten by [normalizeQuery] before parsing, and
 // positive free text is word-ANDed by [expandFreeText]: each word must
 // match SOME field, so "jolly 2021" finds a 2021 paper by Jolly even
 // though no single column contains that string. A bare 1500-2099 token
@@ -427,7 +427,7 @@ func (d *DB) SearchWith(query string, limit int) ([]Item, error) {
 // syntax has no sigil declaring "I meant a field".
 var bareFieldTokenRe = regexp.MustCompile(`(?i)^(-?)(author|creator|title|doi|pub|publication|tag|type|itemtype|year|citekey|key):(.*)$`)
 
-// NormalizeQuery rewrites bare field prefixes into the @field: form
+// normalizeQuery rewrites bare field prefixes into the @field: form
 // [match.ParseClauses] understands: `tag:cats` → `@tag: cats`, and a
 // clause-leading `-tag:cats` → `@tag: -cats`, where applyNegate already
 // picks the `-` up off the value. This is the compatibility shim that
@@ -440,7 +440,7 @@ var bareFieldTokenRe = regexp.MustCompile(`(?i)^(-?)(author|creator|title|doi|pu
 // next token) has nowhere to hang the `-` and passes through as free
 // text. Inter-token whitespace is collapsed to single spaces — the
 // clause splitter never depended on it.
-func NormalizeQuery(query string) string {
+func normalizeQuery(query string) string {
 	inQuote := false
 	toks := lo.Map(strings.Fields(query), func(tok string, _ int) string {
 		rewritten := tok
@@ -471,7 +471,7 @@ func (d *DB) SearchWithTotal(query string, limit int) ([]Item, int, error) {
 	if limit == 0 {
 		limit = 50
 	}
-	groups := match.ParseClauses(NormalizeQuery(query))
+	groups := match.ParseClauses(normalizeQuery(query))
 	if len(groups) == 0 {
 		return nil, 0, nil
 	}
@@ -919,7 +919,7 @@ LIMIT 1
 	it.Library = d.scopeLabel(libID)
 	it.Title = title.String
 	it.Date = date.String
-	it.Year = ParseYear(it.Date)
+	it.Year = parseYear(it.Date)
 	it.DOI = doi.String
 	it.Publication = pub.String
 	it.Citekey = citekey.String

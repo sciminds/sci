@@ -10,7 +10,7 @@ import (
 // note is wrapped in markup that a naive text search would happily match.
 var tagRe = regexp.MustCompile(`<[^>]*>`)
 
-// NoteText renders a Zotero note's stored HTML down to searchable plain
+// noteText renders a Zotero note's stored HTML down to searchable plain
 // text: tags become spaces and entities are decoded.
 //
 // Tags become a space rather than nothing so `<h1>Title</h1><p>Body` can't
@@ -22,6 +22,6 @@ var tagRe = regexp.MustCompile(`<[^>]*>`)
 //
 // Not a display renderer: for that, notemd.HTMLToMarkdown preserves
 // headings, lists and links that this deliberately flattens.
-func NoteText(noteHTML string) string {
+func noteText(noteHTML string) string {
 	return strings.Join(strings.Fields(html.UnescapeString(tagRe.ReplaceAllString(noteHTML, " "))), " ")
 }

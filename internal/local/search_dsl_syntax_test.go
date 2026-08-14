@@ -1,7 +1,7 @@
 package local
 
 // Tests for the bare-prefix search syntax: `tag:cats` and `-tag:cats`
-// work without the `@` sigil, normalized by NormalizeQuery into the
+// work without the `@` sigil, normalized by normalizeQuery into the
 // @field:/Negate forms match.ParseClauses already understands. This makes
 // sci the single DSL owner for downstream consumers whose queries use the
 // bare form — semantics are shared, only syntax differs.
@@ -42,8 +42,8 @@ func TestNormalizeQuery(t *testing.T) {
 		"type:book | type:thesis": "@type: book | @type: thesis",
 	}
 	for in, want := range cases {
-		if got := NormalizeQuery(in); got != want {
-			t.Errorf("NormalizeQuery(%q) = %q, want %q", in, got, want)
+		if got := normalizeQuery(in); got != want {
+			t.Errorf("normalizeQuery(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
