@@ -225,7 +225,7 @@ Access university lab storage over SFTP (VPN required).
 | `sci lab put <local> [remote]` | Upload a file or directory (no arg → interactive picker) |
 | `sci lab connect` | Open an SSH shell in lab storage |
 
-![sci lab](docs/casts/lab-browse.gif)
+![sci lab](docs/casts/lab-get.gif)
 </details>
 
 

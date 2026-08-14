@@ -8,14 +8,15 @@ var longDescs = map[string]string{
 		"Files are organized per-user and accessed by name. Use this to share " +
 		"datasets, results, or any file with collaborators without leaving the terminal.",
 
-	"db": "A toolkit for working with SQLite databases. Import CSV or " +
-		"spreadsheet files into queryable tables, inspect schemas, and manage " +
-		"tables — all without writing SQL. Ideal for quick data wrangling before " +
-		"analysis or for building reproducible data pipelines.",
+	"db": "A toolkit for SQLite and DuckDB databases and for flat tabular files. " +
+		"Import CSV or spreadsheet files into queryable tables, inspect schemas, and manage " +
+		"tables; peek at any csv/json/parquet file with head, glimpse, shape or summarize, " +
+		"convert between formats, or run a read-only SQL query over any of them.",
 
 	"lab": "Connect to the SciMinds UCSD lab storage (must be on campus or connected to VPN) to browse, upload, and " +
 		"download files. Run setup once to configure your connection, then use " +
-		"familiar ls/get/put commands. The browse subcommand instantly opens an ssh connection.",
+		"familiar ls/get/put commands — get and put with no argument browse interactively, " +
+		"and connect opens an ssh shell.",
 
 	"proj": "Scaffold a full Python/Web project with everything setup and configured for you. " +
 		"For Python projects this includes the lab's preferred folder structure, recommended libraries, " +
@@ -32,7 +33,7 @@ var longDescs = map[string]string{
 		"Each operation produces a new file; originals are never modified.",
 
 	"view": "General purpose interactive tabular file-viewer straight from the terminal. " +
-		"Supports CSV, JSON, SQLite databases, and more. Sort columns, scroll " +
+		"Supports CSV, JSON, Parquet, SQLite and DuckDB databases, and markdown documents. Sort columns, scroll " +
 		"through large datasets, and search — all without opening up google-sheets/excel.",
 
 	"tools": "A single layer over Homebrew and uv to keep your tools in sync with a Brewfile. " +
@@ -40,15 +41,17 @@ var longDescs = map[string]string{
 		"The reccs subcommand suggests useful optional tools — and apps narrows that to recommended GUI apps; " +
 		"like a lab-vetted 'App Store' for your terminal :)",
 
+	"setup": "One front door over every tool that needs configuring — lab storage, your Zotero library, Canvas. Shows what is already set up and what is not, then walks you through whichever you pick. Each tool still has its own setup command (`sci lab setup`, `sci zot setup`); this is the menu over all of them.",
+
 	"doctor": "Run a health check on your Mac to verify that required tools, " +
 		"runtimes, and configurations are present and correctly set up.",
 
 	"update": "Update sci to the latest released version. Downloads the newest " +
 		"binary from GitHub and replaces the current one in-place. No additional steps required.",
 
-	"learn": "Interactive terminal guides that walk you through sci's features " +
-		"with live demos you can watch and replay. A good starting point if " +
-		"you're new to the command-line or need a refresher.",
+	"learn": "Interactive guides to the terminal, git, and Python, with live demos " +
+		"you can watch and replay. A good starting point if you're new to the " +
+		"command-line or need a refresher — for sci's own commands, see `sci help`.",
 
 	"cass": "(Experimental) Manage Canvas LMS courses and GitHub Classroom assignments from the terminal. " +
 		"Pull student rosters, assignments, and submissions into a local SQLite database, " +
@@ -59,5 +62,6 @@ var longDescs = map[string]string{
 		"Zotero database directly — fast search over every metadata field, " +
 		"a bibliography built from exactly what a manuscript cites, " +
 		"BibLaTeX/CSL-JSON export, and health checks that report and stop. " +
-		"No credential needed, and nothing here can change your library.",
+		"Run `sci zot setup` once with a Zotero API key — it also unlocks the --remote live reads. " +
+		"The one thing that changes your library is `sci zot import`, and your own Zotero desktop makes that write.",
 }

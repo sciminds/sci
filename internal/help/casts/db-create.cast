@@ -4,7 +4,7 @@
 [1.0, "o", "\r\n"]
 [1.3, "o", "  ✓ created experiment.db\r\n"]
 [1.8, "o", "$ "]
-[2.1, "o", "sci db add experiment.db trials.csv demographics.csv"]
+[2.1, "o", "sci db add trials.csv demographics.csv experiment.db"]
 [2.3, "o", "\r\n"]
 [2.6, "o", "  ✓ imported: trials (1200 rows), demographics (48 rows)\r\n"]
 [3.1, "o", "$ "]

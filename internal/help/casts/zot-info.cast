@@ -1,6 +1,6 @@
 {"version": 2, "width": 80, "height": 24}
 [0.3, "o", "$ "]
-[0.6, "o", "zot info"]
+[0.6, "o", "sci zot info"]
 [1.0, "o", "\r\n"]
 [1.4, "o", "\r\n  \u001b[1;34mLibrary stats\u001b[m\r\n"]
 [1.5, "o", "  \u001b[90mdata:\u001b[m ~/Zotero\r\n"]
