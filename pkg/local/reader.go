@@ -35,7 +35,6 @@ type Reader interface {
 	SearchWith(query string, limit int, opts SearchOptions) ([]Item, error)
 	SearchWithTotal(query string, limit int, opts SearchOptions) ([]Item, int, error)
 	Read(key string) (*Item, error)
-	GetItemsByKeys(keys []string) ([]Item, error)
 	ItemKeysByDOI(dois []string) (map[string]string, error)
 	Stats() (*Stats, error)
 
@@ -67,9 +66,7 @@ type Reader interface {
 	// PDF Resolution
 	ResolvePDFAttachment(parentKey string) (*PDFAttachment, error)
 	ListAllPDFAttachments() ([]PDFParent, error)
-	MissingPDFKeys() ([]string, error)
 	ParentsWithDoclingNotes() (map[string]bool, error)
-	ParentsWithDoclingNotesMissingTag(tag string) ([]string, error)
 
 	// View (denormalized reads for UI)
 	ListViewRows() ([]ViewRow, error)
