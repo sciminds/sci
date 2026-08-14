@@ -25,10 +25,10 @@
 // Every query is scoped to a single libraryID, chosen at Open time via a
 // LibrarySelector:
 //
-//   - ForPersonal()             — the user's personal library (libraries.type='user')
-//   - ForGroup(sqliteLibraryID) — a specific group by its SQLite libraryID
+//   - ForPersonal()               — the user's personal library (libraries.type='user')
 //   - ForGroupByAPIID(apiGroupID) — a group by its Zotero Web API groupID
 //     (joins the groups table to resolve)
+//   - ForAll(apiGroupID)          — the merged personal+group read pool
 //
 // Open requires an explicit selector — there is no implicit default. Callers
 // that want the personal library pass ForPersonal().
@@ -85,7 +85,7 @@ type DB struct {
 // exist or the selector cannot resolve a libraryID.
 func Open(dataDir string, sel LibrarySelector) (*DB, error) {
 	if sel.resolve == nil {
-		return nil, fmt.Errorf("invalid LibrarySelector (zero value); use ForPersonal or ForGroup")
+		return nil, fmt.Errorf("invalid LibrarySelector (zero value); use ForPersonal, ForGroupByAPIID, or ForAll")
 	}
 
 	path := filepath.Join(dataDir, "zotero.sqlite")
@@ -187,7 +187,7 @@ func (d *DB) LibraryID() int64 {
 func (d *DB) requireSingleLibrary(op string) error {
 	if len(d.libraryIDs) > 1 {
 		return fmt.Errorf("%s: this query resolves one library at a time, but the handle spans %d "+
-			"(open with ForPersonal/ForGroup, or convert the query through libIn)",
+			"(open with ForPersonal/ForGroupByAPIID, or convert the query through libIn)",
 			op, len(d.libraryIDs))
 	}
 	return nil

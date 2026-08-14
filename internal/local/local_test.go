@@ -173,7 +173,7 @@ func TestList_FilterByTag(t *testing.T) {
 func TestSearch_TitleMatch(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.SearchWith("neuroimaging", 10, SearchOptions{})
+	items, err := db.SearchWith("neuroimaging", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestSearch_TitleMatch(t *testing.T) {
 func TestSearch_DOIMatch(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.SearchWith("abc123", 10, SearchOptions{})
+	items, err := db.SearchWith("abc123", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestSearch_CreatorMatch(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 	// "Smith" authors items 10 (AAAA1111) and 30 (CCCC3333).
-	items, err := db.SearchWith("smith", 10, SearchOptions{})
+	items, err := db.SearchWith("smith", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestSearch_SingleNameCreatorMatch(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 	// Single-name creator (fieldMode=1) "NASA" on BBBB2222.
-	items, err := db.SearchWith("nasa", 10, SearchOptions{})
+	items, err := db.SearchWith("nasa", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestSearch_Smartcase(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 	// All-lowercase query → case-insensitive: matches "Neuroimaging" in title.
-	items, err := db.SearchWith("neuroimaging", 10, SearchOptions{})
+	items, err := db.SearchWith("neuroimaging", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestSearch_Smartcase(t *testing.T) {
 		t.Errorf("lowercase smartcase = %v, want AAAA1111", keysOf(items))
 	}
 	// Mixed-case query → case-sensitive: "Smith" exists, matches.
-	items, err = db.SearchWith("Smith", 10, SearchOptions{})
+	items, err = db.SearchWith("Smith", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +244,7 @@ func TestSearch_Smartcase(t *testing.T) {
 		t.Errorf("mixed-case smartcase = %v, want 2 hits", keysOf(items))
 	}
 	// All-uppercase query → case-sensitive: no "SMITH" in fixture.
-	items, err = db.SearchWith("SMITH", 10, SearchOptions{})
+	items, err = db.SearchWith("SMITH", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,7 +256,7 @@ func TestSearch_Smartcase(t *testing.T) {
 func TestSearch_TitleScope(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.SearchWith("@title: neuroimaging", 10, SearchOptions{})
+	items, err := db.SearchWith("@title: neuroimaging", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +264,7 @@ func TestSearch_TitleScope(t *testing.T) {
 		t.Errorf("title scope = %v", keysOf(items))
 	}
 	// "nasa" is in creators, not titles — title scope must NOT match.
-	items, err = db.SearchWith("@title: nasa", 10, SearchOptions{})
+	items, err = db.SearchWith("@title: nasa", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +276,7 @@ func TestSearch_TitleScope(t *testing.T) {
 func TestSearch_AuthorScope(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.SearchWith("@author: smith", 10, SearchOptions{})
+	items, err := db.SearchWith("@author: smith", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +288,7 @@ func TestSearch_AuthorScope(t *testing.T) {
 func TestSearch_TagScope(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.SearchWith("@tag: neuroimaging", 10, SearchOptions{})
+	items, err := db.SearchWith("@tag: neuroimaging", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +300,7 @@ func TestSearch_TagScope(t *testing.T) {
 func TestSearch_TypeScope(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.SearchWith("@type: book", 10, SearchOptions{})
+	items, err := db.SearchWith("@type: book", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,14 +313,14 @@ func TestSearch_YearScope(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 	// AAAA1111 (date 2024-03-15) + BBBB2222 (also points at value 4 = 2024).
-	items, err := db.SearchWith("@year: 2024", 10, SearchOptions{})
+	items, err := db.SearchWith("@year: 2024", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(items) != 2 {
 		t.Errorf("year=2024 = %v, want 2", keysOf(items))
 	}
-	items, err = db.SearchWith("@year: 2023", 10, SearchOptions{})
+	items, err = db.SearchWith("@year: 2023", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +333,7 @@ func TestSearch_AndClauses(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 	// Smith authors AAAA1111 + CCCC3333; only AAAA1111 has "neuroimaging".
-	items, err := db.SearchWith("@author: smith @title: neuroimaging", 10, SearchOptions{})
+	items, err := db.SearchWith("@author: smith @title: neuroimaging", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,7 +341,7 @@ func TestSearch_AndClauses(t *testing.T) {
 		t.Errorf("AND scope = %v", keysOf(items))
 	}
 	// Comma form should produce the same result.
-	items, err = db.SearchWith("@author: smith, @title: neuroimaging", 10, SearchOptions{})
+	items, err = db.SearchWith("@author: smith, @title: neuroimaging", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +354,7 @@ func TestSearch_OrGroups(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 	// smith → AAAA1111+CCCC3333; nasa → BBBB2222 → all three items.
-	items, err := db.SearchWith("@author: smith | @author: nasa", 10, SearchOptions{})
+	items, err := db.SearchWith("@author: smith | @author: nasa", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +367,7 @@ func TestSearch_Negate(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
 	// Exclude smith → BBBB2222 (NASA) + GGGG7777 (no creators) remain.
-	items, err := db.SearchWith("@author: -smith", 10, SearchOptions{})
+	items, err := db.SearchWith("@author: -smith", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,7 +379,7 @@ func TestSearch_Negate(t *testing.T) {
 func TestSearch_UnknownField(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	if _, err := db.SearchWith("@foo: bar", 10, SearchOptions{}); err == nil {
+	if _, err := db.SearchWith("@foo: bar", 10); err == nil {
 		t.Error("expected error for unknown field")
 	}
 }
@@ -387,7 +387,7 @@ func TestSearch_UnknownField(t *testing.T) {
 func TestSearch_NoResults(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.SearchWith("nonexistent", 10, SearchOptions{})
+	items, err := db.SearchWith("nonexistent", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -713,7 +713,7 @@ func TestCountList_HonorsFilters(t *testing.T) {
 
 func TestSearchWithTotal_TotalSurvivesLimit(t *testing.T) {
 	db := openFixture(t)
-	all, total, err := db.SearchWithTotal("@type: journalArticle", 100, SearchOptions{})
+	all, total, err := db.SearchWithTotal("@type: journalArticle", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -723,7 +723,7 @@ func TestSearchWithTotal_TotalSurvivesLimit(t *testing.T) {
 	if total < 2 {
 		t.Skipf("fixture has %d journalArticles; need ≥2 for the slice check", total)
 	}
-	page, total2, err := db.SearchWithTotal("@type: journalArticle", 1, SearchOptions{})
+	page, total2, err := db.SearchWithTotal("@type: journalArticle", 1)
 	if err != nil {
 		t.Fatal(err)
 	}

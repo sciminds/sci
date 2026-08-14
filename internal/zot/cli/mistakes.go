@@ -96,7 +96,7 @@ func resolveCiteKeyArg(ctx context.Context, arg string) string {
 	}
 	defer func() { _ = db.Close() }()
 
-	hits, err := db.SearchWith("@citekey:"+arg, 10, local.SearchOptions{})
+	hits, err := db.SearchWith("@citekey:"+arg, 10)
 	if err != nil {
 		return ""
 	}

@@ -32,7 +32,7 @@ func TestRealLibrary_Smoke(t *testing.T) {
 		t.Error("real library reports zero items — query likely broken")
 	}
 
-	items, err := db.SearchWith("neuro", 3, SearchOptions{})
+	items, err := db.SearchWith("neuro", 3)
 	if err != nil {
 		t.Fatal(err)
 	}

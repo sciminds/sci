@@ -51,7 +51,7 @@ func TestNormalizeQuery(t *testing.T) {
 func TestSearch_BareFieldPrefix(t *testing.T) {
 	t.Parallel()
 	db := openFixture(t)
-	items, err := db.SearchWith("tag:cats", 10, SearchOptions{})
+	items, err := db.SearchWith("tag:cats", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestSearch_BareFieldNegation(t *testing.T) {
 	db := openFixture(t)
 	// `-tag:cats` excludes the cats book and keeps everything else —
 	// the clause-leading negation the bare dialect uses.
-	items, err := db.SearchWith("-tag:cats", 50, SearchOptions{})
+	items, err := db.SearchWith("-tag:cats", 50)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestSearch_BareNegationCombinesWithFreeText(t *testing.T) {
 	// NeuroImage); the bare negation must carve AAAA1111 out while the
 	// free text keeps doing its job — proving the mixed group really
 	// parses as free-text AND NOT-tag, not as one literal string.
-	items, err := db.SearchWith("neuro -tag:deep-learning", 50, SearchOptions{})
+	items, err := db.SearchWith("neuro -tag:deep-learning", 50)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,16 +97,5 @@ func TestSearch_BareNegationCombinesWithFreeText(t *testing.T) {
 	}
 	if slices.Contains(got, "AAAA1111") {
 		t.Errorf("negated tag still matched AAAA1111: %v", got)
-	}
-}
-
-func TestQueryFreeText_NormalizesBarePrefixes(t *testing.T) {
-	t.Parallel()
-	// The content index must not receive `tag:cats` as free text — the
-	// same normalization SearchWithTotal applies has to reach the
-	// snippets path, or a bare-prefix query would ask the index a
-	// different question than the metadata search answered.
-	if got := QueryFreeText("cortex -tag:cats"); got != "cortex" {
-		t.Errorf("QueryFreeText = %q, want %q", got, "cortex")
 	}
 }

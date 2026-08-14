@@ -17,7 +17,7 @@ import (
 
 func searchKeys(t *testing.T, db *DB, query string) []string {
 	t.Helper()
-	items, err := db.SearchWith(query, 50, SearchOptions{})
+	items, err := db.SearchWith(query, 50)
 	if err != nil {
 		t.Fatalf("Search(%q): %v", query, err)
 	}
@@ -152,20 +152,5 @@ func TestExpandFreeText(t *testing.T) {
 				t.Errorf("expandFreeText(%v) = %v, want %v", tc.in, got, tc.want)
 			}
 		})
-	}
-}
-
-func TestBareSearchText_ExcludesYearRewrites(t *testing.T) {
-	t.Parallel()
-	// The content index should be asked about "jolly", not "jolly 2021"
-	// — the year is a metadata filter, not paper-text evidence.
-	group := expandFreeText([]match.Clause{{Terms: "jolly 2021"}})
-	if got := bareSearchText(group); got != "jolly" {
-		t.Errorf("bareSearchText = %q, want %q", got, "jolly")
-	}
-	// Phrases keep their quotes so the content index sees the phrase.
-	group = expandFreeText([]match.Clause{{Terms: `"prediction error" 2021`}})
-	if got := bareSearchText(group); got != `"prediction error"` {
-		t.Errorf("bareSearchText = %q, want quoted phrase", got)
 	}
 }

@@ -11,9 +11,9 @@ import (
 // query filters on the resolved libraryID(s).
 //
 // Callers never construct a LibrarySelector directly; use ForPersonal,
-// ForGroup, ForGroupByAPIID, or ForAll. Zero value is invalid. All
-// selectors but ForAll resolve to a single library; ForAll opens the
-// merged read pool — see its godoc for what that mode may be used for.
+// ForGroupByAPIID, or ForAll. Zero value is invalid. Every selector but
+// ForAll resolves to a single library; ForAll opens the merged read pool —
+// see its godoc for what that mode may be used for.
 type LibrarySelector struct {
 	resolve func(*sql.DB) ([]int64, error)
 	label   string // for error messages
@@ -41,30 +41,6 @@ func ForPersonal() LibrarySelector {
 			err := db.QueryRow("SELECT libraryID FROM libraries WHERE type='user' LIMIT 1").Scan(&id)
 			if err != nil {
 				return 0, fmt.Errorf("resolve user library ID: %w", err)
-			}
-			return id, nil
-		}),
-	}
-}
-
-// ForGroup selects a specific group library by its SQLite libraryID.
-// The caller is expected to know the libraryID in advance (read from
-// zot.Config or the groups table). Errors if the row does not exist or
-// is not a group.
-func ForGroup(libraryID int64) LibrarySelector {
-	return LibrarySelector{
-		label: fmt.Sprintf("group(%d)", libraryID),
-		resolve: single(func(db *sql.DB) (int64, error) {
-			var id int64
-			err := db.QueryRow(
-				"SELECT libraryID FROM libraries WHERE libraryID=? AND type='group'",
-				libraryID,
-			).Scan(&id)
-			if err == sql.ErrNoRows {
-				return 0, fmt.Errorf("group libraryID %d not found (is it a user library or does it exist?)", libraryID)
-			}
-			if err != nil {
-				return 0, fmt.Errorf("resolve group libraryID %d: %w", libraryID, err)
 			}
 			return id, nil
 		}),

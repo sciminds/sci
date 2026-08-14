@@ -133,7 +133,7 @@ func (r *browseREPL) command(ctx context.Context, line string) error {
 // doSearch runs one query through the same pipeline as `sci zot search`:
 // the DSL parse and ranking in SearchWithTotal.
 func (r *browseREPL) doSearch(query string) error {
-	items, total, err := r.db.SearchWithTotal(query, r.limit, local.SearchOptions{})
+	items, total, err := r.db.SearchWithTotal(query, r.limit)
 	if err != nil {
 		return err
 	}

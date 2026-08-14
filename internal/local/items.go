@@ -386,29 +386,6 @@ WHERE i.libraryID = ?
 	return out, rows.Err()
 }
 
-// SearchOptions tunes SearchWith behavior beyond the query string.
-type SearchOptions struct {
-	// Content, when non-nil, widens positive free-text clauses with the
-	// items whose paper text matches. It is called once per OR group and
-	// returns each matching item key with its relevance score (higher is
-	// better). sci itself supplies no such index — the hook is part of
-	// this package's shared API, for consumers that maintain one.
-	//
-	// The scores are not decoration: content hits carry no title
-	// relevance, so without them the whole tail of a broad search ties
-	// and falls back to year — newest-wins, which answers a different
-	// question than the one that was asked.
-	//
-	// It receives the group's free text verbatim, quotes and all, rather
-	// than a word list: the content index understands "quoted phrases"
-	// and prefix*, and splitting the query into words here would throw
-	// that away before the index ever saw it.
-	//
-	// Field-scoped and negated clauses never consult it, matching how
-	// the metadata search treats them.
-	Content func(text string) (map[string]float64, error)
-}
-
 // SearchWith returns items matching the query. The query is parsed by
 // [match.ParseClauses], which supports:
 //
@@ -434,12 +411,11 @@ type SearchOptions struct {
 // has no FTS on EAV metadata — every clause is a table scan.
 //
 // Results are ordered by title relevance (how many positive query words
-// appear in the title), then by content relevance when
-// [SearchOptions.Content] supplied scores, then year descending, then
-// dateAdded descending; limit applies after ranking so a broad query
-// can't crowd out the most relevant hit.
-func (d *DB) SearchWith(query string, limit int, opts SearchOptions) ([]Item, error) {
-	items, _, err := d.SearchWithTotal(query, limit, opts)
+// appear in the title), then year descending, then dateAdded descending;
+// limit applies after ranking so a broad query can't crowd out the most
+// relevant hit.
+func (d *DB) SearchWith(query string, limit int) ([]Item, error) {
+	items, _, err := d.SearchWithTotal(query, limit)
 	return items, err
 }
 
@@ -491,7 +467,7 @@ func NormalizeQuery(query string) string {
 
 // SearchWithTotal is [DB.SearchWith] plus the pre-limit match count, so
 // callers can report "showing N of M" instead of silently truncating.
-func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Item, int, error) {
+func (d *DB) SearchWithTotal(query string, limit int) ([]Item, int, error) {
 	if limit == 0 {
 		limit = 50
 	}
@@ -505,35 +481,10 @@ func (d *DB) SearchWithTotal(query string, limit int, opts SearchOptions) ([]Ite
 
 	var orParts []string
 	var clauseArgs []any
-	// contentScores accumulates every group's hits so the ranker can see
-	// them all; an item matched by two OR groups keeps its best score.
-	contentScores := map[string]float64{}
 	for _, group := range groups {
-		// Content matches feed an "also match these item IDs" set that
-		// buildClauseSQL ORs into positive free-text clauses.
-		var ftIDs []int64
-		if opts.Content != nil {
-			if text := bareSearchText(group); text != "" {
-				scored, err := opts.Content(text)
-				if err != nil {
-					return nil, 0, err
-				}
-				for key, score := range scored {
-					contentScores[key] = max(contentScores[key], score)
-				}
-				// The index knows keys; the clause SQL matches on item
-				// IDs, and resolving the two is this package's job —
-				// the hook stays a pure "what matched, how well".
-				ids, err := d.ItemIDsForKeys(lo.Keys(scored))
-				if err != nil {
-					return nil, 0, err
-				}
-				ftIDs = lo.Uniq(ids)
-			}
-		}
 		var andParts []string
 		for _, c := range group {
-			frag, fa, err := buildClauseSQL(c, ftIDs)
+			frag, fa, err := buildClauseSQL(c)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -586,7 +537,7 @@ ORDER BY b.dateAdded DESC
 		return nil, 0, err
 	}
 
-	ranked := rankSearchResults(out, groups, contentScores)
+	ranked := rankSearchResults(out, groups)
 	top := ranked[:min(limit, len(ranked))]
 	// Only the hits that survived ranking and the limit get enriched —
 	// three batched IN queries over ≤limit rows, never the whole
@@ -696,23 +647,6 @@ func (d *DB) enrichListRows(items []Item) error {
 	return urlRows.Err()
 }
 
-// QueryFreeText returns the positive free-text of a query — every clause
-// that is neither field-scoped nor negated — joined across OR groups,
-// quoting preserved. It is "what the content index was asked", exposed so
-// a caller that has already searched can ask the index a second question
-// (snippets for the hits it decided to show) without re-parsing clauses.
-// A query made only of field clauses returns "".
-func QueryFreeText(query string) string {
-	texts := lo.FilterMap(match.ParseClauses(NormalizeQuery(query)), func(group []match.Clause, _ int) (string, bool) {
-		// The same expansion SearchWithTotal applies, so the snippet
-		// query and the widening query ask the index one question:
-		// year tokens are metadata filters, not paper-text evidence.
-		text := bareSearchText(expandFreeText(group))
-		return text, text != ""
-	})
-	return strings.Join(texts, " ")
-}
-
 // bareYearRe recognizes a free-text token that can only plausibly mean
 // a publication year (1500-2099). Quoted tokens never reach this test —
 // quoting is the escape hatch for titles like "2001".
@@ -722,8 +656,8 @@ var bareYearRe = regexp.MustCompile(`^(1[5-9]\d{2}|20\d{2})$`)
 // group into per-token clauses: words must each match SOME field
 // (creator + title + year can cooperate on "jolly 2021"), a bare year
 // token becomes an @year: clause, and a quoted phrase stays one clause
-// with its quotes preserved (buildClauseSQL strips them for the
-// substring match; bareSearchText keeps them for the content index).
+// with its quotes preserved through the clause list (buildClauseSQL
+// strips them for the substring match).
 //
 // Negated free text passes through unsplit on purpose: NOT("deep
 // learning") excludes items containing the phrase, while splitting
@@ -786,35 +720,15 @@ func stripOuterQuotes(s string) string {
 	return s
 }
 
-// bareSearchText joins a group's positive free-text clauses back into
-// one string, preserving the user's quoting.
-//
-// Handing the content index a word list instead would silently downgrade
-// `"prediction error"` from a phrase to two ANDed terms — the index does
-// its own parsing, and phrases are most of why it exists.
-// (positiveQueryWords, further down, does split into words: title
-// ranking counts word hits, so there the word is the unit.)
-func bareSearchText(group []match.Clause) string {
-	positive := lo.Filter(group, func(c match.Clause, _ int) bool {
-		return c.Column == "" && !c.Negate && c.Terms != ""
-	})
-	terms := lo.Map(positive, func(c match.Clause, _ int) string { return c.Terms })
-	return strings.TrimSpace(strings.Join(terms, " "))
-}
-
 // rankSearchResults orders hits by title relevance (the count of distinct
-// positive query words appearing in the title, case-insensitive), then by
-// content relevance, then year descending. The sort is stable, so
-// equal-rank items keep the caller's dateAdded-descending order.
+// positive query words appearing in the title, case-insensitive), then year
+// descending. The sort is stable, so equal-rank items keep the caller's
+// dateAdded-descending order.
 //
-// Title before content is deliberate. A title match is the strongest
-// evidence a library holds about what a paper is *about*, and items with
-// no extraction have no content score at all — leading with bm25 would
-// bury the paper the user named under every paper that mentions it in
-// passing. Content relevance decides the long tail underneath, which is
-// exactly where every hit ties at zero title words and the old fallback
-// to year meant "newest wins".
-func rankSearchResults(items []Item, groups [][]match.Clause, contentScores map[string]float64) []Item {
+// Leading with the title is deliberate: it is the strongest evidence a
+// library holds about what a paper is *about*, so the paper the user named
+// outranks every paper that merely mentions it.
+func rankSearchResults(items []Item, groups [][]match.Clause) []Item {
 	words := positiveQueryWords(groups)
 	if len(words) == 0 {
 		return items
@@ -832,7 +746,6 @@ func rankSearchResults(items []Item, groups [][]match.Clause, contentScores map[
 	slices.SortStableFunc(idx, func(a, b int) int {
 		return cmp.Or(
 			cmp.Compare(scores[b], scores[a]),
-			cmp.Compare(contentScores[items[b].Key], contentScores[items[a].Key]),
 			cmp.Compare(items[b].Year, items[a].Year),
 		)
 	})
@@ -869,11 +782,7 @@ var synthKeySuffixRe = regexp.MustCompile(`(?i)-([a-z0-9]{8})$`)
 // composed under `SELECT b.* FROM base b` — column references go through the
 // `b` alias. Returns an error for unknown field names so typos surface
 // instead of silently expanding the result set.
-//
-// ftIDs, when non-empty, are fulltext-index hits that widen positive
-// free-text clauses: the clause also matches any item whose itemID is in
-// the set. Field-scoped and negated clauses ignore it.
-func buildClauseSQL(c match.Clause, ftIDs []int64) (string, []any, error) {
+func buildClauseSQL(c match.Clause) (string, []any, error) {
 	if c.Terms == "" {
 		if c.Column == "" {
 			return "", nil, nil
@@ -882,8 +791,8 @@ func buildClauseSQL(c match.Clause, ftIDs []int64) (string, []any, error) {
 	}
 
 	// Quotes mark a phrase; the characters themselves would poison a
-	// substring match. Stripped here (not in the parser) so
-	// bareSearchText still hands the content index the quoted form.
+	// substring match. Stripped here rather than in the parser so the
+	// clause list keeps the user's quoting intact.
 	needle := stripOuterQuotes(c.Terms)
 	smartcase := needle == strings.ToLower(needle)
 	if smartcase {
@@ -911,11 +820,6 @@ func buildClauseSQL(c match.Clause, ftIDs []int64) (string, []any, error) {
 			" OR instr(" + fold("COALESCE(b.citekey, '')") + ", ?) > 0" +
 			" OR " + creatorExists
 		args = []any{needle, needle, needle, needle, needle}
-		if !c.Negate && len(ftIDs) > 0 {
-			ph, ftArgs := inClause(ftIDs)
-			frag += " OR b.itemID IN (" + ph + ")"
-			args = append(args, ftArgs...)
-		}
 		frag += ")"
 	case "title":
 		frag = "instr(" + fold("b.title") + ", ?) > 0"

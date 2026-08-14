@@ -1,11 +1,10 @@
 package local
 
-// Tests for LibrarySelector dispatch via Open + local query scoping. These reference
-// symbols not yet implemented:
-//   - LibrarySelector (type)
-//   - ForPersonal() / ForGroup(int64) (constructors)
-//   - Open(dir, selector) (new signature)
-// Fixture updates (adding a group library + group items) happen in Phase 2.
+// Tests for LibrarySelector dispatch via Open, and for the query scoping that
+// follows from it: a handle pinned to one library must never return another's
+// rows. The fixture seeds both a user library (libraryID 1) and a group
+// (libraryID 2, API groupID 6506098), so both selectors resolve against real
+// rows rather than an empty scope that would pass vacuously.
 
 import "testing"
 
@@ -22,13 +21,12 @@ func TestOpen_PersonalSelector(t *testing.T) {
 }
 
 func TestOpen_GroupSelector(t *testing.T) {
-	// Fixture (updated in Phase 2) must include a row:
-	//   libraries(libraryID=2, type='group', version=...)
-	// and at least one item scoped to libraryID=2 for downstream tests.
 	dir := buildFixture(t)
-	db, err := Open(dir, ForGroup(2))
+	// 6506098 is the fixture group's Zotero API groupID; the groups table
+	// maps it to SQLite libraryID 2.
+	db, err := Open(dir, ForGroupByAPIID(6506098))
 	if err != nil {
-		t.Fatalf("Open(ForGroup(2)): %v", err)
+		t.Fatalf("Open(ForGroupByAPIID(6506098)): %v", err)
 	}
 	defer func() { _ = db.Close() }()
 	if db.LibraryID() != 2 {
@@ -38,9 +36,9 @@ func TestOpen_GroupSelector(t *testing.T) {
 
 func TestOpen_UnknownGroupID(t *testing.T) {
 	dir := buildFixture(t)
-	_, err := Open(dir, ForGroup(9999))
+	_, err := Open(dir, ForGroupByAPIID(9999))
 	if err == nil {
-		t.Fatal("expected error for unknown group libraryID")
+		t.Fatal("expected error for a group API ID with no local row")
 	}
 }
 
@@ -63,9 +61,9 @@ func TestItems_ScopedToPinnedLibrary(t *testing.T) {
 	}
 
 	// Group scope: group items only.
-	dbGroup, err := Open(dir, ForGroup(2))
+	dbGroup, err := Open(dir, ForGroupByAPIID(6506098))
 	if err != nil {
-		t.Fatalf("Open(ForGroup(2)): %v", err)
+		t.Fatalf("Open(ForGroupByAPIID(6506098)): %v", err)
 	}
 	defer func() { _ = dbGroup.Close() }()
 

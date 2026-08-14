@@ -45,16 +45,11 @@ type Item struct {
 	Fields       map[string]string `json:"fields,omitempty"`
 	DateAdded    string            `json:"date_added,omitempty"`
 	DateModified string            `json:"date_modified,omitempty"`
-	// NumChildren is the count of attachments+notes for this item. Local
-	// queries leave it zero — counting children costs a second query and no
-	// read here filters on it; use [DB.ListChildren] when the count matters.
-	NumChildren int `json:"num_children,omitempty"`
 	// Relations is the item's related items (Zotero's dc:relation) plus the
 	// predicates Zotero maintains itself. Intrinsic to the item, like Tags
-	// and Attachments, and populated by the same reads that populate those
-	// — Read and api.ItemFromClient — never by List/Search. A pointer so an
-	// item with no relations omits the key entirely rather than emitting an
-	// empty object.
+	// and Attachments, and populated by the same read that populates those
+	// — [DB.Read] — never by List/Search. A pointer so an item with no
+	// relations omits the key entirely rather than emitting an empty object.
 	Relations *ItemRelationSet `json:"relations,omitempty"`
 }
 

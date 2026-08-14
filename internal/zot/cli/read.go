@@ -159,7 +159,7 @@ func searchCommand() *cli.Command {
 			}
 			defer func() { _ = db.Close() }()
 
-			items, total, err := db.SearchWithTotal(query, f.Limit, local.SearchOptions{})
+			items, total, err := db.SearchWithTotal(query, f.Limit)
 			if err != nil {
 				return err
 			}
