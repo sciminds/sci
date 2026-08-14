@@ -106,11 +106,9 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `Screen` | type | Screen bundles the four per-screen callbacks that Bubbletea models |
 | `SelectList` | type | SelectList is a reusable Bubble Tea model for a toggle-select list. |
 | `SelectListKeys` | type | SelectListKeys is the help.KeyMap for the selecting phase. |
+| `Severity` | type | Severity is how serious a piece of status text is. |
 | `SplitView` | type | SplitView composes two ScrollPanels into a responsive layout: side-by-side |
 | `TableOptions` | type | TableOptions tunes [RenderTable]. |
-| `Toast` | type | Toast is a single notification. It is a plain value — the ToastModel |
-| `ToastLevel` | type | ToastLevel represents the severity of a toast notification. |
-| `ToastModel` | type | ToastModel manages a stack of auto-dismissing toast notifications. |
 | `ScrollPanel` | interface | ScrollPanel is a side-by-side-ready sub-model. Each panel owns its own |
 | `ScrollableOverlay` | interface | ScrollableOverlay is the common interface satisfied by both [Overlay] |
 | `SelectItem` | interface | SelectItem is the interface that items in a SelectList must implement. |
@@ -136,7 +134,6 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `NewSelectList` | func | NewSelectList creates a new SelectList with the given items. |
 | `NewSelectListKeys` | func | NewSelectListKeys returns the default key map for a select list. |
 | `NewSplitView` | func | NewSplitView creates a split view titled with the given string. Left is |
-| `NewToastModel` | func | NewToastModel returns an empty toast manager showing up to 5 toasts. |
 | `OverlayBodyBudget` | func | OverlayBodyBudget returns how many body lines fit inside an overlay rendered |
 | `OverlayContentWidth` | func | OverlayContentWidth returns the inner text width of a default-bounded overlay |
 | `OverlayInnerWidth` | func | OverlayInnerWidth returns the inner content width inside an overlay frame: |
@@ -158,7 +155,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `IntentNone` | const | IntentNone means "not a nav key" — forward it to the list so it |
 | `IntentOpen` | const | IntentOpen is enter / l / right: open or descend into the selection. |
 | `IntentQuit` | const | IntentQuit is q / ctrl+c: leave the list. |
-| `ToastInfo, ToastSuccess, ToastWarning, ToastError` | const | Toast severity levels, ordered least to most severe. |
+| `SeverityInfo, SeveritySuccess, SeverityWarning, SeverityError` | const | Severity levels, ordered least to most severe. |
 
 ## Markdown
 

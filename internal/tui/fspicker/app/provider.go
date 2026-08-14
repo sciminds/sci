@@ -98,7 +98,7 @@ func (p *Provider) Breadcrumb(path string) string {
 }
 
 // Children reads path with os.ReadDir, filters and sorts entries, and
-// emits a browser.ChildrenMsg. Errors surface as a status toast — the
+// emits a browser.ChildrenMsg. Errors surface in the status bar — the
 // previous listing stays in place per the browser primitive's contract.
 func (p *Provider) Children(path string) tea.Cmd {
 	return uikit.SafeCmd(func() tea.Msg {

@@ -48,8 +48,8 @@ type Entry interface {
 type Provider interface {
 	// Children returns a tea.Cmd that emits a [ChildrenMsg] with the
 	// entries directly under path. Errors should be surfaced in the
-	// message's Err field; the Model will display them as a status
-	// toast and leave the previous listing in place.
+	// message's Err field; the Model will display them in the list's
+	// status bar and leave the previous listing in place.
 	Children(path string) tea.Cmd
 	// Root returns the initial path (typically "").
 	Root() string
@@ -63,7 +63,7 @@ type Provider interface {
 }
 
 // ChildrenMsg is emitted by [Provider.Children] when results arrive.
-// On error, Entries is ignored and Err is surfaced as a status toast.
+// On error, Entries is ignored and Err is surfaced in the status bar.
 type ChildrenMsg struct {
 	Path    string
 	Entries []Entry
@@ -77,20 +77,20 @@ type ChildrenMsg struct {
 type RefreshMsg struct{}
 
 // StatusKind selects the visual treatment for a [StatusMsg]. It is an alias
-// for [uikit.ToastLevel], not a parallel enum: this package used to declare
+// for [uikit.Severity], not a parallel enum: this package used to declare
 // its own four levels and its own switch over the same four palette calls,
 // which is two definitions of one idea and two places to forget a level.
-type StatusKind = uikit.ToastLevel
+type StatusKind = uikit.Severity
 
 const (
 	// StatusInfo is neutral progress text ("Deleting foo…").
-	StatusInfo = uikit.ToastInfo
+	StatusInfo = uikit.SeverityInfo
 	// StatusSuccess is green pass styling ("Deleted foo").
-	StatusSuccess = uikit.ToastSuccess
+	StatusSuccess = uikit.SeveritySuccess
 	// StatusWarn is yellow warning styling ("cannot delete folders").
-	StatusWarn = uikit.ToastWarning
+	StatusWarn = uikit.SeverityWarning
 	// StatusError is red failure styling ("Delete failed: timeout").
-	StatusError = uikit.ToastError
+	StatusError = uikit.SeverityError
 )
 
 // StatusMsg renders text in the list's status bar with the given kind.
@@ -106,7 +106,7 @@ type StatusMsg struct {
 //   - AppliesTo (optional): false → the key is ignored and the binding
 //     is hidden from help. Used for "delete is a file-only action".
 //   - Allowed (optional): false + reason → reason is shown as a warn
-//     toast and Run does not fire. Used for ownership/permission rules.
+//     status and Run does not fire. Used for ownership/permission rules.
 //   - Confirm: true → the first press opens a huh.NewConfirm modal.
 //     Yes fires Run; No / esc / q closes the modal without quitting.
 //     Default focus is the negative button so an accidental Enter is
@@ -234,7 +234,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // handleChildren replaces the list contents with the new entries.
-// Errors are surfaced as a warn toast; the previous listing stays.
+// Errors are surfaced as a warn status; the previous listing stays.
 func (m Model) handleChildren(msg ChildrenMsg) (Model, tea.Cmd) {
 	if msg.Err != nil {
 		return m, m.list.NewStatusMessage(renderStatus(StatusMsg{

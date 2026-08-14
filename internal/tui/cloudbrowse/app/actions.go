@@ -6,7 +6,7 @@ package app
 // The original listtui rolled its own delegate UpdateFunc + pending-delete
 // pointer. Here each action is a self-contained value: AppliesTo gates
 // file-only operations, Allowed surfaces ownership/availability rules as
-// toasts, Confirm gets the two-press dance for free, and Run composes
+// status messages, Confirm gets the two-press dance for free, and Run composes
 // progress + completion + refresh into a tea.Cmd.
 
 import (
@@ -46,7 +46,7 @@ func BuildActions(p *Provider) []browser.Action {
 }
 
 // deleteAction surfaces the owner-only delete for files AND folders.
-// Allowed rejects foreign owners with a toast (and, as a side effect,
+// Allowed rejects foreign owners with a status message (and, as a side effect,
 // the empty-owner case at the bucket-root user folder); Confirm opens
 // a huh modal so the destructive action requires an explicit Yes.
 // ConfirmPrompt spells out the consequence — files vs recursive folder

@@ -42,7 +42,7 @@
 // Center, Pad, Fit, FitHeight, WordWrap, PageLayout, SummaryLine, FooterBar,
 // StatusRow) complete the layout layer.
 //
-// # UI Components (ui_chrome.go, ui_overlay.go, ui_overlay_iface.go, ui_overlaybox.go, ui_listpicker.go, ui_grid2d.go, ui_screen.go, ui_selectlist.go, ui_spinner.go, ui_actionmenu.go, ui_castplayer.go, ui_mdviewer.go, ui_splitview.go, ui_toast.go)
+// # UI Components (ui_chrome.go, ui_overlay.go, ui_overlay_iface.go, ui_overlaybox.go, ui_listpicker.go, ui_grid2d.go, ui_screen.go, ui_selectlist.go, ui_spinner.go, ui_actionmenu.go, ui_castplayer.go, ui_mdviewer.go, ui_splitview.go)
 //
 //   - [Chrome] — title / body / status vertical layout with automatic height math.
 //   - [Overlay] — scrollable modal panel with compositing helpers.
