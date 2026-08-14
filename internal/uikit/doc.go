@@ -61,7 +61,7 @@
 //   - [SelectList] — multi-select toggle list for wizard flows.
 //   - [Grid2D] — reusable 2-D cursor with move, clamp, and wrap.
 //   - [Screen] / [Router] — dispatch table that replaces repeated switch statements.
-//   - [RunWithSpinner] / [RunWithProgress] — inline spinner and progress bar.
+//   - [RunWithSpinner] / [RunWithSpinnerStatus] — inline spinner for long work.
 //
 // # Markdown Rendering (render_md.go)
 //

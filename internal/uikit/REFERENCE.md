@@ -102,7 +102,6 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `MdViewer` | type | MdViewer is a scrollable, searchable markdown viewer sub-model. Embed in |
 | `Overlay` | type | Overlay is a scrollable content panel rendered as a modal over other content. |
 | `OverlayBox` | type | OverlayBox renders a modal-style overlay with a title section, body |
-| `ProgressTracker` | type | ProgressTracker is the handle passed to the callback in RunWithProgress. |
 | `Router` | type | Router maps screen IDs to Screen definitions. The zero value of a |
 | `Screen` | type | Screen bundles the four per-screen callbacks that Bubbletea models |
 | `SelectList` | type | SelectList is a reusable Bubble Tea model for a toggle-select list. |
@@ -146,8 +145,6 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `RenderSelectItemLine` | func | RenderSelectItemLine renders the cursor/marker/name skeleton common to all |
 | `RenderTable` | func | RenderTable renders headers + rows as a bordered table using the shared |
 | `RunMdViewer` | func | RunMdViewer launches a full-screen markdown viewer for the file at path. |
-| `RunWithProgress` | func | RunWithProgress shows an inline progress display while fn runs. The |
-| `RunWithProgressCtx` | func | RunWithProgressCtx is [RunWithProgress] for cancellable work: fn receives |
 | `RunWithSpinner` | func | RunWithSpinner shows an inline spinner while fn runs. Returns fn's error. |
 | `RunWithSpinnerStatus` | func | RunWithSpinnerStatus shows an inline spinner while fn runs, with a |
 | `TermWidth` | func | TermWidth reports the width of the controlling terminal in cells, or 0 when |
@@ -156,7 +153,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `WithInitialQuery` | func | WithInitialQuery seeds the overlay's /-search with the given query so the |
 | `WithRenderItem` | func | WithRenderItem sets a custom item renderer. |
 | `WithSelected` | func | WithSelected sets the initial selection state for each item by index. |
-| `ErrInterrupted` | var | ErrInterrupted is returned by the spinner/progress runners when the user |
+| `ErrInterrupted` | var | ErrInterrupted is returned by the spinner runner when the user aborts with |
 | `IntentBack` | const | IntentBack is esc / h / left: go back / up one level. |
 | `IntentNone` | const | IntentNone means "not a nav key" — forward it to the list so it |
 | `IntentOpen` | const | IntentOpen is enter / l / right: open or descend into the selection. |

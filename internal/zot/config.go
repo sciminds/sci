@@ -269,12 +269,12 @@ func ValidateLibraryScope(s string) error {
 	return fmt.Errorf("invalid library scope %q (expected one of: %s)", s, strings.Join(names, ", "))
 }
 
-// LibraryRef identifies a concrete Zotero library for one command.
-// LocalID selects the matching row in zotero.sqlite.
+// LibraryRef identifies a concrete Zotero library for one command. Resolving
+// it to SQLite rows is [github.com/sciminds/sci/internal/local]'s job, via the
+// LibrarySelector that localSelectorFor builds from Scope.
 type LibraryRef struct {
-	Scope   LibraryScope
-	LocalID int64  // Zotero SQLite libraryID
-	Name    string // display-only ("Personal" or group name)
+	Scope LibraryScope
+	Name  string // display-only ("Personal" or group name)
 }
 
 // GroupRef is a lightweight description of a Zotero group library. Used

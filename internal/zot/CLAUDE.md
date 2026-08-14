@@ -44,7 +44,7 @@ Every zot command except `setup`, `guide`, and `info`-without-a-flag runs under 
 - `search` conflicts `--library all` with `--notes` (`searchAllConflicts`): the notes filter is per-library and would silently answer narrower. An honest error beats a quietly smaller answer.
 - `bib` resolves against the merged `ListAll` pool; cross-library duplicates hit the existing >1-distinct-matches ambiguity gate, never a guess.
 
-**Resolution** — `Config.Resolve(scope)` maps a scope to a `LibraryRef{Scope, LocalID, Name}`; `Config.ResolveWithProbe(scope, probe)` lazy-detects the shared group on first use if `SharedGroupID` is blank and persists the result. **Local dispatch** — `local.Open(dir, sel)` requires an explicit selector: `ForPersonal()` for `type='user'`, `ForGroupByAPIID(groupID)` for a group by its Zotero group ID (joins the `groups` table), or `ForAll(groupID)` for the merged pool.
+**Resolution** — `Config.Resolve(scope)` maps a scope to a `LibraryRef{Scope, Name}`; `Config.ResolveWithProbe(scope, probe)` lazy-detects the shared group on first use if `SharedGroupID` is blank and persists the result. **Local dispatch** — `local.Open(dir, sel)` requires an explicit selector: `ForPersonal()` for `type='user'`, `ForGroupByAPIID(groupID)` for a group by its Zotero group ID (joins the `groups` table), or `ForAll(groupID)` for the merged pool.
 
 ## `sci zot browse` — inline search-and-open REPL
 

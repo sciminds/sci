@@ -12,44 +12,14 @@ import (
 // work that actually succeeded. captureStderr swaps os.Stderr for a pipe, so
 // the non-TTY condition holds even when the test binary is run from a terminal.
 
-func TestRunWithProgress_NonTTYRunsFnAndReportsSuccess(t *testing.T) {
-	SetQuiet(false)
-	t.Cleanup(func() { SetQuiet(false) })
-
-	ran := false
-	var got error
-	out := captureStderr(t, func() {
-		got = RunWithProgress("Linking notes…", func(tr *ProgressTracker) error {
-			tr.SetTotal(2)
-			tr.SetTitle("phase 2")
-			tr.Advance("created", "ZJQMDFWK")
-			tr.Status("halfway")
-			tr.Reset("phase 3", 1)
-			tr.Advance("created", "JACFHMN6")
-			ran = true
-			return nil
-		})
-	})
-
-	if !ran {
-		t.Fatal("fn should have been called")
-	}
-	if got != nil {
-		t.Errorf("work succeeded, so the returned error should be nil; got %v", got)
-	}
-	if !strings.Contains(out, "Linking notes…") {
-		t.Errorf("stderr should carry the title, got %q", out)
-	}
-}
-
-func TestRunWithProgress_NonTTYReturnsFnError(t *testing.T) {
+func TestRunWithSpinnerStatus_NonTTYReturnsFnError(t *testing.T) {
 	SetQuiet(false)
 	t.Cleanup(func() { SetQuiet(false) })
 
 	want := errors.New("boom")
 	var got error
 	captureStderr(t, func() {
-		got = RunWithProgress("Linking notes…", func(*ProgressTracker) error {
+		got = RunWithSpinnerStatus("Fetching…", func(func(string)) error {
 			return want
 		})
 	})
