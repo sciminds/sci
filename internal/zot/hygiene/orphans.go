@@ -244,9 +244,13 @@ func Orphans(db local.Reader, opts OrphansOptions) (*Report, error) {
 
 	total := lo.Sum(slices.Collect(maps.Values(counts)))
 
+	// Scanned carries the orphan yield, not a denominator: this check walks
+	// collections, tags and standalone items at once, planes with no single
+	// total to divide by — hence UnitFindings.
 	return &Report{
 		Check:    "orphans",
 		Scanned:  total,
+		Unit:     UnitFindings,
 		Findings: findings,
 		Stats: OrphansStats{
 			CountsByKind: counts,

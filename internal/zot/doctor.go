@@ -40,6 +40,12 @@ type DoctorTotals struct {
 // aggregated per-check reports plus a pre-computed totals block so
 // scripts can answer "did anything break?" with one field lookup.
 type DoctorResult struct {
+	// Scanned is the largest ITEM count any item-scoped check reported —
+	// the checks that walk the same plane agree, so the max is the library
+	// size they saw. Reports counting anything else ([hygiene.UnitFieldValues],
+	// [hygiene.UnitFindings]) are excluded: a max over mixed units is not a
+	// quantity of anything. Zero when no item-scoped check ran, e.g.
+	// `doctor --check invalid`.
 	Scanned int                        `json:"scanned"`
 	Reports map[string]*hygiene.Report `json:"reports"`
 	Order   []string                   `json:"-"`
@@ -96,19 +102,26 @@ func Doctor(db local.Reader, cfg *Config, opts DoctorOptions) (*DoctorResult, er
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", check, err)
 		}
-		out.Reports[check] = rep
-		out.Order = append(out.Order, check)
-		if rep.Scanned > out.Scanned {
-			out.Scanned = rep.Scanned
-		}
-		counts := rep.CountBySeverity()
-		out.Totals.Errors += counts[hygiene.SevError]
-		out.Totals.Warnings += counts[hygiene.SevWarn]
-		out.Totals.Info += counts[hygiene.SevInfo]
-		out.Totals.Clusters += len(rep.Clusters)
+		out.absorb(rep)
 	}
 
 	return out, nil
+}
+
+// absorb folds one check's report into the aggregate: it records the report,
+// rolls its findings into Totals, and raises Scanned only when the report
+// counted items. See [DoctorResult.Scanned] for why the unit gate matters.
+func (r *DoctorResult) absorb(rep *hygiene.Report) {
+	r.Reports[rep.Check] = rep
+	r.Order = append(r.Order, rep.Check)
+	if rep.Unit == hygiene.UnitItems && rep.Scanned > r.Scanned {
+		r.Scanned = rep.Scanned
+	}
+	counts := rep.CountBySeverity()
+	r.Totals.Errors += counts[hygiene.SevError]
+	r.Totals.Warnings += counts[hygiene.SevWarn]
+	r.Totals.Info += counts[hygiene.SevInfo]
+	r.Totals.Clusters += len(rep.Clusters)
 }
 
 // defaultDoctorOrphanKinds mirrors hygiene.defaultOrphanKinds — the safe,
@@ -169,9 +182,9 @@ func (r *DoctorResult) Human() string {
 	if r.Deep {
 		deepLabel = "deep mode"
 	}
-	fmt.Fprintf(&b, "  %s %d items scanned  %s %s\n\n",
+	fmt.Fprintf(&b, "  %s %s  %s %s\n\n",
 		uikit.TUI.Dim().Render("·"),
-		r.Scanned,
+		r.headline(),
 		uikit.TUI.Dim().Render("·"),
 		uikit.TUI.Dim().Render(deepLabel),
 	)
@@ -209,6 +222,22 @@ func (r *DoctorResult) Human() string {
 		uikit.TUI.Dim().Render("`sci zot doctor invalid`, `sci zot doctor missing`, `sci zot doctor orphans`, `sci zot doctor duplicates`, `sci zot doctor citekeys`"),
 	)
 	return b.String()
+}
+
+// headline is the dashboard's first line: how much of the library the run
+// looked at. It reports an item count only when an item-scoped check
+// actually produced one — `doctor --check invalid` scans field values, and
+// saying "0 items scanned" there would be as wrong as the max-across-units
+// count this replaced.
+func (r *DoctorResult) headline() string {
+	itemScoped := lo.ContainsBy(r.Order, func(name string) bool {
+		rep := r.Reports[name]
+		return rep != nil && rep.Unit == hygiene.UnitItems
+	})
+	if !itemScoped {
+		return fmt.Sprintf("%d check(s) run", len(r.Order))
+	}
+	return fmt.Sprintf("%d items scanned", r.Scanned)
 }
 
 // doctorSummaryLine produces the one-line per-check summary ("2 errors,

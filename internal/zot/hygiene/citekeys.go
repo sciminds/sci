@@ -124,6 +124,7 @@ func CitekeysFromRows(rows []local.CiteKeyRow) *Report {
 	return &Report{
 		Check:    "citekeys",
 		Scanned:  len(rows),
+		Unit:     UnitItems,
 		Findings: findings,
 		Stats:    stats,
 	}

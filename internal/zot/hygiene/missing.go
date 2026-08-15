@@ -140,6 +140,7 @@ func Missing(db local.Reader, fields []MissingField) (*Report, error) {
 	return &Report{
 		Check:    "missing",
 		Scanned:  len(rows),
+		Unit:     UnitItems,
 		Findings: findings,
 		Stats: MissingStats{
 			Scanned:  len(rows),

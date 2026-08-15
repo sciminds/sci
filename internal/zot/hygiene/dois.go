@@ -56,6 +56,7 @@ func ScanSubobjectDOIs(rows []local.FieldValue) *Report {
 	return &Report{
 		Check:    "dois",
 		Scanned:  len(rows),
+		Unit:     UnitDOIValues,
 		Findings: findings,
 		Stats: SubobjectDOIStats{
 			Scanned:   len(rows),

@@ -436,6 +436,33 @@ func TestOutputScoped_Human_LibraryHeaderGoesToStderr(t *testing.T) {
 	}
 }
 
+// The banner names the library that answered. Config.Resolve fills Name
+// with a placeholder for the scopes that have no name of their own, so
+// printing it unconditionally produced "Library: personal — Personal" —
+// the same word twice, one of them lowercased. Only a shared group's name
+// says something the scope doesn't.
+func TestLibraryBanner_DoesNotRepeatTheScope(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		ref  zot.LibraryRef
+		want string
+	}{
+		{"personal", zot.LibraryRef{Scope: zot.LibPersonal, Name: "Personal"}, "Library: personal\n"},
+		{"all", zot.LibraryRef{Scope: zot.LibAll, Name: "All libraries"}, "Library: all\n"},
+		{"unnamed shared", zot.LibraryRef{Scope: zot.LibShared, Name: "shared"}, "Library: shared\n"},
+		{"named group", zot.LibraryRef{Scope: zot.LibShared, Name: "sciminds"}, "Library: shared — sciminds\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := stripANSI(libraryBanner(tc.ref))
+			if !strings.HasSuffix(got, tc.want) {
+				t.Errorf("libraryBanner(%+v) = %q, want it to end with %q", tc.ref, got, tc.want)
+			}
+		})
+	}
+}
+
 // stripANSI removes \x1b[…m escape sequences so test assertions don't
 // depend on terminal styling.
 func stripANSI(s string) string {

@@ -76,9 +76,11 @@ func Setup(in SetupInput) (*SetupResult, error) {
 	}, nil
 }
 
-// Logout clears the saved configuration. There is no credential to
-// forget — this only makes sci stop knowing where the library is.
-func Logout() (*SetupResult, error) {
+// ClearSetup clears the saved configuration — the flag behind it is
+// `sci zot setup --clear`. There is no credential and no session to forget:
+// this only makes sci stop knowing where the library is. Keys sci does not
+// own survive it (see [ClearConfig]).
+func ClearSetup() (*SetupResult, error) {
 	if err := ClearConfig(); err != nil {
 		return nil, err
 	}

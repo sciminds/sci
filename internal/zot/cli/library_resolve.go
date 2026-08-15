@@ -20,7 +20,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot"
@@ -200,19 +202,29 @@ func outputScoped(ctx context.Context, cmd *cli.Command, r cmdutil.Result) {
 		return
 	}
 
-	name := ref.Name
-	if name == "" {
-		name = string(ref.Scope)
-	}
 	// stderr, not stdout: this line says which library answered, not what the
 	// answer was. Keeping it off stdout is what lets a human-mode result be
 	// piped (`… content read KEY | llm`) without the consumer parsing chrome.
-	_, _ = fmt.Fprintf(cmdutil.HumanErrWriter(), "  %s Library: %s — %s\n",
-		uikit.SymArrow,
-		uikit.TUI.TextBlue().Render(string(ref.Scope)),
-		uikit.TUI.Dim().Render(name),
-	)
+	_, _ = fmt.Fprint(cmdutil.HumanErrWriter(), libraryBanner(ref))
 	cmdutil.Output(cmd, r)
+}
+
+// libraryBanner renders the "which library answered" line.
+//
+// The display name is appended only when it says something the scope does
+// not. [zot.Config.Resolve] fills Name with a placeholder for the scopes
+// that have no name of their own — "Personal" for personal, "All libraries"
+// for all — so printing it unconditionally rendered "Library: personal —
+// Personal", the same word twice with one of them lowercased. A shared
+// group's name is the case this line exists for.
+func libraryBanner(ref zot.LibraryRef) string {
+	scope := string(ref.Scope)
+	label := uikit.TUI.TextBlue().Render(scope)
+	placeholders := []string{"", scope, scope + " library", scope + " libraries"}
+	if !lo.ContainsBy(placeholders, func(p string) bool { return strings.EqualFold(ref.Name, p) }) {
+		label += " — " + uikit.TUI.Dim().Render(ref.Name)
+	}
+	return fmt.Sprintf("  %s Library: %s\n", uikit.SymArrow, label)
 }
 
 // scopedResult carries the library-injected raw JSON while delegating the

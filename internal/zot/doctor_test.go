@@ -234,3 +234,63 @@ func TestSubobjectDOIsResult_FooterNamesNoRemovedFlag(t *testing.T) {
 		t.Errorf("footer should report the finding count:\n%s", out)
 	}
 }
+
+// C1: the dashboard headline claimed "14962 items scanned" on a 5,494-item
+// library. The aggregate took the max Scanned across every report, but the
+// checks do not all count the same thing — `invalid` counts field values
+// (several per item) and `orphans` counts what it FOUND. A max over
+// incomparable units, printed under one "items" label, is a wrong number.
+func TestDoctor_AggregateCountsItemsOnly(t *testing.T) {
+	t.Parallel()
+	items := &hygiene.Report{Check: "missing", Scanned: 5494, Unit: hygiene.UnitItems}
+	fields := &hygiene.Report{Check: "invalid", Scanned: 14962, Unit: hygiene.UnitFieldValues}
+	found := &hygiene.Report{Check: "orphans", Scanned: 1, Unit: hygiene.UnitFindings}
+
+	res := &DoctorResult{Reports: map[string]*hygiene.Report{}}
+	for _, rep := range []*hygiene.Report{fields, items, found} {
+		res.absorb(rep)
+	}
+	if res.Scanned != 5494 {
+		t.Errorf("Scanned = %d, want the item count 5494 (field values and findings are other units)", res.Scanned)
+	}
+	if got := stripStyle(res.Human()); !strings.Contains(got, "5494 items scanned") {
+		t.Errorf("human headline does not report the item count:\n%s", got)
+	}
+	if got := stripStyle(res.Human()); strings.Contains(got, "14962") {
+		t.Errorf("human headline still reports a field-value count as items:\n%s", got)
+	}
+}
+
+// A run with no item-scoped check has no item count to report, and must not
+// invent one — `doctor --check invalid` scans field values only.
+func TestDoctor_NoItemScopedCheckReportsChecksInstead(t *testing.T) {
+	t.Parallel()
+	res := &DoctorResult{Reports: map[string]*hygiene.Report{}}
+	res.absorb(&hygiene.Report{Check: "invalid", Scanned: 14962, Unit: hygiene.UnitFieldValues})
+
+	got := stripStyle(res.Human())
+	if strings.Contains(got, "items scanned") {
+		t.Errorf("headline claims an item count no check measured:\n%s", got)
+	}
+	if !strings.Contains(got, "1 check(s) run") {
+		t.Errorf("headline does not say what actually ran:\n%s", got)
+	}
+}
+
+// stripStyle drops ANSI escapes so headline assertions don't depend on
+// terminal styling.
+func stripStyle(s string) string {
+	var b strings.Builder
+	in := false
+	for _, r := range s {
+		switch {
+		case r == 0x1b:
+			in = true
+		case in && r == 'm':
+			in = false
+		case !in:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}

@@ -18,7 +18,7 @@ func setupCommand() *cli.Command {
 		Usage: "Point sci at your Zotero data directory",
 		Description: "$ sci zot setup\n" +
 			"$ sci zot setup --data-dir ~/Zotero\n" +
-			"$ sci zot setup --logout\n\n" +
+			"$ sci zot setup --clear\n\n" +
 			"Setup records one thing: where zotero.sqlite lives. Every zot\n" +
 			"command opens it read-only and answers from it — there is no\n" +
 			"account to log into and no API key to paste. The shared group\n" +
@@ -27,7 +27,10 @@ func setupCommand() *cli.Command {
 			&cli.StringFlag{Name: "shared-group-id", Usage: "numeric group ID to use as the shared library (only needed when the library holds >1 group)", Local: true},
 			&cli.StringFlag{Name: "shared-group-name", Usage: "display name for the shared group (optional; auto-detected when --shared-group-id is set)", Local: true},
 			&cli.StringFlag{Name: "data-dir", Usage: "path to directory containing zotero.sqlite (auto-detected if omitted)", Local: true},
-			&cli.BoolFlag{Name: "logout", Usage: "clear the saved configuration", Local: true},
+			// --clear, not --logout: there is no session to end. It forgets
+			// the recorded data directory and leaves every key sci does not
+			// own in the file untouched.
+			&cli.BoolFlag{Name: "clear", Usage: "forget the saved configuration (the data directory)", Local: true},
 			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing config without prompting", Local: true},
 		},
 		Action: runSetup,
@@ -46,8 +49,8 @@ func RunSetup(ctx context.Context, cmd *cli.Command) error {
 }
 
 func runSetup(_ context.Context, cmd *cli.Command) error {
-	if cmd.Bool("logout") {
-		result, err := zot.Logout()
+	if cmd.Bool("clear") {
+		result, err := zot.ClearSetup()
 		if err != nil {
 			return err
 		}

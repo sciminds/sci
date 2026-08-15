@@ -144,6 +144,7 @@ func Duplicates(db local.Reader, opts DuplicatesOptions) (*Report, error) {
 	return &Report{
 		Check:   "duplicates",
 		Scanned: len(cands),
+		Unit:    UnitItems,
 		Stats: DuplicatesStats{
 			Scanned:       len(cands),
 			Strategy:      string(opts.Strategy),

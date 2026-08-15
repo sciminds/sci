@@ -46,7 +46,7 @@ func guideContent() zot.GuideResult {
 			"Exit 2 means rewrite the command line and retry; exit 1 means the work itself failed.",
 			"Act on warnings[] before trusting data — stale-local means this read cannot see everything Zotero has (the mirror lags the server, or the connection lags the file), and the remedy is Zotero desktop, so the warning carries prose and no fix; bib-quality means entries will be incomplete.",
 			"truncated:true means count < total — raise --limit to see the rest.",
-			"Search field clauses work bare: tag:read = @tag: read, and -tag:read excludes the tag.",
+			"Search field clauses work bare: tag:read = @tag: read, and -tag:read excludes the tag. A query that STARTS with `-` must follow a `--` separator or the flag parser claims it first: sci zot search -- '-tag:read'. Anywhere later in the query no separator is needed: sci zot search 'cortex -tag:read'.",
 			"--library all merges personal+shared into one ranked pool — accepted by search, bib, export --format ndjson and browse; each row's library field is its provenance (library_id reads 0). Everything else takes --library personal|shared.",
 			"item read accepts cite keys as positionals, not just 8-char Zotero keys. --library goes anywhere in the command.",
 			"Human output is for terminals; pipe --json instead.",

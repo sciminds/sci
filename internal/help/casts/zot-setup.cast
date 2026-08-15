@@ -31,7 +31,7 @@
 [7.0, "o", "  \u001b[32m\u2713\u001b[m zot configured\r\n"]
 [7.1, "o", "    \u001b[90mdata dir:\u001b[m /Users/alice/Desktop/Zotero\r\n"]
 [7.9, "o", "$ "]
-[8.2, "o", "sci zot setup --logout"]
+[8.2, "o", "sci zot setup --clear"]
 [8.6, "o", "\r\n"]
 [8.9, "o", "  \u001b[32m\u2713\u001b[m zot configuration cleared\r\n"]
 [9.7, "o", "$ "]

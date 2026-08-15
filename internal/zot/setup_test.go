@@ -79,13 +79,13 @@ func TestConfigExists(t *testing.T) {
 	}
 }
 
-func TestLogout(t *testing.T) {
+func TestClearSetup(t *testing.T) {
 	withXDGConfigHome(t)
 	dir := mkDataDir(t)
 	if _, err := Setup(SetupInput{DataDir: dir}); err != nil {
 		t.Fatal(err)
 	}
-	res, err := Logout()
+	res, err := ClearSetup()
 	if err != nil {
 		t.Fatal(err)
 	}

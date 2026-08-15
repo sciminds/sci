@@ -45,6 +45,31 @@ type Finding struct {
 	Fixable  bool     `json:"fixable"`
 }
 
+// ScanUnit names what a Report's Scanned field counts.
+//
+// The checks scan different planes, and two counts are only comparable when
+// they share a unit. `sci zot doctor` used to take the max Scanned across
+// every report and print it as "N items scanned" — which announced 14,962
+// items on a 5,494-item library, because `invalid` counts field values
+// (several per item). The unit travels with the number so a consumer, or a
+// renderer, can tell one from the other.
+type ScanUnit string
+
+// Scan units, one per plane a check walks.
+const (
+	// UnitItems counts library items — the denominator most checks use.
+	UnitItems ScanUnit = "items"
+	// UnitFieldValues counts individual metadata field values. An item
+	// contributes as many as it has populated fields.
+	UnitFieldValues ScanUnit = "field values"
+	// UnitDOIValues counts stored DOI strings, at most one per item.
+	UnitDOIValues ScanUnit = "DOI values"
+	// UnitFindings counts what the check FOUND rather than what it looked
+	// at: orphans walks collections, tags and standalone items, planes with
+	// no single denominator, so it reports its yield instead.
+	UnitFindings ScanUnit = "findings"
+)
+
 // Report is the result of running a single check. Stats is an optional
 // per-check summary blob (e.g. coverage counts for `missing`) — its shape
 // varies and is rendered by the corresponding Result type in internal/zot.
@@ -52,9 +77,12 @@ type Finding struct {
 // Most checks emit Findings (one per item-level issue). Cluster-style
 // checks like duplicates emit Clusters instead — the two fields are
 // mutually informative, not exclusive, and doctor merges them uniformly.
+//
+// Unit says what Scanned counts; every check sets it.
 type Report struct {
 	Check    string    `json:"check"`
 	Scanned  int       `json:"scanned"`
+	Unit     ScanUnit  `json:"unit,omitempty"`
 	Findings []Finding `json:"findings,omitempty"`
 	Clusters []Cluster `json:"clusters,omitempty"`
 	Stats    any       `json:"stats,omitempty"`

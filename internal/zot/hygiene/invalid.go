@@ -153,6 +153,7 @@ func InvalidFromFieldValues(rows []local.FieldValue) *Report {
 	return &Report{
 		Check:    "invalid",
 		Scanned:  len(rows),
+		Unit:     UnitFieldValues, // one item contributes several field values
 		Findings: findings,
 		Stats: InvalidStats{
 			Scanned:  len(rows),

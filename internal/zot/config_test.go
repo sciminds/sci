@@ -279,7 +279,7 @@ func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 	}
 }
 
-// TestClearConfig_LeavesForeignFields: `setup --logout` means "forget where
+// TestClearConfig_LeavesForeignFields: `setup --clear` means "forget where
 // the library is" — there is no credential here to clear. Deleting the whole
 // file to do that would take a credential sci never owned with it, a far
 // larger act than the one the user asked for.

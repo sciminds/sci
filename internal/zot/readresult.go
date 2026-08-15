@@ -510,18 +510,41 @@ func (r StatsResult) writeOrientBlock(b *strings.Builder) {
 	}
 }
 
-// ExportResult is returned for `sci zot item export` (single-item).
+// ExportResult is returned for `sci zot item export` (single-item). Body
+// holds the emitted citation when streaming to stdout; when the user passed
+// -o, Body is empty and OutPath points at the file on disk — the same split
+// LibraryExportResult uses, so the whole export family reads alike.
 type ExportResult struct {
-	Key    string `json:"key"`
-	Format string `json:"format"`
-	Body   string `json:"body"`
+	Key     string `json:"key"`
+	Format  string `json:"format"`
+	OutPath string `json:"out_path,omitempty"`
+	Body    string `json:"body,omitempty"`
 }
 
 // JSON implements cmdutil.Result.
 func (r ExportResult) JSON() any { return r }
 
-// Human implements cmdutil.Result.
-func (r ExportResult) Human() string { return r.Body + "\n" }
+// Human implements cmdutil.Result. Streaming to stdout, the citation is the
+// entire output — see [ExportResult.Diagnostics].
+func (r ExportResult) Human() string {
+	if r.OutPath == "" {
+		return r.Body + "\n"
+	}
+	return fmt.Sprintf("  %s wrote %s to %s\n", uikit.SymOK, r.Format, r.OutPath)
+}
+
+// Diagnostics implements cmdutil.Diagnostician — the one-item footer, on
+// stderr, so `sci zot item export KEY --format csl-json > ref.json` stays
+// valid JSON. `zot bib`, `zot export` and `zot search --export` all report
+// what they emitted; this one used to report nothing, so the family answered
+// the same question two different ways.
+func (r ExportResult) Diagnostics() string {
+	if r.OutPath != "" {
+		return ""
+	}
+	return fmt.Sprintf("    %s 1 item(s): %s as %s\n",
+		uikit.TUI.Dim().Render("·"), r.Key, r.Format)
+}
 
 // LibraryExportResult is returned for `sci zot export` (full library) and
 // for `sci zot search --export` (filtered subset). Body holds the emitted document
@@ -539,22 +562,38 @@ type LibraryExportResult struct {
 func (r LibraryExportResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.
+//
+// Streaming to stdout (no -o), the body IS the output and nothing else may
+// join it: `sci zot export --format csl-json > refs.json` has to produce a
+// file that parses. The stats move to [LibraryExportResult.Diagnostics],
+// which cmdutil.Output writes to stderr. With -o the human output is a
+// status report rather than a document, so the footer stays here — splitting
+// one message across two streams would only scatter it.
 func (r LibraryExportResult) Human() string {
-	var b strings.Builder
 	if r.OutPath == "" {
-		// Streaming to stdout — body IS the output. Footer goes through
-		// the human renderer as a separate block so it lands on stderr
-		// via the caller's renderer pipeline. We emit it as a trailing
-		// comment-block here; callers that want clean stdout should
-		// always pass -o.
-		b.WriteString(r.Body)
-		b.WriteString("\n")
-	} else {
-		fmt.Fprintf(&b, "  %s wrote %s to %s\n", uikit.SymOK, r.Format, r.OutPath)
-		if r.KeymapPath != "" {
-			fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("keymap:"), r.KeymapPath)
-		}
+		return r.Body + "\n"
 	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "  %s wrote %s to %s\n", uikit.SymOK, r.Format, r.OutPath)
+	if r.KeymapPath != "" {
+		fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("keymap:"), r.KeymapPath)
+	}
+	b.WriteString(r.statsFooter())
+	return b.String()
+}
+
+// Diagnostics implements cmdutil.Diagnostician — the cite-key stats, on
+// stderr, and only when the document went to stdout.
+func (r LibraryExportResult) Diagnostics() string {
+	if r.OutPath != "" {
+		return ""
+	}
+	return r.statsFooter()
+}
+
+// statsFooter renders the cite-key tally shared by both output modes.
+func (r LibraryExportResult) statsFooter() string {
+	var b strings.Builder
 	fmt.Fprintf(&b, "    %s %d item(s): %d pinned, %d synthesized",
 		uikit.TUI.Dim().Render("·"),
 		r.Stats.Total, r.Stats.Pinned, r.Stats.Synthesized)
@@ -586,27 +625,48 @@ type LibraryDumpResult struct {
 // JSON implements cmdutil.Result.
 func (r LibraryDumpResult) JSON() any { return r }
 
-// Human implements cmdutil.Result.
+// Human implements cmdutil.Result. Streaming to stdout, the ndjson body is
+// the whole output — see [LibraryDumpResult.Diagnostics].
 func (r LibraryDumpResult) Human() string {
+	if r.OutPath == "" {
+		if strings.HasSuffix(r.Body, "\n") {
+			return r.Body
+		}
+		return r.Body + "\n"
+	}
 	var b strings.Builder
-	if r.OutPath == "" {
-		b.WriteString(r.Body)
-		if !strings.HasSuffix(r.Body, "\n") {
-			b.WriteString("\n")
-		}
-	} else {
-		fmt.Fprintf(&b, "  %s dumped %s library to %s\n", uikit.SymOK, r.Scope, r.OutPath)
-		if r.MetaPath != "" {
-			fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
-		}
+	fmt.Fprintf(&b, "  %s dumped %s to %s\n", uikit.SymOK, r.scopeLabel(), r.OutPath)
+	if r.MetaPath != "" {
+		fmt.Fprintf(&b, "    %s %s\n", uikit.TUI.Dim().Render("meta:"), r.MetaPath)
 	}
-	fmt.Fprintf(&b, "    %s %d item(s), %d collection(s)\n",
-		uikit.TUI.Dim().Render("·"), r.Stats.Items, r.Stats.Collections)
-	if r.OutPath == "" {
-		fmt.Fprintf(&b, "    %s no --out: completeness sidecar not written\n",
-			uikit.TUI.Dim().Render("!"))
-	}
+	b.WriteString(r.statsFooter())
 	return b.String()
+}
+
+// Diagnostics implements cmdutil.Diagnostician — the record tally and the
+// missing-sidecar caveat, on stderr, so a redirected dump is pure ndjson.
+func (r LibraryDumpResult) Diagnostics() string {
+	if r.OutPath != "" {
+		return ""
+	}
+	return r.statsFooter() + fmt.Sprintf("    %s no --out: completeness sidecar not written\n",
+		uikit.TUI.Dim().Render("!"))
+}
+
+// statsFooter renders the record tally shared by both output modes.
+func (r LibraryDumpResult) statsFooter() string {
+	return fmt.Sprintf("    %s %d item(s), %d collection(s)\n",
+		uikit.TUI.Dim().Render("·"), r.Stats.Items, r.Stats.Collections)
+}
+
+// scopeLabel names the pool that was dumped. `--library all` is a merged
+// read pool over personal + shared, so it is plural — "all library" named
+// something that does not exist.
+func (r LibraryDumpResult) scopeLabel() string {
+	if r.Scope == string(LibAll) {
+		return "all libraries"
+	}
+	return r.Scope + " library"
 }
 
 // OpenResult is returned for `sci zot item open`.

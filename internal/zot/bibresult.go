@@ -30,11 +30,32 @@ type BibResult struct {
 // JSON implements cmdutil.Result.
 func (r BibResult) JSON() any { return r }
 
-// Human implements cmdutil.Result.
+// Human implements cmdutil.Result. Without -o the bibliography is streamed
+// to stdout and is the entire output; the coverage footer and the unresolved
+// list move to [BibResult.Diagnostics] so a redirected `--format csl-json`
+// still parses.
 func (r BibResult) Human() string {
-	var b strings.Builder
-	b.WriteString(r.Export.Human())
+	if r.Export.OutPath == "" {
+		return r.Export.Human()
+	}
+	return r.Export.Human() + r.coverageFooter()
+}
 
+// Diagnostics implements cmdutil.Diagnostician. The unresolved list is the
+// whole answer to "what didn't resolve", so it is never dropped — it moves
+// to stderr, where it stays visible to the person watching the pipe without
+// corrupting the document.
+func (r BibResult) Diagnostics() string {
+	if r.Export.OutPath != "" {
+		return ""
+	}
+	return r.Export.Diagnostics() + r.coverageFooter()
+}
+
+// coverageFooter renders the citation-coverage tally plus the unresolved
+// list, shared by both output modes.
+func (r BibResult) coverageFooter() string {
+	var b strings.Builder
 	fmt.Fprintf(&b, "    %s %d reference(s) in %d file(s): %d resolved, %d unresolved\n",
 		uikit.TUI.Dim().Render("·"),
 		r.References, len(r.Files), r.Resolved, len(r.Unresolved))

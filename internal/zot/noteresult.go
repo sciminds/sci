@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot/notemd"
@@ -85,8 +86,50 @@ type RealNotesListResult struct {
 	Notes  []local.NoteSummary `json:"notes"`
 }
 
+// noteListEntry is the wire shape of one listed note.
+//
+// It exists to name the note's own key `key`. Every other verb on this
+// surface — `notes read`, `item read`, `item list`, `search` — calls a
+// Zotero item key `key`; the listing called it `note_key`, so a consumer
+// paging `notes list` into `notes read` had to rename the field between two
+// commands in the same namespace. Every other field mirrors
+// [local.NoteSummary] exactly.
+type noteListEntry struct {
+	Key         string   `json:"key"`
+	ParentKey   string   `json:"parent_key,omitempty"`
+	ParentTitle string   `json:"parent_title,omitempty"`
+	Body        string   `json:"body"`
+	DateAdded   string   `json:"date_added"`
+	Tags        []string `json:"tags,omitempty"`
+}
+
+// realNotesListJSON is [RealNotesListResult]'s wire shape — identical to the
+// result apart from the per-note projection above.
+type realNotesListJSON struct {
+	Count  int             `json:"count"`
+	Total  int             `json:"total"`
+	Offset int             `json:"offset,omitempty"`
+	Notes  []noteListEntry `json:"notes"`
+}
+
 // JSON implements cmdutil.Result.
-func (r RealNotesListResult) JSON() any { return r }
+func (r RealNotesListResult) JSON() any {
+	return realNotesListJSON{
+		Count:  r.Count,
+		Total:  r.Total,
+		Offset: r.Offset,
+		Notes: lo.Map(r.Notes, func(n local.NoteSummary, _ int) noteListEntry {
+			return noteListEntry{
+				Key:         n.NoteKey,
+				ParentKey:   n.ParentKey,
+				ParentTitle: n.ParentTitle,
+				Body:        n.Body,
+				DateAdded:   n.DateAdded,
+				Tags:        n.Tags,
+			}
+		}),
+	}
+}
 
 // Human implements cmdutil.Result.
 func (r RealNotesListResult) Human() string {

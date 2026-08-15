@@ -139,9 +139,15 @@ func TestRunLibraryDump_NoOutSkipsSidecarAndSaysSo(t *testing.T) {
 		t.Fatal("streaming run produced no body")
 	}
 	// A dump with no completeness signal must announce itself; silence
-	// here is how a partial file gets mistaken for a whole one.
-	if !strings.Contains(res.Human(), "sidecar not written") {
-		t.Errorf("human output does not flag the missing sidecar:\n%s", res.Human())
+	// here is how a partial file gets mistaken for a whole one. It goes on
+	// stderr via Diagnostics(), because stdout is the ndjson document —
+	// `zot export --format ndjson > dump.ndjson` must not pick up a line
+	// no consumer can decode.
+	if !strings.Contains(res.Diagnostics(), "sidecar not written") {
+		t.Errorf("diagnostics do not flag the missing sidecar:\n%s", res.Diagnostics())
+	}
+	if strings.Contains(res.Human(), "sidecar not written") {
+		t.Errorf("the sidecar caveat leaked into the ndjson body:\n%s", res.Human())
 	}
 }
 

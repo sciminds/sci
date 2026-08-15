@@ -100,7 +100,7 @@ func SaveConfig(cfg *Config) error {
 // ClearConfig removes the fields sci owns, leaving every other key intact, and
 // deletes the file outright once nothing is left in it.
 //
-// `setup --logout` means "forget where the library is" — there is no
+// `setup --clear` means "forget where the library is" — there is no
 // credential here to forget. Deleting the whole file to accomplish that would
 // take keys sci never owned with it, a much larger act than the one the user
 // asked for.

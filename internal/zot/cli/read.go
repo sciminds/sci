@@ -113,7 +113,11 @@ func searchCommand() *cli.Command {
 			"@tag: read, and -tag:read negates it. Clauses AND by default;\n" +
 			"`|` separates OR groups; a leading `-` in the value negates\n" +
 			"the clause.\n\n" +
+			"A query that STARTS with `-` must follow a `--` separator, or\n" +
+			"the flag parser claims it before the search does. Anywhere else\n" +
+			"in the query it needs nothing special.\n\n" +
 			"$ sci zot search 'cortex -tag:to-read'           # free text minus a tag\n" +
+			"$ sci zot search -- '-tag:has-markdown'         # query STARTING with `-`\n" +
 			"$ sci zot search \"large language models\"\n" +
 			"$ sci zot search --limit 100 neuroimaging\n" +
 			"$ sci zot search '@tag: Generative_Agents'      # items carrying this tag\n" +
@@ -725,13 +729,17 @@ func exportCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			res := zot.ExportResult{Key: key, Format: string(format), Body: body}
 			if exportOut != "" {
 				if err := os.WriteFile(exportOut, []byte(body+"\n"), 0o644); err != nil {
 					return err
 				}
-				body = fmt.Sprintf("wrote %s to %s", format, exportOut)
+				// The document is on disk, so the result reports the path
+				// rather than carrying the body twice — same shape as
+				// `zot export -o`.
+				res.OutPath, res.Body = exportOut, ""
 			}
-			outputScoped(ctx, cmd, zot.ExportResult{Key: key, Format: string(format), Body: body})
+			outputScoped(ctx, cmd, res)
 			return nil
 		},
 	}
