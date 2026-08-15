@@ -49,6 +49,10 @@ var longDescs = map[string]string{
 	"update": "Update sci to the latest released version. Downloads the newest " +
 		"binary from GitHub and replaces the current one in-place. No additional steps required.",
 
+	"version": "Print which build of sci you are running — the released version, the commit it was built from, " +
+		"and whether it is a development build. This is the first question of every bug report, so it is worth " +
+		"pasting the output into one. `sci --version` is the same answer, and `--json` makes it scriptable.",
+
 	"learn": "Interactive guides to the terminal, git, and Python, with live demos " +
 		"you can watch and replay. A good starting point if you're new to the " +
 		"command-line or need a refresher — for sci's own commands, see `sci help`.",

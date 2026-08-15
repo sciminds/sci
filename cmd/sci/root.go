@@ -43,22 +43,42 @@ func (versionResult) Human() string { return "sci " + version.String() + "\n" }
 // versionCommand is the `sci version` spelling of the --version flag.
 //
 // It exists because `sci version` is what people (and agents) type first, and
-// answering "unknown command" to it is a dead end. Hidden because --version is
-// the documented spelling and already appears in root help — and because a
-// visible top-level command needs a matching overview in internal/help, which
-// is a different package's file.
+// answering "unknown command" to it is a dead end. Visible, so it is listed
+// wherever the other Maintenance commands are — which is why it also carries
+// an overview in internal/help/descs.go, the one thing `sci help` cannot
+// derive from this tree.
 func versionCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "version",
 		Usage:       "Print the sci version",
 		Description: "$ sci version\n$ sci version --json",
 		Category:    "Maintenance",
-		Hidden:      true,
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			cmdutil.Output(cmd, versionResult{})
 			return nil
 		},
 	}
+}
+
+// humanHelpWriter is the root command's [cli.Command.Writer], and so the
+// destination of every `--help` page urfave/cli prints (its help printer
+// always writes to `cmd.Root().Writer`).
+//
+// A help page is human output — `sci zot --help | rg search` is an everyday
+// move — so it belongs on stdout, through [cmdutil.HumanWriter], like every
+// other human-mode stream. Until it was routed here it went to urfave's raw
+// writer, which meant `NO_COLOR=1 sci zot --help | …` handed the reader 27
+// escape sequences it never asked for.
+//
+// It re-resolves the writer on every Write instead of holding one, for the
+// reason [cmdutil.HumanWriter] gives: the profile is detected from the live
+// os.Stdout, and a writer captured at buildRoot() would keep painting the real
+// terminal after a test swapped it for a pipe. Each Write carries whole
+// rendered lines, so nothing is split across the profile downgrade.
+type humanHelpWriter struct{}
+
+func (humanHelpWriter) Write(p []byte) (int, error) {
+	return cmdutil.HumanWriter().Write(p)
 }
 
 // versionPrinterOnce guards the one-time cli.VersionPrinter swap: it is a
@@ -145,6 +165,9 @@ func buildRoot() *cli.Command {
 			zotCommand(),
 		}),
 	}
+	// Every `--help` page urfave prints goes to the root's Writer; see
+	// humanHelpWriter for why it is not os.Stdout.
+	root.Writer = humanHelpWriter{}
 	cmdutil.SetupHelp(root)
 	cmdutil.WireNamespaceDefaults(root)
 	useVersionResult()

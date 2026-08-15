@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/uikit"
+	"golang.org/x/term"
 )
 
 // level tracks where we are in the navigation hierarchy.
@@ -429,8 +431,51 @@ func (m *model) preRenderPages() tea.Cmd {
 	})
 }
 
+// learnIsInteractive reports whether there is a terminal for the TUI to draw
+// on and read from. Both ends matter: a piped stdout has nowhere to paint the
+// alt screen, and a piped stdin has no keys to steer it with. Tests override.
+var learnIsInteractive = func() bool {
+	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
+}
+
+// learnJSONRequested reports whether the caller asked for machine output.
+//
+// It reads argv rather than a *cli.Command because [Run] is handed one Book
+// slice and nothing else — the same reason main() falls back to
+// [cmdutil.JSONRequested] when flag parsing never happened. Tests override.
+var learnJSONRequested = func() bool {
+	return cmdutil.JSONRequested(os.Args)
+}
+
+// refuseNonInteractive is the up-front guard [Run] carries, modelled on zot's
+// refuseJSONForTUI (internal/zot/cli/browse.go).
+//
+// Without it, bubbletea's own "error opening TTY: … device not configured"
+// was the whole answer an agent or a pipeline got: a library implementation
+// detail with no [cmdutil.Code], no remedy, and nothing to run instead. The
+// scriptable alternative rides in Try as prose — no rewrite of this command
+// line makes a tutorial browser scriptable, so Fix stays empty.
+func refuseNonInteractive() error {
+	const try = "run `sci learn` from a terminal; for a scriptable list of sci's own commands use `sci --help` or `sci <command> --help`"
+	if learnJSONRequested() {
+		return cmdutil.Coded(cmdutil.CodeUsage, "learn is interactive-only and has no --json mode").
+			WithTry(try)
+	}
+	if !learnIsInteractive() {
+		return cmdutil.Coded(cmdutil.CodeUsage, "learn is an interactive browser and needs a terminal (stdin and stdout are not a TTY)").
+			WithTry(try)
+	}
+	return nil
+}
+
 // Run launches the interactive learn TUI with the given books.
+//
+// It refuses up front when there is no terminal to run in, or when --json was
+// asked for; see [refuseNonInteractive].
 func Run(books []Book) error {
+	if err := refuseNonInteractive(); err != nil {
+		return err
+	}
 	uikit.DetectTermStyle() // probe terminal before bubbletea takes over stdin
 	return uikit.Run(newModel(books))
 }

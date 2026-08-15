@@ -1,12 +1,15 @@
 package learn
 
 import (
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/tuitest"
 )
 
@@ -231,5 +234,57 @@ func TestGuidePythonBookEntries(t *testing.T) {
 	}
 	if len(fm.entries.Items()) != len(PythonEntries) {
 		t.Errorf("entries list has %d items, want %d", len(fm.entries.Items()), len(PythonEntries))
+	}
+}
+
+// ── B8: the TUI must refuse before bubbletea gets a chance to fail ─────────
+//
+// `sci learn` is a full-screen browser, so with no terminal to draw on the
+// only thing the caller used to collect was bubbletea's internal "error
+// opening TTY: … device not configured" — a library implementation detail
+// with no code, no remedy, and nothing to run instead. Both refusals below
+// mirror zot's refuseJSONForTUI: a usage-coded envelope naming an
+// alternative the caller can actually script.
+
+func TestLearnRefusesWithoutATerminal(t *testing.T) {
+	origTTY, origJSON := learnIsInteractive, learnJSONRequested
+	learnIsInteractive = func() bool { return false }
+	learnJSONRequested = func() bool { return false }
+	t.Cleanup(func() { learnIsInteractive, learnJSONRequested = origTTY, origJSON })
+
+	err := Run(Books)
+	coded, ok := errors.AsType[*cmdutil.CodedError](err)
+	if !ok {
+		t.Fatalf("want *cmdutil.CodedError, got %T: %v", err, err)
+	}
+	if coded.Code != cmdutil.CodeUsage {
+		t.Errorf("Code = %q, want usage (exit 2)", coded.Code)
+	}
+	if strings.Contains(coded.Message, "bubbletea") {
+		t.Errorf("the library error should never reach the user, got %q", coded.Message)
+	}
+	if coded.Try == "" {
+		t.Error("a refusal must name something the caller can run instead")
+	}
+}
+
+func TestLearnRefusesUnderJSON(t *testing.T) {
+	origTTY, origJSON := learnIsInteractive, learnJSONRequested
+	// A terminal is available — --json alone is the refusal, exactly as it is
+	// for `sci zot view --json`.
+	learnIsInteractive = func() bool { return true }
+	learnJSONRequested = func() bool { return true }
+	t.Cleanup(func() { learnIsInteractive, learnJSONRequested = origTTY, origJSON })
+
+	err := Run(Books)
+	coded, ok := errors.AsType[*cmdutil.CodedError](err)
+	if !ok {
+		t.Fatalf("want *cmdutil.CodedError, got %T: %v", err, err)
+	}
+	if coded.Code != cmdutil.CodeUsage {
+		t.Errorf("Code = %q, want usage (exit 2)", coded.Code)
+	}
+	if !strings.Contains(coded.Message, "--json") {
+		t.Errorf("the message should say what was refused, got %q", coded.Message)
 	}
 }
