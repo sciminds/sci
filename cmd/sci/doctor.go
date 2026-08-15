@@ -35,12 +35,12 @@ func doctorCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:  "yes",
-				Usage: "auto-confirm prerequisite installs (e.g. Homebrew) — required to drive a fresh-machine setup under --json",
+				Usage: "auto-confirm installs and package upgrades — required to drive a fresh-machine setup under --json",
 				Local: true,
 			},
 			&cli.BoolFlag{
 				Name:  "skip-upgrade-check",
-				Usage: "skip the brew/uv outdated check and upgrade prompt (used by `sci update`)",
+				Usage: "skip the brew/uv outdated check and upgrade prompt (used by `sci update`; already the default under --json)",
 				Local: true,
 			},
 		},
@@ -59,6 +59,40 @@ const postUpdateEnvVar = "SCI_SKIP_UPGRADE_CHECK"
 // flagSet) or the env var set by `sci update`.
 func skipUpgradeCheck(flagSet bool) bool {
 	return flagSet || os.Getenv(postUpdateEnvVar) == "1"
+}
+
+// upgradeCheckSkip decides whether doctor runs the brew/uv outdated check,
+// and why not when it doesn't. The reason travels into the `--json` envelope
+// so a machine consumer never has to infer a skip from an empty list.
+//
+// Under --json the check is off unless --yes, and that is a deliberate
+// asymmetry with the human flow, for two reasons:
+//
+//   - It is not a "check" under --json. Quiet mode auto-confirms every
+//     [cmdutil.Confirm], so the prompt "Upgrade outdated packages?" answers
+//     itself and doctor proceeds to run `brew upgrade` across the whole
+//     machine — an unbounded install nobody asked for, from a command whose
+//     own help advertises `sci doctor --json` as the way to *diagnose* a
+//     system. The Homebrew-install path in doctor_darwin.go already draws
+//     this line ("installing Homebrew is a side effect we don't take
+//     silently"); the upgrade pass is the larger side effect and was missing
+//     the same gate.
+//   - A machine consumer wants the local diagnosis fast. The registry refresh
+//     is the slowest and least reliable step in doctor, and it answers a
+//     question — "is anything out of date?" — that `sci tools outdated` asks
+//     directly.
+//
+// --yes is the existing consent knob for exactly this class of side effect,
+// so it turns the check (and the upgrade it authorizes) back on.
+func upgradeCheckSkip(flagSet, isJSON, yes bool) (skip bool, reason string) {
+	switch {
+	case skipUpgradeCheck(flagSet):
+		return true, "--skip-upgrade-check"
+	case isJSON && !yes:
+		return true, "--json runs the local diagnosis only; pass --yes to check for and apply package upgrades"
+	default:
+		return false, ""
+	}
 }
 
 // closingSummary returns the trailing message printed at the end of doctor.

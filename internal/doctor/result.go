@@ -4,6 +4,7 @@ package doctor
 // for the `sci doctor` command.
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 
@@ -31,6 +32,39 @@ type DocResult struct {
 	Outdated    []brew.OutdatedPackage
 	Upgraded    []brew.OutdatedPackage
 	UpdateError string
+
+	// UpgradeCheck says what happened to the brew/uv outdated check itself.
+	// Always emitted, so a consumer can tell "nothing is outdated" from
+	// "we never looked" without inferring it from an empty list.
+	UpgradeCheck UpgradeCheckReport
+}
+
+// UpgradeCheckStatus is the closed vocabulary for the fate of the brew/uv
+// outdated check.
+type UpgradeCheckStatus string
+
+// Outcomes of the brew/uv outdated check.
+const (
+	// UpgradeCheckOK means the check completed; Outdated is authoritative.
+	UpgradeCheckOK UpgradeCheckStatus = "ok"
+	// UpgradeCheckSkipped means the check was deliberately not run
+	// (--skip-upgrade-check, SCI_SKIP_UPGRADE_CHECK, or --json without --yes).
+	UpgradeCheckSkipped UpgradeCheckStatus = "skipped"
+	// UpgradeCheckTimedOut means the check was abandoned at its deadline.
+	// The upgrade picture is unknown, not clean.
+	UpgradeCheckTimedOut UpgradeCheckStatus = "timed_out"
+	// UpgradeCheckFailed means brew or uv returned an error.
+	UpgradeCheckFailed UpgradeCheckStatus = "failed"
+)
+
+// UpgradeCheckReport describes the outcome of the brew/uv outdated check in a
+// form an agent can branch on: a [UpgradeCheckStatus] from a closed set, the
+// underlying reason when there is one, and the command that would produce the
+// missing answer.
+type UpgradeCheckReport struct {
+	Status UpgradeCheckStatus `json:"status"`
+	Reason string             `json:"reason,omitempty"`
+	Hint   string             `json:"hint,omitempty"`
 }
 
 type jsonCheck struct {
@@ -69,10 +103,24 @@ type jsonDocResult struct {
 	Outdated        []brew.OutdatedPackage `json:"outdated,omitempty"`
 	Upgraded        []brew.OutdatedPackage `json:"upgraded,omitempty"`
 	UpdateError     string                 `json:"update_error,omitempty"`
+	UpgradeCheck    UpgradeCheckReport     `json:"upgrade_check"`
+}
+
+// normalized fills in a status for a report nobody set. Every code path that
+// returns before the outdated check runs — Linux, an offline machine, a bail
+// on a missing Homebrew — is a skip, and saying so beats emitting an empty
+// status a consumer has to guess about.
+func (u UpgradeCheckReport) normalized() UpgradeCheckReport {
+	if u.Status == "" {
+		u.Status = UpgradeCheckSkipped
+		u.Reason = cmp.Or(u.Reason, "the upgrade check did not run")
+	}
+	return u
 }
 
 // JSON returns the structured output for --json mode.
 func (r DocResult) JSON() any {
+	upgradeCheck := r.UpgradeCheck.normalized()
 	pass, fail, warn := 0, 0, 0
 	sections := make([]jsonSection, 0, len(r.Sections))
 	for _, sec := range r.Sections {
@@ -109,6 +157,7 @@ func (r DocResult) JSON() any {
 		Outdated:        r.Outdated,
 		Upgraded:        r.Upgraded,
 		UpdateError:     r.UpdateError,
+		UpgradeCheck:    upgradeCheck,
 	}
 }
 
@@ -148,6 +197,17 @@ func (r DocResult) Human() string {
 		fmt.Fprintf(&b, "\n  %s\n", uikit.TUI.Bold().Render("Tools"))
 		fmt.Fprintf(&b, "    %s %-20s %s\n", sym, "installed",
 			uikit.TUI.Dim().Render(fmt.Sprintf("%d/%d", installed, len(r.Tools))))
+	}
+
+	// An abandoned or failed upgrade check is reported, never silently
+	// rendered as "nothing outdated".
+	switch r.UpgradeCheck.Status {
+	case UpgradeCheckTimedOut:
+		fmt.Fprintf(&b, "\n  %s %s\n", uikit.SymWarn,
+			uikit.TUI.Warn().Render("Upgrade check timed out — package updates unknown"))
+	case UpgradeCheckFailed:
+		fmt.Fprintf(&b, "\n  %s %s\n", uikit.SymWarn,
+			uikit.TUI.Warn().Render("Upgrade check failed: "+r.UpgradeCheck.Reason))
 	}
 
 	// Summary line — only shown when there are problems.

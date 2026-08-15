@@ -22,11 +22,11 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
+func runDoctorCheck(ctx context.Context, cmd *cli.Command) error {
 	runner := brew.CLI{}
 	isJSON := cmdutil.IsJSON(cmd)
 	gitName, gitEmail := cmd.String("git-name"), cmd.String("git-email")
-	skipUpgrade := skipUpgradeCheck(cmd.Bool("skip-upgrade-check"))
+	skipUpgrade, skipReason := upgradeCheckSkip(cmd.Bool("skip-upgrade-check"), isJSON, cmd.Bool("yes"))
 
 	// ── Step 0: Apply git identity flags ────────────────────────────────
 	if err := applyGitIdentityFlags(gitName, gitEmail); err != nil {
@@ -51,6 +51,11 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// Remaining steps need network access (Homebrew sync, install, updates).
 	if !netutil.Online() {
+		result.UpgradeCheck = doctor.UpgradeCheckReport{
+			Status: doctor.UpgradeCheckSkipped,
+			Reason: "no internet connection",
+			Hint:   doctor.UpgradeCheckHint,
+		}
 		if !isJSON {
 			fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 				uikit.SymWarn, uikit.TUI.Warn().Render("No internet connection — skipping Homebrew checks"))
@@ -63,6 +68,10 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 
 	// Bail early if Homebrew isn't installed — remaining steps need it.
 	if !hasHomebrew(result) {
+		result.UpgradeCheck = doctor.UpgradeCheckReport{
+			Status: doctor.UpgradeCheckSkipped,
+			Reason: "Homebrew is not installed",
+		}
 		if isJSON && !cmd.Bool("yes") {
 			// JSON without --yes: report state and exit. Installing
 			// Homebrew is a side effect we don't take silently.
@@ -116,8 +125,9 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 	// ── Steps 3b–4: Sync, required packages, tool check & install ──────
 	if isJSON {
 		// Non-interactive: RunSetup handles everything, auto-confirms.
-		setup := doctor.RunSetup(runner, brewfilePath, created, doctor.SetupOpts{
+		setup := doctor.RunSetup(ctx, runner, brewfilePath, created, doctor.SetupOpts{
 			SkipUpgradeCheck: skipUpgrade,
+			SkipReason:       skipReason,
 		})
 		result.BrewfilePath = setup.BrewfilePath
 		result.BrewfileCreated = setup.BrewfileCreated
@@ -130,6 +140,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		result.Outdated = setup.Outdated
 		result.Upgraded = setup.Upgraded
 		result.UpdateError = setup.UpdateError
+		result.UpgradeCheck = setup.UpgradeCheck
 
 		// Re-run preflight: tools the bundle just installed (gh, uv, etc.)
 		// weren't on PATH when the initial preflight ran, so checks like
@@ -198,7 +209,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		if skipUpgrade {
 			return nil
 		}
-		return runDoctorUpdateCheck(runner)
+		return runDoctorUpdateCheck(ctx, runner)
 	}
 
 	result.Tools = toolInfos
@@ -247,7 +258,7 @@ func runDoctorCheck(_ context.Context, cmd *cli.Command) error {
 		printDoctorClosing()
 		return nil
 	}
-	return runDoctorUpdateCheck(runner)
+	return runDoctorUpdateCheck(ctx, runner)
 }
 
 // printDoctorClosing refreshes the identity preflight (gh/hf may have been
@@ -346,23 +357,32 @@ func mustReadFile(path string) string {
 // runDoctorUpdateCheck refreshes the registry, checks for outdated packages,
 // and offers to upgrade them — the interactive equivalent of
 // `sci tools outdated && sci tools update`.
-func runDoctorUpdateCheck(runner brew.Runner) error {
+//
+// The check is bounded by ctx (see [brew.CheckUpdates]): a `brew update` that
+// stalls on an unreachable tap used to leave doctor sitting at "Checking for
+// outdated packages…" with no way out but Ctrl-C.
+func runDoctorUpdateCheck(ctx context.Context, runner brew.Runner) error {
 	fmt.Fprintf(os.Stderr, "\n  Checking for outdated packages…\n")
 
-	result, err := brew.Update(runner, true)
+	check, err := brew.CheckUpdates(ctx, runner)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "  %s %s\n",
-			uikit.SymWarn, uikit.TUI.Warn().Render("Could not check for updates: "+err.Error()))
-		return nil
-	}
-
-	if len(result.Outdated) == 0 {
+		msg := "Could not check for updates: " + err.Error()
+		if errors.Is(err, brew.ErrCheckTimeout) {
+			msg = "Update check timed out — skipping. Run `sci tools outdated` to retry."
+		}
+		fmt.Fprintf(os.Stderr, "  %s %s\n", uikit.SymWarn, uikit.TUI.Warn().Render(msg))
 		printDoctorClosing()
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(result.Outdated))
-	for _, pkg := range result.Outdated {
+	outdated := check.All()
+	if len(outdated) == 0 {
+		printDoctorClosing()
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "\n  %d outdated package(s):\n", len(outdated))
+	for _, pkg := range outdated {
 		arrow := uikit.TUI.TextPink().Render(" → ")
 		version := uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 		fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)

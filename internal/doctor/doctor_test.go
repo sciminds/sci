@@ -487,6 +487,9 @@ type mockBrewRunner struct {
 	uvOutdated    []brew.OutdatedPackage
 	uvOutdatedErr error
 	updateErr     error
+	// updateBlock, when non-nil, makes Update block until the channel is
+	// closed — a stand-in for a `brew update` that never returns.
+	updateBlock   chan struct{}
 	upgradeCalls  int
 	upgradeErr    error
 	uvUpgCalls    int
@@ -534,7 +537,12 @@ func (m *mockBrewRunner) InstallUVTools(names []string) error {
 	return m.installUVToolsErr
 }
 func (m *mockBrewRunner) UVToolList() ([]string, error) { return m.uvToolListResult, m.uvToolListErr }
-func (m *mockBrewRunner) Update() error                 { return m.updateErr }
+func (m *mockBrewRunner) Update() error {
+	if m.updateBlock != nil {
+		<-m.updateBlock
+	}
+	return m.updateErr
+}
 func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error) {
 	return m.outdated, m.outdatedErr
 }

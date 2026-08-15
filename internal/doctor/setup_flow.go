@@ -6,10 +6,12 @@ package doctor
 // mock [brew.Runner] and temp Brewfile.
 
 import (
+	"cmp"
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/brew"
@@ -30,15 +32,24 @@ type SetupResult struct {
 	Outdated        []brew.OutdatedPackage
 	Upgraded        []brew.OutdatedPackage
 	UpdateError     string
+	UpgradeCheck    UpgradeCheckReport
 }
+
+// UpgradeCheckHint is the command that answers "what is outdated?" for a
+// caller whose doctor run skipped or abandoned the check.
+const UpgradeCheckHint = "sci tools outdated"
 
 // SetupOpts controls optional behavior of [RunSetup].
 type SetupOpts struct {
 	// SkipUpgradeCheck disables the final brew/uv outdated check and
 	// upgrade prompt. Used by `sci update` to chain into doctor for
 	// required-tools checks without nagging the user about unrelated
-	// package upgrades.
+	// package upgrades, and by `sci doctor --json`.
 	SkipUpgradeCheck bool
+
+	// SkipReason explains the skip in the result's [UpgradeCheckReport].
+	// Ignored unless SkipUpgradeCheck is set.
+	SkipReason string
 }
 
 // RunSetup performs Brewfile sync, required-package injection, tool checking,
@@ -47,7 +58,11 @@ type SetupOpts struct {
 //
 // brewfilePath must point to an existing file. created indicates whether the
 // file was newly created (dump path) vs. pre-existing (sync path).
-func RunSetup(r brew.Runner, brewfilePath string, created bool, opts SetupOpts) SetupResult {
+//
+// ctx bounds the closing brew/uv outdated check only (see [brew.CheckUpdates]);
+// the install steps ahead of it are consented work of unpredictable length and
+// run to completion. A ctx with no deadline still cannot hang the check.
+func RunSetup(ctx context.Context, r brew.Runner, brewfilePath string, created bool, opts SetupOpts) SetupResult {
 	result := SetupResult{
 		BrewfilePath:    brewfilePath,
 		BrewfileCreated: created,
@@ -143,6 +158,11 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool, opts SetupOpts) 
 
 	// ── Check for outdated packages ────────────────────────────────────
 	if opts.SkipUpgradeCheck {
+		result.UpgradeCheck = UpgradeCheckReport{
+			Status: UpgradeCheckSkipped,
+			Reason: cmp.Or(opts.SkipReason, "skipped by request"),
+			Hint:   UpgradeCheckHint,
+		}
 		return result
 	}
 
@@ -150,37 +170,27 @@ func RunSetup(r brew.Runner, brewfilePath string, created bool, opts SetupOpts) 
 		fmt.Fprintf(os.Stderr, "\n  Checking for outdated packages…\n")
 	}
 
-	if err := r.Update(); err != nil {
+	// Bounded: a stalled `brew update` must not hold the whole command (and,
+	// under --json, the envelope) hostage. On expiry we report the section as
+	// unknown and return everything else we learned.
+	check, err := brew.CheckUpdates(ctx, r)
+	if err != nil {
 		result.UpdateError = err.Error()
+		result.UpgradeCheck = UpgradeCheckReport{
+			Status: lo.Ternary(errors.Is(err, brew.ErrCheckTimeout), UpgradeCheckTimedOut, UpgradeCheckFailed),
+			Reason: err.Error(),
+			Hint:   UpgradeCheckHint,
+		}
+		if !uikit.IsQuiet() {
+			fmt.Fprintf(os.Stderr, "  %s %s\n", uikit.SymWarn,
+				uikit.TUI.Warn().Render("Could not check for updates: "+err.Error()))
+		}
 		return result
 	}
+	result.UpgradeCheck = UpgradeCheckReport{Status: UpgradeCheckOK}
+	brewOutdated, uvOutdated := check.Brew, check.UV
 
-	var (
-		brewOutdated, uvOutdated []brew.OutdatedPackage
-		brewErr, uvErr           error
-		wg                       sync.WaitGroup
-	)
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		brewOutdated, brewErr = r.Outdated()
-	}()
-	go func() {
-		defer wg.Done()
-		uvOutdated, uvErr = r.UVOutdated()
-	}()
-	wg.Wait()
-
-	if brewErr != nil {
-		result.UpdateError = brewErr.Error()
-		return result
-	}
-	if uvErr != nil {
-		result.UpdateError = uvErr.Error()
-		return result
-	}
-
-	result.Outdated = append(brewOutdated, uvOutdated...)
+	result.Outdated = check.All()
 	if len(result.Outdated) == 0 {
 		return result
 	}

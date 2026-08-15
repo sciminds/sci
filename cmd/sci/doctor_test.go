@@ -50,6 +50,60 @@ func TestSkipUpgradeCheck_EnvVar(t *testing.T) {
 	}
 }
 
+// TestUpgradeCheckSkip covers the decision table behind the outdated check:
+// the human flow still runs it, --json does not unless --yes consents to the
+// package upgrade it authorizes, and every skip carries a reason for the
+// envelope.
+func TestUpgradeCheckSkip(t *testing.T) {
+	t.Setenv(postUpdateEnvVar, "")
+
+	cases := []struct {
+		name             string
+		flagSet          bool
+		isJSON           bool
+		yes              bool
+		wantSkip         bool
+		wantReasonSubstr string
+	}{
+		{name: "human default runs the check"},
+		{name: "human with --skip-upgrade-check", flagSet: true, wantSkip: true, wantReasonSubstr: "--skip-upgrade-check"},
+		{name: "json skips by default", isJSON: true, wantSkip: true, wantReasonSubstr: "--yes"},
+		{name: "json with --yes runs the check", isJSON: true, yes: true},
+		{name: "--skip-upgrade-check wins over --yes", flagSet: true, isJSON: true, yes: true, wantSkip: true, wantReasonSubstr: "--skip-upgrade-check"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			skip, reason := upgradeCheckSkip(tc.flagSet, tc.isJSON, tc.yes)
+			if skip != tc.wantSkip {
+				t.Fatalf("skip = %v, want %v", skip, tc.wantSkip)
+			}
+			if !tc.wantSkip {
+				if reason != "" {
+					t.Errorf("expected no reason when the check runs, got %q", reason)
+				}
+				return
+			}
+			if !strings.Contains(reason, tc.wantReasonSubstr) {
+				t.Errorf("reason = %q, want it to mention %q", reason, tc.wantReasonSubstr)
+			}
+		})
+	}
+}
+
+// TestUpgradeCheckSkip_EnvVar keeps the `sci update` re-exec hook wired to the
+// same decision: SCI_SKIP_UPGRADE_CHECK=1 suppresses the check with a reason.
+func TestUpgradeCheckSkip_EnvVar(t *testing.T) {
+	t.Setenv(postUpdateEnvVar, "1")
+	skip, reason := upgradeCheckSkip(false, false, false)
+	if !skip {
+		t.Fatal("SCI_SKIP_UPGRADE_CHECK=1 must suppress the upgrade check")
+	}
+	if reason == "" {
+		t.Error("expected a reason for the skip")
+	}
+}
+
 func TestToolsReccs_JSONSkipsForm(t *testing.T) {
 	uikit.SetQuiet(false)
 	t.Cleanup(func() { uikit.SetQuiet(false) })

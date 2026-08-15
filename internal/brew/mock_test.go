@@ -42,8 +42,11 @@ type mockRunner struct {
 	installUVToolsCalls  [][]string
 	installUVToolsErr    error
 
-	updateCalls      int
-	updateErr        error
+	updateCalls int
+	updateErr   error
+	// updateBlock, when non-nil, makes Update block until the channel is
+	// closed — a stand-in for a `brew update` that never returns.
+	updateBlock      chan struct{}
 	outdatedResult   []OutdatedPackage
 	outdatedErr      error
 	upgradeCalls     int
@@ -117,6 +120,9 @@ func (m *mockRunner) InstallUVTools(names []string) error {
 
 func (m *mockRunner) Update() error {
 	m.updateCalls++
+	if m.updateBlock != nil {
+		<-m.updateBlock
+	}
 	return m.updateErr
 }
 

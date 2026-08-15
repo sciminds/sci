@@ -58,7 +58,7 @@ func TestRunSetup_CreatedBrewfile(t *testing.T) {
 		uvToolListResult:   allRequiredUV(),
 	}
 
-	result := RunSetup(mock, tmpFile, true, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, true, SetupOpts{})
 
 	if result.BrewfilePath != tmpFile {
 		t.Errorf("BrewfilePath = %q, want %q", result.BrewfilePath, tmpFile)
@@ -107,7 +107,7 @@ func TestRunSetup_ExistingBrewfile(t *testing.T) {
 		uvToolListResult:   allRequiredUV(),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if result.BrewfileCreated {
 		t.Error("expected BrewfileCreated = false for existing Brewfile")
@@ -132,7 +132,7 @@ func TestRunSetup_InstallError(t *testing.T) {
 		installFormulaeErr: os.ErrPermission,
 	}
 
-	result := RunSetup(mock, tmpFile, true, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, true, SetupOpts{})
 
 	if result.InstallError == "" {
 		t.Error("expected InstallError to be set when install fails")
@@ -159,7 +159,7 @@ func TestRunSetup_NoMissingTools(t *testing.T) {
 		uvToolListResult:   allRequiredUV(),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if len(result.ToolsInstalled) != 0 {
 		t.Errorf("expected no tools installed, got %v", result.ToolsInstalled)
@@ -188,7 +188,7 @@ func TestRunSetup_OutdatedUpgrade(t *testing.T) {
 		},
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if len(result.Outdated) != 2 {
 		t.Fatalf("expected 2 outdated packages, got %d", len(result.Outdated))
@@ -220,7 +220,7 @@ func TestRunSetup_NothingOutdated(t *testing.T) {
 		uvToolListResult:   allRequiredUV(),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if len(result.Outdated) != 0 {
 		t.Errorf("expected no outdated packages, got %d", len(result.Outdated))
@@ -247,7 +247,7 @@ func TestRunSetup_UpdateError(t *testing.T) {
 		updateErr:          os.ErrPermission,
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if result.UpdateError == "" {
 		t.Error("expected UpdateError to be set when brew update fails")
@@ -270,7 +270,7 @@ func TestRunSetup_BrewOnlyUpgrade(t *testing.T) {
 		},
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if len(result.Upgraded) != 1 {
 		t.Fatalf("expected 1 upgraded package, got %d", len(result.Upgraded))
@@ -307,7 +307,7 @@ func TestRunSetup_SkipUpgradeCheck(t *testing.T) {
 		updateErr: fmt.Errorf("should not be called"),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{SkipUpgradeCheck: true})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{SkipUpgradeCheck: true})
 
 	if result.UpdateError != "" {
 		t.Errorf("Update() was called despite SkipUpgradeCheck: %s", result.UpdateError)
@@ -342,7 +342,7 @@ func TestRunSetup_SnapshotError(t *testing.T) {
 		listFormulaeErr: fmt.Errorf("brew: command not found"),
 	}
 
-	result := RunSetup(mock, tmpFile, true, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, true, SetupOpts{})
 
 	if result.ToolCheckError == "" {
 		t.Fatal("expected ToolCheckError to be set when snapshot fails")
@@ -367,7 +367,7 @@ func TestRunSetup_SyncError(t *testing.T) {
 		leavesErr: fmt.Errorf("brew leaves failed"),
 	}
 
-	result := RunSetup(mock, tmpFile, true, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, true, SetupOpts{})
 
 	// Both Sync and RunToolChecks use CollectSnapshot, so both fail.
 	if result.ToolCheckError == "" {
@@ -393,7 +393,7 @@ func TestRunSetup_AppendError(t *testing.T) {
 		uvToolListResult:   allRequiredUV(),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if result.AppendError == "" {
 		t.Error("expected AppendError when Brewfile is read-only")
@@ -415,7 +415,7 @@ func TestRunSetup_OutdatedBrewError(t *testing.T) {
 		outdatedErr:        fmt.Errorf("brew outdated: json parse error"),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if result.UpdateError == "" {
 		t.Fatal("expected UpdateError when Outdated() fails")
@@ -437,7 +437,7 @@ func TestRunSetup_OutdatedUVError(t *testing.T) {
 		uvOutdatedErr:      fmt.Errorf("uv: command not found"),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if result.UpdateError == "" {
 		t.Fatal("expected UpdateError when UVOutdated() fails")
@@ -462,7 +462,7 @@ func TestRunSetup_UpgradeError(t *testing.T) {
 		upgradeErr: fmt.Errorf("upgrade failed: permission denied"),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if len(result.Outdated) == 0 {
 		t.Error("expected Outdated to be populated")
@@ -497,7 +497,7 @@ func TestRunSetup_BrewFailureStillUpgradesUV(t *testing.T) {
 		upgradeErr: fmt.Errorf("brew upgrade: sudo timed out"),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if mock.upgradeCalls != 1 {
 		t.Errorf("expected 1 brew upgrade call, got %d", mock.upgradeCalls)
@@ -538,7 +538,7 @@ func TestRunSetup_UVUpgradeError(t *testing.T) {
 		uvUpgradeErr: fmt.Errorf("uv tool upgrade: network error"),
 	}
 
-	result := RunSetup(mock, tmpFile, false, SetupOpts{})
+	result := RunSetup(t.Context(), mock, tmpFile, false, SetupOpts{})
 
 	if result.UpdateError == "" {
 		t.Fatal("expected UpdateError when UVUpgrade() fails")
