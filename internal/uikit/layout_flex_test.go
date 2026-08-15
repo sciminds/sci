@@ -103,6 +103,26 @@ func TestVStack_MultipleFlex_Proportional(t *testing.T) {
 	}
 }
 
+// TestVStack_GapMatchesEmptyFixed pins the equivalence that let dbtui's views
+// drop three hand-rolled blank-line closures. A Gap(1) and a Fixed child that
+// returns "" both encode exactly one blank row (see blankBlock's off-by-one),
+// so the swap is a rename, not a layout change. If that ever stops holding,
+// the views that took the shortcut shift by a line and this catches it.
+func TestVStack_GapMatchesEmptyFixed(t *testing.T) {
+	t.Parallel()
+	build := func(blank func(*Stack) *Stack) string {
+		s := VStack(24, 6).Fixed(func(int) string { return "HEAD" })
+		return blank(s).Fixed(func(int) string { return "TAIL" }).Render()
+	}
+	withGap := build(func(s *Stack) *Stack { return s.Gap(1) })
+	withFixed := build(func(s *Stack) *Stack {
+		return s.Fixed(func(int) string { return "" })
+	})
+	if withGap != withFixed {
+		t.Errorf("Gap(1) and Fixed(\"\") render differently:\ngap:   %q\nfixed: %q", withGap, withFixed)
+	}
+}
+
 func TestVStack_Gap(t *testing.T) {
 	t.Parallel()
 	// Two fixed sections with a 2-line gap between them, total height 10.
@@ -296,7 +316,7 @@ func TestHStack_ContentFitWidth(t *testing.T) {
 	}
 }
 
-// ── FixedIf / FlexIf ─────────────────────────────────────────────────────
+// ── FixedIf ───────────────────────────────────────────────────────────────
 
 func TestVStack_FixedIf_True(t *testing.T) {
 	t.Parallel()
@@ -321,35 +341,6 @@ func TestVStack_FixedIf_False(t *testing.T) {
 	// Header is skipped → body gets all 10.
 	if bodyH != 10 {
 		t.Errorf("body height = %d, want 10 (FixedIf false should skip)", bodyH)
-	}
-}
-
-func TestVStack_FlexIf_True(t *testing.T) {
-	t.Parallel()
-	var h1, h2 int
-	VStack(40, 20).
-		Flex(1, func(w, h int) string { h1 = h; return "" }).
-		FlexIf(true, 1, func(w, h int) string { h2 = h; return "" }).
-		Render()
-	// Both included → each gets 10.
-	if h1 != 10 {
-		t.Errorf("flex1 height = %d, want 10", h1)
-	}
-	if h2 != 10 {
-		t.Errorf("flex2 height = %d, want 10", h2)
-	}
-}
-
-func TestVStack_FlexIf_False(t *testing.T) {
-	t.Parallel()
-	var h1 int
-	VStack(40, 20).
-		Flex(1, func(w, h int) string { h1 = h; return "" }).
-		FlexIf(false, 1, func(w, h int) string { return "" }).
-		Render()
-	// Second flex skipped → first gets all 20.
-	if h1 != 20 {
-		t.Errorf("flex1 height = %d, want 20 (FlexIf false should skip)", h1)
 	}
 }
 

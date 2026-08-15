@@ -98,6 +98,21 @@ func VStack(width, height int) *Stack {
 //   - [Stack.Fixed]: measured content, takes its natural width.
 //   - [Stack.Flex]: proportional content, shares remaining width by ratio.
 //   - [Stack.Gap]: space columns between children.
+//
+// Nothing in sci calls this today, and that is not an oversight waiting to be
+// fixed. The one horizontal split in the tree, [SplitView], cannot use it:
+// SplitView allocates panel widths in SetSize so each panel can reflow its
+// viewport before the frame is drawn, whereas a Stack allocates inside
+// Render. Adopting HStack there would not remove splitPanelWidths — SetSize
+// still needs it — it would add a second allocator that has to agree with the
+// first. The two would not agree anyway, because SplitView's rule ("the
+// specialist panel gets its preferred width, capped at 45% of usable, floored
+// at 20 columns") is a policy, not the static ratio [Stack.Flex] takes. The
+// other horizontal join, dbtui's tab bar, is a scrolling-window algorithm
+// that drops children which do not fit; a Stack has no such concept.
+//
+// It is kept because it is [VStack]'s twin and the layout skill teaches the
+// pair, so a future horizontal split has the primitive waiting.
 func HStack(width, height int) *Stack {
 	return &Stack{dir: horizontal, width: width, height: height}
 }
@@ -144,15 +159,6 @@ func (s *Stack) Flex(ratio float64, fn func(width, height int) string) *Stack {
 func (s *Stack) FixedIf(cond bool, fn func(int) string) *Stack {
 	if cond {
 		return s.Fixed(fn)
-	}
-	return s
-}
-
-// FlexIf adds a Flex child only when cond is true. When false, the child
-// is skipped — remaining Flex children share the full available space.
-func (s *Stack) FlexIf(cond bool, ratio float64, fn func(width, height int) string) *Stack {
-	if cond {
-		return s.Flex(ratio, fn)
 	}
 	return s
 }

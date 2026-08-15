@@ -94,7 +94,7 @@ func (m *Model) buildView() string {
 func (m *Model) buildTerminalTooSmallView() string {
 	panel := uikit.VStack(m.width, 3).
 		Fixed(func(_ int) string { return m.styles.Error().Render("Terminal too small") }).
-		Fixed(func(_ int) string { return "" }).
+		Gap(1).
 		Fixed(func(_ int) string {
 			return m.styles.HeaderHint().Render(
 				fmt.Sprintf(
@@ -142,7 +142,7 @@ func (m *Model) buildBaseView() string {
 
 	return clampLines(
 		uikit.VStack(m.width, m.height).
-			Fixed(func(w int) string { return "" }).
+			Gap(1).
 			Fixed(func(_ int) string { return tabs }).
 			Fixed(func(_ int) string { return m.tabUnderline() }).
 			FixedIf(content != "", func(_ int) string { return content }).
@@ -387,7 +387,7 @@ func (m *Model) buildLoadingView() string {
 func (m *Model) buildEmptyDBView() string {
 	panel := uikit.VStack(m.width, 3).
 		Fixed(func(_ int) string { return m.styles.HeaderSection().Render(" Empty database ") }).
-		Fixed(func(_ int) string { return "" }).
+		Gap(1).
 		Fixed(func(_ int) string {
 			return m.styles.HeaderHint().Render("Press " + m.keycap(keyT) + " to manage tables")
 		}).

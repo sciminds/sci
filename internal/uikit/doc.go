@@ -27,12 +27,12 @@
 //   - [VStack] / [HStack] — builder-style vertical/horizontal containers.
 //     Children can be [Stack.Fixed] (measured, takes natural size),
 //     [Stack.Flex] (proportional share of remaining space), or [Stack.Gap].
-//     Conditional children via [Stack.FixedIf] / [Stack.FlexIf].
+//     Conditional children via [Stack.FixedIf].
 //   - [Box] — border-box rendering: set outer size + style, callback receives
 //     inner dimensions after frame overhead is subtracted automatically.
 //   - [Chrome] — title/body/status chrome, now implemented as a VStack internally.
 //
-// Dimension constants, clamping helpers, and composition utilities (Spread,
+// Dimension constants, size-derivation helpers, and composition utilities (Spread,
 // Center, Pad, Fit, FitHeight, WordWrap, PageLayout, SummaryLine, FooterBar,
 // StatusRow) complete the layout layer.
 //
@@ -53,7 +53,8 @@
 //     means "open" everywhere (help, learn, setup, and browser.Model all embed it).
 //   - [ListPicker] — flat alias of [ListCore]: a filterable list, one-line construction.
 //   - [SelectList] — multi-select toggle list for wizard flows.
-//   - [Screen] / [Router] — dispatch table that replaces repeated switch statements.
+//   - [Screen] / [Router] — per-screen View + Keys dispatch table that replaces the
+//     parallel switch statements a flat state machine would otherwise need.
 //   - [RunWithSpinner] / [RunWithSpinnerStatus] — inline spinner for long work.
 //
 // # Markdown Rendering (render_md.go)
