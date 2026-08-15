@@ -175,6 +175,29 @@ func TestInfo_NoLibraryFlag_SummarizesBoth(t *testing.T) {
 	}
 }
 
+// TestInfo_LibraryAll_SummarizesBoth pins the one scope that used to fall
+// through the cracks. `--library all` resolves to a merged handle, and
+// DB.Stats answers one library at a time, so info reached the local guard and
+// reported it verbatim — telling a CLI user to "open with ForPersonal" and
+// exiting 1 where every sibling exits 2 with a sentence. Bare `info` already
+// summarizes both libraries, so `--library all` asking for exactly that must
+// return the same shape rather than an error.
+func TestInfo_LibraryAll_SummarizesBoth(t *testing.T) {
+	withTestConfig(t, "42", "6506098")
+
+	out, err := runInfo(t, "--json", "info", "--library", "all")
+	if err != nil {
+		t.Fatalf("info --library all: %v\n%s", err, string(out))
+	}
+	var result zot.MultiStatsResult
+	if err := json.Unmarshal(unwrapData(t, out), &result); err != nil {
+		t.Fatalf("parse MultiStatsResult: %v\nraw: %s", err, string(out))
+	}
+	if len(result.PerLibrary) != 2 {
+		t.Errorf("per_library len = %d, want 2 (personal + shared)", len(result.PerLibrary))
+	}
+}
+
 func TestInfo_WithLibraryFlag_NarrowsToScope(t *testing.T) {
 	withTestConfig(t, "42", "6506098")
 

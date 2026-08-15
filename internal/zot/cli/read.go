@@ -557,8 +557,13 @@ func infoCommand() *cli.Command {
 				return err
 			}
 			orient := cmd.Bool("orient")
-			// Flag supplied → narrow to one library.
-			if _, ok := LibraryFromContext(ctx); ok {
+			// Flag supplied → narrow to one library, except for `all`,
+			// which asks for the same both-library summary the bare
+			// command produces. Routing it here rather than through
+			// statsForScope matters: `all` resolves to a merged handle,
+			// and DB.Stats answers one library at a time, so the scoped
+			// path would surface local's single-library guard as an error.
+			if ref, ok := LibraryFromContext(ctx); ok && ref.Scope != zot.LibAll {
 				entry, err := statsForScope(ctx, cfg, orient)
 				if err != nil {
 					return err
@@ -566,7 +571,7 @@ func infoCommand() *cli.Command {
 				outputScoped(ctx, cmd, entry)
 				return nil
 			}
-			// No flag → summarize every library the account has access to.
+			// No flag, or --library all → summarize every library.
 			return runInfoAllLibraries(ctx, cmd, cfg, orient)
 		},
 	}
