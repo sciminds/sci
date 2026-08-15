@@ -472,9 +472,10 @@ func cassPushCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "push",
 		Usage:       "Push grade changes to Canvas",
-		Description: "$ sci cass push\n$ sci cass push --force",
+		Description: "$ sci cass push\n$ sci cass push --force\n$ sci cass push --json --yes",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{Name: "force", Usage: "skip conflict check", Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip confirmation prompt (required to push under --json)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			cfg, db, err := cassLoadContext()
@@ -500,7 +501,7 @@ func cassPushCommand() *cli.Command {
 			fmt.Fprint(os.Stderr, diff.Human())
 
 			if !cmd.Bool("force") {
-				if done, err := cmdutil.ConfirmOrSkip(false, fmt.Sprintf("Push %d grade(s) to Canvas?", len(diff.Changes))); done || err != nil {
+				if done, err := cmdutil.ConfirmOrSkip(cmd.Bool("yes"), fmt.Sprintf("Push %d grade(s) to Canvas?", len(diff.Changes))); done || err != nil {
 					return err
 				}
 			}
@@ -671,6 +672,7 @@ func cassCanvasModulesCommand() *cli.Command {
 			&cli.IntFlag{Name: "publish", Usage: "publish module by ID", Local: true},
 			&cli.IntFlag{Name: "unpublish", Usage: "unpublish module by ID", Local: true},
 			&cli.IntFlag{Name: "delete", Usage: "delete module by ID", Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip the delete confirmation (required to delete under --json)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			baseURL, courseID, token, err := cassCanvasContext()
@@ -707,7 +709,7 @@ func cassCanvasModulesCommand() *cli.Command {
 				return nil
 			}
 			if deleteID > 0 {
-				if done, err := cmdutil.ConfirmOrSkip(false, fmt.Sprintf("Delete module %d?", deleteID)); done || err != nil {
+				if done, err := cmdutil.ConfirmOrSkip(cmd.Bool("yes"), fmt.Sprintf("Delete module %d?", deleteID)); done || err != nil {
 					return err
 				}
 				if err := cass.DeleteModule(ctx, baseURL, token, courseID, deleteID); err != nil {
@@ -741,6 +743,7 @@ func cassCanvasAssignmentsCommand() *cli.Command {
 			&cli.IntFlag{Name: "publish", Usage: "publish assignment by ID", Local: true},
 			&cli.IntFlag{Name: "unpublish", Usage: "unpublish assignment by ID", Local: true},
 			&cli.IntFlag{Name: "delete", Usage: "delete assignment by ID", Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip the delete confirmation (required to delete under --json)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			baseURL, courseID, token, err := cassCanvasContext()
@@ -780,7 +783,7 @@ func cassCanvasAssignmentsCommand() *cli.Command {
 				return nil
 			}
 			if deleteID > 0 {
-				if done, err := cmdutil.ConfirmOrSkip(false, fmt.Sprintf("Delete assignment %d?", deleteID)); done || err != nil {
+				if done, err := cmdutil.ConfirmOrSkip(cmd.Bool("yes"), fmt.Sprintf("Delete assignment %d?", deleteID)); done || err != nil {
 					return err
 				}
 				if err := cass.DeleteCanvasAssignment(ctx, baseURL, token, courseID, deleteID); err != nil {
@@ -812,6 +815,7 @@ func cassCanvasAnnounceCommand() *cli.Command {
 			&cli.StringFlag{Name: "title", Aliases: []string{"t"}, Usage: "announcement title", Local: true},
 			&cli.StringFlag{Name: "message", Aliases: []string{"m"}, Usage: "announcement body (HTML)", Local: true},
 			&cli.IntFlag{Name: "delete", Usage: "delete announcement by ID", Local: true},
+			&cli.BoolFlag{Name: "yes", Aliases: []string{"y"}, Usage: "skip the delete confirmation (required to delete under --json)", Local: true},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			baseURL, courseID, token, err := cassCanvasContext()
@@ -831,7 +835,7 @@ func cassCanvasAnnounceCommand() *cli.Command {
 				return nil
 			}
 			if deleteID > 0 {
-				if done, err := cmdutil.ConfirmOrSkip(false, fmt.Sprintf("Delete announcement %d?", deleteID)); done || err != nil {
+				if done, err := cmdutil.ConfirmOrSkip(cmd.Bool("yes"), fmt.Sprintf("Delete announcement %d?", deleteID)); done || err != nil {
 					return err
 				}
 				if err := cass.DeleteAnnouncement(ctx, baseURL, token, courseID, deleteID); err != nil {

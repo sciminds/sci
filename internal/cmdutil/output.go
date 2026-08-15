@@ -45,7 +45,15 @@
 //   - [ConfirmOrSkip] wraps Confirm with a skip flag and "cancelled" output,
 //     eliminating boilerplate in commands with a --yes flag
 //
-// SCI_ASSUME=yes|no answers all confirmations non-interactively.
+// SCI_ASSUME=yes|no answers all confirmations non-interactively, and is
+// consulted first — before quiet mode is even considered.
+//
+// Quiet mode (--json) is *not* consent. A prompt that cannot be shown is not a
+// prompt that was answered yes, so each of the four returns [ErrNeedsConsent]
+// — a [CodeUsage] failure (exit 2) whose Try names the flag that grants
+// consent. Commands supply that flag themselves (`--yes`, `--force`) and pass
+// it as ConfirmOrSkip's skip argument; any command that can reach a prompt
+// under --json needs one.
 //
 // Usage:
 //

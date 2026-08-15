@@ -68,15 +68,14 @@ func skipUpgradeCheck(flagSet bool) bool {
 // Under --json the check is off unless --yes, and that is a deliberate
 // asymmetry with the human flow, for two reasons:
 //
-//   - It is not a "check" under --json. Quiet mode auto-confirms every
-//     [cmdutil.Confirm], so the prompt "Upgrade outdated packages?" answers
-//     itself and doctor proceeds to run `brew upgrade` across the whole
-//     machine — an unbounded install nobody asked for, from a command whose
-//     own help advertises `sci doctor --json` as the way to *diagnose* a
-//     system. The Homebrew-install path in doctor_darwin.go already draws
-//     this line ("installing Homebrew is a side effect we don't take
-//     silently"); the upgrade pass is the larger side effect and was missing
-//     the same gate.
+//   - Running the check commits doctor to `brew upgrade` across the whole
+//     machine — an unbounded install, from a command whose own help
+//     advertises `sci doctor --json` as the way to *diagnose* a system. That
+//     side effect needs consent, and under --json the only place consent can
+//     come from is the command line. The Homebrew-install path in
+//     doctor_darwin.go already draws this line ("installing Homebrew is a
+//     side effect we don't take silently"); the upgrade pass is the larger
+//     side effect and was missing the same gate.
 //   - A machine consumer wants the local diagnosis fast. The registry refresh
 //     is the slowest and least reliable step in doctor, and it answers a
 //     question — "is anything out of date?" — that `sci tools outdated` asks

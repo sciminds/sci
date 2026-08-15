@@ -15,7 +15,6 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/brew"
-	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/uikit"
 )
 
@@ -53,8 +52,10 @@ type SetupOpts struct {
 }
 
 // RunSetup performs Brewfile sync, required-package injection, tool checking,
-// and installation. Interactive prompts use the provided confirm function,
-// which should auto-confirm in quiet/JSON mode (e.g. cmdutil.ConfirmYes).
+// and installation. It is the non-interactive flow — it never prompts, and
+// every side effect it takes was consented to on the command line before it
+// was called (`sci doctor --json` reaches the upgrade pass only under --yes;
+// see upgradeCheckSkip in cmd/sci/doctor.go).
 //
 // brewfilePath must point to an existing file. created indicates whether the
 // file was newly created (dump path) vs. pre-existing (sync path).
@@ -89,7 +90,8 @@ func RunSetup(ctx context.Context, r brew.Runner, brewfilePath string, created b
 				uikit.TUI.Dim().Render("(not in your Brewfile)"))
 		}
 
-		// In quiet mode this auto-confirms (IsQuiet check inside).
+		// Unprompted by design: declaring sci's own required packages in the
+		// Brewfile is the job the user asked for by running doctor.
 		added, appendErr := brew.AppendEntries(brewfilePath, missingEntries)
 		if appendErr != nil {
 			result.AppendError = appendErr.Error()
@@ -206,9 +208,13 @@ func RunSetup(ctx context.Context, r brew.Runner, brewfilePath string, created b
 		fmt.Fprintln(os.Stderr)
 	}
 
-	if err := cmdutil.ConfirmYes("Upgrade outdated packages?"); err != nil {
-		return result
-	}
+	// No prompt here: RunSetup is the non-interactive flow, and consent for the
+	// upgrade was already given on the command line. `sci doctor --json` skips
+	// the whole check unless --yes (see upgradeCheckSkip in cmd/sci/doctor.go),
+	// so reaching this line means --yes was passed. Asking again would be a
+	// question nobody can answer — cmdutil.ConfirmYes refuses in quiet mode
+	// rather than assuming yes, which would strand the upgrade the user asked
+	// for.
 
 	// Run brew and uv upgrades independently — a brew failure (e.g. one cask
 	// hangs on a sudo prompt) shouldn't keep uv tools stranded as outdated.

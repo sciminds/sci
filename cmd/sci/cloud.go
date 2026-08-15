@@ -168,7 +168,10 @@ func cloudPutCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "name", Aliases: []string{"n"}, Usage: "upload name (default: filename)", Local: true},
 			&cli.BoolFlag{Name: "public", Aliases: []string{"p"}, Usage: "upload to the public bucket (world-readable URL)", Local: true},
-			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "overwrite existing file without prompting", Local: true},
+			// --yes/-y are aliases of --force so the generic "re-run with
+			// --yes" remedy cmdutil emits when a prompt can't be shown is
+			// true here too.
+			&cli.BoolFlag{Name: "force", Aliases: []string{"f", "yes", "y"}, Usage: "overwrite existing file without prompting", Local: true},
 		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			public := cmd.Bool("public")
@@ -212,10 +215,11 @@ func cloudPutCommand() *cli.Command {
 				name = share.DefaultShareName(filePath)
 			}
 
-			if cmdutil.IsJSON(cmd) {
-				force = true
-			}
-
+			// --json used to imply force here, which meant an agent uploading
+			// under --json silently overwrote whatever was already at that
+			// name. Non-interactive is not consent: without --force the
+			// existence check still runs, and the prompt it may reach refuses
+			// (cmdutil.ErrNeedsConsent) instead of answering yes.
 			if !force {
 				info, statErr := os.Stat(filePath)
 				if statErr != nil {
