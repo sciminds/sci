@@ -8,14 +8,15 @@ rule:
       stopBy: end
       has:
         field: function
-        regex: '(SafeCmd|AsyncCmdCtx|AsyncCmd)$'
+        regex: 'SafeCmd$'
 severity: error
 message: |
-  Raw `func() tea.Msg` command closures must go through uikit.SafeCmd (or
-  uikit.AsyncCmd / uikit.AsyncCmdCtx). Bubble Tea runs commands in their own
-  goroutine and does NOT recover panics there — an unguarded panic crashes the
-  process with the terminal left in raw mode (no cursor, no echo).
-  Wrap it: return uikit.SafeCmd(func() tea.Msg { ... }).
+  Raw `func() tea.Msg` command closures must go through uikit.SafeCmd.
+  Bubble Tea runs commands in their own goroutine and does NOT recover panics
+  there — an unguarded panic crashes the process with the terminal left in raw
+  mode (no cursor, no echo).
+  Wrap it: return uikit.SafeCmd(func() tea.Msg { ... }), returning your own
+  named message struct so the model can correlate the result.
   See internal/uikit/run_async.go and CLAUDE.md (TUI stack).
 ignores:
   - "internal/uikit/*.go"

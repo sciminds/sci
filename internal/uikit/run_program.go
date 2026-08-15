@@ -8,7 +8,7 @@ import (
 )
 
 // ErrCommandPanic is returned by [Run] and [RunModel] when a command wrapped
-// by [SafeCmd] / [AsyncCmd] / [AsyncCmdCtx] panicked. The terminal is restored
+// by [SafeCmd] panicked. The terminal is restored
 // (the program quits cleanly) before it surfaces, and the wrapped error string
 // includes the panic value and stack trace. Test for it with
 // errors.Is(err, ErrCommandPanic).

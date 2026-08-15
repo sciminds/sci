@@ -69,7 +69,9 @@ func loadData(store *Store) tea.Cmd {
 
 Commands run asynchronously. When they finish, Bubble Tea delivers the returned message to Update. This is how you do I/O without blocking the UI.
 
-In this project, **always** wrap a command closure in `uikit.SafeCmd` (or `uikit.AsyncCmd` / `uikit.AsyncCmdCtx` for the `(T, error)` shape, which apply the same guard internally). Bubble Tea does not recover panics that happen inside a command's goroutine, so an unguarded panic leaves the terminal in raw mode. `rules/recover-command-panic.yml` enforces this; the recovered panic arrives as a `uikit.CommandPanicMsg` that `uikit.Run`/`RunModel` intercepts to quit cleanly and restore the terminal.
+In this project, **always** wrap a command closure in `uikit.SafeCmd`. Bubble Tea does not recover panics that happen inside a command's goroutine, so an unguarded panic leaves the terminal in raw mode. `rules/recover-command-panic.yml` enforces this; the recovered panic arrives as a `uikit.CommandPanicMsg` that `uikit.Run`/`RunModel` intercepts to quit cleanly and restore the terminal.
+
+Have the closure return **your own named message struct**, not a generic result wrapper. A command almost always has to correlate its result back to the state that requested it — which tab index was loaded, which search sequence number this answers, which path was listed — and a stale reply must be distinguishable from a current one. A generic `Result[T]` has nowhere to put those fields, and two commands returning the same payload type become indistinguishable in the model's type switch. sci shipped such a wrapper once and removed it: every one of its seventeen async sites needed correlation data.
 
 ## How to Read the dbtui Code
 

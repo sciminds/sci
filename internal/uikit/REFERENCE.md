@@ -35,8 +35,6 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 
 | Symbol | Kind | Description |
 |---|---|---|
-| `GridLayout` | type | GridLayout is a builder for N-column auto-flow grid layouts. |
-| `ResponsiveLayout` | type | ResponsiveLayout is a builder for breakpoint-driven layout switching. |
 | `Stack` | type | Stack is a builder for composing vertical or horizontal layouts. |
 | `SummaryKind` | type | SummaryKind controls how a summary part is styled. |
 | `SummaryPart` | type | SummaryPart is one segment of a summary line (e.g. "3 passed"). |
@@ -49,14 +47,12 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `FitHeight` | func | FitHeight pads or truncates s so it contains exactly h newline- |
 | `FitRight` | func | FitRight is [Fit] with right-alignment (numeric columns). |
 | `FooterBar` | func | FooterBar renders a bottom bar with left-aligned and right-aligned content, |
-| `Grid` | func | Grid creates an N-column grid layout builder. Cells flow left-to-right, |
 | `HStack` | func | HStack creates a horizontal stack builder. Children are composed left-to-right. |
 | `OverlayBodyHeight` | func | OverlayBodyHeight returns the maximum number of body lines available inside |
 | `Pad` | func | Pad pads s to exactly width cells, aligned by pos (Left, Center, Right). |
 | `PadLeft` | func | PadLeft pads s with leading spaces to exactly width cells. If s is already |
 | `PadRight` | func | PadRight pads s with trailing spaces to exactly width cells. If s is already |
 | `PageLayout` | func | PageLayout composes a standard TUI page: title header, body, and footer bar, |
-| `Responsive` | func | Responsive creates a breakpoint-driven layout builder. Use [ResponsiveLayout.When] |
 | `Spread` | func | Spread renders left-aligned and right-aligned content within a fixed width, |
 | `SpreadMinGap` | func | SpreadMinGap is like [Spread] but guarantees at least minGap spaces between |
 | `StatusRow` | func | StatusRow renders a standard indented icon + label line used in phase views. |
@@ -94,7 +90,6 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `CastPlayer` | type | CastPlayer is a bubbletea sub-model that plays back an asciicast recording. |
 | `CastTickMsg` | type | CastTickMsg advances playback to the given event index. |
 | `Chrome` | type | Chrome renders a three-part vertical layout: title bar, body, and |
-| `Grid2D` | type | Grid2D is a 2-D cursor for grid-like layouts (table columns × rows, |
 | `Intent` | type | Intent is what a key press means once the filtering guard is applied — |
 | `ListCore` | type | ListCore is the shared base every uikit list surface is built from: the |
 | `ListPicker` | type | ListPicker is the flat list surface (no hierarchy, no actions) used by |
@@ -213,10 +208,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 
 | Symbol | Kind | Description |
 |---|---|---|
-| `CommandPanicMsg` | type | CommandPanicMsg is emitted by [SafeCmd], [AsyncCmd], and [AsyncCmdCtx] |
-| `Result` | type | Result is a generic outcome from an async command. Use in a type switch |
-| `AsyncCmd` | func | AsyncCmd wraps a fallible function into a tea.Cmd that returns |
-| `AsyncCmdCtx` | func | AsyncCmdCtx wraps a context-aware function with a timeout into a |
+| `CommandPanicMsg` | type | CommandPanicMsg is emitted by [SafeCmd] when the wrapped function panics. |
 | `DrainStdin` | func | DrainStdin flushes any bytes pending in the stdin buffer. This absorbs |
 | `DrainStdin` | func | DrainStdin flushes any bytes pending in the stdin buffer. This absorbs |
 | `IsQuiet` | func | IsQuiet reports whether quiet mode is active. |
