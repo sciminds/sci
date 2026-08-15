@@ -78,9 +78,16 @@ func runSetup(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	// Interactive overwrite guard. In --json (non-interactive) mode the caller
-	// is expected to know what they're doing; --force bypasses the prompt.
-	if !jsonMode && !cmd.Bool("force") && zot.ConfigExists() {
+	// Overwrite guard. --force is the consent flag; without it an existing
+	// config is never rewritten silently.
+	//
+	// This deliberately does not exempt --json. Quiet mode is not consent:
+	// under --json the prompt cannot be shown, so ConfirmYes refuses with
+	// cmdutil.ErrNeedsConsent and the caller is told to pass --force. The
+	// exemption used to be here, justified by "the caller is expected to know
+	// what they're doing" — which is the assumption every other confirmation
+	// in the CLI stopped making.
+	if !cmd.Bool("force") && zot.ConfigExists() {
 		if err := cmdutil.ConfirmYes("zot is already configured. Overwrite?"); err != nil {
 			if errors.Is(err, cmdutil.ErrCancelled) {
 				fmt.Fprintln(os.Stderr, "cancelled")
