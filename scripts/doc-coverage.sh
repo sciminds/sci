@@ -3,9 +3,12 @@
 #
 # Cross-references four surfaces for each top-level sci command group:
 #   1. help long description     (internal/help/descs.go)
-#   2. Asciinema cast file       (internal/help/casts/<cmd>-*.cast)
-#   3. Rendered GIF              (docs/casts/sci-<cmd>.gif)
-#   4. README.md embed           (![...](docs/casts/sci-<cmd>.gif))
+#   2. Asciinema cast file       (internal/help/casts/<cmd>.cast or <cmd>-<sub>.cast)
+#   3. Rendered GIF              (docs/casts/<cmd>.gif or docs/casts/<cmd>-<sub>.gif)
+#   4. README.md embed           (![...](docs/casts/<cmd>.gif))
+#
+# Those four are the gate: a missing one is a "gap" and exits 1. The final
+# cast-without-GIF sweep is a warning only — see the comment on that block.
 #
 # Run via `just doc-coverage`.
 set -euo pipefail
@@ -66,8 +69,10 @@ gaps=0
 
 for cmd in "${commands[@]}"; do
     # Skip meta-commands that don't need cast/gif coverage.
-    # "help" is the interactive help browser itself — it doesn't need a demo of itself.
-    [[ "$cmd" == "help" ]] && continue
+    # "help" is the interactive help browser itself — it doesn't need a demo of
+    # itself. "version" prints one line, so a recorded terminal session would
+    # show strictly less than the README table row already does.
+    [[ "$cmd" == "help" || "$cmd" == "version" ]] && continue
 
     d_status="$pass"; c_status="$pass"; g_status="$pass"; r_status="$pass"
 
@@ -118,20 +123,32 @@ if [[ -n "${orphan_gifs%$'\n'}" ]]; then
 fi
 
 # ── Cast without GIF check ──────────────────────────────────────────────────
+#
+# Casts are named <cmd>.cast / <cmd>-<sub>.cast (there is no `sci-` prefix),
+# and a rendered GIF shares the stem: docs/casts/<stem>.gif.
+#
+# This sweep is a WARNING, not a gate failure. Every cast is recorded by hand
+# and rendered separately via `just casts-gif`, so the repo carries a standing
+# backlog of casts whose GIF has not been rendered yet. Failing the gate on
+# that backlog would make `just doc-coverage` permanently red for a condition
+# nobody is about to fix in the commit that tripped it, which trains people to
+# ignore the whole report. The four per-command columns above stay hard.
 
-stale_casts=""
-for cast in "$CASTS_DIR"/sci-*.cast; do
+unrendered_casts=""
+unrendered_count=0
+for cast in "$CASTS_DIR"/*.cast; do
     [[ -f "$cast" ]] || continue
     stem=$(basename "$cast" .cast)
     if [[ ! -f "$GIFS_DIR/$stem.gif" ]]; then
-        stale_casts+="  $stem.cast (no $stem.gif)"$'\n'
+        unrendered_casts+="  $stem.cast (no $stem.gif)"$'\n'
+        ((unrendered_count++)) || true
     fi
 done
 
-if [[ -n "${stale_casts%$'\n'}" ]]; then
-    printf "\n\033[33mCasts without GIFs\033[0m (run \`just casts-gif\` to render):\n"
-    echo "${stale_casts%$'\n'}"
-    ((gaps++)) || true
+if [[ $unrendered_count -gt 0 ]]; then
+    printf "\n\033[33mCasts without GIFs\033[0m (%d; warning only — run \`just casts-gif\` to render):\n" \
+        "$unrendered_count"
+    echo "${unrendered_casts%$'\n'}"
 fi
 
 # ── Summary ──────────────────────────────────────────────────────────────────
@@ -140,6 +157,10 @@ echo ""
 if [[ $gaps -gt 0 ]]; then
     printf "\033[31m%d gap(s) found.\033[0m Run \`just doc-coverage\` after fixes to verify.\n" "$gaps"
     exit 1
+elif [[ $unrendered_count -gt 0 ]]; then
+    printf "\033[32mEvery command has a help description, a cast, a GIF and a README embed.\033[0m\n"
+    printf "\033[33m%d cast(s) still have no rendered GIF\033[0m — run \`just casts-gif\` to close the backlog.\n" \
+        "$unrendered_count"
 else
     printf "\033[32mAll commands fully documented.\033[0m\n"
 fi

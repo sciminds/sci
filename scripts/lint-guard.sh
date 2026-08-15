@@ -575,7 +575,12 @@ if [[ -n "$zot_http" ]]; then
 	fail "zot-no-http"
 fi
 
-# ── Rule 19: a flag must not park its value in a package-level variable ──────
+# ── Rule 19: a flag must not carry Destination at all ────────────────────────
+# The check greps for `Destination:` and does not inspect what the pointer aims
+# at, so a package-level variable and a function-local one fail alike. That is
+# deliberate: the accessor form below is always available, so there is nothing
+# to weigh, and a rule that had to resolve the target would be a Go parser.
+#
 # `Destination: &someGlobal` makes flag state shared mutable global state, and
 # urfave/cli v3 writes through that pointer far more often than it looks:
 # FlagBase.PreParse stamps EVERY declared flag's default on EVERY Run, not just
@@ -610,7 +615,7 @@ if [[ -n "$dest_files" ]]; then
 		rg -v 'lint:destination-ok' || true)
 
 	if [[ -n "$flag_dest" ]]; then
-		echo "FAIL [flag-no-global-destination] flag parks its value in a package variable:"
+		echo "FAIL [flag-no-global-destination] flag carries Destination:"
 		echo "$flag_dest" | sed 's/^/  /'
 		echo "  PreParse writes every declared flag's default through this pointer on"
 		echo "  every Run, so the value is shared across command trees and across any"

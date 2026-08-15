@@ -107,8 +107,9 @@ check: tidy fmt vet lint lint-style lint-docs lint-guard test-gate build
 
 # CI gate — verify-only (no file writes), no multi-arch build, no lint-style.
 # Mirrors `check` so the local and CI gates can't drift: add a step here and
-# .github/workflows/release.yml picks it up. Skips lint-style (semgrep +
-# ast-grep) to avoid the runner install; keeps lint-guard (pure bash + rg).
+# .github/workflows/release.yml picks it up. Skips lint-style because semgrep
+# is a Python toolchain we don't want to install on the runner; lint-guard
+# stays, and the workflow already brews the rg/fd/jaq/ast-grep it shells out to.
 # One intentional divergence: CI runs the FULL test suite (no -short) since it
 # has network, so the cloud/lab command tests the local gate skips stay covered.
 check-ci:
@@ -251,9 +252,7 @@ docs:
     open "http://localhost:6060/github.com/sciminds/sci"
     pkgsite -http=localhost:6060
 
+# Load .env into every recipe. This is what puts CANVAS_TOKEN (test-canvas)
+# and ZOT_REAL_DB (test-zot-real) on the environment without committing them.
 set dotenv-load
-
-# Deploy Cloudflare Worker (sci-auth)
-worker-deploy:
-    cd worker && npx wrangler deploy
 
