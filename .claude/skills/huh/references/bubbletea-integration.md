@@ -2,7 +2,7 @@
 
 A `huh.Form` **is** a `tea.Model` (the exported `huh.Model` interface). Embed it as a sub-model when part of your TUI needs form-like input. This is the path the `bubbletea` skill expects; read that skill's golden-rules + layout sections for the host's sizing.
 
-> **sci-go boundary:** in this repo you almost never hand-embed a form — you call `uikit.RunForm` / `uikit.Input` / `uikit.InputInto` / `uikit.Select`, which own the `huh` lifecycle and the `uikit.TUI` theme singleton. The pattern below is what those wrappers implement; extend `uikit` rather than embedding `huh.Form` ad hoc in `internal/tui/*`.
+> **sci-go boundary:** in this repo you almost never hand-embed a form — you call `uikit.Input` / `uikit.InputInto` / `uikit.Select` / `uikit.NewForm(...).Run()`, which own the `huh` lifecycle and the `uikit.TUI` theme singleton. The pattern below is what those wrappers implement; extend `uikit` rather than embedding `huh.Form` ad hoc in `internal/tui/*`.
 
 ## Minimal embed pattern
 

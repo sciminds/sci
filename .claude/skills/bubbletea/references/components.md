@@ -19,8 +19,8 @@ Before building any component, ask in this sequence:
 | Title/body/status chrome | `uikit.Chrome` / `uikit.VStack` | hand-rolled `VStack` |
 | Weighted multi-pane layout | `uikit.HStack(...).Flex(r, fn)` | manual weight math (golden-rules #4) |
 | Single bordered panel | `uikit.Box(w, h, style, fn)` | `lipgloss` border + manual inner-size math |
-| Responsive (stack ↔ side-by-side) | `uikit.Responsive(w,h).When(...)` | branch on `m.width` yourself |
-| N-column grid | `uikit.Grid(w, h, cols)` | manual column math |
+| Responsive (stack ↔ side-by-side) | branch on `m.width` yourself | — (see `uikit.SplitView` for the two-pane case) |
+| N-column grid | `uikit.VStack` of `uikit.HStack` rows | manual column math |
 | Filterable list / picker | `uikit.ListPicker` | `bubbles/v2/list` |
 | Multi-select toggle list | `uikit.SelectList` | hand-rolled |
 | Data table | `bubbles/v2/table` | — |
@@ -32,7 +32,7 @@ Before building any component, ask in this sequence:
 | Modal / popover | `uikit.OverlayBox` / `uikit.Overlay` | `lipgloss` compositor (see `effects.md` §5) |
 | Markdown panel | `uikit.MarkdownOverlay` / `uikit.RenderMarkdown` | `glamour` via uikit |
 | Scrollable content region | `bubbles/v2/viewport` | — |
-| Spinner / progress for a blocking op | `uikit.RunWithSpinner` / `RunWithProgress` | `bubbles/v2/spinner` / `progress` |
+| Spinner for a blocking op | `uikit.RunWithSpinner` / `RunWithSpinnerStatus` | `bubbles/v2/spinner` |
 | Key help footer | `bubbles/v2/help` + `bubbles/v2/key` | `uikit` help styles |
 | Mouse hit-testing | `bubblezone/v2` (`zone.Mark`/`InBounds`) | manual coords (golden-rules #3) |
 
@@ -63,14 +63,11 @@ uikit.HStack(w, h).
 // Single bordered box — inner dims already exclude the frame.
 uikit.Box(w, h, uikit.TUI.Base().Border(lipgloss.RoundedBorder()),
     func(innerW, innerH int) string { return uikit.Truncate(text, innerW) })
-
-// Responsive: pick a layout by breakpoint. When(minWidth, fn) matches when
-// width >= minWidth (highest matching wins); Default is the narrow fallback.
-uikit.Responsive(m.width, m.height).
-    When(80, func(w, h int) string { return sideBySide(w, h) }).
-    Default(func(w, h int) string { return stacked(w, h) }).
-    Render()
 ```
+
+To switch layout by terminal width, branch on `m.width` directly — there is no
+breakpoint primitive. `uikit.SplitView` already does this for the two-pane case
+(side-by-side when wide, stacked when narrow).
 
 `FixedIf` / `FlexIf` add a child only when a condition holds (e.g. hide a sidebar on narrow terminals). `Gap(n)` inserts spacing. Real example: `internal/tui/dbtui/app/view.go`.
 
@@ -216,15 +213,18 @@ err := uikit.RunWithSpinner("Fetching items…", func() error {
     return doSlowWork()
 })
 
-err := uikit.RunWithProgress("Downloading", func(t *uikit.ProgressTracker) error {
-    t.SetTotal(len(items))
+// Same, but with a live status line the callback can update.
+err := uikit.RunWithSpinnerStatus("Downloading", func(setStatus func(string)) error {
     for _, item := range items {
+        setStatus(item.Name)
         download(item)
-        t.Advance("downloaded", item.Name) // (counter bucket, status-line text)
     }
     return nil
 })
 ```
+
+There is no counter-based progress-bar runner — it was removed when its last
+caller went away. If you need one, build it rather than assuming it exists.
 
 Inside a long-lived model, embed `bubbles/v2/spinner` or `bubbles/v2/progress` and tick them yourself (`progress` uses `harmonica` springs internally — see `effects.md` §4).
 

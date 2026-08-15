@@ -15,8 +15,8 @@ import (
 // shell prompt as garbage like: ^[[?2026;2$y^[[?2027;0$y
 //
 // DrainStdin calls TIOCFLUSH (kernel-level ioctl) to discard any queued input
-// immediately after p.Run() returns. This is called in RunWithSpinner,
-// RunWithSpinnerStatus, and RunWithProgress.
+// immediately after p.Run() returns. This is called in RunWithSpinner and
+// RunWithSpinnerStatus.
 //
 // The ioctl silently no-ops on non-TTY fds (pipes in CI / go test), so there
 // is no risk of test failures or panics in non-interactive environments.
@@ -31,9 +31,8 @@ func TestDrainStdin_SafeOnNonTTY(t *testing.T) {
 
 func TestDrainStdin_Idempotent(t *testing.T) {
 	t.Parallel()
-	// Multiple calls in succession must be safe. This can happen when
-	// RunWithSpinner is followed immediately by RunWithProgress (as in
-	// extract-lib: plan spinner → progress bar).
+	// Multiple calls in succession must be safe. This can happen when one
+	// spinner run is followed immediately by another.
 	DrainStdin()
 	DrainStdin()
 	DrainStdin()

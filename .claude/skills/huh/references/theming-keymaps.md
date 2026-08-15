@@ -14,7 +14,7 @@ form.WithTheme(huh.ThemeCharm(isDark))
 
 Each built-in returns `*huh.Styles`. The `isDark` parameter is **required in v2** (v1 took none) — it's the single most common migration break.
 
-> **sci-go:** don't set themes inline. Styling flows from the `uikit.TUI` singleton; `uikit.RunForm` applies it. No inline `lipgloss.NewStyle()` outside `internal/uikit/`.
+> **sci-go:** don't set themes inline. Styling flows from the `uikit.TUI` singleton; the `uikit` form runner applies it. No inline `lipgloss.NewStyle()` outside `internal/uikit/`.
 
 ## Theme is an interface
 

@@ -54,7 +54,7 @@ import (
 
 ## Project convention — route forms through `uikit` (sci-go)
 
-> **CRITICAL for this repo.** The `bubbletea` skill mandates: **`huh` forms must go through `uikit`.** Use `uikit.RunForm` / `uikit.Input` / `uikit.InputInto` / `uikit.Select`; confirmations via `cmdutil.Confirm` / `ConfirmYes`. **Never call `huh.Form.Run()` (or a field's `.Run()`) directly** in app code. No inline `lipgloss.NewStyle()` outside `internal/uikit/` — themes come from the `uikit.TUI` singleton. The raw `huh` API below is what `uikit` wraps; build/extend the wrappers, don't bypass them.
+> **CRITICAL for this repo.** The `bubbletea` skill mandates: **`huh` forms must go through `uikit`.** Single prompts go through `uikit.Input` / `uikit.InputInto` / `uikit.Select` / `uikit.MultiSelect`; multi-field forms through `uikit.NewForm(uikit.FormGroup(...)).Run()`; confirmations via `cmdutil.Confirm` / `ConfirmYes`. **Never call `huh.Form.Run()` (or a field's `.Run()`) directly** in app code. No inline `lipgloss.NewStyle()` outside `internal/uikit/` — themes come from the `uikit.TUI` singleton. The raw `huh` API below is what `uikit` wraps; build/extend the wrappers, don't bypass them.
 
 Outside sci-go, calling `.Run()` directly is the normal standalone path.
 
@@ -82,7 +82,7 @@ form := huh.NewForm(
     ),
 )
 
-if err := form.Run(); err != nil { // standalone only; in sci-go use uikit.RunForm
+if err := form.Run(); err != nil { // standalone only; in sci-go use uikit.NewForm(...).Run()
     log.Fatal(err)
 }
 ```
@@ -139,7 +139,7 @@ form.
 ## Reference files (load as needed)
 
 - **`references/fields.md`** — every field type and its full builder-method surface (Input, Text, Select, MultiSelect, Confirm, Note, FilePicker), plus `Option`/`NewOptions`. **Read when configuring any non-trivial field.**
-- **`references/bubbletea-integration.md`** — embedding a `huh.Form` inside a Bubble Tea v2 app: `Update` casting, `tea.View` host, dark-bg detection, `WithViewHook`, layouts, and the sci-go `uikit.RunForm` boundary. **Read for any in-TUI form.**
+- **`references/bubbletea-integration.md`** — embedding a `huh.Form` inside a Bubble Tea v2 app: `Update` casting, `tea.View` host, dark-bg detection, `WithViewHook`, layouts, and the sci-go `uikit` form boundary. **Read for any in-TUI form.**
 - **`references/dynamic-and-validation.md`** — dynamic `*Func` fields with `binding`, validation patterns, `Accessor` (custom get/set), conditional groups, and building `Option` slices from data with the `lo` skill.
 - **`references/theming-keymaps.md`** — `ThemeFunc`/`Styles`/`FieldStyles` structure, the 5 built-in themes, custom themes, and per-field/global keymap customization.
 - **`references/spinner.md`** — the standalone `charm.land/huh/v2/spinner` package for background work.

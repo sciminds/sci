@@ -20,7 +20,7 @@ func SetQuiet(q bool) { quiet = q }
 func IsQuiet() bool { return quiet }
 
 // interactive reports whether the inline runners ([RunWithSpinner],
-// [RunWithSpinnerStatus], [RunWithProgress]) can draw. It requires quiet mode
+// [RunWithSpinnerStatus]) can draw. It requires quiet mode
 // to be off and os.Stderr — where those runners render — to be a terminal.
 //
 // The stderr probe is what makes a headless shell (no controlling terminal: a
