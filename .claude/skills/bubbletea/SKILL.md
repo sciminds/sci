@@ -40,7 +40,7 @@ This repo (`sci-go`) mandates **Bubble Tea v2 + Bubbles v2 + Lip Gloss v2**. No 
 
 Other project rules that affect TUI work:
 
-- **`uikit` first — it encodes most of the patterns below.** `internal/uikit/` is the shared visual foundation: a flexbox layout system (`VStack`/`HStack`/`Box`/`GridLayout`/`Responsive`/`Chrome`), overlays, list/select pickers, markdown rendering, spinners, and the `Run`/`RunModel` launchers. Skim `internal/uikit/doc.go` before hand-rolling anything; extend uikit when a pattern appears in ≥ 2 TUIs.
+- **`uikit` first — it encodes most of the patterns below.** `internal/uikit/` is the shared visual foundation: a flexbox layout system (`VStack`/`HStack`/`Box`/`Chrome`), overlays, list/select pickers, markdown rendering, spinners, and the `Run`/`RunModel` launchers. Skim `internal/uikit/doc.go` before hand-rolling anything; extend uikit when a pattern appears in ≥ 2 TUIs.
 - **Styling goes through `uikit.TUI`, never inline `lipgloss.NewStyle()`.** Inline `NewStyle()` is allowed *only* inside `internal/uikit/*.go` (enforced by `rules/no-inline-newstyle.yml`). Everywhere else: semantic styles via `uikit.TUI` accessors (`.Title()`, `.Error()`, …) and raw containers via `uikit.TUI.Base()`. There is **no** per-TUI `ui/` package — styles never live next to the model. For lipgloss mechanics (Width vs MaxWidth, frame-size math, `Join`/`Place`, borders), use the **`lipgloss` skill**.
 - **`uikit` owns `huh` — no other package may import it** (lint-guard rule 15; there is no `uikit.RunForm`). Single prompts: `uikit.Input` / `uikit.InputInto` / `uikit.Select` / `uikit.MultiSelect` (options via `uikit.NewOption`, configured with `uikit.WithValidation` / `uikit.WithPassword` / `uikit.WithDescription`). Multi-field forms: `uikit.NewForm(uikit.FormGroup(uikit.FormInput(…), uikit.FormSelect(…))).Run()`, with `FormGroup(...).HideWhen(cond)` for conditional pages. Confirmations: `cmdutil.Confirm` / `ConfirmYes` / `ConfirmRequired` / `ConfirmOrSkip`. For `huh` internals (field types, dynamic forms, theming), use the **`huh` skill**.
 - **New TUI apps** live under `internal/tui/<name>/` with an `app/` subpackage (`model.go`, `update.go`, `view.go`, `keys.go`, `run.go`) and a thin root-pkg entry point that calls `uikit.Run` / `uikit.RunModel`. Mirror `internal/tui/dbtui/`; read `internal/tui/BUBBLE_TEA_PRIMER.md` first if you're new to the MVU pattern.
@@ -59,7 +59,7 @@ These four rules prevent the most common TUI layout bugs. In this project you mo
 | **3. Hit-test mouse against the layout** | A click maps to the wrong panel if detection ignores how the layout reflowed | `bubblezone` — `zone.Mark` + `zones.Get(id).InBounds(msg)` removes coordinate math entirely |
 | **4. Use weights, not pixels** | Hardcoded widths break on resize and on portrait terminals | `uikit.VStack/HStack(...).Flex(ratio, fn)` — proportional shares of the remaining space |
 
-When a layout can be expressed with `VStack`/`HStack`/`Box`/`GridLayout`/`Responsive`, use them — those primitives *are* the rules made executable. Hand-roll the math only when you genuinely can't, then consult the reference.
+When a layout can be expressed with `VStack`/`HStack`/`Box`, use them — those primitives *are* the rules made executable. Hand-roll the math only when you genuinely can't, then consult the reference.
 
 ## Layout implementation pattern
 
@@ -301,7 +301,7 @@ github.com/alecthomas/chroma/v2             // syntax highlighting (no current d
 
 ## Best practices summary
 
-1. **`uikit` first** — `VStack`/`HStack`/`Box`/`GridLayout` encode the golden rules; reach for them before hand-rolling layout math.
+1. **`uikit` first** — `VStack`/`HStack`/`Box` encode the golden rules; reach for them before hand-rolling layout math.
 2. **Read `golden-rules.md` before any *hand-rolled* layout** — saves hours of debugging.
 3. **Weight-based sizing** (`.Flex(ratio, …)`) — never hardcode pixel widths.
 4. **Truncate explicitly with `uikit.Truncate`** — never rely on auto-wrap inside bordered panels, never byte-slice (`s[:n]`).

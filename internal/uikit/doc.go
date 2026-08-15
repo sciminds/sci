@@ -20,7 +20,7 @@
 // Shared key bindings (BindQuit, BindUp, BindDown, BindEnter, BindHelp)
 // are composed into per-TUI KeyMaps.
 //
-// # Layout (layout_flex.go, layout_box.go, layout_grid.go, layout_responsive.go, layout_dims.go, layout_compose.go)
+// # Layout (layout_flex.go, layout_box.go, layout_dims.go, layout_compose.go)
 //
 // Flexbox-inspired layout system for terminal UIs:
 //
@@ -30,19 +30,13 @@
 //     Conditional children via [Stack.FixedIf] / [Stack.FlexIf].
 //   - [Box] — border-box rendering: set outer size + style, callback receives
 //     inner dimensions after frame overhead is subtracted automatically.
-//   - [GridLayout] — auto-flow N-column grid via [Grid]. Equal-width cells
-//     with [GridLayout.Gap] spacing. Populate with [GridLayout.Cell] or
-//     [GridLayout.Cells] (indexed callback for slices).
-//   - [ResponsiveLayout] — breakpoint-driven layout switching via [Responsive].
-//     Highest matching [ResponsiveLayout.When] wins; [ResponsiveLayout.Default]
-//     is the fallback.
 //   - [Chrome] — title/body/status chrome, now implemented as a VStack internally.
 //
 // Dimension constants, clamping helpers, and composition utilities (Spread,
 // Center, Pad, Fit, FitHeight, WordWrap, PageLayout, SummaryLine, FooterBar,
 // StatusRow) complete the layout layer.
 //
-// # UI Components (ui_chrome.go, ui_overlay.go, ui_overlay_iface.go, ui_overlaybox.go, ui_listpicker.go, ui_grid2d.go, ui_screen.go, ui_selectlist.go, ui_spinner.go, ui_actionmenu.go, ui_castplayer.go, ui_mdviewer.go, ui_splitview.go)
+// # UI Components (ui_chrome.go, ui_overlay.go, ui_overlay_iface.go, ui_overlaybox.go, ui_listpicker.go, ui_screen.go, ui_selectlist.go, ui_spinner.go, ui_actionmenu.go, ui_castplayer.go, ui_mdviewer.go, ui_splitview.go)
 //
 //   - [Chrome] — title / body / status vertical layout with automatic height math.
 //   - [Overlay] — scrollable modal panel with compositing helpers.
@@ -59,7 +53,6 @@
 //     means "open" everywhere (help, learn, setup, and browser.Model all embed it).
 //   - [ListPicker] — flat alias of [ListCore]: a filterable list, one-line construction.
 //   - [SelectList] — multi-select toggle list for wizard flows.
-//   - [Grid2D] — reusable 2-D cursor with move, clamp, and wrap.
 //   - [Screen] / [Router] — dispatch table that replaces repeated switch statements.
 //   - [RunWithSpinner] / [RunWithSpinnerStatus] — inline spinner for long work.
 //
@@ -100,10 +93,10 @@
 //
 // # Runtime (run_async.go, run_program.go, run_drain_bsd.go, run_drain_linux.go, run_quiet.go, run_debug.go)
 //
-//   - [AsyncCmd] / [AsyncCmdCtx] — generic async tea.Cmd with [Result];
-//     a panic in the wrapped fn becomes a [CommandPanicMsg].
 //   - [SafeCmd] — wrap a raw func() tea.Msg command so a panic becomes a
 //     [CommandPanicMsg] instead of crashing the goroutine and wedging the terminal.
+//     Return your own named message struct: it carries the correlation data
+//     (tab index, request sequence, path) a generic result type cannot.
 //   - [Run] / [RunModel] — launch a Bubbletea program with stdin drain; a
 //     command panic is surfaced as [ErrCommandPanic] with the terminal restored.
 //   - [DrainStdin] — flush stale terminal responses after tea.Program.Run().
