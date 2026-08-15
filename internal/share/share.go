@@ -25,6 +25,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,11 +117,45 @@ func DefaultShareName(filePath string) string {
 	return filepath.Base(filePath)
 }
 
+// PutClient is the subset of [cloud.Client] the upload path uses: the two
+// existence checks that guard an overwrite ([CheckExists], [shareDir]) and the
+// two calls that actually write to the bucket.
+//
+// It exists so `sci cloud put`'s overwrite guard is testable. The guard's whole
+// job is to *not* upload without consent, and the only honest way to assert
+// that is to count what reached the remote — which needs a stand-in for the
+// real client. See [SetPutClientFactory].
+type PutClient interface {
+	Exists(ctx context.Context, name string) (bool, error)
+	PrefixExists(ctx context.Context, name string) (bool, error)
+	Upload(ctx context.Context, name string, body io.Reader) error
+	SyncUp(ctx context.Context, localDir, name string) error
+	PublicObjectURL(name string) string
+}
+
+// newPutClient resolves the [PutClient] used by [CheckExists] and [Share].
+// Production always authenticates and returns a real *cloud.Client; tests
+// swap it via [SetPutClientFactory].
+var newPutClient = defaultPutClient
+
+// defaultPutClient is the production factory: authenticate with `hf`, then
+// scope a client to the named bucket. Kept as a named function so
+// [ResetPutClientFactory] can restore it.
+func defaultPutClient(bucket string) (PutClient, error) {
+	_, c, err := cloud.Setup(bucket)
+	if err != nil {
+		// Returning c here would hand back a non-nil interface wrapping a nil
+		// *cloud.Client, so name the nil explicitly.
+		return nil, err
+	}
+	return c, nil
+}
+
 // CheckExists returns true if something already lives at name in the
 // bucket selected by public. When isDir is true the check is "any
 // object under <user>/<name>/"; otherwise it's an exact-file check.
 func CheckExists(name string, public, isDir bool) (bool, error) {
-	_, c, err := cloud.Setup(BucketFor(public))
+	c, err := newPutClient(BucketFor(public))
 	if err != nil {
 		return false, err
 	}
@@ -185,7 +220,8 @@ func shareDir(c dirUploader, bucket, localDir, name string, force bool) (*CloudR
 // selected by opts.Public. Files use `hf buckets cp`; directories sync
 // as trees via `hf buckets sync` (see [shareDir]).
 func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
-	_, c, err := cloud.Setup(BucketFor(opts.Public))
+	bucket := BucketFor(opts.Public)
+	c, err := newPutClient(bucket)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +246,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 	if info.IsDir() {
 		var result *CloudResult
 		if err := uikit.RunWithSpinner("Syncing "+name+"/", func() error {
-			r, syncErr := shareDir(c, c.Bucket, absPath, name, opts.Force)
+			r, syncErr := shareDir(c, bucket, absPath, name, opts.Force)
 			result = r
 			return syncErr
 		}); err != nil {
@@ -263,7 +299,7 @@ func Share(filePath string, opts ShareOpts) (*CloudResult, error) {
 		result = &CloudResult{
 			OK:      true,
 			Action:  "put",
-			Message: fmt.Sprintf("%s %q to %s bucket", action, name, c.Bucket),
+			Message: fmt.Sprintf("%s %q to %s bucket", action, name, bucket),
 			URL:     c.PublicObjectURL(name), // empty for private bucket
 		}
 		return nil
