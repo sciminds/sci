@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/duck"
 	"github.com/sciminds/sci/internal/store"
 	duckstore "github.com/sciminds/sci/internal/store/duck"
@@ -39,6 +41,10 @@ func isParquet(path string) bool {
 // Info returns database metadata including table listing. SQLite files
 // open through the local SQLite store; .duckdb files route through the
 // duckdb CLI since modernc.org/sqlite cannot read them.
+//
+// Info is purely informational and leaves the file byte-for-byte identical:
+// the SQLite path opens read-only (see [withReadStore]) rather than through
+// the writer's WAL-converting open.
 func Info(dbPath string) (*InfoResult, error) {
 	if isDuckDB(dbPath) {
 		return infoDuckDB(dbPath)
@@ -49,7 +55,7 @@ func Info(dbPath string) (*InfoResult, error) {
 func infoSQLite(dbPath string) (*InfoResult, error) {
 	var result InfoResult
 
-	err := withStore(dbPath, func(s store.DataStore) error {
+	err := withReadStore(dbPath, func(s store.DataStore) error {
 		fi, err := os.Stat(dbPath)
 		if err != nil {
 			return err
@@ -84,6 +90,9 @@ func infoSQLite(dbPath string) (*InfoResult, error) {
 }
 
 func infoDuckDB(dbPath string) (*InfoResult, error) {
+	if err := requireDatabase(dbPath); err != nil {
+		return nil, err
+	}
 	fi, err := os.Stat(dbPath)
 	if err != nil {
 		return nil, err
@@ -105,18 +114,33 @@ func infoDuckDB(dbPath string) (*InfoResult, error) {
 // DeleteTable / RenameTable
 // ---------------------------------------------------------------------------
 
-// DeleteTable drops a table from the database.
+// DeleteTable drops a table from the database. A table the database does
+// not have is a not-found error naming the database, not the driver's
+// "SQL logic error: no such table".
 func DeleteTable(table, dbPath string) (*MutationResult, error) {
 	if err := validateTableName(table); err != nil {
 		return nil, err
 	}
+	if err := requireDatabase(dbPath); err != nil {
+		return nil, err
+	}
 	if isDuckDB(dbPath) {
+		if err := requireTable(dbPath, table); err != nil {
+			return nil, err
+		}
 		if err := duck.DropTable(dbPath, table); err != nil {
 			return nil, err
 		}
 		return &MutationResult{OK: true, Message: fmt.Sprintf("dropped %q", table)}, nil
 	}
 	err := withStore(dbPath, func(s store.DataStore) error {
+		names, err := s.TableNames()
+		if err != nil {
+			return err
+		}
+		if !slices.Contains(names, table) {
+			return errTableNotFound(table, dbPath)
+		}
 		return s.DropTable(table)
 	})
 	if err != nil {
@@ -125,7 +149,9 @@ func DeleteTable(table, dbPath string) (*MutationResult, error) {
 	return &MutationResult{OK: true, Message: fmt.Sprintf("dropped %q", table)}, nil
 }
 
-// RenameTable renames a table in the database.
+// RenameTable renames a table in the database. Both halves are checked
+// first: a missing source is not-found, an occupied destination is a usage
+// error the caller fixes by choosing another name.
 func RenameTable(oldName, newName, dbPath string) (*MutationResult, error) {
 	if err := validateTableName(oldName); err != nil {
 		return nil, err
@@ -133,19 +159,68 @@ func RenameTable(oldName, newName, dbPath string) (*MutationResult, error) {
 	if err := validateTableName(newName); err != nil {
 		return nil, err
 	}
+	if err := requireDatabase(dbPath); err != nil {
+		return nil, err
+	}
 	if isDuckDB(dbPath) {
+		names, err := duckTableNames(dbPath)
+		if err != nil {
+			return nil, err
+		}
+		if err := checkRenameTargets(names, oldName, newName, dbPath); err != nil {
+			return nil, err
+		}
 		if err := duck.RenameTable(dbPath, oldName, newName); err != nil {
 			return nil, err
 		}
 		return &MutationResult{OK: true, Message: fmt.Sprintf("renamed %q → %q", oldName, newName)}, nil
 	}
 	err := withStore(dbPath, func(s store.DataStore) error {
+		names, err := s.TableNames()
+		if err != nil {
+			return err
+		}
+		if err := checkRenameTargets(names, oldName, newName, dbPath); err != nil {
+			return err
+		}
 		return s.RenameTable(oldName, newName)
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &MutationResult{OK: true, Message: fmt.Sprintf("renamed %q → %q", oldName, newName)}, nil
+}
+
+// checkRenameTargets validates a rename against the database's table list.
+func checkRenameTargets(names []string, oldName, newName, dbPath string) error {
+	if !slices.Contains(names, oldName) {
+		return errTableNotFound(oldName, dbPath)
+	}
+	if slices.Contains(names, newName) {
+		return errTableExists(newName, dbPath)
+	}
+	return nil
+}
+
+// duckTableNames lists the tables and views in a .duckdb file.
+func duckTableNames(dbPath string) ([]string, error) {
+	metas, err := duck.Info(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	return lo.Map(metas, func(m duck.TableMeta, _ int) string { return m.Name }), nil
+}
+
+// requireTable reports a not-found error when a .duckdb file has no such table.
+func requireTable(dbPath, table string) error {
+	names, err := duckTableNames(dbPath)
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(names, table) {
+		return errTableNotFound(table, dbPath)
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -156,8 +231,8 @@ func RenameTable(oldName, newName, dbPath string) (*MutationResult, error) {
 // target table already exists — callers can use AppendCSV to add rows
 // to an existing table.
 func AddCSV(csvFiles []string, dbPath string, tableName string) (*MutationResult, error) {
-	if tableName != "" && len(csvFiles) > 1 {
-		return nil, fmt.Errorf("--table can only be used with a single CSV file")
+	if err := checkImportInputs(csvFiles, dbPath, tableName); err != nil {
+		return nil, err
 	}
 	if isDuckDB(dbPath) {
 		return addCSVDuckDB(csvFiles, dbPath, tableName)
@@ -168,13 +243,32 @@ func AddCSV(csvFiles []string, dbPath string, tableName string) (*MutationResult
 // AppendCSV inserts one or more CSV files into existing tables. Errors
 // if a target table does not exist.
 func AppendCSV(csvFiles []string, dbPath string, tableName string) (*MutationResult, error) {
-	if tableName != "" && len(csvFiles) > 1 {
-		return nil, fmt.Errorf("--table can only be used with a single CSV file")
+	if err := checkImportInputs(csvFiles, dbPath, tableName); err != nil {
+		return nil, err
 	}
 	if isDuckDB(dbPath) {
 		return appendCSVDuckDB(csvFiles, dbPath, tableName)
 	}
 	return appendCSVSQLite(csvFiles, dbPath, tableName)
+}
+
+// checkImportInputs validates everything the caller named before either
+// import path opens anything: the --table override's arity, the target
+// database, and each source file.
+func checkImportInputs(csvFiles []string, dbPath, tableName string) error {
+	if tableName != "" && len(csvFiles) > 1 {
+		return cmdutil.Coded(cmdutil.CodeUsage, "--table can only be used with a single CSV file").
+			WithTry("drop --table (each file becomes a table named after it), or import one file at a time")
+	}
+	if err := requireDatabase(dbPath); err != nil {
+		return err
+	}
+	for _, csvPath := range csvFiles {
+		if err := requireInputFile(csvPath); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func addCSVSQLite(csvFiles []string, dbPath, tableName string) (*MutationResult, error) {
@@ -251,14 +345,18 @@ func addCSVDuckDB(csvFiles []string, dbPath, tableName string) (*MutationResult,
 func appendCSVSQLite(csvFiles []string, dbPath, tableName string) (*MutationResult, error) {
 	var appended []string
 	err := withStore(dbPath, func(s store.DataStore) error {
+		names, err := s.TableNames()
+		if err != nil {
+			return err
+		}
 		for _, csvPath := range csvFiles {
 			name := nameForCSV(csvPath, tableName)
+			if !slices.Contains(names, name) {
+				return errAppendTableMissing(name, csvPath, dbPath)
+			}
 			absCSV, err := filepath.Abs(csvPath)
 			if err != nil {
 				return fmt.Errorf("resolve path %q: %w", csvPath, err)
-			}
-			if _, err := os.Stat(absCSV); err != nil {
-				return err
 			}
 			before, err := s.TableRowCount(name)
 			if err != nil {
@@ -282,9 +380,14 @@ func appendCSVSQLite(csvFiles []string, dbPath, tableName string) (*MutationResu
 }
 
 func appendCSVDuckDB(csvFiles []string, dbPath, tableName string) (*MutationResult, error) {
-	for _, csv := range csvFiles {
-		if _, err := os.Stat(csv); err != nil {
-			return nil, err
+	names, err := duckTableNames(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	for _, csvPath := range csvFiles {
+		name := nameForCSV(csvPath, tableName)
+		if !slices.Contains(names, name) {
+			return nil, errAppendTableMissing(name, csvPath, dbPath)
 		}
 	}
 	entries, err := duck.AppendCSV(dbPath, csvFiles, tableName)
@@ -307,12 +410,22 @@ func nameForCSV(csvPath, override string) string {
 }
 
 // collisionErr produces the standard "table already exists, use append"
-// error used by both SQLite and duckdb add paths.
+// error used by both SQLite and duckdb add paths. It codes usage: the
+// caller picks a different verb or a different table name and retries.
+// The two ways out mean neither is a Fix — appending rows and dropping the
+// table are different intents, and sci refuses to guess which was meant.
 func collisionErr(name, dbPath string) error {
-	return fmt.Errorf(
-		"table %q already exists in %s — use `sci db append` to add rows, or `sci db delete %s %s` to drop it first",
-		name, dbPath, name, dbPath,
-	)
+	return cmdutil.Coded(cmdutil.CodeUsage, "table %q already exists in %s", name, dbPath).
+		WithTry(fmt.Sprintf(
+			"use `sci db append` to add rows to it, `--table <name>` to import under another name, or `sci db delete %s %s` to drop it first",
+			name, dbPath))
+}
+
+// errAppendTableMissing is the mirror of [collisionErr]: append needs a
+// table that already exists, and names the add verb that would create it.
+func errAppendTableMissing(name, csvPath, dbPath string) error {
+	return cmdutil.Coded(cmdutil.CodeNotFound, "no table %q in %s to append to", name, dbPath).
+		WithFix(fmt.Sprintf("sci db add --table %s %s %s", name, csvPath, dbPath))
 }
 
 // ---------------------------------------------------------------------------
@@ -324,16 +437,20 @@ func collisionErr(name, dbPath string) error {
 // silently consumes) the case where a stray duckdb .wal file exists
 // without the matching main file — that pattern points at a crashed
 // session and the user should clean it up explicitly.
+//
+// An existing path is a refusal, not a result: creating over it would be
+// destructive, so it codes usage (exit 2 — rewrite the command line) rather
+// than returning a "successful" envelope whose payload says it failed.
 func Create(dbPath string) (*MutationResult, error) {
 	if _, err := os.Stat(dbPath); err == nil {
-		return &MutationResult{OK: false, Message: fmt.Sprintf("%s already exists — use 'sci db reset' to clear it", dbPath)}, nil
+		return nil, cmdutil.Coded(cmdutil.CodeUsage, "%s already exists", dbPath).
+			WithTry(fmt.Sprintf("pick another path, or clear this one with `sci db reset %s`", dbPath))
 	}
 	if isDuckDB(dbPath) {
 		if _, err := os.Stat(dbPath + ".wal"); err == nil {
-			return nil, fmt.Errorf(
-				"%s.wal exists but %s does not — looks like a crashed duckdb session. Remove the .wal file or run `sci db reset %s` to start fresh",
-				dbPath, dbPath, dbPath,
-			)
+			return nil, cmdutil.Coded(cmdutil.CodeUsage,
+				"%s.wal exists but %s does not — a crashed duckdb session left it behind", dbPath, dbPath).
+				WithTry(fmt.Sprintf("remove the .wal file, or run `sci db reset %s` to start fresh", dbPath))
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
@@ -354,7 +471,16 @@ func Create(dbPath string) (*MutationResult, error) {
 }
 
 // Reset deletes the database file (if present) and recreates an empty one.
+//
+// It refuses to delete a file that is not a database: `sci db reset` on a
+// mistyped path (a thesis, a CSV) would otherwise destroy it, and the
+// confirmation prompt reads as if the target were a database either way.
 func Reset(dbPath string) (*MutationResult, error) {
+	if _, err := os.Stat(dbPath); err == nil {
+		if err := requireDatabase(dbPath); err != nil {
+			return nil, err
+		}
+	}
 	if isDuckDB(dbPath) {
 		if err := duck.Reset(dbPath); err != nil {
 			return nil, err
@@ -395,12 +521,19 @@ func Reset(dbPath string) (*MutationResult, error) {
 // tab instead of the first one.
 func RunTUI(dbPath string, initialTab string) error {
 	if _, err := os.Stat(dbPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return cmdutil.Coded(cmdutil.CodeNotFound, "file not found: %s", dbPath).
+				WithTry("check the path — `sci view` opens .db/.sqlite/.duckdb databases and csv/tsv/json/jsonl/parquet files")
+		}
 		return err
 	}
 
 	var ds store.DataStore
 	switch {
 	case isDuckDB(dbPath):
+		if err := requireDatabase(dbPath); err != nil {
+			return err
+		}
 		s, err := duckstore.Open(dbPath)
 		if err != nil {
 			return err
@@ -419,6 +552,9 @@ func RunTUI(dbPath string, initialTab string) error {
 		}
 		ds = s
 	default:
+		if err := requireDatabase(dbPath); err != nil {
+			return err
+		}
 		s, err := sqlite.Open(dbPath)
 		if err != nil {
 			return err

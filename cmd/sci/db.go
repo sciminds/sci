@@ -247,6 +247,15 @@ func wrapDuckErr(err error) error {
 	if errors.Is(err, duck.ErrNotInstalled) {
 		return err // its message already names `sci doctor`
 	}
+	// A refused query is a malformed command line, not a failed unit of work,
+	// so it codes usage and exits 2. The coding happens here rather than in
+	// store.ValidateReadOnlySQL because that validator also guards dbtui's
+	// query pane, and a storage package that spoke the CLI's error vocabulary
+	// would pull the whole terminal-UI dependency tree in behind it.
+	if errors.Is(err, store.ErrNotReadOnly) {
+		return cmdutil.Coded(cmdutil.CodeUsage, "%s", err.Error()).
+			WithTry("rewrite it as a single read-only SELECT — sci never mutates data through a query verb")
+	}
 	return err
 }
 

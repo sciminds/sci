@@ -127,12 +127,14 @@ func TestAddCSVDuckDBCollisionMentionsAppend(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected collision error")
 	}
-	msg := err.Error()
-	if !strings.Contains(msg, "already exists") {
-		t.Errorf("error %q does not mention 'already exists'", msg)
+	coded := codedFrom(t, err)
+	if !strings.Contains(coded.Message, "already exists") {
+		t.Errorf("error %q does not mention 'already exists'", coded.Message)
 	}
-	if !strings.Contains(msg, "sci db append") {
-		t.Errorf("error %q should suggest `sci db append`", msg)
+	// The way out rides in Try, which the --json envelope and the human
+	// error block both render — the message itself stays one line.
+	if !strings.Contains(coded.Try, "sci db append") {
+		t.Errorf("try %q should suggest `sci db append`", coded.Try)
 	}
 }
 
@@ -218,12 +220,14 @@ func TestAddCSVSQLiteCollisionMentionsAppend(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected collision error")
 	}
-	msg := err.Error()
-	if !strings.Contains(msg, "already exists") {
-		t.Errorf("error %q does not mention 'already exists'", msg)
+	coded := codedFrom(t, err)
+	if !strings.Contains(coded.Message, "already exists") {
+		t.Errorf("error %q does not mention 'already exists'", coded.Message)
 	}
-	if !strings.Contains(msg, "sci db append") {
-		t.Errorf("error %q should suggest `sci db append`", msg)
+	// The way out rides in Try, which the --json envelope and the human
+	// error block both render — the message itself stays one line.
+	if !strings.Contains(coded.Try, "sci db append") {
+		t.Errorf("try %q should suggest `sci db append`", coded.Try)
 	}
 }
 

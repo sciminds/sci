@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -40,11 +41,21 @@ type Store struct {
 	views    map[string]bool // populated by TableNames
 	virtuals map[string]bool // populated by TableNames
 	shadows  map[string]bool // populated by TableNames (FTS5 internal tables)
+	// readOnly marks a handle from [OpenReadOnly]. SQLite already refuses
+	// writes on such a connection; this makes every mutation method fail
+	// early with [store.ErrReadOnly] instead of a driver message.
+	readOnly bool
 }
 
 // Open opens a SQLite database at the given path with WAL mode, foreign
 // keys, a 5-second busy timeout, and a 256 MB mmap window. The connection
 // pool is sized for concurrent introspection reads (COUNT, PRAGMA …).
+//
+// This is the writer's open, and it is not side-effect free: `PRAGMA
+// journal_mode = WAL` permanently converts a database that was in the
+// default rollback-journal mode. That is fine for a command the user asked
+// to write, and wrong for one that only reads — inspection verbs use
+// [OpenReadOnly] instead.
 func Open(path string) (*Store, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -55,6 +66,69 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 	return &Store{db: db}, nil
+}
+
+// OpenReadOnly opens a SQLite database for inspection only: the file it
+// points at is guaranteed to come back byte-for-byte identical.
+//
+// Use it for every informational verb. [Open] issues `PRAGMA journal_mode
+// = WAL`, which permanently rewrites any database that was in the default
+// rollback-journal mode — a purely informational command (`sci db info`)
+// must never do that to a user's file.
+//
+// The connection is opened mode=ro with query_only(1) as defence in depth,
+// so writes fail at the engine level as well as at the [store.ErrReadOnly]
+// guards on this type's mutation methods.
+//
+// The DSN adapts to what is on disk, and the two shapes trade off
+// differently — the same trade-off documented in internal/local:
+//
+//   - No sibling -wal file: the database is fully checkpointed, so the
+//     handle adds immutable=1. That tells SQLite the file cannot change,
+//     which skips WAL processing and locking entirely — no -shm sidecar is
+//     created, and nothing on disk is touched. It is also the only way to
+//     read a WAL-mode database that has no -shm, because a plain mode=ro
+//     connection cannot create one and would fail to open at all.
+//   - A non-empty -wal file: another connection has committed data that is
+//     not in the main file yet, and immutable=1 would silently report the
+//     pre-checkpoint snapshot. The handle drops immutable so the WAL is
+//     read, falling back to immutable only if that open fails (which is
+//     what happens when the sidecars are unreadable).
+func OpenReadOnly(path string) (*Store, error) {
+	if walIsPending(path) {
+		if db, err := openReadOnlyDSN(path, "mode=ro&_pragma=query_only(1)&_pragma=busy_timeout(5000)"); err == nil {
+			return &Store{db: db, readOnly: true}, nil
+		}
+	}
+	db, err := openReadOnlyDSN(path, "mode=ro&immutable=1&_pragma=query_only(1)")
+	if err != nil {
+		return nil, err
+	}
+	return &Store{db: db, readOnly: true}, nil
+}
+
+// walIsPending reports whether path has a non-empty write-ahead log beside
+// it — the set of committed changes the main file does not contain yet.
+func walIsPending(path string) bool {
+	fi, err := os.Stat(path + "-wal")
+	return err == nil && fi.Size() > 0
+}
+
+// openReadOnlyDSN opens path with the given query string and proves the
+// handle works by reading the schema — sql.Open is lazy, and SQLite only
+// reports "this is not a database" once a statement runs.
+func openReadOnlyDSN(path, query string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite", "file:"+path+"?"+query)
+	if err != nil {
+		return nil, fmt.Errorf("open %q read-only: %w", path, err)
+	}
+	db.SetMaxOpenConns(4)
+	var name string
+	if err := db.QueryRow("SELECT name FROM sqlite_master LIMIT 1").Scan(&name); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		_ = db.Close()
+		return nil, fmt.Errorf("open %q read-only: %w", path, err)
+	}
+	return db, nil
 }
 
 // OpenMemory opens an in-memory SQLite database. Useful for tests and
@@ -98,8 +172,22 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+// refuseWrite returns a wrapped [store.ErrReadOnly] when the handle came
+// from [OpenReadOnly], and nil otherwise. Every mutation calls it first so
+// a read-only store fails with one recognizable error (errors.Is-able)
+// instead of a driver message that varies by statement.
+func (s *Store) refuseWrite(op string) error {
+	if s.readOnly {
+		return fmt.Errorf("%s: %w", op, store.ErrReadOnly)
+	}
+	return nil
+}
+
 // Exec executes a SQL statement that does not return rows.
 func (s *Store) Exec(query string) (sql.Result, error) {
+	if err := s.refuseWrite("exec"); err != nil {
+		return nil, err
+	}
 	return s.db.Exec(query)
 }
 
@@ -420,6 +508,9 @@ func (s *Store) ReadOnlyQuery(query string) (columns []string, rows [][]string, 
 
 // UpdateCell updates a single cell value by rowid.
 func (s *Store) UpdateCell(table, column string, rowID int64, _ map[string]string, value *string) error {
+	if err := s.refuseWrite("update"); err != nil {
+		return err
+	}
 	if !store.IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
@@ -449,6 +540,9 @@ func (s *Store) UpdateCell(table, column string, rowID int64, _ map[string]strin
 
 // DeleteRows removes rows by rowid and returns the count of deleted rows.
 func (s *Store) DeleteRows(table string, ids []store.RowIdentifier) (int64, error) {
+	if err := s.refuseWrite("delete rows"); err != nil {
+		return 0, err
+	}
 	if len(ids) == 0 {
 		return 0, nil
 	}
@@ -471,6 +565,9 @@ func (s *Store) DeleteRows(table string, ids []store.RowIdentifier) (int64, erro
 
 // InsertRows inserts multiple rows. Empty string values are inserted as NULL.
 func (s *Store) InsertRows(table string, columns []string, rows [][]string) error {
+	if err := s.refuseWrite("insert rows"); err != nil {
+		return err
+	}
 	if len(rows) == 0 {
 		return nil
 	}
@@ -489,6 +586,9 @@ func (s *Store) InsertRows(table string, columns []string, rows [][]string) erro
 
 // RenameTable renames a table in the SQLite database.
 func (s *Store) RenameTable(oldName, newName string) error {
+	if err := s.refuseWrite("rename table"); err != nil {
+		return err
+	}
 	if !store.IsSafeIdentifier(oldName) {
 		return fmt.Errorf("invalid table name: %q", oldName)
 	}
@@ -501,6 +601,9 @@ func (s *Store) RenameTable(oldName, newName string) error {
 
 // DropTable drops the named table from the SQLite database.
 func (s *Store) DropTable(table string) error {
+	if err := s.refuseWrite("drop table"); err != nil {
+		return err
+	}
 	if !store.IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
@@ -510,6 +613,9 @@ func (s *Store) DropTable(table string) error {
 
 // CreateEmptyTable creates a new empty table with a default schema.
 func (s *Store) CreateEmptyTable(tableName string) error {
+	if err := s.refuseWrite("create table"); err != nil {
+		return err
+	}
 	if !store.IsSafeIdentifier(tableName) {
 		return fmt.Errorf("invalid table name: %q", tableName)
 	}
@@ -520,6 +626,9 @@ func (s *Store) CreateEmptyTable(tableName string) error {
 
 // RenameColumn renames a column in a SQLite table.
 func (s *Store) RenameColumn(table, oldName, newName string) error {
+	if err := s.refuseWrite("rename column"); err != nil {
+		return err
+	}
 	if !store.IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
@@ -536,6 +645,9 @@ func (s *Store) RenameColumn(table, oldName, newName string) error {
 // DropColumn drops a column from a SQLite table.
 // Returns an error if it would remove the last column.
 func (s *Store) DropColumn(table, column string) error {
+	if err := s.refuseWrite("drop column"); err != nil {
+		return err
+	}
 	if !store.IsSafeIdentifier(table) {
 		return fmt.Errorf("invalid table name: %q", table)
 	}
@@ -556,6 +668,9 @@ func (s *Store) DropColumn(table, column string) error {
 // DeduplicateTable removes duplicate rows from a table, keeping the row
 // with the lowest rowid. Returns the number of rows removed.
 func (s *Store) DeduplicateTable(table string) (int64, error) {
+	if err := s.refuseWrite("deduplicate"); err != nil {
+		return 0, err
+	}
 	if !store.IsSafeIdentifier(table) {
 		return 0, fmt.Errorf("invalid table name: %q", table)
 	}
@@ -583,6 +698,9 @@ func (s *Store) DeduplicateTable(table string) (int64, error) {
 
 // CreateTableAs creates a new table from a SELECT query.
 func (s *Store) CreateTableAs(tableName, query string) error {
+	if err := s.refuseWrite("create table as"); err != nil {
+		return err
+	}
 	if !store.IsSafeIdentifier(tableName) {
 		return fmt.Errorf("invalid table name: %q", tableName)
 	}
@@ -596,6 +714,9 @@ func (s *Store) CreateTableAs(tableName, query string) error {
 
 // CreateViewAs creates a new view from a SELECT query.
 func (s *Store) CreateViewAs(viewName, query string) error {
+	if err := s.refuseWrite("create view as"); err != nil {
+		return err
+	}
 	if !store.IsSafeIdentifier(viewName) {
 		return fmt.Errorf("invalid view name: %q", viewName)
 	}

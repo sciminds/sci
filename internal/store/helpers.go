@@ -14,23 +14,39 @@ import (
 	"golang.org/x/text/transform"
 )
 
+// ErrNotReadOnly is returned by [ValidateReadOnlySQL] when a query would
+// mutate data. Every rejection wraps it, so a CLI layer can match once with
+// [errors.Is] and attach its own exit code and remedy rather than having this
+// package name one.
+//
+// It stays a sentinel deliberately. This validator guards the SQLite store,
+// the duckdb verbs, and dbtui's query pane alike, and a storage package that
+// spoke the CLI's error vocabulary would drag the whole terminal-UI
+// dependency tree in behind it — 37 packages, for a string.
+var ErrNotReadOnly = fmt.Errorf("query is not read-only")
+
 // ValidateReadOnlySQL checks that query is a safe, single-statement SELECT
 // (or a read-only WITH/CTE). Returns the trimmed query on success.
+//
+// Every rejection wraps [ErrNotReadOnly] and explains itself in the message.
+// The SQL comes from the caller's command line, so a refusal means "rewrite
+// it and retry", but choosing the exit code and the suggested remedy is the
+// caller's job — see internal/db/errors.go for the CLI's mapping.
 func ValidateReadOnlySQL(query string) (string, error) {
 	trimmed := strings.TrimSpace(query)
 	if trimmed == "" {
-		return "", fmt.Errorf("empty query")
+		return "", fmt.Errorf("empty query: %w", ErrNotReadOnly)
 	}
 	upper := strings.ToUpper(trimmed)
 	if !strings.HasPrefix(upper, "SELECT") && !strings.HasPrefix(upper, "WITH") {
-		return "", fmt.Errorf("only SELECT queries are allowed")
+		return "", fmt.Errorf("only SELECT queries are allowed: %w", ErrNotReadOnly)
 	}
 	if strings.Contains(trimmed, ";") {
-		return "", fmt.Errorf("multiple statements are not allowed")
+		return "", fmt.Errorf("multiple statements are not allowed: %w", ErrNotReadOnly)
 	}
 	if strings.HasPrefix(upper, "WITH") {
 		if ContainsWriteKeyword(upper) {
-			return "", fmt.Errorf("only SELECT queries are allowed")
+			return "", fmt.Errorf("only SELECT queries are allowed: %w", ErrNotReadOnly)
 		}
 	}
 	return trimmed, nil

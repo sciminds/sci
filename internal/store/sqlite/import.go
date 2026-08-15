@@ -16,6 +16,9 @@ import (
 
 // ImportCSV imports a CSV file as a new typed SQLite table.
 func (s *Store) ImportCSV(csvPath, tableName string) error {
+	if err := s.refuseWrite("import CSV"); err != nil {
+		return err
+	}
 	header, rows, err := readCSV(csvPath, ',')
 	if err != nil {
 		return fmt.Errorf("read CSV: %w", err)
@@ -25,6 +28,9 @@ func (s *Store) ImportCSV(csvPath, tableName string) error {
 
 // ImportFile imports a file as a new typed SQLite table, auto-detecting format.
 func (s *Store) ImportFile(filePath, tableName string) error {
+	if err := s.refuseWrite("import file"); err != nil {
+		return err
+	}
 	ext := strings.ToLower(filepath.Ext(filePath))
 	switch ext {
 	case ".csv":
@@ -57,6 +63,9 @@ func (s *Store) ImportFile(filePath, tableName string) error {
 // position via the CSV header; mismatched schemas surface as a SQLite
 // error from the INSERT.
 func (s *Store) AppendCSV(csvPath, tableName string) error {
+	if err := s.refuseWrite("append CSV"); err != nil {
+		return err
+	}
 	if !store.IsSafeIdentifier(tableName) {
 		return fmt.Errorf("invalid table name: %q", tableName)
 	}

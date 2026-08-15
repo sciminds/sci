@@ -9,16 +9,15 @@
 package db
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/sciminds/sci/internal/store"
 	"github.com/sciminds/sci/internal/store/sqlite"
 )
 
-// withStore opens the database, calls fn, and closes it.
+// withStore opens the database for writing, calls fn, and closes it. Use it
+// only for verbs that mutate — [sqlite.Open] converts a rollback-journal
+// database to WAL, which is a permanent change to the user's file.
 func withStore(path string, fn func(store.DataStore) error) error {
-	if _, err := os.Stat(path); err != nil {
+	if err := requireDatabase(path); err != nil {
 		return err
 	}
 	s, err := sqlite.Open(path)
@@ -29,10 +28,17 @@ func withStore(path string, fn func(store.DataStore) error) error {
 	return fn(s)
 }
 
-// validateTableName checks that a user-supplied table name is safe for SQL.
-func validateTableName(name string) error {
-	if !store.IsSafeIdentifier(name) {
-		return fmt.Errorf("invalid table name: %q (only alphanumerics, underscores, and spaces allowed)", name)
+// withReadStore is [withStore] for verbs that only look: the database is
+// opened through [sqlite.OpenReadOnly], so the file comes back byte-for-byte
+// identical and any accidental write fails with [store.ErrReadOnly].
+func withReadStore(path string, fn func(store.DataStore) error) error {
+	if err := requireDatabase(path); err != nil {
+		return err
 	}
-	return nil
+	s, err := sqlite.OpenReadOnly(path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = s.Close() }()
+	return fn(s)
 }
