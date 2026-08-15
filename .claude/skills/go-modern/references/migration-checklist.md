@@ -60,8 +60,8 @@ You're writing ahead of these so they stay quiet, but know what trips them:
 - Rule 9 — the legacy `sort` package is banned.
 - Rule 10 — append-clone patterns banned (use `slices.Clone`/`Concat`).
 - Rule 11 — manual byte cloning banned (use `bytes.Clone`).
-- (Rules 1–8, 12–15 cover charm.land v2 imports, `Local: true` flags, `huh`
-  routing, package doc comments, etc. — not modern-Go-style, but part of `just ok`.)
+- The other live rules are 1, 2, 4, 5, 7, 12, 13, 14, 15, 17, 18 and 19 — charm.land v2 imports, no `time.Sleep` in tests, `Local: true` on flags (and *not* on slice flags), no `exec.Command` in process-replacing files, `uikit.DrainStdin` after `tea.Program.Run()`, package doc comments, `huh` routing and scriptability parity, the `internal/zot/` net/http ban, and no `Destination` on a flag. Not modern-Go-style, but part of `just ok`.
+- Rules 3, 6, 8 and 16 are retired and their numbers are never reused, so a rule number in the commit history keeps meaning what it said. Read `scripts/lint-guard.sh` for the current set rather than assuming the numbering is contiguous.
 
 **`just lint-style`** (`.semgrep/go-modern.yml` + ast-grep): the `lo` rewrite
 family — manual `for`+`append` → `lo.Map`/`Filter`/`FilterMap`/`GroupBy`/etc.,

@@ -16,7 +16,7 @@ rules:
           }
     message: >-
       Use lo.Map($SRC, func(...) $TYPE { ... }) instead of make+range loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -32,7 +32,7 @@ rules:
           }
     message: >-
       Use lo.Filter($SRC, func($V T, _ int) bool { ... }) instead of
-      manual filter loop. See CLAUDE.md "Modern Go style".
+      manual filter loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -47,7 +47,7 @@ rules:
           }
     message: >-
       Use lo.KeyBy or lo.SliceToMap instead of make(map)+range loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -60,7 +60,7 @@ rules:
           }
     message: >-
       Use lo.KeyBy or lo.SliceToMap instead of make(map, len)+range loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -76,7 +76,7 @@ rules:
           }
     message: >-
       Use lo.Find($SRC, func($V T, _ int) bool { ... }) instead of
-      manual find loop. See CLAUDE.md "Modern Go style".
+      manual find loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -93,7 +93,7 @@ rules:
           }
     message: >-
       Use lo.CountBy($SRC, func($V T, _ int) bool { ... }) instead of
-      manual count loop. See CLAUDE.md "Modern Go style".
+      manual count loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -111,7 +111,7 @@ rules:
           return false
     message: >-
       Use slices.Contains($SRC, $TARGET) instead of manual contains loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -126,7 +126,7 @@ rules:
           }
     message: >-
       Use lo.SumBy or lo.Reduce instead of manual sum loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -141,7 +141,7 @@ rules:
           }
     message: >-
       Use lo.GroupBy($SRC, func(...) $K { ... }) instead of manual group loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -163,7 +163,7 @@ rules:
           }
     message: >-
       Use lo.Chunk($SRC, $SIZE) instead of manual step-based chunking loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -194,7 +194,7 @@ rules:
           comparison: str($EXPR) != str($V)
     message: >-
       Use lo.FilterMap($SRC, func($V T, _ int) (U, bool) { ... })
-      instead of manual filter+transform loop. See CLAUDE.md "Modern Go style".
+      instead of manual filter+transform loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -223,7 +223,7 @@ rules:
     message: >-
       lo.Map(lo.Filter(...)) walks the slice twice and allocates an
       intermediate. Fold into one lo.FilterMap($SRC, func(...) (R, bool) { ... })
-      pass. See CLAUDE.md "Modern Go style".
+      pass. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -247,7 +247,7 @@ rules:
     message: >-
       Use lo.Keyify($SRC) (when key == element) or lo.SliceToMap (when key
       is derived) instead of manual set-building loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -262,7 +262,7 @@ rules:
     message: >-
       Use lo.Keyify($SRC) (when key == element) or lo.SliceToMap (when key
       is derived) instead of manual set-building loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -277,7 +277,7 @@ rules:
           }
     message: >-
       Use lo.Keyify($SRC) instead of manual set-building loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -304,7 +304,7 @@ rules:
           }
     message: >-
       Use lo.UniqBy($SRC, func(...) $K { ... }) instead of manual
-      seen-map dedup loop. See CLAUDE.md "Modern Go style".
+      seen-map dedup loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -323,7 +323,7 @@ rules:
           }
     message: >-
       Use lo.Flatten($SRC) instead of manual flatten loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -344,7 +344,7 @@ rules:
           }
     message: >-
       Use slices.Sorted(maps.Keys($SRC)) or slices.Collect(maps.Keys($SRC))
-      instead of manual key-extraction loop. See CLAUDE.md "Modern Go style".
+      instead of manual key-extraction loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -361,7 +361,7 @@ rules:
           }
     message: >-
       Use lo.Compact($SRC) instead of manual empty-string filter loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -375,7 +375,7 @@ rules:
           }
     message: >-
       Use maps.Copy($DST, $SRC) instead of manual map merge loop.
-      See CLAUDE.md "Modern Go style".
+      See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -391,7 +391,7 @@ rules:
           }
     message: >-
       Use lo.Reject($SRC, func($V T, _ int) bool { ... }) instead of
-      manual negated-filter loop. See CLAUDE.md "Modern Go style".
+      manual negated-filter loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -420,7 +420,7 @@ rules:
           return false
     message: >-
       Use lo.ContainsBy($SRC, func($V T) bool { ... }) instead of manual
-      predicate-search loop. See CLAUDE.md "Modern Go style".
+      predicate-search loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -438,7 +438,7 @@ rules:
           }
     message: >-
       Use lo.ContainsBy($SRC, func($V T) bool { ... }) instead of manual
-      bool-flag + break loop. See CLAUDE.md "Modern Go style".
+      bool-flag + break loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -465,7 +465,7 @@ rules:
           return -1, false
     message: >-
       Use lo.FindIndexOf($SRC, func($V T) bool { ... }) instead of manual
-      index-search loop. See CLAUDE.md "Modern Go style".
+      index-search loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -483,7 +483,7 @@ rules:
           }
     message: >-
       Use lo.FlatMap($SRC, func($V T, _ int) []U { ... }) instead of manual
-      transform+flatten loop. See CLAUDE.md "Modern Go style".
+      transform+flatten loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 
@@ -496,7 +496,7 @@ rules:
           }
     message: >-
       Use lo.FlatMap($SRC, func($V T, _ int) []U { return $V.$FIELD }) instead
-      of manual field-spread loop. See CLAUDE.md "Modern Go style".
+      of manual field-spread loop. See the `lo` skill (CLAUDE.md, "Skills").
     severity: WARNING
     languages: [go]
 

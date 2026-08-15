@@ -78,10 +78,13 @@ A 60 FPS tick fires every 16.6ms. If your `Update` + `View` round-trip ever exce
 
 ### Skip frames that didn't change
 
+The cache has to survive between calls, so the model is a pointer model here — a value receiver would throw the write away.
+
 ```go
 type model struct {
-    state animState
-    dirty bool
+    state     animState
+    dirty     bool
+    lastFrame string
 }
 
 case frameMsg:
@@ -93,13 +96,12 @@ case frameMsg:
     m.dirty = true
     return m, tick()
 
-func (m model) View() string {
-    if !m.dirty {
-        return m.lastFrame       // reuse cached output
+func (m *model) View() tea.View {
+    if m.dirty {
+        m.lastFrame = m.render()
+        m.dirty = false
     }
-    m.lastFrame = m.render()
-    m.dirty = false
-    return m.lastFrame
+    return tea.NewView(m.lastFrame)
 }
 ```
 
@@ -190,8 +192,8 @@ case frameMsg:
     m.phase = math.Mod(m.phase + 0.01, 1)
     return m, tick()
 
-func (m model) View() string {
-    return rainbowText("RAINBOW TEXT", m.phase)
+func (m model) View() tea.View {
+    return tea.NewView(rainbowText("RAINBOW TEXT", m.phase))
 }
 ```
 
@@ -273,7 +275,7 @@ v2 introduced a cell-based compositor — exactly what you want for "thing on to
 ```go
 import "charm.land/lipgloss/v2"
 
-func (m model) View() string {
+func (m model) View() tea.View {
     background := m.renderBackground()        // your normal UI
     sprite     := m.renderSprite()            // small block of text
 
@@ -285,7 +287,7 @@ func (m model) View() string {
             Z(1),                              // above background
     }
 
-    return lipgloss.NewCompositor(layers...).Render()
+    return tea.NewView(lipgloss.NewCompositor(layers...).Render())
 }
 ```
 
@@ -310,7 +312,7 @@ Use this for "panel + decorations on the panel" — you can move the panel and t
 
 ### Compositor gotchas
 
-- `NewCompositor` is the v2 entry point. Older posts may say `NewCanvas` — both have appeared during the v2 beta; check what your pinned `lipgloss/v2` version exports and use that.
+- `NewCompositor` and `NewCanvas` are both exported and they are *different things*: `Compositor` flattens a layer tree and sorts it by Z, while `Canvas` is the cell buffer you draw into. `comp.Render()` is a convenience that allocates a canvas for you; use `canvas.Compose(comp).Render()` only when you need to control the buffer size or read/write cells yourself.
 - Layers are stored as pointers (`*lipgloss.Layer`). Mutating one after adding it to a compositor is fine and is the intended way to animate position.
 - Position is always relative to the compositor's `(0,0)`, **not** the terminal. If you need terminal-relative placement, you typically include a base layer of the right size at `(0,0)`.
 
@@ -449,6 +451,8 @@ type typewriter struct {
     revealed int
 }
 
+func frameTick(t time.Time) tea.Msg { return frameMsg(t) }
+
 case frameMsg:
     if m.tw.revealed < len(m.tw.full) {
         m.tw.revealed++
@@ -470,7 +474,7 @@ case frameMsg:
     m.spinFrame = (m.spinFrame + 1) % len(frames)
     return m, tea.Tick(80*time.Millisecond, frameTick)
 
-func (m model) View() string { return frames[m.spinFrame] + " loading…" }
+func (m model) View() tea.View { return tea.NewView(frames[m.spinFrame] + " loading…") }
 ```
 
 ### Matrix-style rain
@@ -527,7 +531,7 @@ if math.Abs(fm.pos-fm.target) > 0.1 {
 }
 ```
 
-For golden-file tests of animated frames: pin `lipgloss.SetColorProfile(termenv.Ascii)` so the goldens are deterministic, and snapshot a specific frame number rather than the final output.
+For golden-file tests of animated frames: pin the color profile with `teatest.WithProgramOptions(tea.WithColorProfile(colorprofile.Ascii))` so the goldens are deterministic, and snapshot a specific frame number rather than the final output. (Lip Gloss v2 has no `SetColorProfile` — the profile is a program option now, not global state.)
 
 ---
 

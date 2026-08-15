@@ -43,6 +43,7 @@ Written in Go because:
 | `sci update` | Update sci to the latest version |
 | `sci help` | Interactive TUI with demos for any command |
 | `sci learn` | Interactive TUI to learn common terminal commands |
+| `sci version` | Print the installed version and build commit |
 
 ### Cloud
 
@@ -75,6 +76,8 @@ One front door over every tool's configuration. The menu lists each domain sci c
 
 Setup your Mac for scientific work — installs Homebrew if missing, walks you through `hf auth login` / `gh auth login`, and reports anything that needs attention.
 
+`sci doctor --json` diagnoses and stops: it reports what is missing or outdated without installing or upgrading anything, so an agent can ask the question without changing the machine. Add `--yes` when you actually want the fresh-machine setup to run unattended.
+
 <details>
 <summary><b>demo</b> — click to expand</summary>
 
@@ -94,6 +97,8 @@ Self-update the `sci` binary in place. Downloads the latest release asset for yo
 ### `sci learn`
 
 Interactive TUI for common terminal/git/Python commands — pick a topic, watch a rendered asciicast, repeat. Browses the casts under `internal/learn/casts/`.
+
+Both `sci learn` and `sci help` need a terminal. Run either with stdin redirected, or with `--json`, and it exits 2 with a usage envelope naming a scriptable alternative rather than launching a TUI it cannot draw.
 
 <details>
 <summary><b>demo</b> — click to expand</summary>
@@ -170,9 +175,9 @@ Work with SQLite/DuckDB databases and tabular files (CSV, JSON, Parquet). Verbs 
 
 | Command | What it does |
 |---------|--------------|
-| `sci db create` | Create an empty database (SQLite or DuckDB, picked by extension) |
-| `sci db reset` | Delete and recreate an empty database |
-| `sci db info` | Show database metadata and tables |
+| `sci db create` | Create an empty database (SQLite or DuckDB, picked by extension) — refuses a path that already exists |
+| `sci db reset` | Delete and recreate an empty database — refuses any path that is not a database |
+| `sci db info` | Show database metadata and tables (read-only: the file's bytes are left untouched) |
 | `sci db rename` | Rename a table or view |
 | `sci db delete` | Delete a table or view |
 | `sci db view <file>` | Interactively browse a database or tabular file (same as `sci view`) |

@@ -12,8 +12,8 @@ description: >-
   ptr() helpers, hand-rolled min/max). Complements the `lo` skill, which owns
   functional transforms (Map/Filter/Reduce/GroupBy); reach here for everything
   stdlib- and language-level. Invoke whenever the task is "write some Go",
-  "clean this Go up", "is there a stdlib way to do this", or CLAUDE.md says
-  "Modern Go style".
+  "clean this Go up", "is there a stdlib way to do this", or CLAUDE.md's
+  Skills table routes a Go edit here.
 version: 1.0.0
 license: MIT
 ---
@@ -54,7 +54,7 @@ the plain `slices.Contains` (equality, no `Func`) for this skill's territory.
 - Choosing a standard-library API ("is there a built-in for this?")
 - Reviewing a Go diff for legacy patterns
 - Replacing a manual loop that *isn't* a transform (sorting, key extraction, map merge, membership)
-- Anything CLAUDE.md flags under "Modern Go style" or that `just lint-guard` / `just lint-style` rejects
+- Anything `just lint-guard` / `just lint-style` rejects — CLAUDE.md's "Lint enforcement" section lists the rules and this skill is what keeps them quiet
 
 ## The modern-Go reflexes (legacy → modern lookup)
 

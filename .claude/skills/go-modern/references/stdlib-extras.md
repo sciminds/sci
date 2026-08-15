@@ -24,8 +24,9 @@ Handlers: `NewTextHandler` (human/dev), `NewJSONHandler` (machine ingestion).
 
 > **This codebase doesn't log.** CLI output flows through `cmdutil.Result` (JSON
 > + human rendering), not a logger — that's deliberate. Reach for `slog` only if
-> something changes that (e.g. a long-running `sci ts` daemon). For one-off
-> command output, use the `cmdutil.Result` path, not `slog`.
+> that changes: it would take a long-running daemon, and every sci verb is a
+> one-shot command. For ordinary command output, use the `cmdutil.Result` path,
+> not `slog`.
 
 ## JSON: `omitzero` (1.24) and json/v2 status
 

@@ -152,7 +152,7 @@ import "charm.land/bubbles/v2/textinput"
 
 ti := textinput.New()
 ti.Placeholder = "search…"
-ti.Focus()
+focusCmd := ti.Focus() // v2: Focus returns a tea.Cmd — return it, don't drop it
 // in Update: m.ti, cmd = m.ti.Update(msg)
 ```
 
@@ -273,11 +273,17 @@ func (m *model) showPreview(path string) tea.Cmd {
 
 A child shouldn't reach into a sibling. It emits a `tea.Cmd` returning a typed message; the parent routes the result. This keeps each component testable in isolation.
 
+`list.SelectedItem()` returns the `list.Item` *interface* (whose only method is `FilterValue()`), so assert it back to your concrete item type before reaching for its fields. Wrap the closure in `uikit.SafeCmd` — raw `func() tea.Msg` literals are lint-banned in this repo.
+
 ```go
 type fileSelectedMsg struct{ path string }
 
 // In the list's Update, on Enter:
-return m, func() tea.Msg { return fileSelectedMsg{path: m.list.SelectedItem().Path()} }
+item, ok := m.list.SelectedItem().(fileItem)
+if !ok {
+    return m, nil
+}
+return m, uikit.SafeCmd(func() tea.Msg { return fileSelectedMsg{path: item.path} })
 
 // In the parent's Update:
 case fileSelectedMsg:

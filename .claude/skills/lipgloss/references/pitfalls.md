@@ -69,13 +69,16 @@ minWidth := style.GetHorizontalFrameSize()
 style = style.MaxWidth(max(desired, minWidth))
 ```
 
-### P6: Width(0) doesn't mean "no width"
+### P6: Width never truncates, and `Width(0)` is not a clearer
 
-`Width(0)` forces the block to 0 width (everything truncated). Use `UnsetWidth()` to remove the width constraint entirely.
+`Width` only wraps and pads — it can make a block wider, never narrower. A line longer than `Width(n)` that has no break opportunity (a long path, a hash, a `--flag=value`) stays long and blows out your layout. Clamp with `MaxWidth`, `uikit.Truncate`, or `runewidth.Truncate` if you need a hard ceiling.
+
+`Width(0)` reads as "no width" to the render path — it is indistinguishable from unset there, so nothing disappears and nothing is cleared. Use `UnsetWidth()` when you actually want the rule removed, so `Inherit` and `GetWidth` behave.
 
 ```go
-// BAD: trying to remove width constraint
-style = style.Width(0)  // everything disappears
+// MISLEADING: looks like a reset, but only the render path treats it as unset;
+// the width rule is still marked as "set" for Inherit purposes.
+style = style.Width(0)
 
 // GOOD
 style = style.UnsetWidth()
@@ -205,9 +208,9 @@ style.TabWidth(lipgloss.NoTabConversion)  // -1
 style.TabWidth(0)
 ```
 
-### P17: Padding uses NBSP, margins use regular space
+### P17: Padding is a regular space unless you ask for NBSP
 
-Padding characters are non-breaking spaces (preserved on copy/paste). Margin characters are regular spaces. This matters for copy/paste behavior.
+Both padding and margins fill with `' '` by default. `lipgloss.NBSP` is exported for this purpose but you have to opt in with `style.PaddingChar(lipgloss.NBSP)` (or `MarginChar`) — assuming you already get non-breaking padding is a common carry-over from older docs.
 
 ## Output Pitfalls
 

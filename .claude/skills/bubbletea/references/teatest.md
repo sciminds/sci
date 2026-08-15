@@ -1,23 +1,21 @@
 # teatest — Integration Testing for Bubble Tea
 
-> **In `sci-go`:** the canonical protocol (file placement, checklist, fixture handling) is `internal/tui/dbtui/app/TESTING.md` — read it first. This project is **v2-only**, so use the v2 message forms throughout (`tea.KeyPressMsg{Code: tea.KeyEnter}`, `tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})`), not the v1 `tea.KeyMsg{Type: ...}` that appears in many examples below. The v1 details are kept for completeness and because the package itself is still v1-rooted, but your test code targets `charm.land/bubbletea/v2`. Verify DB mutations by querying the store directly, not by inspecting model state.
+> **In `sci-go`:** the canonical protocol (file placement, checklist, fixture handling) is `internal/tui/dbtui/app/TESTING.md` — read it first. This project is **v2-only**, so use the v2 message forms throughout (`tea.KeyPressMsg{Code: tea.KeyEnter}`, `tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})`), not the v1 `tea.KeyMsg{Type: ...}` that still fills most blog posts and upstream examples. The v1 details are kept below purely as a translation aid; your test code imports `github.com/charmbracelet/x/exp/teatest/v2` and targets `charm.land/bubbletea/v2`. Verify DB mutations by querying the store directly, not by inspecting model state.
 
 ## Overview
 
 `teatest` is Charm's helper library for integration-testing Bubble Tea (`tea.Model`) programs. It spins up a real `tea.Program` against an in-memory input buffer and a thread-safe output buffer, lets you drive the program with typed keys and arbitrary `tea.Msg` values, and then lets you assert against either the cumulative output stream or the final `tea.Model` state. It's essentially "drive the full Init/Update/View loop end-to-end, without a terminal."
 
-- **Import path (v1, still the canonical one used almost everywhere):**
-  `github.com/charmbracelet/x/exp/teatest`
-- **v2 variant** (tracks Bubble Tea v2 / `charm.land/bubbletea/v2`):
-  `github.com/charmbracelet/x/exp/teatest/v2`
+- **Import path for this repo:** `github.com/charmbracelet/x/exp/teatest/v2` — the module that tracks Bubble Tea v2 / `charm.land/bubbletea/v2`. This is the only one pinned in `go.mod`, and the only one that can drive a v2 model.
+- **v1 variant** (`github.com/charmbracelet/x/exp/teatest`, no `/v2`) requires `github.com/charmbracelet/bubbletea` v1 — unusable here. It still shows up in most blog posts and examples, which is why the v1 forms are documented below for translation.
 - **Stability:** experimental — lives under `exp/`, zero compatibility guarantees. The package doc comment is literally:
   > `// Package teatest provides helper functions to test tea.Model's.`
   Carlos Becker's launch post is explicit: "We don't promise any compatibility guarantees just yet." Expect minor signature drift (e.g. the v2 variant already renamed `tea.KeyMsg` → `tea.KeyPressMsg`, defaults the terminal size to 80×24, and adds `WithProgramOptions`).
-- **Module go.mod** (`exp/teatest/go.mod`):
-  - `go 1.24.0`
-  - `github.com/charmbracelet/bubbletea v1.3.5`
-  - `github.com/charmbracelet/x/exp/golden v0.0.0-20240806155701-69247e0abc2a`
-  No semver tag — consumers pin a pseudo-version. Recent relevant commits:
+- **Module go.mod** (`exp/teatest/v2/go.mod`, the one this repo uses):
+  - `go 1.24.2`
+  - `charm.land/bubbletea/v2`
+  - `github.com/charmbracelet/x/exp/golden`
+  The v1 module (`exp/teatest/go.mod`) requires `github.com/charmbracelet/bubbletea v1.3.5` instead. Neither carries a release tag — consumers pin a pseudo-version. Recent relevant commits:
   - `f235fab0` (2025-08-21) `fix(teatest): fix race condition` (#366)
   - `b6045cb4` (2025-10-02) `fix(teatest): final model may be nil` (#539) — `FinalModel` now guards against nil on the `modelCh` drain.
   - `c83711a1` (2026-03-11) `feat: update teatest v2 to use charm.land` (#637)
@@ -25,17 +23,20 @@
 
 ## How it works internally
 
-`NewTestModel` builds a `tea.Program` with:
+`NewTestModel` builds a `tea.Program` with (v2):
 
 ```go
 tea.NewProgram(
     m,
+    // your WithProgramOptions(...) first, then these — they always win:
     tea.WithInput(tm.in),        // an in-memory *bytes.Buffer
     tea.WithOutput(tm.out),      // an RWMutex-wrapped *bytes.Buffer
     tea.WithoutSignals(),        // no SIGINT handling from the program
-    tea.WithANSICompressor(),    // reduces drift between runs
+    tea.WithWindowSize(w, h),    // from WithInitialTermSize, default 80×24
 )
 ```
+
+(v1 additionally passed `tea.WithANSICompressor()`; that option does not exist in Bubble Tea v2.)
 
 It then:
 1. Installs its own `SIGINT` handler in a goroutine that calls `program.Kill()` (so Ctrl-C in `go test` still tears the program down, even with `tea.WithoutSignals()`).
@@ -47,7 +48,7 @@ Output is read via a `safeReadWriter` — a `bytes.Buffer` gated by a `sync.RWMu
 ### v1 vs v2 differences
 
 - v2 always prepends `WithInitialTermSize(80, 24)` before your options apply.
-- v2 adds `WithProgramOptions(options ...tea.ProgramOption)` so you can forward `tea.WithColorProfile`, `tea.WithAltScreen`, `tea.WithMouseCellMotion`, etc.
+- v2 adds `WithProgramOptions(options ...tea.ProgramOption)` so you can forward `tea.WithColorProfile`, `tea.WithFPS`, `tea.WithEnvironment`, `tea.WithFilter`, etc. (Altscreen and mouse mode are no longer program options in v2 — the model declares them on the `tea.View` it returns, so there is nothing to forward.)
 - v2 builds the program with `tea.WithWindowSize(w, h)` in addition to sending `tea.WindowSizeMsg`.
 - v2 `Type` emits `tea.KeyPressMsg{Code: c, Text: string(c)}` per **rune**; v1 emits `tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{rune(c)}}` per **byte** — see Gotchas.
 - v2 `RequireEqualOutput` calls `golden.RequireEqualEscape(tb, out, true)`; v1 calls `golden.RequireEqual(tb, out)`.
@@ -92,8 +93,8 @@ func NewTestModel(tb testing.TB, m tea.Model, options ...TestOption) *TestModel
 
 | Option | Effect |
 | --- | --- |
-| `WithInitialTermSize(x, y int)` | Sends an initial `tea.WindowSizeMsg{Width:x, Height:y}` after the program boots. In v1, if you don't call this your program **never receives a size msg** — models using `bubbles/viewport` or `lipgloss/list` render degenerate frames. |
-| `WithProgramOptions(...tea.ProgramOption)` | **v2 only.** Forwards raw Bubble Tea program options. Use for `tea.WithColorProfile`, `tea.WithAltScreen`, `tea.WithMouseCellMotion`, etc. |
+| `WithInitialTermSize(x, y int)` | Sends an initial `tea.WindowSizeMsg{Width:x, Height:y}` after the program boots. In v1, if you don't call this your program **never receives a size msg** — models using `bubbles/viewport` or `bubbles/list` render degenerate frames. |
+| `WithProgramOptions(...tea.ProgramOption)` | **v2 only.** Forwards raw Bubble Tea program options — `tea.WithColorProfile`, `tea.WithFPS`, `tea.WithEnvironment`, `tea.WithFilter`, … Note that teatest appends its own `WithInput`/`WithOutput`/`WithoutSignals`/`WithWindowSize` *after* yours, so those four can't be overridden. |
 
 ### TestModel methods
 
@@ -153,7 +154,7 @@ func WithDuration(d time.Duration) WaitForOption
 func RequireEqualOutput(tb testing.TB, out []byte)
 ```
 
-Thin wrapper around `github.com/charmbracelet/x/exp/golden.RequireEqual`:
+Thin wrapper around `github.com/charmbracelet/x/exp/golden` — `RequireEqualEscape(tb, out, true)` in v2, `RequireEqual(tb, out)` in v1:
 
 1. Golden path is always `testdata/<tb.Name()>.golden` — keyed on `t.Name()`, so `t.Run` subtests automatically get separate goldens under `testdata/TestOuter/name.golden`.
 2. `-update` flag (registered by `exp/golden`, inherited transitively) rewrites the file with raw bytes.
@@ -215,7 +216,7 @@ teatest.WaitFor(t, tm.Output(),
     teatest.WithCheckInterval(10*time.Millisecond),
 )
 
-tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 _ = tm.Quit()
 
 fm := tm.FinalModel(t).(model)
@@ -226,20 +227,17 @@ Rule of thumb: **never `time.Sleep`** in teatest tests — `WaitFor` blocks on a
 ### 4. Special keys vs runes
 
 ```go
-// Rune-typing (ASCII): Type is convenient.
+// Rune-typing: Type is convenient, and v2 iterates runes, so non-ASCII is safe.
 tm.Type("hello")
+tm.Type("ñ")
 
-// Non-rune keys: construct a KeyMsg yourself.
-tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
-tm.Send(tea.KeyMsg{Type: tea.KeyEsc})
-tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
-tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'ñ'}}) // multi-byte in v1
-
-// v2 equivalent:
+// Non-printing keys: construct a KeyPressMsg yourself.
 tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+tm.Send(tea.KeyPressMsg{Code: tea.KeyEsc})
+tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}) // ctrl+c
 ```
 
-`tm.Type("ñ")` in v1 sends two one-byte `KeyMsg`s because the loop iterates bytes — garbage. Use explicit `Send` for non-ASCII.
+The v1 spellings for the same three lines are `tea.KeyMsg{Type: tea.KeyEnter}` / `{Type: tea.KeyEsc}` / `{Type: tea.KeyCtrlC}`, and `tm.Type("ñ")` in v1 sends two one-byte `KeyMsg`s because that loop iterates bytes — garbage. v2 fixed both.
 
 ### 5. Resize mid-test
 
@@ -275,14 +273,16 @@ The `Program` interface exists precisely to make this seam cheap.
 2. **No default terminal size in v1.** Without `WithInitialTermSize`, no `WindowSizeMsg` is sent and viewport/list-based models render degenerate frames. v2 defaults to 80×24.
 
 3. **Goldens bake in terminal size, renderer version, and color profile.** Any of: changing `WithInitialTermSize`, upgrading Bubble Tea, or a different `TERM`/color profile on CI flips the bytes. Mitigations:
-   - Pin the color profile once:
+   - Pin the color profile per test — v2 has no global setter (`lipgloss.SetColorProfile` was a v1 API and is gone):
      ```go
-     func init() { lipgloss.SetColorProfile(termenv.Ascii) }
+     tm := teatest.NewTestModel(t, m,
+         teatest.WithInitialTermSize(80, 24),
+         teatest.WithProgramOptions(tea.WithColorProfile(colorprofile.Ascii)),
+     )
      ```
-     (v2: use `teatest.WithProgramOptions(tea.WithColorProfile(colorprofile.Ascii))`.)
    - Add `*.golden -text` to `.gitattributes` so Git stops CRLF-normalizing on Windows checkouts.
 
-4. **Ctrl+C is special.** `NewTestModel` passes `tea.WithoutSignals()` but installs its own `SIGINT` handler that calls `program.Kill()`. Ctrl-C in `go test` still tears the program down — but sending `tea.KeyMsg{Type: tea.KeyCtrlC}` to a model that doesn't explicitly map it will not auto-quit (default SIGINT→quit path is disabled).
+4. **Ctrl+C is special.** `NewTestModel` passes `tea.WithoutSignals()` but installs its own `SIGINT` handler that calls `program.Kill()`. Ctrl-C in `go test` still tears the program down — but sending `tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}` to a model that doesn't explicitly map it will not auto-quit (default SIGINT→quit path is disabled).
 
 5. **Parallel tests.** Each `NewTestModel` registers a `signal.Notify` goroutine. These self-clean on Ctrl-C, not normal exit. No current leak in practice, but worth knowing.
 
@@ -290,7 +290,7 @@ The `Program` interface exists precisely to make this seam cheap.
 
 7. **`FinalModel` returning nil.** Pre-`b6045cb4` v1 could return nil on fast paths, panicking on cast. Current v1 remembers the last non-nil model; v2 does not. Guard your cast or pin post-#539.
 
-8. **`Type` iterates bytes in v1.** Use `Send(tea.KeyMsg{...})` for non-ASCII.
+8. **`Type` iterates bytes in v1.** Use `Send(tea.KeyMsg{...})` for non-ASCII there; v2 iterates runes and needs no workaround.
 
 9. **No automatic Quit / cleanup.** Forgetting `t.Cleanup(func(){ _ = tm.Quit() })` leaks a goroutine and hangs `FinalModel` without a final timeout. Pair `NewTestModel` with `Cleanup` unconditionally.
 
@@ -305,7 +305,7 @@ type counter int
 
 func (c counter) Init() tea.Cmd { return nil }
 func (c counter) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    if m, ok := msg.(tea.KeyMsg); ok {
+    if m, ok := msg.(tea.KeyPressMsg); ok {
         switch m.String() {
         case "+": return c + 1, nil
         case "q": return c, tea.Quit
@@ -313,7 +313,7 @@ func (c counter) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     }
     return c, nil
 }
-func (c counter) View() string { return fmt.Sprintf("count: %d\n", int(c)) }
+func (c counter) View() tea.View { return tea.NewView(fmt.Sprintf("count: %d\n", int(c))) }
 
 func TestCounter(t *testing.T) {
     tm := teatest.NewTestModel(t, counter(0), teatest.WithInitialTermSize(80, 24))
@@ -342,8 +342,8 @@ func TestDualPane(t *testing.T) {
     }, teatest.WithDuration(2*time.Second))
 
     // 2. Move down and select.
-    tm.Send(tea.KeyMsg{Type: tea.KeyDown})
-    tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+    tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+    tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 
     // 3. Wait for async preview load.
     teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
@@ -354,7 +354,7 @@ func TestDualPane(t *testing.T) {
     tm.Send(tea.WindowSizeMsg{Width: 60, Height: 20})
 
     // 5. Quit and assert on state.
-    tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+    tm.Type("q")
 
     final := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(*appModel)
     if final.selected != "README.md" {

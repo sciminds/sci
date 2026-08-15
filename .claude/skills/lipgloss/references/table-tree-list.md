@@ -43,8 +43,13 @@ type Data interface {
 ```
 
 Built-in helpers:
-- `table.NewStringData(rows ...[]string)` — simple string grid
-- `table.Filter(data Data, fn func(row int) bool)` — filtered view
+- `table.NewStringData(rows ...[]string) *StringData` — simple string grid (also has `Append` / `Item`)
+- `table.NewFilter(data Data) *Filter` — wraps a `Data`; chain `.Filter(func(row int) bool)` to install the predicate. `*Filter` itself implements `Data`, so pass it straight to `t.Data(...)`:
+  ```go
+  t.Data(table.NewFilter(rows).Filter(func(row int) bool {
+      return rows.At(row, 2) != "archived"
+  }))
+  ```
 - `table.DataToMatrix(data Data) [][]string` — convert to plain matrix
 
 ### Styling
@@ -160,20 +165,31 @@ t.Enumerator(tree.DefaultEnumerator)  // ├── and └──
 t.Enumerator(tree.RoundedEnumerator)  // ├── and ╰──
 ```
 
-Custom enumerator:
+An enumerator returns **one** string — the branch glyph printed in front of child `i`. The vertical continuation printed for that child's own descendants is a separate function, the *indenter*.
+
 ```go
-t.Enumerator(func(children tree.Children, i int) (prefix, connector string) {
+// tree.Enumerator: func(children tree.Children, index int) string
+t.Enumerator(func(children tree.Children, i int) string {
     if i == children.Length()-1 {
-        return "└── ", "    "
+        return "└──"
     }
-    return "├── ", "│   "
+    return "├──"
 })
 ```
 
 ### Indenters
 
+An indenter has the same shape (`func(children tree.Children, index int) string`) and supplies the prefix for the *nested* lines under child `i`:
+
 ```go
 t.Indenter(tree.DefaultIndenter)  // │ for connected, spaces for last
+
+t.Indenter(func(children tree.Children, i int) string {
+    if i == children.Length()-1 {
+        return "   "
+    }
+    return "│  "
+})
 ```
 
 ### Styling
@@ -192,7 +208,7 @@ t.IndenterStyleFunc(func(children tree.Children, i int) lipgloss.Style { ... })
 
 ```go
 t.Hide(true)              // hide this node
-t.Offset(2, 1)            // show children[2:len-1] (pagination)
+t.Offset(1, 2)            // skip 1 from the front, 2 from the back: children[1:len-2]
 t.Width(40)               // pad items to fill width
 ```
 
@@ -202,6 +218,7 @@ If you need custom data sources:
 
 ```go
 type Node interface {
+    fmt.Stringer          // don't forget this one — *Tree and *Leaf both satisfy it
     Value() string
     Children() Children
     Hidden() bool
@@ -210,10 +227,12 @@ type Node interface {
 }
 
 type Children interface {
-    At(int) Node
+    At(index int) Node
     Length() int
 }
 ```
+
+`tree.NewStringData(data ...string) Children` wraps a plain string slice, and `tree.NewFilter(data Children).Filter(func(index int) bool)` gives you a filtered `Children` view. `tree.NewLeaf(value any, hidden bool) *Leaf` is the minimal childless `Node`.
 
 ---
 
@@ -278,8 +297,10 @@ l.IndenterStyle(style)
 
 ```go
 l.Hide(true)
-l.Offset(start, end)   // show items[start:len-end]
+l.Offset(start, end)   // show items[start:len-end] — `end` counts from the BACK, not an index
 ```
+
+**Pitfall:** `Offset` swaps its arguments when `start > end`, so `Offset(2, 1)` silently becomes `Offset(1, 2)`. Keep `start <= end`.
 
 ---
 

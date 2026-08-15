@@ -182,7 +182,12 @@ case tea.MouseClickMsg:
     }
     return m, nil
 case tea.MouseWheelMsg:
-    m.scroll += msg.Delta() * 3 // wheel is its own message; Delta() is signed
+    switch msg.Button { // wheel is its own message; direction lives in Button
+    case tea.MouseWheelUp:
+        m.scroll -= 3
+    case tea.MouseWheelDown:
+        m.scroll += 3
+    }
 ```
 
 The manual coordinate approach (compare `msg.Mouse().X` to panel widths, branching on orientation) still works and is kept in `references/golden-rules.md` Rule #3 as the fallback — but zone-marking is the project convention, and it's the reason you rarely need that math.
@@ -220,7 +225,7 @@ Loaded progressively as needed:
 
 ## Integration testing with teatest
 
-Full message-loop tests (key → `Update` → state → `View`) use `github.com/charmbracelet/x/exp/teatest` (or `exp/teatest/v2` for the v2 message types). It's experimental but Charm uses it internally — reliable, poorly documented.
+Full message-loop tests (key → `Update` → state → `View`) use `github.com/charmbracelet/x/exp/teatest/v2` — the v1 module (`exp/teatest`, no `/v2`) is pinned to Bubble Tea v1 and can't drive a v2 model at all. It's experimental but Charm uses it internally — reliable, poorly documented.
 
 Core pattern:
 
@@ -240,11 +245,11 @@ fm := tm.FinalModel(t, teatest.WithFinalTimeout(time.Second)).(*myModel)
 
 Key things to know (full details in `references/teatest.md`):
 
-- **Always** pass `WithInitialTermSize` in v1 — no default, and models using viewport/list render broken without a `WindowSizeMsg`.
+- **v2 defaults the terminal to 80×24**, but pass `WithInitialTermSize` explicitly anyway — models using viewport/list render degenerate frames at any size you didn't intend.
 - **Never** `time.Sleep` — use `WaitFor` to block on an output condition, then fire the next input.
 - **`tm.Output()` drains** — every `WaitFor` consumes bytes, so `FinalOutput` afterward only sees the tail. Do all polling via `WaitFor`, or buffer reads yourself.
-- **v1 `Type()` iterates bytes** — non-ASCII breaks. Use `tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'ñ'}})` (v1) or the corresponding v2 `KeyPressMsg`. v2 (`exp/teatest/v2`) fixes the byte-iteration bug.
-- **Golden files** live at `testdata/<tb.Name()>.golden` and bake in terminal size + color profile. Pin `lipgloss.SetColorProfile(termenv.Ascii)` and add `*.golden -text` to `.gitattributes`.
+- **`Type()` iterates runes in v2**, so non-ASCII is safe; it emits one `tea.KeyPressMsg{Code: r, Text: string(r)}` per rune. Non-printing keys still need an explicit `tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})`.
+- **Golden files** live at `testdata/<tb.Name()>.golden` and bake in terminal size + color profile. Pin the profile with `teatest.WithProgramOptions(tea.WithColorProfile(colorprofile.Ascii))` (there is no `lipgloss.SetColorProfile` in v2) and add `*.golden -text` to `.gitattributes`.
 - **Cast `FinalModel` to your concrete type** to assert on internal state — usually more robust than output-based assertions. Pin a pseudo-version ≥ `b6045cb4` (2025-10-02) for nil-safety.
 - Update goldens with `go test ./path -run TestName -update`.
 
@@ -273,7 +278,7 @@ charm.land/lipgloss/v2
 ```
 github.com/lrstanley/bubblezone/v2          // mouse zone hit-testing (project standard)
 github.com/charmbracelet/harmonica          // spring physics
-github.com/charmbracelet/x/exp/teatest      // integration tests (or .../v2)
+github.com/charmbracelet/x/exp/teatest/v2   // integration tests (the /v2 module — v1 is bound to Bubble Tea v1)
 github.com/mattn/go-runewidth               // unicode-safe width/truncation (prefer uikit.Truncate in-repo)
 ```
 

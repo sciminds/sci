@@ -113,17 +113,17 @@ w, h := lipgloss.Size(rendered) // both
 
 ```go
 // BAD: Width(20) with a border means 18 chars of content, not 20
-style := lipgloss.NewStyle().Width(20).Border(lipgloss.RoundedBorder())
+bad := lipgloss.NewStyle().Width(20).Border(lipgloss.RoundedBorder())
 
-// GOOD: Set width to account for what you actually want
+// GOOD: build the style first, then widen it by its own frame.
+// (You can't reference `good` inside its own `:=` — split it into two statements.)
 contentWidth := 20
-style := lipgloss.NewStyle().
-    Border(lipgloss.RoundedBorder()).
-    Width(contentWidth + style.GetHorizontalBorderSize())
+good := lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
+good = good.Width(contentWidth + good.GetHorizontalBorderSize())
 
 // BETTER: Calculate from available space
-style := lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
-style = style.Width(availableWidth) // lipgloss handles border subtraction internally
+best := lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
+best = best.Width(availableWidth) // lipgloss handles border subtraction internally
 ```
 
 ## Layout Composition
@@ -209,7 +209,7 @@ Left + right in a status bar?
 
 ### Padding (inside border)
 
-Uses NBSP by default (preserved on copy/paste). CSS shorthand:
+Filled with a regular space by default. CSS shorthand:
 
 ```go
 style.Padding(1)           // all sides
@@ -220,13 +220,15 @@ style.Padding(1, 2, 3, 4)  // top, right, bottom, left (clockwise)
 // Individual sides
 style.PaddingTop(1).PaddingRight(2).PaddingBottom(1).PaddingLeft(2)
 
-// Custom fill character
+// Custom fill character — pass lipgloss.NBSP to make the padding
+// non-breaking (survives copy/paste and soft-wrap); it is NOT the default.
+style.PaddingChar(lipgloss.NBSP)
 style.PaddingChar('·')
 ```
 
 ### Margins (outside border)
 
-Uses regular space. Same CSS shorthand as padding:
+Also a regular space by default. Same CSS shorthand as padding:
 
 ```go
 style.Margin(1, 2)             // vertical=1, horizontal=2
@@ -234,7 +236,7 @@ style.MarginBackground(color)  // background color for margin area
 style.MarginChar('·')          // custom fill character
 ```
 
-**Key difference:** Padding is inside the border, margins are outside. Margins are NOT inherited via `Inherit()`.
+**Key difference:** Padding is inside the border, margins are outside. Neither padding nor margins are inherited via `Inherit()`.
 
 ## Borders
 

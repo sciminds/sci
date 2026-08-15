@@ -74,8 +74,8 @@ Panel borders missing or showing weird characters.
 
 1. **Terminal doesn't support Unicode box drawing**
    ```go
-   // Use ASCII fallback
-   border := lipgloss.NormalBorder()  // Uses +-| instead of ┌─┐
+   // Use the ASCII fallback — NormalBorder() is still box-drawing (┌─┐)
+   border := lipgloss.ASCIIBorder()  // +--+ / |
    ```
 
 2. **Terminal encoding issue**
@@ -213,15 +213,20 @@ func (m model) handleLeftClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 **Symptom:**
 Mouse wheel doesn't scroll content.
 
-**Solution (v2):** wheel events are their own message type, with a signed `Delta()`.
+**Solution (v2):** wheel events are their own message type, and the direction is carried in `Button` (`tea.MouseWheelUp` / `tea.MouseWheelDown` / `MouseWheelLeft` / `MouseWheelRight`) — there is no delta field.
 ```go
 case tea.MouseWheelMsg:
-    m.scroll += msg.Delta() * 3
+    switch msg.Button {
+    case tea.MouseWheelUp:
+        m.scroll -= 3
+    case tea.MouseWheelDown:
+        m.scroll += 3
+    }
     if m.scroll < 0 {
         m.scroll = 0
     }
-    if max := len(m.content) - m.visibleLines; m.scroll > max {
-        m.scroll = max
+    if maxScroll := len(m.content) - m.visibleLines; m.scroll > maxScroll {
+        m.scroll = maxScroll
     }
 ```
 
@@ -247,19 +252,20 @@ Screen flickers or elements jump around during updates.
 
 2. **Inconsistent dimensions**
    ```go
-   // Cache dimensions, don't recalculate every frame
+   // Cache dimensions, don't recalculate every frame.
+   // Pointer receiver: a value receiver would discard the cache write.
    type model struct {
        width, height int
        cachedLayout  string
        layoutDirty   bool
    }
 
-   func (m model) View() string {
+   func (m *model) View() tea.View {
        if m.layoutDirty {
            m.cachedLayout = m.renderLayout()
            m.layoutDirty = false
        }
-       return m.cachedLayout
+       return tea.NewView(m.cachedLayout)
    }
    ```
 
@@ -389,7 +395,7 @@ Key presses don't trigger expected actions.
 **Symptom:**
 Function keys, Ctrl combinations, or other special keys don't work.
 
-**Solution (v2):** match on the message's `String()` form (what `key.Binding` does internally), or compare to the `tea.Key*` rune-name constants.
+**Solution (v2):** match on the message's `String()` form (what `key.Binding` does internally), or compare `msg.Key().Code` to the `tea.Key*` constants (`tea.KeyEnter`, `tea.KeyTab`, `tea.KeyF1`, …) — those are `rune` codes, and modifiers live separately in `msg.Key().Mod`.
 
 ```go
 case tea.KeyPressMsg:
@@ -435,12 +441,12 @@ Noticeable lag when updating the display.
        contentDirty  bool
    }
 
-   func (m *model) View() string {
+   func (m *model) View() tea.View {
        if m.contentDirty {
            m.renderedCache = m.renderContent()
            m.contentDirty = false
        }
-       return m.renderedCache
+       return tea.NewView(m.renderedCache)
    }
    ```
 
@@ -596,8 +602,8 @@ Problem?
 │  └─ Emoji alignment? → Check terminal emoji width settings
 │
 ├─ Keyboard issue?
-│  ├─ Shortcuts not working? → Log KeyMsg, check key.Matches
-│  ├─ Special keys broken? → Use tea.KeyType constants
+│  ├─ Shortcuts not working? → Log KeyPressMsg, check key.Matches
+│  ├─ Special keys broken? → Compare msg.String(), or msg.Key().Code to the tea.Key* constants
 │  └─ Wrong component responding? → Check focus state
 │
 └─ Performance issue?
