@@ -8,9 +8,9 @@
 // appear in some cell. This mirrors Zotero's "All Fields & Tags" semantics
 // and is the right default for grid/table search.
 //
-// Search query parsing is provided via [ParseClauses] and [ParseQuery],
-// which handle the "@column: terms" syntax for column-scoped search,
-// "|" for OR groups, and "-" prefix for negation.
+// Search query parsing is provided via [ParseClauses], which handles the
+// "@column: terms" syntax for column-scoped search, "|" for OR groups, and
+// "-" prefix for negation.
 package match
 
 import (
@@ -72,28 +72,6 @@ func Row(tokens, cells []string, scopedCol int) (map[int][]int, bool) {
 	return hl, true
 }
 
-// TokenSpansInText returns rune-index positions in text covered by
-// occurrences of any token. Case-insensitive; empty tokens skipped.
-// Used by overlays to reuse the same tokenizer as Row so a row
-// matched by row-search highlights the same spans when opened in an
-// overlay preview.
-func TokenSpansInText(tokens []string, text string) []int {
-	if len(tokens) == 0 || text == "" {
-		return nil
-	}
-	lower := strings.ToLower(text)
-	var out []int
-	for _, tok := range tokens {
-		tok = strings.ToLower(tok)
-		if tok == "" {
-			continue
-		}
-		tokRunes := utf8.RuneCountInString(tok)
-		out = append(out, substringRuneSpans(lower, tok, tokRunes)...)
-	}
-	return sortedUnique(out)
-}
-
 // substringRuneSpans returns every rune-index position in `cell` covered by
 // an occurrence of `tok`. Both inputs must be lowercased by the caller.
 // Works in byte space then translates to rune indices so unicode cells keep
@@ -132,19 +110,6 @@ type Clause struct {
 	Column string // column name; empty means search all columns
 	Terms  string // the search text (with any leading "-" stripped)
 	Negate bool   // true if the original terms started with "-" (exclude matches)
-}
-
-// ParseQuery extracts an optional column scope and search terms from a query string.
-// This is a convenience wrapper around [ParseClauses] that returns only the first clause.
-//
-//	"@column_name search terms" → ("column_name", "search terms")
-//	"search terms"              → ("", "search terms")
-func ParseQuery(query string) (columnName string, terms string) {
-	groups := ParseClauses(query)
-	if len(groups) == 0 || len(groups[0]) == 0 {
-		return "", ""
-	}
-	return groups[0][0].Column, groups[0][0].Terms
 }
 
 // ParseClauses parses a query into OR-groups of AND-clauses.

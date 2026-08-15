@@ -32,10 +32,14 @@ const preflightTimeout = 3 * time.Second
 var preflightAddr = net.JoinHostPort(Host, "22")
 var defaultPreflightAddr = preflightAddr
 
-// SetPreflightAddr overrides the preflight target (for tests in other packages).
+// SetPreflightAddr overrides the preflight target. Production never calls
+// it: it is the seam that lets cmd/sci's lab tests point [Preflight] at a
+// local listener, so the `sci lab` commands can be driven end-to-end
+// without reaching the real campus host.
 func SetPreflightAddr(addr string) { preflightAddr = addr }
 
-// ResetPreflightAddr restores the default preflight target.
+// ResetPreflightAddr restores the default preflight target. The test-only
+// counterpart to [SetPreflightAddr]; defer it so package state stays clean.
 func ResetPreflightAddr() { preflightAddr = defaultPreflightAddr }
 
 // Preflight verifies the lab SSH host is reachable AND that the network passes

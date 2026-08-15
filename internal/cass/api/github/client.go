@@ -7,10 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
-	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/cass/api"
 )
 
@@ -43,41 +41,6 @@ func NewClient(token string) *Client {
 	return c
 }
 
-// Get performs a GET request and decodes the JSON response into dst.
-func (c *Client) Get(ctx context.Context, path string, params url.Values, dst any) error {
-	rawURL := c.buildURL(path, params)
-	return c.getURL(ctx, rawURL, dst)
-}
-
-func (c *Client) getURL(ctx context.Context, rawURL string, dst any) error {
-	c.sem <- struct{}{}
-	defer func() { <-c.sem }()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
-	if err != nil {
-		return err
-	}
-	c.setHeaders(req)
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("GitHub API: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("GitHub API %s: %d — %s", rawURL, resp.StatusCode, string(body))
-	}
-
-	if dst != nil {
-		if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
-			return fmt.Errorf("GitHub API decode: %w", err)
-		}
-	}
-	return nil
-}
-
 // GetPaginated performs paginated GET requests, aggregating all pages into dst.
 func (c *Client) GetPaginated(ctx context.Context, path string, params url.Values, dst any) error {
 	if params == nil {
@@ -104,31 +67,6 @@ func (c *Client) GetPaginated(ctx context.Context, path string, params url.Value
 		return err
 	}
 	return json.Unmarshal(combined, dst)
-}
-
-// GetConcurrent fetches multiple paths concurrently and returns results in order.
-func GetConcurrent[T any](ctx context.Context, c *Client, paths []string, params url.Values) ([]T, error) {
-	results := make([]T, len(paths))
-	errs := make([]error, len(paths))
-	var wg sync.WaitGroup
-
-	for i, path := range paths {
-		wg.Add(1)
-		go func(idx int, p string) {
-			defer wg.Done()
-			var result T
-			errs[idx] = c.Get(ctx, p, params, &result)
-			if errs[idx] == nil {
-				results[idx] = result
-			}
-		}(i, path)
-	}
-	wg.Wait()
-
-	if err, ok := lo.Find(errs, func(e error) bool { return e != nil }); ok {
-		return nil, err
-	}
-	return results, nil
 }
 
 // fetchPage fetches a single page of paginated results, returning raw JSON items

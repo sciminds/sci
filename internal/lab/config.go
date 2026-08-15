@@ -55,6 +55,13 @@ var configFile = sciconfig.File[Config]{Name: "lab.json"}
 
 // ConfigPath returns the lab config file path (typically
 // $XDG_CONFIG_HOME/sci/lab.json or ~/.config/sci/lab.json).
+//
+// The lab commands themselves go through [LoadConfig] / [SaveConfig] and
+// never need the path, so the only callers are config_test.go's pins on the
+// XDG fallback — the regression where an empty XDG_CONFIG_HOME wrote to
+// "/sci/lab.json" is only visible if the path is observable. It is also the
+// Path half of the delegation set every sciconfig domain exposes (compare
+// zot.ConfigPath), so dropping it would make lab the odd one out.
 func ConfigPath() string { return configFile.Path() }
 
 // LoadConfig reads the lab config from disk.

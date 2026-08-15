@@ -71,33 +71,13 @@ func (r InfoResult) summaryLabel(nTables, nViews, nVirtual int) string {
 	return strings.Join(parts, "  "+uikit.TUI.Dim().Render("·")+"  ")
 }
 
-// TablesResult holds table summary information.
-type TablesResult struct {
-	Tables []TableEntry `json:"tables"`
-}
-
-// TableEntry is a single table or view in TablesResult.
+// TableEntry is a single table or view in [InfoResult].
 type TableEntry struct {
 	Name      string `json:"name"`
 	Rows      int    `json:"rows"`
 	Columns   int    `json:"columns"`
 	IsView    bool   `json:"is_view,omitempty"`
 	IsVirtual bool   `json:"is_virtual,omitempty"`
-}
-
-// JSON implements cmdutil.Result.
-func (r TablesResult) JSON() any { return r }
-
-// Human implements cmdutil.Result.
-func (r TablesResult) Human() string {
-	hasViews := lo.SomeBy(r.Tables, func(t TableEntry) bool { return t.IsView })
-	hasVirtual := lo.SomeBy(r.Tables, func(t TableEntry) bool { return t.IsVirtual })
-	var b strings.Builder
-	writeTableRows(&b, r.Tables, hasViews, hasVirtual)
-	if b.Len() == 0 {
-		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("no tables"))
-	}
-	return b.String()
 }
 
 // writeTableRows renders a formatted table of entries with dynamic column widths.

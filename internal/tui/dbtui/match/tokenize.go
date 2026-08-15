@@ -17,15 +17,9 @@ type Token struct {
 	Quoted bool
 }
 
-// IsPhrase reports whether the token is a multi-word quoted phrase
-// (Text contains whitespace). Quoted single words return false.
-func (t Token) IsPhrase() bool {
-	return t.Quoted && strings.ContainsAny(t.Text, " \t")
-}
-
 // TokenTexts extracts the Text field from each Token — useful when a caller
-// only needs substring values (e.g. [Row] or [TokenSpansInText]) and
-// doesn't care about the Quoted flag.
+// only needs substring values (e.g. [Row]) and doesn't care about the
+// Quoted flag.
 func TokenTexts(tokens []Token) []string {
 	return lo.Map(tokens, func(t Token, _ int) string { return t.Text })
 }

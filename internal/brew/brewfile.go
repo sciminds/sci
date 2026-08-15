@@ -21,11 +21,6 @@ type BrewfileEntry struct {
 	Line string // original Brewfile line for writing back
 }
 
-// Label returns a display label like "git (brew)" or "symbex (uv)".
-func (e BrewfileEntry) Label() string {
-	return e.Name + " (" + e.Type + ")"
-}
-
 // ParseBrewfileEntries parses a Brewfile into structured entries.
 func ParseBrewfileEntries(content string) []BrewfileEntry {
 	var entries []BrewfileEntry

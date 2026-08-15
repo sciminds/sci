@@ -96,7 +96,13 @@ type SyncResult struct {
 	RemovedNames []string `json:"removed_names,omitempty"`
 }
 
-// JSON implements cmdutil.Result.
+// JSON implements cmdutil.Result, and is uncalled: no command emits a
+// SyncResult as its answer. Reconciling the Brewfile is a side effect
+// inside `sci tools …` and `sci doctor`, so every caller of [Sync] takes
+// [SyncResult.Human] and prints it to stderr as a diagnostic instead of
+// passing the result to cmdutil.Output. The pair is kept whole so the
+// type keeps satisfying cmdutil.Result — a half-implemented Result is a
+// worse thing to leave behind than an unused method.
 func (r SyncResult) JSON() any { return r }
 
 // Human implements cmdutil.Result.

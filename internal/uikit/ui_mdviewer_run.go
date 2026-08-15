@@ -23,6 +23,13 @@ type mdProgram struct {
 
 // newMdProgram builds a runner over an in-memory markdown string. Refresh
 // (`r`) is a no-op because there's no source file to re-read.
+//
+// No shipping surface renders in-memory markdown — [RunMdViewer] is
+// file-based — so the callers are ui_mdviewer_run_test.go, which needs this
+// constructor rather than [newMdProgramFromFile] for two reasons: it drives
+// the model through teatest without touching disk, and it is the only way to
+// produce the no-refresh chrome (inert `r`, no "r refresh" hint) that the
+// file constructor cannot.
 func newMdProgram(name, markdown string) *mdProgram {
 	v := NewMdViewer(name, markdown)
 	v.SetExtraHints([]string{"q quit"})

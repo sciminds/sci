@@ -73,45 +73,6 @@ func TestCloudResult_Human_WithoutURL(t *testing.T) {
 	}
 }
 
-// ---- DatasetListResult ----
-
-func TestDatasetListResult_JSON(t *testing.T) {
-	r := DatasetListResult{Datasets: []DatasetListEntry{
-		{Name: "iris.csv", Owner: "alice", Type: "csv", URL: "https://huggingface.co/buckets/sciminds/public/resolve/alice/iris.csv"},
-	}}
-	got, ok := r.JSON().(DatasetListResult)
-	if !ok {
-		t.Fatal("JSON() did not return DatasetListResult")
-	}
-	if len(got.Datasets) != 1 || got.Datasets[0].Name != "iris.csv" {
-		t.Errorf("JSON() = %+v", got)
-	}
-}
-
-func TestDatasetListResult_Human(t *testing.T) {
-	r := DatasetListResult{Datasets: []DatasetListEntry{
-		{Name: "iris.csv", Owner: "alice", Type: "csv", Updated: "2024-01-01", URL: "https://example.com/alice/iris.csv"},
-		{Name: "titanic.csv", Owner: "bob", Type: "csv", Updated: "2024-02-01", URL: "https://example.com/bob/titanic.csv"},
-	}}
-	h := r.Human()
-	if h == "" {
-		t.Fatal("Human() returned empty string")
-	}
-	for _, want := range []string{"iris.csv", "titanic.csv", "csv", "alice", "bob"} {
-		if !strings.Contains(h, want) {
-			t.Errorf("Human() missing %q:\n%s", want, h)
-		}
-	}
-}
-
-func TestDatasetListResult_Human_Empty(t *testing.T) {
-	r := DatasetListResult{Datasets: nil}
-	h := r.Human()
-	if !strings.Contains(h, "no files") {
-		t.Errorf("Human() should say no files when empty:\n%s", h)
-	}
-}
-
 // ---- AuthResult ----
 
 func TestAuthResult_JSON(t *testing.T) {

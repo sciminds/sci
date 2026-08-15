@@ -427,11 +427,6 @@ func (d *DB) UpdateAssignmentGHFields(ghSlug string, ghPoints *float64, ghDeadli
 	return err
 }
 
-// UpsertSubmission inserts or updates a single submission row.
-func (d *DB) UpsertSubmission(s SubmissionRow) error {
-	return upsertSubmission(d.db, s)
-}
-
 // ReplaceSubmissions deletes all existing submissions and inserts new ones.
 func (d *DB) ReplaceSubmissions(subs []SubmissionRow) error {
 	return d.inTx(func(tx *sql.Tx) error {

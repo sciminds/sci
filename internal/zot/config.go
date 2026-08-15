@@ -47,6 +47,12 @@ var configFile = sciconfig.File[Config]{Name: "zot.json"}
 
 // ConfigPath returns the zot config file path (typically
 // $XDG_CONFIG_HOME/sci/zot.json or ~/.config/sci/zot.json).
+//
+// The zot commands go through [LoadConfig] / [SaveConfig] and never need the
+// path, so the only callers are the tests that assert where the file lands
+// and what sci did or did not write to it — the XDG fallback pin, the 0600
+// permission check, and the setup tests that prove a refused prompt leaves no
+// file behind. None of those are expressible without an observable path.
 func ConfigPath() string { return configFile.Path() }
 
 // LoadConfig reads the zot config from disk.

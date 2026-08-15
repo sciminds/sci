@@ -57,22 +57,6 @@ type RosterEntry struct {
 	PointsAvailable     string `json:"points_available"`
 }
 
-// Commit is a GitHub commit.
-type Commit struct {
-	SHA    string     `json:"sha"`
-	Commit CommitInfo `json:"commit"`
-}
-
-// CommitInfo holds the inner commit metadata.
-type CommitInfo struct {
-	Committer Committer `json:"committer"`
-}
-
-// Committer holds committer metadata.
-type Committer struct {
-	Date string `json:"date"`
-}
-
 // ContentItem is a file or directory in a repository.
 type ContentItem struct {
 	Type        string  `json:"type"`

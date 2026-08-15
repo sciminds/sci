@@ -116,34 +116,3 @@ func sharedEntryColumns(d SharedEntry) (name, kind, size, url string) {
 	}
 	return d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL)
 }
-
-// DatasetListResult holds the list of all shared files.
-type DatasetListResult struct {
-	Datasets []DatasetListEntry `json:"datasets"`
-}
-
-// DatasetListEntry is a single file in DatasetListResult.
-type DatasetListEntry struct {
-	Name    string `json:"name"`
-	Owner   string `json:"owner"`
-	Type    string `json:"type"`
-	Updated string `json:"updated"`
-	URL     string `json:"url"`
-	Size    int64  `json:"size"`
-}
-
-// JSON implements cmdutil.Result.
-func (r DatasetListResult) JSON() any { return r }
-
-// Human implements cmdutil.Result.
-func (r DatasetListResult) Human() string {
-	if len(r.Datasets) == 0 {
-		return fmt.Sprintf("  %s no files found\n", uikit.TUI.Dim().Render("·"))
-	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("owner             name                          type       size        url"))
-	for _, d := range r.Datasets {
-		fmt.Fprintf(&b, "  %-18s%-30s%-11s%-12s%s\n", d.Owner, d.Name, d.Type, humanize.Bytes(uint64(d.Size)), uikit.TUI.Dim().Render(d.URL))
-	}
-	return b.String()
-}

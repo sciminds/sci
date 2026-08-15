@@ -56,13 +56,6 @@ func TestParseBrewfileEntries_Empty(t *testing.T) {
 	}
 }
 
-func TestBrewfileEntry_Label(t *testing.T) {
-	e := brew.BrewfileEntry{Type: "uv", Name: "symbex"}
-	if got := e.Label(); got != "symbex (uv)" {
-		t.Errorf("Label() = %q, want %q", got, "symbex (uv)")
-	}
-}
-
 func TestMissingSet_SnapshotError(t *testing.T) {
 	// When CollectSnapshot fails, missingSet should return ALL names as missing
 	// (not nil/empty, which would hide the problem).

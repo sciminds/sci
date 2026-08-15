@@ -76,20 +76,6 @@ func TestIsJSON_TrueWhenSet(t *testing.T) {
 	}
 }
 
-// --- ExitCode ---
-
-func TestExitCode_TrueReturnsZero(t *testing.T) {
-	if got := ExitCode(true); got != 0 {
-		t.Errorf("ExitCode(true) = %d, want 0", got)
-	}
-}
-
-func TestExitCode_FalseReturnsOne(t *testing.T) {
-	if got := ExitCode(false); got != 1 {
-		t.Errorf("ExitCode(false) = %d, want 1", got)
-	}
-}
-
 // --- Result interface + Output ---
 
 // stubResult is a minimal Result implementation for testing.

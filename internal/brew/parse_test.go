@@ -202,14 +202,6 @@ func TestParseBrewfileEntries_BracketStripped(t *testing.T) {
 	}
 }
 
-func TestBrewfileEntry_Label(t *testing.T) {
-	t.Parallel()
-	e := BrewfileEntry{Type: "brew", Name: "git"}
-	if got := e.Label(); got != "git (brew)" {
-		t.Errorf("Label() = %q, want %q", got, "git (brew)")
-	}
-}
-
 // ---------------------------------------------------------------------------
 // UpgradeOnly tests
 // ---------------------------------------------------------------------------

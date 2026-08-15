@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"sync/atomic"
+	"strings"
 	"testing"
 )
 
-func TestClient_Get(t *testing.T) {
+// TestClient_SetsRequiredHeaders drives the transport through GetPaginated —
+// the only entry point production uses — so the header contract is asserted
+// against the request the CLI actually sends.
+func TestClient_SetsRequiredHeaders(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify required GitHub headers.
@@ -31,7 +34,7 @@ func TestClient_Get(t *testing.T) {
 	c.BaseURL = srv.URL
 
 	var assignments []Assignment
-	if err := c.Get(context.Background(), "/classrooms/1/assignments", nil, &assignments); err != nil {
+	if err := c.GetPaginated(context.Background(), "/classrooms/1/assignments", nil, &assignments); err != nil {
 		t.Fatal(err)
 	}
 	if len(assignments) != 1 || assignments[0].Slug != "lab-1" {
@@ -123,9 +126,19 @@ func TestClient_NonOKStatus(t *testing.T) {
 	c.BaseURL = srv.URL
 
 	var result []Assignment
-	err := c.Get(context.Background(), "/classrooms/1/assignments", nil, &result)
+	err := c.GetPaginated(context.Background(), "/classrooms/1/assignments", nil, &result)
 	if err == nil {
 		t.Fatal("expected error for 403")
+	}
+	// Assert the error came from the status check, not from decoding. The
+	// body here is a JSON object and the decoder wants an array, so a bare
+	// err != nil passes even with the status check removed entirely — the
+	// test would keep guarding nothing.
+	if !strings.Contains(err.Error(), "403") {
+		t.Errorf("error should name the status code, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "bad credentials") {
+		t.Errorf("error should carry the response body, got: %v", err)
 	}
 }
 
@@ -162,38 +175,8 @@ func TestClient_ContextCancellation(t *testing.T) {
 	cancel()
 
 	var assignments []Assignment
-	err := c.Get(ctx, "/test", nil, &assignments)
+	err := c.GetPaginated(ctx, "/test", nil, &assignments)
 	if err == nil {
 		t.Fatal("expected error for cancelled context")
-	}
-}
-
-func TestClient_GetConcurrent(t *testing.T) {
-	t.Parallel()
-	var callCount atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		callCount.Add(1)
-		_ = json.NewEncoder(w).Encode([]Commit{{SHA: "abc123"}})
-	}))
-	defer srv.Close()
-
-	c := NewClient("gh-token")
-	c.BaseURL = srv.URL
-
-	paths := []string{
-		"/repos/org/repo1/commits",
-		"/repos/org/repo2/commits",
-		"/repos/org/repo3/commits",
-	}
-
-	results, err := GetConcurrent[[]Commit](context.Background(), c, paths, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(results) != 3 {
-		t.Fatalf("len = %d, want 3", len(results))
-	}
-	if callCount.Load() != 3 {
-		t.Errorf("call count = %d, want 3", callCount.Load())
 	}
 }

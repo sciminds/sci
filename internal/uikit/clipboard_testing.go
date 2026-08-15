@@ -7,7 +7,9 @@ package uikit
 
 // SetClipboardRunnerForTest replaces the clipboardCmd runner with a fake
 // and returns a restore function. The caller is expected to defer the
-// restore to keep package state clean across tests.
+// restore to keep package state clean across tests. Production never calls
+// it — the callers are dbtui's yank and visual-mode tests, which assert on
+// the payload [Copy] would have handed the system clipboard.
 //
 // The dispatch table is set to a single entry named "cat" — a binary
 // guaranteed to be on PATH on macOS and Linux — so [Copy]'s LookPath check

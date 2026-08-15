@@ -3,7 +3,6 @@ package share
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -138,28 +137,5 @@ func TestUnzip_NonexistentFile(t *testing.T) {
 	err := unzip("/nonexistent/file.zip", t.TempDir())
 	if err == nil {
 		t.Fatal("expected error for nonexistent zip, got nil")
-	}
-}
-
-func TestFileManifest_EmptyDir(t *testing.T) {
-	dir := t.TempDir()
-	manifest := fileManifest(dir)
-	if manifest != "" {
-		t.Errorf("expected empty manifest for empty dir, got %q", manifest)
-	}
-}
-
-func TestFileManifest(t *testing.T) {
-	dir := t.TempDir()
-	_ = os.MkdirAll(filepath.Join(dir, "sub"), 0o755)
-	_ = os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello"), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "sub", "b.txt"), []byte("world"), 0o644)
-
-	manifest := fileManifest(dir)
-	if !strings.Contains(manifest, "a.txt") {
-		t.Errorf("manifest missing a.txt: %s", manifest)
-	}
-	if !strings.Contains(manifest, "sub/b.txt") {
-		t.Errorf("manifest missing sub/b.txt: %s", manifest)
 	}
 }

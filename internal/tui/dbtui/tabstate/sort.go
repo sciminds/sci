@@ -131,11 +131,6 @@ func withPKTiebreaker(sorts []SortEntry) []SortEntry {
 	return append(sorts, SortEntry{Col: 0, Dir: SortAsc})
 }
 
-// CellValueAt returns the trimmed string value of a cell.
-func CellValueAt(tab *Tab, row, col int) string {
-	return strings.TrimSpace(CellAt(tab, row, col).Value)
-}
-
 // CellAt returns the cell at the given row and column, or an empty Cell
 // if the indices are out of bounds.
 func CellAt(tab *Tab, row, col int) Cell {

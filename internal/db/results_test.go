@@ -57,48 +57,6 @@ func TestInfoResult_Human_Empty(t *testing.T) {
 	}
 }
 
-// ---- TablesResult ----
-
-func TestTablesResult_JSON(t *testing.T) {
-	t.Parallel()
-	r := TablesResult{Tables: []TableEntry{
-		{Name: "users", Rows: 10, Columns: 4},
-	}}
-	got, ok := r.JSON().(TablesResult)
-	if !ok {
-		t.Fatal("JSON() did not return TablesResult")
-	}
-	if len(got.Tables) != 1 || got.Tables[0].Name != "users" {
-		t.Errorf("JSON() = %+v, unexpected values", got)
-	}
-}
-
-func TestTablesResult_Human(t *testing.T) {
-	t.Parallel()
-	r := TablesResult{Tables: []TableEntry{
-		{Name: "users", Rows: 100, Columns: 5},
-		{Name: "orders", Rows: 42, Columns: 3},
-	}}
-	h := r.Human()
-	if h == "" {
-		t.Fatal("Human() returned empty string")
-	}
-	for _, want := range []string{"users", "100", "5", "orders", "42", "3"} {
-		if !strings.Contains(h, want) {
-			t.Errorf("Human() missing %q:\n%s", want, h)
-		}
-	}
-}
-
-func TestTablesResult_Human_Empty(t *testing.T) {
-	t.Parallel()
-	r := TablesResult{Tables: nil}
-	h := r.Human()
-	if h == "" {
-		t.Fatal("Human() returned empty string for empty table list")
-	}
-}
-
 // ---- MutationResult ----
 
 func TestMutationResult_JSON(t *testing.T) {

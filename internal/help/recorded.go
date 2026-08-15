@@ -30,6 +30,11 @@ type RecordedCommand struct {
 //
 // Trailing backslash continuations are joined, because a wrapped command
 // is still one command line.
+//
+// Nothing in the shipping CLI calls this — it exists for the cast-validation
+// tests in cmd/sci (casts_test.go, help_casts_test.go), which parse every
+// recorded line back through the real command tree so a demo that teaches a
+// verb sci no longer has fails the build instead of the user.
 func RecordedCommands() ([]RecordedCommand, error) {
 	entries, err := fs.ReadDir(castFS, "casts")
 	if err != nil {
@@ -51,7 +56,9 @@ func RecordedCommands() ([]RecordedCommand, error) {
 	return out, nil
 }
 
-// recordedLines pulls the typed command lines out of one cast body.
+// recordedLines pulls the typed command lines out of one cast body. Its only
+// caller is [RecordedCommands], so it inherits that function's test-only
+// reachability rather than being separately dead.
 func recordedLines(body string) []string {
 	var lines []string
 	var pending string // accumulates a backslash-continued command

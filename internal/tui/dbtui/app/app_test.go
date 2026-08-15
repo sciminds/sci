@@ -347,7 +347,7 @@ func TestHasSelectableColAllHidden(t *testing.T) {
 }
 
 // ────────────────────────────────────────────────────
-// match.ParseQuery and match.ParseClauses unit tests live in
+// match.ParseClauses unit tests live in
 // match/match_test.go. The applySearchFilter tests below
 // exercise the app-level wrapper.
 // ────────────────────────────────────────────────────

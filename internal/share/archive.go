@@ -13,6 +13,12 @@ import (
 
 // zipDir compresses the contents of srcDir into a zip file at destPath.
 // Paths inside the zip are relative to srcDir.
+//
+// Nothing in sci calls this: the upload path sends files as they are and
+// never produces an archive. It stays because it is how [unzip]'s tests
+// build the archives they extract — a round-trip fixture is a truer test
+// of the extractor than a checked-in binary blob, which nobody can read
+// in a diff and nobody would notice going stale.
 func zipDir(srcDir, destPath string) error {
 	f, err := os.Create(destPath)
 	if err != nil {
@@ -91,19 +97,4 @@ func unzip(srcPath, destDir string) error {
 		}
 	}
 	return nil
-}
-
-// fileManifest returns a newline-separated list of files in dir (relative paths).
-func fileManifest(dir string) string {
-	var files []string
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, _ error) error {
-		if info != nil && !info.IsDir() {
-			rel, err := filepath.Rel(dir, path)
-			if err == nil {
-				files = append(files, rel)
-			}
-		}
-		return nil
-	})
-	return strings.Join(files, "\n")
 }

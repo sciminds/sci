@@ -196,11 +196,3 @@ func UsageErrorf(cmd *cli.Command, format string, args ...any) error {
 	return Coded(CodeUsage, "%s", msg).
 		WithTry(fmt.Sprintf("usage: %s — run '%s --help' for details", usage, cmd.FullName()))
 }
-
-// ExitCode returns 0 if ok is true, 1 otherwise.
-func ExitCode(ok bool) int {
-	if ok {
-		return 0
-	}
-	return 1
-}

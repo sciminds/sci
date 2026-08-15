@@ -227,20 +227,6 @@ func TestContainsWriteKeyword(t *testing.T) {
 	}
 }
 
-func TestImportableExtensions(t *testing.T) {
-	t.Parallel()
-	exts := ImportableExtensions()
-	want := map[string]bool{".csv": true, ".tsv": true, ".json": true, ".jsonl": true, ".ndjson": true}
-	if len(exts) != len(want) {
-		t.Fatalf("expected %d extensions, got %d", len(want), len(exts))
-	}
-	for _, ext := range exts {
-		if !want[ext] {
-			t.Errorf("unexpected extension %q", ext)
-		}
-	}
-}
-
 func TestTableNameFromFile(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

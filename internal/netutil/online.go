@@ -11,10 +11,15 @@ var probeURL = "https://captive.apple.com/hotspot-detect.html"
 // defaultProbeURL preserves the original for ResetProbeURL.
 var defaultProbeURL = probeURL
 
-// SetProbeURL overrides the connectivity probe target (for tests in other packages).
+// SetProbeURL overrides the connectivity probe target. Production never
+// calls it: it is the seam that lets tests in other packages (cmd/sci's
+// cloud and lab suites, internal/selfupdate) point [Online] at an httptest
+// server or a dead port and drive the online-gated code paths without
+// touching the network.
 func SetProbeURL(url string) { probeURL = url }
 
-// ResetProbeURL restores the default probe target.
+// ResetProbeURL restores the default probe target. The test-only
+// counterpart to [SetProbeURL]; defer it so package state stays clean.
 func ResetProbeURL() { probeURL = defaultProbeURL }
 
 // Online performs a fast connectivity check by issuing a HEAD request to a

@@ -109,17 +109,6 @@ func TestParseQueryColumnOnly(t *testing.T) {
 	}
 }
 
-// ParseQuery is a convenience wrapper — test backward compat.
-func TestParseQueryCompat(t *testing.T) {
-	col, terms := ParseQuery("@name: alice")
-	if col != "name" {
-		t.Errorf("expected column %q, got %q", "name", col)
-	}
-	if terms != "alice" {
-		t.Errorf("expected terms %q, got %q", "alice", terms)
-	}
-}
-
 // ────────────────────────────────────────────────────
 // OR group tests
 // ────────────────────────────────────────────────────

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -193,21 +192,6 @@ func replaceUnsafe(s string) string {
 		}
 	}
 	return b.String()
-}
-
-// importableExts lists file extensions that can be imported.
-var importableExts = []string{".csv", ".tsv", ".json", ".jsonl", ".ndjson"}
-
-// ImportableExtensions returns the list of file extensions that ImportFile supports.
-func ImportableExtensions() []string {
-	out := make([]string, len(importableExts))
-	copy(out, importableExts)
-	return out
-}
-
-// IsImportableExt returns true if ext (including the dot) is importable.
-func IsImportableExt(ext string) bool {
-	return slices.Contains(importableExts, strings.ToLower(ext))
 }
 
 // TableNameFromFile derives a SQL-safe table name from a filename.
