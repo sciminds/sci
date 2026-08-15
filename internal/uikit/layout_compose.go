@@ -112,11 +112,6 @@ func Fit(s string, width int, pos lipgloss.Position) string {
 	return Pad(truncated, width, pos)
 }
 
-// FitRight is [Fit] with right-alignment (numeric columns).
-func FitRight(s string, width int) string {
-	return Fit(s, width, lipgloss.Right)
-}
-
 // Truncate shortens s to at most width cells, appending an ellipsis (…) when
 // it overflows. Unlike [Fit] it does not pad short strings to width. A width
 // <= 0 returns s unchanged — the signal for "no terminal, emit full content".

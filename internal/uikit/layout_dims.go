@@ -1,29 +1,19 @@
 package uikit
 
-// layout_dims.go — dimension constants and clamping helpers for safe rendering when
-// Bubble Tea's initial WindowSizeMsg has not yet arrived (width/height = 0).
+// layout_dims.go — dimension constants and the helpers that derive usable
+// content sizes from them.
 
 // ── Dimension guards ────────────────────────────────────────────────────────
 // Bubble Tea calls View() before any WindowSizeMsg, so width/height start at
-// zero. These constants define the shared safety net used across all TUI
-// models.
+// zero. These constants define the shared "too small to render" thresholds
+// that TUI models check before drawing.
 
 const (
 	// MinUsableWidth is the minimum terminal width we try to render for.
-	// Below this we snap to FallbackWidth.
 	MinUsableWidth = 40
 
-	// FallbackWidth is the default width assumed when the real width is
-	// unknown or too narrow.
-	FallbackWidth = 80
-
-	// MinUsableHeight is the minimum usable body height. Below this we
-	// snap to FallbackHeight.
+	// MinUsableHeight is the minimum usable body height.
 	MinUsableHeight = 10
-
-	// FallbackHeight is the default list/table height assumed when the
-	// real height is unknown or too short.
-	FallbackHeight = 14
 )
 
 // ── Page chrome overhead ────────────────────────────────────────────────────
@@ -98,16 +88,6 @@ func ContentWidth(termWidth int) int {
 	return w
 }
 
-// ClampWidth returns ContentWidth(width) if the result is at least
-// MinUsableWidth, otherwise FallbackWidth.
-func ClampWidth(width int) int {
-	cw := ContentWidth(width)
-	if cw < MinUsableWidth {
-		return FallbackWidth
-	}
-	return cw
-}
-
 // OverlayBodyHeight returns the maximum number of body lines available inside
 // an overlay, given the terminal height and any extra chrome lines the caller
 // adds beyond OverlayChromeLines (e.g. status row, hint rows). The result is
@@ -115,13 +95,4 @@ func ClampWidth(width int) int {
 func OverlayBodyHeight(termH, extraChrome int) int {
 	h := max(termH-OverlayChromeLines-extraChrome, OverlayMinH)
 	return h
-}
-
-// ClampHeight returns height if it is at least MinUsableHeight, otherwise
-// FallbackHeight.
-func ClampHeight(height int) int {
-	if height < MinUsableHeight {
-		return FallbackHeight
-	}
-	return height
 }

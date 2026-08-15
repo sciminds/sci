@@ -69,7 +69,7 @@ To switch layout by terminal width, branch on `m.width` directly — there is no
 breakpoint primitive. `uikit.SplitView` already does this for the two-pane case
 (side-by-side when wide, stacked when narrow).
 
-`FixedIf` / `FlexIf` add a child only when a condition holds (e.g. hide a sidebar on narrow terminals). `Gap(n)` inserts spacing. Real example: `internal/tui/dbtui/app/view.go`.
+`FixedIf` adds a Fixed child only when a condition holds (e.g. hide a sidebar on narrow terminals). `Gap(n)` inserts spacing. Real example: `internal/tui/dbtui/app/view.go`.
 
 ---
 

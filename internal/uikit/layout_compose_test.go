@@ -276,14 +276,3 @@ func TestFit(t *testing.T) {
 		})
 	}
 }
-
-func TestFitRight(t *testing.T) {
-	t.Parallel()
-	got := FitRight("42", 6)
-	if lipgloss.Width(got) != 6 {
-		t.Errorf("FitRight width = %d, want 6", lipgloss.Width(got))
-	}
-	if !strings.HasSuffix(got, "42") {
-		t.Errorf("FitRight(%q, 6) = %q, want suffix '42'", "42", got)
-	}
-}

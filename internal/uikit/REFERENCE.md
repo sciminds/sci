@@ -40,12 +40,9 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `SummaryPart` | type | SummaryPart is one segment of a summary line (e.g. "3 passed"). |
 | `Box` | func | Box renders content inside a styled frame, automatically computing inner |
 | `Center` | func | Center centers s horizontally within width using space padding. If s is |
-| `ClampHeight` | func | ClampHeight returns height if it is at least MinUsableHeight, otherwise |
-| `ClampWidth` | func | ClampWidth returns ContentWidth(width) if the result is at least |
 | `ContentWidth` | func | ContentWidth returns the usable inner width after subtracting |
 | `Fit` | func | Fit truncates s to width cells (with ellipsis) then pads to exactly width. |
 | `FitHeight` | func | FitHeight pads or truncates s so it contains exactly h newline- |
-| `FitRight` | func | FitRight is [Fit] with right-alignment (numeric columns). |
 | `FooterBar` | func | FooterBar renders a bottom bar with left-aligned and right-aligned content, |
 | `HStack` | func | HStack creates a horizontal stack builder. Children are composed left-to-right. |
 | `OverlayBodyHeight` | func | OverlayBodyHeight returns the maximum number of body lines available inside |
@@ -63,11 +60,9 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `DividerInset` | const | DividerInset is the total horizontal inset for RenderDivider: |
 | `DividerLeadingSpaces` | const | DividerLeadingSpaces is the indent prefix prepended to every divider. |
 | `FallbackDividerWidth` | const | FallbackDividerWidth is the divider width used when terminal width |
-| `FallbackHeight` | const | FallbackHeight is the default list/table height assumed when the |
-| `FallbackWidth` | const | FallbackWidth is the default width assumed when the real width is |
 | `ItemDescIndent` | const | ItemDescIndent is the indent for the second line (description) of a |
 | `MaxDividerWidth` | const | MaxDividerWidth is the maximum width for horizontal dividers in TUI views. |
-| `MinUsableHeight` | const | MinUsableHeight is the minimum usable body height. Below this we |
+| `MinUsableHeight` | const | MinUsableHeight is the minimum usable body height. |
 | `MinUsableWidth` | const | MinUsableWidth is the minimum terminal width we try to render for. |
 | `OverlayChromeLines` | const | OverlayChromeLines is the vertical overhead of the overlay frame: |
 | `OverlayMargin` | const | OverlayMargin is the horizontal margin from terminal edges for overlays. |
@@ -98,7 +93,7 @@ For full signatures run `go doc ./internal/uikit <Symbol>`.
 | `Overlay` | type | Overlay is a scrollable content panel rendered as a modal over other content. |
 | `OverlayBox` | type | OverlayBox renders a modal-style overlay with a title section, body |
 | `Router` | type | Router maps screen IDs to Screen definitions. The zero value of a |
-| `Screen` | type | Screen bundles the four per-screen callbacks that Bubbletea models |
+| `Screen` | type | Screen bundles the per-screen render and key callbacks that Bubbletea |
 | `SelectList` | type | SelectList is a reusable Bubble Tea model for a toggle-select list. |
 | `SelectListKeys` | type | SelectListKeys is the help.KeyMap for the selecting phase. |
 | `Severity` | type | Severity is how serious a piece of status text is. |

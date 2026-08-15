@@ -35,18 +35,12 @@ func testRouter() Router[screenID, *fakeModel] {
 				m.name = "A-pressed"
 				return m, nil
 			},
-			Title: func(m *fakeModel, w int) string {
-				return fmt.Sprintf("Title-A:%d", w)
-			},
-			Help: "a: do thing",
 		},
 		screenB: {
 			View: func(m *fakeModel, w, h int) string {
 				return fmt.Sprintf("B:%s", m.name)
 			},
 			// Keys intentionally nil — tests nil-safety.
-			Title: func(m *fakeModel, w int) string { return "Title-B" },
-			Help:  "b: other thing",
 		},
 	})
 }
@@ -106,30 +100,5 @@ func TestRouterKeysMissing(t *testing.T) {
 	}
 	if cmd != nil {
 		t.Errorf("cmd should be nil for missing screen")
-	}
-}
-
-// ── Title ──────────────────────────────────────────────────────────────
-
-func TestRouterTitle(t *testing.T) {
-	r := testRouter()
-	m := &fakeModel{name: "x"}
-	if got := r.Title(screenA, m, 100); got != "Title-A:100" {
-		t.Errorf("Title(A) = %q", got)
-	}
-	if got := r.Title(screenMissing, m, 80); got != "" {
-		t.Errorf("Title(missing) = %q, want empty", got)
-	}
-}
-
-// ── Help ───────────────────────────────────────────────────────────────
-
-func TestRouterHelp(t *testing.T) {
-	r := testRouter()
-	if got := r.Help(screenA); got != "a: do thing" {
-		t.Errorf("Help(A) = %q", got)
-	}
-	if got := r.Help(screenMissing); got != "" {
-		t.Errorf("Help(missing) = %q, want empty", got)
 	}
 }

@@ -11,10 +11,8 @@ package app
 // Each entry adapts an existing keyX/viewX method via a thin closure. The
 // methods keep all the logic; the router only chooses which one runs.
 //
-// Title and Help are intentionally left nil: labtui renders its breadcrumb and
-// action hints inline in each view body (and the browse hint is dynamic, so it
-// can't be a static Help string). The router is used purely for body + key
-// dispatch.
+// labtui has no separate title or hint chrome for the router to own: each view
+// renders its own breadcrumb and action hints inline in the body it returns.
 
 import (
 	tea "charm.land/bubbletea/v2"
