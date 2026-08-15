@@ -165,12 +165,17 @@ func HandleError(err error, jsonMode bool) int {
 			_, _ = fmt.Fprintf(os.Stdout, `{"ok":false,"error":{"code":"runtime","message":%q}}`+"\n", coded.Message)
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "  %s %s\n", uikit.SymFail, coded.Message)
+		// HumanErrWriter, not os.Stderr: the ✗ and → glyphs are styled, and
+		// an error is as much part of a piped stream as a result is. Writing
+		// raw meant `NO_COLOR=1 sci … 2>&1 | …` stripped the escapes from
+		// successes and kept them on failures.
+		errOut := HumanErrWriter()
+		_, _ = fmt.Fprintf(errOut, "  %s %s\n", uikit.SymFail, coded.Message)
 		if coded.Fix != "" {
-			fmt.Fprintf(os.Stderr, "    %s fix: %s\n", uikit.SymArrow, coded.Fix)
+			_, _ = fmt.Fprintf(errOut, "    %s fix: %s\n", uikit.SymArrow, coded.Fix)
 		}
 		if coded.Try != "" {
-			fmt.Fprintf(os.Stderr, "    %s try: %s\n", uikit.SymArrow, coded.Try)
+			_, _ = fmt.Fprintf(errOut, "    %s try: %s\n", uikit.SymArrow, coded.Try)
 		}
 	}
 

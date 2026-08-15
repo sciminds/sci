@@ -4,10 +4,12 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/cmdutil"
@@ -19,6 +21,58 @@ import (
 )
 
 var jsonOutput bool
+
+// versionResult is what both `sci --version` and `sci version` return.
+//
+// The version has to be reachable at all: sci installs by curl and updates
+// itself, so "which build am I on?" is the first question of every bug
+// report, and until this existed there was no way to ask it — version.String()
+// was live code with no caller.
+type versionResult struct{}
+
+func (versionResult) JSON() any {
+	return map[string]any{
+		"version": cmp.Or(version.Version, "dev"),
+		"commit":  version.Commit,
+		"dev":     version.IsDev(),
+	}
+}
+
+func (versionResult) Human() string { return "sci " + version.String() + "\n" }
+
+// versionCommand is the `sci version` spelling of the --version flag.
+//
+// It exists because `sci version` is what people (and agents) type first, and
+// answering "unknown command" to it is a dead end. Hidden because --version is
+// the documented spelling and already appears in root help — and because a
+// visible top-level command needs a matching overview in internal/help, which
+// is a different package's file.
+func versionCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "version",
+		Usage:       "Print the sci version",
+		Description: "$ sci version\n$ sci version --json",
+		Category:    "Maintenance",
+		Hidden:      true,
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			cmdutil.Output(cmd, versionResult{})
+			return nil
+		},
+	}
+}
+
+// versionPrinterOnce guards the one-time cli.VersionPrinter swap: it is a
+// package global in urfave/cli, and buildRoot runs once per test.
+var versionPrinterOnce sync.Once
+
+// useVersionResult routes urfave's --version handling through
+// [cmdutil.Output], so `sci --version --json` answers in the same envelope as
+// every other command instead of printing a bare line.
+func useVersionResult() {
+	versionPrinterOnce.Do(func() {
+		cli.VersionPrinter = func(cmd *cli.Command) { cmdutil.Output(cmd, versionResult{}) }
+	})
+}
 
 func buildRoot() *cli.Command {
 	// Update notice: rendered in Before (not After) so it surfaces even for
@@ -50,18 +104,20 @@ func buildRoot() *cli.Command {
 			// arg to identify the resolved subcommand.
 			if !cmdutil.IsJSON(cmd) && cmd.Args().First() != "update" {
 				if notice := selfupdate.ReadCachedNotice(); notice != "" {
-					fmt.Fprintf(os.Stderr, "\n  %s %s\n", uikit.SymArrow, notice)
+					// HumanErrWriter, not os.Stderr: the arrow glyph is
+					// styled, and a notice piped into a log should arrive as
+					// plain text like every other diagnostic.
+					_, _ = fmt.Fprintf(cmdutil.HumanErrWriter(), "\n  %s %s\n", uikit.SymArrow, notice)
 					selfupdate.MarkNoticeShown()
 				}
 			}
 			return ctx, nil
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
-			return cli.ShowAppHelp(cmd)
-		},
+		// No Action: cmdutil.WireNamespaceDefaults installs the shared
+		// namespace one, which shows this help page for a human and refuses
+		// with a usage envelope under --json.
 		Suggest:         true,
 		HideHelpCommand: true,
-		HideVersion:     true,
 		// lo.Compact filters out any nil entries — used on Linux where
 		// platform-specific commands (e.g. `sci tools`) return nil from
 		// their stubbed constructor.
@@ -83,6 +139,7 @@ func buildRoot() *cli.Command {
 			toolsCommand(),
 			doctorCommand(),
 			updateCommand(),
+			versionCommand(),
 			// Experimental
 			cassCommand(),
 			zotCommand(),
@@ -90,6 +147,7 @@ func buildRoot() *cli.Command {
 	}
 	cmdutil.SetupHelp(root)
 	cmdutil.WireNamespaceDefaults(root)
+	useVersionResult()
 	return root
 }
 
@@ -108,6 +166,12 @@ func main() {
 		if errors.Is(err, dbtui.ErrInterrupted) {
 			os.Exit(130)
 		}
-		os.Exit(cmdutil.HandleError(err, jsonOutput))
+		// jsonOutput is only assigned once flag parsing succeeds. When it is
+		// the parse that failed — `sci zot info --nosuchflag --json` — the
+		// destination is still false even though the caller asked for machine
+		// output, so fall back to reading the intent straight off argv.
+		// Without this the one failure an agent most needs an envelope for is
+		// the one it never gets.
+		os.Exit(cmdutil.HandleError(err, jsonOutput || cmdutil.JSONRequested(os.Args)))
 	}
 }

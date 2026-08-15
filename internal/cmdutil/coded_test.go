@@ -164,6 +164,28 @@ func TestHandleError_HumanRendersFixAndTry(t *testing.T) {
 	}
 }
 
+// Command results honor NO_COLOR because they go through HumanWriter; error
+// envelopes wrote to a raw os.Stderr and kept their escapes, so the same
+// terminal that renders a clean success renders a failure full of escape
+// bytes — and a script capturing stderr has to strip them.
+func TestHandleError_HumanStripsANSIWhenNotATerminal(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	errOut := captureStderr(t, func() {
+		HandleError(Coded(CodeNotFound, "no item with key ABC").WithTry("run a search first"), false)
+	})
+
+	if strings.Contains(errOut, "\x1b[") {
+		t.Errorf("error envelope kept ANSI escapes under NO_COLOR:\n%q", errOut)
+	}
+	if !strings.Contains(errOut, "no item with key ABC") {
+		t.Errorf("stripping ANSI also ate the message:\n%q", errOut)
+	}
+	if !strings.Contains(errOut, "run a search first") {
+		t.Errorf("try line missing:\n%q", errOut)
+	}
+}
+
 func TestHandleError_HumanWritesNothingToStdout(t *testing.T) {
 	out := captureStdout(t, func() {
 		_ = captureStderr(t, func() {
@@ -239,17 +261,33 @@ func TestOutput_JSONEnvelopeIncludesWarnings(t *testing.T) {
 	}
 }
 
-func TestOutput_JSONEnvelopeOmitsEmptyWarnings(t *testing.T) {
-	cmd := newCmd()
-	runCmd(t, cmd, "--json")
-	r := warnResult{stubResult: stubResult{data: 1}}
+// The success envelope is documented as {ok, data, warnings}, so `.warnings`
+// must be readable unconditionally. Omitting the key when the slice is empty
+// forces every consumer to special-case its absence, and a `null` would do
+// the same for anyone iterating it.
+func TestOutput_JSONEnvelopeAlwaysIncludesWarnings(t *testing.T) {
+	for _, r := range []Result{
+		warnResult{stubResult: stubResult{data: 1}}, // Warner with nothing to say
+		stubResult{data: 1},                         // not a Warner at all
+	} {
+		// Parse outside the capture: newCmd has no Action, so cmd.Run dumps
+		// urfave's help page and that would land in the captured stdout.
+		cmd := newCmd()
+		runCmd(t, cmd, "--json")
 
-	got := captureStdout(t, func() {
-		Output(cmd, r)
-	})
+		got := captureStdout(t, func() { Output(cmd, r) })
 
-	if strings.Contains(got, "warnings") {
-		t.Errorf("empty warnings should be omitted, got %q", got)
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(got), &raw); err != nil {
+			t.Fatalf("envelope not valid JSON: %v\noutput: %q", err, got)
+		}
+		warnings, ok := raw["warnings"]
+		if !ok {
+			t.Fatalf("%T: envelope has no warnings key: %q", r, got)
+		}
+		if string(warnings) != "[]" {
+			t.Errorf("%T: warnings = %s, want an empty array", r, warnings)
+		}
 	}
 }
 

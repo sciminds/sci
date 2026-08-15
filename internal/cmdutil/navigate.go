@@ -30,8 +30,8 @@ package cmdutil
 
 import (
 	"context"
-	"fmt"
 	"maps"
+	"sync"
 
 	"github.com/urfave/cli/v3"
 )
@@ -69,14 +69,13 @@ func MarkDeprecatedChildren(cmd *cli.Command, redirects map[string]string) {
 
 // RejectUnknownSubcommand is a Before hook for commands that group
 // subcommands. If the first positional arg doesn't name a direct subcommand,
-// it returns a [CodeUsage] error naming the token, with the closest real
-// subcommand suggested when there is one, and dumps the parent's help in
-// human mode to orient the reader.
+// it returns the shared [unknownSubcommandError] — a [CodeUsage] error naming
+// the token, with a suggestion when one is worth making.
 //
 // No-op when:
-//   - the first arg is empty (pure namespaces get urfave's auto-help via
-//     the default Action; mixed Action+Commands shapes like `sci tools`
-//     run their own Action — either way, that's fine), or
+//   - the first arg is empty (the namespace's Action handles it: pure
+//     namespaces run [namespaceAction], mixed Action+Commands shapes like
+//     `sci tools` run their own), or
 //   - the first arg matches a real subcommand (descent continues normally).
 func RejectUnknownSubcommand(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	first := cmd.Args().First()
@@ -93,19 +92,7 @@ func RejectUnknownSubcommand(ctx context.Context, cmd *cli.Command) (context.Con
 				WithFix(cmd.FullName() + " " + replacement)
 		}
 	}
-	// Human mode gets the parent's help to orient by. Under --json stdout
-	// belongs to the envelope alone, so the dump is suppressed there — a
-	// page of styled prose where an agent expects one line of JSON is a
-	// parse error, not a hint.
-	if !IsJSON(cmd) {
-		_ = cli.ShowSubcommandHelp(cmd)
-	}
-	msg := fmt.Sprintf("unknown command %q", first)
-	if s := cli.SuggestCommand(cmd.Commands, first); s != "" {
-		msg += fmt.Sprintf(". Did you mean %q?", s)
-	}
-	return ctx, Coded(CodeUsage, "%s", msg).
-		WithTry(fmt.Sprintf("run '%s --help' to see the available commands", cmd.FullName()))
+	return ctx, unknownSubcommandError(cmd, first)
 }
 
 // ChainBefore composes multiple Before hooks into one, running each in order.
@@ -131,28 +118,90 @@ func ChainBefore(fns ...cli.BeforeFunc) cli.BeforeFunc {
 	}
 }
 
-// WireNamespaceDefaults walks the command tree rooted at root and chains
-// RejectUnknownSubcommand into the Before of every command that has
-// subcommands. Idempotent: a marker on cmd.Metadata prevents double-wiring
-// if the tree is walked more than once.
+// WireNamespaceDefaults walks the command tree rooted at root and installs
+// the four behaviors sci wants everywhere, none of which urfave/cli gives us
+// by default. Idempotent: a marker on cmd.Metadata prevents double-wiring if
+// the tree is walked more than once.
+//
+// Per command:
+//
+//   - OnUsageError (every command) — a malformed flag becomes a [CodeUsage]
+//     [CodedError] instead of urfave's duplicated "Incorrect Usage:" banner
+//     with no code and exit 1. See [flagUsageError].
+//
+// Per namespace (a command that has subcommands):
+//
+//   - Before — [RejectUnknownSubcommand], so `sci zot bogus` is an error and
+//     not urfave's "No help topic" or a silent fall-through to the parent.
+//   - Action, when the namespace declares none — [namespaceAction], so a bare
+//     `sci zot --json` refuses with an envelope instead of printing help and
+//     exiting 0. A namespace with its own Action (`sci setup`, `sci zot
+//     doctor`) already handles --json and is left alone.
+//
+// Once per process:
+//
+//   - the [cli.ShowCommandHelp] wrapper, so `sci <unknown> --help` reports
+//     the same unknown-command error as `sci <unknown>`.
 //
 // Call once after the tree is fully assembled — e.g. in buildRoot() after
-// SetupHelp. Every current and future namespace inherits the invariant
-// without per-site declarations.
+// SetupHelp. Every current and future command inherits all of it without
+// per-site declarations.
 func WireNamespaceDefaults(root *cli.Command) {
 	if root == nil {
 		return
 	}
-	if len(root.Commands) > 0 {
-		if root.Metadata == nil {
-			root.Metadata = map[string]any{}
-		}
-		if wired, _ := root.Metadata[wireMarker].(bool); !wired {
-			root.Before = ChainBefore(RejectUnknownSubcommand, root.Before)
-			root.Metadata[wireMarker] = true
-		}
+	installUnknownHelpTopicHandler()
+	wireCommandDefaults(root)
+}
+
+// wireCommandDefaults is WireNamespaceDefaults' recursive half, split out so
+// the exported function's one-time global install can't run per node.
+func wireCommandDefaults(cmd *cli.Command) {
+	if cmd.Metadata == nil {
+		cmd.Metadata = map[string]any{}
 	}
-	for _, sub := range root.Commands {
-		WireNamespaceDefaults(sub)
+	if wired, _ := cmd.Metadata[wireMarker].(bool); !wired {
+		if cmd.OnUsageError == nil {
+			cmd.OnUsageError = onUsageError
+		}
+		if len(cmd.Commands) > 0 {
+			cmd.Before = ChainBefore(RejectUnknownSubcommand, cmd.Before)
+			if cmd.Action == nil {
+				cmd.Action = namespaceAction
+			}
+		}
+		cmd.Metadata[wireMarker] = true
 	}
+	for _, sub := range cmd.Commands {
+		wireCommandDefaults(sub)
+	}
+}
+
+// unknownHelpTopicOnce guards the one-time [cli.ShowCommandHelp] swap.
+var unknownHelpTopicOnce sync.Once
+
+// installUnknownHelpTopicHandler makes `sci <unknown> --help` fail the same
+// way `sci <unknown>` does.
+//
+// urfave routes --help through its help-topic lookup, which on a miss builds
+// "No help topic for 'convert'. cloud" — the trailing bare word is
+// cli.SuggestCommand's return value concatenated with no template — and exits
+// 3. Adding --help to a mistyped command should not change what sci tells you
+// about the typo, so the miss is rerouted to [unknownSubcommandError].
+//
+// It has to be a swap of the package-level cli.ShowCommandHelp (the same
+// technique SetupHelp uses for the help printer) because urfave's own hook
+// for this, CommandNotFound, has no error return: signalling failure from
+// there requires cli.Exit, which calls os.Exit and bypasses main's error
+// handler entirely.
+func installUnknownHelpTopicHandler() {
+	unknownHelpTopicOnce.Do(func() {
+		inner := cli.ShowCommandHelp
+		cli.ShowCommandHelp = func(ctx context.Context, cmd *cli.Command, name string) error {
+			if cmd.Command(name) != nil {
+				return inner(ctx, cmd, name)
+			}
+			return unknownSubcommandError(cmd, name)
+		}
+	})
 }
