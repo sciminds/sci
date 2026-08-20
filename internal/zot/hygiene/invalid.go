@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/sci/internal/doi"
 	"github.com/sciminds/sci/internal/local"
 )
 
@@ -219,19 +220,7 @@ func ValidateDOI(raw string) (bool, string) {
 		return false, "empty"
 	}
 	// Strip common URL prefixes — doi.org / dx.doi.org / "doi:".
-	lower := strings.ToLower(s)
-	for _, prefix := range []string{
-		"https://doi.org/",
-		"http://doi.org/",
-		"https://dx.doi.org/",
-		"http://dx.doi.org/",
-		"doi:",
-	} {
-		if strings.HasPrefix(lower, prefix) {
-			s = s[len(prefix):]
-			break
-		}
-	}
+	s = doi.StripResolver(s)
 	if !doiRegex.MatchString(s) {
 		return false, "does not match 10.NNNN/suffix pattern"
 	}

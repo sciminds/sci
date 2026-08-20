@@ -105,3 +105,30 @@ func TestIsSubobject(t *testing.T) {
 		}
 	}
 }
+
+func TestStripResolver(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"bare DOI untouched", "10.1000/abc123", "10.1000/abc123"},
+		{"https doi.org", "https://doi.org/10.1000/abc123", "10.1000/abc123"},
+		{"http doi.org", "http://doi.org/10.1000/abc123", "10.1000/abc123"},
+		{"https dx.doi.org", "https://dx.doi.org/10.1000/abc123", "10.1000/abc123"},
+		{"http dx.doi.org", "http://dx.doi.org/10.1000/abc123", "10.1000/abc123"},
+		{"doi scheme", "doi:10.1000/abc123", "10.1000/abc123"},
+		{"prefix is case-insensitive", "DOI:10.1000/abc123", "10.1000/abc123"},
+		{"uppercase resolver", "HTTPS://DOI.ORG/10.1000/abc123", "10.1000/abc123"},
+		{"suffix case preserved", "https://doi.org/10.1000/ABC123", "10.1000/ABC123"},
+		{"whitespace trimmed", "  doi:10.1000/abc123  ", "10.1000/abc123"},
+		{"only one prefix stripped", "doi:doi:10.1000/abc123", "doi:10.1000/abc123"},
+		{"empty", "", ""},
+	}
+	for _, tc := range cases {
+		if got := StripResolver(tc.in); got != tc.want {
+			t.Errorf("%s: StripResolver(%q) = %q, want %q", tc.name, tc.in, got, tc.want)
+		}
+	}
+}

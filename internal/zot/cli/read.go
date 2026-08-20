@@ -10,6 +10,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/citekey"
 	"github.com/sciminds/sci/internal/cmdutil"
+	"github.com/sciminds/sci/internal/doi"
 	"github.com/sciminds/sci/internal/local"
 	"github.com/sciminds/sci/internal/uikit"
 	"github.com/sciminds/sci/internal/zot"
@@ -449,20 +450,7 @@ func readResultFor(items []local.Item) cmdutil.Result {
 //
 // Case is preserved here; ItemKeysByDOI matches case-insensitively.
 func normalizeDOI(in string) string {
-	s := strings.TrimSpace(in)
-	for _, p := range []string{
-		"https://doi.org/",
-		"http://doi.org/",
-		"https://dx.doi.org/",
-		"http://dx.doi.org/",
-		"doi:",
-	} {
-		if strings.HasPrefix(strings.ToLower(s), p) {
-			s = s[len(p):]
-			break
-		}
-	}
-	return strings.TrimSpace(s)
+	return doi.StripResolver(in)
 }
 
 func listCommand() *cli.Command {

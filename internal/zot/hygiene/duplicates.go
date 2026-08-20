@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"github.com/sciminds/sci/internal/doi"
 	"github.com/sciminds/sci/internal/local"
 )
 
@@ -209,27 +210,9 @@ func ClusterByDOI(cands []DuplicateCandidate) []Cluster {
 
 // normalizeDOI folds superficial differences (whitespace, case, URL
 // prefixes) so that the same DOI stored three different ways still buckets
-// together. Empty or unrecognized input yields an empty key and the caller
-// skips it.
+// together. Empty input yields an empty key and the caller skips it.
 func normalizeDOI(raw string) string {
-	s := strings.TrimSpace(raw)
-	if s == "" {
-		return ""
-	}
-	s = strings.ToLower(s)
-	for _, prefix := range []string{
-		"https://doi.org/",
-		"http://doi.org/",
-		"https://dx.doi.org/",
-		"http://dx.doi.org/",
-		"doi:",
-	} {
-		if after, ok := strings.CutPrefix(s, prefix); ok {
-			s = after
-			break
-		}
-	}
-	return strings.TrimSpace(s)
+	return strings.ToLower(doi.StripResolver(raw))
 }
 
 // minFuzzyTitleLen is the normalized-length floor below which we refuse to

@@ -1,8 +1,9 @@
-// Package doi implements publisher-specific DOI normalization. The only
-// public surface is StripSubobject and its derivative IsSubobject — both
-// trim publisher-known subobject suffixes (table/figure/supplement deep
-// links, article-section anchors) so the parent-paper DOI can be resolved
-// against OpenAlex.
+// Package doi implements DOI normalization. StripSubobject and its
+// derivative IsSubobject trim publisher-known subobject suffixes
+// (table/figure/supplement deep links, article-section anchors) so the
+// parent-paper DOI can be resolved against OpenAlex. StripResolver trims
+// the resolver-URL and "doi:" scheme prefixes a DOI arrives wearing, and
+// is the one prefix list every normalizer in the tree shares.
 //
 // Patterns are anchored to the publisher prefix so non-target DOIs are
 // never touched: a "10.1234/foo.t001" looks like a PLOS subobject but
@@ -13,14 +14,12 @@
 // real library before it was written, and every shape was confirmed at
 // doi.org: the suffixed form is a "component", a "peer-review", or a 404,
 // and the stripped form is the paper.
-//
-// URL-prefix stripping (https://doi.org/, doi:) is intentionally out of
-// scope here. Several near-identical helpers already exist elsewhere in
-// the codebase (hygiene/duplicates.go, cli/read.go, enrich/mapping.go);
-// consolidating those is a separate refactor.
 package doi
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // Every pattern is case-insensitive. DOIs are case-insensitive by spec,
 // and Zotero stores whatever the publisher's page said — so the same
@@ -54,6 +53,32 @@ var elifeAsset = regexp.MustCompile(`(?i)^(10\.7554/elife\.\d+)\.\d{3}$`)
 
 // peerjSubobject matches PeerJ's supplement, figure, and table children.
 var peerjSubobject = regexp.MustCompile(`(?i)^(10\.7717/peerj(?:-cs)?\.\d+)/(?:supp|fig|table)-\d+$`)
+
+// resolverPrefixes are the URL and scheme prefixes DOIs arrive wearing —
+// pasted from browser bars, Zotero imports, and citation managers. The
+// legacy dx.doi.org host is still common in older references.
+var resolverPrefixes = []string{
+	"https://doi.org/",
+	"http://doi.org/",
+	"https://dx.doi.org/",
+	"http://dx.doi.org/",
+	"doi:",
+}
+
+// StripResolver trims a resolver-URL (doi.org, dx.doi.org) or "doi:"
+// scheme prefix, plus surrounding whitespace, from raw. The prefix match
+// is case-insensitive; the DOI's own case is preserved — DOIs are
+// case-insensitive by spec, so callers that compare fold case themselves.
+func StripResolver(raw string) string {
+	s := strings.TrimSpace(raw)
+	for _, p := range resolverPrefixes {
+		if len(s) >= len(p) && strings.EqualFold(s[:len(p)], p) {
+			s = s[len(p):]
+			break
+		}
+	}
+	return strings.TrimSpace(s)
+}
 
 // StripSubobject trims a publisher-specific subobject suffix from raw,
 // returning the parent-paper DOI. Inputs that don't match any known

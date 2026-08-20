@@ -13,6 +13,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/sciminds/sci/internal/citekey"
+	"github.com/sciminds/sci/internal/doi"
 	"github.com/sciminds/sci/internal/local"
 )
 
@@ -209,12 +210,8 @@ func unique(cands []*local.Item) (*local.Item, []string) {
 
 // normalizeDOI lowercases a DOI and strips resolver-URL and "doi:"
 // prefixes so stored and cited forms compare equal.
-func normalizeDOI(doi string) string {
-	d := strings.TrimSpace(strings.ToLower(doi))
-	d = strings.TrimPrefix(d, "https://doi.org/")
-	d = strings.TrimPrefix(d, "http://doi.org/")
-	d = strings.TrimPrefix(d, "doi:")
-	return d
+func normalizeDOI(raw string) string {
+	return strings.ToLower(doi.StripResolver(raw))
 }
 
 // authorYearKey builds the normalized "{lastname}{year}" lookup key for

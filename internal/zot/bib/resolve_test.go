@@ -125,6 +125,22 @@ func TestResolve_DOICaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestResolve_DOIDxResolverPrefix(t *testing.T) {
+	t.Parallel()
+	// Zotero items and scanned references both arrive wearing resolver-URL
+	// prefixes, including the legacy dx.doi.org host — both sides must
+	// normalize to the same bare DOI.
+	items := testItems()
+	items[0].DOI = "https://dx.doi.org/10.1000/abc123"
+	resolved, unresolved := Resolve([]Ref{{Kind: KindDOI, Value: "http://dx.doi.org/10.1000/ABC123"}}, items)
+	if len(unresolved) > 0 {
+		t.Fatalf("unresolved: %+v", unresolved)
+	}
+	if len(resolved) != 1 || resolved[0].Key != "AAAA1111" {
+		t.Fatalf("resolved = %+v, want AAAA1111", resolved)
+	}
+}
+
 func TestResolve_URLExact(t *testing.T) {
 	t.Parallel()
 	it := resolveOne(t, Ref{Kind: KindURL, Value: "https://example.org/abc"})
