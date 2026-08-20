@@ -86,6 +86,20 @@ func TestMdViewerApplySearchCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestMdViewerApplySearchLoweredNeedleAdvance(t *testing.T) {
+	t.Parallel()
+	v := NewMdViewer("test", "kk")
+	v.SetSize(80, 20)
+
+	// U+212A KELVIN SIGN is 3 bytes but lowercases to the 1-byte "k", so the
+	// scan must advance by the lowered needle's length — advancing by the raw
+	// query length skips adjacent matches and can run past the haystack's end.
+	matchLines, matchCount, _ := mdApplySearch("K", "kk", &v.vp)
+	if matchCount != 2 {
+		t.Errorf("kelvin-sign query over %q: expected 2 matches, got %d (lines %v)", "kk", matchCount, matchLines)
+	}
+}
+
 func TestMdViewerApplySearchEmpty(t *testing.T) {
 	t.Parallel()
 	v := NewMdViewer("test", "# Test")

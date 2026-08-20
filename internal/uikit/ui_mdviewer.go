@@ -333,7 +333,7 @@ func mdApplySearch(query, rendered string, vp *viewport.Model) (matchLines []int
 		begin := start + idx
 		line := strings.Count(lowerPlain[:begin], "\n")
 		matchLines = append(matchLines, line)
-		start = begin + len(query)
+		start = begin + len(lowerQuery)
 	}
 
 	matchCount = len(matchLines)
