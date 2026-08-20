@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/sciminds/sci/internal/local"
 )
@@ -175,6 +177,19 @@ func TestBuildActionsNoAttachment(t *testing.T) {
 	// Index 0 (Copy BibTeX) is enabled, so cursor stays at 0
 	if menu.Cursor() != 0 {
 		t.Errorf("cursor = %d, want 0", menu.Cursor())
+	}
+}
+
+func TestBuildActionsMultibyteTitle(t *testing.T) {
+	// A long multibyte title must truncate on a rune boundary — byte-slicing
+	// cut mid-rune and rendered invalid UTF-8 in the menu header.
+	it := &local.Item{
+		Key:   "TEST0003",
+		Title: strings.Repeat("é", 60),
+	}
+	menu := buildActions("/data", it)
+	if view := menu.View(80, 24); !utf8.ValidString(view) {
+		t.Errorf("action menu rendered invalid UTF-8:\n%q", view)
 	}
 }
 

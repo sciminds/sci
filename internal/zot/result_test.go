@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/sciminds/sci/internal/local"
 )
@@ -232,6 +233,27 @@ func TestStatsResult_Human(t *testing.T) {
 	bk := strings.Index(out, "book")
 	if ja < 0 || bk < 0 || ja > bk {
 		t.Errorf("by-type order wrong (expect journalArticle before book):\n%s", out)
+	}
+}
+
+func TestListBriefResult_HumanMultibyteAbstract(t *testing.T) {
+	t.Parallel()
+	// Byte-slicing a multibyte abstract cut mid-rune and emitted invalid
+	// UTF-8; truncation must respect rune boundaries.
+	r := ListBriefResult{
+		Count: 1,
+		Items: []ItemBrief{{Key: "AAAA1111", Title: "T", Abstract: "a" + strings.Repeat("é", 200)}},
+	}
+	if out := r.Human(); !utf8.ValidString(out) {
+		t.Errorf("abstract preview truncation produced invalid UTF-8:\n%q", out)
+	}
+}
+
+func TestNoteSnippet_MultibyteTruncation(t *testing.T) {
+	t.Parallel()
+	got := noteSnippet("<p>" + strings.Repeat("é", 100) + "</p>")
+	if !utf8.ValidString(got) {
+		t.Errorf("noteSnippet produced invalid UTF-8: %q", got)
 	}
 }
 

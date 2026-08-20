@@ -134,10 +134,6 @@ func writeBriefLine(b *strings.Builder, it ItemBrief) {
 		fmt.Fprintf(b, "    %s\n", uikit.TUI.Dim().Render(strings.Join(meta, " · ")))
 	}
 	if it.Abstract != "" {
-		preview := it.Abstract
-		if len(preview) > 240 {
-			preview = preview[:240] + "…"
-		}
-		fmt.Fprintf(b, "    %s\n", uikit.TUI.Dim().Render(preview))
+		fmt.Fprintf(b, "    %s\n", uikit.TUI.Dim().Render(uikit.Truncate(it.Abstract, 240)))
 	}
 }

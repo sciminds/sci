@@ -335,10 +335,7 @@ func noteSnippet(html string) string {
 	for strings.Contains(s, "  ") {
 		s = strings.ReplaceAll(s, "  ", " ")
 	}
-	if len(s) > 60 {
-		s = s[:57] + "..."
-	}
-	return s
+	return uikit.Truncate(s, 60)
 }
 
 // CollectionListResult is returned for `sci zot collection list`.

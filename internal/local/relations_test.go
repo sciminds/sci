@@ -3,7 +3,9 @@ package local
 import (
 	"maps"
 	"slices"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestItemRelations_RelatedItems(t *testing.T) {
@@ -135,6 +137,20 @@ func TestRelationLabel(t *testing.T) {
 				t.Errorf("relationLabel(%q, %q) = %q, want %q", tt.title, tt.body, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestRelationLabel_MultibyteTruncation(t *testing.T) {
+	t.Parallel()
+	// A long multibyte body must truncate on a rune boundary — byte-slicing
+	// cut mid-rune and emitted invalid UTF-8.
+	body := `<div class="zotero-note znv1"><p>` + strings.Repeat("é", 100) + `</p></div>`
+	got := relationLabel("", body)
+	if !utf8.ValidString(got) {
+		t.Errorf("relationLabel produced invalid UTF-8: %q", got)
+	}
+	if !strings.HasSuffix(got, "...") {
+		t.Errorf("expected truncation suffix, got %q", got)
 	}
 }
 

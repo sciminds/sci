@@ -147,11 +147,7 @@ func buildActions(dataDir string, it *local.Item) uikit.ActionMenu {
 	if zot.PickAttachment(it) == nil {
 		pdfAction.Disabled = "no PDF attached"
 	}
-	title := it.Title
-	if len(title) > 50 {
-		title = title[:47] + "..."
-	}
-	return uikit.NewActionMenu(title, []uikit.Action{
+	return uikit.NewActionMenu(uikit.Truncate(it.Title, 50), []uikit.Action{
 		{Name: "Copy BibTeX", Hint: "to clipboard"},
 		pdfAction,
 		{Name: "Open in Zotero"},

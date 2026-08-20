@@ -166,8 +166,10 @@ func relationLabel(title, noteBody string) string {
 		return title
 	}
 	s := noteText(UnwrapZoteroDiv(noteBody))
-	if len(s) > relationLabelMax {
-		s = s[:relationLabelMax-3] + "..."
+	// Rune slicing, not byte slicing — a byte cut can land mid-rune and
+	// emit invalid UTF-8.
+	if r := []rune(s); len(r) > relationLabelMax {
+		s = string(r[:relationLabelMax-3]) + "..."
 	}
 	return s
 }
