@@ -2,6 +2,7 @@ package cass
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/samber/lo"
@@ -166,7 +167,7 @@ func (d *DB) createSchema() error {
 func (d *DB) GetMeta(key string) (string, error) {
 	var value string
 	err := d.db.QueryRow("SELECT value FROM meta WHERE key = ?", key).Scan(&value)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
 	if err != nil {

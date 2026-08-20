@@ -2,6 +2,7 @@ package local
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -27,7 +28,7 @@ func (d *DB) CollectionByKey(key string) (*Collection, error) {
 	var c Collection
 	var parent *string
 	if err := row.Scan(&c.Key, &c.Name, &parent, &c.ItemCount); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("collection %s lookup: %w", key, err)

@@ -2,6 +2,7 @@ package local
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -76,7 +77,7 @@ LIMIT 1
 	var key, path, title, doi string
 	err := d.db.QueryRow(q, append(libArgs, parentKey)...).Scan(&key, &path, &title, &doi)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("no PDF attachment for parent %s (parent may be missing, trashed, or have no PDF child)", parentKey)
 		}
 		return nil, fmt.Errorf("resolve PDF attachment for %s: %w", parentKey, err)

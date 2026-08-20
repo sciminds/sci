@@ -2,6 +2,7 @@ package local
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 )
@@ -62,7 +63,7 @@ func ForGroupByAPIID(apiGroupID int64) LibrarySelector {
 					"WHERE l.type='group' AND g.groupID=?",
 				apiGroupID,
 			).Scan(&libID)
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				return 0, fmt.Errorf("no local group with API groupID %d — run Zotero desktop to sync, then retry", apiGroupID)
 			}
 			if err != nil {

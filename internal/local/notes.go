@@ -2,6 +2,7 @@ package local
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -134,7 +135,7 @@ WHERE ni.libraryID = ?
 	err := d.db.QueryRow(q, d.libraryID, noteKey).Scan(
 		&nd.Key, &nd.ParentKey, &nd.Title, &nd.Body, &nd.DateAdded)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("note %s not found (may be missing, trashed, or not a note)", noteKey)
 		}
 		return nil, fmt.Errorf("read note %s: %w", noteKey, err)

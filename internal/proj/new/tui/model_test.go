@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -103,7 +104,7 @@ func TestApplyDoneMsgWithError(t *testing.T) {
 	if rm.phase != phaseDone {
 		t.Errorf("phase = %d, want phaseDone", rm.phase)
 	}
-	if rm.Err != errTest {
+	if !errors.Is(rm.Err, errTest) {
 		t.Errorf("err = %v, want %v", rm.Err, errTest)
 	}
 }

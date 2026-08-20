@@ -3,6 +3,7 @@ package sqlite
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -167,7 +168,7 @@ func readCSV(path string, delimiter rune) (header []string, rows [][]string, err
 
 	for {
 		record, err := r.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -206,7 +207,7 @@ func readJSONL(path string) (header []string, rows [][]string, err error) {
 	dec := json.NewDecoder(store.DecodeReader(f))
 	for {
 		var obj map[string]any
-		if err := dec.Decode(&obj); err == io.EOF {
+		if err := dec.Decode(&obj); errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			return nil, nil, fmt.Errorf("decode JSONL: %w", err)

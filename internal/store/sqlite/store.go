@@ -817,7 +817,7 @@ func (s *Store) tableExists(name string) (bool, error) {
 		"SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name = ?",
 		name,
 	).Scan(&found)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {

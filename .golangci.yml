@@ -5,10 +5,18 @@ linters:
   enable:
     - dupl
     - dupword
+    - errorlint
 
   settings:
     dupl:
       threshold: 120
+    # Guard sentinel matching: `err == sql.ErrNoRows` breaks the moment a
+    # layer wraps the error with %w. Comparison-only for now — the errorf
+    # and asserts checks would flag a wider class than we've cleaned up.
+    errorlint:
+      comparison: true
+      errorf: false
+      asserts: false
 
   exclusions:
     rules:
