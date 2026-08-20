@@ -5,10 +5,11 @@ import tea "charm.land/bubbletea/v2"
 // Screen bundles the per-screen render and key callbacks that Bubbletea
 // models typically dispatch through repeated switch statements.
 //
-// M is the concrete model type (e.g. *app.Model). Using a type parameter
-// lets handlers access model fields directly instead of going through
+// M is the concrete model type (e.g. *app.Model), constrained to
+// tea.Model so Keys can return it directly. Using a type parameter lets
+// handlers access model fields directly instead of going through
 // interface assertions.
-type Screen[M any] struct {
+type Screen[M tea.Model] struct {
 	// View renders the screen body. Receives the model and available
 	// width × height (after chrome is subtracted).
 	View func(m M, width, height int) string
@@ -36,12 +37,12 @@ type Screen[M any] struct {
 // "active" simultaneously and composites them; that needs a stack/history
 // abstraction Router doesn't provide. Don't force such an app through Router —
 // see internal/tui/dbtui/app/doc.go ("Overlays") for that decision.
-type Router[S comparable, M any] struct {
+type Router[S comparable, M tea.Model] struct {
 	screens map[S]Screen[M]
 }
 
 // NewRouter builds a Router from a set of screen registrations.
-func NewRouter[S comparable, M any](screens map[S]Screen[M]) Router[S, M] {
+func NewRouter[S comparable, M tea.Model](screens map[S]Screen[M]) Router[S, M] {
 	return Router[S, M]{screens: screens}
 }
 
@@ -60,7 +61,7 @@ func (r Router[S, M]) View(id S, m M, width, height int) string {
 func (r Router[S, M]) Keys(id S, m M, msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s, ok := r.screens[id]
 	if !ok || s.Keys == nil {
-		return any(m).(tea.Model), nil
+		return m, nil
 	}
 	return s.Keys(m, msg)
 }
