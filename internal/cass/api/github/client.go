@@ -13,32 +13,27 @@ import (
 )
 
 const (
-	defaultBaseURL       = "https://api.github.com"
-	defaultMaxConcurrent = 10
-	defaultTimeout       = 30 * time.Second
-	apiVersion           = "2022-11-28"
+	defaultBaseURL = "https://api.github.com"
+	defaultTimeout = 30 * time.Second
+	apiVersion     = "2022-11-28"
 )
 
 // Client is an HTTP client for the GitHub API (including Classroom endpoints).
+// Requests run sequentially — pagination is a chain where each page names the
+// next — so the client carries no concurrency control.
 type Client struct {
-	BaseURL       string
-	Token         string
-	HTTPClient    *http.Client
-	MaxConcurrent int
-
-	sem chan struct{} // semaphore for concurrency control
+	BaseURL    string
+	Token      string
+	HTTPClient *http.Client
 }
 
 // NewClient creates a GitHub API client.
 func NewClient(token string) *Client {
-	c := &Client{
-		BaseURL:       defaultBaseURL,
-		Token:         token,
-		HTTPClient:    &http.Client{Timeout: defaultTimeout},
-		MaxConcurrent: defaultMaxConcurrent,
+	return &Client{
+		BaseURL:    defaultBaseURL,
+		Token:      token,
+		HTTPClient: &http.Client{Timeout: defaultTimeout},
 	}
-	c.sem = make(chan struct{}, c.MaxConcurrent)
-	return c
 }
 
 // GetPaginated performs paginated GET requests, aggregating all pages into dst.
@@ -72,9 +67,6 @@ func (c *Client) GetPaginated(ctx context.Context, path string, params url.Value
 // fetchPage fetches a single page of paginated results, returning raw JSON items
 // and the URL for the next page (or "" if none).
 func (c *Client) fetchPage(ctx context.Context, rawURL string) ([]json.RawMessage, string, error) {
-	c.sem <- struct{}{}
-	defer func() { <-c.sem }()
-
 	req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
 	if err != nil {
 		return nil, "", err

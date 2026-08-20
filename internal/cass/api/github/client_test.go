@@ -68,10 +68,10 @@ func TestClient_GetPaginated(t *testing.T) {
 	}
 }
 
-func TestClient_GetPaginated_SemaphoreSafety(t *testing.T) {
+func TestClient_GetPaginated_ErrorRecovery(t *testing.T) {
 	t.Parallel()
-	// Verifies semaphore is properly released even when requests error mid-pagination.
-	// First page succeeds, second page returns 500.
+	// A mid-pagination failure must error out cleanly and leave the client
+	// usable for the next request. First page succeeds, second returns 500.
 	page := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		page++
@@ -88,7 +88,6 @@ func TestClient_GetPaginated_SemaphoreSafety(t *testing.T) {
 
 	c := NewClient("gh-token")
 	c.BaseURL = srv.URL
-	c.MaxConcurrent = 2
 
 	var assignments []Assignment
 	err := c.GetPaginated(context.Background(), "/classrooms/1/assignments", nil, &assignments)
@@ -96,8 +95,8 @@ func TestClient_GetPaginated_SemaphoreSafety(t *testing.T) {
 		t.Fatal("expected error for 500 on second page")
 	}
 
-	// After the error, the semaphore must be fully drained (not leaked).
-	// Verify by doing another successful request — if semaphore leaked, this would deadlock.
+	// A follow-up request on the same client must succeed — the failed
+	// pagination must not leave any state behind.
 	page = 0
 	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode([]Assignment{{ID: 2, Slug: "lab-2"}})
