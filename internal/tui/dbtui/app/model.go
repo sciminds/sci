@@ -92,55 +92,28 @@ func NewModel(ds store.DataStore, dbPath string, readOnly bool) (*Model, error) 
 		return nil, fmt.Errorf("list tables: %w", err)
 	}
 
-	// Detect which names are SQL views or virtual tables (read-only in the TUI).
-	viewLister, hasViews := ds.(store.ViewLister)
-	virtualLister, hasVirtuals := ds.(store.VirtualLister)
-	rowEditChecker, hasRowEditChecker := ds.(store.RowEditabilityChecker)
+	// Detect which names are SQL views or virtual tables (read-only in the
+	// TUI). A failed assertion leaves the field nil, which is exactly what
+	// shouldForceTabReadOnly checks for.
+	viewLister, _ := ds.(store.ViewLister)
+	virtualLister, _ := ds.(store.VirtualLister)
+	rowEditChecker, _ := ds.(store.RowEditabilityChecker)
 
 	tabs := lo.Map(tableNames, func(name string, _ int) Tab {
 		return Tab{Name: name}
 	})
-
-	// Fully load only the first tab.
-	if len(tabs) > 0 {
-		tab, err := buildTab(ds, tableNames[0])
-		if err != nil {
-			return nil, fmt.Errorf("build tab %q: %w", tableNames[0], err)
-		}
-		readOnlyFirst := readOnly ||
-			(hasViews && viewLister.IsView(tableNames[0])) ||
-			(hasVirtuals && virtualLister.IsVirtual(tableNames[0])) ||
-			(hasRowEditChecker && !rowEditChecker.IsRowEditable(tableNames[0]))
-		if readOnlyFirst {
-			tab.ReadOnly = true
-		}
-		tabs[0] = tab
-	}
 
 	h := uikit.NewHelp()
 	h.ShowAll = true // help overlay always shows full bindings
 
 	sp := spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(uikit.TUI.TextBlue()))
 
-	var vl store.ViewLister
-	if hasViews {
-		vl = viewLister
-	}
-	var vtl store.VirtualLister
-	if hasVirtuals {
-		vtl = virtualLister
-	}
-	var rec store.RowEditabilityChecker
-	if hasRowEditChecker {
-		rec = rowEditChecker
-	}
-
-	return &Model{
+	m := &Model{
 		zones:          zone.New(),
 		store:          ds,
-		viewLister:     vl,
-		virtualLister:  vtl,
-		rowEditChecker: rec,
+		viewLister:     viewLister,
+		virtualLister:  virtualLister,
+		rowEditChecker: rowEditChecker,
 		dbPath:         dbPath,
 		styles:         uikit.TUI,
 		help:           h,
@@ -149,7 +122,21 @@ func NewModel(ds store.DataStore, dbPath string, readOnly bool) (*Model, error) 
 		active:         0,
 		mode:           modeNormal,
 		forceRO:        readOnly,
-	}, nil
+	}
+
+	// Fully load only the first tab.
+	if len(tabs) > 0 {
+		tab, err := buildTab(ds, tableNames[0])
+		if err != nil {
+			return nil, fmt.Errorf("build tab %q: %w", tableNames[0], err)
+		}
+		if m.shouldForceTabReadOnly(tableNames[0]) {
+			tab.ReadOnly = true
+		}
+		m.tabs[0] = tab
+	}
+
+	return m, nil
 }
 
 // ColHint overrides the default Flex/Max for a column matched by name.

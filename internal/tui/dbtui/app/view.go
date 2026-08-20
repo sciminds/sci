@@ -199,24 +199,24 @@ func (m *Model) tabsView() string {
 	}
 
 	// Find the range of tabs that fit, centered around the active tab.
-	lo, hi := m.active, m.active
+	first, last := m.active, m.active
 	used := tabWidth(m.active)
 
 	// Expand alternately left and right.
 	for {
 		expanded := false
-		if lo > 0 {
-			w := tabWidth(lo - 1)
+		if first > 0 {
+			w := tabWidth(first - 1)
 			if used+w <= maxTabsWidth {
-				lo--
+				first--
 				used += w
 				expanded = true
 			}
 		}
-		if hi < len(m.tabs)-1 {
-			w := tabWidth(hi + 1)
+		if last < len(m.tabs)-1 {
+			w := tabWidth(last + 1)
 			if used+w <= maxTabsWidth {
-				hi++
+				last++
 				used += w
 				expanded = true
 			}
@@ -229,18 +229,18 @@ func (m *Model) tabsView() string {
 	var parts []string
 
 	// Left overflow indicator.
-	if lo > 0 {
-		indicator := m.styles.TextDim().Render(fmt.Sprintf("◀ %d ", lo))
+	if first > 0 {
+		indicator := m.styles.TextDim().Render(fmt.Sprintf("◀ %d ", first))
 		parts = append(parts, indicator)
 	}
 
-	for i := lo; i <= hi; i++ {
+	for i := first; i <= last; i++ {
 		parts = append(parts, renderTab(i))
 	}
 
 	// Right overflow indicator.
-	if hi < len(m.tabs)-1 {
-		remaining := len(m.tabs) - 1 - hi
+	if last < len(m.tabs)-1 {
+		remaining := len(m.tabs) - 1 - last
 		indicator := m.styles.TextDim().Render(fmt.Sprintf(" %d ▶", remaining))
 		parts = append(parts, indicator)
 	}

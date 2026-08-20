@@ -88,11 +88,11 @@ func (m *Model) effectiveVisualSelection() []int {
 	// Add anchor range.
 	cursor := tab.Table.Cursor()
 	if m.visual.Anchor >= 0 {
-		lo, hi := m.visual.Anchor, cursor
-		if lo > hi {
-			lo, hi = hi, lo
+		start, end := m.visual.Anchor, cursor
+		if start > end {
+			start, end = end, start
 		}
-		for i := lo; i <= hi; i++ {
+		for i := start; i <= end; i++ {
 			seen[i] = true
 		}
 	}
@@ -142,11 +142,11 @@ func (m *Model) explicitVisualSelectionCount() int {
 	}
 	if m.visual.Anchor >= 0 {
 		cursor := tab.Table.Cursor()
-		lo, hi := m.visual.Anchor, cursor
-		if lo > hi {
-			lo, hi = hi, lo
+		start, end := m.visual.Anchor, cursor
+		if start > end {
+			start, end = end, start
 		}
-		for i := lo; i <= hi; i++ {
+		for i := start; i <= end; i++ {
 			seen[i] = true
 		}
 	}
