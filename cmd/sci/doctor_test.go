@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -152,24 +151,16 @@ func TestDoctor_JSONIncludesBrewfileFields(t *testing.T) {
 		t.Skip("skipping integration test (set SLOW=1 to run)")
 	}
 	// Capture stdout to parse the JSON output.
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	root := buildRoot()
-	// doctor --json may exit(1) if checks fail, but it should not panic or
-	// skip the Brewfile/tools sections.
-	_ = root.Run(context.Background(), []string{"sci", "--json", "doctor"})
-
-	_ = w.Close()
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
+	out := captureStdout(t, func() {
+		root := buildRoot()
+		// doctor --json may exit(1) if checks fail, but it should not panic or
+		// skip the Brewfile/tools sections.
+		_ = root.Run(context.Background(), []string{"sci", "--json", "doctor"})
+	})
 
 	var result map[string]any
-	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
-		t.Fatalf("expected valid JSON from doctor --json, got: %s", buf.String())
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("expected valid JSON from doctor --json, got: %s", out)
 	}
 
 	// The key assertion: --json must include Brewfile/tools fields, not

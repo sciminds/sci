@@ -36,7 +36,8 @@ func runCmd(t *testing.T, cmd *cli.Command, args ...string) {
 }
 
 // captureStdout replaces os.Stdout with a pipe, runs f, then restores it and
-// returns whatever was written.
+// returns whatever was written. The pipe is drained concurrently so output
+// larger than the pipe buffer (~64KiB) can't block f.
 func captureStdout(t *testing.T, f func()) string {
 	t.Helper()
 	r, w, err := os.Pipe()
@@ -46,16 +47,33 @@ func captureStdout(t *testing.T, f func()) string {
 	old := os.Stdout
 	os.Stdout = w
 
+	done := make(chan string, 1)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+
 	f()
 
-	_ = w.Close()
 	os.Stdout = old
+	_ = w.Close()
+	out := <-done
+	_ = r.Close()
+	return out
+}
 
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r); err != nil {
-		t.Fatal(err)
+func TestCaptureStdoutDrainsLargeOutput(t *testing.T) {
+	// A pipe buffer holds ~64KiB; the helper must drain concurrently or a
+	// larger write blocks f forever and the test times out instead of failing.
+	big := strings.Repeat("x", 1<<20)
+	out := captureStdout(t, func() {
+		if _, err := os.Stdout.WriteString(big); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	})
+	if out != big {
+		t.Errorf("captured %d bytes, want %d", len(out), len(big))
 	}
-	return buf.String()
 }
 
 // --- IsJSON ---
