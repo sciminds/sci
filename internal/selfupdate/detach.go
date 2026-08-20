@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-
-	"github.com/sciminds/sci/internal/version"
 )
 
 // spawnFn is the indirection used by [SpawnDetachedRefresh] so tests can
@@ -21,7 +19,8 @@ var spawnFn = startDetachedChild
 // fresh.
 //
 // No-ops in four cases:
-//   - dev build (version.Commit == "unknown") — no release to compare against.
+//   - dev build (version.IsDev()) — the notice is permanently suppressed
+//     for it, so the check could never be shown.
 //   - SCI_NO_UPDATE_CHECK set — explicit user opt-out.
 //   - SCI_INTERNAL_REFRESH_UPDATE_CACHE=1 — we ARE the child; recursing
 //     would fork-bomb the cache refresh.
@@ -31,10 +30,7 @@ var spawnFn = startDetachedChild
 // All failures are swallowed: this is best-effort background maintenance,
 // never something that should impede the user's actual command.
 func SpawnDetachedRefresh() {
-	if version.Commit == "unknown" {
-		return
-	}
-	if os.Getenv("SCI_NO_UPDATE_CHECK") != "" {
+	if updateChecksDisabled() {
 		return
 	}
 	if os.Getenv(InternalRefreshEnv) == "1" {

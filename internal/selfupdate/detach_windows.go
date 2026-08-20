@@ -4,8 +4,6 @@ package selfupdate
 
 import (
 	"os"
-
-	"github.com/sciminds/sci/internal/version"
 )
 
 // SpawnDetachedRefresh on Windows falls back to the previous goroutine
@@ -13,10 +11,7 @@ import (
 // does not currently ship Windows binaries. If you ever change that,
 // implement true detachment here via DETACHED_PROCESS / CREATE_NEW_PROCESS_GROUP.
 func SpawnDetachedRefresh() {
-	if version.Commit == "unknown" {
-		return
-	}
-	if os.Getenv("SCI_NO_UPDATE_CHECK") != "" {
+	if updateChecksDisabled() {
 		return
 	}
 	if os.Getenv(InternalRefreshEnv) == "1" {

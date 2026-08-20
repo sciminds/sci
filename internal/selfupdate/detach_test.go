@@ -42,6 +42,22 @@ func TestSpawnDetachedRefresh_SkipsOptOut(t *testing.T) {
 	}
 }
 
+// A `just build` binary carries a real commit SHA but Dev stays "true",
+// and its notice is permanently suppressed — so spawning a refresh child
+// (and its GitHub API call) buys nothing. The gate must be IsDev(), not
+// just Commit == "unknown".
+func TestSpawnDetachedRefresh_SkipsDevBuildWithRealSHA(t *testing.T) {
+	withCache(t)
+	withDevBuild(t)
+	t.Setenv("SCI_NO_UPDATE_CHECK", "")
+	t.Setenv(InternalRefreshEnv, "")
+	calls := withSpawnFn(t)
+	SpawnDetachedRefresh()
+	if len(*calls) != 0 {
+		t.Errorf("spawnFn called %d times for a dev build with a real SHA; want 0", len(*calls))
+	}
+}
+
 // TestSpawnDetachedRefresh_SkipsRecursion is the load-bearing guard against
 // the fork-bomb scenario: SpawnDetachedRefresh runs in the parent AND the
 // child (the child inherits the parent's setup via main → buildRoot's

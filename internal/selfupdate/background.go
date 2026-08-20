@@ -36,6 +36,18 @@ const refreshTTL = time.Hour
 // time-dependent paths without sleeping.
 var now = time.Now
 
+// updateChecksDisabled reports whether the whole background update
+// pipeline should stay off: dev builds have no release to meaningfully
+// compare against (a `just build` binary carries a real commit SHA but
+// version.Dev stays "true", and its notice is permanently suppressed, so
+// refreshing would spend GitHub API calls on a result nothing can show),
+// and SCI_NO_UPDATE_CHECK is the explicit user opt-out. [Check] keeps its
+// own narrower Commit == "unknown" test — `sci update` still works from a
+// dev build on purpose.
+func updateChecksDisabled() bool {
+	return version.IsDev() || os.Getenv("SCI_NO_UPDATE_CHECK") != ""
+}
+
 // defaultCacheFile returns the canonical update-check cache path under
 // $XDG_CACHE_HOME (e.g. ~/.cache/sci/update-check.json on Linux,
 // ~/Library/Caches/sci/update-check.json on macOS).
@@ -64,10 +76,7 @@ func defaultCacheFile() string {
 // returned message so subsequent invocations stay quiet until the next
 // refresh cycle.
 func ReadCachedNotice() string {
-	if version.IsDev() {
-		return ""
-	}
-	if os.Getenv("SCI_NO_UPDATE_CHECK") != "" {
+	if updateChecksDisabled() {
 		return ""
 	}
 	cached, ok := loadCache()
@@ -107,10 +116,7 @@ func MarkNoticeShown() {
 // LastShownAt is preserved across refreshes — the show-once-per-cycle
 // gate in ReadCachedNotice handles cadence.
 func RefreshCache() {
-	if version.Commit == "unknown" {
-		return
-	}
-	if os.Getenv("SCI_NO_UPDATE_CHECK") != "" {
+	if updateChecksDisabled() {
 		return
 	}
 	result := Check()

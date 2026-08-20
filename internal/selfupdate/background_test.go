@@ -3,6 +3,8 @@ package selfupdate
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync"
@@ -58,6 +60,49 @@ func withCommit(t *testing.T, sha string) {
 	oldDev := version.Dev
 	version.Dev = "false"
 	t.Cleanup(func() { version.Dev = oldDev })
+}
+
+// withDevBuild pins the version identity to what `just build` stamps: a
+// real commit SHA with Dev left at its "true" default. This is the state
+// every locally built binary runs in, so the background update pipeline
+// must treat it exactly like Commit == "unknown".
+func withDevBuild(t *testing.T) {
+	t.Helper()
+	withCommit(t, "abc1234def5678")
+	oldDev := version.Dev
+	version.Dev = "true"
+	t.Cleanup(func() { version.Dev = oldDev })
+}
+
+// A dev build's notice is permanently suppressed, so refreshing the cache
+// for one is a GitHub API call that can never be shown. RefreshCache must
+// gate on IsDev(), not just Commit == "unknown".
+func TestRefreshCache_SkipsDevBuildWithRealSHA(t *testing.T) {
+	path := withCache(t)
+	withDevBuild(t)
+	t.Setenv("SCI_NO_UPDATE_CHECK", "")
+
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		body := `{"body":"**Commit:** bbbbbbb2222222","assets":[]}`
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+	overrideOnlineProbe(t, srv)
+	oldURL := releaseURL
+	releaseURL = srv.URL
+	defer func() { releaseURL = oldURL }()
+
+	RefreshCache()
+
+	if hits != 0 {
+		t.Errorf("RefreshCache hit the releases API %d times for a dev build; want 0", hits)
+	}
+	if _, err := os.Stat(path); err == nil {
+		t.Error("RefreshCache wrote a cache for a dev build; want no file")
+	}
 }
 
 // withClock pins the package clock to a fixed time so time-dependent
