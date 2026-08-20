@@ -217,7 +217,7 @@ func RunPostSteps(steps []PostStep, dir string, onUpdate func(label string)) err
 			if !step.ContinueOnError {
 				return msg
 			}
-			fmt.Printf("warning: %v\n", msg)
+			fmt.Fprintf(os.Stderr, "warning: %v\n", msg)
 		}
 	}
 	return nil

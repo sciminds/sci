@@ -1,6 +1,9 @@
 package new
 
 import (
+	"io"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -104,6 +107,56 @@ func TestDefaultPostStepsTypst(t *testing.T) {
 	}
 	if steps[0].Label != "git init" {
 		t.Errorf("expected git init, got %q", steps[0].Label)
+	}
+}
+
+// captureOutput runs f while capturing everything written to os.Stdout and
+// os.Stderr. Each pipe is drained concurrently so writes larger than the pipe
+// buffer (~64KiB) can't block f. Not parallel-safe: it swaps process globals.
+func captureOutput(t *testing.T, f func()) (stdout, stderr string) {
+	t.Helper()
+	capture := func(target **os.File) func() string {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("os.Pipe: %v", err)
+		}
+		orig := *target
+		*target = w
+		done := make(chan string, 1)
+		go func() {
+			b, _ := io.ReadAll(r)
+			done <- string(b)
+		}()
+		return func() string {
+			*target = orig
+			_ = w.Close()
+			return <-done
+		}
+	}
+	restoreOut := capture(&os.Stdout)
+	restoreErr := capture(&os.Stderr)
+	f()
+	return restoreOut(), restoreErr()
+}
+
+func TestRunPostStepsWarningGoesToStderr(t *testing.T) {
+	// A ContinueOnError step that fails must warn on stderr and leave stdout
+	// untouched — stdout carries the answer (--json piping is first-class).
+	steps := []PostStep{
+		{Label: "always fails", Cmd: []string{"false"}, ContinueOnError: true},
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := RunPostSteps(steps, t.TempDir(), nil); err != nil {
+			t.Errorf("ContinueOnError step should not return an error, got: %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Errorf("stdout should stay clean, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "warning:") {
+		t.Errorf("stderr should carry the warning, got %q", stderr)
 	}
 }
 
