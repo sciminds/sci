@@ -235,6 +235,31 @@ func TestStatsResult_Human(t *testing.T) {
 	}
 }
 
+func TestStatsResult_HumanByTypeTieOrder(t *testing.T) {
+	t.Parallel()
+	// Equal counts must fall back to name order — the old map iteration made
+	// ties shuffle between runs of the same `sci zot info`.
+	r := StatsResult{
+		Stats: local.Stats{
+			ByType: map[string]int{
+				"thesis": 2, "book": 2, "report": 2, "journalArticle": 2, "conferencePaper": 2,
+			},
+		},
+	}
+	out := r.Human()
+	prev := -1
+	for _, name := range []string{"book", "conferencePaper", "journalArticle", "report", "thesis"} {
+		idx := strings.Index(out, name)
+		if idx < 0 {
+			t.Fatalf("missing %q:\n%s", name, out)
+		}
+		if idx < prev {
+			t.Fatalf("tied by-type entries not in name order:\n%s", out)
+		}
+		prev = idx
+	}
+}
+
 // TestStatsResult_OrientCoverageReportsAndStops pins the first output the
 // guide tells an agent to run: `info --orient` reports how much of the
 // library has an extraction and stops there. Naming a verb that reads that

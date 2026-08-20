@@ -3,6 +3,8 @@ package cass
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/sciminds/sci/internal/cass/api/canvas"
@@ -40,7 +42,9 @@ func PushGrades(ctx context.Context, db *DB, canvasBaseURL, token string, course
 	}
 
 	pushed := 0
-	for assignmentID, grades := range byAssignment {
+	// Sorted keys so pushes hit Canvas in a stable order run over run.
+	for _, assignmentID := range slices.Sorted(maps.Keys(byAssignment)) {
+		grades := byAssignment[assignmentID]
 		form := canvas.BulkGradeForm(grades)
 		path := fmt.Sprintf("/courses/%d/assignments/%d/submissions/update_grades", courseID, assignmentID)
 

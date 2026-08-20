@@ -5,6 +5,8 @@ package doctor
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -232,7 +234,7 @@ func ResolveOptionalSet(r brew.Runner, f OptionalFilter) ([]brew.BrewfileEntry, 
 	})
 	if unknown := unknownNames(f.Include, byName); len(unknown) > 0 {
 		return nil, fmt.Errorf("unknown optional tool(s): %s (available: %s)",
-			strings.Join(unknown, ", "), strings.Join(lo.Keys(byName), ", "))
+			strings.Join(unknown, ", "), strings.Join(slices.Sorted(maps.Keys(byName)), ", "))
 	}
 	if unknown := unknownNames(f.Exclude, byName); len(unknown) > 0 {
 		return nil, fmt.Errorf("unknown optional tool(s) in --exclude: %s", strings.Join(unknown, ", "))

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
@@ -195,7 +197,10 @@ func DiffRemote(ctx context.Context, db *DB, canvasBaseURL, token string, course
 	result := RemoteDiffResult{
 		Changes: make([]RemoteGradeChange, 0, len(local.Changes)),
 	}
-	for assignmentID, changes := range byAssignment {
+	// Sorted keys so fetches and the resulting change list keep a stable
+	// order run over run.
+	for _, assignmentID := range slices.Sorted(maps.Keys(byAssignment)) {
+		changes := byAssignment[assignmentID]
 		// Fetch live submissions for this assignment.
 		path := fmt.Sprintf("/courses/%d/assignments/%d/submissions", courseID, assignmentID)
 		var subs []canvas.Submission

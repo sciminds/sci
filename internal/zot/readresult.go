@@ -1,6 +1,7 @@
 package zot
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"slices"
@@ -437,21 +438,17 @@ func (r StatsResult) Human() string {
 	fmt.Fprintf(&b, "  %s %d\n\n", uikit.TUI.Dim().Render("tags:          "), r.Stats.Tags)
 	if len(r.Stats.ByType) > 0 {
 		fmt.Fprintf(&b, "  %s\n", uikit.TUI.Dim().Render("by type:"))
-		// Sort by count desc for readability.
+		// Sort by count desc for readability, name asc to keep ties stable.
 		type kv struct {
 			k string
 			v int
 		}
-		list := make([]kv, 0, len(r.Stats.ByType))
-		for k, v := range r.Stats.ByType {
-			list = append(list, kv{k, v})
-		}
-		// Inline insertion sort — len is small.
-		for i := 1; i < len(list); i++ {
-			for j := i; j > 0 && list[j-1].v < list[j].v; j-- {
-				list[j-1], list[j] = list[j], list[j-1]
-			}
-		}
+		list := lo.MapToSlice(r.Stats.ByType, func(k string, v int) kv {
+			return kv{k, v}
+		})
+		slices.SortFunc(list, func(a, b kv) int {
+			return cmp.Or(cmp.Compare(b.v, a.v), cmp.Compare(a.k, b.k))
+		})
 		for _, kv := range list {
 			fmt.Fprintf(&b, "    %-20s %d\n", kv.k, kv.v)
 		}

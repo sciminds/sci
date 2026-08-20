@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -170,6 +172,47 @@ func TestPushGrades_EndToEnd(t *testing.T) {
 	}
 	if !gotForm {
 		t.Error("expected grade POST to be sent")
+	}
+}
+
+func TestPushGrades_AssignmentOrderDeterministic(t *testing.T) {
+	t.Parallel()
+	db := openTestDB(t)
+
+	// Record the order assignments are pushed in: iterating the by-assignment
+	// map directly made it random per process, so retries and logs never
+	// lined up between two runs of the same push.
+	var mu sync.Mutex
+	var postPaths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			mu.Lock()
+			postPaths = append(postPaths, r.URL.Path)
+			mu.Unlock()
+			_ = json.NewEncoder(w).Encode(canvas.Progress{ID: 42, WorkflowState: "completed"})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(canvas.Progress{ID: 42, WorkflowState: "completed"})
+	}))
+	defer srv.Close()
+
+	changes := []GradeChange{
+		{StudentID: 1, CanvasUserID: 101, CanvasAssignmentID: 205, Current: "90"},
+		{StudentID: 1, CanvasUserID: 101, CanvasAssignmentID: 201, Current: "91"},
+		{StudentID: 1, CanvasUserID: 101, CanvasAssignmentID: 203, Current: "92"},
+	}
+
+	if _, err := PushGrades(context.Background(), db, srv.URL, "token", 1, changes); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{
+		"/api/v1/courses/1/assignments/201/submissions/update_grades",
+		"/api/v1/courses/1/assignments/203/submissions/update_grades",
+		"/api/v1/courses/1/assignments/205/submissions/update_grades",
+	}
+	if !slices.Equal(postPaths, want) {
+		t.Errorf("push order = %v, want ascending assignment IDs %v", postPaths, want)
 	}
 }
 
