@@ -17,11 +17,21 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 // hubMaxPages caps Link-header following. The Hub ends its own pagination; this
 // only stops a malformed or cyclic `next` link from looping forever.
 const hubMaxPages = 100
+
+// hubHTTPTimeout bounds a complete Hub request, including reading its body.
+// Listings can be large, so this is deliberately much longer than the whoami
+// deadline while still preventing a stalled server from hanging forever.
+const hubHTTPTimeout = 2 * time.Minute
+
+// hubHTTPClient is package-owned so every Hub request has a bounded lifetime.
+// Tests replace it with clients backed by httptest servers.
+var hubHTTPClient = &http.Client{Timeout: hubHTTPTimeout}
 
 // hubGet issues an authenticated GET against an absolute Hub URL.
 func hubGet(ctx context.Context, rawURL string) (*http.Response, error) {
@@ -34,7 +44,7 @@ func hubGet(ctx context.Context, rawURL string) (*http.Response, error) {
 		return nil, fmt.Errorf("build hugging face request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+tok)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hubHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("hugging face request: %w", err)
 	}
@@ -58,16 +68,28 @@ func hubStatusError(resp *http.Response, what string) error {
 }
 
 // hubNextPage returns the next page's URL from a Link header, or "" when this
-// was the last page. The Hub paginates with RFC 8288 `<url>; rel="next"`.
-func hubNextPage(link string) string {
+// was the last page. Relative references are resolved against the response URL,
+// then constrained to the original endpoint's origin before the token can be
+// attached to another request.
+func hubNextPage(currentURL, originURL *url.URL, link string) (string, error) {
 	for _, part := range strings.Split(link, ",") {
 		segments := strings.Split(part, ";")
 		if len(segments) < 2 || !strings.Contains(segments[1], `rel="next"`) {
 			continue
 		}
-		return strings.Trim(strings.TrimSpace(segments[0]), "<>")
+		rawNext := strings.Trim(strings.TrimSpace(segments[0]), "<>")
+		nextURL, err := url.Parse(rawNext)
+		if err != nil {
+			return "", fmt.Errorf("parse Hub pagination link %q: %w", rawNext, err)
+		}
+		resolved := currentURL.ResolveReference(nextURL)
+		if !strings.EqualFold(resolved.Scheme, originURL.Scheme) || !strings.EqualFold(resolved.Host, originURL.Host) {
+			return "", fmt.Errorf("refuse cross-origin Hub pagination link %q", resolved.String())
+		}
+		resolved.Fragment = ""
+		return resolved.String(), nil
 	}
-	return ""
+	return "", nil
 }
 
 // hfEndpoint returns the Hub base URL, honoring HF_ENDPOINT — the same override
@@ -96,20 +118,36 @@ func bucketTreeURL(org, bucket, prefix string) string {
 func listBucketTree(ctx context.Context, org, bucket, prefix string) ([]hfFile, error) {
 	var all []hfFile
 	next := bucketTreeURL(org, bucket, prefix)
-	for page := 0; next != "" && page < hubMaxPages; page++ {
-		files, link, err := fetchBucketPage(ctx, next)
+	originURL, err := url.Parse(next)
+	if err != nil {
+		return nil, fmt.Errorf("parse Hub bucket endpoint: %w", err)
+	}
+	visited := make(map[string]struct{}, hubMaxPages)
+	for range hubMaxPages {
+		if next == "" {
+			break
+		}
+		if _, seen := visited[next]; seen {
+			return nil, fmt.Errorf("hub bucket pagination cycle at %q", next)
+		}
+		visited[next] = struct{}{}
+
+		files, link, err := fetchBucketPage(ctx, next, originURL)
 		if err != nil {
 			return nil, err
 		}
 		all = append(all, files...)
 		next = link
 	}
+	if next != "" {
+		return nil, fmt.Errorf("hub bucket listing truncated after %d pages", hubMaxPages)
+	}
 	return all, nil
 }
 
 // fetchBucketPage reads one page of a bucket listing, returning its entries and
 // the URL of the page after it (empty when there is none).
-func fetchBucketPage(ctx context.Context, rawURL string) (files []hfFile, next string, err error) {
+func fetchBucketPage(ctx context.Context, rawURL string, originURL *url.URL) (files []hfFile, next string, err error) {
 	resp, err := hubGet(ctx, rawURL)
 	if err != nil {
 		return nil, "", err
@@ -125,5 +163,9 @@ func fetchBucketPage(ctx context.Context, rawURL string) (files []hfFile, next s
 	if err := json.NewDecoder(resp.Body).Decode(&files); err != nil {
 		return nil, "", fmt.Errorf("parse bucket listing: %w", err)
 	}
-	return files, hubNextPage(resp.Header.Get("Link")), nil
+	next, err = hubNextPage(resp.Request.URL, originURL, resp.Header.Get("Link"))
+	if err != nil {
+		return nil, "", err
+	}
+	return files, next, nil
 }

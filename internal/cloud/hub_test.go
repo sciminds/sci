@@ -2,11 +2,13 @@ package cloud
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // hubStub stands up a fake Hub, points HF_ENDPOINT at it, and records the
@@ -90,6 +92,127 @@ func TestListBucketTree_FollowsPagination(t *testing.T) {
 	}
 	if files[0].Path != "a.csv" || files[2].Path != "c.csv" {
 		t.Errorf("files = %+v, want page order preserved", files)
+	}
+}
+
+func TestListBucketTree_RejectsCrossOriginNextLinkBeforeSendingToken(t *testing.T) {
+	setHFToken(t, "hf_secret", nil)
+	attackerRequests := make(chan string, 1)
+	attacker := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attackerRequests <- r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	attacker.Start()
+	hub := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Link", fmt.Sprintf(`<%s/steal>; rel="next"`, attacker.URL))
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	hub.Start()
+	t.Setenv("HF_ENDPOINT", hub.URL)
+
+	_, err := listBucketTree(context.Background(), "o", "b", "")
+	if err == nil {
+		t.Fatal("listBucketTree() error = nil, want a cross-origin pagination error")
+	}
+	if !strings.Contains(err.Error(), "cross-origin") {
+		t.Errorf("listBucketTree() error = %q, want it to name the cross-origin link", err)
+	}
+	select {
+	case gotAuth := <-attackerRequests:
+		t.Errorf("attacker server received Authorization = %q, want no request carrying the token", gotAuth)
+	default:
+	}
+}
+
+func TestListBucketTree_ResolvesRelativeNextLink(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	requests := 0
+	hub := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.URL.Query().Get("cursor") == "" {
+			w.Header().Set("Link", `</api/buckets/o/b/tree?cursor=p2>; rel="next"`)
+			_, _ = w.Write([]byte(`[{"type":"file","path":"a.csv"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`[{"type":"file","path":"b.csv"}]`))
+	}))
+	hub.Start()
+	t.Setenv("HF_ENDPOINT", hub.URL)
+
+	files, err := listBucketTree(context.Background(), "o", "b", "")
+	if err != nil {
+		t.Fatalf("listBucketTree() error = %v", err)
+	}
+	if requests != 2 || len(files) != 2 {
+		t.Errorf("made %d requests and got %d files, want 2 requests and 2 files", requests, len(files))
+	}
+}
+
+func TestListBucketTree_RejectsPaginationCycleImmediately(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	requests := 0
+	var hubURL string
+	hub := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.Header().Set("Link", fmt.Sprintf(`<%s/api/buckets/o/b/tree?recursive=true>; rel="next"`, hubURL))
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	hub.Start()
+	hubURL = hub.URL
+	t.Setenv("HF_ENDPOINT", hub.URL)
+
+	_, err := listBucketTree(context.Background(), "o", "b", "")
+	if err == nil || !strings.Contains(err.Error(), "cycle") {
+		t.Fatalf("listBucketTree() error = %v, want a pagination cycle error", err)
+	}
+	if requests != 1 {
+		t.Errorf("made %d requests, want 1 before detecting the cycle", requests)
+	}
+}
+
+func TestListBucketTree_PageCapReturnsTruncationError(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	requests := 0
+	var hubURL string
+	hub := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		nextPage := requests + 1
+		w.Header().Set("Link", fmt.Sprintf(`<%s%s?recursive=true&page=%d>; rel="next"`, hubURL, r.URL.Path, nextPage))
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	hub.Start()
+	hubURL = hub.URL
+	t.Setenv("HF_ENDPOINT", hub.URL)
+
+	_, err := listBucketTree(context.Background(), "o", "b", "")
+	if err == nil || !strings.Contains(err.Error(), "truncated") {
+		t.Fatalf("listBucketTree() error = %v, want a truncation error", err)
+	}
+	if requests != hubMaxPages {
+		t.Errorf("made %d requests, want the %d-page cap", requests, hubMaxPages)
+	}
+}
+
+func TestHubHTTPClient_BoundsStalledRequestAndIsInjectable(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	if hubHTTPClient.Timeout != hubHTTPTimeout || hubHTTPClient.Timeout <= 0 {
+		t.Fatalf("hubHTTPClient.Timeout = %v, want the bounded package default %v", hubHTTPClient.Timeout, hubHTTPTimeout)
+	}
+	hub := httptest.NewTestServer(t, http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	client := hub.Client()
+	client.Timeout = 20 * time.Millisecond
+	originalClient := hubHTTPClient
+	hubHTTPClient = client
+	t.Cleanup(func() { hubHTTPClient = originalClient })
+
+	_, err := hubGet(context.Background(), hub.URL+"/stall")
+	if err == nil {
+		t.Fatal("hubGet() error = nil, want the client timeout to stop a stalled response")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("hubGet() error = %v, want context.DeadlineExceeded", err)
 	}
 }
 

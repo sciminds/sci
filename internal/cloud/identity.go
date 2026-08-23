@@ -93,7 +93,7 @@ var hfWhoami = func() (user string, orgs []string, err error) {
 		return "", nil, fmt.Errorf("build whoami request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+tok)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := hubHTTPClient.Do(req)
 	if err != nil {
 		return "", nil, fmt.Errorf("hugging face whoami: %w", err)
 	}
