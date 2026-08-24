@@ -4,12 +4,35 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func stubHubRetry(t *testing.T, now func() time.Time, sleep func(context.Context, time.Duration) error) {
+	t.Helper()
+	originalNow := hubRetryNow
+	originalSleep := hubRetrySleep
+	if now != nil {
+		hubRetryNow = now
+	}
+	if sleep != nil {
+		hubRetrySleep = sleep
+	}
+	t.Cleanup(func() {
+		hubRetryNow = originalNow
+		hubRetrySleep = originalSleep
+	})
+}
+
+func skipHubRetrySleep(ctx context.Context, _ time.Duration) error {
+	return ctx.Err()
+}
 
 // hubStub stands up a fake Hub, points HF_ENDPOINT at it, and records the
 // paths (with query) each request asked for.
@@ -64,6 +87,347 @@ func TestListBucketTree_NoPrefixListsWholeBucket(t *testing.T) {
 	}
 }
 
+func TestListBucketTree_RetriesRateLimit(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	stubHubRetry(t, nil, skipHubRetrySleep)
+	requests := 0
+	hubStub(t, func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		if requests == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"error":"slow down"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`[{"type":"file","path":"alice/data.csv"}]`))
+	})
+
+	files, err := listBucketTree(context.Background(), "sciminds", "private", "")
+	if err != nil {
+		t.Fatalf("listBucketTree() error = %v, want retry to succeed", err)
+	}
+	if requests != 2 {
+		t.Errorf("requests = %d, want 2", requests)
+	}
+	if len(files) != 1 || files[0].Path != "alice/data.csv" {
+		t.Errorf("files = %+v, want the successful retry response", files)
+	}
+}
+
+func TestHubGet_RetriesRetryableStatuses(t *testing.T) {
+	for _, status := range []int{
+		http.StatusRequestTimeout,
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusGatewayTimeout,
+	} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			setHFToken(t, "hf_abc", nil)
+			stubHubRetry(t, nil, skipHubRetrySleep)
+			requests := 0
+			paths := hubStub(t, func(w http.ResponseWriter, _ *http.Request) {
+				requests++
+				if requests == 1 {
+					w.WriteHeader(status)
+					return
+				}
+				_, _ = w.Write([]byte(`[]`))
+			})
+
+			resp, err := hubGet(context.Background(), hfEndpoint()+"/retry")
+			if err != nil {
+				t.Fatalf("hubGet() error = %v, want retry to succeed", err)
+			}
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK || requests != 2 || len(*paths) != 2 {
+				t.Errorf("status = %d, requests = %d, want 200 after 2 requests", resp.StatusCode, requests)
+			}
+		})
+	}
+}
+
+func TestHubGet_DoesNotRetryOtherClientErrors(t *testing.T) {
+	for _, status := range []int{
+		http.StatusBadRequest,
+		http.StatusUnauthorized,
+		http.StatusForbidden,
+		http.StatusNotFound,
+		http.StatusConflict,
+	} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			setHFToken(t, "hf_abc", nil)
+			stubHubRetry(t, nil, func(context.Context, time.Duration) error {
+				t.Fatal("non-retryable response attempted to sleep")
+				return nil
+			})
+			requests := 0
+			hubStub(t, func(w http.ResponseWriter, _ *http.Request) {
+				requests++
+				w.WriteHeader(status)
+			})
+
+			resp, err := hubGet(context.Background(), hfEndpoint()+"/rejected")
+			if err != nil {
+				t.Fatalf("hubGet() transport error = %v", err)
+			}
+			defer func() { _ = resp.Body.Close() }()
+			if requests != 1 {
+				t.Errorf("requests = %d, want exactly 1 for %d", requests, status)
+			}
+		})
+	}
+}
+
+func TestListBucketTree_RetriesTransportError(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	stubHubRetry(t, nil, skipHubRetrySleep)
+	var requests atomic.Int32
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if requests.Add(1) == 1 {
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err != nil {
+				t.Errorf("hijack first request: %v", err)
+				return
+			}
+			_ = conn.Close()
+			return
+		}
+		_, _ = w.Write([]byte(`[{"type":"file","path":"alice/data.csv"}]`))
+	}))
+	t.Cleanup(hub.Close)
+	t.Setenv("HF_ENDPOINT", hub.URL)
+
+	files, err := listBucketTree(context.Background(), "sciminds", "private", "")
+	if err != nil {
+		t.Fatalf("listBucketTree() error = %v, want transport retry to succeed", err)
+	}
+	if requests.Load() != 2 || len(files) != 1 {
+		t.Errorf("requests = %d, files = %+v, want success on request 2", requests.Load(), files)
+	}
+}
+
+func TestListBucketTree_RetriesExhaustAndReturnLastError(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	var delays []time.Duration
+	stubHubRetry(t, nil, func(ctx context.Context, delay time.Duration) error {
+		delays = append(delays, delay)
+		return ctx.Err()
+	})
+	statuses := []int{
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusGatewayTimeout,
+		http.StatusServiceUnavailable,
+	}
+	requests := 0
+	hubStub(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(statuses[requests])
+		requests++
+	})
+
+	_, err := listBucketTree(context.Background(), "sciminds", "private", "")
+	if err == nil || !strings.Contains(err.Error(), "503 Service Unavailable") {
+		t.Fatalf("listBucketTree() error = %v, want the last 503 error", err)
+	}
+	if requests != hubRetryMaxAttempts {
+		t.Errorf("requests = %d, want bounded maximum %d", requests, hubRetryMaxAttempts)
+	}
+	wantDelays := []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second}
+	if !slices.Equal(delays, wantDelays) {
+		t.Errorf("delays = %v, want exponential backoff %v", delays, wantDelays)
+	}
+}
+
+func TestHubGet_HonorsRetryAfter(t *testing.T) {
+	fixedNow := time.Date(2026, time.August, 23, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name      string
+		status    int
+		header    string
+		wantDelay time.Duration
+	}{
+		{name: "delta seconds", status: http.StatusTooManyRequests, header: "3", wantDelay: 3 * time.Second},
+		{name: "HTTP date", status: http.StatusServiceUnavailable, header: fixedNow.Add(4 * time.Second).Format(http.TimeFormat), wantDelay: 4 * time.Second},
+		{name: "absurd delay is clamped", status: http.StatusTooManyRequests, header: "86400", wantDelay: hubRetryAfterCap},
+		{name: "invalid header uses backoff", status: http.StatusServiceUnavailable, header: "eventually", wantDelay: hubRetryBaseDelay},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setHFToken(t, "hf_abc", nil)
+			var delays []time.Duration
+			stubHubRetry(t, func() time.Time { return fixedNow }, func(ctx context.Context, delay time.Duration) error {
+				delays = append(delays, delay)
+				return ctx.Err()
+			})
+			requests := 0
+			hubStub(t, func(w http.ResponseWriter, _ *http.Request) {
+				requests++
+				if requests == 1 {
+					w.Header().Set("Retry-After", tt.header)
+					w.WriteHeader(tt.status)
+					return
+				}
+				_, _ = w.Write([]byte(`[]`))
+			})
+
+			resp, err := hubGet(context.Background(), hfEndpoint()+"/retry-after")
+			if err != nil {
+				t.Fatalf("hubGet() error = %v", err)
+			}
+			_ = resp.Body.Close()
+			if len(delays) != 1 || delays[0] != tt.wantDelay {
+				t.Errorf("delays = %v, want [%v]", delays, tt.wantDelay)
+			}
+		})
+	}
+}
+
+func TestHubDo_CanceledWaitReturnsNoClosedResponse(t *testing.T) {
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("try later"))
+	}))
+	t.Cleanup(hub.Close)
+	ctx, cancel := context.WithCancel(context.Background())
+	stubHubRetry(t, nil, func(ctx context.Context, _ time.Duration) error {
+		cancel()
+		return ctx.Err()
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, hub.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := hubDo(ctx, req)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("hubDo() error = %v, want context.Canceled", err)
+	}
+	if resp != nil {
+		_, readErr := resp.Body.Read(make([]byte, 1))
+		t.Errorf("hubDo() response = %s, want nil; body reread error = %v", resp.Status, readErr)
+	}
+}
+
+func TestHubDo_UnaffordableWaitReturnsOpenLastResponse(t *testing.T) {
+	deadline := time.Now().Add(time.Hour)
+	stubHubRetry(t, func() time.Time { return deadline.Add(-time.Second) }, func(context.Context, time.Duration) error {
+		t.Fatal("unaffordable retry attempted to sleep")
+		return nil
+	})
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "5")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("try later"))
+	}))
+	t.Cleanup(hub.Close)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, hub.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := hubDo(ctx, req)
+	if err != nil {
+		t.Fatalf("hubDo() error = %v, want the last real response", err)
+	}
+	if resp == nil {
+		t.Fatal("hubDo() response = nil, want the last real response")
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("hubDo() status = %s, want 503 Service Unavailable", resp.Status)
+	}
+	body, readErr := io.ReadAll(resp.Body)
+	if readErr != nil || string(body) != "try later" {
+		t.Errorf("hubDo() body = %q, error = %v, want an open %q body", body, readErr, "try later")
+	}
+}
+
+func TestListBucketTree_DeadlineShorterThanBackoffReturnsLastError(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	slept := false
+	stubHubRetry(t, nil, func(context.Context, time.Duration) error {
+		slept = true
+		return nil
+	})
+	requests := 0
+	hubStub(t, func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), hubRetryBaseDelay/2)
+	defer cancel()
+
+	_, err := listBucketTree(ctx, "sciminds", "private", "")
+	if err == nil || !strings.Contains(err.Error(), "503 Service Unavailable") {
+		t.Fatalf("listBucketTree() error = %v, want the last 503 error", err)
+	}
+	if slept || requests != 1 {
+		t.Errorf("slept = %v, requests = %d, want no sleep and exactly 1 request", slept, requests)
+	}
+}
+
+func TestListBucketTree_CancelDuringBackoffReturnsPromptly(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	sleepStarted := make(chan struct{})
+	stubHubRetry(t, nil, func(ctx context.Context, delay time.Duration) error {
+		close(sleepStarted)
+		return sleepHubRetry(ctx, delay)
+	})
+	hubStub(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() {
+		_, err := listBucketTree(ctx, "sciminds", "private", "")
+		result <- err
+	}()
+	<-sleepStarted
+	cancel()
+
+	timer := time.NewTimer(250 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("listBucketTree() error = %v, want context.Canceled", err)
+		}
+	case <-timer.C:
+		t.Fatal("listBucketTree() did not return promptly after cancellation")
+	}
+}
+
+func TestHubGet_DrainsRetriedResponseForConnectionReuse(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	stubHubRetry(t, nil, skipHubRetrySleep)
+	requests := 0
+	connections := make(map[string]struct{})
+	retryBody := strings.Repeat("x", 256*1024)
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		connections[r.RemoteAddr] = struct{}{}
+		if requests == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(retryBody))
+			return
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(hub.Close)
+	t.Setenv("HF_ENDPOINT", hub.URL)
+	originalClient := hubHTTPClient
+	hubHTTPClient = hub.Client()
+	t.Cleanup(func() { hubHTTPClient = originalClient })
+
+	if _, err := listBucketTree(context.Background(), "sciminds", "private", ""); err != nil {
+		t.Fatalf("listBucketTree() error = %v", err)
+	}
+	if requests != 2 || len(connections) != 1 {
+		t.Errorf("requests = %d over %d connections, want 2 requests over 1 reused connection", requests, len(connections))
+	}
+}
+
 func TestListBucketTree_FollowsPagination(t *testing.T) {
 	setHFToken(t, "hf_abc", nil)
 	var base string
@@ -92,6 +456,36 @@ func TestListBucketTree_FollowsPagination(t *testing.T) {
 	}
 	if files[0].Path != "a.csv" || files[2].Path != "c.csv" {
 		t.Errorf("files = %+v, want page order preserved", files)
+	}
+}
+
+func TestListBucketTree_DiscardsEarlierPagesWhenLaterPageFails(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	stubHubRetry(t, nil, skipHubRetrySleep)
+	requests := 0
+	var base string
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		if requests == 1 {
+			w.Header().Set("Link", fmt.Sprintf(`<%s/api/buckets/o/b/tree?cursor=p2>; rel="next"`, base))
+			_, _ = w.Write([]byte(`[{"type":"file","path":"first.csv"}]`))
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(hub.Close)
+	base = hub.URL
+	t.Setenv("HF_ENDPOINT", hub.URL)
+
+	files, err := listBucketTree(context.Background(), "o", "b", "")
+	if err == nil {
+		t.Fatal("listBucketTree() error = nil, want the second-page failure")
+	}
+	if files != nil {
+		t.Errorf("files = %+v, want nil rather than a partial listing", files)
+	}
+	if requests != 1+hubRetryMaxAttempts {
+		t.Errorf("requests = %d, want first page plus %d attempts for page two", requests, hubRetryMaxAttempts)
 	}
 }
 
@@ -195,6 +589,7 @@ func TestListBucketTree_PageCapReturnsTruncationError(t *testing.T) {
 
 func TestHubHTTPClient_BoundsStalledRequestAndIsInjectable(t *testing.T) {
 	setHFToken(t, "hf_abc", nil)
+	stubHubRetry(t, nil, skipHubRetrySleep)
 	if hubHTTPClient.Timeout != hubHTTPTimeout || hubHTTPClient.Timeout <= 0 {
 		t.Fatalf("hubHTTPClient.Timeout = %v, want the bounded package default %v", hubHTTPClient.Timeout, hubHTTPTimeout)
 	}
@@ -234,6 +629,7 @@ func TestListBucketTree_MissingPrefixIsEmptyNotAnError(t *testing.T) {
 
 func TestListBucketTree_ServerErrorSurfaces(t *testing.T) {
 	setHFToken(t, "hf_abc", nil)
+	stubHubRetry(t, nil, skipHubRetrySleep)
 	hubStub(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})

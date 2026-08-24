@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // setHFToken swaps the local-credential hook for a test and restores it on
@@ -75,16 +76,90 @@ func TestHFWhoami_ParsesUserAndOrgs(t *testing.T) {
 
 func TestHFWhoami_UnauthorizedReadsAsNotLoggedIn(t *testing.T) {
 	setHFToken(t, "hf_stale", nil)
-	serveWhoami(t, http.StatusUnauthorized, `{"error":"Invalid credentials"}`)
+	stubHubRetry(t, nil, skipHubRetrySleep)
+	requests := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"Invalid credentials"}`))
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("HF_ENDPOINT", srv.URL)
 
 	_, _, err := hfWhoami()
 	if err == nil {
 		t.Fatal("hfWhoami() error = nil, want an error for a 401")
 	}
+	if !errors.Is(err, errTokenRejected) {
+		t.Errorf("hfWhoami() error = %v, want errTokenRejected", err)
+	}
 	// Verify maps this to ErrNotAuthenticated via isNotLoggedIn, so the
 	// wording matters as much as the failure.
 	if !isNotLoggedIn(err) {
 		t.Errorf("isNotLoggedIn(%v) = false, want true so Verify reports ErrNotAuthenticated", err)
+	}
+	if requests != 1 {
+		t.Errorf("requests = %d, want exactly 1 for a rejected token", requests)
+	}
+}
+
+func TestVerify_RejectedTokenIsNotAuthenticatedWithoutRetry(t *testing.T) {
+	setHFToken(t, "hf_stale", nil)
+	stubHubRetry(t, nil, skipHubRetrySleep)
+	requests := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("HF_ENDPOINT", srv.URL)
+
+	_, err := Verify()
+	if !errors.Is(err, ErrNotAuthenticated) {
+		t.Errorf("Verify() error = %v, want ErrNotAuthenticated", err)
+	}
+	if requests != 1 {
+		t.Errorf("requests = %d, want exactly 1 for a rejected token", requests)
+	}
+}
+
+func TestHFWhoami_RetriesServiceUnavailable(t *testing.T) {
+	setHFToken(t, "hf_abc", nil)
+	stubHubRetry(t, nil, skipHubRetrySleep)
+	requests := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		if requests == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte(whoamiOK))
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("HF_ENDPOINT", srv.URL)
+
+	user, _, err := hfWhoami()
+	if err != nil {
+		t.Fatalf("hfWhoami() error = %v, want retry to succeed", err)
+	}
+	if user != "alice" || requests != 2 {
+		t.Errorf("user = %q, requests = %d, want alice after 2 requests", user, requests)
+	}
+}
+
+func TestHFWhoami_DeadlineDuringBackoffPreservesCause(t *testing.T) {
+	stubHubRetry(t, nil, func(context.Context, time.Duration) error {
+		return context.DeadlineExceeded
+	})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("HF_ENDPOINT", srv.URL)
+
+	_, _, err := hfWhoamiWithToken("hf_abc")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("hfWhoamiWithToken() error = %v, want context.DeadlineExceeded", err)
 	}
 }
 

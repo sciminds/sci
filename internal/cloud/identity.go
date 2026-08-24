@@ -120,19 +120,14 @@ var hfWhoamiWithToken = func(tok string) (user string, orgs []string, err error)
 		return "", nil, fmt.Errorf("build whoami request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+tok)
-	resp, err := hubHTTPClient.Do(req)
+	resp, err := hubDo(ctx, req)
 	if err != nil {
 		return "", nil, fmt.Errorf("hugging face whoami: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		// A stored-but-rejected token is indistinguishable from no token as
-		// far as the user's next step goes: run `hf auth login`.
-		return "", nil, fmt.Errorf("%w (%s)", errTokenRejected, resp.Status)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", nil, fmt.Errorf("hugging face whoami: %s", resp.Status)
+	if err := hubStatusError(resp, "hugging face whoami"); err != nil {
+		return "", nil, err
 	}
 
 	var body hfWhoamiResponse

@@ -44,7 +44,7 @@ func hubGet(ctx context.Context, rawURL string) (*http.Response, error) {
 		return nil, fmt.Errorf("build hugging face request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+tok)
-	resp, err := hubHTTPClient.Do(req)
+	resp, err := hubDo(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("hugging face request: %w", err)
 	}
