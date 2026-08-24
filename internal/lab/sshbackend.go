@@ -9,7 +9,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -92,12 +94,18 @@ func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, 
 	}()
 	defer close(watchdogDone)
 
-	// rsync's --info=progress2 emits CR-terminated updates on the same line.
-	// Use a custom scanner split that breaks on either '\n' or '\r' so we
-	// see every progress tick. Non-progress lines (filenames, warnings) are
-	// kept in stdoutTail to surface alongside stderr if rsync exits non-zero.
+	stdoutTail, scanErr := scanTransferOutput(ctx, stdout, progress)
+	waitErr := cmd.Wait()
+	return resolveTransferError(remotePath, ctx.Err(), waitErr, scanErr, stderrBuf.String(), stdoutTail)
+}
+
+// scanTransferOutput parses rsync's CR- or LF-terminated stdout stream. It
+// returns the last eight non-progress lines and any scanner read error. The
+// context-aware send prevents a caller that stops draining progress after
+// cancellation from pinning the scanner, watchdog, and rsync process.
+func scanTransferOutput(ctx context.Context, r io.Reader, progress chan<- Progress) ([]string, error) {
 	var stdoutTail []string
-	scanner := bufio.NewScanner(stdout)
+	scanner := bufio.NewScanner(r)
 	scanner.Split(scanLinesCR)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -105,7 +113,11 @@ func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, 
 			continue
 		}
 		if p, ok := ParseProgressLine(line); ok {
-			progress <- p
+			select {
+			case progress <- p:
+			case <-ctx.Done():
+				return stdoutTail, ctx.Err()
+			}
 			continue
 		}
 		stdoutTail = append(stdoutTail, line)
@@ -113,21 +125,36 @@ func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, 
 			stdoutTail = stdoutTail[len(stdoutTail)-8:]
 		}
 	}
-	waitErr := cmd.Wait()
-	// Surface the cancellation reason rather than rsync's exit-by-signal
-	// status, so callers see context.Canceled / DeadlineExceeded.
-	if ctx.Err() != nil {
-		return ctx.Err()
+	return stdoutTail, scanner.Err()
+}
+
+// resolveTransferError deliberately gives caller cancellation precedence over
+// process and scanner failures because it states why the transfer stopped. A
+// process exit failure is next and remains the first joined cause, with a scan
+// failure retained as secondary context. A scan failure by itself is fatal so
+// a zero rsync exit cannot report success after an incomplete stdout read.
+func resolveTransferError(remotePath string, ctxErr, waitErr, scanErr error, stderr string, stdoutTail []string) error {
+	if ctxErr != nil {
+		return fmt.Errorf("rsync %s canceled: %w", remotePath, ctxErr)
 	}
-	if err := waitErr; err != nil {
-		detail := strings.TrimSpace(stderrBuf.String())
+	if waitErr != nil {
+		if scanErr != nil {
+			waitErr = errors.Join(waitErr, fmt.Errorf("rsync stdout scan: %w", scanErr))
+		}
+		detail := strings.TrimSpace(stderr)
 		if detail == "" && len(stdoutTail) > 0 {
 			detail = strings.Join(stdoutTail, "\n")
 		}
 		if detail != "" {
-			return fmt.Errorf("rsync %s: %w\n%s", remotePath, err, detail)
+			return fmt.Errorf("rsync %s: %w\n%s", remotePath, waitErr, detail)
 		}
-		return fmt.Errorf("rsync %s: %w", remotePath, err)
+		return fmt.Errorf("rsync %s: %w", remotePath, waitErr)
+	}
+	if scanErr != nil {
+		if len(stdoutTail) > 0 {
+			return fmt.Errorf("rsync %s stdout scan: %w\n%s", remotePath, scanErr, strings.Join(stdoutTail, "\n"))
+		}
+		return fmt.Errorf("rsync %s stdout scan: %w", remotePath, scanErr)
 	}
 	return nil
 }
