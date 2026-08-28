@@ -39,9 +39,14 @@ import (
 	"github.com/sciminds/sci/internal/uikit"
 )
 
-// Network timeouts for cloud operations.
+// Network timeouts for cloud operations. These bound the `hf` CLI, not the Hub.
+// Listings and existence checks go straight to the Hub API and answer in well
+// under a second; deletes and transfers still shell out, and the CLI's own
+// overhead dwarfs the requests it makes (a recursive `hf buckets ls` measured
+// at 53-121s against an endpoint answering in ~0.2s). These budgets are sized
+// for that overhead, not for the round-trips underneath it.
 const (
-	metadataTimeout   = 30 * time.Second // list, exists, delete
+	metadataTimeout   = 2 * time.Minute  // delete (list/exists go direct)
 	transferTimeout   = 10 * time.Minute // single-file upload/download
 	folderSyncTimeout = 30 * time.Minute // hf buckets sync of a whole prefix
 )

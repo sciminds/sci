@@ -323,47 +323,6 @@ func TestCheckIdentity_GitXet_Registered(t *testing.T) {
 		t.Errorf("expected 'registered' message, got %q", c.Message)
 	}
 }
-
-func TestParseHFWhoami(t *testing.T) {
-	cases := []struct {
-		in       string
-		wantUser string
-		wantOrgs []string
-		wantErr  bool
-	}{
-		{"user=ejolly orgs=py-feat,nltools,sciminds\n", "ejolly", []string{"py-feat", "nltools", "sciminds"}, false},
-		{"user=alice orgs=", "alice", nil, false},
-		{"user=alice", "alice", nil, false},
-		{"orgs=foo", "", nil, true},
-		{"", "", nil, true},
-	}
-	for _, c := range cases {
-		gotUser, gotOrgs, gotErr := parseHFWhoami(c.in)
-		if (gotErr != nil) != c.wantErr {
-			t.Errorf("parseHFWhoami(%q) err = %v, wantErr=%v", c.in, gotErr, c.wantErr)
-			continue
-		}
-		if gotUser != c.wantUser {
-			t.Errorf("parseHFWhoami(%q) user = %q, want %q", c.in, gotUser, c.wantUser)
-		}
-		if !strSliceEq(gotOrgs, c.wantOrgs) {
-			t.Errorf("parseHFWhoami(%q) orgs = %v, want %v", c.in, gotOrgs, c.wantOrgs)
-		}
-	}
-}
-
-func strSliceEq(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func TestRunPreflightIdentity_ReturnsSections(t *testing.T) {
 	sections := RunPreflightIdentity()
 

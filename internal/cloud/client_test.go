@@ -47,6 +47,26 @@ func (f *fakeStream) stream(_ context.Context, stdin io.Reader, stdout io.Writer
 	return f.err
 }
 
+// fakeList records listing calls and returns canned bucket entries.
+type fakeList struct {
+	calls [][]string // {org, bucket, prefix} per call
+	files []hfFile
+	err   error
+}
+
+func (f *fakeList) list(_ context.Context, org, bucket, prefix string) ([]hfFile, error) {
+	f.calls = append(f.calls, []string{org, bucket, prefix})
+	return f.files, f.err
+}
+
+// withListing points the client's listing seam at canned entries and returns
+// the fake so the test can assert on what was requested.
+func withListing(c *Client, files ...hfFile) *fakeList {
+	l := &fakeList{files: files}
+	c.list = l.list
+	return l
+}
+
 // newTestClient builds a Client wired to fake run/stream hooks.
 func newTestClient(t *testing.T, bucket string) (*Client, *fakeRun, *fakeStream) {
 	t.Helper()
@@ -57,6 +77,7 @@ func newTestClient(t *testing.T, bucket string) (*Client, *fakeRun, *fakeStream)
 		Bucket:   bucket,
 		run:      r.run,
 		stream:   s.stream,
+		list:     (&fakeList{}).list,
 	}
 	return c, r, s
 }
@@ -139,12 +160,12 @@ func TestClient_DownloadByKey_FullKey(t *testing.T) {
 }
 
 func TestClient_List_FiltersToFiles_AndPopulatesPublicURL(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPublic)
-	r.out = []byte(`[
-		{"type":"directory","path":"alice/sub","size":0,"mtime":"","uploaded_at":""},
-		{"type":"file","path":"alice/a.csv","size":12,"mtime":"2026-05-01T00:00:00+00:00","uploaded_at":"2026-05-01T00:01:00+00:00"},
-		{"type":"file","path":"alice/sub/b.csv","size":34,"mtime":"2026-05-02T00:00:00+00:00","uploaded_at":"2026-05-02T00:01:00+00:00"}
-	]`)
+	c, _, _ := newTestClient(t, BucketPublic)
+	l := withListing(c,
+		hfFile{Type: "directory", Path: "alice/sub"},
+		hfFile{Type: "file", Path: "alice/a.csv", Size: 12, MTime: "2026-05-01T00:00:00+00:00"},
+		hfFile{Type: "file", Path: "alice/sub/b.csv", Size: 34, MTime: "2026-05-02T00:00:00+00:00"},
+	)
 
 	objs, err := c.List(context.Background())
 	if err != nil {
@@ -153,9 +174,9 @@ func TestClient_List_FiltersToFiles_AndPopulatesPublicURL(t *testing.T) {
 	if len(objs) != 2 {
 		t.Fatalf("got %d objects, want 2 (directories filtered)", len(objs))
 	}
-	wantArgs := []string{"buckets", "ls", "sciminds/public/alice", "-R", "--json"}
-	if !strSliceEq(r.calls[0], wantArgs) {
-		t.Errorf("ls args = %v, want %v", r.calls[0], wantArgs)
+	want := []string{"sciminds", "public", "alice/"}
+	if !strSliceEq(l.calls[0], want) {
+		t.Errorf("listing args = %v, want %v", l.calls[0], want)
 	}
 	if objs[0].Key != "alice/a.csv" || objs[0].Size != 12 {
 		t.Errorf("first object = %+v", objs[0])
@@ -169,8 +190,8 @@ func TestClient_List_FiltersToFiles_AndPopulatesPublicURL(t *testing.T) {
 }
 
 func TestClient_List_Private_NoURL(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPrivate)
-	r.out = []byte(`[{"type":"file","path":"alice/a.csv","size":1,"mtime":"","uploaded_at":""}]`)
+	c, _, _ := newTestClient(t, BucketPrivate)
+	withListing(c, hfFile{Type: "file", Path: "alice/a.csv", Size: 1})
 
 	objs, err := c.List(context.Background())
 	if err != nil {
@@ -185,8 +206,8 @@ func TestClient_List_Private_NoURL(t *testing.T) {
 }
 
 func TestClient_ListPrefix_Empty(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPublic)
-	r.out = []byte("[]")
+	c, _, _ := newTestClient(t, BucketPublic)
+	withListing(c)
 
 	objs, err := c.ListPrefix(context.Background(), "alice/")
 	if err != nil {
@@ -197,10 +218,11 @@ func TestClient_ListPrefix_Empty(t *testing.T) {
 	}
 }
 
-func TestClient_ListPrefix_HFNotFound(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPublic)
-	r.out = []byte("error: prefix not found")
-	r.err = errors.New("hf failed")
+// A prefix with no objects comes back as an empty listing (the Hub answers
+// 404, which listBucketTree flattens to no entries), never as a failure.
+func TestClient_ListPrefix_MissingPrefixIsEmpty(t *testing.T) {
+	c, _, _ := newTestClient(t, BucketPublic)
+	withListing(c)
 
 	objs, err := c.ListPrefix(context.Background(), "ghost/")
 	if err != nil {
@@ -212,8 +234,8 @@ func TestClient_ListPrefix_HFNotFound(t *testing.T) {
 }
 
 func TestClient_Exists_True(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPublic)
-	r.out = []byte(`[{"type":"file","path":"alice/data.csv","size":1,"mtime":"","uploaded_at":""}]`)
+	c, _, _ := newTestClient(t, BucketPublic)
+	withListing(c, hfFile{Type: "file", Path: "alice/data.csv", Size: 1})
 
 	ok, err := c.Exists(context.Background(), "data.csv")
 	if err != nil {
@@ -225,8 +247,8 @@ func TestClient_Exists_True(t *testing.T) {
 }
 
 func TestClient_Exists_False(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPublic)
-	r.out = []byte("[]")
+	c, _, _ := newTestClient(t, BucketPublic)
+	withListing(c)
 
 	ok, err := c.Exists(context.Background(), "missing.csv")
 	if err != nil {
@@ -269,20 +291,20 @@ func TestClient_SyncUp_StripsTrailingSlashes(t *testing.T) {
 }
 
 func TestClient_PrefixExists_BuildsCorrectArgs(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPrivate)
-	r.out = []byte("[]")
+	c, _, _ := newTestClient(t, BucketPrivate)
+	l := withListing(c)
 	if _, err := c.PrefixExists(context.Background(), "myrepo"); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"buckets", "ls", "sciminds/private/alice/myrepo", "-R", "--json"}
-	if !strSliceEq(r.calls[0], want) {
-		t.Errorf("PrefixExists ls args = %v, want %v", r.calls[0], want)
+	want := []string{"sciminds", "private", "alice/myrepo"}
+	if !strSliceEq(l.calls[0], want) {
+		t.Errorf("PrefixExists listing args = %v, want %v", l.calls[0], want)
 	}
 }
 
 func TestClient_PrefixExists_True(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPrivate)
-	r.out = []byte(`[{"type":"file","path":"alice/myrepo/data.csv","size":1,"mtime":"","uploaded_at":""}]`)
+	c, _, _ := newTestClient(t, BucketPrivate)
+	withListing(c, hfFile{Type: "file", Path: "alice/myrepo/data.csv", Size: 1})
 	ok, err := c.PrefixExists(context.Background(), "myrepo")
 	if err != nil {
 		t.Fatal(err)
@@ -293,8 +315,8 @@ func TestClient_PrefixExists_True(t *testing.T) {
 }
 
 func TestClient_PrefixExists_False(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPrivate)
-	r.out = []byte("[]")
+	c, _, _ := newTestClient(t, BucketPrivate)
+	withListing(c)
 	ok, err := c.PrefixExists(context.Background(), "missing-repo")
 	if err != nil {
 		t.Fatal(err)
@@ -304,10 +326,9 @@ func TestClient_PrefixExists_False(t *testing.T) {
 	}
 }
 
-func TestClient_PrefixExists_HFNotFound_NoError(t *testing.T) {
-	c, r, _ := newTestClient(t, BucketPrivate)
-	r.out = []byte("Error: prefix not found")
-	r.err = errors.New("exit 1")
+func TestClient_PrefixExists_MissingPrefix_NoError(t *testing.T) {
+	c, _, _ := newTestClient(t, BucketPrivate)
+	withListing(c)
 	ok, err := c.PrefixExists(context.Background(), "ghost-repo")
 	if err != nil {
 		t.Fatalf("PrefixExists err = %v, want nil (not-found maps to empty)", err)
@@ -345,36 +366,6 @@ func TestClient_DeletePrefix_PropagatesError(t *testing.T) {
 	err := c.DeletePrefix(context.Background(), "myrepo")
 	if err == nil || !strings.Contains(err.Error(), "hf failed") {
 		t.Errorf("DeletePrefix err = %v, want to contain 'hf failed'", err)
-	}
-}
-
-func TestParseListing_SkipsDirectories(t *testing.T) {
-	out := []byte(`[
-		{"type":"directory","path":"alice/sub","size":0,"mtime":"","uploaded_at":""},
-		{"type":"file","path":"alice/a.csv","size":1,"mtime":"","uploaded_at":""}
-	]`)
-	objs, err := parseListing(out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(objs) != 1 || objs[0].Key != "alice/a.csv" {
-		t.Errorf("parseListing = %v, want one file alice/a.csv", objs)
-	}
-}
-
-func TestParseListing_Empty(t *testing.T) {
-	objs, err := parseListing([]byte("[]"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(objs) != 0 {
-		t.Errorf("expected empty, got %v", objs)
-	}
-}
-
-func TestParseListing_BadJSON(t *testing.T) {
-	if _, err := parseListing([]byte("{not json")); err == nil {
-		t.Error("expected parse error")
 	}
 }
 

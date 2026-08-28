@@ -15,55 +15,33 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/samber/lo"
 	"github.com/sciminds/sci/internal/brew"
+	"github.com/sciminds/sci/internal/cloud"
 )
 
 // sciMindsOrg is the Hugging Face organisation that gates sci cloud access.
 const sciMindsOrg = "sciminds"
 
 // hfWhoamiFn returns the authenticated HF user and their org memberships.
-// Hits the Hugging Face API, so it can fail on slow/spotty networks even
-// when the user is logged in — pair with [hfTokenPresentFn] for the
-// "logged in?" question. Overridable in tests.
-var hfWhoamiFn = func() (user string, orgs []string, err error) {
-	if _, lookErr := exec.LookPath("hf"); lookErr != nil {
-		return "", nil, lookErr
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	out, runErr := exec.CommandContext(ctx, "hf", "auth", "whoami").Output()
-	if runErr != nil {
-		return "", nil, runErr
-	}
-	return parseHFWhoami(string(out))
-}
+// Delegates to [cloud.Whoami], which reads the local `hf` credential and asks
+// the Hub directly rather than shelling out to `hf auth whoami`. It still hits
+// the network, so it can fail on a slow link even when the user is logged in
+// — pair it with [hfTokenPresentFn] for the "logged in?" question.
+// Overridable in tests.
+var hfWhoamiFn = cloud.Whoami
 
 // hfTokenPresentFn reports whether a Hugging Face credential exists locally.
-// This is the "are you logged in?" source of truth — `hf auth login` writes
-// the token to disk, and the check itself doesn't hit the network. Pairs
-// with [hfWhoamiFn] which is needed for org membership but flakes on
-// slow connections. Overridable in tests.
-var hfTokenPresentFn = func() bool {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return false
-	}
-	// HF_HOME overrides the default ~/.cache/huggingface location.
-	hfHome := os.Getenv("HF_HOME")
-	if hfHome == "" {
-		hfHome = filepath.Join(home, ".cache", "huggingface")
-	}
-	info, statErr := os.Stat(filepath.Join(hfHome, "token"))
-	return statErr == nil && info.Size() > 0
-}
+// This is the "are you logged in?" source of truth — `hf auth login` writes the
+// token where [cloud.TokenPresent] reads it, and the check never touches the
+// network. Pairs with [hfWhoamiFn], which is needed for org membership but
+// depends on the Hub being reachable. Overridable in tests.
+var hfTokenPresentFn = cloud.TokenPresent
 
 // gitXetRegisteredFn reports whether `git xet install` has wired the xet
 // transfer agent into the global git config. Overridable in tests.
@@ -82,33 +60,6 @@ var gitXetInstallFn = func() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	return exec.CommandContext(ctx, "git", "xet", "install").Run()
-}
-
-// parseHFWhoami parses the single-line output of `hf auth whoami`:
-//
-//	user=ejolly orgs=py-feat,nltools,sciminds
-//
-// orgs is empty when the user has no org memberships.
-func parseHFWhoami(s string) (string, []string, error) {
-	user, orgs := "", []string(nil)
-	for tok := range strings.FieldsSeq(strings.TrimSpace(s)) {
-		k, v, ok := strings.Cut(tok, "=")
-		if !ok {
-			continue
-		}
-		switch k {
-		case "user":
-			user = v
-		case "orgs":
-			if v != "" {
-				orgs = strings.Split(v, ",")
-			}
-		}
-	}
-	if user == "" {
-		return "", nil, fmt.Errorf("unexpected hf whoami output: %q", s)
-	}
-	return user, orgs, nil
 }
 
 //go:embed Brewfile

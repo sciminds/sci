@@ -3,13 +3,11 @@ package cloud
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/samber/lo"
 )
@@ -24,6 +22,8 @@ type Client struct {
 	run func(ctx context.Context, args ...string) ([]byte, error)
 	// stream executes `hf <args>` with stdin/stdout piped through. Overridable in tests.
 	stream func(ctx context.Context, stdin io.Reader, stdout io.Writer, args ...string) error
+	// list reads a bucket listing from the Hub API. Overridable in tests.
+	list func(ctx context.Context, org, bucket, prefix string) ([]hfFile, error)
 }
 
 // ErrNotAuthenticated is returned by [Verify] when `hf auth whoami` indicates
@@ -33,8 +33,12 @@ type Client struct {
 var ErrNotAuthenticated = errors.New("not authenticated with Hugging Face")
 
 // Verify confirms the user is authenticated with `hf` and is a member of the
-// SciMinds org.
+// SciMinds org. The local-credential check comes first so a logged-out user is
+// told so immediately rather than after a round-trip to the Hub.
 func Verify() (*Config, error) {
+	if !TokenPresent() {
+		return nil, ErrNotAuthenticated
+	}
 	user, orgs, err := hfWhoami()
 	if err != nil {
 		if isNotLoggedIn(err) {
@@ -75,6 +79,7 @@ func NewClient(username, org, bucket string) *Client {
 		Bucket:   bucket,
 		run:      runHF,
 		stream:   streamHF,
+		list:     listBucketTree,
 	}
 }
 
@@ -141,23 +146,19 @@ func (c *Client) List(ctx context.Context) ([]ObjectInfo, error) {
 }
 
 // ListPrefix returns objects under an arbitrary prefix (empty = whole bucket).
+// Folder entries are dropped; the Hub returns paths relative to the bucket
+// root, so each key already carries its owner's prefix.
 func (c *Client) ListPrefix(ctx context.Context, prefix string) ([]ObjectInfo, error) {
-	arg := c.Org + "/" + c.Bucket
-	if prefix != "" {
-		arg = arg + "/" + strings.TrimSuffix(prefix, "/")
-	}
-	out, err := c.run(ctx, "buckets", "ls", arg, "-R", "--json")
+	files, err := c.list(ctx, c.Org, c.Bucket, prefix)
 	if err != nil {
-		// hf returns an error when the prefix has no matches; treat as empty.
-		if isHFNotFound(out, err) {
-			return nil, nil
+		return nil, err
+	}
+	objects := lo.FilterMap(files, func(f hfFile, _ int) (ObjectInfo, bool) {
+		if f.Type != "file" {
+			return ObjectInfo{}, false
 		}
-		return nil, err
-	}
-	objects, err := parseListing(out)
-	if err != nil {
-		return nil, err
-	}
+		return ObjectInfo{Key: f.Path, Size: f.Size, LastModified: f.MTime}, true
+	})
 	if c.IsPublic() {
 		for i := range objects {
 			objects[i].URL = c.publicURLForKey(objects[i].Key)
@@ -228,37 +229,14 @@ func (c *Client) SyncUp(ctx context.Context, localDir, name string) error {
 // hf subprocess + parsing helpers
 // ---------------------------------------------------------------------------
 
-// hfFile is the shape of one entry in `hf buckets ls --json` output.
+// hfFile is one entry in a bucket listing, as returned by the Hub's
+// /api/buckets/{org}/{bucket}/tree endpoint.
 type hfFile struct {
 	Type       string `json:"type"`
 	Path       string `json:"path"`
 	Size       int64  `json:"size"`
 	MTime      string `json:"mtime"`
-	UploadedAt string `json:"uploaded_at"`
-}
-
-// parseListing decodes `hf buckets ls --json` output into [ObjectInfo] slices.
-// Folder entries are skipped. `hf` returns paths relative to the bucket root
-// (verified empirically), so each `path` already includes the per-user prefix.
-func parseListing(out []byte) ([]ObjectInfo, error) {
-	out = bytes.TrimSpace(out)
-	if len(out) == 0 || bytes.Equal(out, []byte("[]")) {
-		return nil, nil
-	}
-	var files []hfFile
-	if err := json.Unmarshal(out, &files); err != nil {
-		return nil, fmt.Errorf("parse hf buckets ls output: %w", err)
-	}
-	return lo.FilterMap(files, func(f hfFile, _ int) (ObjectInfo, bool) {
-		if f.Type != "file" {
-			return ObjectInfo{}, false
-		}
-		return ObjectInfo{
-			Key:          f.Path,
-			Size:         f.Size,
-			LastModified: f.MTime,
-		}, true
-	}), nil
+	UploadedAt string `json:"uploadedAt"`
 }
 
 // isHFNotFound reports whether an `hf` failure indicates the prefix was empty
@@ -279,9 +257,21 @@ func runHF(ctx context.Context, args ...string) ([]byte, error) {
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		// Return stderr so callers can pattern-match (e.g. isHFNotFound).
-		return stderr.Bytes(), fmt.Errorf("hf %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+		return stderr.Bytes(), hfRunError(ctx.Err(), args, err, stderr.String())
 	}
 	return stdout.Bytes(), nil
+}
+
+// hfRunError shapes a failed `hf` invocation into something a user can act on.
+// When the context deadline killed the process, os/exec reports only
+// "signal: killed" — naming the timeout instead keeps a slow `hf` from reading
+// like a crash.
+func hfRunError(ctxErr error, args []string, runErr error, stderr string) error {
+	cmdline := "hf " + strings.Join(args, " ")
+	if ctxErr != nil {
+		return fmt.Errorf("%s: %w — the `hf` CLI did not finish in time", cmdline, ctxErr)
+	}
+	return fmt.Errorf("%s: %w: %s", cmdline, runErr, strings.TrimSpace(stderr))
 }
 
 // streamHF executes `hf <args>` piping stdin/stdout through.
@@ -296,40 +286,7 @@ func streamHF(ctx context.Context, stdin io.Reader, stdout io.Writer, args ...st
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("hf %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+		return hfRunError(ctx.Err(), args, err, stderr.String())
 	}
 	return nil
-}
-
-// hfWhoami runs `hf auth whoami --format=json` and parses the user + org list.
-// Forcing the JSON format makes parsing deterministic regardless of whether
-// stdout is a TTY (`auto` would otherwise switch between `agent` and `human`).
-var hfWhoami = func() (user string, orgs []string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "hf", "auth", "whoami", "--format=json")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if runErr := cmd.Run(); runErr != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = runErr.Error()
-		}
-		return "", nil, fmt.Errorf("hf auth whoami: %s", msg)
-	}
-	var resp struct {
-		User string `json:"user"`
-		Orgs string `json:"orgs"`
-	}
-	if jerr := json.Unmarshal(stdout.Bytes(), &resp); jerr != nil {
-		return "", nil, fmt.Errorf("parse hf auth whoami output (%q): %w", stdout.String(), jerr)
-	}
-	if resp.User == "" {
-		return "", nil, fmt.Errorf("hf auth whoami returned empty user (output: %q)", stdout.String())
-	}
-	if resp.Orgs != "" {
-		orgs = strings.Split(resp.Orgs, ",")
-	}
-	return resp.User, orgs, nil
 }
