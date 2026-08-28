@@ -20,7 +20,7 @@ var ErrInterrupted = errors.New("interrupted")
 
 // Run launches the lab browser TUI for the configured user.
 func Run(cfg *lab.Config) error {
-	backend := app.NewSSHBackend(cfg)
+	backend := lab.NewSSHBackend(cfg)
 	model := app.NewModel(cfg, backend)
 	if err := uikit.Run(model); err != nil {
 		if errors.Is(err, tea.ErrInterrupted) {

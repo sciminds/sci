@@ -1,4 +1,9 @@
-package app
+package lab
+
+// sshbackend.go — the concrete ssh+rsync backend for lab storage: directory
+// listing, size probing, and resumable transfer with --info=progress2 parsing.
+// It lives here rather than under internal/tui so the transfer machinery
+// carries no dependency on a TUI package; labtui is one caller of it.
 
 import (
 	"bufio"
@@ -9,8 +14,6 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-
-	"github.com/sciminds/sci/internal/lab"
 )
 
 // rsyncShutdownGrace is how long to wait between SIGINT and SIGKILL when
@@ -18,34 +21,34 @@ import (
 // file cleanly so the next session can resume; SIGKILL is the safety net.
 const rsyncShutdownGrace = 2 * time.Second
 
-// SSHBackend implements Backend by shelling out to ssh + rsync via the
-// argv builders in the lab package. The user's SSH alias must be configured
-// (sci lab setup) before instantiating this backend.
+// SSHBackend shells out to ssh + rsync via the argv builders in this package.
+// The user's SSH alias must be configured (sci lab setup) before instantiating
+// it.
 type SSHBackend struct {
-	Cfg *lab.Config
+	Cfg *Config
 }
 
-// NewSSHBackend returns a Backend that uses the configured SSH alias.
-func NewSSHBackend(cfg *lab.Config) *SSHBackend { return &SSHBackend{Cfg: cfg} }
+// NewSSHBackend returns an SSHBackend that uses the configured SSH alias.
+func NewSSHBackend(cfg *Config) *SSHBackend { return &SSHBackend{Cfg: cfg} }
 
-// List runs `ssh alias ls -1FA --group-directories-first <path>`.
-func (s *SSHBackend) List(ctx context.Context, remotePath string) ([]lab.Entry, error) {
-	argv := lab.BuildBrowseLsArgs(s.Cfg, remotePath)
+// List runs `ssh alias ls -1FQ --group-directories-first <path>`.
+func (s *SSHBackend) List(ctx context.Context, remotePath string) ([]Entry, error) {
+	argv := BuildBrowseLsArgs(s.Cfg, remotePath)
 	out, err := exec.CommandContext(ctx, argv[0], argv[1:]...).Output()
 	if err != nil {
 		return nil, fmt.Errorf("ssh ls %s: %w", remotePath, err)
 	}
-	return lab.ParseLsOutput(string(out)), nil
+	return ParseLsOutput(string(out)), nil
 }
 
 // Size runs `ssh alias du -sbc <paths…>` and parses the total bytes.
 func (s *SSHBackend) Size(ctx context.Context, remotePaths []string) (int64, error) {
-	argv := lab.BuildSizeArgs(s.Cfg, remotePaths)
+	argv := BuildSizeArgs(s.Cfg, remotePaths)
 	out, err := exec.CommandContext(ctx, argv[0], argv[1:]...).Output()
 	if err != nil {
 		return 0, fmt.Errorf("ssh du: %w", err)
 	}
-	return lab.ParseDuTotal(string(out))
+	return ParseDuTotal(string(out))
 }
 
 // Transfer runs rsync, parses --info=progress2 output line-by-line, and
@@ -55,8 +58,8 @@ func (s *SSHBackend) Size(ctx context.Context, remotePaths []string) (int64, err
 // (the default), we send SIGINT first and only escalate to SIGKILL after a
 // grace window. SIGINT is what makes rsync flush its --partial file cleanly,
 // which is what the resume-from-manifest flow depends on.
-func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, progress chan<- lab.Progress) error {
-	argv := lab.BuildResumableGetArgs(s.Cfg, remotePath, localDir)
+func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, progress chan<- Progress) error {
+	argv := BuildResumableGetArgs(s.Cfg, remotePath, localDir)
 	// Plain Command (not CommandContext) so cancellation goes through our
 	// graceful-shutdown path below, not the exec package's hard kill.
 	cmd := exec.Command(argv[0], argv[1:]...)
@@ -101,7 +104,7 @@ func (s *SSHBackend) Transfer(ctx context.Context, remotePath, localDir string, 
 		if line == "" {
 			continue
 		}
-		if p, ok := lab.ParseProgressLine(line); ok {
+		if p, ok := ParseProgressLine(line); ok {
 			progress <- p
 			continue
 		}
