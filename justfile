@@ -38,11 +38,13 @@ bootstrap:
     ln -sf ../../scripts/commit-msg .git/hooks/commit-msg
 
 fmt:
-    gofmt -w .
-    goimports -w .
+    # Toolchain gofmt, not PATH gofmt: the homebrew copy can predate go.mod's
+    # toolchain and choke on newer syntax (same pin in check-ci below).
+    "$(go env GOROOT)/bin/gofmt" -w .
+    go tool goimports -w .
 
 lint:
-    golangci-lint run ./internal/... ./cmd/...
+    go tool golangci-lint run ./internal/... ./cmd/...
 
 # Structural style rules enforced via ast-grep.
 # No lipgloss.NewStyle() outside internal/uikit/; no hardcoded lipgloss.Color() outside palette/style files;
@@ -119,14 +121,14 @@ check-ci:
     go mod tidy
     git diff --exit-code go.mod go.sum
     echo "==> fmt (verify gofmt + goimports clean)"
-    out=$(gofmt -l .); if [ -n "$out" ]; then echo "gofmt drift:"; echo "$out"; exit 1; fi
-    out=$(goimports -l .); if [ -n "$out" ]; then echo "goimports drift:"; echo "$out"; exit 1; fi
+    out=$("$(go env GOROOT)/bin/gofmt" -l .); if [ -n "$out" ]; then echo "gofmt drift:"; echo "$out"; exit 1; fi
+    out=$(go tool goimports -l .); if [ -n "$out" ]; then echo "goimports drift:"; echo "$out"; exit 1; fi
     echo "==> vet"
     go vet ./internal/... ./cmd/...
     echo "==> lint"
-    golangci-lint run ./internal/... ./cmd/...
+    go tool golangci-lint run ./internal/... ./cmd/...
     echo "==> lint-docs"
-    golangci-lint run --config .golangci-docs.yml ./internal/...
+    go tool golangci-lint run --config .golangci-docs.yml ./internal/...
     echo "==> lint-guard"
     ./scripts/lint-guard.sh
     echo "==> test -race"
@@ -192,7 +194,7 @@ casts-gif FILTER='*':
 # Check Go doc comments (package-level + exported symbols) via revive.
 # Part of the `check`/`ok` gate; also runnable standalone for doc-audit sessions.
 lint-docs:
-    golangci-lint run --config .golangci-docs.yml ./internal/...
+    go tool golangci-lint run --config .golangci-docs.yml ./internal/...
 
 # Report gaps in user-facing CLI documentation (casts, gifs, README embeds, help descriptions).
 doc-coverage:
