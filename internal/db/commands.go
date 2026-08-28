@@ -512,6 +512,38 @@ func Reset(dbPath string) (*MutationResult, error) {
 // TUI viewer
 // ---------------------------------------------------------------------------
 
+// openStore opens dbPath with the right backend: a native subprocess-backed
+// DuckDB store for .duckdb files, a read-only DuckDB file view for Parquet,
+// a read-only SQLite file view for flat files (CSV/TSV/JSON/JSONL), or the
+// SQLite store otherwise. It is the four-way dispatch behind [RunTUI], kept
+// separate so the backend choice is testable without launching a TUI.
+// Callers own the returned store and must Close it.
+func openStore(dbPath string) (store.DataStore, error) {
+	if _, err := os.Stat(dbPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, cmdutil.Coded(cmdutil.CodeNotFound, "file not found: %s", dbPath).
+				WithTry("check the path — `sci view` opens .db/.sqlite/.duckdb databases and csv/tsv/json/jsonl/parquet files")
+		}
+		return nil, err
+	}
+	switch {
+	case isDuckDB(dbPath):
+		if err := requireDatabase(dbPath); err != nil {
+			return nil, err
+		}
+		return duckstore.Open(dbPath)
+	case isParquet(dbPath):
+		return duckstore.OpenFileView(dbPath)
+	case sqlite.IsViewableFile(dbPath):
+		return sqlite.OpenFileView(dbPath)
+	default:
+		if err := requireDatabase(dbPath); err != nil {
+			return nil, err
+		}
+		return sqlite.Open(dbPath)
+	}
+}
+
 // RunTUI launches the interactive database viewer.
 // Flat files (CSV, JSON, etc.) are opened via the pure-Go SQLite file
 // view; Parquet routes through a native duckdb file view (columnar binary
@@ -520,46 +552,9 @@ func Reset(dbPath string) (*MutationResult, error) {
 // [duckstore.Store]. If initialTab is non-empty the viewer opens on that
 // tab instead of the first one.
 func RunTUI(dbPath string, initialTab string) error {
-	if _, err := os.Stat(dbPath); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return cmdutil.Coded(cmdutil.CodeNotFound, "file not found: %s", dbPath).
-				WithTry("check the path — `sci view` opens .db/.sqlite/.duckdb databases and csv/tsv/json/jsonl/parquet files")
-		}
+	ds, err := openStore(dbPath)
+	if err != nil {
 		return err
-	}
-
-	var ds store.DataStore
-	switch {
-	case isDuckDB(dbPath):
-		if err := requireDatabase(dbPath); err != nil {
-			return err
-		}
-		s, err := duckstore.Open(dbPath)
-		if err != nil {
-			return err
-		}
-		ds = s
-	case isParquet(dbPath):
-		s, err := duckstore.OpenFileView(dbPath)
-		if err != nil {
-			return err
-		}
-		ds = s
-	case sqlite.IsViewableFile(dbPath):
-		s, err := sqlite.OpenFileView(dbPath)
-		if err != nil {
-			return err
-		}
-		ds = s
-	default:
-		if err := requireDatabase(dbPath); err != nil {
-			return err
-		}
-		s, err := sqlite.Open(dbPath)
-		if err != nil {
-			return err
-		}
-		ds = s
 	}
 	defer func() { _ = ds.Close() }()
 

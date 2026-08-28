@@ -9,7 +9,7 @@ Every public verb in `commands.go` (`Info`, `Create`, `Reset`, `AddCSV`, `Append
 - **SQLite** — `sqlite.Open` for verbs that write, `sqlite.OpenReadOnly` (via `withReadStore`) for verbs that only look (`internal/store/sqlite/`, raw `database/sql` over modernc.org/sqlite).
 - **duckdb** — `internal/duck`, which shells out to the `duckdb` CLI (a **required** dep, in `internal/doctor/Brewfile`).
 
-`RunTUI` is the exception: a **four-way** switch — `isDuckDB` → `duckstore.Open`, `isParquet` → `duckstore.OpenFileView`, `sqlite.IsViewableFile` (CSV/TSV/JSON/JSONL) → `sqlite.OpenFileView`, default → `sqlite.Open`. See its godoc.
+`openStore` (behind `RunTUI`) is the exception: a **four-way** switch — `isDuckDB` → `duckstore.Open`, `isParquet` → `duckstore.OpenFileView`, `sqlite.IsViewableFile` (CSV/TSV/JSON/JSONL) → `sqlite.OpenFileView`, default → `sqlite.Open`. See its godoc.
 
 ## A read verb never changes the file (data safety)
 
