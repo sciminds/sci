@@ -27,6 +27,20 @@ import "github.com/samber/lo"
 
 Parallel variants: `lop "github.com/samber/lo/parallel"`
 Mutable variants: `lom "github.com/samber/lo/mutable"`
+Iterator variants: `it "github.com/samber/lo/it"` (since v1.52 — see below)
+
+**Requires `github.com/samber/lo` ≥ v1.53.0** — the `*Err` variants and
+Take/Window/Concat this skill teaches don't exist earlier. If the module doesn't
+depend on lo yet, `go get github.com/samber/lo@latest` pins a current version.
+
+### Iterators: `lo/it` (v1.52+)
+
+The `it` subpackage provides lazy `iter.Seq`-based variants of most helpers, for
+composing with stdlib iterators (`maps.Keys`, `slices.Values`, `strings.Lines`)
+without materializing intermediate slices. Use `it.*` when the input is already
+an iterator or the pipeline is large enough that intermediate allocations
+matter; plain slices stay with the eager `lo.*` forms, which remain the default
+in this codebase. (`lo.Generator` is deprecated in favor of stdlib `iter`.)
 
 ## Decision Framework
 

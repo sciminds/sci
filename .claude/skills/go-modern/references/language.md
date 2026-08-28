@@ -1,4 +1,4 @@
-# Language features (Go 1.21–1.26)
+# Language features (Go 1.21–1.27)
 
 Language-level changes that remove boilerplate. Each notes the minimum `go`
 directive required (features only activate when `go.mod` declares that version or
@@ -88,6 +88,8 @@ func clampOrdered[T cmp.Ordered](v, lo, hi T) T { return max(lo, min(v, hi)) }
 
 Keep constraints as narrow as the body actually requires — `comparable` if you
 only compare, `cmp.Ordered` if you order, a method interface if you call methods.
+And if the helper's first parameter is one concrete type, it probably wants to
+be a **generic method** on that type instead (1.27, below).
 
 ### Generic type aliases (1.24)
 
@@ -125,6 +127,101 @@ cfg := Config{Retries: new(3), Timeout: new(30 * time.Second)}
 Use `new(expr)` to replace `ptr(scalarOrExpr)`. For a composite literal you
 already have, `&T{...}` remains the idiom — `new(T{...})` works but reads no
 better. Don't mechanically convert every `&x`.
+
+## Generic methods (1.27)
+
+Methods can now declare their own type parameters. Before 1.27, "a generic
+operation on type `T`" had exactly two bad spellings: a family of per-type
+methods, or a package-level generic function taking the receiver as an argument.
+Both are boilerplate; both now collapse into a method.
+
+```go
+// Before 1.27 — pick your poison:
+func (r *Rand) IntN(n int) int          // (a) one method per type…
+func (r *Rand) Int32N(n int32) int32
+func (r *Rand) Int64N(n int64) int64
+func GetTyped[T any](c *Cache, k string) (T, bool)  // (b) …or a free function
+
+// 1.27 — one generic method, in the type's namespace where it belongs:
+func (r *Rand) N[Int intType](n Int) Int            // math/rand/v2 does exactly this
+func (c *Cache) Get[T any](k string) (T, bool)
+```
+
+Calls infer the type argument the usual way (`r.N(int32(10))`), or take it
+explicitly when the result type drives it (`c.Get[User]("id")`).
+
+When to reach for one:
+- A package-level generic helper whose first parameter is one concrete type —
+  it's a method in disguise; move it onto the type.
+- Typed accessors on containers/caches/registries that previously returned
+  `any` and made the caller assert.
+- API families that differ only in a parameter's type (`math/rand/v2.Rand.N`
+  replacing the `IntN`/`Int32N`/`Int64N` trio is the canonical example).
+
+Limits to know:
+- **Interface methods cannot declare type parameters**, and a generic method
+  **cannot implement an interface method**. Generic methods are for concrete
+  types; if you need polymorphism over the *caller's* type through an
+  interface, you still want a generic function with an interface constraint.
+- The receiver's own type parameters (on a generic *type*) and the method's
+  type parameters are independent lists; both can appear together.
+
+## Embedded/nested fields as struct-literal keys (1.27)
+
+A key in a struct literal may be any valid **field selector** for the struct
+type — including fields promoted from embedded structs — not just top-level
+field names. Composition via embedding no longer taxes every construction site
+with the intermediate type name:
+
+```go
+type Habitat struct {
+    Burrow string
+}
+
+type Gopher struct {
+    Name    string
+    Habitat // embedded
+}
+
+// Before 1.27 — the embedding leaks into the literal:
+g := Gopher{Name: "Gopher", Habitat: Habitat{Burrow: "Burrow #42"}}
+
+// 1.27 — initialize the promoted field directly:
+g := Gopher{Name: "Gopher", Burrow: "Burrow #42"}
+```
+
+This pairs especially well with the options/config-struct pattern: shared
+fields can live in an embedded `CommonOpts` without callers ever noticing.
+Notes:
+- The selector must be unambiguous, same as any promoted-field access — if two
+  embedded structs both promote `Burrow`, name the path explicitly.
+- Don't initialize the same memory twice (e.g. both `Habitat: ...` and
+  `Burrow: ...` in one literal) — the compiler rejects duplicate keys.
+- Prefer the direct form in new code; only spell out the inner literal when
+  you're setting many fields of the embedded struct and the grouping helps.
+
+## Type inference in all assignment contexts (1.27)
+
+Function type inference is generalized: wherever a generic function is assigned
+to (or converted to) a matching concrete function type, the type arguments are
+inferred. Previously this worked for plain assignments and function arguments
+but not composite literals, conversions, or channel sends — which is why
+explicit `[int]` instantiations littered callback tables.
+
+```go
+func GenericFormatter[T any](v T) string { return fmt.Sprintf("value: %v", v) }
+
+type IntFormatter func(int) string
+
+formatters := []IntFormatter{GenericFormatter}   // was: GenericFormatter[int]
+fn := IntFormatter(GenericFormatter)             // conversion infers T = int
+ch := make(chan IntFormatter, 1)
+ch <- GenericFormatter                           // channel send infers too
+```
+
+Reflex: an explicit instantiation whose type arguments merely repeat what the
+target type already says is now noise — drop it. Keep explicit type arguments
+only where nothing constrains them (e.g. `slices.Collect[int]` in isolation).
 
 ## Self-referential generic constraints (1.26)
 

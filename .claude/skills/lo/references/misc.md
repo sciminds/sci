@@ -239,6 +239,11 @@ result, ok := lo.CoalesceSlice(nil, []int{}, []int{1, 2})  // [1, 2], true
 result, ok := lo.CoalesceMap(nil, map[string]int{"a": 1})   // {"a": 1}, true
 ```
 
+`lo.CoalesceOrEmpty(a, b, c)` is exactly stdlib `cmp.Or(a, b, c)` (Go 1.22) —
+prefer `cmp.Or` per this project's stdlib-first rule for non-predicate helpers.
+Keep `lo.Coalesce` when you need the `ok` flag, and the Slice/Map variants for
+their nil-vs-empty handling.
+
 ## Partial Application
 
 ```go

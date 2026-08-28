@@ -4,23 +4,39 @@ Use this to modernize an existing file, or as a final pass before declaring a
 change done. The goal is to write modern Go *the first time* — but this is the
 backstop.
 
-## `go fix` modernizers (Go 1.26)
+## `go fix` modernizers
 
-`go fix` was rebuilt on the `go/analysis` framework in Go 1.26 and now hosts
-Go's "modernizers" — behavior-preserving rewrites that apply many patterns in
-this skill mechanically:
+`go fix` (rebuilt on the `go/analysis` framework in 1.26) hosts Go's
+"modernizers" — behavior-preserving rewrites that apply many patterns in this
+skill mechanically:
 
 - `interface{}` → `any`
-- manual min/max loops → `min`/`max` builtins
-- `sort.Slice` → `slices.SortFunc`
-- `x := x` loop-var copies → removed (post-1.22)
-- `for i := 0; i < n; i++` → `for i := range n`
-- `for b.N` benchmark loops → `b.Loop()`
-- `fmt.Errorf` without `%w` where wrapping was intended → `%w`
-- `append([]T(nil), s...)` → `slices.Clone`
+- if/else min/max chains → `min`/`max` builtins (`minmax`)
+- `sort.Slice` on basic ordered types → `slices.Sort` (`slicessort` — it never
+  emits `SortFunc`; comparator sorts you rewrite by hand)
+- `x := x` loop-var copies → removed (`forvar`, post-1.22)
+- `for i := 0; i < n; i++` → `for i := range n` (`rangeint`)
+- nested literals for embedded fields → direct promoted-field keys (`embedlit`, 1.27)
+- raw `atomic.AddInt64`-style calls → typed `atomic.Int64` etc. (`atomictypes`, 1.27)
+- manual reverse-iteration loops → `slices.Backward` (`slicesbackward`, 1.27)
+- raw unsafe pointer arithmetic → `unsafe.Add` and friends (`unsafefuncs`, 1.27)
+- `for b.N` benchmark loops → `b.Loop()` (`bloop` — **off by default**, enable explicitly)
+- `append([]T(nil), s...)` → `slices.Clone` (`appendclipped` — **off by default**, enable explicitly)
+
+Nothing rewrites `%v` → `%w` — changing wrapping behavior isn't
+behavior-preserving, so `go fix` never will; audit error wrapping yourself.
+Naming drift to watch in older docs: the `sync.WaitGroup` analyzer is
+`waitgroupgo` (not `waitgroup`), and `fmtappendf` no longer exists.
 
 Run it as a first sweep, then review the diff — it's designed to be safe, but
 read what it changed. Writing modern Go up front still beats relying on it.
+
+Adjacent 1.27 toolchain niceties: `go mod tidy` (with `go 1.27` in go.mod)
+consolidates stray `require` blocks into the standard direct + indirect pair —
+don't hand-tidy them; `go test` now runs the `stdversion` vet check by default,
+flagging stdlib symbols newer than the module's `go` directive; and `go doc
+pkg@version` answers "what does this API look like in the version we actually
+depend on."
 
 ## Legacy → modern quick map
 
@@ -46,6 +62,13 @@ read what it changed. Writing modern Go up front still beats relying on it.
 | `wg.Add(1); go func(){ defer wg.Done() … }()` | `wg.Go(func(){ … })` (1.25) | stdlib-extras.md |
 | `runtime.SetFinalizer` | `runtime.AddCleanup` (1.24) | stdlib-extras.md |
 | `rand.Seed(...)` + `rand.Intn` | `math/rand/v2` `rand.IntN` | stdlib-extras.md |
+| package generic func taking one concrete type first | generic method on that type (1.27) | language.md |
+| `Outer{Inner: Inner{Field: v}}` for an embedded field | `Outer{Field: v}` (1.27) | language.md |
+| explicit `[T]` instantiation the target type already implies | drop it — inference covers it (1.27) | language.md |
+| `github.com/google/uuid` (v4/v7/parse only) | stdlib `uuid` (1.27) | stdlib-extras.md |
+| `strings.LastIndex` / `bytes.LastIndex` + slicing | `CutLast` (1.27) | stdlib-extras.md |
+| manual `url.URL` / `url.Values` deep copy | `.Clone()` (1.27) | stdlib-extras.md |
+| `httptest.NewServer` + `defer Close()` in tests | `httptest.NewTestServer(t, h)` (1.27) | stdlib-extras.md |
 | manual transform loop (`for`+`append`) | `lo.Map`/`Filter`/etc. | **the `lo` skill** |
 
 The last row is the dividing line: **transforms belong to the `lo` skill**, not
@@ -85,6 +108,11 @@ Before calling a Go change done, scan for:
 - [ ] Default/precedence chains use `cmp.Or`.
 - [ ] Errors are wrapped with `%w` (one per `Errorf`); matched with `Is`/`As`/`AsType`, never string compare.
 - [ ] `ptr()`-style helpers replaced with `new(expr)` (1.26).
+- [ ] Generic helpers that take one concrete type as their first parameter are methods on that type (1.27).
+- [ ] Struct literals set promoted fields directly instead of nesting the embedded type (1.27).
+- [ ] No explicit `[T]` instantiations that the target type already determines (1.27).
 - [ ] `time.Time`/struct JSON fields that should drop when empty use `omitzero`.
+- [ ] New UUID needs use the stdlib `uuid` package, not `google/uuid` (1.27).
+- [ ] No `LastIndex` + slicing — use `strings.CutLast`/`bytes.CutLast` (1.27).
 - [ ] Transforms (`Map`/`Filter`/`GroupBy`/predicate search) use `lo`, not hand-rolled loops — see the `lo` skill.
 - [ ] `just ok` passes.
