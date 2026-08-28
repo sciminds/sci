@@ -1,6 +1,6 @@
 commit := `git rev-parse --short HEAD 2>/dev/null || echo unknown`
 ldflags := "-s -w -X github.com/sciminds/sci/internal/version.Commit=" + commit
-
+set default-list := true
 build:
     go build -ldflags="{{ldflags}}" -o sci ./cmd/sci
 
@@ -123,6 +123,20 @@ check-ci:
     echo "==> fmt (verify gofmt + goimports clean)"
     out=$("$(go env GOROOT)/bin/gofmt" -l .); if [ -n "$out" ]; then echo "gofmt drift:"; echo "$out"; exit 1; fi
     out=$(go tool goimports -l .); if [ -n "$out" ]; then echo "goimports drift:"; echo "$out"; exit 1; fi
+    echo "==> diff (verify conflict markers + whitespace clean)"
+    base=HEAD^
+    for ref in main origin/main; do
+        candidate=$(git merge-base "$ref" HEAD 2>/dev/null || true)
+        if [ -n "$candidate" ] && [ "$candidate" != "$(git rev-parse HEAD)" ]; then base=$candidate; break; fi
+    done
+    git diff --check "$base"
+    # Only the < and > markers, never `=======`: a 7-character setext heading
+    # underline in a .md file is indistinguishable from a conflict separator,
+    # and no real conflict lacks the angle-bracket markers anyway.
+    if git grep -nE '^(<{7}( |$)|>{7}( |$))'; then
+        echo "leftover conflict markers found in tracked files"
+        exit 1
+    fi
     echo "==> vet"
     go vet ./internal/... ./cmd/...
     echo "==> lint"
