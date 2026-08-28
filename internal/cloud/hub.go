@@ -36,8 +36,8 @@ var hubHTTPClient = &http.Client{Timeout: hubHTTPTimeout}
 // hubGet issues an authenticated GET against an absolute Hub URL.
 func hubGet(ctx context.Context, rawURL string) (*http.Response, error) {
 	tok, err := hfToken()
-	if err != nil || tok == "" {
-		return nil, errNoToken
+	if err != nil {
+		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -61,7 +61,7 @@ func hubStatusError(resp *http.Response, what string) error {
 	case http.StatusUnauthorized, http.StatusForbidden:
 		// A stored-but-rejected token leaves the user at the same next step as
 		// no token at all: run `hf auth login`.
-		return fmt.Errorf("not logged in to Hugging Face: the stored token was rejected (%s)", resp.Status)
+		return fmt.Errorf("%w (%s)", errTokenRejected, resp.Status)
 	default:
 		return fmt.Errorf("%s: %s", what, resp.Status)
 	}

@@ -32,6 +32,12 @@ const hfAPITimeout = 10 * time.Second
 // no network access; the budget covers Python interpreter startup only.
 const hfTokenTimeout = 10 * time.Second
 
+// errNoToken reports a genuinely absent local credential.
+var errNoToken = errors.New("not logged in to Hugging Face: no token found")
+
+// errTokenRejected reports a credential the Hub explicitly refused.
+var errTokenRejected = errors.New("not logged in to Hugging Face: the stored token was rejected")
+
 // hfTokenFn returns the credential stored by `hf auth login`. Local read, no
 // network. Overridable in tests.
 var hfTokenFn = func() (string, error) {
@@ -41,8 +47,15 @@ var hfTokenFn = func() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hfTokenTimeout)
 	defer cancel()
 	// Stdout carries the token; `hf` prints an unrelated hint on stderr.
-	out, err := exec.CommandContext(ctx, "hf", "auth", "token").Output()
+	out, err := exec.CommandContext(ctx, "hf", "auth", "token").CombinedOutput()
 	if err != nil {
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("hf auth token: %w", ctx.Err())
+		}
+		message := strings.ToLower(string(out))
+		if strings.Contains(message, "not logged in") || strings.Contains(message, "no token found") {
+			return "", errNoToken
+		}
 		return "", fmt.Errorf("hf auth token: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil
@@ -55,7 +68,18 @@ func hfToken() (string, error) {
 	if tok := strings.TrimSpace(os.Getenv("HF_TOKEN")); tok != "" {
 		return tok, nil
 	}
-	return hfTokenFn()
+	tok, err := hfTokenFn()
+	if err != nil {
+		if errors.Is(err, errNoToken) {
+			return "", errNoToken
+		}
+		return "", fmt.Errorf("read Hugging Face token: %w", err)
+	}
+	tok = strings.TrimSpace(tok)
+	if tok == "" {
+		return "", errNoToken
+	}
+	return tok, nil
 }
 
 // TokenPresent reports whether a Hugging Face credential is available locally.
@@ -75,15 +99,18 @@ func Whoami() (user string, orgs []string, err error) {
 	return hfWhoami()
 }
 
-// errNoToken reports a missing local credential. Worded so [isNotLoggedIn]
-// recognizes it and [Verify] can answer ErrNotAuthenticated.
-var errNoToken = errors.New("not logged in to Hugging Face: no token found")
-
-// hfWhoami returns the authenticated user and their org memberships from the
-// Hub's whoami endpoint. Overridable in tests.
-var hfWhoami = func() (user string, orgs []string, err error) {
+func hfWhoami() (user string, orgs []string, err error) {
 	tok, err := hfToken()
-	if err != nil || tok == "" {
+	if err != nil {
+		return "", nil, err
+	}
+	return hfWhoamiWithToken(tok)
+}
+
+// hfWhoamiWithToken returns the authenticated user and org memberships from
+// the Hub's whoami endpoint using the already-resolved credential.
+var hfWhoamiWithToken = func(tok string) (user string, orgs []string, err error) {
+	if tok == "" {
 		return "", nil, errNoToken
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), hfAPITimeout)
@@ -102,7 +129,7 @@ var hfWhoami = func() (user string, orgs []string, err error) {
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		// A stored-but-rejected token is indistinguishable from no token as
 		// far as the user's next step goes: run `hf auth login`.
-		return "", nil, fmt.Errorf("not logged in to Hugging Face: the stored token was rejected (%s)", resp.Status)
+		return "", nil, fmt.Errorf("%w (%s)", errTokenRejected, resp.Status)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return "", nil, fmt.Errorf("hugging face whoami: %s", resp.Status)

@@ -33,13 +33,17 @@ type Client struct {
 var ErrNotAuthenticated = errors.New("not authenticated with Hugging Face")
 
 // Verify confirms the user is authenticated with `hf` and is a member of the
-// SciMinds org. The local-credential check comes first so a logged-out user is
-// told so immediately rather than after a round-trip to the Hub.
+// SciMinds org. It resolves the local credential once, then passes that same
+// value to the Hub request so token-store failures remain distinguishable.
 func Verify() (*Config, error) {
-	if !TokenPresent() {
+	tok, err := hfToken()
+	if errors.Is(err, errNoToken) {
 		return nil, ErrNotAuthenticated
 	}
-	user, orgs, err := hfWhoami()
+	if err != nil {
+		return nil, fmt.Errorf("reading Hugging Face credential: %w", err)
+	}
+	user, orgs, err := hfWhoamiWithToken(tok)
 	if err != nil {
 		if isNotLoggedIn(err) {
 			return nil, ErrNotAuthenticated
@@ -55,10 +59,7 @@ func Verify() (*Config, error) {
 // isNotLoggedIn checks whether an hf error indicates the user simply hasn't
 // run `hf auth login` yet (vs. a transient or parsing failure).
 func isNotLoggedIn(err error) bool {
-	low := strings.ToLower(err.Error())
-	return strings.Contains(low, "not logged in") ||
-		strings.Contains(low, "not authenticated") ||
-		strings.Contains(low, "no token")
+	return errors.Is(err, errNoToken) || errors.Is(err, errTokenRejected)
 }
 
 // Setup verifies HF auth and returns a [Client] scoped to the named bucket

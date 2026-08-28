@@ -114,12 +114,45 @@ func TestTokenPresent(t *testing.T) {
 
 func TestVerify_NoTokenIsNotAuthenticated(t *testing.T) {
 	t.Setenv("HF_TOKEN", "")
-	setHFToken(t, "", errors.New("not logged in"))
+	setHFToken(t, "", nil)
 	t.Setenv("HF_ENDPOINT", "http://127.0.0.1:1")
 
 	_, err := Verify()
 	if !errors.Is(err, ErrNotAuthenticated) {
 		t.Errorf("Verify() error = %v, want ErrNotAuthenticated", err)
+	}
+}
+
+func TestVerify_PreservesTokenReadFailure(t *testing.T) {
+	t.Setenv("HF_TOKEN", "")
+	want := errors.New("token store permission denied")
+	setHFToken(t, "", want)
+
+	_, err := Verify()
+	if !errors.Is(err, want) {
+		t.Errorf("Verify() error = %v, want the token-read cause preserved", err)
+	}
+	if errors.Is(err, ErrNotAuthenticated) {
+		t.Errorf("Verify() error = %v, must not classify an arbitrary read failure as ErrNotAuthenticated", err)
+	}
+}
+
+func TestVerify_ReadsTokenOnce(t *testing.T) {
+	t.Setenv("HF_TOKEN", "")
+	reads := 0
+	orig := hfTokenFn
+	hfTokenFn = func() (string, error) {
+		reads++
+		return "hf_abc", nil
+	}
+	t.Cleanup(func() { hfTokenFn = orig })
+	serveWhoami(t, http.StatusOK, whoamiOK)
+
+	if _, err := Verify(); err != nil {
+		t.Fatal(err)
+	}
+	if reads != 1 {
+		t.Errorf("token reads = %d, want exactly one", reads)
 	}
 }
 
