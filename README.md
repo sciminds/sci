@@ -1,8 +1,9 @@
-# SciMinds Command Line Toolkit 
+# SciMinds command line toolkit
 
 A small smart CLI toolkit for academic work on macOS in a single command: `sci`
 
 Highlights:
+
 - Wraps `brew` and `uv` tool installs to reliably auto-sync with a `Brewfile`
 - TUIs for browsing: files, databases, hugging-face buckets, remote lab servers (ssh)
 - Query and cite your Zotero library read-only, with no account and no API key: search it, build a bibliography from exactly what a manuscript cites, export BibLaTeX, and run health checks that report and stop
@@ -15,6 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/sciminds/sci/main/install.sh | sh
 ```
 
 Written in Go because:  
+
 - Go is *typed* and *compiled* which makes it much faster than Python/JS *and* makes TDD with LLMs more reliable 
 - Easy to create single-file programs that work on any computer
 - No complicated dev tooling: everything is pretty standardized in the ecosystem and distribution is just GitHub
@@ -25,7 +27,7 @@ Written in Go because:
 ### Main
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | [`sci py`](#sci-py) | Create ephemeral Python sessions and Marimo notebooks |
 | [`sci proj`](#sci-proj) | Scaffold MyST/Quarto-flavored Python and writing projects |
 | [`sci zot`](#sci-zot) | Query and cite your Zotero library, read-only |
@@ -37,7 +39,7 @@ Written in Go because:
 ### Help
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | [`sci doctor`](#sci-doctor) | Check that your system is set up correctly |
 | `sci setup` | Configure any sci tool (zot, lab, cass, …) from one menu |
 | `sci update` | Update sci to the latest version |
@@ -48,14 +50,14 @@ Written in Go because:
 ### Cloud
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | [`sci cloud`](#sci-cloud) | Up/download files to the SciMinds Hugging Face buckets (requires `hf auth`) |
 | [`sci lab`](#sci-lab) | Up/download files to university HPC storage over SFTP (requires VPN) |
 
 ### Experimental
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | [`sci cass`](#sci-cass) | Canvas LMS & GitHub Classroom management |
 
 ---
@@ -114,7 +116,7 @@ Browse data files & markdown interactively.
 <summary><b>usage</b> — click to expand</summary>
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci view <file>` | Browse a tabular file (CSV, JSON, SQLite, DuckDB, Parquet) or render a markdown document |
 | `sci db view <file>` | Same viewer, mounted under the `sci db` namespace for discoverability |
 
@@ -122,7 +124,6 @@ Tabular files open in dbtui (`internal/tui/dbtui/`). Markdown files (`.md`, `.ma
 
 ![sci view](docs/casts/view.gif)
 </details>
-
 
 ### `sci proj`
 
@@ -132,7 +133,7 @@ Scaffold and manage Python data-analysis and writing projects.
 <summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci proj new` | Create a new Python or writing project (`--kind python\|writing`) |
 | `sci proj add` | Add packages to the project |
 | `sci proj remove` | Remove packages from the project |
@@ -146,7 +147,6 @@ Scaffold and manage Python data-analysis and writing projects.
 ![sci proj](docs/casts/proj-new.gif)
 </details>
 
-
 ### `sci py`
 
 Ephemeral Python REPLs/notebooks and document-format conversion.
@@ -155,14 +155,13 @@ Ephemeral Python REPLs/notebooks and document-format conversion.
 <summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci py repl` | Open a Python scratchpad |
 | `sci py notebook` | Open a marimo notebook |
 | `sci py convert` | Convert between marimo (.py), MyST (.md), and Quarto (.qmd) |
 
 ![sci py](docs/casts/py-repl.gif)
 </details>
-
 
 ### `sci db`
 
@@ -174,7 +173,7 @@ Work with SQLite/DuckDB databases and tabular files (CSV, JSON, Parquet). Verbs 
 **Database management**
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci db create` | Create an empty database (SQLite or DuckDB, picked by extension) — refuses a path that already exists |
 | `sci db reset` | Delete and recreate an empty database — refuses any path that is not a database |
 | `sci db info` | Show database metadata and tables (read-only: the file's bytes are left untouched) |
@@ -185,7 +184,7 @@ Work with SQLite/DuckDB databases and tabular files (CSV, JSON, Parquet). Verbs 
 **Table / file inspection**
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci db head` | Show the first N rows of a tabular file |
 | `sci db tail` | Show the last N rows of a tabular file |
 | `sci db cols` | List column names and types |
@@ -197,14 +196,13 @@ Work with SQLite/DuckDB databases and tabular files (CSV, JSON, Parquet). Verbs 
 **Import / convert**
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci db add` | Import a CSV as a new table (errors if the table already exists) |
 | `sci db append` | Append CSV rows to an existing table |
 | `sci db convert` | Convert between csv/tsv/json/jsonl/parquet/sqlite/duckdb |
 
 ![sci db](docs/casts/db-add.gif)
 </details>
-
 
 ### `sci cloud`
 
@@ -214,7 +212,7 @@ Upload/download files to the SciMinds Hugging Face buckets. Every verb defaults 
 <summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci cloud setup` | Authenticate with Hugging Face (requires sciminds org membership) |
 | `sci cloud ls` | List shared files (default: private; `--public` to list public) |
 | `sci cloud get <name> [local]` | Download a shared file (no arg → interactive browser) |
@@ -224,7 +222,6 @@ Upload/download files to the SciMinds Hugging Face buckets. Every verb defaults 
 ![sci cloud](docs/casts/cloud-put.gif)
 </details>
 
-
 ### `sci lab`
 
 Access university lab storage over SFTP (VPN required).
@@ -233,7 +230,7 @@ Access university lab storage over SFTP (VPN required).
 <summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci lab setup` | Configure SSH access to lab storage |
 | `sci lab ls` | List remote directory contents |
 | `sci lab get <remote> [local]` | Download a file or directory (no arg → interactive browser) |
@@ -243,7 +240,6 @@ Access university lab storage over SFTP (VPN required).
 ![sci lab](docs/casts/lab-get.gif)
 </details>
 
-
 ### `sci tools`
 
 Manage Homebrew & uv tools via your Brewfile.
@@ -252,7 +248,7 @@ Manage Homebrew & uv tools via your Brewfile.
 <summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci tools list` | List packages in the Brewfile |
 | `sci tools install` | Install packages from the Brewfile, or add and install a new package |
 | `sci tools uninstall` | Remove a package from the Brewfile and uninstall it |
@@ -264,7 +260,6 @@ Manage Homebrew & uv tools via your Brewfile.
 ![sci tools](docs/casts/tools-install.gif)
 </details>
 
-
 ### `sci vid`
 
 Common video/audio editing operations. Wraps `ffmpeg` with sensible defaults.
@@ -273,7 +268,7 @@ Common video/audio editing operations. Wraps `ffmpeg` with sensible defaults.
 <summary><b>sub-commands</b> — click to expand</summary>
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci vid info` | Show video info (resolution, duration, codec, fps, size) |
 | `sci vid cut` | Trim a segment (e.g. `0:30 1:00`) |
 | `sci vid compress` | Shrink a video file (reduce file size) |
@@ -288,7 +283,6 @@ Common video/audio editing operations. Wraps `ffmpeg` with sensible defaults.
 ![sci vid](docs/casts/vid-cut.gif)
 </details>
 
-
 ### `sci cass`
 
 Canvas LMS & GitHub Classroom management.
@@ -296,9 +290,8 @@ Canvas LMS & GitHub Classroom management.
 <details>
 <summary><b>sub-commands</b> — click to expand</summary>
 
-
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | `sci cass setup` | Save your Canvas API token (one-time) |
 | `sci cass init` | Create a `cass.yaml` config for a course directory |
 | `sci cass pull` | Fetch students, assignments, and submissions from Canvas/GitHub |
@@ -313,12 +306,10 @@ Canvas LMS & GitHub Classroom management.
 | `sci cass canvas announce` | List, post, or delete announcements |
 | `sci cass canvas files` | List course files |
 
-
 Syncs course data to a local SQLite database (`cass.db`) with a git-like workflow: pull shows changelogs, diff shows pending grade changes, push sends grades to Canvas with conflict detection. GitHub Classroom is optional — works with Canvas-only courses.
 
 ![sci cass](docs/casts/cass-pull.gif)
 </details>
-
 
 ### `sci zot`
 
@@ -336,7 +327,7 @@ Nothing here writes. No verb creates, edits, or deletes an item, a collection, a
 **Setup & overview**
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | [`sci zot setup`](#setup--library-overview) | Point sci at your Zotero data directory — the only thing sci stores |
 | [`sci zot info`](#setup--library-overview) | Summarize both libraries (personal + shared) |
 | [`sci zot guide`](#setup--library-overview) | Agent-friendly cheat sheet of common workflows |
@@ -345,7 +336,7 @@ Nothing here writes. No verb creates, edits, or deletes an item, a collection, a
 **Search & export**
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | [`sci zot --library personal search <query>`](#search--export) | Search the local library — free-text words AND across metadata fields; `@field:` clauses for author/title/doi/pub/tag/type/year/citekey; a bare year like `2021` filters by year; `--full` hydrates each hit with abstract, cite-key, and authors |
 | [`sci zot browse`](#search--export) | Interactive search REPL — type to search, type a hit number to open its PDF |
 | [`sci zot --library personal search <q> --export -o hits.bib`](#search--export) | Route search results through the export pipeline |
@@ -355,7 +346,7 @@ Nothing here writes. No verb creates, edits, or deletes an item, a collection, a
 **Items**
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | [`sci zot --library personal item read <key>...`](#items) | Show full metadata for one or more items (`--missing-ok` reports not-founds instead of failing the batch) |
 | [`sci zot --library personal item list`](#items) | List items with optional filters |
 | [`sci zot --library personal item children <key>`](#items) | List child attachments + notes of an item |
@@ -367,14 +358,14 @@ Nothing here writes. No verb creates, edits, or deletes an item, a collection, a
 **Organize**
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | [`sci zot --library personal collection list\|browse`](#organize) | List every collection with item counts, or browse collections and their items |
 | [`sci zot --library personal tags list\|browse`](#organize) | List every tag with usage counts, or browse tags and their items |
 
 **Hygiene**
 
 | Command | What it does |
-|---------|--------------|
+| --------- | -------------- |
 | [`sci zot --library personal doctor`](#hygiene) | Run all hygiene checks (invalid → missing → orphans → duplicates → citekeys) |
 | [`sci zot --library personal doctor {invalid,missing,orphans,duplicates,citekeys,dois}`](#hygiene) | Drill into individual hygiene reports |
 | [`sci zot --library personal doctor dois`](#hygiene) | Flag publisher-subobject DOIs (Frontiers `/abstract`, PLOS `.tNNN`, PNAS supplements) — the ones metadata APIs 404 on |
@@ -462,7 +453,7 @@ For a longer co-develop loop, `just install` symlinks the repo build to `~/.loca
 Two opt-in actions are driven by strings in the commit message on `main`:
 
 | Trigger | Effect |
-|---|---|
+| --- | --- |
 | `[release]` | After the gate passes, publishes a CalVer-tagged GitHub release (`vYYYY.MM.DD[.N]`). Without it, push/PR runs only fmt/vet/lint/test + cross-compile. |
 | `[scenarios]` | Runs the [Environment Scenarios](.github/workflows/scenarios.yml) matrix (no-brew / brew-no-file / brew-file / no-brew-accept) for this commit. The matrix also auto-runs when a push touches the surfaces it asserts against (cmdutil/brew/doctor/netutil, the tools/doctor commands, or the workflow file); otherwise it runs weekly (Mondays 09:00 UTC) or via manual dispatch. |
 
@@ -491,5 +482,3 @@ hf auth login                              # paste an HF token with read+write o
 git xet install                            # one-time global LFS transfer agent setup
 sci doctor                                 # verify everything's green
 ```
-
-> A legacy Cloudflare R2 + worker auth flow was deprecated when this CLI moved to Hugging Face buckets. The old code (`internal/cloud/auth.go`, `device.go`, and `worker/`) is preserved on the `cloudflare-cloud` git branch; the deployed worker at `sci-auth.sciminds.workers.dev` can be decommissioned separately via `bunx wrangler delete` from a checkout of that branch.
