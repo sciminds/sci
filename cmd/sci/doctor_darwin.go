@@ -236,6 +236,7 @@ func runDoctorCheck(ctx context.Context, cmd *cli.Command) error {
 			if spinErr != nil {
 				fmt.Fprintf(os.Stderr, "\n  %s %s\n",
 					uikit.SymFail, uikit.TUI.Fail().Render("Install failed: "+spinErr.Error()))
+				fmt.Fprintf(os.Stderr, "    %s try: %s\n", uikit.SymArrow, doctor.InstallErrorHint)
 				fmt.Fprintf(os.Stderr, "\n  To install manually:\n")
 				fmt.Fprintf(os.Stderr, "    %s sci tools install\n", uikit.SymArrow)
 				fmt.Fprintln(os.Stderr)

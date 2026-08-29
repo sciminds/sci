@@ -130,6 +130,21 @@ jobs:
 
       # --- Scenario setup -------------------------------------------------
 
+      - name: Scenario — refresh the preinstalled Homebrew
+        # The runner image pins Homebrew at whatever version it was built
+        # with and sets HOMEBREW_NO_AUTO_UPDATE, so `brew install` never
+        # self-updates the way it does on a user's machine. That skew is a
+        # real failure mode but not the one these legs exist to catch: a
+        # formula that adopts install-step DSL newer than the image's brew
+        # (node 26.7.0 vs brew 6.0.13, 2026-08) fails its post-install and
+        # turns doctor red for reasons unrelated to sci. Bring brew up to
+        # date first, as an auto-updating brew would have done itself. The
+        # no-brew legs install Homebrew fresh and get the current version.
+        if: matrix.scenario == 'brew-no-file' || matrix.scenario == 'brew-file'
+        run: |
+          brew update
+          brew --version
+
       - name: Scenario — uninstall Homebrew
         if: matrix.scenario == 'no-brew' || matrix.scenario == 'no-brew-accept'
         run: |

@@ -220,6 +220,38 @@ func TestJSON_IncludesInstallError(t *testing.T) {
 	if !strings.Contains(s, `"install_error":"install failed"`) {
 		t.Errorf("expected install_error in JSON, got %s", s)
 	}
+	// json.Marshal escapes the `<` in "<formula>" as \u003c (cmdutil's encoder
+	// does not), so match the key and the hint's opening words, not the whole text.
+	if !strings.Contains(s, `"install_hint":"run `+"`brew update`") {
+		t.Errorf("expected install_hint alongside install_error in JSON, got %s", s)
+	}
+}
+
+func TestHuman_InstallErrorWithHint(t *testing.T) {
+	r := DocResult{
+		Sections: []CheckSection{
+			{Name: "Pre-flight", Checks: []CheckResult{
+				{Label: "Homebrew", Status: StatusPass, Message: "installed"},
+			}},
+		},
+		Tools:        []ToolInfo{{Name: "node", Installed: false}},
+		InstallError: "install formulae: exit status 1",
+	}
+
+	output := r.Human()
+	if !strings.Contains(output, "Install failed: install formulae: exit status 1") {
+		t.Errorf("expected install failure line in Human output, got:\n%s", output)
+	}
+	if !strings.Contains(output, InstallErrorHint) {
+		t.Errorf("expected install hint in Human output, got:\n%s", output)
+	}
+}
+
+func TestHuman_NoInstallHintWithoutError(t *testing.T) {
+	r := DocResult{Tools: []ToolInfo{{Name: "node", Installed: true}}}
+	if output := r.Human(); strings.Contains(output, InstallErrorHint) {
+		t.Errorf("expected no install hint when nothing failed, got:\n%s", output)
+	}
 }
 
 func TestJSON_OmitsEmptyBrewfileFields(t *testing.T) {
@@ -249,6 +281,9 @@ func TestJSON_OmitsEmptyBrewfileFields(t *testing.T) {
 	}
 	if strings.Contains(s, `"install_error"`) {
 		t.Errorf("expected install_error to be omitted when empty, got %s", s)
+	}
+	if strings.Contains(s, `"install_hint"`) {
+		t.Errorf("expected install_hint to be omitted when there is no install_error, got %s", s)
 	}
 }
 

@@ -39,6 +39,17 @@ type DocResult struct {
 	UpgradeCheck UpgradeCheckReport
 }
 
+// InstallErrorHint is the remediation attached to every InstallError. sci
+// only sees brew's exit status, not which formula or step failed, so the
+// advice targets the common cause of a bottle that pours but whose
+// post-install step fails: a Homebrew that has not self-updated (a formula
+// can adopt install-step DSL its brew does not know yet, and a runner image
+// or HOMEBREW_NO_AUTO_UPDATE keeps brew from catching up on its own).
+// `brew update` is what a self-updating brew would have done first, and
+// re-running doctor retries the install.
+const InstallErrorHint = "run `brew update` then re-run `sci doctor` — a stale Homebrew can fail a " +
+	"formula's post-install step; `brew postinstall <formula>` retries just that step"
+
 // UpgradeCheckStatus is the closed vocabulary for the fate of the brew/uv
 // outdated check.
 type UpgradeCheckStatus string
@@ -100,6 +111,7 @@ type jsonDocResult struct {
 	ToolCheckError  string                 `json:"tool_check_error,omitempty"`
 	ToolsInstalled  []string               `json:"tools_installed,omitempty"`
 	InstallError    string                 `json:"install_error,omitempty"`
+	InstallHint     string                 `json:"install_hint,omitempty"`
 	Outdated        []brew.OutdatedPackage `json:"outdated,omitempty"`
 	Upgraded        []brew.OutdatedPackage `json:"upgraded,omitempty"`
 	UpdateError     string                 `json:"update_error,omitempty"`
@@ -154,6 +166,7 @@ func (r DocResult) JSON() any {
 		ToolCheckError:  r.ToolCheckError,
 		ToolsInstalled:  r.ToolsInstalled,
 		InstallError:    r.InstallError,
+		InstallHint:     r.installHint(),
 		Outdated:        r.Outdated,
 		Upgraded:        r.Upgraded,
 		UpdateError:     r.UpdateError,
@@ -199,6 +212,14 @@ func (r DocResult) Human() string {
 			uikit.TUI.Dim().Render(fmt.Sprintf("%d/%d", installed, len(r.Tools))))
 	}
 
+	// A failed install is reported with its remedy, never left as a bare
+	// exit status the reader has to diagnose from brew's scrollback.
+	if r.InstallError != "" {
+		fmt.Fprintf(&b, "\n  %s %s\n", uikit.SymFail,
+			uikit.TUI.Fail().Render("Install failed: "+r.InstallError))
+		fmt.Fprintf(&b, "    %s try: %s\n", uikit.SymArrow, r.installHint())
+	}
+
 	// An abandoned or failed upgrade check is reported, never silently
 	// rendered as "nothing outdated".
 	switch r.UpgradeCheck.Status {
@@ -224,6 +245,15 @@ func (r DocResult) Human() string {
 	fmt.Fprintln(&b)
 
 	return b.String()
+}
+
+// installHint returns [InstallErrorHint] when an install failed and "" otherwise,
+// so the JSON field is omitted (and no advice is rendered) when nothing failed.
+func (r DocResult) installHint() string {
+	if r.InstallError == "" {
+		return ""
+	}
+	return InstallErrorHint
 }
 
 // AllPassed returns true if no checks failed.
