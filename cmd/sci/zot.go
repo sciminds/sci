@@ -11,12 +11,14 @@ import (
 func zotCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "zot",
-		Usage: "Query and cite your Zotero library, read-only",
+		Usage: "Query, cite, and manage your Zotero library",
 		Description: "# agents: run `sci zot guide --json` once before driving zot — it teaches the command surface and the --json envelope/fix/warnings contract\n" +
-			"$ sci zot guide                       # task-oriented cheat sheet (search, bibliographies, hygiene)\n" +
-			"$ sci zot setup\n" +
+			"$ sci zot guide                       # task-oriented cheat sheet (search, bibliographies, curation, hygiene)\n" +
+			"$ sci zot setup                       # reads need only the data directory; --api-key enables writes\n" +
 			"$ sci zot --library personal search \"theory of mind\"\n" +
-			"$ sci zot --library personal bib paper.qmd --out refs.bib",
+			"$ sci zot --library personal bib paper.qmd --out refs.bib\n" +
+			"$ sci zot --library personal item add 10.1038/nature12373 --collection \"Reading list\"\n" +
+			"$ sci zot --library personal collection add ABC12345 \"Reading list\"",
 		Category: "Commands",
 		Flags:    zotcli.PersistentFlags(),
 		Before:   zotcli.ValidateLibraryBefore,

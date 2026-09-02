@@ -62,11 +62,12 @@ var longDescs = map[string]string{
 		"edit grades locally, then push changes back to Canvas with conflict detection. " +
 		"GitHub Classroom is optional — works with Canvas-only courses too.",
 
-	"zot": "Query and cite your Zotero library, read-only. Reads your local " +
-		"Zotero database directly — fast search over every metadata field, " +
-		"a bibliography built from exactly what a manuscript cites, " +
-		"BibLaTeX/CSL-JSON export, and health checks that report and stop. " +
-		"Run `sci zot setup` once to point it at your Zotero data directory — " +
-		"there is no account to connect and no API key to paste, and nothing here " +
-		"ever writes to your library.",
+	"zot": "Query, cite, and manage your Zotero library. Reads come straight " +
+		"from your local Zotero database with no account or API key — fast search " +
+		"over every metadata field, a bibliography built from exactly what a " +
+		"manuscript cites, BibLaTeX/CSL-JSON export, and health checks that report " +
+		"and stop. Writes go through the Zotero Web API with your own key — add a " +
+		"paper from a DOI, an arXiv id, or a PDF, file items into collections, edit " +
+		"metadata, attach files, tag. Run `sci zot setup` once to point it at your " +
+		"Zotero data directory, and `sci zot setup --api-key <key>` to enable writes.",
 }

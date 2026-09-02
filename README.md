@@ -6,7 +6,7 @@ Highlights:
 
 - Wraps `brew` and `uv` tool installs to reliably auto-sync with a `Brewfile`
 - TUIs for browsing: files, databases, hugging-face buckets, remote lab servers (ssh)
-- Query and cite your Zotero library read-only, with no account and no API key: search it, build a bibliography from exactly what a manuscript cites, export BibLaTeX, and run health checks that report and stop
+- Drive your Zotero library from the terminal: search it and build bibliographies with no account or API key, and — with your own key — add papers by DOI or PDF, file them into collections, edit metadata, and tag them
 - Control Canvas LMS from the command-line (experimental): manage assignments, modules, grades, files, etc
 
 ## Install
@@ -30,7 +30,7 @@ Written in Go because:
 | --------- | -------------- |
 | [`sci py`](#sci-py) | Create ephemeral Python sessions and Marimo notebooks |
 | [`sci proj`](#sci-proj) | Scaffold MyST/Quarto-flavored Python and writing projects |
-| [`sci zot`](#sci-zot) | Query and cite your Zotero library, read-only |
+| [`sci zot`](#sci-zot) | Query, cite, and manage your Zotero library |
 | [`sci view`](#sci-view) | Interactive viewer for markdown, csv, json, parquet, sqlite, and duckdb files |
 | [`sci db`](#sci-db) | Work with sqlite, duckdb, csv, json, and parquet files |
 | [`sci vid`](#sci-vid) | Common video/audio editing operations (trim, resize, mute, …) |
@@ -313,11 +313,9 @@ Syncs course data to a local SQLite database (`cass.db`) with a git-like workflo
 
 ### `sci zot`
 
-**Query and cite your Zotero library, read-only — no account, no API key, no network.** Every command opens the `zotero.sqlite` already sitting on your disk, in immutable mode: nothing to log into, no contention with the running desktop app, and nothing sci can do to your library. Search it, build a bibliography from what a manuscript actually cites, export the whole thing to BibLaTeX, and run health checks that report and stop. `sci zot guide` prints an agent-friendly cheat sheet of the same surface, and `sci zot guide --json` is its machine-readable contract.
+**Query, cite, and manage your Zotero library from the terminal.** Reads need no account, no API key and no network: every read opens the `zotero.sqlite` already sitting on your disk, in immutable mode, so there is nothing to log into and no contention with the running desktop app. Search it, build a bibliography from what a manuscript actually cites, export the whole thing to BibLaTeX, and run health checks that report and stop. Writes go through the Zotero Web API with your own key: add a paper from a DOI, an arXiv id, a PDF, or a folder of PDFs; create and rearrange collections and file items into them; edit metadata; attach files; tag. `sci zot guide` prints an agent-friendly cheat sheet of the whole surface, and `sci zot guide --json` is its machine-readable contract.
 
-Nothing here writes. No verb creates, edits, or deletes an item, a collection, a tag, or a note — editing your library stays Zotero's job, and sci only ever reads what Zotero has already written down.
-
-`sci zot setup` records exactly one thing: the directory holding `zotero.sqlite`. The trade for that simplicity is staleness — reading the file in immutable mode means anything Zotero has committed but not yet checkpointed, or not yet synced down from the server, is invisible until the desktop app catches up. sci reports that gap rather than hiding it, as a `stale-local` warning on the results it affects.
+`sci zot setup` records the directory holding `zotero.sqlite`, which is all reads need, and optionally a Zotero API key (`--api-key`; created at zotero.org/settings/keys with library write access), which is what the write verbs use — setup verifies the key with Zotero before storing it. The trade for reading the local file is staleness: anything Zotero has committed but not yet checkpointed, or not yet synced down from the server, is invisible until the desktop app catches up. sci reports that gap rather than hiding it, as a `stale-local` warning on the results it affects — and every write returns the server's copy of what it wrote, so you never have to re-read the mirror to confirm one.
 
 <details>
 <summary><b>sub-commands</b> — click to expand</summary>
@@ -328,7 +326,7 @@ Nothing here writes. No verb creates, edits, or deletes an item, a collection, a
 
 | Command | What it does |
 | --------- | -------------- |
-| [`sci zot setup`](#setup--library-overview) | Point sci at your Zotero data directory — the only thing sci stores |
+| [`sci zot setup`](#setup--library-overview) | Point sci at your Zotero data directory; `--api-key` stores a verified Web API key for the write verbs |
 | [`sci zot info`](#setup--library-overview) | Summarize both libraries (personal + shared) |
 | [`sci zot guide`](#setup--library-overview) | Agent-friendly cheat sheet of common workflows |
 | [`sci zot --library personal view`](#browse) | Browse your library in an interactive table (read-only) |
@@ -354,13 +352,24 @@ Nothing here writes. No verb creates, edits, or deletes an item, a collection, a
 | [`sci zot --library personal item open <key>`](#items) | Open the item's PDF attachment |
 | [`sci zot --library personal notes list\|read`](#items) | The notes *you* wrote — machine-generated full-text extractions are filtered out (`--md` renders a note's body as markdown) |
 | [`sci zot --library personal link list <key>`](#items) | Show an item's "related items" relations |
+| [`sci zot --library personal item add <doi\|arxiv\|file.pdf\|dir/>...`](#items) | Add papers: metadata from doi.org for an identifier, or sniffed out of a PDF's first pages (the PDF is attached); a DOI already in the library is refused as a duplicate; `--dry-run` shows what would be created; `--title …` builds an item by hand |
+| [`sci zot --library personal item update <key>... --title/--doi/--field name=value …`](#items) | Edit metadata on one or more items (`--author` replaces the creator list; an empty value clears a field) |
+| [`sci zot --library personal item attach <key> <file.pdf>`](#items) | Upload a file as a child attachment (`--skip-existing` makes it idempotent by md5) |
+| [`sci zot --library personal item delete <key>... --yes`](#items) | Move items to Zotero's trash (never a permanent delete) |
 
 **Organize**
 
 | Command | What it does |
 | --------- | -------------- |
 | [`sci zot --library personal collection list\|browse`](#organize) | List every collection with item counts, or browse collections and their items |
+| [`sci zot --library personal collection create <name> --parent <coll>`](#organize) | Create a collection, top-level or under a parent (collections are named by key or exact name — never guessed) |
+| [`sci zot --library personal collection update <coll> --name/--parent/--top-level`](#organize) | Rename a collection or move it in the tree |
+| [`sci zot --library personal collection add\|remove <item>... <coll>`](#organize) | File items into a collection or take them out (`--from-file -` reads keys from stdin, so `search --json \| jq` pipes straight in) |
+| [`sci zot --library personal collection delete <coll> --yes`](#organize) | Delete a collection (items stay in the library) |
 | [`sci zot --library personal tags list\|browse`](#organize) | List every tag with usage counts, or browse tags and their items |
+| [`sci zot --library personal tags add\|remove <item> <tag>...`](#organize) | Tag an item, or take tags off it |
+
+Writes target one library (`--library personal|shared`, never `all`), need the key from `sci zot setup --api-key`, and refuse under `--json` without `--yes` where a confirmation would have been shown — quiet mode is not consent.
 
 **Hygiene**
 
@@ -370,7 +379,7 @@ Nothing here writes. No verb creates, edits, or deletes an item, a collection, a
 | [`sci zot --library personal doctor {invalid,missing,orphans,duplicates,citekeys,dois}`](#hygiene) | Drill into individual hygiene reports |
 | [`sci zot --library personal doctor dois`](#hygiene) | Flag publisher-subobject DOIs (Frontiers `/abstract`, PLOS `.tNNN`, PNAS supplements) — the ones metadata APIs 404 on |
 
-**Doctor reports; it does not repair.** Every check reads the local Zotero database and stops there: no writes, no network, no metered lookups. That is the whole contract — a health check you can run on any machine, against a library you have not synced, without a credential. Findings name the item and the field they are about, so the fix is one you make deliberately in Zotero rather than one a CLI applies to 5,000 rows while you watch.
+**Doctor reports; it does not repair.** Every check reads the local Zotero database and stops there: no writes, no network, no metered lookups. That is the whole contract — a health check you can run on any machine, against a library you have not synced, without a credential. Findings name the item and the field they are about, so the fix is one you make deliberately — in Zotero, or with `sci zot item update` one item at a time — rather than one a CLI applies to 5,000 rows while you watch.
 
 `sci zot doctor --deep` enables fuzzy duplicate detection and noisier orphan kinds. `--library shared` routes the same surface to a Zotero group library (e.g. a shared lab collection) — `setup` reads the group out of the local database automatically when there is exactly one, or takes `--shared-group-id` when the library holds several.
 
