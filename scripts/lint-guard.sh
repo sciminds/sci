@@ -554,16 +554,18 @@ fi
 # through the Zotero Web API with the user's key, and every write verb has to
 # say so by refusing without one.
 #
-# The fence is the dependency graph: exactly two packages may reach net/http
-# — internal/zot/api (the Web API client) and internal/zot/cli (the command
-# tree, which mounts it). Everything else under internal/zot/ and all of
-# internal/local/ must stay off it, so a read helper that grows a network call
-# fails here rather than turning a local read into a credentialed one.
+# The fence is the dependency graph: exactly three packages may reach
+# net/http — internal/zot/api (the Web API client), internal/zot/doiorg (the
+# doi.org metadata lookup behind `item add <doi>`; no credential, one GET per
+# DOI) and internal/zot/cli (the command tree, which mounts both). Everything
+# else under internal/zot/ and all of internal/local/ must stay off it, so a
+# read helper that grows a network call fails here rather than turning a
+# local read into a credentialed one.
 #
 # `go list -deps` is transitive, which is the point: nothing has to import
 # net/http directly to reach it. Add a package to the allowlist only when it
 # is a network client by design, and name it here with its reason.
-zot_http_allowed='^github\.com/sciminds/sci/internal/zot/(api|cli)$'
+zot_http_allowed='^github\.com/sciminds/sci/internal/zot/(api|doiorg|cli)$'
 zot_http=$(for pkg in $(go list ./internal/zot/... ./internal/local/... 2>/dev/null); do
 	if [[ "$pkg" =~ $zot_http_allowed ]]; then continue; fi
 	if go list -deps "$pkg" 2>/dev/null | rg -q '^net/http$'; then echo "$pkg"; fi
@@ -572,7 +574,7 @@ done)
 if [[ -n "$zot_http" ]]; then
 	echo "FAIL [zot-no-http] read-plane package reaches net/http:"
 	echo "$zot_http" | sed 's/^/  /'
-	echo "  Only internal/zot/{api,cli} may reach the network. Reads answer"
+	echo "  Only internal/zot/{api,doiorg,cli} may reach the network. Reads answer"
 	echo "  from the local zotero.sqlite and hold no credential; a package that"
 	echo "  needs the network is a client and belongs in that allowlist by name."
 	echo "  See internal/zot/CLAUDE.md, 'The boundary'."
