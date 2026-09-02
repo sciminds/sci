@@ -35,3 +35,21 @@ func TestBulkWriteResult_HumanListsFailuresDeterministically(t *testing.T) {
 		t.Errorf("failures not sorted: %q", got)
 	}
 }
+
+// TestBulkWriteResult_HumanCountsUnchanged: the human report owes the reader
+// the same honesty the JSON carries — a no-op is not a write.
+func TestBulkWriteResult_HumanCountsUnchanged(t *testing.T) {
+	t.Parallel()
+	r := BulkWriteResult{
+		Action: "added", Kind: "item", Total: 2,
+		Success: []string{"AAAA0001", "BBBB0002"},
+		Data:    map[string]any{"unchanged": []string{"BBBB0002"}},
+	}
+	if got := r.Human(); !strings.Contains(got, "1 already as requested") {
+		t.Errorf("Human() does not report the unchanged item: %q", got)
+	}
+	plain := BulkWriteResult{Action: "added", Kind: "item", Total: 1, Success: []string{"AAAA0001"}}
+	if got := plain.Human(); strings.Contains(got, "unchanged") {
+		t.Errorf("Human() invents an unchanged line: %q", got)
+	}
+}

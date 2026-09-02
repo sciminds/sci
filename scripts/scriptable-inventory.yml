@@ -302,6 +302,21 @@ commands:
         bypass: "--data-dir (auto-detected from the platform candidates when omitted)"
         status: covered
 
+  # ── zot collection delete ──────────────────────────────────────────────────
+  # A cmdutil.ConfirmOrSkip confirmation. Confirmations are not on the
+  # ast-grep radar (scripts/interactive-calls.yml tracks uikit prompts and
+  # TUI launches), so this entry carries no nth: it records the bypass rather
+  # than a matched call site, and a missing nth keeps rule 13's stale-entry
+  # check from reporting it.
+  zot-collection-delete:
+    file: internal/zot/cli/collection_write.go
+    prompts:
+      - id: delete-confirm
+        type: cmdutil.ConfirmOrSkip
+        description: "Confirm deleting a collection (and the sub-collections Zotero deletes with it)"
+        bypass: "--yes"
+        status: covered
+
   # ── zot library scope ──────────────────────────────────────────────────────
   zot-library:
     file: internal/zot/cli/library_resolve.go

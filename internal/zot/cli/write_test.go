@@ -49,8 +49,13 @@ func TestRequireAPIClient_NoCredentialNamesTheAPIKeyFix(t *testing.T) {
 	if coded.Code != cmdutil.CodeNotConfigured {
 		t.Errorf("Code = %q, want not-configured", coded.Code)
 	}
-	if !strings.Contains(coded.Fix, "--api-key") {
-		t.Errorf("Fix = %q, want the --api-key setup command", coded.Fix)
+	if !strings.Contains(coded.Try, "--api-key") {
+		t.Errorf("Try = %q, want the --api-key setup command", coded.Try)
+	}
+	// A Fix is resubmitted verbatim; a placeholder-carrying command is not
+	// one, so the remedy rides in Try and Fix stays empty.
+	if coded.Fix != "" {
+		t.Errorf("Fix = %q, want none (the setup command carries a <key> placeholder)", coded.Fix)
 	}
 	if !strings.Contains(coded.Message, "reads work without one") {
 		t.Errorf("Message should reassure that reads are unaffected: %q", coded.Message)

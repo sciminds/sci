@@ -9,10 +9,22 @@ import (
 
 func collectionCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "collection",
-		Aliases:     []string{"coll"},
-		Usage:       "List the collections in your library",
-		Description: "$ sci zot collection list\n$ sci zot collection browse\n\nRead-only: creating collections and moving items between them are\nwrites, and this surface never writes to your library.",
+		Name:    "collection",
+		Aliases: []string{"coll"},
+		Usage:   "Work with collections (list, browse, create, update, delete, add, remove)",
+		Description: "$ sci zot collection list\n" +
+			"$ sci zot collection browse\n" +
+			"$ sci zot collection create \"Reading list\" --parent Projects\n" +
+			"$ sci zot collection add ABC12345 \"Reading list\"\n" +
+			"$ sci zot collection remove ABC12345 \"Reading list\"\n" +
+			"$ sci zot collection update \"Reading list\" --name \"To read\"\n" +
+			"$ sci zot collection delete \"To read\" --yes\n\n" +
+			"list and browse read the local mirror. create, update, delete, add\n" +
+			"and remove write through the Zotero Web API: they need an API key\n" +
+			"(sci zot setup --api-key <key>) and one library (--library\n" +
+			"personal|shared), and each returns the server's copy of what it\n" +
+			"wrote — the local mirror shows the change only after Zotero desktop\n" +
+			"syncs.",
 		Commands: []*cli.Command{
 			{
 				Name:        "list",
@@ -33,6 +45,11 @@ func collectionCommand() *cli.Command {
 				},
 			},
 			collBrowseCommand(),
+			collectionCreateCommand(),
+			collectionUpdateCommand(),
+			collectionDeleteCommand(),
+			collectionAddCommand(),
+			collectionRemoveCommand(),
 		},
 	}
 }

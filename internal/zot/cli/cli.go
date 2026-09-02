@@ -91,11 +91,11 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 // Commands returns the full `sci zot` subcommand tree.
 // Entry points wrap this in their own root cli.Command.
 //
-// Top-level layout — every verb here answers from the local
-// zotero.sqlite, and there is nothing else:
+// Top-level layout — reads answer from the local zotero.sqlite; the
+// collection writes go through the Zotero Web API (write.go is their door):
 //
 //	guide                       agent-friendly cheat sheet of common workflows
-//	setup                       locate the Zotero data directory
+//	setup                       locate the Zotero data directory, store an API key
 //	info                        library summary
 //	view                        interactive read-only table viewer
 //	search  <query>             cross-field search (supports --export, --notes)
@@ -103,16 +103,12 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	export                      full-library BibLaTeX / CSL-JSON / NDJSON export
 //	bib     <file-or-dir>       bibliography of exactly the items a document cites
 //	item    <subcommand>        per-item reads (read/list/children/open/export)
-//	collection <subcommand>     collections (list/browse)
+//	collection <subcommand>     collections (list/browse/create/update/delete/add/remove)
 //	tags    <subcommand>        tags (list/browse)
 //	notes   <subcommand>        the notes YOU wrote (list/read)
 //	link    <subcommand>        read an item's dc:relation links (list)
 //	doctor  [subcommand]        hygiene reports: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates,citekeys,dois}
-//
-// Writing to the library, querying an upstream index and extracting paper
-// text are NOT registered here: they are plain unknown commands, rejected by
-// cmdutil.WireNamespaceDefaults like any other typo.
 //
 // `item` reuses the leaf commands defined in read.go — itemCommand below just
 // parents them under the namespace.

@@ -24,23 +24,24 @@ import (
 //   - Library scope is omitted — the resolver auto-selects / prompts.
 //   - Notes call out tradeoffs, gotchas, or compose-with hints.
 //
-// ContractVersion 4 (2026-08-14) is the standalone-local cut, and it is the
-// widest break so far: sci's Zotero surface lost the Web API entirely, so
-// `--remote` is gone from every verb that had it (search, item read / list /
-// children, collection list, link list), `saved-search` and `item note` are
-// gone with the API that was their only source, and `import` went with the
-// desktop connector. A consumer cached at v3 holds a map to six flags and
-// three verbs that no longer parse. The retirement STUBS went too: an old
-// verb is now an ordinary unknown command, so a consumer that probed by
-// running one gets urfave's rejection instead of a routed explanation.
-// Setup changed shape underneath all of it — there is no API key or user ID
-// to supply, only a data directory.
+// ContractVersion 5 (2026-09-01) brings writes back, scoped to collections:
+// `collection create / update / delete / add / remove` are registered and
+// the Curate section teaches them. Reads are unchanged — still local, still
+// credential-free — but the contract an agent plans against is different:
+// it can now file, move and prune, and it must know that every write returns
+// the server's copy because the mirror it reads lags. Setup grew
+// `--api-key` to store the credential the writes need. A consumer cached at
+// v4 holds a contract that says the surface never writes; that sentence is
+// gone, which is exactly the kind of change this number announces. v4
+// (2026-08-14) was the standalone-local cut that removed the previous Web
+// API surface wholesale (`--remote`, `saved-search`, `item note`, `import`).
 func guideContent() zot.GuideResult {
 	return zot.GuideResult{
-		ContractVersion: 4,
+		ContractVersion: 5,
 		Contract: []string{
 			"Probe data.contract_version first — it bumps only on breaking changes to this contract.",
-			"This surface is READ-ONLY, local, and STANDALONE: every command below opens your own zotero.sqlite and answers from it. There is no Zotero Web API client here and no credential of any kind — setup records a data directory and nothing else, so nothing has a live plane to fall back on. Writing to the library, extracting paper text, upstream indexes (OpenAlex, Crossref) and citation traversal are all out of scope: those verbs are not registered here and fail as unknown commands.",
+			"Reads are local and STANDALONE: every read below opens your own zotero.sqlite and answers from it, with no credential and no network. Extracting paper text, upstream indexes (OpenAlex, Crossref) and citation traversal are out of scope: those verbs are not registered here and fail as unknown commands.",
+			"Writes need an API key (`sci zot setup --api-key`) and target ONE library (`--library personal|shared`); every write returns the server's copy of what it wrote in data, because the local mirror lags until Zotero desktop syncs — do not re-read the mirror to confirm a write. Only collections are writable (Curate).",
 			"Every command accepts --json: one stream (stdout), one shape. Success: {ok:true, data, warnings}. Failure: {ok:false, error:{code, message, fix, try}} on a single line.",
 			"error.fix is a complete corrected command — resubmit it verbatim. error.try is prose guidance. error.code is a closed vocabulary (usage, conflict, not-found, ambiguous, offline, not-configured, runtime).",
 			"Exit 2 means rewrite the command line and retry; exit 1 means the work itself failed.",
@@ -103,7 +104,42 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "List all collections / tags",
 						Cmd:  "sci zot collection list",
-						Note: "Or `sci zot tags list`. Both fast/local. Changing either — creating a collection, tagging an item — is a write, and this surface never writes.",
+						Note: "Or `sci zot tags list`. Both fast/local. Collections are editable from here (Curate); tagging an item is not.",
+					},
+				},
+			},
+			{
+				Title: "Curate",
+				Entries: []zot.GuideEntry{
+					{
+						Goal: "Create a collection, optionally nested under another",
+						Cmd:  "sci zot collection create \"Reading list\" --parent Projects",
+						Note: "The parent is a key or exact name (case-insensitive) from the local mirror; a name matching several collections is an ambiguous error listing their keys. data is the server's collection; its key works immediately even though `collection list` will not show it until Zotero desktop syncs.",
+					},
+					{
+						Goal: "File one item (or a few) into a collection",
+						Cmd:  "sci zot collection add ABC12345 smith2024-paper \"Reading list\"",
+						Note: "Every positional but the last is an item (8-char key or cite key); the last is the collection. Already a member is a success that changed nothing. Several items return {total, success, failed, data.unchanged}; a failing item is reported per key and the rest proceed.",
+					},
+					{
+						Goal: "File every hit of a search into a collection",
+						Cmd:  "sci zot search '@tag: to-read' --json | jq -r '.data.items[].key' | sci zot collection add --from-file - \"Reading list\"",
+						Note: "--from-file: one key per line (- is stdin; blank lines and # comments skipped), then the collection is the only positional. Items are written one at a time (Zotero rate-limits).",
+					},
+					{
+						Goal: "Take an item out of a collection",
+						Cmd:  "sci zot collection remove ABC12345 \"Reading list\"",
+						Note: "The item stays in the library and its other collections. Not a member is a success that changed nothing. Batch and --from-file work as for add.",
+					},
+					{
+						Goal: "Rename a collection, or move it under another parent / to the top level",
+						Cmd:  "sci zot collection update \"Reading list\" --name \"To read\" --parent Projects",
+						Note: "At least one of --name, --parent, --top-level (the last two exclude each other). data is the collection as the server holds it now.",
+					},
+					{
+						Goal: "Delete a collection",
+						Cmd:  "sci zot collection delete \"To read\" --yes",
+						Note: "Items stay in the library; sub-collections go with it (the prompt counts them). --yes is required under --json — an unanswerable prompt is a refusal (exit 2), not consent.",
 					},
 				},
 			},

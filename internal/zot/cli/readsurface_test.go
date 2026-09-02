@@ -1,7 +1,7 @@
 package cli
 
-// The fence around the shape of the read surface: every verb sci registers
-// must resolve to something that actually answers.
+// The fence around the shape of the registered surface, reads and writes:
+// every verb sci registers must resolve to something that actually answers.
 //
 // There is no inverse half. A verb this surface does not offer is not
 // registered at all, so cmdutil.WireNamespaceDefaults rejects it exactly like
@@ -13,11 +13,11 @@ import (
 	"testing"
 )
 
-// TestSurvivingReadVerbsStillAnswer pins the live surface: every verb below
+// TestRegisteredVerbsStillAnswer pins the live surface: every verb below
 // must carry a real Action and parse its own flags. A refactor that turned one
 // into a stub, or dropped it while rewiring a namespace, would otherwise pass
 // unnoticed until someone ran it.
-func TestSurvivingReadVerbsStillAnswer(t *testing.T) {
+func TestRegisteredVerbsStillAnswer(t *testing.T) {
 	t.Parallel()
 	for _, argv := range [][]string{
 		{"search"}, {"browse"}, {"view"}, {"bib"}, {"export"},
@@ -25,6 +25,8 @@ func TestSurvivingReadVerbsStillAnswer(t *testing.T) {
 		{"item", "read"}, {"item", "list"}, {"item", "children"},
 		{"item", "open"}, {"item", "export"},
 		{"collection", "list"}, {"collection", "browse"},
+		{"collection", "create"}, {"collection", "update"}, {"collection", "delete"},
+		{"collection", "add"}, {"collection", "remove"},
 		{"tags", "list"}, {"tags", "browse"},
 		{"link", "list"},
 		{"notes", "list"}, {"notes", "read"},

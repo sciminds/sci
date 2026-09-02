@@ -16,8 +16,10 @@ import (
 	"github.com/sciminds/sci/internal/zot/api"
 )
 
-// setupAPIKeyFix is the one command every credential failure points at.
-const setupAPIKeyFix = "sci zot setup --api-key <key>"
+// setupAPIKeyTry is the remedy every credential failure names. It is prose
+// for Try, not a Fix: a Fix is resubmitted verbatim by the contract, and a
+// command carrying a `<key>` placeholder cannot be.
+const setupAPIKeyTry = "create a key with library write access at https://www.zotero.org/settings/keys/new and run `sci zot setup --api-key <key>`; every read verb keeps working without one"
 
 // requireAPIConfigCoded wraps zot.RequireAPIConfig, upgrading its two
 // sentinels to CodedErrors with the setup command as the fix. The
@@ -30,8 +32,7 @@ func requireAPIConfigCoded() (*zot.Config, error) {
 		switch {
 		case errors.Is(err, zot.ErrNoCredential):
 			return nil, cmdutil.Coded(cmdutil.CodeNotConfigured, "%v", err).
-				WithFix(setupAPIKeyFix).
-				WithTry("create a key with library write access at https://www.zotero.org/settings/keys/new, then re-run setup with it; every read verb keeps working without one")
+				WithTry(setupAPIKeyTry)
 		case errors.Is(err, zot.ErrNotConfigured):
 			return nil, cmdutil.Coded(cmdutil.CodeNotConfigured, "%v", err).
 				WithFix("sci zot setup")
@@ -66,14 +67,22 @@ func requireAPIClient(ctx context.Context) (*api.Client, error) {
 		return nil, cmdutil.Coded(cmdutil.CodeUsage, "--library all is a merged read pool — a write targets one library").
 			WithTry("re-run with --library personal or --library shared")
 	}
-	c, err := api.New(credentialsFor(cfg), ref)
+	c, err := newAPIClient(credentialsFor(cfg), ref)
 	if err != nil {
 		// The constructor validates what setup stored (numeric user and
 		// group IDs), so a failure here means the file was edited by hand.
 		return nil, cmdutil.Coded(cmdutil.CodeNotConfigured, "stored Zotero credential is unusable: %v", err).
-			WithFix(setupAPIKeyFix)
+			WithTry(setupAPIKeyTry)
 	}
 	return c, nil
+}
+
+// newAPIClient is the seam tests use to point the write verbs at a fake
+// Zotero: production builds the real client, a test swaps in one built with
+// api.WithBaseURL and a no-op sleep. Package-global, so tests that swap it
+// must not run in parallel.
+var newAPIClient = func(creds api.Credentials, lib zot.LibraryRef) (*api.Client, error) {
+	return api.New(creds, lib)
 }
 
 // credentialsFor projects the stored config onto what the client needs.

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"slices"
@@ -252,3 +253,27 @@ func TestRequest_HonoursContextCancellation(t *testing.T) {
 }
 
 func equalStrings(a, b []string) bool { return slices.Equal(a, b) }
+
+// TestObject_JSONShapeIsLowercase pins the wire shape of an Object. The write
+// verbs return the server's copy in WriteResult.Data, so the field names an
+// agent reads under --json are these — key, version, data — the same
+// lowercase names the Zotero API itself uses.
+func TestObject_JSONShapeIsLowercase(t *testing.T) {
+	t.Parallel()
+	raw, err := json.Marshal(Object{Key: "ABCD1234", Version: 7, Data: map[string]any{"name": "x"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &wire); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"key", "version", "data"} {
+		if _, ok := wire[want]; !ok {
+			t.Errorf("Object JSON lacks %q: %s", want, raw)
+		}
+	}
+	if len(wire) != 3 {
+		t.Errorf("Object JSON should carry exactly key/version/data, got %s", raw)
+	}
+}

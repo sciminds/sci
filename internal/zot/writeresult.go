@@ -54,13 +54,29 @@ type BulkWriteResult struct {
 // JSON implements cmdutil.Result.
 func (r BulkWriteResult) JSON() any { return r }
 
-// Human implements cmdutil.Result.
+// Human implements cmdutil.Result. A batch whose Data carries an
+// `unchanged` list (targets that were already in the requested state) says
+// how many, so "added 10/10" on ten already-filed items does not read as ten
+// writes.
 func (r BulkWriteResult) Human() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "  %s %s %d/%d %s(s)\n",
 		uikit.SymOK, r.Action, len(r.Success), r.Total, r.Kind)
+	if n := len(r.unchanged()); n > 0 {
+		fmt.Fprintf(&b, "    %d already as requested (unchanged)\n", n)
+	}
 	for _, k := range slices.Sorted(maps.Keys(r.Failed)) {
 		fmt.Fprintf(&b, "  %s %s: %s\n", uikit.SymFail, k, r.Failed[k])
 	}
 	return b.String()
+}
+
+// unchanged reads the `unchanged` list out of Data when a verb put one there.
+func (r BulkWriteResult) unchanged() []string {
+	data, ok := r.Data.(map[string]any)
+	if !ok {
+		return nil
+	}
+	keys, _ := data["unchanged"].([]string)
+	return keys
 }

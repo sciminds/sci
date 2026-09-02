@@ -29,7 +29,7 @@ func TestGuide_HumanOutput_HasSections(t *testing.T) {
 		t.Fatalf("guide: %v", err)
 	}
 	got := stripANSI(read())
-	for _, want := range []string{"Discovery", "Notes and relations", "Bibliography", "Hygiene"} {
+	for _, want := range []string{"Discovery", "Curate", "Notes and relations", "Bibliography", "Hygiene"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("guide output missing section %q:\n%s", want, got)
 		}
@@ -94,6 +94,13 @@ func TestGuide_JSON_MachineReadable(t *testing.T) {
 // desktop connector). The refusal stubs left with them, so an old verb is
 // now an ordinary unknown command rather than a routed explanation — a
 // consumer that probed by running one sees a different failure shape.
+//
+// v5 (2026-09-01) brings writes back, scoped to collections: `collection
+// create / update / delete / add / remove` are registered and the Curate
+// section teaches them. The contract sentence that said the surface never
+// writes is gone, and every write's data is the server's copy because the
+// mirror lags — a consumer cached at v4 plans against a surface that
+// cannot file or prune, and would re-read the mirror to confirm a write.
 func TestGuide_ContractVersion(t *testing.T) {
 	root := &cli.Command{
 		Name: "zot",
@@ -118,8 +125,8 @@ func TestGuide_ContractVersion(t *testing.T) {
 	if err := json.Unmarshal(unwrapData(t, []byte(raw)), &wire); err != nil {
 		t.Fatalf("decode: %v\nraw: %s", err, raw)
 	}
-	if wire.ContractVersion != 4 {
-		t.Errorf("contract_version = %d, want 4", wire.ContractVersion)
+	if wire.ContractVersion != 5 {
+		t.Errorf("contract_version = %d, want 5", wire.ContractVersion)
 	}
 }
 
@@ -255,16 +262,17 @@ func TestGuide_ContractTeachesTheEnvelope(t *testing.T) {
 	}
 	joined := strings.Join(guide.Contract, " ")
 	for _, must := range []string{
-		"fix",       // resubmit-verbatim rule
-		"warnings",  // act-before-trusting rule
-		"truncated", // raise --limit rule
-		`{ok:true`,  // success envelope shape
-		`{ok:false`, // error envelope shape
-		"Exit 2",    // remediation partition
-		"cite keys", // absorption
-		"--library", // flag placement
-		"not-found", // code vocabulary present
-		"READ-ONLY", // the boundary an agent must know before it plans a write
+		"fix",                       // resubmit-verbatim rule
+		"warnings",                  // act-before-trusting rule
+		"truncated",                 // raise --limit rule
+		`{ok:true`,                  // success envelope shape
+		`{ok:false`,                 // error envelope shape
+		"Exit 2",                    // remediation partition
+		"cite keys",                 // absorption
+		"--library",                 // flag placement
+		"not-found",                 // code vocabulary present
+		"--api-key",                 // what a write needs, before an agent plans one
+		"do not re-read the mirror", // a write's answer is the server's copy
 	} {
 		if !strings.Contains(joined, must) {
 			t.Errorf("contract missing %q:\n%s", must, joined)
