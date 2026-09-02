@@ -282,9 +282,9 @@ Categories and severities:
 Items with no stored cite-key at all are counted as 'unstored' in the
 summary but emit no finding.
 
-This is a report. Synthesizing canonical keys and writing them back is
-destructive against a BBT-managed library, and this surface never writes
-to your library.`,
+This is a report. Synthesizing canonical keys and writing them back would
+be destructive against a BBT-managed library, so doctor never does it;
+fix a key deliberately, one item at a time, with sci zot item update.`,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:    "limit",

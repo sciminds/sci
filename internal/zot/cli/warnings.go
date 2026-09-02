@@ -46,9 +46,10 @@ func staleThreshold() (time.Duration, bool) {
 // Fix stays empty, and that is not an omission. The caveat is real — the
 // mirror genuinely lags the server — but the remedy is "open Zotero desktop
 // and let it sync", which is an app to launch, not a command line. sci's
-// Zotero surface is local and read-only, so there is no second plane to
-// resubmit against; a Fix here would be a command an agent runs and a claim
-// it cannot honour.
+// reads answer only from the local file (the write verbs return the
+// server's copy of what they wrote precisely so nobody re-reads the mirror
+// to confirm a write); a Fix here would be a command an agent runs and a
+// claim it cannot honour.
 func staleLocalWarning(db local.Reader) []cmdutil.Warning {
 	threshold, enabled := staleThreshold()
 	if !enabled {

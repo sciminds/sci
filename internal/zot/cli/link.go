@@ -17,8 +17,8 @@ func linkCommand() *cli.Command {
 		Description: "Zotero's \"related items\" (dc:relation), the link its desktop UI\n" +
 			"shows in the Related pane.\n\n" +
 			"$ sci zot link list NOTEKEY1   # what is this related to?\n\n" +
-			"Read-only: creating or removing a relation is a write, and this\n" +
-			"surface never writes to your library.",
+			"Reads only: creating or removing a relation is done in Zotero's\n" +
+			"Related pane; sci does not offer it.",
 		Commands: []*cli.Command{
 			linkListCommand(),
 		},

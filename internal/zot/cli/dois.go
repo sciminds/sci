@@ -27,8 +27,8 @@ Patterns recognized (anchored to the publisher prefix, case-insensitive):
   eLife assets       10.7554/eLife.NNNNN.NNN
   PeerJ subobjects   10.7717/peerj.NNN/supp-N  /fig-N  /table-N
 
-This is a report. Rewriting the stored DOI to its parent-paper form is a
-write, and this surface never writes to your library.`,
+This is a report. doctor never rewrites a DOI; fix one deliberately with
+sci zot item update KEY --doi <parent-doi>.`,
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:    "limit",
