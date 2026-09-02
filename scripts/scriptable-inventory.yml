@@ -282,14 +282,22 @@ commands:
         status: covered
 
   # ── zot setup ──────────────────────────────────────────────────────────────
-  # The API-key and user-ID prompts left on 2026-08-14 with the Zotero Web
-  # API itself: setup records a data directory and nothing else.
+  # Two prompts: the data directory (reads) and an optional API key (writes).
+  # The user ID is never prompted for — setup derives it from the key via
+  # /keys/current.
   zot-setup:
     file: internal/zot/cli/setup.go
     prompts:
-      - id: data-dir
+      - id: api-key
         type: uikit.FormInput
         nth: 1
+        description: "Zotero Web API key (optional; enables writes)"
+        bypass: "--api-key (or leave unset for reads only; a stored key is never re-prompted)"
+        status: covered
+
+      - id: data-dir
+        type: uikit.FormInput
+        nth: 2
         description: "Zotero data directory"
         bypass: "--data-dir (auto-detected from the platform candidates when omitted)"
         status: covered

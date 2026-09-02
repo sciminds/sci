@@ -60,7 +60,7 @@ func setupRegistry() []setupEntry {
 		{key: "lab", title: "Lab storage (SSH/SFTP)", status: labSetupStatus, fields: labFields, run: func(ctx context.Context, cmd *cli.Command) error {
 			return runLabSetup(ctx, cmd, "")
 		}},
-		{key: "zot", title: "Zotero library (read-only)", status: zotSetupStatus, fields: zotFields, run: zotcli.RunSetup},
+		{key: "zot", title: "Zotero library", status: zotSetupStatus, fields: zotFields, run: zotcli.RunSetup},
 		{key: "cass", title: "Canvas LMS (cass)", status: cassSetupStatus, fields: cassFields, run: func(ctx context.Context, cmd *cli.Command) error {
 			return runCassSetup(ctx, cmd, "")
 		}},
@@ -79,9 +79,10 @@ func labFields() []fieldRow {
 	}
 }
 
-// zotFields lists the Zotero config values for the drill-in view. There is
-// no credential in a zot config — it records where zotero.sqlite lives and
-// which group library backs `--library shared`, and nothing else.
+// zotFields lists the Zotero config values for the drill-in view: where
+// zotero.sqlite lives, which group library backs `--library shared`, and the
+// Web API key that enables the write verbs — masked to a prefix like every
+// other credential here.
 func zotFields() []fieldRow {
 	cfg, _ := zot.LoadConfig()
 	if cfg == nil {
@@ -96,6 +97,8 @@ func zotFields() []fieldRow {
 	return []fieldRow{
 		{label: "data_dir", value: orNotSet(cfg.DataDir)},
 		{label: "shared_group", value: orNotSet(sharedGroup)},
+		{label: "api_key", value: orNotSet(zot.MaskAPIKey(cfg.APIKey))},
+		{label: "user_id", value: orNotSet(cfg.UserID)},
 	}
 }
 
@@ -138,6 +141,11 @@ func zotSetupStatus() (bool, string) {
 		summary := cfg.DataDir
 		if cfg.SharedGroupName != "" {
 			summary += " · shared: " + cfg.SharedGroupName
+		}
+		if cfg.HasCredential() {
+			summary += " · writes: on"
+		} else {
+			summary += " · writes: off"
 		}
 		return true, summary
 	case cfg != nil:

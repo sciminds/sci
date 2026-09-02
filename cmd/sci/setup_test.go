@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/adrg/xdg"
@@ -62,8 +63,21 @@ func TestZotSetupStatus(t *testing.T) {
 	if err := zot.SaveConfig(&zot.Config{DataDir: dataDir}); err != nil {
 		t.Fatal(err)
 	}
-	if configured, _ := zotSetupStatus(); !configured {
-		t.Error("zot pointed at a real zotero.sqlite should read as configured")
+	if configured, summary := zotSetupStatus(); !configured || !strings.Contains(summary, "writes: off") {
+		t.Errorf("zot pointed at a real zotero.sqlite should read as configured, reads only (summary=%q)", summary)
+	}
+
+	// A stored key flips the summary and shows up masked in the drill-in.
+	if err := zot.SaveConfig(&zot.Config{DataDir: dataDir, APIKey: "zABCDEFGHIJKLMNOPQRSTUVW", UserID: "42"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, summary := zotSetupStatus(); !strings.Contains(summary, "writes: on") {
+		t.Errorf("summary with a credential = %q", summary)
+	}
+	for _, row := range zotFields() {
+		if row.label == "api_key" && (strings.Contains(row.value, "EFGHIJ") || !strings.HasPrefix(row.value, "zABC")) {
+			t.Errorf("api_key row = %q, want a masked prefix", row.value)
+		}
 	}
 }
 

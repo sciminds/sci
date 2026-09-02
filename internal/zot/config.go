@@ -1,13 +1,14 @@
-// Package zot is the public local read surface over a Zotero library:
-// search, bibliographies, hygiene reports and exports, all answered from
-// the user's own zotero.sqlite (opened in immutable mode to avoid WAL
-// contention with the running desktop app).
+// Package zot is sci's Zotero library driver. Reads — search,
+// bibliographies, hygiene reports, exports — are answered from the user's own
+// zotero.sqlite (opened in immutable mode to avoid WAL contention with the
+// running desktop app) and need no credential. Writes — collections, item
+// creation and edits, attachments, tags — go through the Zotero Web API
+// ([github.com/sciminds/sci/internal/zot/api]) with the user's own key, and
+// refuse without one.
 //
-// It is standalone, local and read-only. There is no Zotero Web API client
-// here and no credential of any kind: the only thing `sci zot setup` records
-// is where the Zotero data directory lives. Writing to a library, extracting
-// paper text and querying a metered upstream index are all out of scope —
-// this surface observes and reports.
+// `sci zot setup` records the data directory (required, enables reads) and
+// optionally the API key (enables writes). Extracting paper text and
+// querying a metered upstream index are out of scope.
 //
 // The command tree is defined in [github.com/sciminds/sci/internal/zot/cli]
 // and mounted under `sci zot` from cmd/sci/zot.go.
@@ -19,23 +20,39 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/sciminds/sci/internal/sciconfig"
 )
 
-// Config records where the Zotero library lives. It holds no credential:
-// every `sci zot` command opens DataDir/zotero.sqlite read-only and answers
-// from it, so the data directory is the whole configuration.
+// Config records where the Zotero library lives and, optionally, the
+// credential writes need. Every read opens DataDir/zotero.sqlite read-only
+// and answers from it, so the data directory alone is a complete
+// configuration; APIKey and UserID are consulted only by [RequireAPIConfig],
+// which the write verbs call.
+//
+// UserID is the numeric Zotero user ID the key belongs to. Setup derives it
+// from the key via `GET /keys/current` rather than asking for it, so a
+// stored key without an ID is a half-finished setup (see RequireAPIConfig).
 //
 // SharedGroupID + SharedGroupName identify one group library — read out of
 // the local `groups` table by setup or the lazy probe — as the "shared"
 // target surfaced by --library shared. Multi-group support is a future
 // extension.
 type Config struct {
+	APIKey          string `json:"api_key,omitempty"`           // Zotero Web API key; empty means reads only
+	UserID          string `json:"user_id,omitempty"`           // numeric Zotero user ID the key belongs to
 	SharedGroupID   string `json:"shared_group_id,omitempty"`   // numeric Zotero group ID for --library shared
 	SharedGroupName string `json:"shared_group_name,omitempty"` // human-readable group name (display only)
 	DataDir         string `json:"data_dir"`
+}
+
+// HasCredential reports whether the config carries a usable write
+// credential: a key and the user ID derived from it.
+func (c *Config) HasCredential() bool {
+	return c != nil && c.APIKey != "" && c.UserID != ""
 }
 
 // configFile is the typed handle to ~/.config/sci/zot.json. Path/exists
@@ -60,11 +77,11 @@ func ConfigPath() string { return configFile.Path() }
 //
 // Decoding keeps only the fields [Config] declares and ignores every other
 // key, which is what lets an older config stay valid with no migration step: a
-// file carrying a data directory plus keys sci no longer reads is complete,
-// and must never surface as "zot not configured".
+// file carrying a data directory plus keys sci does not read is complete, and
+// must never surface as "zot not configured".
 //
 // It deliberately does not rewrite the file to drop those keys. Sci declares
-// three fields (see [sciOwnedConfigFields]) and treats the rest of the file as
+// five fields (see [sciOwnedConfigFields]) and treats the rest of the file as
 // none of its business — deleting a key on the strength of "sci does not read
 // it" would destroy data sci never owned, triggered by nothing heavier than a
 // `sci zot search`. Whatever put a key there decides when it goes.
@@ -86,15 +103,19 @@ func LoadConfig() (*Config, error) {
 // sciOwnedConfigFields are the keys sci writes into ~/.config/sci/zot.json.
 // Everything else in that file belongs to someone else (see [LoadConfig]) and
 // survives every write sci makes.
-var sciOwnedConfigFields = []string{"data_dir", "shared_group_id", "shared_group_name"}
+var sciOwnedConfigFields = []string{"api_key", "user_id", "data_dir", "shared_group_id", "shared_group_name"}
 
 // SaveConfig writes the zot config to disk with restricted permissions (0600),
 // MERGING into whatever is already there rather than replacing it.
 //
 // The merge is the load-bearing part, for the reason spelled out on
-// [LoadConfig]: marshalling a Config emits only the three fields sci declares,
+// [LoadConfig]: marshalling a Config emits only the five fields sci declares,
 // so a plain overwrite would delete every other key in the file — turning
 // `sci zot setup` into an uninstall for whatever owns them.
+//
+// cfg is the whole of sci's own state: an empty APIKey is written as "no
+// key", not "leave the stored key alone". [Setup] carries a stored credential
+// forward for exactly that reason.
 func SaveConfig(cfg *Config) error {
 	merged, err := mergeConfigInto(existingConfigObject(), cfg)
 	if err != nil {
@@ -103,13 +124,10 @@ func SaveConfig(cfg *Config) error {
 	return configFile.SaveRaw(merged)
 }
 
-// ClearConfig removes the fields sci owns, leaving every other key intact, and
-// deletes the file outright once nothing is left in it.
-//
-// `setup --clear` means "forget where the library is" — there is no
-// credential here to forget. Deleting the whole file to accomplish that would
-// take keys sci never owned with it, a much larger act than the one the user
-// asked for.
+// ClearConfig removes the fields sci owns — the data directory and the
+// credential — leaving every other key intact, and deletes the file outright
+// once nothing is left in it. Deleting the whole file would take keys sci
+// never owned with it, a much larger act than the one the user asked for.
 func ClearConfig() error {
 	obj := existingConfigObject()
 	if obj == nil {
@@ -192,6 +210,54 @@ func RequireConfig() (*Config, error) {
 		return nil, fmt.Errorf("%w — %v; run 'sci zot setup' to point sci at your Zotero data directory", ErrNotConfigured, err)
 	}
 	return cfg, nil
+}
+
+// ErrNoCredential is the sentinel wrapped by [RequireAPIConfig] when the
+// config names a library but carries no usable API key. The CLI layer matches
+// it with errors.Is to attach `sci zot setup --api-key` as the fix.
+var ErrNoCredential = errors.New("no Zotero API key configured")
+
+// RequireAPIConfig is [RequireConfig] plus the credential: what every write
+// verb needs before it can reach the Zotero Web API.
+//
+// The local library is still required — a write resolves collection names and
+// dedups DOIs against the local mirror — so a key alone is not a configured
+// write surface. A key without the user ID setup derives from it is a
+// half-finished setup and reports the same sentinel, because the remedy is
+// the same: run setup with the key again.
+func RequireAPIConfig() (*Config, error) {
+	cfg, err := RequireConfig()
+	if err != nil {
+		return nil, err
+	}
+	if !cfg.HasCredential() {
+		return nil, fmt.Errorf("%w — run 'sci zot setup --api-key <key>' to enable writes (reads work without one)", ErrNoCredential)
+	}
+	return cfg, nil
+}
+
+// ValidateAPIKey refuses the pastes that obviously went wrong — an empty key
+// or one carrying whitespace. Keys are otherwise opaque; whether one is real
+// is `GET /keys/current`'s question, which setup asks before saving.
+func ValidateAPIKey(key string) error {
+	if key == "" {
+		return fmt.Errorf("API key is required")
+	}
+	if strings.ContainsFunc(key, unicode.IsSpace) {
+		return fmt.Errorf("API key must not contain whitespace")
+	}
+	return nil
+}
+
+// ValidateUserID checks the numeric Zotero user ID `/keys/current` reports.
+func ValidateUserID(id string) error {
+	if id == "" {
+		return fmt.Errorf("user ID is required")
+	}
+	if _, err := strconv.ParseUint(id, 10, 64); err != nil {
+		return fmt.Errorf("user ID must be numeric, got %q", id)
+	}
+	return nil
 }
 
 // ConfigExists reports whether a saved zot config file is present on disk.

@@ -547,30 +547,34 @@ if [[ -n "$slice_local" ]]; then
 	fail "sliceflag-no-local"
 fi
 
-# ── Rule 18: nothing under internal/zot/ may reach net/http ──────────────────
-# sci's Zotero surface is standalone, local and read-only: it opens the user's
-# own zotero.sqlite and stops there. It holds no credential of any kind, so
-# there is no request it could legitimately make — not to Zotero, not to a
-# metered index, not to localhost.
+# ── Rule 18: the Zotero read plane never reaches net/http ────────────────────
+# sci's Zotero surface has two halves with different promises. Reads open the
+# user's own zotero.sqlite and answer from it — no credential, no network, so
+# `sci zot search` works on a machine that has never been online. Writes go
+# through the Zotero Web API with the user's key, and every write verb has to
+# say so by refusing without one.
 #
-# State it as one sentence with no allowlist, and resist any pressure to add
-# one. The moment a package here is permitted net/http, this rule needs a
-# second half saying what it may do with it — and `go list` cannot ask whether
-# the reachable code reads or writes, so that half has to be a derived grep
-# over method names, which rots. An allowlist with no entries cannot.
+# The fence is the dependency graph: exactly two packages may reach net/http
+# — internal/zot/api (the Web API client) and internal/zot/cli (the command
+# tree, which mounts it). Everything else under internal/zot/ and all of
+# internal/local/ must stay off it, so a read helper that grows a network call
+# fails here rather than turning a local read into a credentialed one.
 #
-# A new import of net/http here is therefore not a policy question to be
-# settled with an exemption — it is the whole surface changing, and it fails.
-zot_http=$(for pkg in $(go list ./internal/zot/... 2>/dev/null); do
+# `go list -deps` is transitive, which is the point: nothing has to import
+# net/http directly to reach it. Add a package to the allowlist only when it
+# is a network client by design, and name it here with its reason.
+zot_http_allowed='^github\.com/sciminds/sci/internal/zot/(api|cli)$'
+zot_http=$(for pkg in $(go list ./internal/zot/... ./internal/local/... 2>/dev/null); do
+	if [[ "$pkg" =~ $zot_http_allowed ]]; then continue; fi
 	if go list -deps "$pkg" 2>/dev/null | rg -q '^net/http$'; then echo "$pkg"; fi
 done)
 
 if [[ -n "$zot_http" ]]; then
-	echo "FAIL [zot-no-http] package under internal/zot/ reaches net/http:"
+	echo "FAIL [zot-no-http] read-plane package reaches net/http:"
 	echo "$zot_http" | sed 's/^/  /'
-	echo "  sci's Zotero surface is standalone, local and read-only — it holds no"
-	echo "  credential and makes no request. Anything that needs the network"
-	echo "  does not belong on this surface."
+	echo "  Only internal/zot/{api,cli} may reach the network. Reads answer"
+	echo "  from the local zotero.sqlite and hold no credential; a package that"
+	echo "  needs the network is a client and belongs in that allowlist by name."
 	echo "  See internal/zot/CLAUDE.md, 'The boundary'."
 	fail "zot-no-http"
 fi

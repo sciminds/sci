@@ -1,26 +1,29 @@
 # CLAUDE.md — zot (internal/zot/)
 
-The public local read surface over a Zotero library, mounted under `sci zot`.
+sci's Zotero library driver, mounted under `sci zot`: reads answered from the local `zotero.sqlite`, writes made through the Zotero Web API with the user's own key.
 
-For the package layout, command tree, and type definitions, read the source — `cli/cli.go`, `cli/read.go`, `result.go`, `hygiene/hygiene.go` are the entry points. The CLI tree lives in `internal/zot/cli.Commands()` (its own package for a testable boundary), mounted by `cmd/sci/zot.go`.
+For the package layout, command tree, and type definitions, read the source — `cli/cli.go`, `cli/read.go`, `cli/write.go`, `api/doc.go`, `result.go`, `hygiene/hygiene.go` are the entry points. The CLI tree lives in `internal/zot/cli.Commands()` (its own package for a testable boundary), mounted by `cmd/sci/zot.go`.
 
 ## The boundary — read this before adding any verb
 
-**sci's Zotero surface is what a public, curl-installed tool can promise any user: it opens the user's own `zotero.sqlite`, reads, and stops.** No credential of any kind, no Zotero write, no metered upstream index, not even localhost. `sci zot setup` records one required thing — where the Zotero data directory is — and `RequireConfig` checks exactly that: a `data_dir` holding a readable `zotero.sqlite`. A purely local search must not demand a network account.
+**Two halves, two promises.** Reads open the user's own `zotero.sqlite` and stop: no credential, no network, so `sci zot search` works on a machine that has never been online. `RequireConfig` checks exactly that — a `data_dir` holding a readable `zotero.sqlite` — and nothing on a read path may consult `api_key`. Writes go through `internal/zot/api` with the user's key and refuse without one: every write verb enters through `cli/write.go`'s `requireAPIClient`, which checks configuration (`RequireAPIConfig`), the credential, the network (`netutil.Online`) and the scope (`--library all` is a merged read pool with no server-side counterpart), in that order, each refusal naming its fix.
 
-**`scripts/lint-guard.sh` rule 18 is the whole fence, in one sentence: no package under `internal/zot/` may reach `net/http`.** It is a `go list -deps` check with no allowlist, because an allowlist with no entries cannot rot. A new `net/http` import here is not a policy question — it is the entire surface changing, and it fails the gate.
+**`scripts/lint-guard.sh` rule 18 is the fence: only `internal/zot/api` and `internal/zot/cli` may reach `net/http`.** It is a transitive `go list -deps` check over every package under `internal/zot/` and `internal/local/`, so a read helper that grows a network call fails the gate instead of quietly turning a local read into a credentialed one. Add a package to that allowlist only when it is a network client by design, and name it there with its reason.
 
-**Adding new operations:** reads go on `local.Reader` (and `*local.DB`), so the read-only contract stays visible in type signatures rather than living in a comment. A verb that writes a Zotero library, extracts paper text, or asks an upstream index does not belong in this repo at all.
+**Adding new operations:** reads go on `local.Reader` (and `*local.DB`), so the read-only contract stays visible in type signatures. Writes go on `*api.Client` — thin, hand-written, bodies are `map[string]any`, and no generated client (the 37k-line oapi-codegen one was deleted on 2026-08-14 and must not come back). Every write returns the server-materialized object in `WriteResult.Data`, because the local mirror lags until Zotero desktop syncs. Extracting paper text and querying a metered upstream index stay out of scope.
 
-## sci does not own the config file it reads
+**Zotero's optimistic concurrency is the one quirk every write must respect.** PATCH and DELETE carry `If-Unmodified-Since-Version`; a 412 means the object moved. Recovery is re-read + rebuild, once, per operation (`api.patchDerived`) — never a transport-level retry. Membership edits (collections, tags) derive their payload from the freshly fetched server copy, because Zotero PATCH replaces whole arrays: stamping a fresh version onto a stale array erases what another writer added. This was found live (`254c5d4`); the client's tests pin it.
 
-`~/.config/sci/zot.json` can carry keys sci never declared, including credentials, written by whatever else the user points at that path. sci declares exactly three (`data_dir`, `shared_group_id`, `shared_group_name`). **sci drops the keys it does not read from what it LOADS, and never from the file** — read, save and clear all preserve them.
+## The config file is shared, and the key in it is sci's
 
-- `LoadConfig` decodes into a three-field struct (`data_dir`, `shared_group_id`, `shared_group_name`); `encoding/json` ignores everything else, and that free drop IS the migration. A config carrying only legacy credential fields plus a data directory is complete and must never surface as "zot not configured".
-- `SaveConfig` merges its three fields into the existing JSON object through `sciconfig.SaveRaw`. A plain overwrite would delete another program's credential on nothing more than a `sci zot setup`.
-- `setup --clear` removes only `sciOwnedConfigFields` and deletes the file outright only once nothing else is left in it. The flag is `--clear`, never `--logout`: this surface holds no credential, so there is no session to end.
+`~/.config/sci/zot.json` can carry keys sci never declared, written by whatever else the user points at that path. sci declares exactly five (`api_key`, `user_id`, `data_dir`, `shared_group_id`, `shared_group_name`). **sci drops the keys it does not read from what it LOADS, and never from the file** — read, save and clear all preserve them.
 
-Tidying someone else's file is not a migration, it is data loss. A stale key sits in a `0600` file sci never opens for the network; the user revokes it when they choose.
+- `LoadConfig` decodes into the five-field struct; `encoding/json` ignores everything else. A config carrying a data directory and no key is a complete READ configuration and must never surface as "zot not configured"; only `RequireAPIConfig` asks for the key.
+- `SaveConfig` merges sci's five fields into the existing JSON object through `sciconfig.SaveRaw`. A plain overwrite would delete another program's keys on nothing more than a `sci zot setup`. `cfg` is the whole of sci's state, so a blank `APIKey` means "no key" — `Setup` carries a stored key forward when the caller passes none.
+- `setup --api-key K` verifies the key with `GET /keys/current` before storing it, and stores the user ID that call reports; nobody types a user ID. On an already-configured library it ADDS the key without an overwrite prompt — it is the one-liner every "no credential" error names as its fix. `setup --json` prints the key masked (`MaskAPIKey`).
+- `setup --clear` removes only `sciOwnedConfigFields` (data dir and credential) and deletes the file outright only once nothing else is left in it.
+
+Tidying someone else's file is not a migration, it is data loss.
 
 ## Reads are local, and immutable mode has a price
 

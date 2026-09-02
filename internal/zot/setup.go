@@ -9,6 +9,8 @@ import (
 // knobs (per-library tuning, future group handling) can be added without
 // churning every call site.
 type SetupInput struct {
+	APIKey          string // optional — enables writes; the CLI verifies it before passing it here
+	UserID          string // paired with APIKey — the numeric user ID /keys/current reported for it
 	SharedGroupID   string // optional — explicit pick when GroupProbe returns multiple
 	SharedGroupName string // optional — display name, paired with SharedGroupID
 	DataDir         string // required
@@ -32,9 +34,27 @@ type SetupInput struct {
 //   - 0 groups → leave shared unconfigured (the library has no groups)
 //   - ≥2 groups → error, listing the options
 //   - Else (no probe, no explicit pick) → shared stays unconfigured.
+//
+// Credential handling: a blank APIKey means "keep whatever is stored", not
+// "log out" — re-running setup to move the data directory must not cost the
+// user their key. Forgetting it is `--clear`'s job.
 func Setup(in SetupInput) (*SetupResult, error) {
 	if err := ValidateDataDir(in.DataDir); err != nil {
 		return nil, err
+	}
+
+	apiKey, userID := in.APIKey, in.UserID
+	if apiKey == "" {
+		if existing, err := LoadConfig(); err == nil && existing != nil {
+			apiKey, userID = existing.APIKey, existing.UserID
+		}
+	}
+	// A key is only ever stored beside the user ID it was verified against;
+	// a caller passing one without the other has skipped the verification.
+	if apiKey != "" {
+		if err := ValidateUserID(userID); err != nil {
+			return nil, fmt.Errorf("api key given without a verified user ID: %w", err)
+		}
 	}
 
 	sharedID := in.SharedGroupID
@@ -60,6 +80,8 @@ func Setup(in SetupInput) (*SetupResult, error) {
 	}
 
 	cfg := &Config{
+		APIKey:          apiKey,
+		UserID:          userID,
 		SharedGroupID:   sharedID,
 		SharedGroupName: sharedName,
 		DataDir:         in.DataDir,
@@ -72,14 +94,14 @@ func Setup(in SetupInput) (*SetupResult, error) {
 		OK:          true,
 		DataDir:     in.DataDir,
 		SharedGroup: sharedName,
+		Writes:      cfg.HasCredential(),
 		Message:     "zot configured",
 	}, nil
 }
 
 // ClearSetup clears the saved configuration — the flag behind it is
-// `sci zot setup --clear`. There is no credential and no session to forget:
-// this only makes sci stop knowing where the library is. Keys sci does not
-// own survive it (see [ClearConfig]).
+// `sci zot setup --clear`: sci forgets where the library is and the API key
+// it held. Keys sci does not own survive it (see [ClearConfig]).
 func ClearSetup() (*SetupResult, error) {
 	if err := ClearConfig(); err != nil {
 		return nil, err

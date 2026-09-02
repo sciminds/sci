@@ -331,27 +331,28 @@ func TestOpenResult(t *testing.T) {
 	}
 }
 
-// TestConfig_HasNoSecretToMask replaces the masking tests that lived here.
-// A zot config is a data directory and an optional shared group — there is
-// no credential in it, so both surfaces emit the stored shape verbatim and
-// there is nothing to strip. The fence that matters now is the inverse:
-// neither surface may resurrect a credential field.
-func TestConfig_HasNoSecretToMask(t *testing.T) {
+// TestConfig_MasksTheAPIKey: `setup --json` and the human status both show
+// the stored shape, and the API key in it is a recognisable prefix — never
+// the whole credential. A key-less config says so instead of printing an
+// empty field.
+func TestConfig_MasksTheAPIKey(t *testing.T) {
 	t.Parallel()
 	cfg := Config{
+		APIKey:          "zABCDEFGHIJKLMNOPQRSTUVW",
+		UserID:          "17450224",
 		SharedGroupID:   "6506098",
 		SharedGroupName: "sciminds",
 		DataDir:         "/Users/test/Zotero",
 	}
 
 	out := cfg.Human()
-	for _, want := range []string{"/Users/test/Zotero", "sciminds", "6506098"} {
+	for _, want := range []string{"/Users/test/Zotero", "sciminds", "6506098", "zABC…", "17450224", "writes on"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("Human() missing %q:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "api key") || strings.Contains(out, "user id") {
-		t.Errorf("Human() still renders a credential line:\n%s", out)
+	if strings.Contains(out, "EFGHIJ") {
+		t.Errorf("Human() prints more than a prefix of the key:\n%s", out)
 	}
 
 	b, err := json.Marshal(cfg.JSON())
@@ -359,13 +360,31 @@ func TestConfig_HasNoSecretToMask(t *testing.T) {
 		t.Fatal(err)
 	}
 	js := string(b)
-	if !strings.Contains(js, `"data_dir":"/Users/test/Zotero"`) {
-		t.Errorf("data_dir missing from JSON:\n%s", js)
+	if !strings.Contains(js, `"api_key":"zABC…"`) || strings.Contains(js, "EFGHIJ") {
+		t.Errorf("JSON does not mask the key:\n%s", js)
 	}
-	for _, gone := range []string{"api_key", "has_api_key", "user_id"} {
-		if strings.Contains(js, gone) {
-			t.Errorf("JSON still carries retired field %q:\n%s", gone, js)
-		}
+
+	// A short key is masked too — "never in full" has no length exception.
+	if got := MaskAPIKey("abcdef"); got == "abcdef" || !strings.HasSuffix(got, "…") {
+		t.Errorf("MaskAPIKey(short) = %q", got)
+	}
+	// Key without a verified user ID: neither "writes on" nor "not set".
+	half := Config{DataDir: "/Users/test/Zotero", APIKey: "zABCDEFGHIJKLMNOPQRSTUVW"}
+	if h := half.Human(); !strings.Contains(h, "unverified") || strings.Contains(h, "writes on") {
+		t.Errorf("half-configured Human() = %q", h)
+	}
+	if !strings.Contains(js, `"user_id":"17450224"`) {
+		t.Errorf("user_id missing from JSON:\n%s", js)
+	}
+
+	// Reads-only config: no key field at all, and the human line says how to
+	// add one.
+	readsOnly := Config{DataDir: "/Users/test/Zotero"}
+	if b, _ := json.Marshal(readsOnly.JSON()); strings.Contains(string(b), "api_key") {
+		t.Errorf("key-less JSON carries an api_key field: %s", b)
+	}
+	if h := readsOnly.Human(); !strings.Contains(h, "reads only") || !strings.Contains(h, "--api-key") {
+		t.Errorf("key-less Human() should say reads only and name the fix:\n%s", h)
 	}
 }
 

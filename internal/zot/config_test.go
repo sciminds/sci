@@ -2,6 +2,7 @@ package zot
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -113,56 +114,187 @@ func TestRequireConfig_IncompleteConfig(t *testing.T) {
 	}
 }
 
-// TestLoadConfig_DropsRetiredCredentials is the migration that matters most
-// for the credential removal: every existing user's ~/.config/sci/zot.json
-// carries `api_key` and `user_id`, and the fields no longer exist. Those keys
-// must be dropped SILENTLY on the next load — the config is still complete
-// (it names a data directory), so surfacing "zot not configured" would break
-// every already-working install for a field nothing reads any more.
-//
-// Dropped means dropped from what sci LOADS, not scrubbed from the file: the
-// disk half is TestLoadConfig_ReadIsNonDestructive below, and it asserts the
-// opposite of the tidy-up instinct.
-func TestLoadConfig_DropsRetiredCredentials(t *testing.T) {
+// TestLoadConfig_CredentialIsOptionalForReads pins the split between the two
+// halves of the surface: a config that names a data directory is a configured
+// install whether or not it carries an API key. Reads never ask for the key;
+// only RequireAPIConfig does, and it is what the write verbs call.
+func TestLoadConfig_CredentialIsOptionalForReads(t *testing.T) {
+	withXDGConfigHome(t)
+	dataDir := seedDataDir(t)
+	if err := SaveConfig(&Config{DataDir: dataDir, SharedGroupID: "6506098", SharedGroupName: "sciminds"}); err != nil {
+		t.Fatal(err)
+	}
+
+	live, err := RequireConfig()
+	if err != nil {
+		t.Fatalf("RequireConfig on a key-less config: %v", err)
+	}
+	if live.DataDir != dataDir {
+		t.Errorf("RequireConfig DataDir = %q, want %q", live.DataDir, dataDir)
+	}
+	if _, err := RequireAPIConfig(); !errors.Is(err, ErrNoCredential) {
+		t.Fatalf("RequireAPIConfig on a key-less config: err = %v, want ErrNoCredential", err)
+	}
+}
+
+// TestConfig_CredentialRoundTrips: the key and the user ID setup derives from
+// it are sci's own fields — written by SaveConfig, read back by LoadConfig,
+// and accepted by RequireAPIConfig.
+func TestConfig_CredentialRoundTrips(t *testing.T) {
+	withXDGConfigHome(t)
+	dataDir := seedDataDir(t)
+	cfg := &Config{APIKey: "zXXXXXXXXXXXXXXXXXXXXXXXX", UserID: "17450224", DataDir: dataDir}
+	if err := SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.APIKey != cfg.APIKey || loaded.UserID != cfg.UserID {
+		t.Errorf("credential did not round-trip: %+v", loaded)
+	}
+	live, err := RequireAPIConfig()
+	if err != nil {
+		t.Fatalf("RequireAPIConfig: %v", err)
+	}
+	if live.UserID != "17450224" {
+		t.Errorf("UserID = %q", live.UserID)
+	}
+}
+
+// TestRequireAPIConfig_KeyWithoutUserID: the user ID is derived from the key
+// at setup time, so a key with no ID is a half-finished setup, not a usable
+// credential. Same sentinel, so the CLI attaches the same setup fix.
+func TestRequireAPIConfig_KeyWithoutUserID(t *testing.T) {
+	withXDGConfigHome(t)
+	if err := SaveConfig(&Config{APIKey: "zXXXXXXXXXXXXXXXXXXXXXXXX", DataDir: seedDataDir(t)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RequireAPIConfig(); !errors.Is(err, ErrNoCredential) {
+		t.Fatalf("err = %v, want ErrNoCredential", err)
+	}
+}
+
+// TestRequireAPIConfig_NeedsTheLocalLibraryToo: a write still resolves
+// collection names and dedups DOIs against the local mirror, so a key alone
+// does not make a configured write surface.
+func TestRequireAPIConfig_NeedsTheLocalLibraryToo(t *testing.T) {
+	withXDGConfigHome(t)
+	if err := SaveConfig(&Config{APIKey: "zXXXXXXXXXXXXXXXXXXXXXXXX", UserID: "17450224"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RequireAPIConfig(); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("err = %v, want ErrNotConfigured", err)
+	}
+}
+
+// TestSetup_KeepsExistingCredential: re-running setup to move the data
+// directory must not log the user out. SaveConfig writes sci's fields as a
+// whole, so Setup has to carry the stored credential forward itself.
+func TestSetup_KeepsExistingCredential(t *testing.T) {
+	withXDGConfigHome(t)
+	if err := SaveConfig(&Config{APIKey: "zXXXXXXXXXXXXXXXXXXXXXXXX", UserID: "17450224", DataDir: seedDataDir(t)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Setup(SetupInput{DataDir: seedDataDir(t)}); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.APIKey == "" || cfg.UserID == "" {
+		t.Errorf("Setup without a key discarded the stored credential: %+v", cfg)
+	}
+}
+
+// TestSetup_RejectsKeyWithoutUserID: Setup never stores a key on its own —
+// the user ID is proof the key was verified, and a caller that skipped that
+// step gets an error rather than a half-configured file.
+func TestSetup_RejectsKeyWithoutUserID(t *testing.T) {
+	withXDGConfigHome(t)
+	if _, err := Setup(SetupInput{DataDir: seedDataDir(t), APIKey: "zXXXXXXXXXXXXXXXXXXXXXXXX"}); err == nil {
+		t.Fatal("Setup stored a key with no user ID")
+	}
+	if cfg, _ := LoadConfig(); cfg != nil {
+		t.Errorf("a refused Setup wrote a file: %+v", cfg)
+	}
+}
+
+// TestSetup_NewKeyReplacesStoredOne: carry-forward applies only to a BLANK
+// key; a new one supplied with its user ID replaces both fields.
+func TestSetup_NewKeyReplacesStoredOne(t *testing.T) {
+	withXDGConfigHome(t)
+	dataDir := seedDataDir(t)
+	if err := SaveConfig(&Config{APIKey: "zOLDOLDOLDOLDOLDOLDOLDOLD", UserID: "1", DataDir: dataDir}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Setup(SetupInput{DataDir: dataDir, APIKey: "zNEWNEWNEWNEWNEWNEWNEWNEW", UserID: "17450224"}); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.APIKey != "zNEWNEWNEWNEWNEWNEWNEWNEW" || cfg.UserID != "17450224" {
+		t.Errorf("new key did not replace the stored one: %+v", cfg)
+	}
+}
+
+// TestLoadConfig_LegacyCredentialIsAdopted pins a deliberate choice: every
+// install from before 2026-08-14 still carries the api_key + user_id that
+// sci's own setup wrote back then. Those are sci's fields again, so they are
+// adopted as-is rather than demanding a re-setup. If the key has since been
+// revoked, the first write reports Zotero's 403 with the setup fix — that
+// is the verification, one step later.
+func TestLoadConfig_LegacyCredentialIsAdopted(t *testing.T) {
 	withXDGConfigHome(t)
 	path := ConfigPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	dataDir := seedDataDir(t)
 	legacy := []byte(`{
   "api_key": "zXXXXXXXXXXXXXXXXXXXXXXXX",
   "user_id": "17450224",
-  "shared_group_id": "6506098",
-  "shared_group_name": "sciminds",
-  "data_dir": ` + strconv.Quote(dataDir) + `
+  "data_dir": ` + strconv.Quote(seedDataDir(t)) + `
 }`)
 	if err := os.WriteFile(path, legacy, 0o600); err != nil {
 		t.Fatal(err)
 	}
-
-	cfg, err := LoadConfig()
+	cfg, err := RequireAPIConfig()
 	if err != nil {
-		t.Fatalf("LoadConfig: %v", err)
+		t.Fatalf("RequireAPIConfig on a legacy config: %v", err)
 	}
-	if cfg == nil {
-		t.Fatal("LoadConfig returned nil for a present config file")
+	if cfg.UserID != "17450224" {
+		t.Errorf("UserID = %q", cfg.UserID)
 	}
-	if cfg.DataDir != dataDir {
-		t.Errorf("DataDir = %q, want %q", cfg.DataDir, dataDir)
-	}
-	if cfg.SharedGroupID != "6506098" || cfg.SharedGroupName != "sciminds" {
-		t.Errorf("shared group lost: %+v", cfg)
-	}
+}
 
-	// The whole point: a config carrying only retired credentials is still a
-	// configured install.
-	live, err := RequireConfig()
-	if err != nil {
-		t.Fatalf("RequireConfig on a credential-carrying legacy config: %v", err)
+// TestValidateUserID: the ID is what /keys/current reports, always numeric
+// and never signed.
+func TestValidateUserID(t *testing.T) {
+	for _, bad := range []string{"", "abc", "12a", " 17450224", "-5", "+5"} {
+		if err := ValidateUserID(bad); err == nil {
+			t.Errorf("ValidateUserID(%q) accepted", bad)
+		}
 	}
-	if live.DataDir != dataDir {
-		t.Errorf("RequireConfig DataDir = %q, want %q", live.DataDir, dataDir)
+	if err := ValidateUserID("17450224"); err != nil {
+		t.Errorf("ValidateUserID(numeric): %v", err)
+	}
+}
+
+// TestValidateAPIKey: a key is opaque, so the only thing worth refusing is
+// the paste that obviously went wrong — empty or carrying whitespace.
+func TestValidateAPIKey(t *testing.T) {
+	for _, bad := range []string{"", "abc def", "abc\n"} {
+		if err := ValidateAPIKey(bad); err == nil {
+			t.Errorf("ValidateAPIKey(%q) accepted", bad)
+		}
+	}
+	if err := ValidateAPIKey("zXXXXXXXXXXXXXXXXXXXXXXXX"); err != nil {
+		t.Errorf("ValidateAPIKey(valid): %v", err)
 	}
 }
 
@@ -242,8 +374,8 @@ func TestLoadConfig_ReadIsNonDestructive(t *testing.T) {
 }
 
 // TestSaveConfig_PreservesForeignFields is the write half of the same rule.
-// `sci zot setup` marshals a Config, which declares three fields — so a plain
-// overwrite would delete every key sci does not own. Those three are updated;
+// `sci zot setup` marshals a Config, which declares five fields — so a plain
+// overwrite would delete every key sci does not own. Those five are updated;
 // nothing else in the file is touched.
 func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 	withXDGConfigHome(t)
@@ -252,7 +384,6 @@ func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	existing := []byte(`{
-  "api_key": "zXXXXXXXXXXXXXXXXXXXXXXXX",
   "data_dir": "/old/place",
   "other_tool_key": "someone-elses-key",
   "other_tool_settings": {"runner": "ssh", "host": "elsewhere"}
@@ -272,16 +403,16 @@ func TestSaveConfig_PreservesForeignFields(t *testing.T) {
 	if m["shared_group_name"] != "sciminds" {
 		t.Errorf("shared_group_name = %v", m["shared_group_name"])
 	}
-	for _, kept := range []string{"api_key", "other_tool_key", "other_tool_settings"} {
+	for _, kept := range []string{"other_tool_key", "other_tool_settings"} {
 		if _, ok := m[kept]; !ok {
 			t.Errorf("SaveConfig destroyed %q, which sci does not own:\n%+v", kept, m)
 		}
 	}
 }
 
-// TestClearConfig_LeavesForeignFields: `setup --clear` means "forget where
-// the library is" — there is no credential here to clear. Deleting the whole
-// file to do that would take a credential sci never owned with it, a far
+// TestClearConfig_LeavesForeignFields: `setup --clear` forgets everything sci
+// recorded — the data directory AND the credential — and nothing else.
+// Deleting the whole file would take keys sci never owned with it, a far
 // larger act than the one the user asked for.
 func TestClearConfig_LeavesForeignFields(t *testing.T) {
 	withXDGConfigHome(t)
@@ -291,9 +422,11 @@ func TestClearConfig_LeavesForeignFields(t *testing.T) {
 	}
 	existing := []byte(`{
   "api_key": "zXXXXXXXXXXXXXXXXXXXXXXXX",
+  "user_id": "17450224",
   "data_dir": "/some/place",
   "shared_group_id": "6506098",
-  "shared_group_name": "sciminds"
+  "shared_group_name": "sciminds",
+  "other_tool_key": "someone-elses-key"
 }`)
 	if err := os.WriteFile(path, existing, 0o600); err != nil {
 		t.Fatal(err)
@@ -309,8 +442,8 @@ func TestClearConfig_LeavesForeignFields(t *testing.T) {
 			t.Errorf("ClearConfig left sci's own field %q behind: %+v", gone, m)
 		}
 	}
-	if _, ok := m["api_key"]; !ok {
-		t.Errorf("ClearConfig took another tool's credential with it: %+v", m)
+	if _, ok := m["other_tool_key"]; !ok {
+		t.Errorf("ClearConfig took another tool's key with it: %+v", m)
 	}
 }
 
