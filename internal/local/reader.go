@@ -36,6 +36,7 @@ type Reader interface {
 	SearchWithTotal(query string, limit int) ([]Item, int, error)
 	Read(key string) (*Item, error)
 	ItemKeysByDOI(dois []string) (map[string]string, error)
+	MaxItemVersion() (int, error)
 	Stats() (*Stats, error)
 
 	// Collections & Tags

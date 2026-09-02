@@ -115,7 +115,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Add a paper by DOI or arXiv id",
 						Cmd:  "sci zot item add 10.1038/nature12373 --collection \"To read\" --tag to-read",
-						Note: "Any cited form works (bare, doi:, doi.org URL, arXiv:1706.03762 or the bare arXiv id). The record comes from doi.org, so a not-found means the DOI is unregistered or mistyped, not that the paper is missing. Dedup is by DOI only: a DOI the local mirror already holds is refused as `duplicate` naming the existing key (--force creates a second copy); an item with no DOI is never matched. data.item is the server's item; --collection takes a key or name.",
+						Note: "Any cited form works (bare, doi:, doi.org URL, arXiv:1706.03762 or the bare arXiv id). The record comes from doi.org, so a not-found means the DOI is unregistered or mistyped, not that the paper is missing. Dedup is by DOI, against the local mirror AND the server, so an item you added moments ago is caught before desktop syncs it down: a match is refused as `duplicate` naming the existing key (--force creates a second copy); an item with no DOI is never matched. data.item is the server's item; --collection takes a key or name.",
 					},
 					{
 						Goal: "Add a paper from its PDF, with the file attached",
@@ -235,7 +235,7 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "Flag publisher-subobject DOIs (article sections, tables, figures, supplements, eLife assets) so OpenAlex can resolve them",
 						Cmd:  "sci zot doctor dois",
-						Note: "A report. Rewriting each DOI to its parent-paper form is a Zotero write, which this surface never makes.",
+						Note: "A report — doctor never rewrites a DOI. Fix one deliberately: sci zot item update KEY --doi <parent-doi>.",
 					},
 				},
 			},

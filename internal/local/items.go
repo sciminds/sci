@@ -333,6 +333,20 @@ func inClauseStrings(keys []string) (string, []any) {
 	return strings.Join(ph, ","), args
 }
 
+// MaxItemVersion returns the newest item version the handle's library scope
+// has synced down — the high-water mark of what the local mirror knows. A
+// server query with since=<this> returns exactly the items the mirror has
+// not seen yet, which is the blind spot a write verb's dedup check must
+// cover. An empty library reports 0.
+func (d *DB) MaxItemVersion() (int, error) {
+	where, args := d.libIn("i")
+	var version int
+	if err := d.db.QueryRow(`SELECT COALESCE(MAX(i.version), 0) FROM items i WHERE `+where, args...).Scan(&version); err != nil {
+		return 0, fmt.Errorf("MaxItemVersion: %w", err)
+	}
+	return version, nil
+}
+
 // ItemKeysByDOI returns a map of DOI → Zotero key for every item in the
 // library whose DOI matches one of the inputs. Lookup is case-insensitive
 // (DOIs are case-insensitive per RFC 7595, but Zotero stores them as the

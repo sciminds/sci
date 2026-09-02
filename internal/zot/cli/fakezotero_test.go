@@ -157,9 +157,15 @@ func (f *fakeZotero) seedItem(key string, collections ...string) {
 // seedItemData seeds an item with an arbitrary data payload (itemType
 // included), for the verbs that read fields back.
 func (f *fakeZotero) seedItemData(key string, data map[string]any) {
+	f.seedItemVersioned(key, 10, data)
+}
+
+// seedItemVersioned is seedItemData with an explicit version — what the
+// dedup gate's since= query filters on.
+func (f *fakeZotero) seedItemVersioned(key string, version int, data map[string]any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.items[key] = &fakeObject{Version: 10, Data: data}
+	f.items[key] = &fakeObject{Version: version, Data: data}
 }
 
 // seedAttachment seeds a child attachment carrying an md5, the shape
@@ -219,7 +225,11 @@ func (f *fakeZotero) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	body, _ := io.ReadAll(r.Body)
-	f.requests = append(f.requests, r.Method+" "+r.URL.Path)
+	line := r.Method + " " + r.URL.Path
+	if r.URL.RawQuery != "" {
+		line += "?" + r.URL.RawQuery
+	}
+	f.requests = append(f.requests, line)
 
 	if f.forbidden {
 		http.Error(w, "Forbidden", http.StatusForbidden)
@@ -256,11 +266,25 @@ func (f *fakeZotero) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (f *fakeZotero) serveObjects(w http.ResponseWriter, r *http.Request, store map[string]*fakeObject, rest string, body []byte) {
 	if rest == "" {
-		if r.Method != http.MethodPost {
+		switch r.Method {
+		case http.MethodPost:
+			f.serveCreate(w, store, body)
+		case http.MethodGet:
+			// Zotero's paged listing: version > since, key order, start/limit.
+			q := r.URL.Query()
+			since, _ := strconv.Atoi(q.Get("since"))
+			start, _ := strconv.Atoi(q.Get("start"))
+			limit, _ := strconv.Atoi(q.Get("limit"))
+			if limit <= 0 {
+				limit = 25
+			}
+			keys := lo.Filter(slices.Sorted(maps.Keys(store)), func(k string, _ int) bool { return store[k].Version > since })
+			w.Header().Set("Total-Results", strconv.Itoa(len(keys)))
+			page := lo.Slice(keys, start, start+limit)
+			writeFakeJSON(w, http.StatusOK, lo.Map(page, func(k string, _ int) map[string]any { return wireObject(k, store[k]) }))
+		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
 		}
-		f.serveCreate(w, store, body)
 		return
 	}
 	key, tail, _ := strings.Cut(strings.TrimPrefix(rest, "/"), "/")

@@ -5,8 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"reflect"
+	"slices"
 	"testing"
+
+	"github.com/samber/lo"
 )
 
 func TestGetItem_ReturnsKeyVersionAndData(t *testing.T) {
@@ -472,5 +476,86 @@ func TestAddToCollection_RederivesFromFreshCopyAfter412(t *testing.T) {
 	got := f.item("ABCD1234").Data["collections"]
 	if want := []any{"COLL0001", "COLL0009", "COLL0002"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("collections = %v, want the other writer's COLL0009 kept: %v", got, want)
+	}
+}
+
+// TestFindItemsByDOISince: the server hands back everything newer than the
+// mirror's version and the exact verdict is client-side — the DOI field or
+// a "DOI: …" line in extra, case aside — with trashed items never counting
+// as the paper being present.
+func TestFindItemsByDOISince(t *testing.T) {
+	t.Parallel()
+	f := newFakeZotero(t)
+	f.seedItem("FIELD001", 101, map[string]any{"itemType": "journalArticle", "DOI": "10.1038/NATURE12373", "title": "By field"})
+	f.seedItem("EXTRA001", 102, map[string]any{"itemType": "book", "extra": "Citation Key: x\nDOI: 10.1038/nature12373\n", "title": "By extra"})
+	f.seedItem("SUBSTR01", 103, map[string]any{"itemType": "journalArticle", "DOI": "10.1038/nature12373.s001", "title": "Longer DOI"})
+	f.seedItem("TRASH001", 104, map[string]any{"itemType": "journalArticle", "DOI": "10.1038/nature12373", "deleted": 1})
+	f.seedItem("OTHER001", 105, map[string]any{"itemType": "journalArticle", "DOI": "10.1000/other"})
+	f.seedItem("OLDER001", 50, map[string]any{"itemType": "journalArticle", "DOI": "10.1038/nature12373", "title": "Already in the mirror"})
+	c, _ := newTestClient(t, f)
+
+	got, err := c.FindItemsByDOISince(context.Background(), "10.1038/Nature12373", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := lo.Map(got, func(o Object, _ int) string { return o.Key })
+	slices.Sort(keys)
+	if want := []string{"EXTRA001", "FIELD001"}; !slices.Equal(keys, want) {
+		t.Errorf("keys = %v, want %v (field and extra-line matches, case aside; no substring, no trashed, nothing at or below since)", keys, want)
+	}
+	req := f.seen()[0]
+	if req.Method != http.MethodGet || req.Path != "/users/42/items" {
+		t.Errorf("request = %s %s, want GET /users/42/items", req.Method, req.Path)
+	}
+	q, err := url.ParseQuery(req.Query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q.Get("since") != "100" || q.Get("itemType") != "-attachment" || q.Get("format") != "json" || q.Get("limit") != "100" || q.Get("start") != "0" {
+		t.Errorf("query = %s, want since=100&itemType=-attachment&format=json&limit=100&start=0", req.Query)
+	}
+	if q.Has("q") || q.Has("qmode") {
+		t.Errorf("query = %s: q/qmode must not be used, Zotero's q never matches the DOI field", req.Query)
+	}
+}
+
+// TestFindItemsByDOISince_PagesUntilAShortPage pins the paging: with the
+// page size at 2 and five newer items, three pages are fetched and the
+// match on the last page is found. Not parallel: it pins findPageSize.
+func TestFindItemsByDOISince_PagesUntilAShortPage(t *testing.T) {
+	prev := findPageSize
+	findPageSize = 2
+	t.Cleanup(func() { findPageSize = prev })
+
+	f := newFakeZotero(t)
+	for i, key := range []string{"AAAA0001", "BBBB0002", "CCCC0003", "DDDD0004"} {
+		f.seedItem(key, 10+i, map[string]any{"itemType": "journalArticle", "DOI": "10.1000/filler"})
+	}
+	f.seedItem("EEEE0005", 20, map[string]any{"itemType": "journalArticle", "DOI": "10.1038/nature12373"})
+	c, _ := newTestClient(t, f)
+
+	got, err := c.FindItemsByDOISince(context.Background(), "10.1038/nature12373", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Key != "EEEE0005" {
+		t.Errorf("got %v, want the match from the last page", got)
+	}
+	starts := lo.Map(f.seen(), func(r recordedRequest, _ int) string {
+		q, _ := url.ParseQuery(r.Query)
+		return q.Get("start")
+	})
+	if want := []string{"0", "2", "4"}; !slices.Equal(starts, want) {
+		t.Errorf("page starts = %v, want %v (stop on the first page shorter than the limit)", starts, want)
+	}
+}
+
+func TestFindItemsByDOISince_NoMatchIsEmptyNotError(t *testing.T) {
+	t.Parallel()
+	f := newFakeZotero(t)
+	c, _ := newTestClient(t, f)
+	got, err := c.FindItemsByDOISince(context.Background(), "10.1000/nothing", 0)
+	if err != nil || len(got) != 0 {
+		t.Errorf("got (%v, %v), want an empty list", got, err)
 	}
 }

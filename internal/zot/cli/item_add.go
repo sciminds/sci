@@ -67,8 +67,10 @@ func itemAddCommand() *cli.Command {
 			"then attached to the new item unless --no-attach. When a PDF carries\n" +
 			"several identifiers the first in reading order is used and the rest\n" +
 			"are reported as candidates (--dry-run shows them all first). Dedup\n" +
-			"is by DOI: a DOI the local mirror already holds is refused as a\n" +
-			"duplicate unless --force; an item that has no DOI is never matched.\n\n" +
+			"is by DOI, against the local mirror AND the server, so an item you\n" +
+			"added moments ago is caught before desktop syncs it down; a match is\n" +
+			"refused as a duplicate unless --force. An item with no DOI is never\n" +
+			"matched.\n\n" +
 			"With --title no identifier is looked up: the item is built from\n" +
 			"--type (default journalArticle), --author \"Last, First\", --creator\n" +
 			"\"type:Last, First\", --date, --url, --abstract, --publication (routed\n" +
@@ -116,7 +118,7 @@ func itemAddCommand() *cli.Command {
 			resolver := newDOIResolver()
 			if cmd.Bool("dry-run") {
 				previews := lo.Map(inputs, func(in addInput, _ int) addPreview {
-					return previewAddInput(ctx, resolver, db, in, opts)
+					return previewAddInput(ctx, client, resolver, db, in, opts)
 				})
 				outputScoped(ctx, cmd, addDryRunResult{DryRun: true, Count: len(previews), Items: previews})
 				return nil
@@ -286,8 +288,8 @@ type addResolution struct {
 
 // resolveAddInput takes an input to its registry record: a PDF is sniffed
 // for its identifier first, then both kinds go to doi.org. The dedup check
-// against the local mirror rides along, because every caller wants it.
-func resolveAddInput(ctx context.Context, resolver *doiorg.Client, db local.Reader, in addInput) (addResolution, error) {
+// rides along, because every caller wants it.
+func resolveAddInput(ctx context.Context, client *api.Client, resolver *doiorg.Client, db local.Reader, in addInput) (addResolution, error) {
 	doi := in.DOI
 	var candidates []bib.Ref
 	if in.isPDF() {
@@ -318,14 +320,39 @@ func resolveAddInput(ctx context.Context, resolver *doiorg.Client, db local.Read
 		return addResolution{}, err
 	}
 	res := addResolution{Rec: rec, Candidates: candidates}
-	hits, err := db.ItemKeysByDOI([]string{rec.DOI})
+	res.ExistingKey, res.ExistingTitle, err = findItemByDOI(ctx, client, db, rec.DOI)
 	if err != nil {
 		return addResolution{}, err
 	}
-	if key, ok := hits[rec.DOI]; ok {
-		res.ExistingKey, res.ExistingTitle = key, itemTitleFromMirror(db, key)
-	}
 	return res, nil
+}
+
+// findItemByDOI is the dedup gate's lookup: the local mirror first (free,
+// and it knows the title), then the server for only what the mirror has
+// not synced down yet — everything newer than its highest item version —
+// because an item added moments ago lives only there. A miss on both
+// returns "", "".
+func findItemByDOI(ctx context.Context, client *api.Client, db local.Reader, doi string) (key, title string, err error) {
+	hits, err := db.ItemKeysByDOI([]string{doi})
+	if err != nil {
+		return "", "", err
+	}
+	if key, ok := hits[doi]; ok {
+		return key, itemTitleFromMirror(db, key), nil
+	}
+	synced, err := db.MaxItemVersion()
+	if err != nil {
+		return "", "", err
+	}
+	remote, err := client.FindItemsByDOISince(ctx, doi, synced)
+	if err != nil {
+		return "", "", writeErr(err)
+	}
+	if len(remote) == 0 {
+		return "", "", nil
+	}
+	title, _ = remote[0].Data["title"].(string)
+	return remote[0].Key, title, nil
 }
 
 // sniffErr maps pdfid's failures onto the coded vocabulary, each naming
@@ -352,7 +379,7 @@ func duplicateErr(ctx context.Context, in addInput, key, title string) error {
 		label = fmt.Sprintf("%s (%q)", key, title)
 	}
 	scope := scopeFromCtx(ctx)
-	coded := cmdutil.Coded(cmdutil.CodeDuplicate, "%s is already in this library as %s (matched by DOI)", in.Arg, label)
+	coded := cmdutil.Coded(cmdutil.CodeDuplicate, "%s is already in this library as %s (matched by DOI, in the local mirror or on the server)", in.Arg, label)
 	if in.isPDF() {
 		return coded.WithTry(fmt.Sprintf("attach the file to it instead: sci zot --library %s item attach %s %s — or re-run with --force to create a second item", scope, key, shellQuote(in.Path)))
 	}
@@ -418,7 +445,7 @@ type addOutcome struct {
 // returned: the item exists, and the caller can `item attach` it.
 func addOne(ctx context.Context, client *api.Client, db local.Reader, resolver *doiorg.Client, in addInput, opts addOptions) addOutcome {
 	out := addOutcome{Input: in}
-	res, err := resolveAddInput(ctx, resolver, db, in)
+	res, err := resolveAddInput(ctx, client, resolver, db, in)
 	if err != nil {
 		out.Err = err
 		return out
@@ -601,9 +628,9 @@ func (r addDryRunResult) Human() string {
 
 // previewAddInput resolves an input exactly as a real run would (doi.org
 // and pdftotext included) and reports the item it would create.
-func previewAddInput(ctx context.Context, resolver *doiorg.Client, db local.Reader, in addInput, opts addOptions) addPreview {
+func previewAddInput(ctx context.Context, client *api.Client, resolver *doiorg.Client, db local.Reader, in addInput, opts addOptions) addPreview {
 	p := addPreview{Input: in.Arg, Collection: opts.CollectionKey, Attach: in.isPDF() && opts.Attach}
-	res, err := resolveAddInput(ctx, resolver, db, in)
+	res, err := resolveAddInput(ctx, client, resolver, db, in)
 	if err != nil {
 		p.Error = err.Error()
 		return p

@@ -206,16 +206,37 @@ func (f *fakeZotero) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// serveList answers the collection GET the way Zotero pages it: objects
+// with version > since, in key order, sliced by start/limit, with the
+// Total-Results header carrying the unsliced count.
+func (f *fakeZotero) serveList(w http.ResponseWriter, r *http.Request, store map[string]*fakeObject) {
+	q := r.URL.Query()
+	since, _ := strconv.Atoi(q.Get("since"))
+	start, _ := strconv.Atoi(q.Get("start"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	if limit <= 0 {
+		limit = 25
+	}
+	keys := slices.Sorted(maps.Keys(store))
+	matching := lo.Filter(keys, func(k string, _ int) bool { return store[k].Version > since })
+	w.Header().Set("Total-Results", strconv.Itoa(len(matching)))
+	page := lo.Slice(matching, start, start+limit)
+	writeJSON(w, http.StatusOK, lo.Map(page, func(k string, _ int) map[string]any { return wireObject(k, store[k]) }))
+}
+
 // serveObjects handles one object family (items or collections). rest is the
 // path after the family segment: "" for the collection endpoint, "/KEY" for a
 // single object, "/KEY/children" for an item's children.
 func (f *fakeZotero) serveObjects(w http.ResponseWriter, r *http.Request, store map[string]*fakeObject, rest string, body []byte) {
 	if rest == "" {
-		if r.Method != http.MethodPost {
+		switch r.Method {
+		case http.MethodPost:
+			f.serveCreate(w, store, body)
+		case http.MethodGet:
+			f.serveList(w, r, store)
+		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
 		}
-		f.serveCreate(w, store, body)
 		return
 	}
 	key, tail, _ := strings.Cut(strings.TrimPrefix(rest, "/"), "/")

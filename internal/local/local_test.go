@@ -734,3 +734,36 @@ func TestSearchWithTotal_TotalSurvivesLimit(t *testing.T) {
 		t.Errorf("total changed under limit: %d vs %d", total2, total)
 	}
 }
+
+// TestMaxItemVersion: the mirror's high-water mark per scope — the fixture's
+// personal items top out at version 42 (AAAA1111), the group's at 1, and
+// the merged pool reports the larger.
+func TestMaxItemVersion(t *testing.T) {
+	t.Parallel()
+	dir := buildFixture(t)
+	for _, tc := range []struct {
+		name string
+		sel  LibrarySelector
+		want int
+	}{
+		{name: "personal", sel: ForPersonal(), want: 42},
+		{name: "group", sel: ForGroupByAPIID(6506098), want: 1},
+		{name: "all", sel: ForAll(6506098), want: 42},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			db, err := Open(dir, tc.sel)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = db.Close() }()
+			got, err := db.MaxItemVersion()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Errorf("MaxItemVersion = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}

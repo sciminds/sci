@@ -3,7 +3,10 @@ package api
 import (
 	"context"
 	"maps"
+	"net/url"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/samber/lo"
 )
@@ -21,6 +24,60 @@ func (c *Client) GetItem(ctx context.Context, key string) (*Object, error) {
 // ListChildren returns an item's child items — its notes and attachments.
 func (c *Client) ListChildren(ctx context.Context, parentKey string) ([]Object, error) {
 	return c.listObjects(ctx, c.itemPath(parentKey)+"/children")
+}
+
+// findPageSize is how many items one page of FindItemsByDOISince asks for
+// (Zotero's maximum). A var so a test can page with a small number.
+var findPageSize = 100
+
+// FindItemsByDOISince returns the library's live, non-trashed items newer
+// than sinceVersion that carry doi — in their DOI field or as a "DOI: …"
+// line in extra (Zotero's own convention for types without a DOI field) —
+// compared case-insensitively.
+//
+// The caller passes the local mirror's newest item version, so the answer
+// is exactly the items the mirror has not synced down yet: the blind spot
+// of a dedup check that reads the mirror first. The items are pulled with
+// `since=<version>` and paged through `start`/`limit`; the DOI filter is
+// client-side. There is no server-side DOI search to lean on: Zotero's `q`
+// (even under qmode=everything) never matches the DOI field — verified
+// against the live API on 2026-09-02, where a `q=<doi>` query returned
+// nothing for long-synced items.
+func (c *Client) FindItemsByDOISince(ctx context.Context, doi string, sinceVersion int) ([]Object, error) {
+	var all []Object
+	for start := 0; ; start += findPageSize {
+		query := url.Values{
+			"since":    {strconv.Itoa(sinceVersion)},
+			"itemType": {"-attachment"},
+			"format":   {"json"},
+			"limit":    {strconv.Itoa(findPageSize)},
+			"start":    {strconv.Itoa(start)},
+		}
+		page, err := c.listObjects(ctx, c.libraryPrefix()+"/items?"+query.Encode())
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, page...)
+		if len(page) < findPageSize {
+			break
+		}
+	}
+	return lo.Filter(all, func(o Object, _ int) bool {
+		return !isTrashed(&o) && objectHasDOI(&o, doi)
+	}), nil
+}
+
+// objectHasDOI reports whether an item carries doi in its DOI field or as
+// a "DOI: <doi>" line of extra, case-insensitively.
+func objectHasDOI(o *Object, doi string) bool {
+	if field, _ := o.Data["DOI"].(string); strings.EqualFold(strings.TrimSpace(field), doi) {
+		return true
+	}
+	extra, _ := o.Data["extra"].(string)
+	return lo.ContainsBy(slices.Collect(strings.Lines(extra)), func(line string) bool {
+		name, value, ok := strings.Cut(line, ":")
+		return ok && strings.EqualFold(strings.TrimSpace(name), "DOI") && strings.EqualFold(strings.TrimSpace(value), doi)
+	})
 }
 
 // CreateItem creates one item from a data payload (which must carry

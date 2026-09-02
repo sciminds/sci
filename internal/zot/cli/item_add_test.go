@@ -247,6 +247,139 @@ func TestItemAdd_ByDOI_DuplicateNamesTheExistingItem(t *testing.T) {
 	}
 }
 
+// TestItemAdd_ByDOI_ServerHitIsDuplicateWhenMirrorMisses: the local mirror
+// lags until Zotero desktop syncs, so an item added moments ago is invisible
+// to it — the server is asked for everything newer than the mirror's top
+// version, and a hit there is the same refusal, titled from the server's
+// copy.
+func TestItemAdd_ByDOI_ServerHitIsDuplicateWhenMirrorMisses(t *testing.T) {
+	fx := newWriteFixture(t)
+	fx.seedLocalItemWithDOI(t, 7, "ITEM0007", "Older paper", "10.1000/other")
+	fx.exec(t, `UPDATE items SET version = 50 WHERE key = 'ITEM0007'`)
+	fx.fake.seedItemVersioned("SRV00001", 60, map[string]any{"itemType": "journalArticle", "title": "Just added", "DOI": "10.1038/NATURE12373"})
+	reg := installFakeDOIOrg(t)
+	reg.add("10.1038/nature12373", "article-journal", "Deep sleep", "Nature")
+
+	_, err := runWrite(t, "--json", "item", "add", "10.1038/nature12373")
+	coded := codedErr(t, err)
+	if coded.Code != cmdutil.CodeDuplicate || !strings.Contains(coded.Message, "SRV00001") || !strings.Contains(coded.Message, "Just added") {
+		t.Errorf("got %+v, want a duplicate naming the server's key and title", coded)
+	}
+	if len(fx.fake.requestsMatching("POST ")) != 0 {
+		t.Error("a server-side duplicate must not be created")
+	}
+}
+
+// TestItemAdd_ByDOI_ServerItemsTheMirrorAlreadySawAreNotConsulted: the
+// server query is since=<mirror's top version>, so an item at or below it
+// is the mirror's to answer for — and the mirror said no.
+func TestItemAdd_ByDOI_ServerItemsTheMirrorAlreadySawAreNotConsulted(t *testing.T) {
+	fx := newWriteFixture(t)
+	fx.seedLocalItemWithDOI(t, 7, "ITEM0007", "Older paper", "10.1000/other")
+	fx.exec(t, `UPDATE items SET version = 50 WHERE key = 'ITEM0007'`)
+	fx.fake.seedItemVersioned("SRV00001", 40, map[string]any{"itemType": "journalArticle", "title": "Mirror knows this version range", "DOI": "10.1038/nature12373"})
+	reg := installFakeDOIOrg(t)
+	reg.add("10.1038/nature12373", "article-journal", "Deep sleep", "Nature")
+
+	out, err := runWrite(t, "--json", "item", "add", "10.1038/nature12373")
+	if err != nil {
+		t.Fatalf("add: %v\n%s", err, out)
+	}
+	if fx.fake.item("NEW00001") == nil {
+		t.Error("an item the mirror's version range covers is not re-checked on the server; the create must proceed")
+	}
+	if n := len(fx.fake.requestsMatching("GET /users/42/items")); n != 1 || !strings.Contains(fx.fake.requestsMatching("GET /users/42/items")[0], "since=50") {
+		t.Errorf("server queries = %v, want one listing with since=50", fx.fake.requestsMatching("GET /users/42/items"))
+	}
+}
+
+func TestItemAdd_PDF_ServerHitPointsAtAttach(t *testing.T) {
+	fx := newWriteFixture(t)
+	fx.fake.seedItemData("SRV00001", map[string]any{"itemType": "journalArticle", "title": "Just added", "DOI": "10.1038/nature12373"})
+	reg := installFakeDOIOrg(t)
+	reg.add("10.1038/nature12373", "article-journal", "Deep sleep", "Nature")
+	path := writePDF(t, t.TempDir(), "sleep.pdf")
+	stubSniff(t, map[string][]bib.Ref{"sleep.pdf": {doiRef("10.1038/nature12373")}})
+
+	_, err := runWrite(t, "--json", "item", "add", path)
+	coded := codedErr(t, err)
+	if coded.Code != cmdutil.CodeDuplicate || !strings.Contains(coded.Try, "item attach SRV00001") {
+		t.Errorf("got %+v", coded)
+	}
+	if len(fx.fake.requestsMatching("POST ")) != 0 {
+		t.Error("nothing may be written")
+	}
+}
+
+// TestItemAdd_ByDOI_MirrorAndServerBothMissCreates pins that the server IS
+// asked on a mirror miss, and that an empty answer lets the create proceed.
+func TestItemAdd_ByDOI_MirrorAndServerBothMissCreates(t *testing.T) {
+	fx := newWriteFixture(t)
+	fx.fake.seedItemData("OTHER001", map[string]any{"itemType": "journalArticle", "DOI": "10.1000/other"})
+	reg := installFakeDOIOrg(t)
+	reg.add("10.1038/nature12373", "article-journal", "Deep sleep", "Nature")
+
+	out, err := runWrite(t, "--json", "item", "add", "10.1038/nature12373")
+	if err != nil {
+		t.Fatalf("add: %v\n%s", err, out)
+	}
+	if fx.fake.item("NEW00001") == nil {
+		t.Error("both lookups missed, so the item must be created")
+	}
+	if n := len(fx.fake.requestsMatching("GET /users/42/items")); n != 1 {
+		t.Errorf("server saw %d item queries, want exactly one dedup lookup", n)
+	}
+}
+
+func TestItemAdd_Batch_ServerSideDuplicateIsReportedPerInput(t *testing.T) {
+	fx := newWriteFixture(t)
+	fx.fake.seedItemData("SRV00001", map[string]any{"itemType": "journalArticle", "title": "Just added", "DOI": "10.1038/a"})
+	reg := installFakeDOIOrg(t)
+	reg.add("10.1038/a", "article-journal", "Paper A", "Nature")
+	reg.add("10.1038/b", "article-journal", "Paper B", "Nature")
+
+	out, err := runWrite(t, "--json", "item", "add", "10.1038/a", "10.1038/b")
+	if err != nil {
+		t.Fatalf("batch add: %v\n%s", err, out)
+	}
+	res := decodeBulk(t, out)
+	if !slices.Equal(res.Success, []string{"NEW00001"}) {
+		t.Errorf("Success = %v, want only b created", res.Success)
+	}
+	if msg, ok := res.Failed["10.1038/a"]; !ok || !strings.Contains(msg, "SRV00001") {
+		t.Errorf("Failed = %v, want a reported as the server-side duplicate", res.Failed)
+	}
+	if got := fx.fake.item("NEW00001").Data["title"]; got != "Paper B" {
+		t.Errorf("created title = %v, want Paper B", got)
+	}
+}
+
+func TestItemAdd_DryRun_ReportsServerSideExistingKey(t *testing.T) {
+	fx := newWriteFixture(t)
+	fx.fake.seedItemData("SRV00001", map[string]any{"itemType": "journalArticle", "title": "Just added", "DOI": "10.1038/nature12373"})
+	reg := installFakeDOIOrg(t)
+	reg.add("10.1038/nature12373", "article-journal", "Deep sleep", "Nature")
+
+	out, err := runWrite(t, "--json", "item", "add", "10.1038/nature12373", "--dry-run")
+	if err != nil {
+		t.Fatalf("dry run: %v\n%s", err, out)
+	}
+	var res struct {
+		Items []struct {
+			ExistingKey string `json:"existing_key"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(unwrapData(t, out), &res); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Items) != 1 || res.Items[0].ExistingKey != "SRV00001" {
+		t.Errorf("got %+v, want existing_key from the server", res.Items)
+	}
+	if n := len(fx.fake.requestsMatching("POST ")); n != 0 {
+		t.Errorf("dry run made %d writes", n)
+	}
+}
+
 func TestItemAdd_ByDOI_ForceCreatesASecondCopy(t *testing.T) {
 	fx := newWriteFixture(t)
 	fx.seedLocalItemWithDOI(t, 7, "ITEM0007", "Deep sleep", "10.1038/nature12373")
@@ -263,14 +396,17 @@ func TestItemAdd_ByDOI_ForceCreatesASecondCopy(t *testing.T) {
 }
 
 func TestItemAdd_ByArxivID_ResolvesTheDataCiteDOIAsAPreprint(t *testing.T) {
-	fx := newWriteFixture(t)
-	reg := installFakeDOIOrg(t)
-	reg.addRaw("10.48550/arXiv.1706.03762", `{"DOI": "10.48550/ARXIV.1706.03762", "type": "article",
+	const record = `{"DOI": "10.48550/ARXIV.1706.03762", "type": "article",
 		"title": ["Attention Is All You Need"], "publisher": "arXiv",
-		"author": [{"family": "Vaswani", "given": "Ashish"}], "issued": {"date-parts": [[2017]]}}`)
-
+		"author": [{"family": "Vaswani", "given": "Ashish"}], "issued": {"date-parts": [[2017]]}}`
+	// One fixture per form: the second add of the same DOI into one library
+	// would (correctly) be refused by the server-side dedup gate.
 	for _, arg := range []string{"1706.03762v5", "arXiv:1706.03762"} {
 		t.Run(arg, func(t *testing.T) {
+			fx := newWriteFixture(t)
+			reg := installFakeDOIOrg(t)
+			reg.addRaw("10.48550/arXiv.1706.03762", record)
+
 			out, err := runWrite(t, "--json", "item", "add", arg)
 			if err != nil {
 				t.Fatalf("add %s: %v\n%s", arg, err, out)
@@ -283,10 +419,10 @@ func TestItemAdd_ByArxivID_ResolvesTheDataCiteDOIAsAPreprint(t *testing.T) {
 			if created.Data["title"] != "Attention Is All You Need" {
 				t.Errorf("title = %v", created.Data["title"])
 			}
+			if seen := reg.seen(); len(seen) != 1 || seen[0] != "10.48550/arXiv.1706.03762" {
+				t.Errorf("registry saw %v, want the DataCite DOI without the version suffix", seen)
+			}
 		})
-	}
-	if seen := reg.seen(); len(seen) != 2 || seen[0] != "10.48550/arXiv.1706.03762" {
-		t.Errorf("registry saw %v, want the DataCite DOI without the version suffix", seen)
 	}
 }
 
