@@ -76,3 +76,44 @@ func TestItemTypeFields_UnknownTypeIsHTTPError(t *testing.T) {
 		t.Fatalf("error = %v, want *HTTPError 400", err)
 	}
 }
+
+func TestItemTypeCreatorTypes_ReturnsCreatorTypesInAPIOrder(t *testing.T) {
+	t.Parallel()
+	f := newFakeZotero(t)
+	f.creatorTypes["book"] = []string{"author", "contributor", "editor"}
+	c, _ := newTestClient(t, f)
+
+	got, err := c.ItemTypeCreatorTypes(context.Background(), "book")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"author", "contributor", "editor"}; !equalStrings(got, want) {
+		t.Errorf("creator types = %v, want %v", got, want)
+	}
+	req := f.seen()[0]
+	if req.Path != "/itemTypeCreatorTypes" || req.Query != "itemType=book" {
+		t.Errorf("request = %s?%s, want /itemTypeCreatorTypes?itemType=book (no library prefix)", req.Path, req.Query)
+	}
+}
+
+func TestItemTypeCreatorTypes_IsMemoizedSeparatelyFromFields(t *testing.T) {
+	t.Parallel()
+	f := newFakeZotero(t)
+	f.fields["book"] = []string{"title"}
+	f.creatorTypes["book"] = []string{"author"}
+	c, _ := newTestClient(t, f)
+	ctx := context.Background()
+
+	for range 2 {
+		if _, err := c.ItemTypeCreatorTypes(ctx, "book"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.ItemTypeFields(ctx, "book"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []string{"GET /itemTypeCreatorTypes", "GET /itemTypeFields"}
+	if !equalStrings(f.methods(), want) {
+		t.Errorf("requests = %v, want one fetch per endpoint: %v", f.methods(), want)
+	}
+}

@@ -37,6 +37,16 @@ func (r WriteResult) Human() string {
 	return fmt.Sprintf("  %s %s\n", uikit.SymOK, msg)
 }
 
+// ItemTypeChange reports what `item update --type` cost: the fields the old
+// type carried that the new type does not declare. Zotero rejects a PATCH
+// that carries a field the item type lacks, so the update clears them in
+// the same write, and this is the record of what went.
+type ItemTypeChange struct {
+	From          string   `json:"from"`
+	To            string   `json:"to"`
+	DroppedFields []string `json:"dropped_fields"`
+}
+
 // BulkWriteResult reports per-target outcomes for a batch write. Success
 // holds the targets that applied cleanly; Failed maps target → error message
 // for the rest. A batch that lost some targets is still a success as far as

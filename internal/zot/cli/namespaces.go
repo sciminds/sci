@@ -56,10 +56,17 @@ func collectionCommand() *cli.Command {
 
 func tagsCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "tags",
-		Aliases:     []string{"tag"},
-		Usage:       "List the tags in your library",
-		Description: "$ sci zot tags list\n$ sci zot tags browse\n\nRead-only: attaching, removing and deleting tags are writes, and this\nsurface never writes to your library.",
+		Name:    "tags",
+		Aliases: []string{"tag"},
+		Usage:   "Work with tags (list, browse, add, remove)",
+		Description: "$ sci zot tags list\n" +
+			"$ sci zot tags browse\n" +
+			"$ sci zot tags add ABC12345 to-read methods\n" +
+			"$ sci zot tags remove ABC12345 to-read\n\n" +
+			"list and browse read the local mirror. add and remove write through\n" +
+			"the Zotero Web API (an API key and one library are needed) and act\n" +
+			"on one item's tags at a time; renaming or deleting a tag across the\n" +
+			"library is done in Zotero desktop.",
 		Commands: []*cli.Command{
 			{
 				Name:        "list",
@@ -80,6 +87,8 @@ func tagsCommand() *cli.Command {
 				},
 			},
 			tagsBrowseCommand(),
+			tagsAddCommand(),
+			tagsRemoveCommand(),
 		},
 	}
 }

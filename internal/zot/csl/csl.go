@@ -4,11 +4,14 @@
 // that fetches the record (internal/zot/doiorg) can stay the only package
 // on this side of the tree that reaches net/http.
 //
-// Two things about CSL-JSON drive the shape of [Parse]: registrants
-// disagree on scalar-vs-list for title, container-title, ISSN and ISBN
-// (DataCite lists, Crossref does not), and some send volume or issue as a
-// JSON number. Every string field therefore tolerates a string, a list of
-// strings (first entry wins) or a number.
+// Three things about CSL-JSON as doi.org serves it drive the shape of
+// [Parse] and [ItemType]: registrants disagree on scalar-vs-list for
+// title, container-title, ISSN and ISBN (DataCite lists, Crossref does
+// not); some send volume or issue as a JSON number; and the `type` is the
+// registrar's own vocabulary rather than CSL's (Crossref says
+// `journal-article`, CSL says `article-journal`). Every string field
+// therefore tolerates a string, a list of strings (first entry wins) or a
+// number, and the type table maps both vocabularies.
 //
 // [ToItem] never invents a field: it takes the item type's own field list
 // (from api.ItemTypeFields) and its creator types, so a value the type has
@@ -202,9 +205,17 @@ func datePart(v any) int {
 	return 0
 }
 
-// itemTypes maps CSL types onto Zotero item types. Anything not listed is
-// a document.
+// itemTypes maps record types onto Zotero item types. It carries TWO
+// vocabularies because doi.org passes the registrar's `type` through
+// unchanged: Crossref answers content negotiation with its own names
+// (`journal-article`, `book-chapter`, `proceedings-article`, …), not
+// CSL's (`article-journal`, `chapter`, `paper-conference`), and DataCite
+// uses a bare `article`. Verified live: 10.1038/nature12373 comes back as
+// `journal-article`. Anything not listed is a document — Crossref's
+// `journal-issue`, `component` and `peer-review` deliberately so, since
+// none of them is a citable work of its own.
 var itemTypes = map[string]string{
+	// CSL
 	"article":           "journalArticle",
 	"article-journal":   "journalArticle",
 	"article-magazine":  "magazineArticle",
@@ -218,6 +229,15 @@ var itemTypes = map[string]string{
 	"posted-content":    "preprint",
 	"dataset":           "dataset",
 	"webpage":           "webpage",
+	// Crossref
+	"journal-article":     "journalArticle",
+	"book-chapter":        "bookSection",
+	"book-section":        "bookSection",
+	"proceedings-article": "conferencePaper",
+	"dissertation":        "thesis",
+	"edited-book":         "book",
+	"reference-book":      "book",
+	"standard":            "standard",
 }
 
 // ItemType maps a CSL type onto the Zotero item type it becomes. Unknown

@@ -112,15 +112,18 @@ type fakeZotero struct {
 	failNextWrite string
 	// fields backs GET /itemTypeFields; keyed by item type.
 	fields map[string][]string
+	// creatorTypes backs GET /itemTypeCreatorTypes; keyed by item type.
+	creatorTypes map[string][]string
 }
 
 func newFakeZotero(t *testing.T) *fakeZotero {
 	return &fakeZotero{
-		t:      t,
-		prefix: "/users/42",
-		items:  map[string]*fakeObject{},
-		colls:  map[string]*fakeObject{},
-		fields: map[string][]string{},
+		t:            t,
+		prefix:       "/users/42",
+		items:        map[string]*fakeObject{},
+		colls:        map[string]*fakeObject{},
+		fields:       map[string][]string{},
+		creatorTypes: map[string][]string{},
 	}
 }
 
@@ -186,6 +189,12 @@ func (f *fakeZotero) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		names := f.fields[r.URL.Query().Get("itemType")]
 		out := lo.Map(names, func(n string, _ int) map[string]string {
 			return map[string]string{"field": n, "localized": strings.ToUpper(n)}
+		})
+		writeJSON(w, http.StatusOK, out)
+	case r.URL.Path == "/itemTypeCreatorTypes":
+		names := f.creatorTypes[r.URL.Query().Get("itemType")]
+		out := lo.Map(names, func(n string, _ int) map[string]string {
+			return map[string]string{"creatorType": n, "localized": strings.ToUpper(n)}
 		})
 		writeJSON(w, http.StatusOK, out)
 	case strings.HasPrefix(r.URL.Path, f.prefix+"/items"):

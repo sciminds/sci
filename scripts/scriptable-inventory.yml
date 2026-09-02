@@ -317,6 +317,18 @@ commands:
         bypass: "--yes"
         status: covered
 
+  # ── zot item delete ────────────────────────────────────────────────────────
+  # Same shape as zot-collection-delete: a cmdutil.ConfirmOrSkip confirmation
+  # with no ast-grep call site, so no nth.
+  zot-item-delete:
+    file: internal/zot/cli/item_write.go
+    prompts:
+      - id: delete-confirm
+        type: cmdutil.ConfirmOrSkip
+        description: "Confirm moving one or more items to the Zotero trash (each named by title when the local mirror knows it)"
+        bypass: "--yes"
+        status: covered
+
   # ── zot library scope ──────────────────────────────────────────────────────
   zot-library:
     file: internal/zot/cli/library_resolve.go

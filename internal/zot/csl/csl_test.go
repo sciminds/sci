@@ -275,11 +275,76 @@ func TestItemType(t *testing.T) {
 		"article":           "journalArticle",
 		"":                  "document",
 		"something-new":     "document",
+		// Crossref's vocabulary — what doi.org actually serves for a
+		// Crossref-registered DOI, verified live on 10.1038/nature12373.
+		"journal-article":     "journalArticle",
+		"book-chapter":        "bookSection",
+		"book-section":        "bookSection",
+		"proceedings-article": "conferencePaper",
+		"dissertation":        "thesis",
+		"edited-book":         "book",
+		"reference-book":      "book",
+		"standard":            "standard",
+		"journal-issue":       "document",
+		"component":           "document",
+		"peer-review":         "document",
 	}
 	for in, want := range cases {
 		if got := ItemType(in); got != want {
 			t.Errorf("ItemType(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// crossrefNatureCSL is the record doi.org serves for 10.1038/nature12373,
+// verified live: Crossref's `journal-article` type (not CSL's
+// `article-journal`), a string container-title, a list-valued ISSN.
+const crossrefNatureCSL = `{
+  "type": "journal-article",
+  "DOI": "10.1038/nature12373",
+  "title": "Nanometre-scale thermometry in a living cell",
+  "container-title": "Nature",
+  "volume": "500",
+  "issue": "7460",
+  "page": "54-58",
+  "ISSN": ["0028-0836", "1476-4687"],
+  "publisher": "Springer Science and Business Media LLC",
+  "issued": {"date-parts": [[2013, 7, 31]]},
+  "URL": "http://dx.doi.org/10.1038/nature12373",
+  "author": [{"family": "Kucsko", "given": "G."}, {"family": "Maurer", "given": "P. C."}]
+}`
+
+// TestToItem_CrossrefJournalArticle — the live dry-run bug: a Crossref
+// record landed as a `document` because its type is not in CSL's
+// vocabulary.
+func TestToItem_CrossrefJournalArticle(t *testing.T) {
+	t.Parallel()
+	rec, err := Parse([]byte(crossrefNatureCSL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rec.ItemType(); got != "journalArticle" {
+		t.Fatalf("ItemType() = %q, want journalArticle for Crossref's journal-article", got)
+	}
+	got := ToItem(rec, journalFields, authorEditor)
+	want := map[string]any{
+		"itemType":         "journalArticle",
+		"title":            "Nanometre-scale thermometry in a living cell",
+		"publicationTitle": "Nature",
+		"volume":           "500",
+		"issue":            "7460",
+		"pages":            "54-58",
+		"ISSN":             "0028-0836",
+		"url":              "http://dx.doi.org/10.1038/nature12373",
+		"DOI":              "10.1038/nature12373",
+		"date":             "2013-07-31",
+		"creators": []map[string]any{
+			{"creatorType": "author", "firstName": "G.", "lastName": "Kucsko"},
+			{"creatorType": "author", "firstName": "P. C.", "lastName": "Maurer"},
+		},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ToItem =\n%#v\nwant\n%#v", got, want)
 	}
 }
 

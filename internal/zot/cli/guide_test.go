@@ -95,12 +95,13 @@ func TestGuide_JSON_MachineReadable(t *testing.T) {
 // now an ordinary unknown command rather than a routed explanation — a
 // consumer that probed by running one sees a different failure shape.
 //
-// v5 (2026-09-01) brings writes back, scoped to collections: `collection
-// create / update / delete / add / remove` are registered and the Curate
-// section teaches them. The contract sentence that said the surface never
-// writes is gone, and every write's data is the server's copy because the
-// mirror lags — a consumer cached at v4 plans against a surface that
-// cannot file or prune, and would re-read the mirror to confirm a write.
+// v5 (2026-09-01) brings writes back: `collection create / update / delete
+// / add / remove`, `item add / update / delete / attach` and `tags add /
+// remove` are registered and the Curate section teaches them. The contract
+// sentence that said the surface never writes is gone, and every write's
+// data is the server's copy because the mirror lags — a consumer cached at
+// v4 plans against a surface that cannot add, file or prune, and would
+// re-read the mirror to confirm a write.
 func TestGuide_ContractVersion(t *testing.T) {
 	root := &cli.Command{
 		Name: "zot",
@@ -292,13 +293,19 @@ func TestGuide_ContractTeachesTheEnvelope(t *testing.T) {
 // this CLI just wrote. That combination duplicated 79 attachments on the live
 // library. An entry that prevents a bad write earns more context than one
 // that finds a command.
+//
+// Raised 11KB → 16KB for the Curate entries that teach `item add / update /
+// delete / attach` and `tags add`: each is a write, and each carries a rule
+// (the duplicate gate, the attach-instead-of-add try, the dry run, the
+// creator-list replacement) that an agent acting without it would get wrong
+// on a live library.
 func TestGuide_SizeBudget(t *testing.T) {
 	t.Parallel()
 	raw, err := json.Marshal(guideContent().JSON())
 	if err != nil {
 		t.Fatal(err)
 	}
-	const budget = 11 * 1024
+	const budget = 16 * 1024
 	if len(raw) > budget {
 		t.Errorf("guide JSON is %d bytes, over the %d budget — trim before growing", len(raw), budget)
 	}

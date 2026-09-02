@@ -125,6 +125,13 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 		// missing — a diagnostic quietly doing less than it was asked
 		// while its report looked complete.
 		{name: "doctor --check", argv: []string{"doctor", "--check", "invalid", "--check", "missing", "--check", "orphans"}, flagName: "check"},
+		{name: "item add --tag", argv: []string{"item", "add", "10.1/x", "--tag", "a", "--tag", "b", "--tag", "c"}, flagName: "tag"},
+		{name: "item add --author", argv: []string{"item", "add", "--title", "T", "--author", "a", "--author", "b", "--author", "c"}, flagName: "author"},
+		{name: "item add --creator", argv: []string{"item", "add", "--title", "T", "--creator", "editor:a", "--creator", "editor:b", "--creator", "editor:c"}, flagName: "creator"},
+		{name: "item add --field", argv: []string{"item", "add", "--title", "T", "--field", "a=1", "--field", "b=2", "--field", "c=3"}, flagName: "field"},
+		{name: "item update --author", argv: []string{"item", "update", "KEY12345", "--author", "a", "--author", "b", "--author", "c"}, flagName: "author"},
+		{name: "item update --creator", argv: []string{"item", "update", "KEY12345", "--creator", "editor:a", "--creator", "editor:b", "--creator", "editor:c"}, flagName: "creator"},
+		{name: "item update --field", argv: []string{"item", "update", "KEY12345", "--field", "a=1", "--field", "b=2", "--field", "c=3"}, flagName: "field"},
 	}
 
 	for _, tc := range cases {
@@ -169,7 +176,7 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 //
 // urfave/cli splits slice values on comma by default, so a free-text value
 // arrives in pieces. `--author "Smith, Alice"` became ["Smith", " Alice"],
-// and parseCreator read each comma-less half as an INSTITUTIONAL name —
+// and creatorEntry read each comma-less half as an INSTITUTIONAL name —
 // one author silently became two organizations. `--condition
 // "title:contains:Cambridge, MA"` split into a valid spec plus the
 // unparseable fragment " MA", an error naming something the user never
@@ -177,12 +184,9 @@ func TestSliceFlagFix_AllProductionFlagsAccumulate(t *testing.T) {
 // setting: no per-flag form, and no inheritance from the root, so each
 // command opts in on its own.
 //
-// The reproduction is synthetic because no surviving zot command carries a
-// free-text slice flag today — `doctor --check` takes enum names and wants
-// the comma split. That is exactly why this test is worth keeping: the next
-// person to add one needs the trap written down and gated, not rediscovered
-// on a live library. Extend it into a production table the moment such a
-// flag lands.
+// This synthetic pair documents urfave's default in both directions;
+// TestSliceFlagSeparator_ProductionFlagsKeepCommas below is the production
+// table, one row per free-text slice flag the tree carries.
 func TestSliceFlagSeparator_Reproduction(t *testing.T) {
 	t.Parallel()
 	const commaBearing = "Smith, Alice"
@@ -218,6 +222,49 @@ func TestSliceFlagSeparator_Reproduction(t *testing.T) {
 			}
 			if !slicesEqual(captured, tc.want) {
 				t.Errorf("captured = %q, want %q", captured, tc.want)
+			}
+		})
+	}
+}
+
+// TestSliceFlagSeparator_ProductionFlagsKeepCommas runs every free-text
+// slice flag through the production tree with a comma-bearing value and
+// asserts it arrives whole. A row failing here means its command lost
+// DisableSliceFlagSeparator — and `--author "Smith, Alice"` is two
+// institutions again. `doctor --check` is deliberately absent: its values
+// are enum names and it wants the comma split.
+func TestSliceFlagSeparator_ProductionFlagsKeepCommas(t *testing.T) {
+	t.Parallel()
+	const commaBearing = "Smith, Alice"
+	cases := []struct {
+		name     string
+		argv     []string
+		flagName string
+	}{
+		{name: "item add --author", argv: []string{"item", "add", "--title", "T", "--author", commaBearing}, flagName: "author"},
+		{name: "item add --creator", argv: []string{"item", "add", "--title", "T", "--creator", "editor:" + commaBearing}, flagName: "creator"},
+		{name: "item add --field", argv: []string{"item", "add", "--title", "T", "--field", "extra=" + commaBearing}, flagName: "field"},
+		{name: "item add --tag", argv: []string{"item", "add", "--title", "T", "--tag", commaBearing}, flagName: "tag"},
+		{name: "item update --author", argv: []string{"item", "update", "KEY12345", "--author", commaBearing}, flagName: "author"},
+		{name: "item update --creator", argv: []string{"item", "update", "KEY12345", "--creator", "editor:" + commaBearing}, flagName: "creator"},
+		{name: "item update --field", argv: []string{"item", "update", "KEY12345", "--field", "extra=" + commaBearing}, flagName: "field"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			lockProductionFlags(t)
+			var captured []string
+			root := &cli.Command{
+				Name:     "zot",
+				Flags:    PersistentFlags(),
+				Commands: shadowCommands(t, tc.argv, tc.flagName, &captured),
+			}
+			argv := slices.Concat([]string{"zot", "--library", "personal"}, tc.argv)
+			if err := root.Run(context.Background(), argv); err != nil {
+				t.Fatalf("run: %v", err)
+			}
+			want := []string{lastNValues(tc.argv, tc.flagName, 1)[0]}
+			if !slicesEqual(captured, want) {
+				t.Errorf("captured = %q, want %q (the comma must survive)", captured, want)
 			}
 		})
 	}

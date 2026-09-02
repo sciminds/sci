@@ -40,8 +40,10 @@ const (
 	// (warning channel only — never an error).
 	CodeStaleLocal Code = "stale-local"
 	// CodeDuplicate flags two or more records that resolve to the same
-	// underlying thing (warning channel only — sci reports duplicates,
-	// it never resolves them).
+	// underlying thing. On the warning channel it is a report (doctor
+	// duplicates); as an error it is a refusal to CREATE a second copy
+	// (`zot item add` on a DOI the library already holds) — sci never
+	// resolves duplicates on its own, in either direction.
 	CodeDuplicate Code = "duplicate"
 	// CodeRuntime is the default for failures with no more specific code:
 	// the command was well-formed but the work itself failed.

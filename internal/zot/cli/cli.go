@@ -91,8 +91,9 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 // Commands returns the full `sci zot` subcommand tree.
 // Entry points wrap this in their own root cli.Command.
 //
-// Top-level layout — reads answer from the local zotero.sqlite; the
-// collection writes go through the Zotero Web API (write.go is their door):
+// Top-level layout — reads answer from the local zotero.sqlite; the item,
+// collection and tag writes go through the Zotero Web API (write.go is
+// their door):
 //
 //	guide                       agent-friendly cheat sheet of common workflows
 //	setup                       locate the Zotero data directory, store an API key
@@ -102,16 +103,18 @@ func LibraryFromContext(ctx context.Context) (zot.LibraryRef, bool) {
 //	browse                      interactive search-and-open REPL (PDFs open in the system viewer)
 //	export                      full-library BibLaTeX / CSL-JSON / NDJSON export
 //	bib     <file-or-dir>       bibliography of exactly the items a document cites
-//	item    <subcommand>        per-item reads (read/list/children/open/export)
+//	item    <subcommand>        items: reads (read/list/children/open/export) and
+//	                            writes (add/update/delete/attach)
 //	collection <subcommand>     collections (list/browse/create/update/delete/add/remove)
-//	tags    <subcommand>        tags (list/browse)
+//	tags    <subcommand>        tags (list/browse/add/remove)
 //	notes   <subcommand>        the notes YOU wrote (list/read)
 //	link    <subcommand>        read an item's dc:relation links (list)
 //	doctor  [subcommand]        hygiene reports: run every check, or drill in via
 //	                            doctor {invalid,missing,orphans,duplicates,citekeys,dois}
 //
-// `item` reuses the leaf commands defined in read.go — itemCommand below just
-// parents them under the namespace.
+// `item` reuses the leaf commands defined in read.go (reads), item_add.go
+// and item_write.go (writes) — itemCommand below just parents them under
+// the namespace.
 func Commands() []*cli.Command {
 	return []*cli.Command{
 		guideCommand(),
@@ -132,21 +135,37 @@ func Commands() []*cli.Command {
 }
 
 // itemCommand groups per-item operations under a single namespace. Nothing
-// here is defined inline — the leaf commands live in read.go.
+// here is defined inline — the read leaves live in read.go, the write
+// leaves in item_add.go and item_write.go.
 func itemCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "item",
-		Usage: "Work with individual items (read, list, children, open, export)",
+		Usage: "Work with individual items (read, list, children, open, export, add, update, delete, attach)",
 		Description: "$ sci zot --library personal item read ABC12345\n" +
 			"$ sci zot --library personal item list --limit 20\n" +
 			"$ sci zot --library personal item children 6R45EVSB\n" +
-			"$ sci zot --library shared item export ABC12345",
+			"$ sci zot --library shared item export ABC12345\n" +
+			"$ sci zot item add 10.1038/nature12373 --collection \"To read\"\n" +
+			"$ sci zot item add paper.pdf\n" +
+			"$ sci zot item update ABC12345 --title \"Corrected\"\n" +
+			"$ sci zot item attach ABC12345 paper.pdf --skip-existing\n" +
+			"$ sci zot item delete ABC12345 --yes\n\n" +
+			"read, list, children, open and export answer from the local mirror.\n" +
+			"add, update, delete and attach write through the Zotero Web API:\n" +
+			"they need an API key (sci zot setup --api-key <key>) and one\n" +
+			"library (--library personal|shared), and each returns the server's\n" +
+			"copy of what it wrote — the local mirror shows the change only after\n" +
+			"Zotero desktop syncs.",
 		Commands: []*cli.Command{
 			readCommand(),
 			listCommand(),
 			childrenCommand(),
 			openCommand(),
 			exportCommand(),
+			itemAddCommand(),
+			itemUpdateCommand(),
+			itemDeleteCommand(),
+			itemAttachCommand(),
 		},
 	}
 }

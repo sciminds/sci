@@ -2,9 +2,11 @@ package cli
 
 // A small in-memory Zotero Web API for the write-verb tests: single-object
 // GET/PATCH/DELETE and multi-object POST for items and collections under one
-// library prefix, with Zotero's optimistic concurrency (a stale
-// If-Unmodified-Since-Version is a 412). internal/zot/api/fake_test.go is the
-// fuller reference; this one carries only what the cli verbs exercise.
+// library prefix, an item's /children, the two schema endpoints, and the
+// /file upload phases with a loopback S3 — all with Zotero's optimistic
+// concurrency (a stale If-Unmodified-Since-Version is a 412).
+// internal/zot/api/fake_test.go is the fuller reference; this one carries
+// only what the cli verbs exercise.
 
 import (
 	"encoding/json"
@@ -13,6 +15,8 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -46,8 +50,45 @@ type fakeZotero struct {
 	// failNextWrite makes the next multi-object POST answer with a failed
 	// slot carrying this message instead of creating anything.
 	failNextWrite string
-	nextKey       int
-	requests      []string
+	// failNextUpload makes the next upload authorization (phase 2) answer
+	// 400 with this message, so a caller sees a failed attach.
+	failNextUpload string
+	// uploadExists makes phase 2 answer Zotero's dedup short-circuit
+	// ({"exists":1}) instead of an authorization.
+	uploadExists bool
+	// failS3 makes the loopback S3 answer 500 to phase 3.
+	failS3 bool
+	// s3URL is where phase 2 sends the bytes: this same server's /s3 route.
+	s3URL string
+	// s3Bodies are the raw phase-3 bodies received, in order.
+	s3Bodies []string
+	// fields and creatorTypes back the two schema endpoints, keyed by item
+	// type; an item type in neither is answered 400 like Zotero does.
+	fields       map[string][]string
+	creatorTypes map[string][]string
+	nextKey      int
+	requests     []string
+}
+
+// fakeUploadKey is the phase-2 upload key phase 4 must echo back.
+const fakeUploadKey = "UPLOADKEY001"
+
+// defaultFakeFields is the schema the fake ships with — enough of Zotero's
+// real field lists for the item types item add / update produce.
+var defaultFakeFields = map[string][]string{
+	"journalArticle":  {"title", "abstractNote", "publicationTitle", "volume", "issue", "pages", "date", "series", "seriesTitle", "journalAbbreviation", "language", "DOI", "ISSN", "shortTitle", "url", "accessDate", "extra"},
+	"preprint":        {"title", "abstractNote", "genre", "repository", "archiveID", "place", "date", "series", "seriesNumber", "DOI", "url", "accessDate", "language", "extra"},
+	"book":            {"title", "abstractNote", "series", "seriesNumber", "volume", "edition", "place", "publisher", "date", "numPages", "language", "ISBN", "shortTitle", "url", "extra"},
+	"conferencePaper": {"title", "abstractNote", "date", "proceedingsTitle", "conferenceName", "place", "publisher", "volume", "pages", "series", "language", "DOI", "ISBN", "url", "extra"},
+	"document":        {"title", "abstractNote", "publisher", "date", "language", "url", "extra"},
+}
+
+var defaultFakeCreatorTypes = map[string][]string{
+	"journalArticle":  {"author", "contributor", "editor", "translator", "reviewedAuthor"},
+	"preprint":        {"author", "contributor", "editor", "translator", "reviewedAuthor"},
+	"book":            {"author", "contributor", "editor", "translator", "seriesEditor"},
+	"conferencePaper": {"author", "contributor", "editor", "translator", "seriesEditor"},
+	"document":        {"author", "contributor", "editor", "translator", "reviewedAuthor"},
 }
 
 // requestCount is how many requests the server has seen — zero is the
@@ -64,6 +105,21 @@ func (f *fakeZotero) setConflicts(n int) {
 	f.conflicts = n
 }
 
+// requestsMatching returns the recorded "METHOD /path" lines containing
+// substr — "POST " to count writes, "/file" to count upload phases.
+func (f *fakeZotero) requestsMatching(substr string) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return lo.Filter(f.requests, func(r string, _ int) bool { return strings.Contains(r, substr) })
+}
+
+// uploadedBodies returns what the loopback S3 received, in order.
+func (f *fakeZotero) uploadedBodies() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.s3Bodies)
+}
+
 // installFakeZotero starts a fake server for the personal library of user
 // 42 (what saveWithCredential stores) and points requireAPIClient at it via
 // the newAPIClient seam. Sleeps are skipped so a retry never waits. The seam
@@ -71,13 +127,16 @@ func (f *fakeZotero) setConflicts(n int) {
 func installFakeZotero(t *testing.T) *fakeZotero {
 	t.Helper()
 	f := &fakeZotero{
-		t:      t,
-		prefix: "/users/42",
-		items:  map[string]*fakeObject{},
-		colls:  map[string]*fakeObject{},
+		t:            t,
+		prefix:       "/users/42",
+		items:        map[string]*fakeObject{},
+		colls:        map[string]*fakeObject{},
+		fields:       maps.Clone(defaultFakeFields),
+		creatorTypes: maps.Clone(defaultFakeCreatorTypes),
 	}
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
+	f.s3URL = srv.URL + "/s3"
 	prev := newAPIClient
 	newAPIClient = func(creds api.Credentials, lib zot.LibraryRef) (*api.Client, error) {
 		return api.New(creds, lib, api.WithBaseURL(srv.URL), api.WithSleep(func(time.Duration) {}))
@@ -93,6 +152,35 @@ func (f *fakeZotero) seedItem(key string, collections ...string) {
 		"itemType":    "journalArticle",
 		"collections": lo.ToAnySlice(collections),
 	}}
+}
+
+// seedItemData seeds an item with an arbitrary data payload (itemType
+// included), for the verbs that read fields back.
+func (f *fakeZotero) seedItemData(key string, data map[string]any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.items[key] = &fakeObject{Version: 10, Data: data}
+}
+
+// seedAttachment seeds a child attachment carrying an md5, the shape
+// HasAttachmentWithMD5 looks for.
+func (f *fakeZotero) seedAttachment(key, parentKey, md5sum string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.items[key] = &fakeObject{Version: 10, Data: map[string]any{
+		"itemType": "attachment", "linkMode": "imported_file", "parentItem": parentKey, "md5": md5sum,
+	}}
+}
+
+// children returns the keys of every item whose parentItem is key, sorted.
+func (f *fakeZotero) children(key string) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	keys := lo.FilterMap(lo.Entries(f.items), func(e lo.Entry[string, *fakeObject], _ int) (string, bool) {
+		return e.Key, e.Value.Data["parentItem"] == key
+	})
+	slices.Sort(keys)
+	return keys
 }
 
 func (f *fakeZotero) seedCollection(key, name, parentKey string) {
@@ -138,6 +226,25 @@ func (f *fakeZotero) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch {
+	case r.URL.Path == "/itemTypeFields":
+		f.serveSchema(w, r, f.fields, "field")
+	case r.URL.Path == "/itemTypeCreatorTypes":
+		f.serveSchema(w, r, f.creatorTypes, "creatorType")
+	case r.URL.Path == "/s3":
+		// Phase 3: the pre-signed POST. No Zotero headers may reach it.
+		if r.Header.Get("Zotero-API-Key") != "" {
+			http.Error(w, "signature mismatch: unexpected header", http.StatusForbidden)
+			return
+		}
+		if f.failS3 {
+			http.Error(w, "<Error><Code>InternalError</Code></Error>", http.StatusInternalServerError)
+			return
+		}
+		f.s3Bodies = append(f.s3Bodies, string(body))
+		w.WriteHeader(http.StatusNoContent)
+	case strings.HasSuffix(r.URL.Path, "/file") && strings.HasPrefix(r.URL.Path, f.prefix+"/items/"):
+		key := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, f.prefix+"/items/"), "/file")
+		f.serveFile(w, key, body)
 	case strings.HasPrefix(r.URL.Path, f.prefix+"/items"):
 		f.serveObjects(w, r, f.items, strings.TrimPrefix(r.URL.Path, f.prefix+"/items"), body)
 	case strings.HasPrefix(r.URL.Path, f.prefix+"/collections"):
@@ -156,7 +263,14 @@ func (f *fakeZotero) serveObjects(w http.ResponseWriter, r *http.Request, store 
 		f.serveCreate(w, store, body)
 		return
 	}
-	key := strings.TrimPrefix(rest, "/")
+	key, tail, _ := strings.Cut(strings.TrimPrefix(rest, "/"), "/")
+	if tail == "children" {
+		children := lo.FilterMap(lo.Entries(store), func(e lo.Entry[string, *fakeObject], _ int) (map[string]any, bool) {
+			return wireObject(e.Key, e.Value), e.Value.Data["parentItem"] == key
+		})
+		writeFakeJSON(w, http.StatusOK, children)
+		return
+	}
 	obj, ok := store[key]
 	if !ok {
 		http.Error(w, "Not found", http.StatusNotFound)
@@ -228,6 +342,65 @@ func (f *fakeZotero) serveCreate(w http.ResponseWriter, store map[string]*fakeOb
 		"unchanged":  map[string]any{},
 		"failed":     map[string]any{},
 	})
+}
+
+// serveSchema answers one of the two schema endpoints from its map; an
+// unknown item type is a 400, as on the real API.
+func (f *fakeZotero) serveSchema(w http.ResponseWriter, r *http.Request, table map[string][]string, nameKey string) {
+	names, ok := table[r.URL.Query().Get("itemType")]
+	if !ok {
+		http.Error(w, "Invalid item type", http.StatusBadRequest)
+		return
+	}
+	writeFakeJSON(w, http.StatusOK, lo.Map(names, func(n string, _ int) map[string]string {
+		return map[string]string{nameKey: n, "localized": strings.ToUpper(n)}
+	}))
+}
+
+// serveFile is the per-attachment /file endpoint: phase 2 (authorize, or
+// the dedup short-circuit) and phase 4 (register, which stamps the md5 the
+// authorization carried onto the attachment so later dedup checks see it).
+func (f *fakeZotero) serveFile(w http.ResponseWriter, key string, body []byte) {
+	obj, ok := f.items[key]
+	if !ok {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+	form, err := url.ParseQuery(string(body))
+	if err != nil {
+		http.Error(w, "bad form: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if form.Has("upload") {
+		if form.Get("upload") != fakeUploadKey {
+			http.Error(w, "unknown upload key", http.StatusBadRequest)
+			return
+		}
+		obj.Data["md5"] = obj.Data["pendingMD5"]
+		delete(obj.Data, "pendingMD5")
+		obj.Version++
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	switch {
+	case f.failNextUpload != "":
+		msg := f.failNextUpload
+		f.failNextUpload = ""
+		http.Error(w, msg, http.StatusBadRequest)
+	case f.uploadExists:
+		obj.Data["md5"] = form.Get("md5")
+		writeFakeJSON(w, http.StatusOK, map[string]any{"exists": 1})
+	default:
+		obj.Data["pendingMD5"] = form.Get("md5")
+		writeFakeJSON(w, http.StatusOK, map[string]any{
+			"url":         f.s3URL,
+			"contentType": "multipart/form-data; boundary=abc123",
+			"prefix":      "--abc123\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\n",
+			"suffix":      "\r\n--abc123--\r\n",
+			"uploadKey":   fakeUploadKey,
+			"params":      map[string]any{},
+		})
+	}
 }
 
 // wireObject renders a stored object the way the API does: key and version

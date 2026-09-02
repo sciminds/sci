@@ -74,11 +74,12 @@ type Client struct {
 	maxRetries int
 	sleep      func(time.Duration)
 
-	// mu guards the two pieces of state a request can update: the Backoff
-	// delay carried into the next request, and the schema cache.
-	mu          sync.Mutex
-	pendingWait time.Duration
-	fieldsCache map[string][]string
+	// mu guards the pieces of state a request can update: the Backoff
+	// delay carried into the next request, and the two schema caches.
+	mu                sync.Mutex
+	pendingWait       time.Duration
+	fieldsCache       map[string][]string
+	creatorTypesCache map[string][]string
 }
 
 // New validates the credentials against the target library and returns a
@@ -104,13 +105,14 @@ func New(creds Credentials, lib zot.LibraryRef, opts ...Option) (*Client, error)
 	}
 
 	c := &Client{
-		creds:       creds,
-		lib:         lib,
-		baseURL:     DefaultBaseURL,
-		http:        &http.Client{Timeout: 30 * time.Second},
-		maxRetries:  3,
-		sleep:       time.Sleep,
-		fieldsCache: map[string][]string{},
+		creds:             creds,
+		lib:               lib,
+		baseURL:           DefaultBaseURL,
+		http:              &http.Client{Timeout: 30 * time.Second},
+		maxRetries:        3,
+		sleep:             time.Sleep,
+		fieldsCache:       map[string][]string{},
+		creatorTypesCache: map[string][]string{},
 	}
 	for _, opt := range opts {
 		opt(c)

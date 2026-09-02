@@ -24,12 +24,13 @@ import (
 //   - Library scope is omitted — the resolver auto-selects / prompts.
 //   - Notes call out tradeoffs, gotchas, or compose-with hints.
 //
-// ContractVersion 5 (2026-09-01) brings writes back, scoped to collections:
-// `collection create / update / delete / add / remove` are registered and
-// the Curate section teaches them. Reads are unchanged — still local, still
-// credential-free — but the contract an agent plans against is different:
-// it can now file, move and prune, and it must know that every write returns
-// the server's copy because the mirror it reads lags. Setup grew
+// ContractVersion 5 (2026-09-01) brings writes back: `collection create /
+// update / delete / add / remove`, `item add / update / delete / attach` and
+// `tags add / remove` are registered and the Curate section teaches them.
+// Reads are unchanged — still local, still credential-free — but the
+// contract an agent plans against is different: it can now add a paper,
+// edit it, file it, tag it and prune it, and it must know that every write
+// returns the server's copy because the mirror it reads lags. Setup grew
 // `--api-key` to store the credential the writes need. A consumer cached at
 // v4 holds a contract that says the surface never writes; that sentence is
 // gone, which is exactly the kind of change this number announces. v4
@@ -41,9 +42,9 @@ func guideContent() zot.GuideResult {
 		Contract: []string{
 			"Probe data.contract_version first — it bumps only on breaking changes to this contract.",
 			"Reads are local and STANDALONE: every read below opens your own zotero.sqlite and answers from it, with no credential and no network. Extracting paper text, upstream indexes (OpenAlex, Crossref) and citation traversal are out of scope: those verbs are not registered here and fail as unknown commands.",
-			"Writes need an API key (`sci zot setup --api-key`) and target ONE library (`--library personal|shared`); every write returns the server's copy of what it wrote in data, because the local mirror lags until Zotero desktop syncs — do not re-read the mirror to confirm a write. Only collections are writable (Curate).",
+			"Writes need an API key (`sci zot setup --api-key`) and target ONE library (`--library personal|shared`); every write returns the server's copy of what it wrote in data, because the local mirror lags until Zotero desktop syncs — do not re-read the mirror to confirm a write. Items, their attachments, their tags and collections are writable (Curate); notes and relations are not.",
 			"Every command accepts --json: one stream (stdout), one shape. Success: {ok:true, data, warnings}. Failure: {ok:false, error:{code, message, fix, try}} on a single line.",
-			"error.fix is a complete corrected command — resubmit it verbatim. error.try is prose guidance. error.code is a closed vocabulary (usage, conflict, not-found, ambiguous, offline, not-configured, runtime).",
+			"error.fix is a complete corrected command — resubmit it verbatim. error.try is prose guidance. error.code is a closed vocabulary (usage, conflict, not-found, ambiguous, duplicate, offline, not-configured, runtime).",
 			"Exit 2 means rewrite the command line and retry; exit 1 means the work itself failed.",
 			"Act on warnings[] before trusting data — stale-local means this read cannot see everything Zotero has (the mirror lags the server, or the connection lags the file), and the remedy is Zotero desktop, so the warning carries prose and no fix; bib-quality means entries will be incomplete.",
 			"truncated:true means count < total — raise --limit to see the rest.",
@@ -104,13 +105,48 @@ func guideContent() zot.GuideResult {
 					{
 						Goal: "List all collections / tags",
 						Cmd:  "sci zot collection list",
-						Note: "Or `sci zot tags list`. Both fast/local. Collections are editable from here (Curate); tagging an item is not.",
+						Note: "Or `sci zot tags list`. Both fast/local. Collections and an item's tags are editable from here (Curate).",
 					},
 				},
 			},
 			{
 				Title: "Curate",
 				Entries: []zot.GuideEntry{
+					{
+						Goal: "Add a paper by DOI or arXiv id",
+						Cmd:  "sci zot item add 10.1038/nature12373 --collection \"To read\" --tag to-read",
+						Note: "Any cited form works (bare, doi:, doi.org URL, arXiv:1706.03762 or the bare arXiv id). The record comes from doi.org, so a not-found means the DOI is unregistered or mistyped, not that the paper is missing. Dedup is by DOI only: a DOI the local mirror already holds is refused as `duplicate` naming the existing key (--force creates a second copy); an item with no DOI is never matched. data.item is the server's item; --collection takes a key or name.",
+					},
+					{
+						Goal: "Add a paper from its PDF, with the file attached",
+						Cmd:  "sci zot item add paper.pdf",
+						Note: "Reads the DOI or arXiv id off the first pages (needs pdftotext: `sci tools reccs --install poppler`), resolves it, creates the item and uploads the PDF. data.attached / attachment_key report the upload. A failed upload after a successful create rides data.attach_error rather than failing the command: the empty attachment is trashed (attachment_key is \"\"), and `item attach KEY paper.pdf` adds a fresh one. A PDF with several identifiers uses the first in reading order and lists the rest in data.candidates (a stderr note says how to pick another). A PDF whose DOI is already in the library is a `duplicate` whose try names the `item attach KEY paper.pdf` that files it under the existing item. No identifier on the pages → not-found pointing at --title (manual mode: --author \"Last, First\", --date, --publication, --field name=value, one PDF positional to attach).",
+					},
+					{
+						Goal: "Add a folder of downloaded PDFs, checking first",
+						Cmd:  "sci zot item add ~/Downloads/ --dry-run",
+						Note: "Every *.pdf in the folder (not recursive). --dry-run resolves each (doi.org and pdftotext run; nothing is written) and reports item_type, title, first_author, year, doi, collection, attach and any existing_key. Re-run without --dry-run to create: several inputs return {total, success, failed, data.rows} in input order, and a failing input is reported while the rest proceed.",
+					},
+					{
+						Goal: "Attach a PDF to an item that exists, without attaching it twice",
+						Cmd:  "sci zot item attach ABC12345 paper.pdf --skip-existing",
+						Note: "A bare attach is not idempotent, and `item children` (local) answers a confident zero for children this CLI just wrote — so guard with --skip-existing, which hashes the file and asks the server whether the item already has that md5. data.uploaded is false when Zotero already held the bytes.",
+					},
+					{
+						Goal: "Correct an item's fields",
+						Cmd:  "sci zot item update ABC12345 --title \"Corrected title\" --field volume=12",
+						Note: "Dedicated flags for title, doi, url, date, abstract, extra, publication (routed to the type's venue field) and type; --field name=value for the rest, validated against the item's type before anything is sent. An explicit empty value clears a field. --author / --creator REPLACE the whole creator list. Several keys return a per-key report.",
+					},
+					{
+						Goal: "Remove an item",
+						Cmd:  "sci zot item delete ABC12345 --yes",
+						Note: "Moves it to Zotero's trash (never a permanent delete; restore or empty the trash in Zotero desktop). Already trashed is a success that changed nothing. --yes is required under --json.",
+					},
+					{
+						Goal: "Tag an item, or untag it",
+						Cmd:  "sci zot tags add ABC12345 to-read methods",
+						Note: "The first positional is the item (key or cite key), the rest are tags; `sci zot tags remove` is the inverse. Already present / absent is a success that changed nothing; several tags return a per-tag report with data.unchanged. Tag names match exactly.",
+					},
 					{
 						Goal: "Create a collection, optionally nested under another",
 						Cmd:  "sci zot collection create \"Reading list\" --parent Projects",
