@@ -367,11 +367,7 @@ func mustReadFile(path string) string {
 func runDoctorUpdateCheck(ctx context.Context, runner brew.Runner) error {
 	fmt.Fprintf(os.Stderr, "\n  Checking for outdated packages…\n")
 
-	var check brew.OutdatedCheck
-	ignored, err := brew.LoadIgnored()
-	if err == nil {
-		check, err = brew.CheckUpdates(ctx, runner, ignored)
-	}
+	check, err := brew.CheckUpdates(ctx, runner)
 	if err != nil {
 		msg := "Could not check for updates: " + err.Error()
 		if errors.Is(err, brew.ErrCheckTimeout) {
@@ -410,7 +406,7 @@ func runDoctorUpdateCheck(ctx context.Context, runner brew.Runner) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "  Upgrading…\n")
-	_, err = brew.UpgradeOnly(runner, ignored)
+	_, err = brew.UpgradeOnly(runner)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
 			uikit.SymFail, uikit.TUI.Fail().Render("Upgrade failed: "+err.Error()))

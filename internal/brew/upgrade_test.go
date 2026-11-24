@@ -28,7 +28,7 @@ func assertUpgrades(t *testing.T, m *mockRunner, formulae, casks [][]string) {
 func TestUpdate_UpgradesByName(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{outdatedResult: dockerTwice()}
-	if _, err := Update(m, nil, false); err != nil {
+	if _, err := Update(m, false); err != nil {
 		t.Fatal(err)
 	}
 	assertUpgrades(t, m, [][]string{{"docker"}}, [][]string{{"docker"}})
@@ -40,7 +40,7 @@ func TestUpdate_SkipsPinned(t *testing.T) {
 		{Type: TypeFormula, Name: "jq", Pinned: true},
 		{Type: TypeFormula, Name: "fd"},
 	}}
-	result, err := Update(m, nil, false)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestUpdate_SkipsPinned(t *testing.T) {
 func TestUpdate_AllPinned(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{outdatedResult: []OutdatedPackage{{Type: TypeFormula, Name: "jq", Pinned: true}}}
-	if _, err := Update(m, nil, false); err != nil {
+	if _, err := Update(m, false); err != nil {
 		t.Fatal(err)
 	}
 	assertUpgrades(t, m, nil, nil)
@@ -73,9 +73,9 @@ func TestUpgradeBrew_FormulaFailureStillUpgradesCasks(t *testing.T) {
 }
 
 func TestUpdate_SkipsIgnored(t *testing.T) {
-	t.Parallel()
+	withIgnoreConfig(t, `{"ignored":[{"type":"cask","name":"docker"}]}`)
 	m := &mockRunner{outdatedResult: dockerTwice()}
-	result, err := Update(m, IgnoreList{{Type: TypeCask, Name: "docker"}}, false)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,9 +86,9 @@ func TestUpdate_SkipsIgnored(t *testing.T) {
 }
 
 func TestUpdate_SkipsIgnoredUV(t *testing.T) {
-	t.Parallel()
+	withIgnoreConfig(t, `{"ignored":[{"type":"uv","name":"ruff"}]}`)
 	m := &mockRunner{uvOutdatedResult: []OutdatedPackage{{Type: TypeUV, Name: "ruff"}}}
-	result, err := Update(m, IgnoreList{{Type: TypeUV, Name: "ruff"}}, false)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,10 +101,9 @@ func TestUpdate_SkipsIgnoredUV(t *testing.T) {
 }
 
 func TestUpdate_AllIgnored(t *testing.T) {
-	t.Parallel()
+	withIgnoreConfig(t, `{"ignored":[{"type":"cask","name":"docker"},{"type":"formula","name":"docker"}]}`)
 	m := &mockRunner{outdatedResult: dockerTwice()}
-	ignored := IgnoreList{{Type: TypeCask, Name: "docker"}, {Type: TypeFormula, Name: "docker"}}
-	result, err := Update(m, ignored, false)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,18 +114,18 @@ func TestUpdate_AllIgnored(t *testing.T) {
 }
 
 func TestUpdate_IgnoredTapFormula(t *testing.T) {
-	t.Parallel()
+	withIgnoreConfig(t, `{"ignored":[{"type":"formula","name":"bun"}]}`)
 	m := &mockRunner{outdatedResult: []OutdatedPackage{{Type: TypeFormula, Name: "oven-sh/bun/bun"}}}
-	if _, err := Update(m, IgnoreList{{Type: TypeFormula, Name: "bun"}}, false); err != nil {
+	if _, err := Update(m, false); err != nil {
 		t.Fatal(err)
 	}
 	assertUpgrades(t, m, nil, nil)
 }
 
 func TestUpgradeOnly_SkipsIgnored(t *testing.T) {
-	t.Parallel()
+	withIgnoreConfig(t, `{"ignored":[{"type":"formula","name":"docker"}]}`)
 	m := &mockRunner{outdatedResult: dockerTwice()}
-	result, err := UpgradeOnly(m, IgnoreList{{Type: TypeFormula, Name: "docker"}})
+	result, err := UpgradeOnly(m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,9 +136,9 @@ func TestUpgradeOnly_SkipsIgnored(t *testing.T) {
 }
 
 func TestCheckUpdates_SplitsIgnored(t *testing.T) {
-	t.Parallel()
+	withIgnoreConfig(t, `{"ignored":[{"type":"cask","name":"docker"}]}`)
 	m := &mockRunner{outdatedResult: dockerTwice()}
-	check, err := CheckUpdates(t.Context(), m, IgnoreList{{Type: TypeCask, Name: "docker"}})
+	check, err := CheckUpdates(t.Context(), m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,9 +151,9 @@ func TestCheckUpdates_SplitsIgnored(t *testing.T) {
 }
 
 func TestUpdate_IgnoredAndPinned(t *testing.T) {
-	t.Parallel()
+	withIgnoreConfig(t, `{"ignored":[{"type":"formula","name":"jq"}]}`)
 	m := &mockRunner{outdatedResult: []OutdatedPackage{{Type: TypeFormula, Name: "jq", Pinned: true}}}
-	result, err := Update(m, IgnoreList{{Type: TypeFormula, Name: "jq"}}, true)
+	result, err := Update(m, true)
 	if err != nil {
 		t.Fatal(err)
 	}

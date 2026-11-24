@@ -177,13 +177,7 @@ func RunSetup(ctx context.Context, r brew.Runner, brewfilePath string, created b
 	// Bounded: a stalled `brew update` must not hold the whole command (and,
 	// under --json, the envelope) hostage. On expiry we report the section as
 	// unknown and return everything else we learned.
-	// The ignore list is loaded here rather than passed in: a caller that forgot
-	// it would upgrade packages the user asked sci to leave alone.
-	var check brew.OutdatedCheck
-	ignored, err := brew.LoadIgnored()
-	if err == nil {
-		check, err = brew.CheckUpdates(ctx, r, ignored)
-	}
+	check, err := brew.CheckUpdates(ctx, r)
 	if err != nil {
 		result.UpdateError = err.Error()
 		result.UpgradeCheck = UpgradeCheckReport{

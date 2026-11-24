@@ -5,7 +5,26 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/adrg/xdg"
 )
+
+// TestMain points sci's config at an empty directory, so no test reads the
+// developer's own ignore list.
+func TestMain(m *testing.M) { os.Exit(runWithEmptyConfig(m)) }
+
+func runWithEmptyConfig(m *testing.M) int {
+	dir, err := os.MkdirTemp("", "sci-brew-test")
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	if err := os.Setenv("XDG_CONFIG_HOME", dir); err != nil {
+		panic(err)
+	}
+	xdg.Reload()
+	return m.Run()
+}
 
 // Compile-time interface assertions.
 var (

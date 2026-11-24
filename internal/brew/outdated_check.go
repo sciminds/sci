@@ -64,7 +64,12 @@ func (c OutdatedCheck) All() []OutdatedPackage {
 // That is the deliberate trade — sci's contract is that the command returns and
 // prints, and an orphaned read-only subprocess costs nothing next to a CLI that
 // produces zero bytes on both streams.
-func CheckUpdates(ctx context.Context, r Runner, ignored IgnoreList) (OutdatedCheck, error) {
+func CheckUpdates(ctx context.Context, r Runner) (OutdatedCheck, error) {
+	ignored, err := LoadIgnored()
+	if err != nil {
+		return OutdatedCheck{}, err
+	}
+
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, DefaultCheckTimeout)

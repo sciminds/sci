@@ -153,8 +153,12 @@ func List(file, pkgType string) (ListResult, error) {
 
 // Update refreshes the Homebrew registry and optionally upgrades outdated packages.
 // If checkOnly is true, it only lists outdated packages without upgrading.
-// Packages in ignored are reported but never upgraded.
-func Update(r Runner, ignored IgnoreList, checkOnly bool) (UpdateResult, error) {
+// Ignored packages (see [LoadIgnored]) are reported but never upgraded.
+func Update(r Runner, checkOnly bool) (UpdateResult, error) {
+	ignored, err := LoadIgnored()
+	if err != nil {
+		return UpdateResult{}, err
+	}
 	if err := r.Update(); err != nil {
 		return UpdateResult{}, fmt.Errorf("brew update: %w", err)
 	}
@@ -171,8 +175,12 @@ func Update(r Runner, ignored IgnoreList, checkOnly bool) (UpdateResult, error) 
 
 // UpgradeOnly upgrades outdated packages without refreshing the registry.
 // Use when the registry was already refreshed by an earlier Update call.
-// Packages in ignored are reported but never upgraded.
-func UpgradeOnly(r Runner, ignored IgnoreList) (UpdateResult, error) {
+// Ignored packages (see [LoadIgnored]) are reported but never upgraded.
+func UpgradeOnly(r Runner) (UpdateResult, error) {
+	ignored, err := LoadIgnored()
+	if err != nil {
+		return UpdateResult{}, err
+	}
 	// Re-check what's outdated (fast — registry is already fresh).
 	check, err := checkOutdated(r, ignored)
 	if err != nil {

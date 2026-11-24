@@ -18,7 +18,7 @@ func TestUpdate_UpgradesOutdated(t *testing.T) {
 		upgradeOut: "==> Upgrading htop\n",
 	}
 
-	result, err := Update(m, nil, false)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestUpdate_CheckOnly(t *testing.T) {
 		},
 	}
 
-	result, err := Update(m, nil, true)
+	result, err := Update(m, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestUpdate_NothingOutdated(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{}
 
-	result, err := Update(m, nil, false)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestUpdate_IncludesUVOutdated(t *testing.T) {
 		uvUpgradeOut: "Updated ruff\n",
 	}
 
-	result, err := Update(m, nil, false)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestUpdate_CheckOnly_IncludesUV(t *testing.T) {
 		},
 	}
 
-	result, err := Update(m, nil, true)
+	result, err := Update(m, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestUpdate_OnlyUVOutdated(t *testing.T) {
 		uvUpgradeOut: "Updated ruff\n",
 	}
 
-	result, err := Update(m, nil, false)
+	result, err := Update(m, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestUpdate_BrewFailureDoesNotStrandUV(t *testing.T) {
 		upgradeErr: errors.New("brew upgrade: sudo timed out"),
 	}
 
-	_, err := Update(m, nil, false)
+	_, err := Update(m, false)
 	if err == nil {
 		t.Fatal("expected brew upgrade error, got nil")
 	}
@@ -213,7 +213,7 @@ func TestUpdate_UVUpgradePreservesBracketExtras(t *testing.T) {
 		},
 	}
 
-	if _, err := Update(m, nil, false); err != nil {
+	if _, err := Update(m, false); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -244,7 +244,7 @@ func TestUpdate_UpdateFails(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{updateErr: errors.New("network error")}
 
-	_, err := Update(m, nil, false)
+	_, err := Update(m, false)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -264,7 +264,7 @@ func TestUpgradeOnly_HappyPath(t *testing.T) {
 		},
 	}
 
-	result, err := UpgradeOnly(m, nil)
+	result, err := UpgradeOnly(m)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestUpgradeOnly_NothingOutdated(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{}
 
-	result, err := UpgradeOnly(m, nil)
+	result, err := UpgradeOnly(m)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

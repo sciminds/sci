@@ -3,8 +3,11 @@ package brew
 // ignore.go — the user's list of packages sci must not upgrade.
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 
@@ -49,14 +52,15 @@ type ignoreConfig struct {
 
 var ignoreFile = sciconfig.File[ignoreConfig]{Name: "tools.json"}
 
-// ignoreKey returns the canonical form of a package: bare names for formulae
-// and casks (see [shortFormula]), normalized names without extras for uv tools.
+// ignoreKey returns the canonical form of a package: bare lowercase names for
+// formulae and casks (see [shortFormula]), normalized names without extras for
+// uv tools.
 func ignoreKey(pkgType, name string) IgnoredPackage {
 	if pkgType == TypeUV {
 		bare, _, _ := strings.Cut(name, "[")
 		return IgnoredPackage{Type: pkgType, Name: normalizePkgName(bare)}
 	}
-	return IgnoredPackage{Type: pkgType, Name: shortFormula(name)}
+	return IgnoredPackage{Type: pkgType, Name: strings.ToLower(strings.TrimSpace(shortFormula(name)))}
 }
 
 // Contains reports whether the list ignores the named package of pkgType.
@@ -68,20 +72,42 @@ func (l IgnoreList) Contains(pkgType, name string) bool {
 }
 
 // LoadIgnored reads the ignore list. A missing file means nothing is ignored.
-// A file that cannot be understood is an error: guessing could upgrade a
-// package the user asked sci to leave alone.
+// A file that cannot be fully understood, including one with misspelled keys,
+// is an error: guessing could upgrade a package the user asked sci to leave
+// alone.
 func LoadIgnored() (IgnoreList, error) {
-	cfg, err := ignoreFile.Load()
+	data, err := ignoreFile.LoadRaw()
+	if err != nil {
+		return nil, fmt.Errorf("read ignore list: %w", err)
+	}
+	if data == nil {
+		return nil, nil
+	}
+	list, err := parseIgnored(data)
 	if err != nil {
 		return nil, fmt.Errorf("read ignore list %s: %w", ignoreFile.Path(), err)
 	}
-	if cfg == nil {
-		return nil, nil
+	return list, nil
+}
+
+// parseIgnored decodes tools.json strictly. Plain json.Unmarshal would skip a
+// misspelled key and leave its package unprotected.
+func parseIgnored(data []byte) (IgnoreList, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var cfg ignoreConfig
+	if err := decoder.Decode(&cfg); err != nil {
+		return nil, err
+	}
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		return nil, errors.New("unexpected content after the first JSON value")
 	}
 	for _, p := range cfg.Ignored {
 		if !slices.Contains(ignorableTypes, p.Type) {
-			return nil, fmt.Errorf("read ignore list %s: unknown type %q for %q (want %s)",
-				ignoreFile.Path(), p.Type, p.Name, strings.Join(ignorableTypes, ", "))
+			return nil, fmt.Errorf("unknown type %q for %q (want %s)", p.Type, p.Name, strings.Join(ignorableTypes, ", "))
+		}
+		if ignoreKey(p.Type, p.Name).Name == "" {
+			return nil, fmt.Errorf("%s entry has no name", p.Type)
 		}
 	}
 	return cfg.Ignored, nil

@@ -212,3 +212,48 @@ func TestUnignore_Ambiguous(t *testing.T) {
 		t.Errorf("saved %v, want both entries", got)
 	}
 }
+
+func TestLoadIgnored_RejectsTypos(t *testing.T) {
+	for name, content := range map[string]string{
+		"misspelled list key":   `{"ignore":[{"type":"cask","name":"libreoffice"}]}`,
+		"misspelled name key":   `{"ignored":[{"type":"cask","nam":"libreoffice"}]}`,
+		"empty name":            `{"ignored":[{"type":"cask","name":" "}]}`,
+		"trailing second value": `{"ignored":[]} {"ignored":[]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := withIgnoreConfig(t, content)
+			if _, err := LoadIgnored(); err == nil || !strings.Contains(err.Error(), path) {
+				t.Errorf("err = %v, want it to name %s", err, path)
+			}
+		})
+	}
+}
+
+func TestIgnoreList_ContainsIgnoresCaseAndSpace(t *testing.T) {
+	t.Parallel()
+	list := IgnoreList{{Type: TypeCask, Name: " LibreOffice"}, {Type: TypeFormula, Name: "JQ "}}
+	if !list.Contains(TypeCask, "libreoffice") || !list.Contains(TypeFormula, "jq") {
+		t.Error("hand-edited names should match despite case and surrounding space")
+	}
+}
+
+// TestUpgradePaths_MalformedIgnoreList verifies no entry point touches brew
+// when it cannot tell what to leave alone.
+func TestUpgradePaths_MalformedIgnoreList(t *testing.T) {
+	withIgnoreConfig(t, `{"ignored":`)
+	for name, run := range map[string]func(Runner) error{
+		"Update":       func(r Runner) error { _, err := Update(r, false); return err },
+		"UpgradeOnly":  func(r Runner) error { _, err := UpgradeOnly(r); return err },
+		"CheckUpdates": func(r Runner) error { _, err := CheckUpdates(t.Context(), r); return err },
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := &mockRunner{outdatedResult: dockerTwice()}
+			if err := run(m); err == nil || !strings.Contains(err.Error(), "tools.json") {
+				t.Errorf("err = %v, want it to name tools.json", err)
+			}
+			if m.updateCalls != 0 || m.upgradeCalls != 0 {
+				t.Errorf("update calls = %d, upgrade calls = %d, want none", m.updateCalls, m.upgradeCalls)
+			}
+		})
+	}
+}
