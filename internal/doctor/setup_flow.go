@@ -220,8 +220,8 @@ func RunSetup(ctx context.Context, r brew.Runner, brewfilePath string, created b
 	// hangs on a sudo prompt) shouldn't keep uv tools stranded as outdated.
 	var upgradeErrs []string
 	if len(brewOutdated) > 0 {
-		if _, err := r.Upgrade(); err != nil {
-			upgradeErrs = append(upgradeErrs, "brew upgrade: "+err.Error())
+		if _, err := brew.UpgradeBrew(r, brewOutdated); err != nil {
+			upgradeErrs = append(upgradeErrs, err.Error())
 		} else {
 			result.Upgraded = append(result.Upgraded, brewOutdated...)
 		}

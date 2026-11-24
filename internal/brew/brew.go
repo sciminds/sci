@@ -188,7 +188,8 @@ type Runner interface {
 	InstallUVTools(names []string) error
 	Update() error
 	Outdated() ([]OutdatedPackage, error)
-	Upgrade() (string, error)
+	UpgradeFormulae(names []string) (string, error)
+	UpgradeCasks(names []string) (string, error)
 	UVOutdated() ([]OutdatedPackage, error)
 	UVUpgrade(specs []string) (string, error)
 	UVToolList() ([]string, error)
@@ -383,6 +384,7 @@ func parseBrewInfo(jsonData string, isCask bool) ([]PackageInfo, error) {
 
 // OutdatedPackage holds info about a single outdated package.
 type OutdatedPackage struct {
+	Type             string `json:"type"` // TypeFormula, TypeCask, or TypeUV
 	Name             string `json:"name"`
 	InstalledVersion string `json:"installed_version"`
 	CurrentVersion   string `json:"current_version"`
@@ -404,12 +406,36 @@ func (CLI) Outdated() ([]OutdatedPackage, error) {
 	return parseOutdated(out)
 }
 
-// Upgrade implements Runner. Runs non-interactively (detached stdin +
-// NONINTERACTIVE=1) so it doesn't re-prompt for confirmations — sci already
-// asked the user before calling this. sudo password prompts still reach the
-// user via /dev/tty, so casks needing root aren't silently skipped.
-func (CLI) Upgrade() (string, error) {
-	return runBrewLiveWithEnv(noninteractiveEnv(), false, "upgrade")
+// UpgradeFormulae implements Runner. See [upgradeNamed].
+func (CLI) UpgradeFormulae(names []string) (string, error) {
+	return upgradeNamed(TypeFormula, names)
+}
+
+// UpgradeCasks implements Runner. See [upgradeNamed].
+func (CLI) UpgradeCasks(names []string) (string, error) {
+	return upgradeNamed(TypeCask, names)
+}
+
+// upgradeNamed upgrades exactly the named packages. No names means no brew
+// call: a bare `brew upgrade` upgrades everything, including packages the user
+// asked sci to ignore.
+//
+// Runs non-interactively (detached stdin + NONINTERACTIVE=1) so it doesn't
+// re-prompt for confirmations — sci already asked the user before calling
+// this. sudo password prompts still reach the user via /dev/tty, so casks
+// needing root aren't silently skipped.
+func upgradeNamed(pkgType string, names []string) (string, error) {
+	if len(names) == 0 {
+		return "", nil
+	}
+	return runBrewLiveWithEnv(noninteractiveEnv(), false, upgradeArgs(pkgType, names)...)
+}
+
+// upgradeArgs builds the `brew` argv that upgrades the named packages of one
+// type. The type flag is always passed because a formula and a cask can share
+// a name.
+func upgradeArgs(pkgType string, names []string) []string {
+	return slices.Concat([]string{"upgrade", "--" + pkgType}, names)
 }
 
 // UVOutdated implements Runner. Returns empty if uv isn't installed
@@ -671,6 +697,7 @@ type outdatedCask struct {
 	Name              string   `json:"name"`
 	InstalledVersions []string `json:"installed_versions"`
 	CurrentVersion    string   `json:"current_version"`
+	Pinned            bool     `json:"pinned"` // absent before brew could pin casks
 }
 
 func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
@@ -689,6 +716,7 @@ func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
 			installed = f.InstalledVersions[len(f.InstalledVersions)-1]
 		}
 		pkgs = append(pkgs, OutdatedPackage{
+			Type:             TypeFormula,
 			Name:             f.Name,
 			InstalledVersion: installed,
 			CurrentVersion:   f.CurrentVersion,
@@ -701,9 +729,11 @@ func parseOutdated(jsonData string) ([]OutdatedPackage, error) {
 			installed = c.InstalledVersions[len(c.InstalledVersions)-1]
 		}
 		pkgs = append(pkgs, OutdatedPackage{
+			Type:             TypeCask,
 			Name:             c.Name,
 			InstalledVersion: installed,
 			CurrentVersion:   c.CurrentVersion,
+			Pinned:           c.Pinned,
 		})
 	}
 	return pkgs, nil
@@ -835,6 +865,7 @@ func parseUVOutdated(output string) []OutdatedPackage {
 	for line := range strings.SplitSeq(output, "\n") {
 		if m := uvOutdatedRe.FindStringSubmatch(line); m != nil {
 			pkgs = append(pkgs, OutdatedPackage{
+				Type:             TypeUV,
 				Name:             m[1],
 				InstalledVersion: m[2],
 				CurrentVersion:   m[3],

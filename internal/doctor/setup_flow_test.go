@@ -181,10 +181,10 @@ func TestRunSetup_OutdatedUpgrade(t *testing.T) {
 		listCasksResult:    allRequiredCasks(),
 		uvToolListResult:   allRequiredUV(),
 		outdated: []brew.OutdatedPackage{
-			{Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
+			{Type: brew.TypeFormula, Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
 		},
 		uvOutdated: []brew.OutdatedPackage{
-			{Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
+			{Type: brew.TypeUV, Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
 		},
 	}
 
@@ -266,7 +266,7 @@ func TestRunSetup_BrewOnlyUpgrade(t *testing.T) {
 		listCasksResult:    allRequiredCasks(),
 		uvToolListResult:   allRequiredUV(),
 		outdated: []brew.OutdatedPackage{
-			{Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
+			{Type: brew.TypeFormula, Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
 		},
 	}
 
@@ -298,10 +298,10 @@ func TestRunSetup_SkipUpgradeCheck(t *testing.T) {
 		uvToolListResult:   allRequiredUV(),
 		// These would normally trigger an upgrade prompt and Upgrade calls.
 		outdated: []brew.OutdatedPackage{
-			{Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
+			{Type: brew.TypeFormula, Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"},
 		},
 		uvOutdated: []brew.OutdatedPackage{
-			{Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
+			{Type: brew.TypeUV, Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
 		},
 		// If Update() runs, this would surface as an UpdateError.
 		updateErr: fmt.Errorf("should not be called"),
@@ -445,7 +445,7 @@ func TestRunSetup_OutdatedUVError(t *testing.T) {
 }
 
 // TestRunSetup_UpgradeError verifies that outdated packages are detected but
-// when Upgrade() fails, no packages are marked as upgraded.
+// when the brew upgrade fails, no packages are marked as upgraded.
 func TestRunSetup_UpgradeError(t *testing.T) {
 	uikit.SetQuiet(true)
 	defer uikit.SetQuiet(false)
@@ -457,7 +457,7 @@ func TestRunSetup_UpgradeError(t *testing.T) {
 		listCasksResult:    allRequiredCasks(),
 		uvToolListResult:   allRequiredUV(),
 		outdated: []brew.OutdatedPackage{
-			{Name: "git", InstalledVersion: "2.44", CurrentVersion: "2.45"},
+			{Type: brew.TypeFormula, Name: "git", InstalledVersion: "2.44", CurrentVersion: "2.45"},
 		},
 		upgradeErr: fmt.Errorf("upgrade failed: permission denied"),
 	}
@@ -471,7 +471,7 @@ func TestRunSetup_UpgradeError(t *testing.T) {
 		t.Errorf("expected no Upgraded when upgrade fails, got %v", result.Upgraded)
 	}
 	if result.UpdateError == "" {
-		t.Fatal("expected UpdateError when Upgrade() fails")
+		t.Fatal("expected UpdateError when the brew upgrade fails")
 	}
 }
 
@@ -489,10 +489,10 @@ func TestRunSetup_BrewFailureStillUpgradesUV(t *testing.T) {
 		listCasksResult:    allRequiredCasks(),
 		uvToolListResult:   allRequiredUV(),
 		outdated: []brew.OutdatedPackage{
-			{Name: "git", InstalledVersion: "2.44", CurrentVersion: "2.45"},
+			{Type: brew.TypeFormula, Name: "git", InstalledVersion: "2.44", CurrentVersion: "2.45"},
 		},
 		uvOutdated: []brew.OutdatedPackage{
-			{Name: "marimo", InstalledVersion: "0.22", CurrentVersion: "0.23"},
+			{Type: brew.TypeUV, Name: "marimo", InstalledVersion: "0.22", CurrentVersion: "0.23"},
 		},
 		upgradeErr: fmt.Errorf("brew upgrade: sudo timed out"),
 	}
@@ -533,7 +533,7 @@ func TestRunSetup_UVUpgradeError(t *testing.T) {
 		listCasksResult:    allRequiredCasks(),
 		uvToolListResult:   allRequiredUV(),
 		uvOutdated: []brew.OutdatedPackage{
-			{Name: "marimo", InstalledVersion: "0.22", CurrentVersion: "0.23"},
+			{Type: brew.TypeUV, Name: "marimo", InstalledVersion: "0.22", CurrentVersion: "0.23"},
 		},
 		uvUpgradeErr: fmt.Errorf("uv tool upgrade: network error"),
 	}
@@ -556,4 +556,27 @@ func writeTmpBrewfile(t *testing.T, content string) string {
 	}
 	_ = f.Close()
 	return f.Name()
+}
+
+// TestRunSetup_SkipsPinned verifies a brew-pinned package is neither offered
+// nor upgraded.
+func TestRunSetup_SkipsPinned(t *testing.T) {
+	uikit.SetQuiet(true)
+	defer uikit.SetQuiet(false)
+
+	mock := &mockBrewRunner{
+		listFormulaeResult: allRequiredFormulae(),
+		listCasksResult:    allRequiredCasks(),
+		uvToolListResult:   allRequiredUV(),
+		outdated:           []brew.OutdatedPackage{{Type: brew.TypeFormula, Name: "git", Pinned: true}},
+	}
+
+	result := RunSetup(t.Context(), mock, writeTmpBrewfile(t, Brewfile), false, SetupOpts{})
+
+	if mock.upgradeCalls != 0 {
+		t.Errorf("brew upgrade calls = %d, want 0", mock.upgradeCalls)
+	}
+	if len(result.Outdated) != 0 || len(result.Upgraded) != 0 {
+		t.Errorf("Outdated = %v, Upgraded = %v, want both empty", result.Outdated, result.Upgraded)
+	}
 }

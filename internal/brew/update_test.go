@@ -13,7 +13,7 @@ func TestUpdate_UpgradesOutdated(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
-			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
+			{Type: TypeFormula, Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
 		},
 		upgradeOut: "==> Upgrading htop\n",
 	}
@@ -41,7 +41,7 @@ func TestUpdate_CheckOnly(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
-			{Name: "curl", InstalledVersion: "8.8.0", CurrentVersion: "8.9.0"},
+			{Type: TypeFormula, Name: "curl", InstalledVersion: "8.8.0", CurrentVersion: "8.9.0"},
 		},
 	}
 
@@ -85,10 +85,10 @@ func TestUpdate_IncludesUVOutdated(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
-			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
+			{Type: TypeFormula, Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
 		},
 		uvOutdatedResult: []OutdatedPackage{
-			{Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
+			{Type: TypeUV, Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
 		},
 		upgradeOut:   "==> Upgrading htop\n",
 		uvUpgradeOut: "Updated ruff\n",
@@ -114,10 +114,10 @@ func TestUpdate_CheckOnly_IncludesUV(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
-			{Name: "curl", InstalledVersion: "8.8.0", CurrentVersion: "8.9.0"},
+			{Type: TypeFormula, Name: "curl", InstalledVersion: "8.8.0", CurrentVersion: "8.9.0"},
 		},
 		uvOutdatedResult: []OutdatedPackage{
-			{Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
+			{Type: TypeUV, Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
 		},
 	}
 
@@ -141,7 +141,7 @@ func TestUpdate_OnlyUVOutdated(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{
 		uvOutdatedResult: []OutdatedPackage{
-			{Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
+			{Type: TypeUV, Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
 		},
 		uvUpgradeOut: "Updated ruff\n",
 	}
@@ -170,10 +170,10 @@ func TestUpdate_BrewFailureDoesNotStrandUV(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
-			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
+			{Type: TypeFormula, Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
 		},
 		uvOutdatedResult: []OutdatedPackage{
-			{Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
+			{Type: TypeUV, Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
 		},
 		upgradeErr: errors.New("brew upgrade: sudo timed out"),
 	}
@@ -208,8 +208,8 @@ func TestUpdate_UVUpgradePreservesBracketExtras(t *testing.T) {
 
 	m := &mockRunner{
 		uvOutdatedResult: []OutdatedPackage{
-			{Name: "marimo", InstalledVersion: "0.23.0", CurrentVersion: "0.24.0"},
-			{Name: "hf", InstalledVersion: "1.8.0", CurrentVersion: "1.15.0"},
+			{Type: TypeUV, Name: "marimo", InstalledVersion: "0.23.0", CurrentVersion: "0.24.0"},
+			{Type: TypeUV, Name: "hf", InstalledVersion: "1.8.0", CurrentVersion: "1.15.0"},
 		},
 	}
 
@@ -257,10 +257,10 @@ func TestUpgradeOnly_HappyPath(t *testing.T) {
 	t.Parallel()
 	m := &mockRunner{
 		outdatedResult: []OutdatedPackage{
-			{Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
+			{Type: TypeFormula, Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
 		},
 		uvOutdatedResult: []OutdatedPackage{
-			{Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
+			{Type: TypeUV, Name: "ruff", InstalledVersion: "0.14.0", CurrentVersion: "0.15.9"},
 		},
 	}
 

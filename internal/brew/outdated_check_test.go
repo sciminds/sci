@@ -50,8 +50,8 @@ func TestCheckUpdates_DeadlineElapses(t *testing.T) {
 // in time, and never upgrades anything — this call is a read.
 func TestCheckUpdates_Success(t *testing.T) {
 	mock := &mockRunner{
-		outdatedResult:   []OutdatedPackage{{Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"}},
-		uvOutdatedResult: []OutdatedPackage{{Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"}},
+		outdatedResult:   []OutdatedPackage{{Type: TypeFormula, Name: "git", InstalledVersion: "2.44.0", CurrentVersion: "2.45.0"}},
+		uvOutdatedResult: []OutdatedPackage{{Type: TypeUV, Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"}},
 	}
 
 	check, err := CheckUpdates(t.Context(), mock)

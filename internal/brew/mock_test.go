@@ -1,6 +1,7 @@
 package brew
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,20 +47,24 @@ type mockRunner struct {
 	updateErr   error
 	// updateBlock, when non-nil, makes Update block until the channel is
 	// closed — a stand-in for a `brew update` that never returns.
-	updateBlock      chan struct{}
-	outdatedResult   []OutdatedPackage
-	outdatedErr      error
-	upgradeCalls     int
-	upgradeOut       string
-	upgradeErr       error
-	uvOutdatedResult []OutdatedPackage
-	uvOutdatedErr    error
-	uvUpgradeCalls   int
-	uvUpgradeArgs    [][]string
-	uvUpgradeOut     string
-	uvUpgradeErr     error
-	uvToolListResult []string
-	uvToolListErr    error
+	updateBlock    chan struct{}
+	outdatedResult []OutdatedPackage
+	outdatedErr    error
+	// upgradeCalls counts brew upgrade calls of either type.
+	upgradeCalls      int
+	formulaUpgrades   [][]string
+	caskUpgrades      [][]string
+	formulaUpgradeErr error
+	upgradeOut        string
+	upgradeErr        error
+	uvOutdatedResult  []OutdatedPackage
+	uvOutdatedErr     error
+	uvUpgradeCalls    int
+	uvUpgradeArgs     [][]string
+	uvUpgradeOut      string
+	uvUpgradeErr      error
+	uvToolListResult  []string
+	uvToolListErr     error
 
 	caskAppPathsResult map[string][]string
 	caskAppPathsErr    error
@@ -130,8 +135,15 @@ func (m *mockRunner) Outdated() ([]OutdatedPackage, error) {
 	return m.outdatedResult, m.outdatedErr
 }
 
-func (m *mockRunner) Upgrade() (string, error) {
+func (m *mockRunner) UpgradeFormulae(names []string) (string, error) {
 	m.upgradeCalls++
+	m.formulaUpgrades = append(m.formulaUpgrades, names)
+	return m.upgradeOut, errors.Join(m.upgradeErr, m.formulaUpgradeErr)
+}
+
+func (m *mockRunner) UpgradeCasks(names []string) (string, error) {
+	m.upgradeCalls++
+	m.caskUpgrades = append(m.caskUpgrades, names)
 	return m.upgradeOut, m.upgradeErr
 }
 

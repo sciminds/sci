@@ -1,6 +1,7 @@
 package brew
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -46,9 +47,9 @@ scipy v0.1.0 [latest: 1.17.1]
 `
 	pkgs := parseUVOutdated(output)
 	want := []OutdatedPackage{
-		{Name: "huggingface-hub", InstalledVersion: "0.36.2", CurrentVersion: "1.9.2"},
-		{Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
-		{Name: "scipy", InstalledVersion: "0.1.0", CurrentVersion: "1.17.1"},
+		{Type: TypeUV, Name: "huggingface-hub", InstalledVersion: "0.36.2", CurrentVersion: "1.9.2"},
+		{Type: TypeUV, Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"},
+		{Type: TypeUV, Name: "scipy", InstalledVersion: "0.1.0", CurrentVersion: "1.17.1"},
 	}
 	if len(pkgs) != len(want) {
 		t.Fatalf("got %d packages, want %d", len(pkgs), len(want))
@@ -205,3 +206,39 @@ func TestParseBrewfileEntries_BracketStripped(t *testing.T) {
 // ---------------------------------------------------------------------------
 // UpgradeOnly tests
 // ---------------------------------------------------------------------------
+
+func TestParseOutdated_Types(t *testing.T) {
+	t.Parallel()
+	pkgs, err := parseOutdated(`{"formulae":[{"name":"htop","installed_versions":["3.3.0"],"current_version":"3.4.0","pinned":false}],"casks":[{"name":"firefox","installed_versions":["130.0"],"current_version":"131.0","pinned":true}]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []OutdatedPackage{
+		{Type: TypeFormula, Name: "htop", InstalledVersion: "3.3.0", CurrentVersion: "3.4.0"},
+		{Type: TypeCask, Name: "firefox", InstalledVersion: "130.0", CurrentVersion: "131.0", Pinned: true},
+	}
+	if !slices.Equal(pkgs, want) {
+		t.Errorf("parseOutdated = %+v, want %+v", pkgs, want)
+	}
+}
+
+func TestParseOutdated_CaskWithoutPinnedField(t *testing.T) {
+	t.Parallel()
+	pkgs, err := parseOutdated(`{"casks":[{"name":"firefox","installed_versions":["130.0"],"current_version":"131.0"}]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) != 1 || pkgs[0].Pinned {
+		t.Errorf("parseOutdated = %+v, want one unpinned cask", pkgs)
+	}
+}
+
+func TestUpgradeArgs(t *testing.T) {
+	t.Parallel()
+	if got, want := upgradeArgs(TypeFormula, []string{"jq", "fd"}), []string{"upgrade", "--formula", "jq", "fd"}; !slices.Equal(got, want) {
+		t.Errorf("formula args = %v, want %v", got, want)
+	}
+	if got, want := upgradeArgs(TypeCask, []string{"docker"}), []string{"upgrade", "--cask", "docker"}; !slices.Equal(got, want) {
+		t.Errorf("cask args = %v, want %v", got, want)
+	}
+}

@@ -35,11 +35,14 @@ const DefaultCheckTimeout = 90 * time.Second
 // two package sources stay separate because they are upgraded by different
 // commands and one failing must not strand the other.
 type OutdatedCheck struct {
-	Brew []OutdatedPackage
-	UV   []OutdatedPackage
+	Brew []OutdatedPackage // upgradable formulae and casks
+	UV   []OutdatedPackage // upgradable uv tools
+
+	// Pinned packages have updates that `brew pin` holds back.
+	Pinned []OutdatedPackage
 }
 
-// All returns the brew and uv packages as one slice, brew first.
+// All returns the upgradable brew and uv packages as one slice, brew first.
 func (c OutdatedCheck) All() []OutdatedPackage {
 	return slices.Concat(c.Brew, c.UV)
 }
@@ -78,8 +81,8 @@ func CheckUpdates(ctx context.Context, r Runner) (OutdatedCheck, error) {
 			done <- outcome{err: fmt.Errorf("brew update: %w", err)}
 			return
 		}
-		brewOutdated, uvOutdated, err := checkOutdated(r)
-		done <- outcome{check: OutdatedCheck{Brew: brewOutdated, UV: uvOutdated}, err: err}
+		check, err := checkOutdated(r)
+		done <- outcome{check: check, err: err}
 	}()
 
 	select {

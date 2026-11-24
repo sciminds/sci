@@ -448,12 +448,15 @@ type mockBrewRunner struct {
 	updateErr     error
 	// updateBlock, when non-nil, makes Update block until the channel is
 	// closed — a stand-in for a `brew update` that never returns.
-	updateBlock   chan struct{}
-	upgradeCalls  int
-	upgradeErr    error
-	uvUpgCalls    int
-	uvUpgradeArgs [][]string
-	uvUpgradeErr  error
+	updateBlock chan struct{}
+	// upgradeCalls counts brew upgrade calls of either type.
+	upgradeCalls    int
+	formulaUpgrades [][]string
+	caskUpgrades    [][]string
+	upgradeErr      error
+	uvUpgCalls      int
+	uvUpgradeArgs   [][]string
+	uvUpgradeErr    error
 
 	caskAppPathsResult map[string][]string
 	caskAppPathsErr    error
@@ -505,8 +508,14 @@ func (m *mockBrewRunner) Update() error {
 func (m *mockBrewRunner) Outdated() ([]brew.OutdatedPackage, error) {
 	return m.outdated, m.outdatedErr
 }
-func (m *mockBrewRunner) Upgrade() (string, error) {
+func (m *mockBrewRunner) UpgradeFormulae(names []string) (string, error) {
 	m.upgradeCalls++
+	m.formulaUpgrades = append(m.formulaUpgrades, names)
+	return "", m.upgradeErr
+}
+func (m *mockBrewRunner) UpgradeCasks(names []string) (string, error) {
+	m.upgradeCalls++
+	m.caskUpgrades = append(m.caskUpgrades, names)
 	return "", m.upgradeErr
 }
 func (m *mockBrewRunner) UVOutdated() ([]brew.OutdatedPackage, error) {
