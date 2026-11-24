@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -282,5 +284,46 @@ func TestHFRunError_PassesThroughRealFailures(t *testing.T) {
 	err := hfRunError(nil, []string{"buckets", "ls"}, errors.New("exit status 1"), "Repository Not Found")
 	if !strings.Contains(err.Error(), "Repository Not Found") {
 		t.Errorf("hfRunError() = %q, want stderr preserved for callers that pattern-match it", err)
+	}
+}
+
+// fakeHF puts an `hf` shell script with the given body first on PATH, so the
+// real hfTokenFn runs against known stdout, stderr and exit status.
+func fakeHF(t *testing.T, body string) {
+	t.Helper()
+	dir := t.TempDir()
+	script := "#!/bin/sh\n" + body + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "hf"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func TestHFTokenFn_IgnoresStderrHint(t *testing.T) {
+	fakeHF(t, `echo "Hint: Run hf auth whoami to see the account." >&2; echo hf_abc`)
+
+	token, err := hfTokenFn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if token != "hf_abc" {
+		t.Errorf("hfTokenFn() = %q, want only the token from stdout", token)
+	}
+}
+
+func TestHFTokenFn_RecognizesNotLoggedInOnStderr(t *testing.T) {
+	fakeHF(t, `echo "Error: Not logged in. Run hf auth login first." >&2; exit 1`)
+
+	if _, err := hfTokenFn(); !errors.Is(err, errNoToken) {
+		t.Errorf("hfTokenFn() error = %v, want errNoToken", err)
+	}
+}
+
+func TestHFTokenFn_OtherFailureIsNotMissingToken(t *testing.T) {
+	fakeHF(t, `echo "permission denied" >&2; exit 1`)
+
+	_, err := hfTokenFn()
+	if err == nil || errors.Is(err, errNoToken) {
+		t.Errorf("hfTokenFn() error = %v, want a read failure distinct from errNoToken", err)
 	}
 }

@@ -34,12 +34,9 @@ type SubCommand struct {
 	ArgsUsage string
 	Flags     []Flag
 	Examples  string // raw Description field
-	// CastFiles are the demos this row can play, in order; empty when none
-	// exist. Usually one. A parent row whose demos were recorded per child
-	// (`sci cass canvas`, whose casts are cass-canvas-announce.cast and
-	// friends) carries all of them, because the picker deliberately keeps
-	// one row per level-1 subcommand — see castsFor.
-	CastFiles []string
+	// CastFile is the demo this row plays, named for the row (e.g.
+	// "zot-item.cast"); empty when none was recorded. See castFor.
+	CastFile string
 }
 
 // Title implements list.DefaultItem.
@@ -75,7 +72,7 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 			if sub.Hidden || sub.Name == "help" {
 				continue
 			}
-			// For parents with their own subcommands (e.g. `sci zot item`, `sci cass canvas`),
+			// For parents with their own subcommands (e.g. `sci zot item`),
 			// keep a single entry and list the child names in Usage so the picker
 			// surfaces the full command surface without exploding into one row per leaf.
 			usage := sub.Usage
@@ -94,7 +91,7 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 				ArgsUsage: sub.ArgsUsage,
 				Flags:     extractFlags(sub),
 				Examples:  sub.Description,
-				CastFiles: castsFor(cmd.Name + "-" + sub.Name),
+				CastFile:  castFor(cmd.Name + "-" + sub.Name),
 			})
 		}
 		// For leaf commands (no subcommands), create a single synthetic
@@ -107,7 +104,7 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 				ArgsUsage: cmd.ArgsUsage,
 				Flags:     extractFlags(cmd),
 				Examples:  cmd.Description,
-				CastFiles: castsFor(cmd.Name),
+				CastFile:  castFor(cmd.Name),
 			})
 		}
 		groups = append(groups, g)
@@ -115,24 +112,11 @@ func BuildGroups(root *cli.Command) []CommandGroup {
 	return groups
 }
 
-// castsFor resolves the demos a picker row can play.
-//
-// The common case is one cast named exactly for the row (doctor.cast,
-// zot-item.cast). When that file doesn't exist, the demos may still have
-// been recorded one level down — the picker keeps a single row for a parent
-// like `sci cass canvas` rather than exploding into one row per leaf, but
-// the recordings are named cass-canvas-announce.cast and friends. Falling
-// back to the prefix keeps those playable; without it they are embedded in
-// the binary and reachable from nothing.
-//
-// Exact match wins outright: a row with its own cast must not also inherit
-// its children's, or `sci zot item` would pick up every zot-item-*.cast
-// somebody adds later.
-func castsFor(prefix string) []string {
-	if exact := prefix + ".cast"; hasCast(exact) {
-		return []string{exact}
-	}
-	return castsWithPrefix(prefix)
+// castFor returns the demo recorded for a picker row: the embedded cast
+// named exactly "<name>.cast" (doctor.cast, zot-item.cast), or "" when there
+// is none.
+func castFor(name string) string {
+	return lo.Ternary(hasCast(name+".cast"), name+".cast", "")
 }
 
 // hasRealSubs reports whether cmd has subcommands beyond the auto-injected "help".

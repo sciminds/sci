@@ -47,10 +47,10 @@ kernels = { cmd = "jupyter kernelspec list", description = "List registered Jupy
 {{if eq .DocSystem "quarto"}}
 render = { cmd = "quarto render", description = "Render report to PDF" }
 {{else if eq .DocSystem "myst"}}
-docs-start = { cmd = "npx mystmd start", description = "Live-preview MyST site" }
-docs-build = { cmd = "npx mystmd build --html", description = "Build MyST site" }
-docs-pdf = { cmd = "npx mystmd build --pdf", description = "Export report to PDF" }
-docs-clean = { cmd = "npx mystmd clean --yes --all", description = "Clean MyST build artifacts" }
+docs-start = { cmd = "npx mystmd@latest start", description = "Live-preview MyST site" }
+docs-build = { cmd = "npx mystmd@latest build --html", description = "Build MyST site" }
+docs-pdf = { cmd = "npx mystmd@latest build --pdf", description = "Export report to PDF" }
+docs-clean = { cmd = "npx mystmd@latest clean --yes --all", description = "Clean MyST build artifacts" }
 {{end}}
 
 [tool.pixi.tasks.marimo]
@@ -99,19 +99,19 @@ cmd = "quarto render"
 {{else if eq .DocSystem "myst"}}
 [tool.poe.tasks.docs-start]
 help = "Live-preview MyST site"
-cmd = "npx mystmd start"
+cmd = "npx mystmd@latest start"
 
 [tool.poe.tasks.docs-build]
 help = "Build MyST site"
-cmd = "npx mystmd build --html"
+cmd = "npx mystmd@latest build --html"
 
 [tool.poe.tasks.docs-pdf]
 help = "Export report to PDF"
-cmd = "npx mystmd build --pdf"
+cmd = "npx mystmd@latest build --pdf"
 
 [tool.poe.tasks.docs-clean]
 help = "Clean MyST build artifacts"
-cmd = "npx mystmd clean --yes --all"
+cmd = "npx mystmd@latest clean --yes --all"
 {{end}}
 
 [tool.poe.tasks.marimo]

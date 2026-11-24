@@ -322,57 +322,6 @@ func TestHelpDirectGroupQuitOnEsc(t *testing.T) {
 	}
 }
 
-// TestHelpCyclesMultipleDemos covers the row that carries more than one
-// recording. `sci cass canvas` is one picker row whose demos were recorded
-// per leaf verb, so the overlay has to name which one is playing and offer a
-// way to reach the others — without that, three of the four are as invisible
-// as they were when nothing resolved to them at all.
-func TestHelpCyclesMultipleDemos(t *testing.T) {
-	groups := []CommandGroup{{
-		Name:     "cass",
-		Desc:     "Canvas LMS",
-		Category: "Commands",
-		FullName: "sci cass",
-		Subs: []SubCommand{{
-			Name:      "canvas",
-			Usage:     "Canvas operations",
-			FullName:  "sci cass canvas",
-			CastFiles: []string{"cass-canvas-announce.cast", "cass-canvas-files.cast"},
-		}},
-	}}
-	m := newModel(groups)
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(testTermW, testTermH))
-	tWaitFor(t, tm, "cass")
-
-	tSendSpecial(tm, tea.KeyEnter) // into the subcommand list
-	tWaitFor(t, tm, "operations")
-
-	// Short substrings only: the alt screen repaints by cursor diff, so a
-	// longer phrase gets fragmented across moves and never matches whole.
-	tSendSpecial(tm, tea.KeyEnter) // open the first demo
-	tWaitFor(t, tm, "1/2")
-
-	tSendKey(tm, "n") // advance to the second
-	tWaitFor(t, tm, "2/2")
-
-	// The wrap is asserted on model state, not output: teatest's Output()
-	// accumulates, so waiting for "1/2" again would match the first frame
-	// and pass no matter what "n" did.
-	tSendKey(tm, "n")
-	tSendSpecial(tm, tea.KeyEscape)
-
-	fm := tFinalModel(t, tm)
-	if fm.level != levelSubs {
-		t.Errorf("esc should return to subs, got level %d", fm.level)
-	}
-	if len(fm.casts) != 2 {
-		t.Fatalf("row should carry 2 demos, got %d", len(fm.casts))
-	}
-	if fm.castIdx != 0 {
-		t.Errorf("third `n` should wrap to demo 0, got %d", fm.castIdx)
-	}
-}
-
 // TestHelpDetailPaneRendersFlagsAndExamples exercises the renderer directly.
 //
 // BuildGroups already extracts each subcommand's args, flags and examples off

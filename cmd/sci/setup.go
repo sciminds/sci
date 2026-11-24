@@ -10,7 +10,6 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"github.com/samber/lo"
-	"github.com/sciminds/sci/internal/cass"
 	"github.com/sciminds/sci/internal/cmdutil"
 	"github.com/sciminds/sci/internal/lab"
 	"github.com/sciminds/sci/internal/uikit"
@@ -51,9 +50,9 @@ func orNotSet(v string) string {
 	return v
 }
 
-// setupRegistry lists every domain the top-level menu can configure. Adding a
-// tool here (lab, zot today; cass, cloud, ts next) is all it takes to surface it
-// in `sci setup`. Kept as a function (not a package var) so each invocation
+// setupRegistry lists every domain the top-level menu can configure (lab and
+// zot today). Adding a tool here is all it takes to surface it in `sci setup`.
+// Kept as a function (not a package var) so each invocation
 // re-reads current on-disk status.
 func setupRegistry() []setupEntry {
 	return []setupEntry{
@@ -61,9 +60,6 @@ func setupRegistry() []setupEntry {
 			return runLabSetup(ctx, cmd, "")
 		}},
 		{key: "zot", title: "Zotero library", status: zotSetupStatus, fields: zotFields, run: zotcli.RunSetup},
-		{key: "cass", title: "Canvas LMS (cass)", status: cassSetupStatus, fields: cassFields, run: func(ctx context.Context, cmd *cli.Command) error {
-			return runCassSetup(ctx, cmd, "")
-		}},
 	}
 }
 
@@ -102,25 +98,6 @@ func zotFields() []fieldRow {
 	}
 }
 
-// cassFields lists the cass (Canvas) config values for the drill-in view. The
-// Canvas API token is a bearer credential, so it is masked to a short prefix —
-// enough to recognise it without printing it in full.
-func cassFields() []fieldRow {
-	token, _ := cass.LoadCanvasToken(cass.CredentialsPath())
-	return []fieldRow{
-		{label: "canvas_token", value: orNotSet(maskToken(token))},
-	}
-}
-
-// maskToken renders a bearer token as a short recognisable prefix, never in
-// full. An empty token returns "" so [orNotSet] shows the "(not set)" placeholder.
-func maskToken(t string) string {
-	if len(t) > 8 {
-		return t[:8] + "…"
-	}
-	return t
-}
-
 // labSetupStatus reports whether lab storage is configured, reading only local
 // config (no SSH probe — the menu must stay instant to open).
 func labSetupStatus() (bool, string) {
@@ -153,16 +130,6 @@ func zotSetupStatus() (bool, string) {
 	default:
 		return false, "not configured"
 	}
-}
-
-// cassSetupStatus reports whether the Canvas API token is configured, reading
-// only the local credentials file (no Canvas API probe — the menu stays instant).
-func cassSetupStatus() (bool, string) {
-	token, _ := cass.LoadCanvasToken(cass.CredentialsPath())
-	if token != "" {
-		return true, "Canvas API token saved"
-	}
-	return false, "not configured"
 }
 
 // domainStatus is the JSON/Human shape for one domain's configuration state,

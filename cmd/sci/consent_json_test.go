@@ -124,11 +124,6 @@ func TestConsentFlags_EveryGatedCommandCanConsent(t *testing.T) {
 		{[]string{"db", "reset"}, "yes"},
 		{[]string{"db", "delete"}, "yes"},
 		{[]string{"db", "rename"}, "yes"},
-		{[]string{"cass", "push"}, "yes"},
-		{[]string{"cass", "revert"}, "yes"},
-		{[]string{"cass", "canvas", "modules"}, "yes"},
-		{[]string{"cass", "canvas", "assignments"}, "yes"},
-		{[]string{"cass", "canvas", "announce"}, "yes"},
 		{[]string{"cloud", "put"}, "yes"},
 		{[]string{"cloud", "remove"}, "yes"},
 		{[]string{"doctor"}, "yes"},
@@ -149,7 +144,7 @@ func TestConsentFlags_EveryGatedCommandCanConsent(t *testing.T) {
 	}
 }
 
-// lookupCmd walks a command path (e.g. ["cass","canvas","modules"]).
+// lookupCmd walks a command path (e.g. ["db","delete"]).
 func lookupCmd(cmds []*cli.Command, path []string) *cli.Command {
 	var found *cli.Command
 	for _, name := range path {

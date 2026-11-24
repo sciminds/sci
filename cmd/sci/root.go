@@ -155,14 +155,12 @@ func buildRoot() *cli.Command {
 			pyCommand(),
 			vidCommand(),
 			viewCommand(),
+			zotCommand(),
 			// Maintenance
 			toolsCommand(),
 			doctorCommand(),
 			updateCommand(),
 			versionCommand(),
-			// Experimental
-			cassCommand(),
-			zotCommand(),
 		}),
 	}
 	// Every `--help` page urfave prints goes to the root's Writer; see

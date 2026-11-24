@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/adrg/xdg"
-	"github.com/sciminds/sci/internal/cass"
 	"github.com/sciminds/sci/internal/lab"
 	"github.com/sciminds/sci/internal/zot"
 )
@@ -78,25 +77,6 @@ func TestZotSetupStatus(t *testing.T) {
 		if row.label == "api_key" && (strings.Contains(row.value, "EFGHIJ") || !strings.HasPrefix(row.value, "zABC")) {
 			t.Errorf("api_key row = %q, want a masked prefix", row.value)
 		}
-	}
-}
-
-func TestCassSetupStatus(t *testing.T) {
-	withXDGConfigHome(t)
-
-	if configured, _ := cassSetupStatus(); configured {
-		t.Error("cass should be unconfigured in a fresh config dir")
-	}
-
-	if err := cass.SaveCanvasToken(cass.CredentialsPath(), "tok-1234567890"); err != nil {
-		t.Fatal(err)
-	}
-	configured, summary := cassSetupStatus()
-	if !configured {
-		t.Error("cass should be configured after SaveCanvasToken")
-	}
-	if summary == "" {
-		t.Error("configured status should carry a non-empty summary")
 	}
 }
 

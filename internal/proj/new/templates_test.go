@@ -436,7 +436,7 @@ func TestWritingReadmeContent(t *testing.T) {
 	}
 	for _, want := range []string{
 		"test-project",
-		"mystmd build --pdf",
+		"mystmd@latest build --pdf",
 		"_templates/paper/paper.typ",
 	} {
 		if !strings.Contains(content, want) {

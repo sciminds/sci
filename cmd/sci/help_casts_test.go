@@ -15,18 +15,14 @@ import (
 // deriving a filename from the picker row it is standing on, so a cast whose
 // name doesn't match any row is embedded in the binary, rendered to a GIF,
 // listed by `just doc-coverage` — and unreachable. Nothing fails; the demo
-// simply never appears.
-//
-// That is how the four cass-canvas casts sat unplayable: the picker keeps
-// one row per level-1 subcommand (`sci cass canvas`), so it looked for
-// cass-canvas.cast, while the real recordings are named for the level-2
-// leaves (cass-canvas-announce.cast, …).
+// simply never appears. A demo for a nested leaf (`sci zot item add`) must
+// therefore be recorded under its picker row's name (zot-item.cast).
 func TestEveryEmbeddedCastIsReachable(t *testing.T) {
 	reachable := map[string]bool{}
 	for _, g := range help.BuildGroups(buildRoot()) {
 		for _, s := range g.Subs {
-			for _, c := range s.CastFiles {
-				reachable[c] = true
+			if s.CastFile != "" {
+				reachable[s.CastFile] = true
 			}
 		}
 	}
