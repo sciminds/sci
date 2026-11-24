@@ -22,7 +22,7 @@ func toolsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "tools",
 		Usage:       "Manage Homebrew & uv tools via your Brewfile",
-		Description: "$ sci tools install\n$ sci tools install pandoc\n$ sci tools uninstall pandoc\n$ sci tools list\n$ sci tools update\n$ sci tools outdated\n$ sci tools reccs\n$ sci tools apps",
+		Description: "$ sci tools install\n$ sci tools install pandoc\n$ sci tools uninstall pandoc\n$ sci tools list\n$ sci tools update\n$ sci tools outdated\n$ sci tools ignore libreoffice\n$ sci tools unignore libreoffice\n$ sci tools reccs\n$ sci tools apps",
 		Category:    "Maintenance",
 		Flags: []cli.Flag{
 			// lint:no-local — propagates to subcommands
@@ -45,6 +45,8 @@ func toolsCommand() *cli.Command {
 			toolsListCommand(),
 			toolsUpdateCommand(),
 			toolsOutdatedCommand(),
+			toolsIgnoreCommand(),
+			toolsUnignoreCommand(),
 			toolsReccsCommand(),
 			toolsAppsCommand(),
 		},
@@ -120,6 +122,41 @@ func toolsOutdatedCommand() *cli.Command {
 		Usage:       "List outdated packages without upgrading",
 		Description: "$ sci tools outdated",
 		Action:      runToolsOutdated,
+	}
+}
+
+// ignoreTypeFlags builds the package-type flags shared by ignore and unignore.
+func ignoreTypeFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.BoolFlag{Name: "formula", Usage: "the package is a brew formula", Local: true},
+		&cli.BoolFlag{Name: "cask", Usage: "the package is a cask", Local: true},
+		&cli.BoolFlag{Name: "uv", Usage: "the package is a uv tool", Local: true},
+	}
+}
+
+func toolsIgnoreCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "ignore",
+		Usage: "Exclude a package from sci upgrades, or list ignored packages",
+		Description: "$ sci tools ignore                      # list ignored packages\n" +
+			"$ sci tools ignore libreoffice\n" +
+			"$ sci tools ignore --cask docker\n\n" +
+			"`brew upgrade <package>` still upgrades an ignored package.\n" +
+			"Homebrew may still upgrade an ignored formula as a dependency or dependent of another package.",
+		ArgsUsage: "[package]",
+		Flags:     ignoreTypeFlags(),
+		Action:    runToolsIgnore,
+	}
+}
+
+func toolsUnignoreCommand() *cli.Command {
+	return &cli.Command{
+		Name:        "unignore",
+		Usage:       "Include an ignored package in sci upgrades again",
+		Description: "$ sci tools unignore libreoffice\n$ sci tools unignore --cask docker",
+		ArgsUsage:   "<package>",
+		Flags:       ignoreTypeFlags(),
+		Action:      runToolsUnignore,
 	}
 }
 
@@ -510,6 +547,44 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 	}
 
 	cmdutil.Output(cmd, upgradeResult)
+	return nil
+}
+
+func runToolsIgnore(_ context.Context, cmd *cli.Command) error {
+	switch cmd.NArg() {
+	case 0:
+		ignored, err := brew.LoadIgnored()
+		if err != nil {
+			return err
+		}
+		cmdutil.Output(cmd, brew.IgnoreListResult{Ignored: ignored})
+		return nil
+	case 1:
+		result, err := brew.Ignore(brew.CLI{}, cmd.Args().First(), resolveToolsPkgType(cmd), cmd.Bool("dry-run"))
+		return outputIgnoreResult(cmd, result, err)
+	default:
+		return cmdutil.UsageErrorf(cmd, "expected at most one package name")
+	}
+}
+
+func runToolsUnignore(_ context.Context, cmd *cli.Command) error {
+	if cmd.NArg() != 1 {
+		return cmdutil.UsageErrorf(cmd, "expected one package name")
+	}
+	result, err := brew.Unignore(cmd.Args().First(), resolveToolsPkgType(cmd), cmd.Bool("dry-run"))
+	return outputIgnoreResult(cmd, result, err)
+}
+
+// outputIgnoreResult prints the outcome of ignore or unignore. A name that
+// needs a type flag is a usage error.
+func outputIgnoreResult(cmd *cli.Command, result brew.IgnoreResult, err error) error {
+	if errors.Is(err, brew.ErrAmbiguousType) {
+		return cmdutil.UsageErrorf(cmd, "%s", err)
+	}
+	if err != nil {
+		return err
+	}
+	cmdutil.Output(cmd, result)
 	return nil
 }
 
