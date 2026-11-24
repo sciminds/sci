@@ -136,3 +136,57 @@ func (r ListResult) Human() string {
 	}
 	return strings.Join(r.Packages, "\n") + "\n"
 }
+
+// IgnoreResult is returned by Ignore and Unignore.
+type IgnoreResult struct {
+	Action  string         `json:"action"`
+	Package IgnoredPackage `json:"package"`
+	Changed bool           `json:"changed"`
+	DryRun  bool           `json:"dry_run"`
+}
+
+// JSON implements cmdutil.Result.
+func (r IgnoreResult) JSON() any { return r }
+
+// Human implements cmdutil.Result.
+func (r IgnoreResult) Human() string {
+	name := r.Package.Name
+	if !r.Changed {
+		if r.Action == "ignore" {
+			return fmt.Sprintf("%s is already ignored\n", name)
+		}
+		return fmt.Sprintf("%s is not ignored\n", name)
+	}
+	if r.DryRun {
+		return fmt.Sprintf("would %s %s (%s)\n", r.Action, name, r.Package.Type)
+	}
+	if r.Action == "ignore" {
+		return fmt.Sprintf("Ignored %s (%s)\n", name, r.Package.Type)
+	}
+	return fmt.Sprintf("Stopped ignoring %s (%s)\n", name, r.Package.Type)
+}
+
+// IgnoreListResult lists the ignored packages.
+type IgnoreListResult struct {
+	Ignored IgnoreList `json:"ignored"`
+}
+
+// JSON implements cmdutil.Result. An empty list encodes as [], not null.
+func (r IgnoreListResult) JSON() any {
+	if r.Ignored == nil {
+		r.Ignored = IgnoreList{}
+	}
+	return r
+}
+
+// Human implements cmdutil.Result.
+func (r IgnoreListResult) Human() string {
+	if len(r.Ignored) == 0 {
+		return "No ignored packages.\n"
+	}
+	var b strings.Builder
+	for _, p := range r.Ignored {
+		fmt.Fprintf(&b, "%s (%s)\n", p.Name, p.Type)
+	}
+	return b.String()
+}
