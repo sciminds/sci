@@ -340,11 +340,11 @@ func ListDetailed(r Runner, file string) ([]PackageInfo, error) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		formulaeInfo, fInfoErr = r.Info(formulae, false)
+		formulaeInfo, fInfoErr = infoWithFallback(r, formulae, false)
 	}()
 	go func() {
 		defer wg.Done()
-		casksInfo, cInfoErr = r.Info(casks, true)
+		casksInfo, cInfoErr = infoWithFallback(r, casks, true)
 	}()
 	wg.Wait()
 
@@ -360,4 +360,44 @@ func ListDetailed(r Runner, file string) ([]PackageInfo, error) {
 		return cmp.Compare(a.Name, b.Name)
 	})
 	return all, nil
+}
+
+// infoWithFallback looks up package info, tolerating names brew cannot
+// describe. `brew info` fails as a whole when one name fails, for example an
+// installed formula Homebrew has since removed. Such names come back without a
+// description. When no name can be looked up, brew's own error is returned.
+func infoWithFallback(r Runner, names []string, isCask bool) ([]PackageInfo, error) {
+	infos, err := r.Info(names, isCask)
+	if err == nil || len(names) == 0 {
+		return infos, err
+	}
+	infos, described := infoBySplitting(r, names, isCask)
+	if described == 0 {
+		return nil, err
+	}
+	return infos, nil
+}
+
+// infoBySplitting looks up names whose combined lookup already failed. It
+// retries each half so a few bad names cost few brew calls. The second result
+// counts the names brew could describe.
+func infoBySplitting(r Runner, names []string, isCask bool) ([]PackageInfo, int) {
+	if len(names) == 1 {
+		pkgType := lo.Ternary(isCask, TypeCask, TypeFormula)
+		return []PackageInfo{{Name: names[0], Type: pkgType}}, 0
+	}
+
+	var all []PackageInfo
+	described := 0
+	middle := len(names) / 2
+	for _, half := range [][]string{names[:middle], names[middle:]} {
+		infos, err := r.Info(half, isCask)
+		count := len(half)
+		if err != nil {
+			infos, count = infoBySplitting(r, half, isCask)
+		}
+		all = append(all, infos...)
+		described += count
+	}
+	return all, described
 }
