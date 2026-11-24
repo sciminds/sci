@@ -278,7 +278,7 @@ func TestIntegrationWriting(t *testing.T) {
 	})
 
 	t.Run("myst builds PDF via typst", func(t *testing.T) {
-		runIn(t, result.ProjectDir, "npx", "mystmd", "build", "--pdf")
+		runIn(t, result.ProjectDir, "npx", "mystmd@latest", "build", "--pdf")
 		assertFileExists(t, filepath.Join(result.ProjectDir, "pdfs", "main.pdf"))
 	})
 }
@@ -309,7 +309,7 @@ func TestIntegrationWritingComposed(t *testing.T) {
 	})
 
 	t.Run("myst builds PDF via typst", func(t *testing.T) {
-		runIn(t, result.ProjectDir, "npx", "mystmd", "build", "--pdf")
+		runIn(t, result.ProjectDir, "npx", "mystmd@latest", "build", "--pdf")
 		assertFileExists(t, filepath.Join(result.ProjectDir, "pdfs", "main.pdf"))
 	})
 }

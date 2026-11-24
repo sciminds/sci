@@ -153,7 +153,7 @@ func BuildRenderArgs(_ Kind, ds DocSystem, target string) []string {
 		}
 		return args
 	case Myst:
-		return []string{"npx", "mystmd", "build", "--pdf"}
+		return []string{"npx", "mystmd@latest", "build", "--pdf"}
 	case TypstDoc:
 		return []string{"typst", "compile", "--root", ".", cmp.Or(target, "main.typ")}
 	default:
@@ -170,7 +170,7 @@ func BuildPreviewArgs(_ Kind, ds DocSystem) []string {
 	case Quarto:
 		return []string{"quarto", "preview"}
 	case Myst:
-		return []string{"npx", "mystmd", "start"}
+		return []string{"npx", "mystmd@latest", "start"}
 	case TypstDoc:
 		return []string{"tinymist", "preview", "main.typ"}
 	default:
