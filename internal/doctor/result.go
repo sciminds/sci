@@ -30,6 +30,8 @@ type DocResult struct {
 
 	// Update state — populated after the outdated-package check.
 	Outdated    []brew.OutdatedPackage
+	Ignored     []brew.OutdatedPackage
+	Pinned      []brew.OutdatedPackage
 	Upgraded    []brew.OutdatedPackage
 	UpdateError string
 
@@ -113,6 +115,8 @@ type jsonDocResult struct {
 	InstallError    string                 `json:"install_error,omitempty"`
 	InstallHint     string                 `json:"install_hint,omitempty"`
 	Outdated        []brew.OutdatedPackage `json:"outdated,omitempty"`
+	Ignored         []brew.OutdatedPackage `json:"ignored,omitempty"`
+	Pinned          []brew.OutdatedPackage `json:"pinned,omitempty"`
 	Upgraded        []brew.OutdatedPackage `json:"upgraded,omitempty"`
 	UpdateError     string                 `json:"update_error,omitempty"`
 	UpgradeCheck    UpgradeCheckReport     `json:"upgrade_check"`
@@ -168,6 +172,8 @@ func (r DocResult) JSON() any {
 		InstallError:    r.InstallError,
 		InstallHint:     r.installHint(),
 		Outdated:        r.Outdated,
+		Ignored:         r.Ignored,
+		Pinned:          r.Pinned,
 		Upgraded:        r.Upgraded,
 		UpdateError:     r.UpdateError,
 		UpgradeCheck:    upgradeCheck,

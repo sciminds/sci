@@ -61,16 +61,31 @@ func (r InstallResult) Human() string {
 // UpdateResult is returned by Update.
 type UpdateResult struct {
 	Outdated      []OutdatedPackage `json:"outdated"`
+	Ignored       []OutdatedPackage `json:"ignored"`
+	Pinned        []OutdatedPackage `json:"pinned"`
 	CheckOnly     bool              `json:"check_only"`
 	UpgradeOutput string            `json:"upgrade_output,omitempty"`
 }
 
-// JSON implements cmdutil.Result.
-func (r UpdateResult) JSON() any { return r }
+// JSON implements cmdutil.Result. Empty ignored and pinned lists encode as [],
+// not null.
+func (r UpdateResult) JSON() any {
+	if r.Ignored == nil {
+		r.Ignored = []OutdatedPackage{}
+	}
+	if r.Pinned == nil {
+		r.Pinned = []OutdatedPackage{}
+	}
+	return r
+}
 
 // Human implements cmdutil.Result.
 func (r UpdateResult) Human() string {
+	heldBack := HeldBack(r.Ignored, r.Pinned)
 	if len(r.Outdated) == 0 {
+		if heldBack != "" {
+			return "Nothing to upgrade.\n" + heldBack
+		}
 		return "Everything is up to date.\n"
 	}
 
@@ -81,10 +96,33 @@ func (r UpdateResult) Human() string {
 		fmt.Fprintf(&b, "Upgraded %d package(s):\n\n", len(r.Outdated))
 	}
 	for _, pkg := range r.Outdated {
-		arrow := uikit.TUI.TextPink().Render(" → ")
-		version := uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
-		fmt.Fprintf(&b, "  %s %s\n", pkg.Name, version)
+		fmt.Fprintf(&b, "  %s\n", versionChange(pkg))
 	}
+	b.WriteString(heldBack)
+	return b.String()
+}
+
+// versionChange renders a package as "name installed → current".
+func versionChange(pkg OutdatedPackage) string {
+	arrow := uikit.TUI.TextPink().Render(" → ")
+	return pkg.Name + " " + uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
+}
+
+// HeldBack renders the outdated packages sci will not upgrade, or "" when there
+// are none.
+func HeldBack(ignored, pinned []OutdatedPackage) string {
+	var b strings.Builder
+	section := func(label string, pkgs []OutdatedPackage) {
+		if len(pkgs) == 0 {
+			return
+		}
+		fmt.Fprintf(&b, "\n  %d %s package(s), not upgraded:\n", len(pkgs), label)
+		for _, pkg := range pkgs {
+			fmt.Fprintf(&b, "    %s\n", versionChange(pkg))
+		}
+	}
+	section("ignored", ignored)
+	section("pinned", pinned)
 	return b.String()
 }
 

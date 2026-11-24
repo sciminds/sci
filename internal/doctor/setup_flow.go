@@ -29,6 +29,8 @@ type SetupResult struct {
 	ToolsInstalled  []string
 	InstallError    string
 	Outdated        []brew.OutdatedPackage
+	Ignored         []brew.OutdatedPackage
+	Pinned          []brew.OutdatedPackage
 	Upgraded        []brew.OutdatedPackage
 	UpdateError     string
 	UpgradeCheck    UpgradeCheckReport
@@ -175,7 +177,13 @@ func RunSetup(ctx context.Context, r brew.Runner, brewfilePath string, created b
 	// Bounded: a stalled `brew update` must not hold the whole command (and,
 	// under --json, the envelope) hostage. On expiry we report the section as
 	// unknown and return everything else we learned.
-	check, err := brew.CheckUpdates(ctx, r)
+	// The ignore list is loaded here rather than passed in: a caller that forgot
+	// it would upgrade packages the user asked sci to leave alone.
+	var check brew.OutdatedCheck
+	ignored, err := brew.LoadIgnored()
+	if err == nil {
+		check, err = brew.CheckUpdates(ctx, r, ignored)
+	}
 	if err != nil {
 		result.UpdateError = err.Error()
 		result.UpgradeCheck = UpgradeCheckReport{
@@ -193,7 +201,12 @@ func RunSetup(ctx context.Context, r brew.Runner, brewfilePath string, created b
 	brewOutdated, uvOutdated := check.Brew, check.UV
 
 	result.Outdated = check.All()
+	result.Ignored, result.Pinned = check.Ignored, check.Pinned
+	heldBack := brew.HeldBack(check.Ignored, check.Pinned)
 	if len(result.Outdated) == 0 {
+		if !uikit.IsQuiet() {
+			fmt.Fprint(os.Stderr, heldBack)
+		}
 		return result
 	}
 
@@ -205,7 +218,7 @@ func RunSetup(ctx context.Context, r brew.Runner, brewfilePath string, created b
 			version := uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 			fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
 		}
-		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, heldBack)
 	}
 
 	// No prompt here: RunSetup is the non-interactive flow, and consent for the

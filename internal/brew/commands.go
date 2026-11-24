@@ -153,26 +153,28 @@ func List(file, pkgType string) (ListResult, error) {
 
 // Update refreshes the Homebrew registry and optionally upgrades outdated packages.
 // If checkOnly is true, it only lists outdated packages without upgrading.
-func Update(r Runner, checkOnly bool) (UpdateResult, error) {
+// Packages in ignored are reported but never upgraded.
+func Update(r Runner, ignored IgnoreList, checkOnly bool) (UpdateResult, error) {
 	if err := r.Update(); err != nil {
 		return UpdateResult{}, fmt.Errorf("brew update: %w", err)
 	}
 
-	check, err := checkOutdated(r)
+	check, err := checkOutdated(r, ignored)
 	if err != nil {
 		return UpdateResult{}, err
 	}
 	if checkOnly {
-		return UpdateResult{Outdated: check.All(), CheckOnly: true}, nil
+		return UpdateResult{Outdated: check.All(), Ignored: check.Ignored, Pinned: check.Pinned, CheckOnly: true}, nil
 	}
 	return upgradeChecked(r, check)
 }
 
 // UpgradeOnly upgrades outdated packages without refreshing the registry.
 // Use when the registry was already refreshed by an earlier Update call.
-func UpgradeOnly(r Runner) (UpdateResult, error) {
+// Packages in ignored are reported but never upgraded.
+func UpgradeOnly(r Runner, ignored IgnoreList) (UpdateResult, error) {
 	// Re-check what's outdated (fast — registry is already fresh).
-	check, err := checkOutdated(r)
+	check, err := checkOutdated(r, ignored)
 	if err != nil {
 		return UpdateResult{}, err
 	}
@@ -185,12 +187,13 @@ func upgradeChecked(r Runner, check OutdatedCheck) (UpdateResult, error) {
 	if err != nil {
 		return UpdateResult{}, err
 	}
-	return UpdateResult{Outdated: check.All(), UpgradeOutput: upgradeOut}, nil
+	return UpdateResult{Outdated: check.All(), Ignored: check.Ignored, Pinned: check.Pinned, UpgradeOutput: upgradeOut}, nil
 }
 
-// checkOutdated queries brew and uv outdated concurrently and sets pinned
-// packages apart from the upgradable ones.
-func checkOutdated(r Runner) (OutdatedCheck, error) {
+// checkOutdated queries brew and uv outdated concurrently and sets ignored and
+// pinned packages apart from the upgradable ones. A package that is both
+// counts as ignored.
+func checkOutdated(r Runner, ignored IgnoreList) (OutdatedCheck, error) {
 	var (
 		brewOutdated, uvOutdated []OutdatedPackage
 		brewErr, uvErr           error
@@ -207,10 +210,18 @@ func checkOutdated(r Runner) (OutdatedCheck, error) {
 		return OutdatedCheck{}, fmt.Errorf("uv outdated: %w", uvErr)
 	}
 
-	pinned, upgradable := lo.FilterReject(brewOutdated, func(p OutdatedPackage, _ int) bool {
+	isIgnored := func(p OutdatedPackage, _ int) bool { return ignored.Contains(p.Type, p.Name) }
+	brewIgnored, brewKept := lo.FilterReject(brewOutdated, isIgnored)
+	uvIgnored, uvUpgradable := lo.FilterReject(uvOutdated, isIgnored)
+	pinned, brewUpgradable := lo.FilterReject(brewKept, func(p OutdatedPackage, _ int) bool {
 		return p.Pinned
 	})
-	return OutdatedCheck{Brew: upgradable, UV: uvOutdated, Pinned: pinned}, nil
+	return OutdatedCheck{
+		Brew:    brewUpgradable,
+		UV:      uvUpgradable,
+		Ignored: slices.Concat(brewIgnored, uvIgnored),
+		Pinned:  pinned,
+	}, nil
 }
 
 // UpgradeBrew upgrades exactly the given Homebrew packages, formulae and casks

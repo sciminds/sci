@@ -138,6 +138,8 @@ func runDoctorCheck(ctx context.Context, cmd *cli.Command) error {
 		result.ToolsInstalled = setup.ToolsInstalled
 		result.InstallError = setup.InstallError
 		result.Outdated = setup.Outdated
+		result.Ignored = setup.Ignored
+		result.Pinned = setup.Pinned
 		result.Upgraded = setup.Upgraded
 		result.UpdateError = setup.UpdateError
 		result.UpgradeCheck = setup.UpgradeCheck
@@ -365,7 +367,11 @@ func mustReadFile(path string) string {
 func runDoctorUpdateCheck(ctx context.Context, runner brew.Runner) error {
 	fmt.Fprintf(os.Stderr, "\n  Checking for outdated packages…\n")
 
-	check, err := brew.CheckUpdates(ctx, runner)
+	var check brew.OutdatedCheck
+	ignored, err := brew.LoadIgnored()
+	if err == nil {
+		check, err = brew.CheckUpdates(ctx, runner, ignored)
+	}
 	if err != nil {
 		msg := "Could not check for updates: " + err.Error()
 		if errors.Is(err, brew.ErrCheckTimeout) {
@@ -377,7 +383,9 @@ func runDoctorUpdateCheck(ctx context.Context, runner brew.Runner) error {
 	}
 
 	outdated := check.All()
+	heldBack := brew.HeldBack(check.Ignored, check.Pinned)
 	if len(outdated) == 0 {
+		fmt.Fprint(os.Stderr, heldBack)
 		printDoctorClosing()
 		return nil
 	}
@@ -388,7 +396,7 @@ func runDoctorUpdateCheck(ctx context.Context, runner brew.Runner) error {
 		version := uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 		fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
 	}
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, heldBack)
 
 	upgradeErr := cmdutil.ConfirmYes("Upgrade outdated packages?")
 	if errors.Is(upgradeErr, cmdutil.ErrCancelled) {
@@ -402,7 +410,7 @@ func runDoctorUpdateCheck(ctx context.Context, runner brew.Runner) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "  Upgrading…\n")
-	_, err = brew.UpgradeOnly(runner)
+	_, err = brew.UpgradeOnly(runner, ignored)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s %s\n",
 			uikit.SymFail, uikit.TUI.Fail().Render("Upgrade failed: "+err.Error()))

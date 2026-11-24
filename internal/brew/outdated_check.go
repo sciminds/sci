@@ -38,6 +38,9 @@ type OutdatedCheck struct {
 	Brew []OutdatedPackage // upgradable formulae and casks
 	UV   []OutdatedPackage // upgradable uv tools
 
+	// Ignored packages have updates the user asked sci to leave alone.
+	Ignored []OutdatedPackage
+
 	// Pinned packages have updates that `brew pin` holds back.
 	Pinned []OutdatedPackage
 }
@@ -61,7 +64,7 @@ func (c OutdatedCheck) All() []OutdatedPackage {
 // That is the deliberate trade — sci's contract is that the command returns and
 // prints, and an orphaned read-only subprocess costs nothing next to a CLI that
 // produces zero bytes on both streams.
-func CheckUpdates(ctx context.Context, r Runner) (OutdatedCheck, error) {
+func CheckUpdates(ctx context.Context, r Runner, ignored IgnoreList) (OutdatedCheck, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, DefaultCheckTimeout)
@@ -81,7 +84,7 @@ func CheckUpdates(ctx context.Context, r Runner) (OutdatedCheck, error) {
 			done <- outcome{err: fmt.Errorf("brew update: %w", err)}
 			return
 		}
-		check, err := checkOutdated(r)
+		check, err := checkOutdated(r, ignored)
 		done <- outcome{check: check, err: err}
 	}()
 

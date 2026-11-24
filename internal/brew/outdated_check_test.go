@@ -22,7 +22,7 @@ func TestCheckUpdates_ReturnsWhenContextExpires(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	check, err := CheckUpdates(ctx, mock)
+	check, err := CheckUpdates(ctx, mock, nil)
 	if !errors.Is(err, ErrCheckTimeout) {
 		t.Fatalf("CheckUpdates err = %v, want ErrCheckTimeout", err)
 	}
@@ -41,7 +41,7 @@ func TestCheckUpdates_DeadlineElapses(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
 	defer cancel()
 
-	if _, err := CheckUpdates(ctx, mock); !errors.Is(err, ErrCheckTimeout) {
+	if _, err := CheckUpdates(ctx, mock, nil); !errors.Is(err, ErrCheckTimeout) {
 		t.Fatalf("CheckUpdates err = %v, want ErrCheckTimeout", err)
 	}
 }
@@ -54,7 +54,7 @@ func TestCheckUpdates_Success(t *testing.T) {
 		uvOutdatedResult: []OutdatedPackage{{Type: TypeUV, Name: "marimo", InstalledVersion: "0.22.4", CurrentVersion: "0.23.0"}},
 	}
 
-	check, err := CheckUpdates(t.Context(), mock)
+	check, err := CheckUpdates(t.Context(), mock, nil)
 	if err != nil {
 		t.Fatalf("CheckUpdates: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestCheckUpdates_Success(t *testing.T) {
 func TestCheckUpdates_UpdateError(t *testing.T) {
 	mock := &mockRunner{updateErr: errors.New("no such command")}
 
-	_, err := CheckUpdates(t.Context(), mock)
+	_, err := CheckUpdates(t.Context(), mock, nil)
 	if err == nil {
 		t.Fatal("expected an error when brew update fails")
 	}

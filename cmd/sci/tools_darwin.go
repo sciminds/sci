@@ -434,10 +434,15 @@ func runToolsUpdate(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
+	ignored, err := brew.LoadIgnored()
+	if err != nil {
+		return err
+	}
+
 	runner := brew.CLI{}
 
 	fmt.Fprintf(os.Stderr, "  Updating package registry…\n")
-	result, err := brew.Update(runner, false)
+	result, err := brew.Update(runner, ignored, false)
 	if err != nil {
 		return err
 	}
@@ -459,10 +464,15 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
+	ignored, err := brew.LoadIgnored()
+	if err != nil {
+		return err
+	}
+
 	runner := brew.CLI{}
 
 	fmt.Fprintf(os.Stderr, "  Checking for outdated packages…\n")
-	result, err := brew.Update(runner, true)
+	result, err := brew.Update(runner, ignored, true)
 	if err != nil {
 		return err
 	}
@@ -480,7 +490,7 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 		version := uikit.TUI.TextPink().Render(pkg.InstalledVersion) + arrow + pkg.CurrentVersion
 		fmt.Fprintf(os.Stderr, "    %s %s\n", pkg.Name, version)
 	}
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, brew.HeldBack(result.Ignored, result.Pinned))
 
 	upgradeErr := cmdutil.ConfirmYes("Upgrade outdated packages?")
 	if errors.Is(upgradeErr, cmdutil.ErrCancelled) {
@@ -494,7 +504,7 @@ func runToolsOutdated(_ context.Context, cmd *cli.Command) error {
 	}
 
 	fmt.Fprintf(os.Stderr, "  Upgrading…\n")
-	upgradeResult, err := brew.UpgradeOnly(runner)
+	upgradeResult, err := brew.UpgradeOnly(runner, ignored)
 	if err != nil {
 		return err
 	}

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/adrg/xdg"
 	"github.com/sciminds/sci/internal/brew"
 )
 
@@ -14,10 +15,24 @@ import (
 // in the package. checkIdentity auto-runs xet install when the binary is
 // present but not registered — without this guard, running the test suite
 // on a developer machine with git-xet installed would mutate the user's
-// global git config.
+// global git config. It also points sci's config at an empty directory, so
+// RunSetup never reads the developer's own ignore list.
 func TestMain(m *testing.M) {
 	gitXetInstallFn = func() error { return fmt.Errorf("test: gitXetInstallFn not stubbed") }
-	os.Exit(m.Run())
+	os.Exit(runWithEmptyConfig(m))
+}
+
+func runWithEmptyConfig(m *testing.M) int {
+	dir, err := os.MkdirTemp("", "sci-doctor-test")
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	if err := os.Setenv("XDG_CONFIG_HOME", dir); err != nil {
+		panic(err)
+	}
+	xdg.Reload()
+	return m.Run()
 }
 
 func TestBoolStatus(t *testing.T) {
