@@ -46,13 +46,17 @@ var hfTokenFn = func() (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), hfTokenTimeout)
 	defer cancel()
-	// Stdout carries the token; `hf` prints an unrelated hint on stderr.
-	out, err := exec.CommandContext(ctx, "hf", "auth", "token").CombinedOutput()
+	// Stdout carries the token; stderr carries hints on success and the
+	// reason on failure, so the two must not be mixed.
+	var stderr strings.Builder
+	cmd := exec.CommandContext(ctx, "hf", "auth", "token")
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
 	if err != nil {
 		if ctx.Err() != nil {
 			return "", fmt.Errorf("hf auth token: %w", ctx.Err())
 		}
-		message := strings.ToLower(string(out))
+		message := strings.ToLower(string(out) + stderr.String())
 		if strings.Contains(message, "not logged in") || strings.Contains(message, "no token found") {
 			return "", errNoToken
 		}
