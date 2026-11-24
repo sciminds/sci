@@ -7,7 +7,7 @@ Highlights:
 - Wraps `brew` and `uv` tool installs to reliably auto-sync with a `Brewfile`
 - TUIs for browsing: files, databases, hugging-face buckets, remote lab servers (ssh)
 - Drive your Zotero library from the terminal: search it and build bibliographies with no account or API key, and — with your own key — add papers by DOI or PDF, file them into collections, edit metadata, and tag them
-- Control Canvas LMS from the command-line (experimental): manage assignments, modules, grades, files, etc
+- Canvas LMS lives in the standalone [`cass`](https://eshinjolly.com/cass) CLI (`uv tool install cassroom`); sci no longer bundles it
 
 ## Install
 
@@ -41,7 +41,7 @@ Written in Go because:
 | Command | What it does |
 | --------- | -------------- |
 | [`sci doctor`](#sci-doctor) | Check that your system is set up correctly |
-| `sci setup` | Configure any sci tool (zot, lab, cass, …) from one menu |
+| `sci setup` | Configure any sci tool (zot, lab, …) from one menu |
 | `sci update` | Update sci to the latest version |
 | `sci help` | Interactive TUI with demos for any command |
 | `sci learn` | Interactive TUI to learn common terminal commands |
@@ -53,12 +53,6 @@ Written in Go because:
 | --------- | -------------- |
 | [`sci cloud`](#sci-cloud) | Up/download files to the SciMinds Hugging Face buckets (requires `hf auth`) |
 | [`sci lab`](#sci-lab) | Up/download files to university HPC storage over SFTP (requires VPN) |
-
-### Experimental
-
-| Command | What it does |
-| --------- | -------------- |
-| [`sci cass`](#sci-cass) | Canvas LMS & GitHub Classroom management |
 
 ---
 
@@ -281,34 +275,6 @@ Common video/audio editing operations. Wraps `ffmpeg` with sensible defaults.
 | `sci vid strip-subs` | Remove subtitles from a video |
 
 ![sci vid](docs/casts/vid-cut.gif)
-</details>
-
-### `sci cass`
-
-Canvas LMS & GitHub Classroom management.
-
-<details>
-<summary><b>sub-commands</b> — click to expand</summary>
-
-| Command | What it does |
-| --------- | -------------- |
-| `sci cass setup` | Save your Canvas API token (one-time) |
-| `sci cass init` | Create a `cass.yaml` config for a course directory |
-| `sci cass pull` | Fetch students, assignments, and submissions from Canvas/GitHub |
-| `sci cass status` | Show sync status, pending changes, and discrepancies |
-| `sci cass diff` | Show pending grade changes (local or `--remote` 3-way) |
-| `sci cass push` | Push grade changes to Canvas |
-| `sci cass match` | Interactively match GitHub usernames to Canvas students |
-| `sci cass revert` | Discard unpushed grade edits |
-| `sci cass log` | Show operation history |
-| `sci cass canvas modules` | List, create, publish, or delete course modules |
-| `sci cass canvas assignments` | List, create, publish, or delete assignments |
-| `sci cass canvas announce` | List, post, or delete announcements |
-| `sci cass canvas files` | List course files |
-
-Syncs course data to a local SQLite database (`cass.db`) with a git-like workflow: pull shows changelogs, diff shows pending grade changes, push sends grades to Canvas with conflict detection. GitHub Classroom is optional — works with Canvas-only courses.
-
-![sci cass](docs/casts/cass-pull.gif)
 </details>
 
 ### `sci zot`

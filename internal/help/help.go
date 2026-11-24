@@ -4,7 +4,6 @@ package help
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -42,12 +41,6 @@ type model struct {
 	width    int
 	height   int
 	quitting bool
-
-	// casts are the demos the open overlay can play and castIdx is which
-	// one is on screen. Length > 1 only for rows whose demos were recorded
-	// per child (see castsFor); "n" advances through them.
-	casts   []string
-	castIdx int
 }
 
 func newModel(groups []CommandGroup) *model {
@@ -170,12 +163,11 @@ func (m *model) updateSubs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.goBack()
 	case uikit.IntentOpen:
 		sub, ok := m.subs.SelectedItem().(SubCommand)
-		if !ok || len(sub.CastFiles) == 0 {
+		if !ok || sub.CastFile == "" {
 			m.subs.StatusMessage("no demo available")
 			break
 		}
-		m.casts = sub.CastFiles
-		return m.openCast(0)
+		return m.openCast(sub.CastFile)
 	}
 
 	var cmd tea.Cmd
@@ -183,10 +175,10 @@ func (m *model) updateSubs(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// openCast loads m.casts[i] into a fresh player and raises the overlay.
+// openCast loads the named cast into a fresh player and raises the overlay.
 // Errors surface on the level-1 list, which stays visible behind it.
-func (m *model) openCast(i int) (tea.Model, tea.Cmd) {
-	data, err := loadCast(m.casts[i])
+func (m *model) openCast(name string) (tea.Model, tea.Cmd) {
+	data, err := loadCast(name)
 	if err != nil {
 		m.subs.StatusMessage(fmt.Sprintf("error: %v", err))
 		return m, nil
@@ -200,7 +192,6 @@ func (m *model) openCast(i int) (tea.Model, tea.Cmd) {
 	visW := uikit.OverlayContentWidth(m.width)
 	m.player = uikit.NewCastPlayer(cast, visH)
 	m.player.SetWidth(visW)
-	m.castIdx = i
 	m.level = levelOverlay
 	return m, m.player.Init()
 }
@@ -225,12 +216,6 @@ func (m *model) updateOverlay(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.player = nil
 		m.level = levelSubs
 		return m, nil
-	case "n":
-		// Only meaningful when the row carries several demos; otherwise fall
-		// through so "n" stays available to the player.
-		if len(m.casts) > 1 {
-			return m.openCast((m.castIdx + 1) % len(m.casts))
-		}
 	}
 
 	var cmd tea.Cmd
@@ -384,31 +369,11 @@ func (m *model) View() tea.View {
 
 func (m *model) renderOverlay() string {
 	sub, _ := m.subs.SelectedItem().(SubCommand)
-	title := sub.Name
-	hints := []string{"space pause/play", "r restart", "esc close"}
-	// With several demos on one row, name the one playing and how to reach
-	// the rest — otherwise the others are as invisible as when nothing
-	// resolved to them at all.
-	if len(m.casts) > 1 {
-		title = fmt.Sprintf("%s — %s (%d/%d)",
-			sub.Name, castLabel(m.casts[m.castIdx]), m.castIdx+1, len(m.casts))
-		hints = slices.Concat([]string{"n next demo"}, hints)
-	}
 	return uikit.OverlayBox{
-		Title: title,
+		Title: sub.Name,
 		Body:  m.player.View(),
-		Hints: hints,
+		Hints: []string{"space pause/play", "r restart", "esc close"},
 	}.Render(m.width, m.height)
-}
-
-// castLabel turns a cast filename into the leaf verb it demos:
-// "cass-canvas-announce.cast" reads as "announce".
-func castLabel(name string) string {
-	base := strings.TrimSuffix(name, ".cast")
-	if i := strings.LastIndex(base, "-"); i >= 0 {
-		return base[i+1:]
-	}
-	return base
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────

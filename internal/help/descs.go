@@ -41,7 +41,7 @@ var longDescs = map[string]string{
 		"The reccs subcommand suggests useful optional tools — and apps narrows that to recommended GUI apps; " +
 		"like a lab-vetted 'App Store' for your terminal :)",
 
-	"setup": "One front door over every tool that needs configuring — lab storage, your Zotero library, Canvas. Shows what is already set up and what is not, then walks you through whichever you pick. Each tool still has its own setup command (`sci lab setup`, `sci zot setup`); this is the menu over all of them.",
+	"setup": "One front door over every tool that needs configuring — lab storage and your Zotero library. Shows what is already set up and what is not, then walks you through whichever you pick. Each tool still has its own setup command (`sci lab setup`, `sci zot setup`); this is the menu over all of them.",
 
 	"doctor": "Run a health check on your Mac to verify that required tools, " +
 		"runtimes, and configurations are present and correctly set up.",
@@ -56,11 +56,6 @@ var longDescs = map[string]string{
 	"learn": "Interactive guides to the terminal, git, and Python, with live demos " +
 		"you can watch and replay. A good starting point if you're new to the " +
 		"command-line or need a refresher — for sci's own commands, see `sci help`.",
-
-	"cass": "(Experimental) Manage Canvas LMS courses and GitHub Classroom assignments from the terminal. " +
-		"Pull student rosters, assignments, and submissions into a local SQLite database, " +
-		"edit grades locally, then push changes back to Canvas with conflict detection. " +
-		"GitHub Classroom is optional — works with Canvas-only courses too.",
 
 	"zot": "Query, cite, and manage your Zotero library. Reads come straight " +
 		"from your local Zotero database with no account or API key — fast search " +

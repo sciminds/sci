@@ -163,50 +163,6 @@ commands:
         bypass: "--apply"
         status: covered
 
-  # ── cass init ──────────────────────────────────────────────────────────────
-  cass-init:
-    file: cmd/sci/cass.go
-    prompts:
-      - id: canvas-url
-        type: uikit.FormInput
-        nth: 1
-        line: 179
-        description: "Canvas course URL"
-        bypass: "--canvas-url"
-        status: covered
-
-      - id: classroom-url
-        type: uikit.FormInput
-        nth: 2
-        line: 185
-        description: "GitHub Classroom URL"
-        bypass: "--classroom-url"
-        status: covered
-
-  # ── cass setup ─────────────────────────────────────────────────────────────
-  cass-setup:
-    file: cmd/sci/cass.go
-    prompts:
-      - id: canvas-token
-        type: uikit.InputInto
-        nth: 1
-        line: 101
-        description: "Canvas API token (password echo)"
-        bypass: "--token (required in --json mode)"
-        status: covered
-
-  # ── cass match ─────────────────────────────────────────────────────────────
-  cass-match:
-    file: internal/cass/match.go
-    prompts:
-      - id: match-github-user
-        type: uikit.Select
-        nth: 1
-        line: 290
-        description: "Manual roster match for ambiguous GitHub usernames"
-        bypass: "--auto (forced on under --json)"
-        status: covered
-
   # ── cloud browse (exempt) ──────────────────────────────────────────────────
   cloud-browse:
     file: internal/tui/cloudbrowse/cloudbrowse.go

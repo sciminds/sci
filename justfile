@@ -93,10 +93,6 @@ test-pkg PKG *ARGS:
 test-slow *ARGS:
     SLOW=1 go test ./internal/proj/new -v -timeout 10m -count=1 {{ARGS}}
 
-# Canvas + GitHub Classroom integration tests (requires CANVAS_TOKEN in .env and gh auth)
-test-canvas:
-    SLOW=1 CANVAS_TEST_TOKEN=$CANVAS_TOKEN CANVAS_TEST_URL="https://canvas.ucsd.edu/courses/63653" GH_CLASSROOM_TEST_URL="https://classroom.github.com/classrooms/232475786-test-classroom" go test ./internal/cass/ -run Integration -v -timeout 2m -count=1
-
 # Real-Zotero-DB smoke (opt-in; reads ./zotero.sqlite or $ZOT_REAL_DB)
 test-zot-real:
     SLOW=1 go test ./internal/local/ ./internal/zot/hygiene/ -v -count=1
@@ -158,8 +154,8 @@ ok-legacy: tidy fmt vet lint lint-docs lint-guard test build
 
 # Like `ok` but also runs proj/new integration tests (SLOW=1).
 # Requires pixi, uv, quarto, marimo, typst, node on PATH.
-# Does NOT run test-canvas / test-zot-real — those need
-# credentials or live infra and stay opt-in.
+# Does NOT run test-zot-real — it needs a real Zotero database and
+# stays opt-in.
 ok-slow: tidy fmt vet lint lint-style lint-docs lint-guard test test-slow build
     @echo "All checks (incl. slow) passed."
 
@@ -268,7 +264,7 @@ docs:
     open "http://localhost:6060/github.com/sciminds/sci"
     pkgsite -http=localhost:6060
 
-# Load .env into every recipe. This is what puts CANVAS_TOKEN (test-canvas)
-# and ZOT_REAL_DB (test-zot-real) on the environment without committing them.
+# Load .env into every recipe. This is what puts ZOT_REAL_DB (test-zot-real)
+# on the environment without committing it.
 set dotenv-load
 

@@ -42,7 +42,6 @@ just test-cloud      # just the cloud/lab command tests (sci cloud / sci lab); b
 just test-pkg PKG    # single-package fast TDD loop: just test-pkg ./internal/zot
 just test-race       # race pass; run before merging concurrency-sensitive changes
 just test-slow       # proj/new integration (SLOW=1, 10m timeout; needs pixi/uv/quarto/marimo/typst/node)
-just test-canvas     # cass integration (needs CANVAS_TOKEN in .env + gh auth login)
 just test-zot-real   # opt-in real-Zotero-DB smoke over ./zotero.sqlite or $ZOT_REAL_DB
 just docs-uikit      # regenerate internal/uikit/REFERENCE.md — run after touching uikit godoc
 just doc-coverage    # report gaps in user-facing CLI docs (casts, gifs, README embeds, help descriptions)
@@ -110,5 +109,4 @@ Every message reaching the program is dumped via go-spew, truncated per run. It'
 - `proj/new` integration tests skip unless `SLOW=1`.
 - marimo export exits non-zero for `mo.md()` cells — assert on the produced file, not the exit code.
 - `install.sh` must be POSIX sh (runs on bare Macs).
-- GitHub Classroom URL IDs are *org* IDs, not classroom IDs — `ResolveClassroomID` maps URL → API ID, cached in `cass.yaml` as `api_id`.
 - `internal/brew/`: no `brew bundle` in hot paths (use direct `brew` + `brew.CollectSnapshot`); the Brewfile is a *lockfile* — resolve via `brew.LocateBrewfile()`, don't hardcode the XDG default.

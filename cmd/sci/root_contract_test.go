@@ -76,7 +76,7 @@ func TestVersion_ResultCarriesTheBuildIdentity(t *testing.T) {
 // The list is explicit rather than derived from the tree: by the time
 // buildRoot() returns, WireNamespaceDefaults has already given every pure
 // namespace an Action, so "has no Action of its own" is no longer visible.
-// `sci cloud` / `sci lab` / `sci cass` share the behavior but their Before
+// `sci cloud` / `sci lab` share the behavior but their Before
 // hooks reach the network, so they stay out of the gate.
 func TestEveryNamespaceRefusesUnderJSON(t *testing.T) {
 	paths := []string{
